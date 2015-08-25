@@ -4,8 +4,9 @@ from eventsourcing.utils.time import utc_now
 
 class DomainEvent(object):
 
-    def __init__(self, timestamp=None, **kwargs):
+    def __init__(self, timestamp=None, entity_id=None, **kwargs):
         self.__dict__['timestamp'] = utc_now() if timestamp is None else timestamp
+        self.__dict__['entity_id'] = entity_id
         self.__dict__.update(kwargs)
 
     def __setattr__(self, key, value):
@@ -14,6 +15,10 @@ class DomainEvent(object):
     @property
     def timestamp(self):
         return self.__dict__['timestamp']
+
+    @property
+    def entity_id(self):
+        return self.__dict__['entity_id']
 
     def __eq__(self, rhs):
         if type(self) is not type(rhs):
@@ -24,7 +29,7 @@ class DomainEvent(object):
         return not (self == rhs)
 
     def __hash__(self):
-        return hash(tuple(itertools.chain(self.__dict__.items(), [type(self)])))
+        return hash(tuple(itertools.chain(sorted(self.__dict__.items()), [type(self)])))
 
     def __repr__(self):
         return self.__class__.__qualname__ + "(" + ', '.join(
