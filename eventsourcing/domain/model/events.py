@@ -1,3 +1,4 @@
+import itertools
 from eventsourcing.utils.time import utc_now
 
 
@@ -13,6 +14,21 @@ class DomainEvent(object):
     @property
     def timestamp(self):
         return self.__dict__['timestamp']
+
+    def __eq__(self, rhs):
+        if type(self) is not type(rhs):
+            return NotImplemented
+        return self.__dict__ == rhs.__dict__
+
+    def __ne__(self, rhs):
+        return not (self == rhs)
+
+    def __hash__(self):
+        return hash(tuple(itertools.chain(self.__dict__.items(), [type(self)])))
+
+    def __repr__(self):
+        return self.__class__.__qualname__ + "(" + ', '.join(
+            "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
 
 
 _event_handlers = {}

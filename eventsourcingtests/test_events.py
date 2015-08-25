@@ -49,16 +49,30 @@ class TestEvents(unittest.TestCase):
         predicate.assert_called_once_with(event)
         self.assertEqual(0, handler.call_count)
 
+    def test_equality_comparison(self):
+        event1 = ExampleEntity.ExampleDomainEvent(a=1, b=2, timestamp=3)
+        event2 = ExampleEntity.ExampleDomainEvent(a=1, b=2, timestamp=3)
+        event3 = ExampleEntity.ExampleDomainEvent(a=3, b=2, timestamp=3)
+        self.assertEqual(event1, event2)
+        self.assertNotEqual(event1, event3)
+        self.assertNotEqual(event2, event3)
 
-class ExampleDomainEvent(DomainEvent):
+    def test_repr(self):
+        event1 = ExampleEntity.ExampleDomainEvent(a=1, b=2, timestamp=3)
+        self.assertEqual('ExampleEntity.ExampleDomainEvent(a=1, b=2, timestamp=3)', repr(event1))
 
-    def __init__(self, a, b, **kwargs):
-        super().__init__(a=a, b=b, **kwargs)
 
-    @property
-    def a(self):
-        return self.__dict__['a']
+class ExampleEntity(object):
 
-    @property
-    def b(self):
-        return self.__dict__['b']
+    class ExampleDomainEvent(DomainEvent):
+
+        def __init__(self, a, b, **kwargs):
+            super().__init__(a=a, b=b, **kwargs)
+
+        @property
+        def a(self):
+            return self.__dict__['a']
+
+        @property
+        def b(self):
+            return self.__dict__['b']
