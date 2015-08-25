@@ -1,5 +1,5 @@
 language: python
 python:
   - "3.4"
-install: pip install . --use-mirrors
-script: python -m unittest discover eventsourcingtests
+install: pip install .
+script: python -m unittest discover eventsourcingtests -v
