@@ -6,7 +6,7 @@ from eventsourcing.domain.model.events import DomainEvent, subscribe, publish, u
 class TestEvents(unittest.TestCase):
 
     def test_events(self):
-        event = ExampleDomainEvent(a=1, b=2)
+        event = ExampleEntity.ExampleDomainEvent(a=1, b=2)
 
         # Check constructor keyword args lead to read-only attributes.
         self.assertEqual(1, event.a)
@@ -18,7 +18,7 @@ class TestEvents(unittest.TestCase):
         self.assertIsInstance(event.timestamp, float)
 
         # Check timestamp value can be given to domain events.
-        self.assertEqual(3, ExampleDomainEvent(a=1, b=2, timestamp=3).timestamp)
+        self.assertEqual(3, ExampleEntity.ExampleDomainEvent(a=1, b=2, timestamp=3).timestamp)
 
     def test_publish_subscribe(self):
         # Check subscribing event handlers with predicates.
