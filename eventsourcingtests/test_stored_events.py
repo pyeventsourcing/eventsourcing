@@ -8,14 +8,14 @@ from eventsourcingtests.test_domain_events import Example
 
 class TestStoredEvent(unittest.TestCase):
 
-    def test_stored_event_from_domain_event(self):
+    def test_serialize_domain_event(self):
         event1 = Example.Event(a=1, b=2, entity_id='entity1', timestamp=3)
         stored_event = serialize_domain_event(event1)
         self.assertEqual('entity1', stored_event.entity_id)
         self.assertEqual('eventsourcingtests.test_domain_events#Example.Event', stored_event.event_topic)
         self.assertEqual('{"a":1,"b":2,"entity_id":"entity1","timestamp":3}', stored_event.event_attrs)
 
-    def test_domain_event_from_stored_event(self):
+    def test_recreate_domain_event(self):
         stored_event = StoredEvent(event_id='1',
                                    entity_id='entity1',
                                    event_topic='eventsourcingtests.test_domain_events#Example.Event',
