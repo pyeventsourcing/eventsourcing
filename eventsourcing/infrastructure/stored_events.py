@@ -3,14 +3,14 @@ from collections import namedtuple
 import importlib
 import json
 import uuid
+
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import TopicResolutionError
-
 
 StoredEvent = namedtuple('StoredEvent', ['event_id', 'entity_id', 'event_topic', 'event_attrs'])
 
 
-class EventRepository(metaclass=ABCMeta):
+class StoredEventRepository(metaclass=ABCMeta):
 
     @abstractmethod
     def append(self, stored_event):
@@ -25,51 +25,54 @@ class EventRepository(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def events_for_entity_id(self, entity_id):
+    def get_entity_events(self, entity_id):
         raise NotImplementedError
 
     @abstractmethod
-    def events_for_topic(self, event_topic):
+    def get_topic_events(self, event_topic):
         raise NotImplementedError
 
 
-class InMemoryEventRepository(EventRepository):
+class InMemoryStoredEventRepository(StoredEventRepository):
 
     def __init__(self):
-        self.events_by_id = {}
-        self.events_by_entity_id = {}
-        self.events_by_topic = {}
+        self._by_id = {}
+        self._by_entity_id = {}
+        self._by_topic = {}
 
     def append(self, stored_event):
         assert isinstance(stored_event, StoredEvent)
+        event_id = stored_event.event_id
+        entity_id = stored_event.entity_id
+        topic = stored_event.event_topic
 
         # Store the event by event ID.
-        self.events_by_id[stored_event.event_id] = stored_event
+        self._by_id[event_id] = stored_event
 
         # Append the event to list for entity ID.
-        if stored_event.entity_id not in self.events_by_entity_id:
-            self.events_by_entity_id[stored_event.entity_id] = []
-        entity_events = self.events_by_entity_id[stored_event.entity_id]
-        entity_events.append(stored_event)
+        if entity_id not in self._by_entity_id:
+            self._by_entity_id[entity_id] = []
+        self._by_entity_id[entity_id].append(stored_event)
 
         # Append the event to list for event topic.
-        if stored_event.event_topic not in self.events_by_topic:
-            self.events_by_topic[stored_event.event_topic] = []
-        topic_events = self.events_by_topic[stored_event.event_topic]
-        topic_events.append(stored_event)
-
+        if topic not in self._by_topic:
+            self._by_topic[topic] = []
+        self._by_topic[topic].append(stored_event)
 
     def __getitem__(self, event_id):
-        return self.events_by_id[event_id]
+        return self._by_id[event_id]
 
     def __contains__(self, event_id):
-        return event_id in self.events_by_id
+        return event_id in self._by_id
 
-    def events_for_entity_id(self, entity_id):
-        return self.events_by_entity_id[entity_id]
+    def get_entity_events(self, entity_id):
+        if entity_id not in self._by_entity_id:
+            return []
+        else:
+            return self._by_entity_id[entity_id]
 
-    def events_for_topic(self, event_topic):
-        return self.events_by_topic[event_topic]
+    def get_topic_events(self, event_topic):
+        return self._by_topic[event_topic]
 
 
 def serialize_domain_event(domain_event):

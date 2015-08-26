@@ -2,7 +2,7 @@ import unittest
 
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.infrastructure.stored_events import serialize_domain_event, recreate_domain_event, \
-    resolve_event_topic, StoredEvent, InMemoryEventRepository
+    resolve_event_topic, StoredEvent, InMemoryStoredEventRepository
 from eventsourcingtests.test_domain_events import Example
 
 
@@ -40,8 +40,8 @@ class TestStoredEvent(unittest.TestCase):
 class TestStoredEventRepository(unittest.TestCase):
 
     def test(self):
-        stored_event_repo = InMemoryEventRepository()
-        
+        stored_event_repo = InMemoryStoredEventRepository()
+
         # Store an event for 'entity1'.
         stored_event1 = StoredEvent(event_id='1',
                                     entity_id='entity1',
@@ -63,7 +63,7 @@ class TestStoredEventRepository(unittest.TestCase):
         stored_event_repo.append(stored_event2)
 
         # Get all events for 'entity1'.
-        events = stored_event_repo.events_for_entity_id('entity1')
+        events = stored_event_repo.get_entity_events('entity1')
         self.assertEqual(2, len(events))
         first = events[0]
         self.assertIsInstance(first, StoredEvent)
