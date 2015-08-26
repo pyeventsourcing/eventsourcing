@@ -75,6 +75,24 @@ class InMemoryStoredEventRepository(StoredEventRepository):
         return self._by_topic[event_topic]
 
 
+class SqlalchemyStoredEventRepository(StoredEventRepository):
+
+    def append(self, stored_event):
+        pass
+
+    def __contains__(self, item):
+        pass
+
+    def __getitem__(self, item):
+        pass
+
+    def get_entity_events(self, entity_id):
+        pass
+
+    def get_topic_events(self, event_topic):
+        pass
+
+
 def serialize_domain_event(domain_event):
     """Serializes a domain event into a stored event.
 
