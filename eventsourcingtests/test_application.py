@@ -8,7 +8,7 @@ from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubsc
 from eventsourcing.infrastructure.stored_events import StoredEventRepository
 
 
-class TestEventSourceApplication(unittest.TestCase):
+class TestEventSourcedApplication(unittest.TestCase):
 
     def test(self):
         # Setup an event sourced application, use it as a context manager.
