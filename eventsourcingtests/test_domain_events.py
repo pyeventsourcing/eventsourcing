@@ -81,3 +81,9 @@ class Example(object):
         @property
         def b(self):
             return self.__dict__['b']
+
+    def __init__(self, event):
+        self.id = event.entity_id
+        self.a = event.a
+        self.b = event.b
+        self.created = event.timestamp
