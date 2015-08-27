@@ -1,4 +1,4 @@
-from abc import abstractproperty, ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod
 from eventsourcing.infrastructure.event_player import EventPlayer
 
 

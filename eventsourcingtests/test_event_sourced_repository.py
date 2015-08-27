@@ -1,38 +1,30 @@
 import unittest
-import uuid
-from eventsourcing.domain.model.events import publish
 
-from eventsourcing.infrastructure.event_source_repo import EventSourcedRepository
+from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepository
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.stored_events import InMemoryStoredEventRepository
-from eventsourcingtests.test_domain_events import Example
-from eventsourcingtests.test_event_player import example_mutator
-
-
-class ExampleRepository(EventSourcedRepository):
-
-    def get_mutator(self):
-        return example_mutator
-
-
-def register_new_example(a, b):
-    entity_id = uuid.uuid4().hex
-    event = Example.Event(entity_id=entity_id, a=a, b=b)
-    entity = example_mutator(None, event)
-    publish(event)
-    return entity
+from eventsourcing.domain.model.example import Example
 
 
 class TestEventSourcedRepository(unittest.TestCase):
 
     def test(self):
+        # Setup an event store.
         stored_event_repo = InMemoryStoredEventRepository()
         event_store = EventStore(stored_event_repo=stored_event_repo)
-        example_repo = ExampleRepository(event_store=event_store)
 
+        # Put an event in the event store.
         entity_id = 'entity1'
         event_store.append(Example.Event(entity_id=entity_id, a=1, b=2))
 
+        # Setup an example repository.
+        example_repo = ExampleRepository(event_store=event_store)
+
+        # Check the repo has the example.
         self.assertIn(entity_id, example_repo)
-        self.assertEqual(1, example_repo[entity_id].a)
-        self.assertEqual(2, example_repo[entity_id].b)
+
+        # Check the entity attributes.
+        example = example_repo[entity_id]
+        self.assertEqual(1, example.a)
+        self.assertEqual(2, example.b)
+        self.assertEqual(entity_id, example.id)

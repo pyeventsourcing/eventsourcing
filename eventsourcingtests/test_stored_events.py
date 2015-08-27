@@ -2,8 +2,8 @@ import unittest
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.infrastructure.stored_events import serialize_domain_event, recreate_domain_event, \
     resolve_event_topic, StoredEvent, InMemoryStoredEventRepository
-from eventsourcing.infrastructure.stored_events_sqlalchemy import SqlalchemyStoredEventRepository, get_scoped_session
-from eventsourcingtests.test_domain_events import Example
+from eventsourcing.infrastructure.stored_events_sqlalchemy import SQLAlchemyStoredEventRepository, get_scoped_session
+from eventsourcing.domain.model.example import Example
 
 
 class TestStoredEvent(unittest.TestCase):
@@ -12,13 +12,13 @@ class TestStoredEvent(unittest.TestCase):
         event1 = Example.Event(a=1, b=2, entity_id='entity1', timestamp=3)
         stored_event = serialize_domain_event(event1)
         self.assertEqual('entity1', stored_event.entity_id)
-        self.assertEqual('eventsourcingtests.test_domain_events#Example.Event', stored_event.event_topic)
+        self.assertEqual('eventsourcing.domain.model.example#Example.Event', stored_event.event_topic)
         self.assertEqual('{"a":1,"b":2,"entity_id":"entity1","timestamp":3}', stored_event.event_attrs)
 
     def test_recreate_domain_event(self):
         stored_event = StoredEvent(event_id='1',
                                    entity_id='entity1',
-                                   event_topic='eventsourcingtests.test_domain_events#Example.Event',
+                                   event_topic='eventsourcing.domain.model.example#Example.Event',
                                    event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":3}')
         domain_event = recreate_domain_event(stored_event)
         self.assertIsInstance(domain_event, Example.Event)
@@ -28,12 +28,12 @@ class TestStoredEvent(unittest.TestCase):
         self.assertEqual(3, domain_event.timestamp)
 
     def test_resolve_event_topic(self):
-        example_topic = 'eventsourcingtests.test_domain_events#Example.Event'
+        example_topic = 'eventsourcing.domain.model.example#Example.Event'
         actual = resolve_event_topic(example_topic)
         self.assertEqual(Example.Event, actual)
         example_topic = 'xxxxxxxxxxxxx#Example.Event'
         self.assertRaises(TopicResolutionError, resolve_event_topic, example_topic)
-        example_topic = 'eventsourcingtests.test_domain_events#Xxxxxxxx.Xxxxxxxx'
+        example_topic = 'eventsourcing.domain.model.example#Xxxxxxxx.Xxxxxxxx'
         self.assertRaises(TopicResolutionError, resolve_event_topic, example_topic)
 
 
@@ -43,7 +43,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         # Store an event for 'entity1'.
         stored_event1 = StoredEvent(event_id='1',
                                     entity_id='entity1',
-                                    event_topic='eventsourcingtests.test_domain_events#Example.Event',
+                                    event_topic='eventsourcing.domain.model.example#Example.Event',
                                     event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":3}')
         stored_event_repo.append(stored_event1)
 
@@ -54,7 +54,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         # Store another event for 'entity1'.
         stored_event2 = StoredEvent(event_id='2',
                                     entity_id='entity1',
-                                    event_topic='eventsourcingtests.test_domain_events#Example.Event',
+                                    event_topic='eventsourcing.domain.model.example#Example.Event',
                                     event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":4}')
         stored_event_repo.append(stored_event2)
 
@@ -71,7 +71,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         self.assertEqual(stored_event2.event_attrs, events[1].event_attrs)
 
         # Get all events for the topic.
-        events = stored_event_repo.get_topic_events('eventsourcingtests.test_domain_events#Example.Event')
+        events = stored_event_repo.get_topic_events('eventsourcing.domain.model.example#Example.Event')
         self.assertEqual(2, len(events))
         # - check the first event
         self.assertIsInstance(events[0], StoredEvent)
@@ -89,9 +89,8 @@ class TestInMemoryStoredEventRepository(StoredEventRepositoryTestCase):
         self.assertStoredEventRepositoryImplementation(InMemoryStoredEventRepository())
 
 
-
-class TestSqlalchemyStoredEventRepository(StoredEventRepositoryTestCase):
+class TestSQLAlchemyStoredEventRepository(StoredEventRepositoryTestCase):
 
     def test(self):
-        stored_event_repo = SqlalchemyStoredEventRepository(get_scoped_session())
+        stored_event_repo = SQLAlchemyStoredEventRepository(get_scoped_session())
         self.assertStoredEventRepositoryImplementation(stored_event_repo)

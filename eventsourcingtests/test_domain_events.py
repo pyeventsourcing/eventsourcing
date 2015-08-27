@@ -1,6 +1,8 @@
 import unittest
 from unittest import mock
-from eventsourcing.domain.model.events import DomainEvent, subscribe, publish, unsubscribe
+
+from eventsourcing.domain.model.events import subscribe, publish, unsubscribe
+from eventsourcing.domain.model.example import Example
 
 
 class TestEvents(unittest.TestCase):
@@ -65,26 +67,3 @@ class TestEvents(unittest.TestCase):
     def test_repr(self):
         event1 = Example.Event(a=1, b=2, timestamp=3)
         self.assertEqual('Example.Event(a=1, b=2, entity_id=None, timestamp=3)', repr(event1))
-
-
-class Example(object):
-
-    class Event(DomainEvent):
-
-        def __init__(self, a, b, **kwargs):
-            super().__init__(a=a, b=b, **kwargs)
-
-        @property
-        def a(self):
-            return self.__dict__['a']
-
-        @property
-        def b(self):
-            return self.__dict__['b']
-
-    def __init__(self, event):
-        assert isinstance(event, Example.Event), event
-        self.id = event.entity_id
-        self.a = event.a
-        self.b = event.b
-        self.created_on = event.timestamp
