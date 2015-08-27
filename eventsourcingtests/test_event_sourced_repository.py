@@ -11,8 +11,7 @@ from eventsourcingtests.test_event_player import example_mutator
 
 class ExampleRepository(EventSourcedRepository):
 
-    @property
-    def mutator(self, entity, event):
+    def get_mutator(self):
         return example_mutator
 
 

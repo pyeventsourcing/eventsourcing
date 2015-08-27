@@ -32,6 +32,7 @@ Inspiration:
  
 * Robert Smallshire's example code on Bitbucket https://bitbucket.org/sixty-north/d5-kanban-python/src
 
+
 ## Features
 
 * Domain event object class
