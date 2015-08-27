@@ -10,5 +10,8 @@ setup(
         'eventsourcing/infrastructure',
         'eventsourcingtests',
     ],
+    requires=[
+        'sqlalchemy',
+    ],
     zip_safe=False,
 )
