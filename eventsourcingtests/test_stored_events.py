@@ -2,7 +2,7 @@ import unittest
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.infrastructure.stored_events import serialize_domain_event, recreate_domain_event, \
     resolve_event_topic, StoredEvent, InMemoryStoredEventRepository
-from eventsourcing.infrastructure.stored_events_sqlalchemy import SqlalchemyStoredEventRepository, get_db_session
+from eventsourcing.infrastructure.stored_events_sqlalchemy import SqlalchemyStoredEventRepository, get_scoped_session
 from eventsourcingtests.test_domain_events import Example
 
 
@@ -93,5 +93,5 @@ class TestInMemoryStoredEventRepository(StoredEventRepositoryTestCase):
 class TestSqlalchemyStoredEventRepository(StoredEventRepositoryTestCase):
 
     def test(self):
-        stored_event_repo = SqlalchemyStoredEventRepository(get_db_session())
+        stored_event_repo = SqlalchemyStoredEventRepository(get_scoped_session())
         self.assertStoredEventRepositoryImplementation(stored_event_repo)

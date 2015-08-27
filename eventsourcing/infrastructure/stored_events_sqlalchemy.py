@@ -9,7 +9,7 @@ from eventsourcing.infrastructure.stored_events import StoredEventRepository, St
 scoped_session_facade = None
 
 
-def get_db_session(uri='sqlite:///:memory:'):
+def get_scoped_session(uri='sqlite:///:memory:'):
     global scoped_session_facade
     if scoped_session_facade is None:
         engine = create_engine(uri)
@@ -23,7 +23,9 @@ Base = declarative_base()
 
 
 class SqlStoredEvent(Base):
+
     __tablename__ = 'stored_events'
+
     id = Column(Integer, Sequence('stored_event_id_seq'), primary_key=True)
     event_id = Column(String(), index=True)
     entity_id = Column(String(), index=True)
