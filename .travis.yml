@@ -1,5 +1,5 @@
 language: python
 python:
   - "3.4"
-install: pip install .
+install: pip install -r requirements.txt
 script: python -m unittest discover eventsourcingtests -v

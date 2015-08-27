@@ -1,8 +1,8 @@
 import unittest
-
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.infrastructure.stored_events import serialize_domain_event, recreate_domain_event, \
     resolve_event_topic, StoredEvent, InMemoryStoredEventRepository
+from eventsourcing.infrastructure.stored_events_sqlalchemy import SqlalchemyStoredEventRepository, get_scoped_session
 from eventsourcingtests.test_domain_events import Example
 
 
@@ -37,18 +37,14 @@ class TestStoredEvent(unittest.TestCase):
         self.assertRaises(TopicResolutionError, resolve_event_topic, example_topic)
 
 
-class TestStoredEventRepository(unittest.TestCase):
+class StoredEventRepositoryTestCase(unittest.TestCase):
 
-    def test(self):
-        stored_event_repo = InMemoryStoredEventRepository()
-
+    def assertStoredEventRepositoryImplementation(self, stored_event_repo):
         # Store an event for 'entity1'.
         stored_event1 = StoredEvent(event_id='1',
                                     entity_id='entity1',
                                     event_topic='eventsourcingtests.test_domain_events#Example.Event',
                                     event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":3}')
-
-        # Append the event to the repo.
         stored_event_repo.append(stored_event1)
 
         # Check the repo contains the event.
@@ -65,7 +61,37 @@ class TestStoredEventRepository(unittest.TestCase):
         # Get all events for 'entity1'.
         events = stored_event_repo.get_entity_events('entity1')
         self.assertEqual(2, len(events))
-        first = events[0]
-        self.assertIsInstance(first, StoredEvent)
-        self.assertEqual(stored_event1.event_topic, first.event_topic)
-        self.assertEqual(stored_event1.event_attrs, first.event_attrs)
+        # - check the first event
+        self.assertIsInstance(events[0], StoredEvent)
+        self.assertEqual(stored_event1.event_topic, events[0].event_topic)
+        self.assertEqual(stored_event1.event_attrs, events[0].event_attrs)
+        # - check the second event
+        self.assertIsInstance(events[1], StoredEvent)
+        self.assertEqual(stored_event2.event_topic, events[1].event_topic)
+        self.assertEqual(stored_event2.event_attrs, events[1].event_attrs)
+
+        # Get all events for the topic.
+        events = stored_event_repo.get_topic_events('eventsourcingtests.test_domain_events#Example.Event')
+        self.assertEqual(2, len(events))
+        # - check the first event
+        self.assertIsInstance(events[0], StoredEvent)
+        self.assertEqual(stored_event1.event_topic, events[0].event_topic)
+        self.assertEqual(stored_event1.event_attrs, events[0].event_attrs)
+        # - check the second event
+        self.assertIsInstance(events[1], StoredEvent)
+        self.assertEqual(stored_event2.event_topic, events[1].event_topic)
+        self.assertEqual(stored_event2.event_attrs, events[1].event_attrs)
+
+
+class TestInMemoryStoredEventRepository(StoredEventRepositoryTestCase):
+
+    def test(self):
+        self.assertStoredEventRepositoryImplementation(InMemoryStoredEventRepository())
+
+
+
+class TestSqlalchemyStoredEventRepository(StoredEventRepositoryTestCase):
+
+    def test(self):
+        stored_event_repo = SqlalchemyStoredEventRepository(get_scoped_session())
+        self.assertStoredEventRepositoryImplementation(stored_event_repo)

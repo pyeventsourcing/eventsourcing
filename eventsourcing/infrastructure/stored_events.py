@@ -59,11 +59,11 @@ class InMemoryStoredEventRepository(StoredEventRepository):
             self._by_topic[topic] = []
         self._by_topic[topic].append(stored_event)
 
-    def __getitem__(self, event_id):
-        return self._by_id[event_id]
+    def __getitem__(self, item):
+        return self._by_id[item]
 
-    def __contains__(self, event_id):
-        return event_id in self._by_id
+    def __contains__(self, item):
+        return item in self._by_id
 
     def get_entity_events(self, entity_id):
         if entity_id not in self._by_entity_id:
