@@ -34,41 +34,49 @@ Inspiration:
 
 ## Features
 
-* Domain event class
+* Domain event object class
 
-* Stored event class
+* Function to get the event topic from a domain event class
 
-* Function to get the event topic from a domain event
+* Function to resolve an event topic into a domain event class
 
 * Function to serialize a domain event to a stored event
 
-* Function to recreate domain event from stored event
+* Function to recreate a domain event from a stored event
 
-* Retrieval of all events for given entity ID
+* Stored event object class
 
-* Retrieval of all events for given event topic
+* Abstract base class for stored event repository
 
-* Retrieval of single event for given event ID
+* Retrieval of all domain events for given domain entity ID
 
-* Abstract base class for stored event repository, and implementations for SQLAlchemy and Cassandra
+* Retrieval of all domain events for given domain event topic
+
+* Retrieval of single domain event for given event ID
+
+* Deletion of all domain events for given domain entity ID (forthcoming)
+
+* In-memory (simple Python object based) stored event repository
+
+* SQLAlchemy stored event repository
 
 * ORM for stored event in SQLAlchemy
+
+* Cassandra stored event repository (forthcoming)
 
 * Column family for stored event in Cassandra (forthcoming)
 
 * Event store class, to append domain events to a stored event repository
 
-* Persistence subscriber class, listens for domain events and writes to an event store
-
 * Publish-subscribe mechanism, for in-process domain event propagation
 
-* Event sourced entity class, has domain events and a mutator that applies domain events to update instance state
+* Persistence subscriber class
 
-* Event player class, to reconstitute a domain entity by replaying all its domain events through a mutator
+* Abstract base class for event-sourced domain entities
 
-* Event sourced repository class, uses the event player for a particular domain entity class
+* Event player
 
-* Delete all events for given entity ID (forthcoming)
+* Abstract base class for event-sourced repositories
 
 * Snapshots of entity state at specific version (forthcoming)
 

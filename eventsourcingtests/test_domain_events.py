@@ -83,7 +83,8 @@ class Example(object):
             return self.__dict__['b']
 
     def __init__(self, event):
+        assert isinstance(event, Example.Event), event
         self.id = event.entity_id
         self.a = event.a
         self.b = event.b
-        self.created = event.timestamp
+        self.created_on = event.timestamp

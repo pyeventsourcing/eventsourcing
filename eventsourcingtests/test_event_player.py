@@ -21,8 +21,7 @@ class TestEventPlayer(unittest.TestCase):
         event_store.append(event4)
         # Check the event sourced entities are correct.
         # - just use a trivial mutator that always instantiates the 'Example'.
-        mutator = lambda entity, event: Example(event)
-        event_player = EventPlayer(event_store=event_store, mutator=mutator)
+        event_player = EventPlayer(event_store=event_store, mutator=example_mutator)
         self.assertEqual('entity1', event_player['entity1'].id)
         self.assertEqual(1, event_player['entity1'].a)
         self.assertEqual(2, event_player['entity2'].a)
@@ -32,3 +31,5 @@ class TestEventPlayer(unittest.TestCase):
 
         # Check non-registered entity ID causes a KeyError.
         self.assertRaises(KeyError, event_player.__getitem__, 'entity4')
+
+example_mutator = lambda entity, event: Example(event)
