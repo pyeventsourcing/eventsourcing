@@ -1,7 +1,7 @@
 import unittest
 from eventsourcing.infrastructure.stored_events import InMemoryStoredEventRepository
 from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcingtests.test_domain_events import Example
+from eventsourcing.domain.model.example import Example
 
 
 class TestEventStore(unittest.TestCase):

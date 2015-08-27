@@ -1,8 +1,9 @@
 import unittest
+
 from eventsourcing.infrastructure.event_player import EventPlayer
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.stored_events import InMemoryStoredEventRepository
-from eventsourcingtests.test_domain_events import Example
+from eventsourcing.domain.model.example import Example, example_mutator
 
 
 class TestEventPlayer(unittest.TestCase):
@@ -31,5 +32,3 @@ class TestEventPlayer(unittest.TestCase):
 
         # Check non-registered entity ID causes a KeyError.
         self.assertRaises(KeyError, event_player.__getitem__, 'entity4')
-
-example_mutator = lambda entity, event: Example(event)
