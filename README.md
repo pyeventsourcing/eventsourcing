@@ -61,26 +61,30 @@ Inspiration:
 
 * SQLAlchemy stored event repository
 
-* ORM for stored event in SQLAlchemy
+* SQLAlchemy ORM model for stored events
 
 * Cassandra stored event repository (forthcoming)
 
-* Column family for stored event in Cassandra (forthcoming)
+* Cassandra column family for stored events (forthcoming)
 
 * Event store class, to append domain events to a stored event repository
 
 * Publish-subscribe mechanism, for in-process domain event propagation
 
-* Persistence subscriber class
+* Persistence subscriber class, to receive published domain events and append them to an event store
 
 * Abstract base class for event-sourced domain entities
 
-* Event player
+* Event player, to return a recreated domain entity for a given domain entity mutator and entity ID
 
 * Abstract base class for event-sourced repositories
 
-* Snapshots of entity state at specific version (forthcoming)
+* Snapshots of entity state at specific version, to avoid replaying all events (forthcoming)
 
 * Optimised retrieval of all events for given entity ID, from given version of the entity (forthcoming)
 
 * Update stored event (domain model migration) (forthcoming)
+
+* Application object class to hold the persistence subscriber, event sourced repositories, entity factory method
+
+* Examples
