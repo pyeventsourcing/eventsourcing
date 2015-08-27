@@ -4,14 +4,14 @@
 
 ## Install
 
-Use pip to install the latest release from Python Package Index (PyPI):
+Use pip to install the latest release from Python Package Index:
 
     pip install eventsourcing
 
 
 ## Development
 
-The project is hosted on github:
+The project is hosted on GitHub:
 
     https://github.com/johnbywater/eventsourcing
 
@@ -28,10 +28,10 @@ Inspiration:
 
 * Martin Fowler's article on event sourcing http://martinfowler.com/eaaDev/EventSourcing.html
 
-* Greg Young's articles (various) and EventStore code https://geteventstore.com/
- 
 * Robert Smallshire's example code on Bitbucket https://bitbucket.org/sixty-north/d5-kanban-python/src
 
+* Greg Young's articles (various) and EventStore code https://geteventstore.com/
+ 
 
 ## Features
 
@@ -49,23 +49,19 @@ Inspiration:
 
 * Abstract base class for stored event repository
 
-* Retrieval of all domain events for given domain entity ID
+* Method to get of all domain events for given domain entity ID
 
-* Retrieval of all domain events for given domain event topic
+* Method to get all domain events for given domain event topic
 
-* Retrieval of single domain event for given event ID
+* Method to get single domain event for given event ID
 
-* Deletion of all domain events for given domain entity ID (forthcoming)
+* Method to delete of all domain events for given domain entity ID (forthcoming)
 
-* In-memory (simple Python object based) stored event repository
+* In-memory stored event repository, using simple Python objects
 
-* SQLAlchemy stored event repository
+* SQLAlchemy stored event repository, with ORM model for stored events
 
-* SQLAlchemy ORM model for stored events
-
-* Cassandra stored event repository (forthcoming)
-
-* Cassandra column family for stored events (forthcoming)
+* Cassandra stored event repository, with Cassandra column family for stored events (forthcoming)
 
 * Event store class, to append domain events to a stored event repository
 
@@ -73,7 +69,7 @@ Inspiration:
 
 * Persistence subscriber class, to receive published domain events and append them to an event store
 
-* Abstract base class for event-sourced domain entities
+* Abstract base class for event-sourced entities
 
 * Event player, to return a recreated domain entity for a given domain entity mutator and entity ID
 
@@ -81,7 +77,7 @@ Inspiration:
 
 * Snapshots of entity state at specific version, to avoid replaying all events (forthcoming)
 
-* Optimised retrieval of all events for given entity ID, from given version of the entity (forthcoming)
+* Retrieval of all events for given entity ID, from given version of the entity (forthcoming)
 
 * Update stored event (domain model migration) (forthcoming)
 
