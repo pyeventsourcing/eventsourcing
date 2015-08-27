@@ -6,16 +6,14 @@ from sqlalchemy.sql.schema import Column, Sequence
 from sqlalchemy.sql.sqltypes import Integer, String
 from eventsourcing.infrastructure.stored_events import StoredEventRepository, StoredEvent
 
-scoped_session_facade = None
 
-
-def get_scoped_session(uri='sqlite:///:memory:'):
-    global scoped_session_facade
-    if scoped_session_facade is None:
-        engine = create_engine(uri)
-        Base.metadata.create_all(engine)
-        session_factory = sessionmaker(bind=engine)
-        scoped_session_facade = scoped_session(session_factory)
+def get_scoped_session_facade(uri=None):
+    if uri is None:
+        uri = 'sqlite:///:memory:'
+    engine = create_engine(uri)
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine)
+    scoped_session_facade = scoped_session(session_factory)
     return scoped_session_facade
 
 
@@ -34,7 +32,7 @@ class SqlStoredEvent(Base):
 
     def __repr__(self):
         return "<SqlStoredEvent(id='%s', event_id='%s', entity_id='%s', event_topic='%s', event_attrs='%s')>" % (
-                                self.id, self.event_id, self.entity_id, self.event_topic, self.event_attrs)
+            self.id, self.event_id, self.entity_id, self.event_topic, self.event_attrs)
 
 
 def stored_from_sql(sql_stored_event):

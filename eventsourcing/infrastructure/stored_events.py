@@ -88,7 +88,7 @@ def serialize_domain_event(domain_event):
         AssertionError: If the domain event object is not an instance of DomainEvent.
     """
     assert isinstance(domain_event, DomainEvent)
-    event_id = uuid.uuid4()
+    event_id = uuid.uuid4().hex
     entity_id = domain_event.entity_id
     event_topic = topic_from_domain_event(domain_event)
     event_attrs = json.dumps(domain_event.__dict__, separators=(',', ':'), sort_keys=True)

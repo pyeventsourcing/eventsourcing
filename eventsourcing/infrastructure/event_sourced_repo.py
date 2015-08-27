@@ -5,19 +5,21 @@ from eventsourcing.infrastructure.event_player import EventPlayer
 class EventSourcedRepository(metaclass=ABCMeta):
 
     def __init__(self, event_store):
-        # EventPlayer as a delegate, not a super class.
-        self.player = EventPlayer(event_store=event_store, mutator=self.get_mutator())
+        self.event_player = self.construct_event_player(event_store)
+
+    def construct_event_player(self, event_store):
+        return EventPlayer(event_store=event_store, mutator=self.get_mutator())
+
+    def __getitem__(self, item):
+        return self.event_player[item]
 
     def __contains__(self, item):
         try:
-            self.player[item]
+            self[item]
         except KeyError:
             return False
         else:
             return True
-
-    def __getitem__(self, item):
-        return self.player[item]
 
     @abstractmethod
     def get_mutator(self):
