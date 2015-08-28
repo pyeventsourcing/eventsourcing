@@ -41,3 +41,7 @@ class TestDomainEntity(unittest.TestCase):
         self.assertIsInstance(entity2, Example)
         self.assertEqual(1, entity2.a)
         self.assertEqual(2, entity2.b)
+
+        # Check the entity can be discarded.
+        entity1.discard()
+        self.assertRaises(KeyError, repo.__getitem__, entity1.id)

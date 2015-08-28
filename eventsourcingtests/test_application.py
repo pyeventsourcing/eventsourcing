@@ -21,7 +21,7 @@ class TestEventSourcedApplication(unittest.TestCase):
             self.assertIsInstance(app.stored_event_repo, StoredEventRepository)
             self.assertEqual(app.stored_event_repo.db_session, app.db_session)
 
-            # Check there's a event store.
+            # Check there's an event store.
             self.assertIsInstance(app.event_store, EventStore)
             self.assertEqual(app.event_store.stored_event_repo, app.stored_event_repo)
 
@@ -48,3 +48,4 @@ class TestExampleApplication(unittest.TestCase):
             entity1 = app.example_repo[example1.id]
             self.assertEqual(10, entity1.a)
             self.assertEqual(20, entity1.b)
+            self.assertEqual(example1, entity1)
