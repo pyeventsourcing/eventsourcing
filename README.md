@@ -139,7 +139,7 @@ Created event. The event is published, and the new domain entity is returned to 
 
 Next, define an event sourced repository class for your entity. Inherit from the base class
 'EventSourcedRepository' and set the 'domain_class' attribute on the subclass.
-In the example below, the ExampleRepository sets the Example class and its domain class.
+In the example below, the ExampleRepository sets the Example class as its domain class.
 
     from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
     
