@@ -8,7 +8,6 @@ from eventsourcing.domain.model.events import publish
 class Example(EventSourcedEntity):
 
     class Created(EventSourcedEntity.Created):
-
         @property
         def a(self):
             return self.__dict__['a']
@@ -17,8 +16,8 @@ class Example(EventSourcedEntity):
         def b(self):
             return self.__dict__['b']
 
-    def __init__(self, entity_id, a, b):
-        super().__init__(entity_id=entity_id)
+    def __init__(self, a, b, **kwargs):
+        super().__init__(**kwargs)
         self._a = a
         self._b = b
 

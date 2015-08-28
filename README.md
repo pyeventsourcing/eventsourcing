@@ -115,11 +115,28 @@ from eventsourcing.domain.model.entity import EventSourcedEntity
 from eventsourcing.domain.model.events import publish
 
 class Example(EventSourcedEntity):
-    
+
     def __init__(self, a, b, **kwargs):
         super().__init__(**kwargs)
-        self.a = a
-        self.b = b
+        self._a = a
+        self._b = b
+
+    @property
+    def a(self):
+        return self._a
+
+    @a.setter
+    def a(self, value):
+        self._set_event_sourced_attribute_value(name='_a', value=value)
+
+    @property
+    def b(self):
+        return self._b
+
+    @b.setter
+    def b(self, value):
+        self._set_event_sourced_attribute_value(name='_b', value=value)
+
 ```
 
 Next, define a factory method that returns new entity instances. Rather than directly constructing the entity object
