@@ -114,9 +114,11 @@ and AttributeChanged events from its super class EventSourcedEntity.
 
 ```python
 from eventsourcing.domain.model.entity import EventSourcedEntity
-from eventsourcing.domain.model.events import publish
 
 class Example(EventSourcedEntity):
+    """
+    An example event sourced domain model entity.
+    """
 
     def __init__(self, a, b, **kwargs):
         super().__init__(**kwargs)
@@ -155,7 +157,7 @@ import uuid
 
 def register_new_example(a, b):
     """
-    Factory method for example entities.
+    Factory method for Example entities.
     """
     entity_id = uuid.uuid4().hex
     event = Example.Created(entity_id=entity_id, a=a, b=b)
@@ -172,6 +174,9 @@ In the example below, the ExampleRepository sets the Example class as its domain
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
 
 class ExampleRepository(EventSourcedRepository):    
+    """
+    Event sourced repository for the Example domain model entity.
+    """
     domain_class = Example
 ```
 
@@ -187,6 +192,11 @@ synonymous method on the application class.
 from eventsourcing.application.main import EventSourcedApplication
 
 class ExampleApplication(EventSourcedApplication):
+    """
+    Example event sourced application.
+    
+    Has an Example repository, and a factory method for registering new examples.
+    """
 
     def __init__(self):
         super().__init__()
