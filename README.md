@@ -131,6 +131,7 @@ In the example below, the factory method is a module level function which firstl
 Example's Created domain event. The Example mutator is invoked, which returns an entity object instance when given a
 Created event. The event is published, and the new domain entity is returned to the caller of the factory method.
 
+```python
     import uuid
 
     def register_new_example(a, b):
@@ -142,17 +143,18 @@ Created event. The event is published, and the new domain entity is returned to 
         entity = Example.mutator(self=Example, event=event)
         publish(event=event)
         return entity
-
+```
 
 Next, define an event sourced repository class for your entity. Inherit from the base class
 'EventSourcedRepository' and set the 'domain_class' attribute on the subclass.
 In the example below, the ExampleRepository sets the Example class as its domain class.
 
+```python
     from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
     
     class ExampleRepository(EventSourcedRepository):    
         domain_class = Example
-
+```
 
 Finally, define an application to have the event sourced repo and the factory method. Inheriting from
 EventSourcedApplication means a persistence subscriber, an event store, and stored event persistence
@@ -162,6 +164,7 @@ In the example below, the ExampleApplication has an ExampleRepository, and for c
 'register_new_example' factory method described above (a module level function) is used to implement a
 synonymous method on the application class.
 
+```python
     from eventsourcing.application.main import EventSourcedApplication
 
     class ExampleApplication(EventSourcedApplication):
@@ -172,11 +175,12 @@ synonymous method on the application class.
     
         def register_new_example(self, a, b):
             return register_new_example(a=a, b=b)
-
+```
 
 The event sourced application can be used as a context manager. Call the application's factory object to
 register a new entity. Use the new entity's ID to retrieve the registered entity from the repository.
 
+```python
     with ExampleApplication() as app:
 
         # Register a new example.
@@ -188,6 +192,6 @@ register a new entity. Use the new entity's ID to retrieve the registered entity
         saved_entity = app.example_repo[entity_id]
 
         assert new_entity == saved_entity
-
+```
 
 Congratulations! You have created a new event sourced application!
