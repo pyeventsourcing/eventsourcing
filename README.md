@@ -2,6 +2,7 @@
 
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png)](https://travis-ci.org/johnbywater/eventsourcing)
 
+A library for event sourcing written in Python.
 
 ## Install
 
@@ -22,11 +23,19 @@ The project is hosted on GitHub.
 
 ## Motivation and Inspiration
 
-Event sourcing is really useful, but there is no event sourcing package in Python.
+Event sourcing is really fantastic, but there doesn't seem to be a general library for event sourcing in Python.
+The 'rewind' package is coded to work with ZeroMQ. The 'event-store' looks to be along the right lines, but provides
+an event store rather than a full library for event sourcing.
 
-Although you can implement this stuff new for each project, there are common codes which can be reused.
+Although the event sourcing patterns are simple, and they can be rewritten for each project,
+there are distinct cohesive mechanisms, for example replaying stored domain events into an up-to-date domain
+entity, that can usefully be reused. Quoting from the "Cohesive Mechanism" pattern in Eric Evan's
+Domain Driven Design:
 
-Other packages on PyPI such as rewind and event-store don't really provide a library for event sourcing.
+"Partition a conceptually COHESIVE MECHANISM into a separate lightweight framework. Particularly watch
+for formalisms for well-documented categories of of algorithms. Expose the capabilities of the framework
+with an INTENTION-REVEALING INTERFACE. Now the other elements of the domain can focus on expressing the problem
+("what"), delegating the intricacies of the solution ("how") to the framework."
 
 Inspiration:
 
@@ -36,31 +45,26 @@ Inspiration:
 * Robert Smallshire's example code on Bitbucket
     * https://bitbucket.org/sixty-north/d5-kanban-python/src
 
-* Greg Young's articles (various) and EventStore code
-     * https://geteventstore.com/
+* Greg Young's discussions about event sourcing, and EventStore system
+    * https://dl.dropboxusercontent.com/u/9162958/CQRS/Events%20as%20a%20Storage%20Mechanism%20CQRS.pdf
+    * https://geteventstore.com/
 
 
 ## Features
 
-* Base class for domain events
+* Base class for immutable domain events
 
-* Base class for event-sourced domain entities
+* Generic immutable stored event type
 
-* Base class for event-sourced domain repositories
+* Function to get event topic from domain event class
 
-* Function to get the event topic from a domain event class
+* Function to resolve event topic into domain event class
 
-* Function to resolve an event topic into a domain event class
+* Function to serialize domain events to stored event objects
 
-* Function to serialize a domain event to a stored event
+* Function to recreate domain events from stored event objects
 
-* Function to recreate a domain event from a stored event
-
-* Immutable stored event type
-
-* Entity snapshots at specific version, to avoid replaying all events (forthcoming)
-
-* Abstract base class for stored event repository
+* Base class for stored event repositories
 
     * Method to get all domain events in the order they occurred
 
@@ -74,25 +78,33 @@ Inspiration:
 
     * Method to delete of all domain events for given domain entity ID (forthcoming)
 
-* In-memory stored event repository, using simple Python objects for stored events
+* Concrete stored event repository implementations for common database management systems (SQL and NoSQL)
 
-* SQLAlchemy stored event repository, using ORM to persist stored events in any supported database
+    * Simple stored event repository, using simple Python objects for stored events (non-persistent)
+    
+    * SQLAlchemy stored event repository, using ORM to persist stored events in any supported database
+    
+    * Cassandra stored event repository, using a column family to persist stored events in Cassandra (forthcoming)
+    
+* Persistence subscriber class, to listen for published domain events and append them to its event store
 
-* Cassandra stored event repository, using a column family to persist stored events in Cassandra (forthcoming)
+* Event store class, to convert domain events to stored events appended to its stored event repository
 
-* Event store class, to append stored events to its stored event repository
+* In-process publish-subscribe mechanism, for in-process domain event propagation to subscriber objects
 
-* Persistence subscriber class, appends published domain events to its event store
+* Base class for event sourced entities
 
-* Publish-subscribe mechanism, for in-process domain event propagation
+* Base class for event sourced repositories
 
 * Event player, to return a recreated domain entity for a given domain entity mutator and entity ID
 
 * Update stored event (domain model migration) (forthcoming)
 
-* Application class to hold a persistence subscriber, an event sourced repositories, and entity factory methods
+* Base class for event sourced applications
 
-* Examples
+* Base event sourced application class, to have a stored event repository, an event store, a persistence subscriber, domain specific event sourced repositories and entity factory methods
+
+* Examples (see below, more examples are forthcoming)
 
 * Subscriber that publishes domain events to RabbitMQ (forthcoming)
 
@@ -102,7 +114,12 @@ Inspiration:
 
 * Republisher that subscribers to Amazon SQS and publishes domain event locally (forthcoming)
 
-* Event sourced indexes
+* Event sourced indexes, as persisted event source projections, to discover extant entity IDs (forthcoming)
+
+* Ability to clear and rebuild a persisted event sourced projection (such as an index), by republishing
+all events from the event store, with it as the only subscriber (forthcoming)
+
+* Entity snapshots, to avoid replaying all events (forthcoming)
 
 ## Usage
 

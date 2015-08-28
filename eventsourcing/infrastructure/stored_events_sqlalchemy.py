@@ -66,8 +66,15 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
 
     def append(self, stored_event):
         sql_stored_event = sql_from_stored(stored_event)
-        self.db_session.add(sql_stored_event)
-        self.db_session.commit()
+        try:
+            self.db_session.add(sql_stored_event)
+            self.db_session.commit()
+        except:
+            self.db_session.rollback()
+            raise
+        finally:
+            self.db_session.close() # Begins a new transaction
+
 
     def __contains__(self, item):
         return bool(self.db_session.query(SqlStoredEvent).filter_by(event_id=item).count())
