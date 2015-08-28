@@ -7,5 +7,6 @@ python:
   - "3.4"
   - "3.5.0b3"
   - "3.5-dev"
-  - "nightly"install: pip install -r requirements.txt
+  - "nightly"
+install: pip install -r requirements.txt
 script: python -m unittest discover eventsourcingtests -v
