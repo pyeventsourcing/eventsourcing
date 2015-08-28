@@ -2,6 +2,7 @@
 
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png)](https://travis-ci.org/johnbywater/eventsourcing)
 
+
 ## Install
 
 Use pip to install the latest release from Python Package Index:
@@ -85,46 +86,121 @@ Inspiration:
 
 * Examples
 
+
 ## Usage
 
 Start by defining a domain entity, and give it some domain events. There must
 be a "created" event that is passed into the __init__ method of the entity.
 
-In the example below, an Example entity has an ExampleCreated and an
-ExampleDiscarded event. The Example.__init__ method accepts ExampleCreated events.
+In the example below, an Example entity has a Created and an
+ExampleDiscarded event. The Example.__init__ method accepts Created events.
 
-Todo: Inline the example entity.
 
+    from eventsourcing.domain.model.entity import EventSourcedEntity
+    from eventsourcing.domain.model.events import publish
+
+    class Example(EventSourcedEntity):
+    
+        class Created(EventSourcedEntity.Created): 
+            pass
+    
+        class Discarded(EventSourcedEntity.Discarded):
+            pass
+    
+        def __init__(self, event):
+            super().__init__(event)
+            self.a = event.a
+            self.b = event.b
+    
+        def discard(self):
+            self._assert_not_discarded()
+            event = Example.Discarded(entity_id=self._id, entity_version=self._version)
+            self._apply(event)
+            publish(event)
+    
+        def _apply(self, event):
+            example_mutator(self, event)
+
+    
 Define a mutator that can change the state of the entity according to the domain events. The mutator
 must handle all of the events. The mutator will at least handle the "created" event by instantiating
-an entity object.
+the entity class.
 
-In the example below, the mutator can handle both the ExampleCreated and the ExampleDiscarded events.
+In the example below, the mutator can handle both the Created and the ExampleDiscarded events.
 
-Todo: Inline the example mutator.
+    def example_mutator(entity=None, event=None):
+        if isinstance(event, Example.Created):
+            entity = Example(event)
+            entity._increment_version()
+            return entity
+        elif isinstance(event, Example.Discarded):
+            entity._validate_originator(event)
+            entity._is_discarded = True
+            entity._increment_version()
+            return None
+        else:
+            raise NotImplementedError(repr(event))
+
 
 Next, define a factory for the entity, that instantiates the "created" event, calls
 the mutator, publishes the event, and returns the entity.
 
 In the example below, the factory method is a module level function which firstly instantiates the
-ExampleCreated event. The mutator is invoked, which returns an entity instance. The event is published,
+Created event. The mutator is invoked, which returns an entity instance. The event is published,
 in case there are any subscribers. Finally, the entity is returned to the caller of the factory method.
 
-Todo: Inline the example factory method.
+    import uuid
+
+    def register_new_example(a, b):
+        """
+        Factory method for example entities.
+        """
+        entity_id = uuid.uuid4().hex
+        event = Example.Created(entity_id=entity_id, entity_version=0, a=a, b=b)
+        entity = example_mutator(event=event)
+        publish(event=event)
+        return entity
+
 
 Next, define an event sourced repository class for your entity.
 
 Inherit from the base class 'EventSourcedRepository' and define a get_mutator() method on the subclass.
 
-Todo: Inline the example event sourced repo.
+    from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
+    
+    class ExampleRepository(EventSourcedRepository):
+    
+        def get_mutator(self):
+            return example_mutator
+
 
 Finally, define an application to hold event sourced repo and the factory method, and to setup the
 persistence subscriber, the event store, and a stored event persistence model.
 
-Todo: Inline the example application.
+    from eventsourcing.application.main import EventSourcedApplication
 
-Congratulations! You have create an event sourced application. Try using it by calling the factory
-method to get a new entity, using the entity to discover the new entity ID, and using the discovered
-entity ID to retrieve the entity from the event sourced repository.
+    class ExampleApplication(EventSourcedApplication):
+    
+        def __init__(self):
+            super().__init__()
+            self.example_repo = ExampleRepository(event_store=self.event_store)
+    
+        def register_new_example(self, a, b):
+            return register_new_example(a=a, b=b)
 
-Todo: Inline the example application test block.
+
+Try using the application as a context manager. Call the factory method to get a new entity, use the new
+entity to discover the new entity ID, and use the entity ID to retrieve the entity from the repository.
+
+    with ExampleApplication() as app:
+
+        # Register a new example.
+        new_entity = app.register_new_example(a=10, b=20)
+
+        # Get the entity from the repo, using the new entity ID.
+        from_repo = app.example_repo[new_entity.id]
+
+        assert new_example == from_repo
+
+
+Congratulations! You have created a new event sourced application!

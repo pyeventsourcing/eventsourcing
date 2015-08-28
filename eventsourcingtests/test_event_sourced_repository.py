@@ -15,7 +15,7 @@ class TestEventSourcedRepository(unittest.TestCase):
 
         # Put an event in the event store.
         entity_id = 'entity1'
-        event_store.append(Example.Event(entity_id=entity_id, a=1, b=2))
+        event_store.append(Example.Created(entity_id=entity_id, a=1, b=2))
 
         # Setup an example repository.
         example_repo = ExampleRepository(event_store=event_store)

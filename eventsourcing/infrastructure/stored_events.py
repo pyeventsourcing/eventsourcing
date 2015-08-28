@@ -117,7 +117,10 @@ def recreate_domain_event(stored_event):
     assert isinstance(stored_event, StoredEvent)
     event_class = resolve_event_topic(stored_event.event_topic)
     event_data = json.loads(stored_event.event_attrs)
-    domain_event = event_class(**event_data)
+    try:
+        domain_event = event_class(**event_data)
+    except TypeError:
+        raise TypeError("Unable to instantiate class '{}' with data '{}'".format(stored_event.event_topic, stored_event.event_attrs))
     return domain_event
 
 

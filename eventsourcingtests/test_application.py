@@ -48,3 +48,4 @@ class TestExampleApplication(unittest.TestCase):
             entity1 = app.example_repo[example1.id]
             self.assertEqual(10, entity1.a)
             self.assertEqual(20, entity1.b)
+            self.assertEqual(example1, entity1)

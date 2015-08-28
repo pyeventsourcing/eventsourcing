@@ -15,7 +15,7 @@ class TestEventStore(unittest.TestCase):
         self.assertEqual(0, len(entity_events))
 
         # Store a domain event.
-        event1 = Example.Event(entity_id='entity1', a=1, b=2)
+        event1 = Example.Created(entity_id='entity1', a=1, b=2)
         event_store.append(event1)
 
         # Check there is one stored event in the repo.
@@ -23,7 +23,7 @@ class TestEventStore(unittest.TestCase):
         self.assertEqual(1, len(entity_events))
 
         # Store another domain event.
-        event1 = Example.Event(entity_id='entity1', a=1, b=2)
+        event1 = Example.Created(entity_id='entity1', a=1, b=2)
         event_store.append(event1)
 
         # Check there are two stored events in the repo.
