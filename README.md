@@ -5,9 +5,9 @@
 
 ## Install
 
-Use pip to install the latest release from Python Package Index:
+Use pip to install the latest release from Python Package Index. 
 
-    pip install eventsourcing
+    pip install eventsourcing[sqlalchemy]
 
 
 ## Development
@@ -90,7 +90,7 @@ Inspiration:
 
 * Subscriber that publishes domain events to Amazon SQS (forthcoming)
 
-* Repubilsher that subscribes to RabbitMQ and publishes domain events locally (forthcoming)
+* Republisher that subscribes to RabbitMQ and publishes domain events locally (forthcoming)
 
 * Republisher that subscribers to Amazon SQS and publishes domain event locally (forthcoming)
 
