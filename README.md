@@ -182,10 +182,11 @@ In the example below, the ExampleRepository returns the example_mutator method d
             return example_mutator
 
 
-Finally, define an application to hold event sourced repo and the factory method. Inheriting from
-EventSourcedApplication will setup a persistence subscriber, an event store, and stored event persistence.
-In the example below, the ExampleApplication has an ExampleRepository, and the 'register_new_example' 
-factory method described above (a module level function) is used to implement a
+Finally, define an application to have the event sourced repo and the factory method. Inheriting from
+EventSourcedApplication means a persistence subscriber, an event store, and stored event persistence
+will be set up.
+In the example below, the ExampleApplication has an ExampleRepository, and for convenience the
+'register_new_example' factory method described above (a module level function) is used to implement a
 synonymous method on the application class.
 
     from eventsourcing.application.main import EventSourcedApplication
