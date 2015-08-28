@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod, abstractproperty
 from eventsourcing.infrastructure.event_player import EventPlayer
 
 
@@ -8,7 +8,11 @@ class EventSourcedRepository(metaclass=ABCMeta):
         self.event_player = self.construct_event_player(event_store)
 
     def construct_event_player(self, event_store):
-        return EventPlayer(event_store=event_store, mutator=self.get_mutator())
+        return EventPlayer(event_store=event_store, domain_class=self.domain_class)
+
+    @abstractproperty
+    def domain_class(self):
+        raise NotImplementedError()
 
     def __getitem__(self, item):
         return self.event_player[item]
@@ -20,7 +24,3 @@ class EventSourcedRepository(metaclass=ABCMeta):
             return False
         else:
             return True
-
-    @abstractmethod
-    def get_mutator(self):
-        raise NotImplementedError()

@@ -22,17 +22,6 @@ class Example(EventSourcedEntity):
         self.a = a
         self.b = b
 
-    @staticmethod
-    def mutator(self, event):
-        event_type = type(event)
-        if event_type == Example.Created:
-            assert self is None, self
-            self = Example(a=event.a, b=event.b, entity_id=event.entity_id)
-            self._increment_version()
-            return self
-        else:
-            return super().mutator(self, event)
-
 
 class Repository(metaclass=ABCMeta):
     
@@ -47,6 +36,6 @@ def register_new_example(a, b):
     """
     entity_id = uuid.uuid4().hex
     event = Example.Created(entity_id=entity_id, a=a, b=b)
-    entity = Example.mutator(self=None, event=event)
+    entity = Example.mutator(self=Example, event=event)
     publish(event=event)
     return entity

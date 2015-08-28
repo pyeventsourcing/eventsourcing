@@ -39,12 +39,18 @@ class EventSourcedEntity(metaclass=ABCMeta):
         publish(event)
 
     def _apply(self, event):
+        assert isinstance(self, EventSourcedEntity)
         self.mutator(self, event)
 
     @staticmethod
     def mutator(self, event):
         event_type = type(event)
-        if event_type == self.Discarded:
+        if event_type == self.Created:
+            assert issubclass(self, EventSourcedEntity), self
+            self = self(a=event.a, b=event.b, entity_id=event.entity_id)
+            self._increment_version()
+            return self
+        elif event_type == self.Discarded:
             self._validate_originator(event)
             self._is_discarded = True
             self._increment_version()

@@ -4,5 +4,4 @@ from eventsourcing.infrastructure.event_sourced_repo import EventSourcedReposito
 
 class ExampleRepository(EventSourcedRepository, Repository):
 
-    def get_mutator(self):
-        return Example.mutator
+    domain_class = Example
