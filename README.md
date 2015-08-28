@@ -5,16 +5,19 @@
 
 ## Install
 
-Use pip to install the latest release from Python Package Index. 
+Use pip to install the latest release from Python Package Index. For the example below, and to make the tests work, please also install sqlalchemy (which isn't required if events are persisted in Cassandra - forthcoming).
 
     pip install eventsourcing[sqlalchemy]
 
+After installation, the tests should pass.
+
+    python -m unittest discover eventsourcingtests -v
 
 ## Development
 
-The project is hosted on GitHub:
+The project is hosted on GitHub.
 
-    https://github.com/johnbywater/eventsourcing
+* https://github.com/johnbywater/eventsourcing
 
 
 ## Motivation and Inspiration
@@ -27,11 +30,14 @@ Other packages on PyPI such as rewind and event-store don't really provide a lib
 
 Inspiration:
 
-* Martin Fowler's article on event sourcing http://martinfowler.com/eaaDev/EventSourcing.html
+* Martin Fowler's article on event sourcing
+    * http://martinfowler.com/eaaDev/EventSourcing.html
 
-* Robert Smallshire's example code on Bitbucket https://bitbucket.org/sixty-north/d5-kanban-python/src
+* Robert Smallshire's example code on Bitbucket
+    * https://bitbucket.org/sixty-north/d5-kanban-python/src
 
-* Greg Young's articles (various) and EventStore code https://geteventstore.com/
+* Greg Young's articles (various) and EventStore code
+     * https://geteventstore.com/
 
 
 ## Features
@@ -104,16 +110,17 @@ should accept the values it needs to initialize its variables.
 In the example below, an Example entity inherits a Created and a
 Discarded events from the EventSourcedEntity.
 
-    from eventsourcing.domain.model.entity import EventSourcedEntity
-    from eventsourcing.domain.model.events import publish
+```python
+from eventsourcing.domain.model.entity import EventSourcedEntity
+from eventsourcing.domain.model.events import publish
 
-    class Example(EventSourcedEntity):
+class Example(EventSourcedEntity):
     
-        def __init__(self, a, b, **kwargs):
-            super().__init__(**kwargs)
-            self.a = a
-            self.b = b
-    
+    def __init__(self, a, b, **kwargs):
+        super().__init__(**kwargs)
+        self.a = a
+        self.b = b
+```
 
 Next, define a factory method that returns new entity instances. Rather than directly constructing the entity object
 instance, it should firstly instantiate a "created" domain event, and then call the mutator to obtain
