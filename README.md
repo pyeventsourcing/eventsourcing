@@ -214,8 +214,6 @@ with ExampleApplication() as app:
     # Check the new value is available in the repo.
     entity1 = app.example_repo[example1.id]
     assert entity1.a == 123
-
-    print(entity1.a)
 ```
 
 Congratulations! You have created a new event sourced application!
