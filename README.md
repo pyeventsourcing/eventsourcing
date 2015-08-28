@@ -101,7 +101,7 @@ Inspiration:
 Start by defining a domain entity. The entity's constructor
 should accept the values it needs to initialize its variables.
 
-In the example below, an Example entity inherits a Created a
+In the example below, an Example entity inherits a Created and
 Discarded event. The Example's constructor method accepts Created events.
 
     from eventsourcing.domain.model.entity import EventSourcedEntity
