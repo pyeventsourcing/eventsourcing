@@ -200,11 +200,6 @@ register a new entity. Use the new entity's ID to retrieve the registered entity
 ```python
 with ExampleApplication() as app:
     
-    # Check there's an example repository.
-    self.assertIsInstance(app.example_repo, ExampleRepository)
-    
-    assert isinstance(app, ExampleApplication)  # For PyCharm...
-    
     # Register a new example.
     example1 = app.register_new_example(a=10, b=20)
     
@@ -220,6 +215,7 @@ with ExampleApplication() as app:
     entity1 = app.example_repo[example1.id]
     assert entity1.a == 123
 
+    print(entity1.a)
 ```
 
 Congratulations! You have created a new event sourced application!
