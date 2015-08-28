@@ -14,23 +14,28 @@ class StoredEventRepository(metaclass=ABCMeta):
 
     @abstractmethod
     def append(self, stored_event):
-        raise NotImplementedError
+        """Saves given stored event in this repository.
+        """
 
     @abstractmethod
     def __getitem__(self, item):
-        raise NotImplementedError
+        """Returns stored event for given event ID.
+        """
 
     @abstractmethod
     def __contains__(self, item):
-        raise NotImplementedError
+        """Tests whether given event ID exists.
+        """
 
     @abstractmethod
     def get_entity_events(self, entity_id):
-        raise NotImplementedError
+        """Returns all events for given entity ID.
+        """
 
     @abstractmethod
     def get_topic_events(self, event_topic):
-        raise NotImplementedError
+        """Returns all events for given topic.
+        """
 
 
 class InMemoryStoredEventRepository(StoredEventRepository):

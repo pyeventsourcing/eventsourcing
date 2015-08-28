@@ -49,3 +49,10 @@ class TestExampleApplication(unittest.TestCase):
             self.assertEqual(10, entity1.a)
             self.assertEqual(20, entity1.b)
             self.assertEqual(example1, entity1)
+
+            # Change attribute values.
+            entity1.a = 100
+
+            # Check the new value is available in the repo.
+            entity1 = app.example_repo[example1.id]
+            self.assertEqual(100, entity1.a)

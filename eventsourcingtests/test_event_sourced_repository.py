@@ -22,6 +22,7 @@ class TestEventSourcedRepository(unittest.TestCase):
 
         # Check the repo has the example.
         self.assertIn(entity_id, example_repo)
+        self.assertNotIn('xxxxxxxx', example_repo)
 
         # Check the entity attributes.
         example = example_repo[entity_id]

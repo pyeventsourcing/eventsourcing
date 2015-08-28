@@ -15,5 +15,7 @@ class EventPlayer(object):
         entity = reduce(self.domain_class.mutator, map(recreate_domain_event, stored_events), self.domain_class)
         if entity is None:
             raise KeyError
+        elif entity is self.domain_class:
+            raise KeyError
         else:
             return entity
