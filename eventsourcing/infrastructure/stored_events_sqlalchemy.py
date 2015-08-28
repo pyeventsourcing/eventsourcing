@@ -30,9 +30,9 @@ class SqlStoredEvent(Base):
     event_topic = Column(String(), index=True)
     event_attrs = Column(String())
 
-    def __repr__(self):
-        return "<SqlStoredEvent(id='%s', event_id='%s', entity_id='%s', event_topic='%s', event_attrs='%s')>" % (
-            self.id, self.event_id, self.entity_id, self.event_topic, self.event_attrs)
+    # def __repr__(self):
+    #     return "<SqlStoredEvent(id='%s', event_id='%s', entity_id='%s', event_topic='%s', event_attrs='%s')>" % (
+    #         self.id, self.event_id, self.entity_id, self.event_topic, self.event_attrs)
 
 
 def stored_from_sql(sql_stored_event):

@@ -12,7 +12,8 @@ class EventSourcedRepository(metaclass=ABCMeta):
 
     @abstractproperty
     def domain_class(self):
-        raise NotImplementedError()
+        """Defines the type of entity available in this repo.
+        """
 
     def __getitem__(self, item):
         return self.event_player[item]

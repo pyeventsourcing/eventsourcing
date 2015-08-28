@@ -28,6 +28,13 @@ class TestStoredEvent(unittest.TestCase):
         self.assertEqual(2, domain_event.b)
         self.assertEqual(3, domain_event.timestamp)
 
+        # Check the TypeError is raised.
+        stored_event = StoredEvent(event_id='1',
+                                   entity_id='entity1',
+                                   event_topic='os#path',
+                                   event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":3}')
+        self.assertRaises(TypeError, recreate_domain_event, stored_event)
+
     def test_resolve_event_topic(self):
         example_topic = 'eventsourcing.domain.model.example#Example.Created'
         actual = resolve_event_topic(example_topic)
@@ -51,6 +58,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         # Check the repo contains the event.
         self.assertIn(stored_event1.event_id, stored_event_repo)  # __contains__
         self.assertIsInstance(stored_event_repo[stored_event1.event_id], StoredEvent)  # __getitem__
+        self.assertIsInstance(repr(stored_event_repo[stored_event1.event_id]), str)  # __getitem__
 
         # Store another event for 'entity1'.
         stored_event2 = StoredEvent(event_id='2',

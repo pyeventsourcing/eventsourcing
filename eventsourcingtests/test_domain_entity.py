@@ -17,7 +17,7 @@ class TestDomainEntity(unittest.TestCase):
     def tearDown(self):
         self.persistence_subscriber.close()
 
-    def test(self):
+    def test_entity_lifecycle(self):
         # Check the factory creates an instance.
         example1 = register_new_example(a=1, b=2)
         self.assertIsInstance(example1, Example)
@@ -42,6 +42,15 @@ class TestDomainEntity(unittest.TestCase):
         self.assertEqual(1, entity2.a)
         self.assertEqual(2, entity2.b)
 
+        # Check the entity can be updated.
+        entity1.a = 100
+        self.assertEqual(100, repo[entity1.id].a)
+        entity1.b = -200
+        self.assertEqual(-200, repo[entity1.id].b)
+
         # Check the entity can be discarded.
         entity1.discard()
         self.assertRaises(KeyError, repo.__getitem__, entity1.id)
+
+    def test_mutator_not_implemented_error(self):
+        self.assertRaises(NotImplementedError, Example.mutator, Example, None)

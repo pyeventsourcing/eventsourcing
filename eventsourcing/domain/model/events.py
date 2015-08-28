@@ -4,18 +4,16 @@ from eventsourcing.utils.time import utc_now
 
 class DomainEvent(object):
 
-    def __init__(self, timestamp=None, entity_id=None, entity_version=0, **kwargs):
-        self.__dict__['timestamp'] = utc_now() if timestamp is None else timestamp
+    def __init__(self, entity_id=None, entity_version=None, timestamp=None, **kwargs):
+        assert entity_id is not None
+        assert entity_version is not None
         self.__dict__['entity_id'] = entity_id
         self.__dict__['entity_version'] = entity_version
+        self.__dict__['timestamp'] = utc_now() if timestamp is None else timestamp
         self.__dict__.update(kwargs)
 
     def __setattr__(self, key, value):
         raise AttributeError("DomainEvent attributes are read-only")
-
-    @property
-    def timestamp(self):
-        return self.__dict__['timestamp']
 
     @property
     def entity_id(self):
@@ -24,6 +22,10 @@ class DomainEvent(object):
     @property
     def entity_version(self):
         return self.__dict__['entity_version']
+
+    @property
+    def timestamp(self):
+        return self.__dict__['timestamp']
 
     def __eq__(self, rhs):
         if type(self) is not type(rhs):

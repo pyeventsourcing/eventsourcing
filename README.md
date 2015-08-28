@@ -78,9 +78,9 @@ Inspiration:
 
 * Cassandra stored event repository, using a column family to persist stored events in Cassandra (forthcoming)
 
-* Event store class, to append domain events to a stored event repository
+* Event store class, to append stored events to its stored event repository
 
-* Persistence subscriber class, to receive published domain events and append them to an event store
+* Persistence subscriber class, appends published domain events to its event store
 
 * Publish-subscribe mechanism, for in-process domain event propagation
 

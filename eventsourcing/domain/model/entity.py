@@ -5,6 +5,10 @@ from eventsourcing.domain.model.events import DomainEvent, publish
 class EventSourcedEntity(metaclass=ABCMeta):
 
     class Created(DomainEvent):
+        def __init__(self, entity_version=0, **kwargs):
+            super().__init__(entity_version=entity_version, **kwargs)
+
+    class AttributeChanged(DomainEvent):
         pass
 
     class Discarded(DomainEvent):
@@ -26,7 +30,7 @@ class EventSourcedEntity(metaclass=ABCMeta):
         return self._id
 
     def _validate_originator(self, event):
-        assert self.id == event.entity_id
+        assert self.id == event.entity_id, (self.id, event.entity_id)
         assert self._version == event.entity_version, "{} != {}".format(self._version, event.entity_version)
 
     def __eq__(self, other):
@@ -50,6 +54,11 @@ class EventSourcedEntity(metaclass=ABCMeta):
             self = self(a=event.a, b=event.b, entity_id=event.entity_id)
             self._increment_version()
             return self
+        elif event_type == self.AttributeChanged:
+            self._validate_originator(event)
+            setattr(self, event.name, event.value)
+            self._increment_version()
+            return self
         elif event_type == self.Discarded:
             self._validate_originator(event)
             self._is_discarded = True
@@ -57,3 +66,9 @@ class EventSourcedEntity(metaclass=ABCMeta):
             return None
         else:
             raise NotImplementedError(repr(event_type))
+
+    def _set_event_sourced_attribute_value(self, name, value):
+        self._assert_not_discarded()
+        event = self.AttributeChanged(name=name, value=value, entity_id=self._id, entity_version=self._version)
+        self._apply(event)
+        publish(event)
