@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABCMeta
+from abc import ABCMeta, abstractmethod, abstractstaticmethod
 from eventsourcing.domain.model.events import DomainEvent, publish
 
 
@@ -10,13 +10,16 @@ class EventSourcedEntity(metaclass=ABCMeta):
     class Discarded(DomainEvent):
         pass
 
-    def __init__(self, event):
-        self._id = event.entity_id
+    def __init__(self, entity_id):
+        self._id = entity_id
+        self._version = 0
         self._is_discarded = False
-        self._version = event.entity_version
 
     def _increment_version(self):
         self._version += 1
+
+    def _assert_not_discarded(self):
+        assert not self._is_discarded
 
     @property
     def id(self):
@@ -26,14 +29,8 @@ class EventSourcedEntity(metaclass=ABCMeta):
         assert self.id == event.entity_id
         assert self._version == event.entity_version, "{} != {}".format(self._version, event.entity_version)
 
-    def _assert_not_discarded(self):
-        assert not self._is_discarded
-
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
-
-    def _apply(self, event):
-        self.mutator(self, event)
 
     def discard(self):
         self._assert_not_discarded()
@@ -41,6 +38,16 @@ class EventSourcedEntity(metaclass=ABCMeta):
         self._apply(event)
         publish(event)
 
-    @abstractmethod
-    def mutator(self):
-        pass
+    def _apply(self, event):
+        self.mutator(self, event)
+
+    @staticmethod
+    def mutator(self, event):
+        event_type = type(event)
+        if event_type == self.Discarded:
+            self._validate_originator(event)
+            self._is_discarded = True
+            self._increment_version()
+            return None
+        else:
+            raise NotImplementedError(repr(event_type))

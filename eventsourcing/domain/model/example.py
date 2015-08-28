@@ -17,26 +17,21 @@ class Example(EventSourcedEntity):
         def b(self):
             return self.__dict__['b']
 
-    def __init__(self, event):
-        super().__init__(event)
-        self.a = event.a
-        self.b = event.b
+    def __init__(self, entity_id, a, b):
+        super().__init__(entity_id=entity_id)
+        self.a = a
+        self.b = b
 
     @staticmethod
-    def mutator(self=None, event=None):
+    def mutator(self, event):
         event_type = type(event)
         if event_type == Example.Created:
             assert self is None, self
-            self = Example(event)
+            self = Example(a=event.a, b=event.b, entity_id=event.entity_id)
             self._increment_version()
             return self
-        elif event_type == Example.Discarded:
-            self._validate_originator(event)
-            self._is_discarded = True
-            self._increment_version()
-            return None
         else:
-            raise NotImplementedError(repr(event_type))
+            return super().mutator(self, event)
 
 
 class Repository(metaclass=ABCMeta):
@@ -51,7 +46,7 @@ def register_new_example(a, b):
     Factory method for example entities.
     """
     entity_id = uuid.uuid4().hex
-    event = Example.Created(entity_id=entity_id, entity_version=0, a=a, b=b)
-    entity = Example.mutator(event=event)
+    event = Example.Created(entity_id=entity_id, a=a, b=b)
+    entity = Example.mutator(self=None, event=event)
     publish(event=event)
     return entity
