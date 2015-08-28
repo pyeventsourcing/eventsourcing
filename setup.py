@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='eventsourcing',
-    version='0.3.0',
+    version='0.4.0',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
