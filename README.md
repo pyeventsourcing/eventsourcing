@@ -6,13 +6,18 @@ A library for event sourcing written in Python.
 
 ## Install
 
-Use pip to install the latest release from Python Package Index. For the example below, and to make the tests work, please also install sqlalchemy (which isn't required if events are persisted in Cassandra - forthcoming).
+Use pip to install the latest distribution of 'eventsourcing' from the Python Package Index.
 
-    pip install eventsourcing[sqlalchemy]
+For the examples below, and so that the test suite might pass, please also install the 'sqlalchemy'
+distribution (and also the 'mock' distribution if not included in your Python's 'unittest' and
+you would like to run the test suite).
 
-After installation, the tests should pass.
+    pip install eventsourcing sqlalchemy
+
+After installation, the test suite should pass. Please email me if you find a bug!
 
     python -m unittest discover eventsourcingtests -v
+
 
 ## Development
 
@@ -120,6 +125,7 @@ Inspiration:
 all events from the event store, with it as the only subscriber (forthcoming)
 
 * Entity snapshots, to avoid replaying all events (forthcoming)
+
 
 ## Usage
 
