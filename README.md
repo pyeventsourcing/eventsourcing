@@ -98,54 +98,53 @@ Inspiration:
 
 ## Usage
 
-Start by defining a domain entity, and give it some domain events. There must
-be a "created" event that can be passed into the entity's constructor.
-In the example below, an Example entity has a Created and a
+Start by defining a domain entity, and give it some domain events. The entity's constructor
+should accept a "created" event, from which it initializes its variables.
+
+Define a mutator that can change the state of the entity according to the domain events. The mutator
+must handle all of the entity's events. The mutator must handle the "created" event by instantiating
+the entity class with the event.
+
+In the example below, an Example entity has a Created and inherits a
 Discarded event. The Example's constructor method accepts Created events.
+The mutator can handle both the Created and the Discarded events.
 
     from eventsourcing.domain.model.entity import EventSourcedEntity
     from eventsourcing.domain.model.events import publish
 
     class Example(EventSourcedEntity):
     
-        class Created(EventSourcedEntity.Created): 
-            pass
+        class Created(EventSourcedEntity.Created):
     
-        class Discarded(EventSourcedEntity.Discarded):
-            pass
+            @property
+            def a(self):
+                return self.__dict__['a']
+    
+            @property
+            def b(self):
+                return self.__dict__['b']
     
         def __init__(self, event):
             super().__init__(event)
             self.a = event.a
             self.b = event.b
     
-        def discard(self):
-            self._assert_not_discarded()
-            event = Example.Discarded(entity_id=self._id, entity_version=self._version)
-            self._apply(event)
-            publish(event)
+        @staticmethod
+        def mutator(self=None, event=None):
+            event_type = type(event)
+            if event_type == Example.Created:
+                assert self is None, self
+                self = Example(event)
+                self._increment_version()
+                return self
+            elif event_type == Example.Discarded:
+                self._validate_originator(event)
+                self._is_discarded = True
+                self._increment_version()
+                return None
+            else:
+                raise NotImplementedError(repr(event_type))
     
-        def _apply(self, event):
-            example_mutator(self, event)
-
-    
-Define a mutator that can change the state of the entity according to the domain events. The mutator
-must handle all of the entity's events. The mutator must handle the "created" event by instantiating
-the entity class. In the example below, the mutator can handle both the Created and the Discarded events.
-
-    def example_mutator(entity=None, event=None):
-        if isinstance(event, Example.Created):
-            entity = Example(event)
-            entity._increment_version()
-            return entity
-        elif isinstance(event, Example.Discarded):
-            entity._validate_originator(event)
-            entity._is_discarded = True
-            entity._increment_version()
-            return None
-        else:
-            raise NotImplementedError(repr(event))
-
 
 Next, define a factory method that returns new entity instances. Rather than directly constructing the entity object
 instance, it should firstly instantiate the "created" event, and then call the mutator to obtain
@@ -165,26 +164,26 @@ returned to the caller of the factory method.
         """
         entity_id = uuid.uuid4().hex
         event = Example.Created(entity_id=entity_id, entity_version=0, a=a, b=b)
-        entity = example_mutator(event=event)
+        entity = Example.mutator(event=event)
         publish(event=event)
         return entity
 
 
 Next, define an event sourced repository class for your entity. Inherit from the base class
 'EventSourcedRepository' and define a get_mutator() method on the subclass.
-In the example below, the ExampleRepository returns the example_mutator method described above.
+In the example below, the ExampleRepository returns the example mutator method described above.
 
     from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
     
     class ExampleRepository(EventSourcedRepository):
     
         def get_mutator(self):
-            return example_mutator
+            return Example.mutator
 
 
 Finally, define an application to have the event sourced repo and the factory method. Inheriting from
 EventSourcedApplication means a persistence subscriber, an event store, and stored event persistence
-will be set up.
+will be set up when the application is instantiated.
 In the example below, the ExampleApplication has an ExampleRepository, and for convenience the
 'register_new_example' factory method described above (a module level function) is used to implement a
 synonymous method on the application class.
@@ -201,9 +200,9 @@ synonymous method on the application class.
             return register_new_example(a=a, b=b)
 
 
-The event sourced applications can be used as context managers ("with ..."). Call the factory method to
-get a new entity. Use the new entity to discover the new entity ID. Use the entity ID to get the entity
-from the repository.
+The event sourced application can be used as a context manager. With an instance of the application, call
+the factory method to get a new entity. Use the new entity to discover the new entity ID. Use the entity
+ID to get the entity from the repository.
 
     with ExampleApplication() as app:
 
