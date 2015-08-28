@@ -77,9 +77,9 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         return stored_from_sql(sql_stored_event)
 
     def get_entity_events(self, entity_id):
-        sql_stored_events = self.db_session.query(SqlStoredEvent).filter_by(entity_id=entity_id).all()
-        return tuple(map(stored_from_sql, sql_stored_events))
+        sql_stored_events = self.db_session.query(SqlStoredEvent).filter_by(entity_id=entity_id)
+        return map(stored_from_sql, sql_stored_events)
 
     def get_topic_events(self, event_topic):
-        sql_stored_events = self.db_session.query(SqlStoredEvent).filter_by(event_topic=event_topic).all()
-        return tuple(map(stored_from_sql, sql_stored_events))
+        sql_stored_events = self.db_session.query(SqlStoredEvent).filter_by(event_topic=event_topic)
+        return map(stored_from_sql, sql_stored_events)

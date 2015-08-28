@@ -1,8 +1,9 @@
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractproperty
+from six import with_metaclass
 from eventsourcing.infrastructure.event_player import EventPlayer
 
 
-class EventSourcedRepository(metaclass=ABCMeta):
+class EventSourcedRepository(with_metaclass(ABCMeta)):
 
     def __init__(self, event_store):
         self.event_player = self.construct_event_player(event_store)

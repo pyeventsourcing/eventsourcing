@@ -1,12 +1,14 @@
-from abc import ABCMeta, abstractmethod, abstractstaticmethod
-from eventsourcing.domain.model.events import DomainEvent, publish
+from six import with_metaclass
+from eventsourcing.domain.model.events import DomainEvent, publish, ABCMeta
 
 
-class EventSourcedEntity(metaclass=ABCMeta):
+class EventSourcedEntity(with_metaclass(ABCMeta)):
+
 
     class Created(DomainEvent):
+
         def __init__(self, entity_version=0, **kwargs):
-            super().__init__(entity_version=entity_version, **kwargs)
+            super(EventSourcedEntity.Created, self).__init__(entity_version=entity_version, **kwargs)
 
     class AttributeChanged(DomainEvent):
         pass

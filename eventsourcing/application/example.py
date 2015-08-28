@@ -6,7 +6,7 @@ from eventsourcing.infrastructure.event_sourced_repos.example_repo import Exampl
 class ExampleApplication(EventSourcedApplication):
 
     def __init__(self):
-        super().__init__()
+        super(ExampleApplication, self).__init__()
         self.example_repo = ExampleRepository(event_store=self.event_store)
 
     def register_new_example(self, a, b):

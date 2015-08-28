@@ -62,7 +62,9 @@ Inspiration:
 
 * Abstract base class for stored event repository
 
-    * Method to get all domain events for given entity ID
+    * Method to get all domain events in the order they occurred
+
+    * Method to get all domain events for given entity ID, in the order they occurred
 
     * Method to get all domain events for given domain event topic
 
