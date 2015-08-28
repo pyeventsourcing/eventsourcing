@@ -9,9 +9,6 @@ class Example(EventSourcedEntity):
 
     class Created(EventSourcedEntity.Created):
 
-        def __init__(self, a, b, timestamp=None, entity_id=None, entity_version=0):
-            super().__init__(a=a, b=b, timestamp=timestamp, entity_id=entity_id, entity_version=entity_version)
-
         @property
         def a(self):
             return self.__dict__['a']
@@ -20,37 +17,26 @@ class Example(EventSourcedEntity):
         def b(self):
             return self.__dict__['b']
 
-    class Discarded(EventSourcedEntity.Discarded):
-        def __init__(self, entity_id, entity_version, timestamp=None):
-            super().__init__(timestamp=timestamp, entity_id=entity_id, entity_version=entity_version)
-
     def __init__(self, event):
         super().__init__(event)
         self.a = event.a
         self.b = event.b
 
-    def discard(self):
-        self._assert_not_discarded()
-        event = Example.Discarded(entity_id=self._id, entity_version=self._version)
-        self._apply(event)
-        publish(event)
-
-    def _apply(self, event):
-        example_mutator(self, event)
-
-
-def example_mutator(entity=None, event=None):
-    if isinstance(event, Example.Created):
-        entity = Example(event)
-        entity._increment_version()
-        return entity
-    elif isinstance(event, Example.Discarded):
-        entity._validate_originator(event)
-        entity._is_discarded = True
-        entity._increment_version()
-        return None
-    else:
-        raise NotImplementedError(repr(event))
+    @staticmethod
+    def mutator(self=None, event=None):
+        event_type = type(event)
+        if event_type == Example.Created:
+            assert self is None, self
+            self = Example(event)
+            self._increment_version()
+            return self
+        elif event_type == Example.Discarded:
+            self._validate_originator(event)
+            self._is_discarded = True
+            self._increment_version()
+            return None
+        else:
+            raise NotImplementedError(repr(event_type))
 
 
 class Repository(metaclass=ABCMeta):
@@ -66,6 +52,6 @@ def register_new_example(a, b):
     """
     entity_id = uuid.uuid4().hex
     event = Example.Created(entity_id=entity_id, entity_version=0, a=a, b=b)
-    entity = example_mutator(event=event)
+    entity = Example.mutator(event=event)
     publish(event=event)
     return entity

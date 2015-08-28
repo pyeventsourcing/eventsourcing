@@ -1,7 +1,8 @@
-from eventsourcing.domain.model.events import DomainEvent
+from abc import abstractmethod, ABCMeta
+from eventsourcing.domain.model.events import DomainEvent, publish
 
 
-class EventSourcedEntity(object):
+class EventSourcedEntity(metaclass=ABCMeta):
 
     class Created(DomainEvent):
         pass
@@ -30,3 +31,16 @@ class EventSourcedEntity(object):
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
+
+    def _apply(self, event):
+        self.mutator(self, event)
+
+    def discard(self):
+        self._assert_not_discarded()
+        event = self.Discarded(entity_id=self._id, entity_version=self._version)
+        self._apply(event)
+        publish(event)
+
+    @abstractmethod
+    def mutator(self):
+        pass
