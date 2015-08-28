@@ -101,8 +101,8 @@ Inspiration:
 Start by defining a domain entity. The entity's constructor
 should accept the values it needs to initialize its variables.
 
-In the example below, an Example entity inherits a Created and
-Discarded event. The Example's constructor method accepts Created events.
+In the example below, an Example entity inherits a Created and a
+Discarded events from the EventSourcedEntity.
 
     from eventsourcing.domain.model.entity import EventSourcedEntity
     from eventsourcing.domain.model.events import publish
@@ -117,13 +117,12 @@ Discarded event. The Example's constructor method accepts Created events.
 
 Next, define a factory method that returns new entity instances. Rather than directly constructing the entity object
 instance, it should firstly instantiate a "created" domain event, and then call the mutator to obtain
-an entity object instance. The factory method then publishes the "created" event (for example, so that it might be
+an entity object instance. The factory method then publishes the event (for example, so that it might be
 saved into the event store by the persistence subscriber) and returns the entity to the caller.
 
 In the example below, the factory method is a module level function which firstly instantiates the
-Example's Created event. The example mutator is invoked, which returns an entity object instance. The event is
-published, so that at least the persistence subscriber might save it in the event store. Finally, the entity is
-returned to the caller of the factory method.
+Example's Created domain event. The Example mutator is invoked, which returns an entity object instance when given a
+Created event. The event is published, and the new domain entity is returned to the caller of the factory method.
 
     import uuid
 
@@ -144,14 +143,14 @@ In the example below, the ExampleRepository sets the Example class and its domai
 
     from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
     
-    class ExampleRepository(EventSourcedRepository):
-    
+    class ExampleRepository(EventSourcedRepository):    
         domain_class = Example
 
 
 Finally, define an application to have the event sourced repo and the factory method. Inheriting from
 EventSourcedApplication means a persistence subscriber, an event store, and stored event persistence
 will be set up when the application is instantiated.
+
 In the example below, the ExampleApplication has an ExampleRepository, and for convenience the
 'register_new_example' factory method described above (a module level function) is used to implement a
 synonymous method on the application class.
@@ -168,9 +167,8 @@ synonymous method on the application class.
             return register_new_example(a=a, b=b)
 
 
-The event sourced application can be used as a context manager. With an instance of the application, call
-the factory method to get a new entity. Use the new entity to discover the new entity ID. Use the entity
-ID to get the entity from the repository.
+The event sourced application can be used as a context manager. Call the application's factory object to
+register a new entity. Use the new entity's ID to retrieve the registered entity from the repository.
 
     with ExampleApplication() as app:
 
