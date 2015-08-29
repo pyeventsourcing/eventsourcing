@@ -11,15 +11,20 @@ Use pip to install the [latest distribution](https://pypi.python.org/pypi/events
 the Python Package Index.
 
 For the examples below, and so that the test suite might pass, please also install the 'sqlalchemy'
-distribution (and also the 'mock' distribution if not included in your Python's 'unittest' and
-you would like to run the test suite).
+distribution.
 
     pip install eventsourcing sqlalchemy
 
 
-After installation, the test suite should pass, if you run it. Please do register an issue if you find a bug.
+Also install the 'mock' distribution, if that's not included in your Python's 'unittest' and
+you would like to run the test suite.
+
+After installation, if you run the test suite, it should pass.
 
     python -m unittest discover eventsourcingtests -v
+
+
+Please do register an issue if you find a bug.
 
 
 ## Development
@@ -37,20 +42,24 @@ Issues can be registered here:
 ## Motivation and Inspiration
 
 Event sourcing is really fantastic, but there doesn't appear to be a general library for event sourcing in Python.
-The 'rewind' package is coded to work with ZeroMQ. The 'event-store' looks to be along the right lines, but provides
-a particular event store rather than broader range of elements of event sourcing which can be flexibly and
-optionally combined.
+This can present a dilemma at the start of a project: whether or not to delay so that the basics can be put in
+place. The 'rewind' package is coded to work with ZeroMQ. The 'event-store' looks to be along the right lines,
+but provides a particular event store rather than broader range of elements of event sourcing which can be easily
+extended and optionally combined to make event sourced applications that support their domain.
 
 Although the event sourcing patterns are each quite simple, and they can be reproduced in code for each project,
 they do suggest cohesive mechanisms, for example applying and publishing the events generated within domain
-entities, storing and retrieving the events, replaying the stored events to obtain the entities, and projecting
-views of the event stream that are persisted in other models. Quoting from the "Cohesive Mechanism" pages in
-Eric Evan's Domain Driven Design book:
+entities, storing and retrieving selections of the events in a highly scalable manner, replaying the stored
+events for a particular entity to obtain the current state, and projecting views of the event stream that are
+persisted in other models. Quoting from the "Cohesive Mechanism" pages in Eric Evan's Domain Driven Design book:
 
 _"Therefore: Partition a conceptually COHESIVE MECHANISM into a separate lightweight framework. Particularly watch
 for formalisms for well-documented categories of of algorithms. Expose the capabilities of the framework
 with an INTENTION-REVEALING INTERFACE. Now the other elements of the domain can focus on expressing the problem
 ("what"), delegating the intricacies of the solution ("how") to the framework."_
+
+The list of features below, and the examples beneath, present the 'interfaces' and hopefully the intentions
+for this library. The intricacies of the library mechanisms can be found in the library source code.
 
 Inspiration:
 
@@ -228,13 +237,15 @@ from eventsourcing.application.main import EventSourcedApplication
 
 class ExampleApplication(EventSourcedApplication):
     """
-    Example event sourced application.
-    
-    Has an Example repository, and a factory method for registering new examples.
+    An example event sourced application.
+
+    This application has an Example repository, and a factory method for
+    registering new "examples". It inherits a persistence subscriber, an
+    event store, a stored event repository, and a database connection.
     """
 
     def __init__(self):
-        super().__init__()
+        super(ExampleApplication, self).__init__()
         self.example_repo = ExampleRepository(event_store=self.event_store)
 
     def register_new_example(self, a, b):
