@@ -69,7 +69,7 @@ class EventSourcedEntity(with_metaclass(ABCMeta)):
         else:
             raise NotImplementedError(repr(event_type))
 
-    def _set_event_sourced_attribute_value(self, name, value):
+    def _change_attribute_value(self, name, value):
         self._assert_not_discarded()
         event = self.AttributeChanged(name=name, value=value, entity_id=self._id, entity_version=self._version)
         self._apply(event)

@@ -28,7 +28,7 @@ class Example(EventSourcedEntity):
 
     @a.setter
     def a(self, value):
-        self._set_event_sourced_attribute_value(name='_a', value=value)
+        self._change_attribute_value(name='_a', value=value)
 
     @property
     def b(self):
@@ -36,7 +36,7 @@ class Example(EventSourcedEntity):
 
     @b.setter
     def b(self, value):
-        self._set_event_sourced_attribute_value(name='_b', value=value)
+        self._change_attribute_value(name='_b', value=value)
 
 
 class Repository(with_metaclass(ABCMeta)):

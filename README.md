@@ -140,6 +140,8 @@ all events from the event store, with it as the only subscriber (forthcoming)
 
 * Entity snapshots, to avoid replaying all events (forthcoming)
 
+* Something to store serialized event attribute values separately from the other event information, to prevent large attribute values inhibiting performance and stability - different sizes could be stored in different ways...
+
 * Examples (see below, more examples are forthcoming)
 
 * Great documentation! (forthcoming)
@@ -171,7 +173,7 @@ class Example(EventSourcedEntity):
 
     @a.setter
     def a(self, value):
-        self._set_event_sourced_attribute_value(name='_a', value=value)
+        self._change_attribute_value(name='_a', value=value)
 
     @property
     def b(self):
@@ -179,7 +181,7 @@ class Example(EventSourcedEntity):
 
     @b.setter
     def b(self, value):
-        self._set_event_sourced_attribute_value(name='_b', value=value)
+        self._change_attribute_value(name='_b', value=value)
 
 ```
 
