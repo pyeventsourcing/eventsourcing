@@ -11,8 +11,12 @@ class ExampleApplication(EventSourcedApplication):
     registering new examples. It inherits an event store, a persistence
     subscriber, and a stored event repository, and a database connection.
     """
-    def __init__(self):
-        super(ExampleApplication, self).__init__()
+    def __init__(self, db_uri=None):
+        """
+        Args:
+            db_uri: Database connection string for stored event repository.
+        """
+        super(ExampleApplication, self).__init__(db_uri=db_uri)
         self.example_repo = ExampleRepository(event_store=self.event_store)
 
     def register_new_example(self, a, b):

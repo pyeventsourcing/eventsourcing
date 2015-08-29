@@ -240,19 +240,40 @@ class ExampleApplication(EventSourcedApplication):
     registering new "examples". It inherits a persistence subscriber, an
     event store, a stored event repository, and a database connection.
     """
-    def __init__(self):
-        super(ExampleApplication, self).__init__()
+    def __init__(self, db_uri):
+        """
+        Args:
+            db_uri: Database connection string for stored event repository.
+        """
+        super(ExampleApplication, self).__init__(db_uri=db_uri)
         self.example_repo = ExampleRepository(event_store=self.event_store)
 
     def register_new_example(self, a, b):
         return register_new_example(a=a, b=b)
 ```
 
-The event sourced application can be used as a context manager. Call the application's factory object to
-register a new entity. Use the new entity's ID to retrieve the registered entity from the repository.
+
+The example uses an SQLite in memory relational database, but you could change 'db_uri' to another
+connection string if you have a real database. Here are some example connection strings - for
+an SQLite file, for a PostgreSQL database, and for a MySQL database. See SQLAlchemy's create_engine()
+documentation for details.
+
+```
+sqlite:////tmp/mydatabase
+
+postgresql://scott:tiger@localhost:5432/mydatabase
+
+mysql://scott:tiger@hostname/dbname
+```
+
+
+The event sourced application can be used as a context manager, which helps close things down at the
+end. With an application instance, call its factory method to register a new entity. Update an
+attribute value. Use the generated entity ID to subsequently retrieve the registered entity from the
+repository. Check the changed attribute value has been stored.
 
 ```python
-with ExampleApplication() as app:
+with ExampleApplication(db_uri='sqlite:///:memory:') as app:
     
     # Register a new example.
     example1 = app.register_new_example(a=10, b=20)
