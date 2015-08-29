@@ -22,7 +22,6 @@ After installation, the test suite should pass, if you run it. Please do registe
     python -m unittest discover eventsourcingtests -v
 
 
-
 ## Development
 
 The project is hosted on GitHub.
