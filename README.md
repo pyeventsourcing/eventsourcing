@@ -217,7 +217,7 @@ In the example below, the ExampleRepository sets the Example class as its domain
 ```python
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
 
-class ExampleRepository(EventSourcedRepository):    
+class ExampleRepository(EventSourcedRepository):
     """
     Event sourced repository for the Example domain model entity.
     """
