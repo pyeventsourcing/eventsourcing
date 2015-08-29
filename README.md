@@ -2,11 +2,13 @@
 
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png)](https://travis-ci.org/johnbywater/eventsourcing)
 
-A library for event sourcing written in Python.
+A library for event sourcing in Python.
+
 
 ## Install
 
-Use pip to install the latest distribution of 'eventsourcing' from the Python Package Index.
+Use pip to install the [latest distribution](https://pypi.python.org/pypi/eventsourcing) from
+the Python Package Index.
 
 For the examples below, and so that the test suite might pass, please also install the 'sqlalchemy'
 distribution (and also the 'mock' distribution if not included in your Python's 'unittest' and
@@ -14,9 +16,11 @@ you would like to run the test suite).
 
     pip install eventsourcing sqlalchemy
 
-After installation, the test suite should pass. Please email me if you find a bug!
+
+After installation, the test suite should pass, if you run it. Please do register an issue if you find a bug.
 
     python -m unittest discover eventsourcingtests -v
+
 
 
 ## Development
@@ -26,21 +30,28 @@ The project is hosted on GitHub.
 * https://github.com/johnbywater/eventsourcing
 
 
+Issues can be registered here:
+
+* https://github.com/johnbywater/eventsourcing/issues
+
+
 ## Motivation and Inspiration
 
-Event sourcing is really fantastic, but there doesn't seem to be a general library for event sourcing in Python.
+Event sourcing is really fantastic, but there doesn't appear to be a general library for event sourcing in Python.
 The 'rewind' package is coded to work with ZeroMQ. The 'event-store' looks to be along the right lines, but provides
-an event store rather than a full library for event sourcing.
+a particular event store rather than broader range of elements of event sourcing which can be flexibly and
+optionally combined.
 
-Although the event sourcing patterns are simple, and they can be rewritten for each project,
-there are distinct cohesive mechanisms, for example replaying stored domain events into an up-to-date domain
-entity, that can usefully be reused. Quoting from the "Cohesive Mechanism" pattern in Eric Evan's
-Domain Driven Design:
+Although the event sourcing patterns are each quite simple, and they can be reproduced in code for each project,
+they do suggest cohesive mechanisms, for example applying and publishing the events generated within domain
+entities, storing and retrieving the events, replaying the stored events to obtain the entities, and projecting
+views of the event stream that are persisted in other models. Quoting from the "Cohesive Mechanism" pages in
+Eric Evan's Domain Driven Design book:
 
-"Partition a conceptually COHESIVE MECHANISM into a separate lightweight framework. Particularly watch
+_"Therefore: Partition a conceptually COHESIVE MECHANISM into a separate lightweight framework. Particularly watch
 for formalisms for well-documented categories of of algorithms. Expose the capabilities of the framework
 with an INTENTION-REVEALING INTERFACE. Now the other elements of the domain can focus on expressing the problem
-("what"), delegating the intricacies of the solution ("how") to the framework."
+("what"), delegating the intricacies of the solution ("how") to the framework."_
 
 Inspiration:
 
@@ -109,8 +120,6 @@ Inspiration:
 
 * Base event sourced application class, to have a stored event repository, an event store, a persistence subscriber, domain specific event sourced repositories and entity factory methods
 
-* Examples (see below, more examples are forthcoming)
-
 * Subscriber that publishes domain events to RabbitMQ (forthcoming)
 
 * Subscriber that publishes domain events to Amazon SQS (forthcoming)
@@ -125,6 +134,10 @@ Inspiration:
 all events from the event store, with it as the only subscriber (forthcoming)
 
 * Entity snapshots, to avoid replaying all events (forthcoming)
+
+* Examples (see below, more examples are forthcoming)
+
+* Great documentation! (forthcoming)
 
 
 ## Usage
