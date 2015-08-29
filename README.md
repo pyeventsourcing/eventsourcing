@@ -160,7 +160,6 @@ class Example(EventSourcedEntity):
     """
     An example event sourced domain model entity.
     """
-
     def __init__(self, a, b, **kwargs):
         super(Example, self).__init__(**kwargs)
         self._a = a
@@ -241,7 +240,6 @@ class ExampleApplication(EventSourcedApplication):
     registering new "examples". It inherits a persistence subscriber, an
     event store, a stored event repository, and a database connection.
     """
-
     def __init__(self):
         super(ExampleApplication, self).__init__()
         self.example_repo = ExampleRepository(event_store=self.event_store)
