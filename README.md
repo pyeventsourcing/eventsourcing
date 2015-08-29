@@ -87,7 +87,7 @@ Inspiration:
 
 * Base class for stored event repositories
 
-    * Method to get all domain events in the order they occurred
+    * Method to get all domain events in the order they occurred (forthcoming)
 
     * Method to get all domain events for given entity ID, in the order they occurred
 
@@ -97,7 +97,7 @@ Inspiration:
 
     * Method to get all domain events for given entity ID, from given version of the entity (forthcoming)
 
-    * Method to delete of all domain events for given domain entity ID (forthcoming)
+    * Method to delete all domain events for given domain entity ID (forthcoming)
 
 * Concrete stored event repository implementations for common database management systems (SQL and NoSQL)
 
