@@ -1,5 +1,8 @@
 import unittest
-from unittest import mock
+try:
+    from unittest import mock
+except:
+    import mock
 from eventsourcing.domain.model.events import publish, DomainEvent
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber

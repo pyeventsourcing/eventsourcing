@@ -1,5 +1,10 @@
 import unittest
-from unittest import mock
+
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+
 
 from eventsourcing.domain.model.events import subscribe, publish, unsubscribe
 from eventsourcing.domain.model.example import Example

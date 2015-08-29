@@ -69,7 +69,8 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
 
         # Get all events for 'entity1'.
         events = stored_event_repo.get_entity_events('entity1')
-        self.assertEqual(2, len(events))
+        events = list(events)  # Make sequence from the iterator.
+        self.assertEqual(2, len(list(events)))
         # - check the first event
         self.assertIsInstance(events[0], StoredEvent)
         self.assertEqual(stored_event1.event_topic, events[0].event_topic)
@@ -81,6 +82,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
 
         # Get all events for the topic.
         events = stored_event_repo.get_topic_events('eventsourcing.domain.model.example#Example.Created')
+        events = list(events)
         self.assertEqual(2, len(events))
         # - check the first event
         self.assertIsInstance(events[0], StoredEvent)

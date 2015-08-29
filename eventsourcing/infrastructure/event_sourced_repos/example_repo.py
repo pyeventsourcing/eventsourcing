@@ -3,5 +3,7 @@ from eventsourcing.infrastructure.event_sourced_repo import EventSourcedReposito
 
 
 class ExampleRepository(EventSourcedRepository, Repository):
-
+    """
+    Event sourced repository for the Example domain model entity.
+    """
     domain_class = Example

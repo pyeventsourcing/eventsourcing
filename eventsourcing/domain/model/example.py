@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import uuid
+from six import with_metaclass
 
 from eventsourcing.domain.model.entity import EventSourcedEntity
 from eventsourcing.domain.model.events import publish
@@ -17,7 +18,7 @@ class Example(EventSourcedEntity):
             return self.__dict__['b']
 
     def __init__(self, a, b, **kwargs):
-        super().__init__(**kwargs)
+        super(Example, self).__init__(**kwargs)
         self._a = a
         self._b = b
 
@@ -38,7 +39,7 @@ class Example(EventSourcedEntity):
         self._set_event_sourced_attribute_value(name='_b', value=value)
 
 
-class Repository(metaclass=ABCMeta):
+class Repository(with_metaclass(ABCMeta)):
     
     @abstractmethod
     def __getitem__(self, item):

@@ -1,8 +1,36 @@
+from abc import ABCMeta
 import itertools
+from six import with_metaclass
 from eventsourcing.utils.time import utc_now
 
 
-class DomainEvent(object):
+if not hasattr(object, '__qualname__'):
+    class QualnameABCMeta(ABCMeta):
+        """Supplies __qualname__ to object classes with this metaclass.
+        """
+        __outer_classes = {}
+
+        def __init__(cls, name, bases, dict):
+            super(QualnameABCMeta, cls).__init__(name, bases, dict)
+            QualnameABCMeta.__outer_classes[cls] = None
+            for class_attr in dict.values():  # iterate class attributes
+                for outer_class in QualnameABCMeta.__outer_classes:
+                    if class_attr == outer_class:  # is the object an already registered type?
+                        QualnameABCMeta.__outer_classes[outer_class] = cls
+                        break
+
+        @property
+        def __qualname__(cls):
+            c = QualnameABCMeta.__outer_classes[cls]
+            if c is None:
+                return cls.__name__
+            else:
+                return "%s.%s" % (c.__qualname__, cls.__name__)
+
+    ABCMeta = QualnameABCMeta
+
+
+class DomainEvent(with_metaclass(ABCMeta)):
 
     def __init__(self, entity_id=None, entity_version=None, timestamp=None, **kwargs):
         assert entity_id is not None

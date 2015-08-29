@@ -3,6 +3,7 @@ from collections import namedtuple
 import importlib
 import json
 import uuid
+from six import with_metaclass
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import TopicResolutionError
@@ -10,7 +11,7 @@ from eventsourcing.exceptions import TopicResolutionError
 StoredEvent = namedtuple('StoredEvent', ['event_id', 'entity_id', 'event_topic', 'event_attrs'])
 
 
-class StoredEventRepository(metaclass=ABCMeta):
+class StoredEventRepository(with_metaclass(ABCMeta)):
 
     @abstractmethod
     def append(self, stored_event):
@@ -154,6 +155,7 @@ def resolve_event_topic(topic):
     Raises:
         TopicResolutionError: If there is no such domain event class.
     """
+    # Todo: Fix up this block to show what the topic is, and where it went wrong.
     try:
         module_name, _, class_name = topic.partition('#')
         module = importlib.import_module(module_name)
