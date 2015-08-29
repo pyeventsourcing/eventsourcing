@@ -162,7 +162,7 @@ class Example(EventSourcedEntity):
     """
 
     def __init__(self, a, b, **kwargs):
-        super().__init__(**kwargs)
+        super(Example, self).__init__(**kwargs)
         self._a = a
         self._b = b
 
