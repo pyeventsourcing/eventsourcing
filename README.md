@@ -16,15 +16,12 @@ distribution.
     pip install eventsourcing sqlalchemy
 
 
-Also install the 'mock' distribution, if that's not included in your Python's 'unittest' and
-you would like to run the test suite.
-
 After installation, if you run the test suite, it should pass.
 
     python -m unittest discover eventsourcingtests -v
 
 
-Please do register an issue if you find a bug.
+Please register an issue if you find a bug.
 
 
 ## Development
