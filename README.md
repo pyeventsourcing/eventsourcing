@@ -194,6 +194,7 @@ Example's Created domain event. The Example mutator is invoked, which returns an
 Created event. The event is published, and the new domain entity is returned to the caller of the factory method.
 
 ```python
+from eventsourcing.domain.model.events import publish
 import uuid
 
 def register_new_example(a, b):
