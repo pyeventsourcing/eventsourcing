@@ -1,5 +1,7 @@
 from distutils.core import setup
 
+install_requires = ['six']
+
 # Do we need to install mock?
 install_requires_mock = False
 try:
@@ -8,8 +10,7 @@ except ImportError:
     try:
         import mock
     except ImportError:
-        install_requires_mock = True
-
+        install_requires.append('mock')
 
 setup(
     name='eventsourcing',
@@ -28,7 +29,7 @@ setup(
         'eventsourcing/utils',
         'eventsourcingtests',
     ],
-    install_requires=['six'] + ['mock'] if install_requires_mock else [''],
+    install_requires=install_requires,
     extras_require={
         'sqlalchemy': ['sqlalchemy'],
     },
