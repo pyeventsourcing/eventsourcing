@@ -14,7 +14,7 @@ except ImportError:
 
 setup(
     name='eventsourcing',
-    version='0.8.0',
+    version='0.8.1',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
@@ -40,7 +40,6 @@ This package provides generic support for event sourcing in Python, in a 'domain
 An extensive `README file is available on GitHub <https://github.com/johnbywater/eventsourcing/blob/master/README.md>`_.
 """,
     keywords=['event sourcing', 'event store', 'domain driven design', 'ddd', 'cqrs', 'cqs'],
-    classifiers=[],
     classifiers = [
         'Development Status :: 4 - Beta',
         'Environment :: Console',
