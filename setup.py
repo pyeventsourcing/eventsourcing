@@ -14,7 +14,7 @@ except ImportError:
 
 setup(
     name='eventsourcing',
-    version='0.8.0',
+    version='0.8.1',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
