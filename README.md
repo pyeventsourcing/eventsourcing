@@ -175,32 +175,25 @@ In the example below, an Example entity inherits Created, Discarded,
 and AttributeChanged events from its super class EventSourcedEntity.
 
 ```python
-from eventsourcing.domain.model.entity import EventSourcedEntity
+from eventsourcing.domain.model.entity import EventSourcedEntity, eventsourcedproperty
 
 class Example(EventSourcedEntity):
     """
     An example event sourced domain model entity.
     """
+
     def __init__(self, a, b, **kwargs):
         super(Example, self).__init__(**kwargs)
         self._a = a
         self._b = b
 
-    @property
+    @eventsourcedproperty
     def a(self):
         return self._a
 
-    @a.setter
-    def a(self, value):
-        self._change_attribute_value(name='_a', value=value)
-
-    @property
+    @eventsourcedproperty
     def b(self):
         return self._b
-
-    @b.setter
-    def b(self, value):
-        self._change_attribute_value(name='_b', value=value)
 
 ```
 
@@ -243,8 +236,8 @@ class ExampleRepository(EventSourcedRepository):
 ```
 
 Finally, define an application to have the event sourced repo and the factory method. Inheriting from
-EventSourcedApplication means a persistence subscriber, an event store, and stored event persistence
-will be set up when the application is instantiated.
+EventSourcedApplication sets up a persistence subscriber, an event store, and stored event persistence
+when the application is instantiated.
 
 In the example below, the ExampleApplication has an ExampleRepository, and for convenience the
 'register_new_example' factory method described above (a module level function) is used to implement a

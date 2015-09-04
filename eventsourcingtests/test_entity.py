@@ -1,4 +1,5 @@
 import unittest
+from eventsourcing.domain.model.events import DomainEvent
 
 from eventsourcing.domain.model.example import register_new_example, Example
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepository
@@ -53,4 +54,5 @@ class TestDomainEntity(unittest.TestCase):
         self.assertRaises(KeyError, repo.__getitem__, entity1.id)
 
     def test_mutator_not_implemented_error(self):
-        self.assertRaises(NotImplementedError, Example.mutator, Example, None)
+        class UnsupportedEvent(DomainEvent): pass
+        self.assertRaises(NotImplementedError, Example.mutator, Example, UnsupportedEvent('1', '0'))
