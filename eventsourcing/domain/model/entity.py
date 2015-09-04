@@ -89,9 +89,8 @@ def eventsourcedproperty(*args, **kwargs):
         def setter(self, value):
             assert isinstance(self, EventSourcedEntity), self
             self._change_attribute_value(name='_' + getter.__name__, value=value)
+
         return property(fget=getter, fset=setter)
     else:
-
-        def decorator(getter):
-            return eventsourcedproperty(getter)
-        return decorator
+        # Decorator has arguments...
+        return eventsourcedproperty

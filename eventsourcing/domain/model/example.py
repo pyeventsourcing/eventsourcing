@@ -19,7 +19,7 @@ class Example(EventSourcedEntity):
         self._a = a
         self._b = b
 
-    @eventsourcedproperty
+    @eventsourcedproperty()
     def a(self):
         return self._a
 
