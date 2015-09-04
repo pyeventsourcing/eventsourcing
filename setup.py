@@ -34,6 +34,11 @@ setup(
         'sqlalchemy': ['sqlalchemy'],
     },
     zip_safe=False,
+    long_description = """
+This package provides generic domain driven design style support for event sourcing in Python.
+
+An extensive `README file is available on GitHub <https://github.com/johnbywater/eventsourcing/blob/master/README.md>`_.
+""",
     keywords=['event sourcing', 'event store', 'domain driven design', 'ddd', 'cqrs', 'cqs'],
     classifiers=[],
     classifiers = [
