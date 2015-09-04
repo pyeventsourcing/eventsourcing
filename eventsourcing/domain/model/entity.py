@@ -1,12 +1,11 @@
+from inspect import isfunction
 from six import with_metaclass
 from eventsourcing.domain.model.events import DomainEvent, publish, ABCMeta
 
 
 class EventSourcedEntity(with_metaclass(ABCMeta)):
 
-
     class Created(DomainEvent):
-
         def __init__(self, entity_version=0, **kwargs):
             super(EventSourcedEntity.Created, self).__init__(entity_version=entity_version, **kwargs)
 
@@ -16,10 +15,11 @@ class EventSourcedEntity(with_metaclass(ABCMeta)):
     class Discarded(DomainEvent):
         pass
 
-    def __init__(self, entity_id):
+    def __init__(self, entity_id, entity_version, timestamp):
         self._id = entity_id
-        self._version = 0
+        self._version = entity_version
         self._is_discarded = False
+        self._created_on = timestamp
 
     def _increment_version(self):
         self._version += 1
@@ -38,6 +38,12 @@ class EventSourcedEntity(with_metaclass(ABCMeta)):
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
+    def _change_attribute_value(self, name, value):
+        self._assert_not_discarded()
+        event = self.AttributeChanged(name=name, value=value, entity_id=self._id, entity_version=self._version)
+        self._apply(event)
+        publish(event)
+
     def discard(self):
         self._assert_not_discarded()
         event = self.Discarded(entity_id=self._id, entity_version=self._version)
@@ -45,32 +51,47 @@ class EventSourcedEntity(with_metaclass(ABCMeta)):
         publish(event)
 
     def _apply(self, event):
-        assert isinstance(self, EventSourcedEntity)
         self.mutator(self, event)
 
     @staticmethod
-    def mutator(self, event):
+    def mutator(entity, event):
+        assert isinstance(event, DomainEvent), "Not a domain event: {}".format(event)
         event_type = type(event)
-        if event_type == self.Created:
-            assert issubclass(self, EventSourcedEntity), self
-            self = self(a=event.a, b=event.b, entity_id=event.entity_id)
-            self._increment_version()
-            return self
-        elif event_type == self.AttributeChanged:
-            self._validate_originator(event)
-            setattr(self, event.name, event.value)
-            self._increment_version()
-            return self
-        elif event_type == self.Discarded:
-            self._validate_originator(event)
-            self._is_discarded = True
-            self._increment_version()
+        if event_type == entity.Created:
+            assert isinstance(entity, type)
+            entity = entity(**event.__dict__)
+            assert isinstance(entity, EventSourcedEntity), entity
+            entity._increment_version()
+            return entity
+
+        elif event_type == entity.AttributeChanged:
+            assert isinstance(entity, EventSourcedEntity), entity
+            entity._validate_originator(event)
+            setattr(entity, event.name, event.value)
+            entity._increment_version()
+            return entity
+
+        elif event_type == entity.Discarded:
+            assert isinstance(entity, EventSourcedEntity), entity
+            entity._validate_originator(event)
+            entity._is_discarded = True
+            entity._increment_version()
             return None
+
         else:
             raise NotImplementedError(repr(event_type))
 
-    def _change_attribute_value(self, name, value):
-        self._assert_not_discarded()
-        event = self.AttributeChanged(name=name, value=value, entity_id=self._id, entity_version=self._version)
-        self._apply(event)
-        publish(event)
+
+def eventsourcedproperty(*args, **kwargs):
+    if len(args) == 1 and len(kwargs) == 0 and isfunction(args[0]):
+        getter = args[0]
+
+        def setter(self, value):
+            assert isinstance(self, EventSourcedEntity), self
+            self._change_attribute_value(name='_' + getter.__name__, value=value)
+        return property(fget=getter, fset=setter)
+    else:
+
+        def decorator(getter):
+            return eventsourcedproperty(getter)
+        return decorator
