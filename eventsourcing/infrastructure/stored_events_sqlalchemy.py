@@ -7,9 +7,8 @@ from sqlalchemy.sql.sqltypes import Integer, String
 from eventsourcing.infrastructure.stored_events import StoredEventRepository, StoredEvent
 
 
-def get_scoped_session_facade(uri=None):
-    if uri is None:
-        uri = 'sqlite:///:memory:'
+def get_scoped_session_facade(uri):
+    assert uri is not None
     engine = create_engine(uri)
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine)

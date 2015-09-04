@@ -96,6 +96,8 @@ Inspiration:
     * Method to get single domain event for given event ID
 
     * Method to get all domain events for given entity ID, from given version of the entity (forthcoming)
+    
+    * Method to get all domain events for given entity ID, until given time (forthcoming)
 
     * Method to delete all domain events for given domain entity ID (forthcoming)
 
@@ -110,6 +112,8 @@ Inspiration:
 * Persistence subscriber class, to listen for published domain events and append them to its event store
 
 * Event store class, to convert domain events to stored events appended to its stored event repository
+
+    * Storage retries and fallback strategies, to protect against failing to write an event
 
 * In-process publish-subscribe mechanism, for in-process domain event propagation to subscriber objects
 
@@ -135,10 +139,27 @@ Inspiration:
 
 * Event sourced indexes, as persisted event source projections, to discover extant entity IDs (forthcoming)
 
+* Base class for event sourced projections or views (forthcoming)
+
+    * In memory event sourced projection, which needs to replay entire event stream when system starts up
+    
+    * Persistent event sourced projection, which stored its projected state, but needs to replay entire event stream when initialized
+
 * Ability to clear and rebuild a persisted event sourced projection (such as an index), by republishing
 all events from the event store, with it as the only subscriber (forthcoming)
 
 * Entity snapshots, to avoid replaying all events (forthcoming)
+
+* Stream pointer, to refer to an event in a stream (forthcoming)
+
+* Something to store serialized event attribute values separately from the other event information, to prevent large attribute values inhibiting performance and stability - different sizes could be stored in different ways...
+
+* Different kinds of stored event
+    * IDs generated from content like Git
+    * cryptographically signed
+    * encrypted
+    
+* Branch and merge mechanism for domain events
 
 * Examples (see below, more examples are forthcoming)
 
@@ -171,7 +192,7 @@ class Example(EventSourcedEntity):
 
     @a.setter
     def a(self, value):
-        self._set_event_sourced_attribute_value(name='_a', value=value)
+        self._change_attribute_value(name='_a', value=value)
 
     @property
     def b(self):
@@ -179,7 +200,7 @@ class Example(EventSourcedEntity):
 
     @b.setter
     def b(self, value):
-        self._set_event_sourced_attribute_value(name='_b', value=value)
+        self._change_attribute_value(name='_b', value=value)
 
 ```
 
@@ -240,19 +261,40 @@ class ExampleApplication(EventSourcedApplication):
     registering new "examples". It inherits a persistence subscriber, an
     event store, a stored event repository, and a database connection.
     """
-    def __init__(self):
-        super(ExampleApplication, self).__init__()
+    def __init__(self, db_uri):
+        """
+        Args:
+            db_uri: Database connection string for stored event repository.
+        """
+        super(ExampleApplication, self).__init__(db_uri=db_uri)
         self.example_repo = ExampleRepository(event_store=self.event_store)
 
     def register_new_example(self, a, b):
         return register_new_example(a=a, b=b)
 ```
 
-The event sourced application can be used as a context manager. Call the application's factory object to
-register a new entity. Use the new entity's ID to retrieve the registered entity from the repository.
+
+The example uses an SQLite in memory relational database, but you could change 'db_uri' to another
+connection string if you have a real database. Here are some example connection strings - for
+an SQLite file, for a PostgreSQL database, and for a MySQL database. See SQLAlchemy's create_engine()
+documentation for details.
+
+```
+sqlite:////tmp/mydatabase
+
+postgresql://scott:tiger@localhost:5432/mydatabase
+
+mysql://scott:tiger@hostname/dbname
+```
+
+
+The event sourced application can be used as a context manager, which helps close things down at the
+end. With an application instance, call its factory method to register a new entity. Update an
+attribute value. Use the generated entity ID to subsequently retrieve the registered entity from the
+repository. Check the changed attribute value has been stored.
 
 ```python
-with ExampleApplication() as app:
+with ExampleApplication(db_uri='sqlite:///:memory:') as app:
     
     # Register a new example.
     example1 = app.register_new_example(a=10, b=20)

@@ -14,7 +14,7 @@ except ImportError:
 
 setup(
     name='eventsourcing',
-    version='0.8.0',
+    version='0.8.1',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
@@ -34,6 +34,31 @@ setup(
         'sqlalchemy': ['sqlalchemy'],
     },
     zip_safe=False,
-    keywords=['eventsourcing', 'ddd', 'cqrs'],
-    classifiers=[],
+    long_description = """
+This package provides generic support for event sourcing in Python, in a 'domain driven design' style.
+
+An extensive `README file is available on GitHub <https://github.com/johnbywater/eventsourcing/blob/master/README.md>`_.
+""",
+    keywords=['event sourcing', 'event store', 'domain driven design', 'ddd', 'cqrs', 'cqs'],
+    classifiers = [
+        'Development Status :: 4 - Beta',
+        'Environment :: Console',
+        'Intended Audience :: Developers',
+        'Intended Audience :: Education',
+        'Intended Audience :: Financial and Insurance Industry',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.2',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
+        'Topic :: Office/Business :: Financial',
+        'Topic :: Office/Business :: Financial :: Investment',
+        'Topic :: Office/Business :: Financial :: Spreadsheet',
+        'Topic :: Scientific/Engineering :: Information Analysis',
+        'Topic :: Scientific/Engineering :: Mathematics',
+        'Topic :: Software Development :: Libraries :: Python Modules',
+   ],
 )

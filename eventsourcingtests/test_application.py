@@ -12,7 +12,7 @@ class TestEventSourcedApplication(unittest.TestCase):
 
     def test(self):
         # Setup an event sourced application, use it as a context manager.
-        with EventSourcedApplication() as app:
+        with EventSourcedApplication(db_uri='sqlite:///:memory:') as app:
 
             # Check there's a DB session.
             self.assertIsInstance(app.db_session, ScopedSession)
@@ -34,7 +34,7 @@ class TestExampleApplication(unittest.TestCase):
 
     def test(self):
         # Setup the example application, use it as a context manager.
-        with ExampleApplication() as app:
+        with ExampleApplication(db_uri='sqlite:///:memory:') as app:
 
             # Check there's an example repository.
             self.assertIsInstance(app.example_repo, ExampleRepository)

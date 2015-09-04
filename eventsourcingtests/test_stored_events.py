@@ -103,5 +103,5 @@ class TestInMemoryStoredEventRepository(StoredEventRepositoryTestCase):
 class TestSQLAlchemyStoredEventRepository(StoredEventRepositoryTestCase):
 
     def test(self):
-        stored_event_repo = SQLAlchemyStoredEventRepository(get_scoped_session_facade())
+        stored_event_repo = SQLAlchemyStoredEventRepository(get_scoped_session_facade('sqlite:///:memory:'))
         self.assertStoredEventRepositoryImplementation(stored_event_repo)

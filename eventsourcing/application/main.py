@@ -6,15 +6,15 @@ from eventsourcing.infrastructure.stored_events_sqlalchemy import SQLAlchemyStor
 
 class EventSourcedApplication(object):
 
-    def __init__(self, db_uri=None):
-        self.db_session = self.create_db_session(db_uri)
+    def __init__(self, db_session=None, db_uri=None):
+        self.db_session = db_session if db_session is not None else self.create_db_session(db_uri)
         self.stored_event_repo = self.create_stored_event_repo()
         self.event_store = self.create_event_store()
         self.persistence_subscriber = self.create_persistence_subscriber()
 
     @staticmethod
     def create_db_session(uri):
-        return get_scoped_session_facade(uri=uri)
+        return get_scoped_session_facade(uri)
 
     def __enter__(self):
         return self
