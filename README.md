@@ -96,6 +96,8 @@ Inspiration:
     * Method to get single domain event for given event ID
 
     * Method to get all domain events for given entity ID, from given version of the entity (forthcoming)
+    
+    * Method to get all domain events for given entity ID, until given time (forthcoming)
 
     * Method to delete all domain events for given domain entity ID (forthcoming)
 
@@ -110,6 +112,8 @@ Inspiration:
 * Persistence subscriber class, to listen for published domain events and append them to its event store
 
 * Event store class, to convert domain events to stored events appended to its stored event repository
+
+    * Storage retries and fallback strategies, to protect against failing to write an event
 
 * In-process publish-subscribe mechanism, for in-process domain event propagation to subscriber objects
 
@@ -135,12 +139,27 @@ Inspiration:
 
 * Event sourced indexes, as persisted event source projections, to discover extant entity IDs (forthcoming)
 
+* Base class for event sourced projections or views (forthcoming)
+
+    * In memory event sourced projection, which needs to replay entire event stream when system starts up
+    
+    * Persistent event sourced projection, which stored its projected state, but needs to replay entire event stream when initialized
+
 * Ability to clear and rebuild a persisted event sourced projection (such as an index), by republishing
 all events from the event store, with it as the only subscriber (forthcoming)
 
 * Entity snapshots, to avoid replaying all events (forthcoming)
 
+* Stream pointer, to refer to an event in a stream (forthcoming)
+
 * Something to store serialized event attribute values separately from the other event information, to prevent large attribute values inhibiting performance and stability - different sizes could be stored in different ways...
+
+* Different kinds of stored event
+    * IDs generated from content like Git
+    * cryptographically signed
+    * encrypted
+    
+* Branch and merge mechanism for domain events
 
 * Examples (see below, more examples are forthcoming)
 
