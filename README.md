@@ -177,9 +177,14 @@ and AttributeChanged events from its super class EventSourcedEntity.
 ```python
 from eventsourcing.domain.model.entity import EventSourcedEntity, eventsourcedproperty
 
+
 class Example(EventSourcedEntity):
     """
-    An example event sourced domain model entity.
+    Example event sourced application.
+
+    This application has an Example repository, and a factory method for
+    registering new examples. It inherits an event store, a persistence
+    subscriber, and a stored event repository, and a database connection.
     """
 
     def __init__(self, a, b, **kwargs):
@@ -216,7 +221,7 @@ def register_new_example(a, b):
     """
     entity_id = uuid.uuid4().hex
     event = Example.Created(entity_id=entity_id, a=a, b=b)
-    entity = Example.mutator(self=Example, event=event)
+    entity = Example.mutator(entity=Example, event=event)
     publish(event=event)
     return entity
 ```
@@ -230,9 +235,10 @@ from eventsourcing.infrastructure.event_sourced_repo import EventSourcedReposito
 
 class ExampleRepository(EventSourcedRepository):
     """
-    Event sourced repository for the Example domain model entity.
+    An example event sourced repository, provides access to Example event sourced entities.
     """
     domain_class = Example
+
 ```
 
 Finally, define an application to have the event sourced repo and the factory method. Inheriting from
