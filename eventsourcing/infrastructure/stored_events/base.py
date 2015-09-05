@@ -4,7 +4,6 @@ import importlib
 import json
 import uuid
 from six import with_metaclass
-
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import TopicResolutionError
 

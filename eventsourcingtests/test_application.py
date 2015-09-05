@@ -5,7 +5,7 @@ from eventsourcing.application.main import EventSourcedApplication
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepository
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
-from eventsourcing.infrastructure.stored_events import StoredEventRepository
+from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 
 
 class TestEventSourcedApplication(unittest.TestCase):

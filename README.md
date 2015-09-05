@@ -224,6 +224,7 @@ def register_new_example(a, b):
     entity = Example.mutator(entity=Example, event=event)
     publish(event=event)
     return entity
+
 ```
 
 Next, define an event sourced repository class for your entity. Inherit from the base class
@@ -270,6 +271,7 @@ class ExampleApplication(EventSourcedApplication):
 
     def register_new_example(self, a, b):
         return register_new_example(a=a, b=b)
+
 ```
 
 
@@ -309,6 +311,7 @@ with ExampleApplication(db_uri='sqlite:///:memory:') as app:
     # Check the new value is available in the repo.
     entity1 = app.example_repo[example1.id]
     assert entity1.a == 123
+
 ```
 
 Congratulations! You have created a new event sourced application!

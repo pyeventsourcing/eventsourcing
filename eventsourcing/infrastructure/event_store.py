@@ -1,5 +1,5 @@
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.infrastructure.stored_events import StoredEventRepository, serialize_domain_event
+from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, serialize_domain_event
 
 
 class EventStore(object):

@@ -1,6 +1,6 @@
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
-from eventsourcing.infrastructure.stored_events_sqlalchemy import SQLAlchemyStoredEventRepository, \
+from eventsourcing.infrastructure.stored_events.sqlalchemy import SQLAlchemyStoredEventRepository, \
     get_scoped_session_facade
 
 

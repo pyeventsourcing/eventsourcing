@@ -1,8 +1,9 @@
 import unittest
+
 from eventsourcing.exceptions import TopicResolutionError
-from eventsourcing.infrastructure.stored_events import serialize_domain_event, recreate_domain_event, \
-    resolve_event_topic, StoredEvent, InMemoryStoredEventRepository
-from eventsourcing.infrastructure.stored_events_sqlalchemy import SQLAlchemyStoredEventRepository, \
+from eventsourcing.infrastructure.stored_events.base import StoredEvent, InMemoryStoredEventRepository, \
+    serialize_domain_event, recreate_domain_event, resolve_event_topic
+from eventsourcing.infrastructure.stored_events.sqlalchemy import SQLAlchemyStoredEventRepository, \
     get_scoped_session_facade
 from eventsourcing.domain.model.example import Example
 

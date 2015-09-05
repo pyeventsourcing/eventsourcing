@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.scoping import ScopedSession
 from sqlalchemy.sql.schema import Column, Sequence
 from sqlalchemy.sql.sqltypes import Integer, String
-from eventsourcing.infrastructure.stored_events import StoredEventRepository, StoredEvent
+from eventsourcing.infrastructure.stored_events.base import StoredEvent, StoredEventRepository
 
 
 def get_scoped_session_facade(uri):
