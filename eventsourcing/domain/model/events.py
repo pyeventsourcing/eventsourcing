@@ -4,11 +4,12 @@ from six import with_metaclass
 from eventsourcing.utils.time import utc_now
 
 
-if not hasattr(object, '__qualname__'):
-    class QualnameABCMeta(ABCMeta):
-        """Supplies __qualname__ to object classes with this metaclass.
-        """
-        __outer_classes = {}
+class QualnameABCMeta(ABCMeta):
+    """Supplies __qualname__ to object classes with this metaclass.
+    """
+    __outer_classes = {}
+
+    if not hasattr(object, '__qualname__'):
 
         def __init__(cls, name, bases, dict):
             super(QualnameABCMeta, cls).__init__(name, bases, dict)
@@ -27,10 +28,9 @@ if not hasattr(object, '__qualname__'):
             else:
                 return "%s.%s" % (c.__qualname__, cls.__name__)
 
-    ABCMeta = QualnameABCMeta
 
 
-class DomainEvent(with_metaclass(ABCMeta)):
+class DomainEvent(with_metaclass(QualnameABCMeta)):
 
     def __init__(self, entity_id=None, entity_version=None, timestamp=None, **kwargs):
         assert entity_id is not None

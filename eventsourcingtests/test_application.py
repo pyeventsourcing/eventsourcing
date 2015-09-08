@@ -2,6 +2,7 @@ import unittest
 from sqlalchemy.orm.scoping import ScopedSession
 from eventsourcing.application.example import ExampleApplication
 from eventsourcing.application.main import EventSourcedApplication
+from eventsourcing.domain.model.example import Example
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepository
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
@@ -43,6 +44,8 @@ class TestExampleApplication(unittest.TestCase):
 
             # Register a new example.
             example1 = app.register_new_example(a=10, b=20)
+
+            self.assertIsInstance(example1, Example)
 
             # Check the example is available in the repo.
             entity1 = app.example_repo[example1.id]

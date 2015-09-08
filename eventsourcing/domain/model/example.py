@@ -14,16 +14,22 @@ class Example(EventSourcedEntity):
     class Created(EventSourcedEntity.Created):
         pass
 
+    class AttributeChanged(EventSourcedEntity.AttributeChanged):
+        pass
+
+    class Discarded(EventSourcedEntity.Discarded):
+        pass
+
     def __init__(self, a, b, **kwargs):
         super(Example, self).__init__(**kwargs)
         self._a = a
         self._b = b
 
-    @eventsourcedproperty()
+    @eventsourcedproperty
     def a(self):
         return self._a
 
-    @eventsourcedproperty
+    @eventsourcedproperty()
     def b(self):
         return self._b
 

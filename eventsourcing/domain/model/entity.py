@@ -1,9 +1,9 @@
 from inspect import isfunction
 from six import with_metaclass
-from eventsourcing.domain.model.events import DomainEvent, publish, ABCMeta
+from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta
 
 
-class EventSourcedEntity(with_metaclass(ABCMeta)):
+class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
     class Created(DomainEvent):
         def __init__(self, entity_version=0, **kwargs):
@@ -58,7 +58,7 @@ class EventSourcedEntity(with_metaclass(ABCMeta)):
         assert isinstance(event, DomainEvent), "Not a domain event: {}".format(event)
         event_type = type(event)
         if event_type == entity.Created:
-            assert isinstance(entity, type)
+            assert isinstance(entity, type), entity
             entity = entity(**event.__dict__)
             assert isinstance(entity, EventSourcedEntity), entity
             entity._increment_version()
@@ -80,6 +80,10 @@ class EventSourcedEntity(with_metaclass(ABCMeta)):
 
         else:
             raise NotImplementedError(repr(event_type))
+
+    @classmethod
+    def prefix_id(cls, entity_id):
+        return cls.__name__ + '::' + entity_id
 
 
 def eventsourcedproperty(*args, **kwargs):

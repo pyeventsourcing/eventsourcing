@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
+import datetime
 import importlib
 import json
 import uuid
@@ -7,7 +8,7 @@ from six import with_metaclass
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import TopicResolutionError
 
-StoredEvent = namedtuple('StoredEvent', ['event_id', 'entity_id', 'event_topic', 'event_attrs'])
+StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
 
 
 class StoredEventRepository(with_metaclass(ABCMeta)):
@@ -28,7 +29,7 @@ class StoredEventRepository(with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def get_entity_events(self, entity_id):
+    def get_entity_events(self, stored_entity_id):
         """Returns all events for given entity ID.
         """
 
@@ -42,22 +43,22 @@ class InMemoryStoredEventRepository(StoredEventRepository):
 
     def __init__(self):
         self._by_id = {}
-        self._by_entity_id = {}
+        self._by_stored_entity_id = {}
         self._by_topic = {}
 
     def append(self, stored_event):
         assert isinstance(stored_event, StoredEvent)
         event_id = stored_event.event_id
-        entity_id = stored_event.entity_id
+        stored_entity_id = stored_event.stored_entity_id
         topic = stored_event.event_topic
 
         # Store the event by event ID.
         self._by_id[event_id] = stored_event
 
         # Append the event to list for entity ID.
-        if entity_id not in self._by_entity_id:
-            self._by_entity_id[entity_id] = []
-        self._by_entity_id[entity_id].append(stored_event)
+        if stored_entity_id not in self._by_stored_entity_id:
+            self._by_stored_entity_id[stored_entity_id] = []
+        self._by_stored_entity_id[stored_entity_id].append(stored_event)
 
         # Append the event to list for event topic.
         if topic not in self._by_topic:
@@ -70,14 +71,34 @@ class InMemoryStoredEventRepository(StoredEventRepository):
     def __contains__(self, item):
         return item in self._by_id
 
-    def get_entity_events(self, entity_id):
-        if entity_id not in self._by_entity_id:
+    def get_entity_events(self, stored_entity_id):
+        if stored_entity_id not in self._by_stored_entity_id:
             return []
         else:
-            return self._by_entity_id[entity_id]
+            return self._by_stored_entity_id[stored_entity_id]
 
     def get_topic_events(self, event_topic):
         return self._by_topic[event_topic]
+
+
+class ObjectJSONEncoder(json.JSONEncoder):
+
+    def default(self, obj):
+        try:
+            return super(ObjectJSONEncoder, self).default(obj)
+        except TypeError as e:
+            if "not JSON serializable" not in str(e):
+                raise
+            if isinstance(obj, datetime.date):
+                return { 'ISO8601_date': obj.isoformat() }
+            if isinstance(obj, datetime.datetime):
+                return { 'ISO8601_datetime': obj.isoformat() }
+            else:
+                d = { '__class__': obj.__class__.__qualname__,
+                      '__module__': obj.__module__,
+                    }
+                d.update(obj.__dict__)
+                return d
 
 
 def serialize_domain_event(domain_event):
@@ -94,12 +115,12 @@ def serialize_domain_event(domain_event):
     """
     assert isinstance(domain_event, DomainEvent)
     event_id = uuid.uuid4().hex
-    entity_id = domain_event.entity_id
+    stored_entity_id = entity_type_name_from_domain_event(domain_event) + '::' + domain_event.entity_id
     event_topic = topic_from_domain_event(domain_event)
-    event_attrs = json.dumps(domain_event.__dict__, separators=(',', ':'), sort_keys=True)
+    event_attrs = json.dumps(domain_event.__dict__, separators=(',', ':'), sort_keys=True, cls=ObjectJSONEncoder)
     return StoredEvent(
         event_id=event_id,
-        entity_id=entity_id,
+        stored_entity_id=stored_entity_id,
         event_topic=event_topic,
         event_attrs=event_attrs,
     )
@@ -140,6 +161,19 @@ def topic_from_domain_event(domain_event):
     """
     assert isinstance(domain_event, DomainEvent)
     return domain_event.__module__ + '#' + domain_event.__class__.__qualname__
+
+
+def entity_type_name_from_domain_event(domain_event):
+    """Returns entity class name for the domain event.
+
+    Args:
+        domain_event: A domain event object.
+
+    Returns:
+        A string naming the domain entity class.
+    """
+    assert isinstance(domain_event, DomainEvent)
+    return domain_event.__class__.__qualname__.split('.')[0]
 
 
 def resolve_event_topic(topic):
@@ -185,3 +219,40 @@ def resolve_attr(obj, path):
     head, _, tail = path.partition('.')
     head_obj = getattr(obj, head)
     return resolve_attr(head_obj, tail)
+
+
+class ObjectJSONDecoder(json.JSONDecoder):
+
+    def __init__(self):
+        super(ObjectJSONDecoder, self).__init__(object_hook=ObjectJSONDecoder.from_jsonable)
+
+    @staticmethod
+    def from_jsonable(d):
+        if '__class__' in d and '__module__' in d:
+            return ObjectJSONDecoder._decode_class(d)
+        elif 'ISO8601_date' in d:
+            return ObjectJSONDecoder._decode_date(d)
+        elif 'ISO8601_datetime' in d:
+            return ObjectJSONDecoder._decode_datetime(d)
+        return d
+
+    @staticmethod
+    def _decode_class(d):
+        class_name = d.pop('__class__')
+        module_name = d.pop('__module__')
+        module = importlib.import_module(module_name)
+        cls = resolve_attr(module, class_name)
+        try:
+            obj = cls(**d)
+        except Exception:
+            obj = cls()
+            obj.__dict__.update(d)
+        return obj
+
+    @staticmethod
+    def _decode_date(d):
+        return datetime.datetime.strptime(d['ISO8601_date'], '%Y-%m-%d').date()
+
+    @staticmethod
+    def _decode_datetime(d):
+        return datetime.datetime.strptime(d['ISO8601_date'], '%Y-%m-%dT%H:%M:%S.%f%Z')
