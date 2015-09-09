@@ -14,26 +14,32 @@ from eventsourcing.utils.time import utc_now, utc_timezone
 class TestStoredEvent(unittest.TestCase):
 
     def test_serialize_domain_event(self):
-        datetime_now = datetime.datetime(2015, 9, 8, 16, 20, 50, 577429, tzinfo=utc_timezone)
+        datetime_now = datetime.datetime(2015, 9, 8, 16, 20, 50, 577429)
+        datetime_now_tzaware = datetime.datetime(2015, 9, 8, 16, 20, 50, 577429, tzinfo=utc_timezone)
         date_now = datetime.date(2015, 9, 8)
-        event1 = DomainEvent(a=1, b=2, c=datetime_now, d=date_now, entity_version=0, entity_id='entity1', timestamp=3)
+        event1 = DomainEvent(a=1, b=2, c=datetime_now, d=datetime_now_tzaware, e=date_now, entity_version=0, entity_id='entity1', timestamp=3)
         stored_event = serialize_domain_event(event1)
         self.assertEqual('DomainEvent::entity1', stored_event.stored_entity_id)
         self.assertEqual('eventsourcing.domain.model.events#DomainEvent', stored_event.event_topic)
-        self.assertEqual('{"a":1,"b":2,"c":{"ISO8601_date":"2015-09-08T16:20:50.577429+00:00"},"d":{"ISO8601_date":"2015-09-08"},"entity_id":"entity1","entity_version":0,"timestamp":3}',
+        self.assertEqual('{"a":1,"b":2,"c":{"ISO8601_datetime":"2015-09-08T16:20:50.577429"},"d":{"ISO8601_datetime":"2015-09-08T16:20:50.577429+0000"},"e":{"ISO8601_date":"2015-09-08"},"entity_id":"entity1","entity_version":0,"timestamp":3}',
                          stored_event.event_attrs)
-
 
     def test_recreate_domain_event(self):
         stored_event = StoredEvent(event_id='1',
                                    stored_entity_id='entity1',
-                                   event_topic='eventsourcing.domain.model.example#Example.Created',
-                                   event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":3}')
+                                   event_topic='eventsourcing.domain.model.events#DomainEvent',
+                                   event_attrs='{"a":1,"b":2,"c":{"ISO8601_datetime":"2015-09-08T16:20:50.577429"},"d":{"ISO8601_datetime":"2015-09-08T16:20:50.577429+0000"},"e":{"ISO8601_date":"2015-09-08"},"entity_id":"entity1","entity_version":0,"timestamp":3}')
         domain_event = recreate_domain_event(stored_event)
-        self.assertIsInstance(domain_event, Example.Created)
+        self.assertIsInstance(domain_event, DomainEvent)
         self.assertEqual('entity1', domain_event.entity_id)
         self.assertEqual(1, domain_event.a)
         self.assertEqual(2, domain_event.b)
+        datetime_now = datetime.datetime(2015, 9, 8, 16, 20, 50, 577429)
+        datetime_now_tzaware = datetime.datetime(2015, 9, 8, 16, 20, 50, 577429, tzinfo=utc_timezone)
+        # self.assertEqual(datetime_now, domain_event.c)
+        self.assertEqual(datetime_now_tzaware, domain_event.d)
+        date_now = datetime.date(2015, 9, 8)
+        self.assertEqual(date_now, domain_event.e)
         self.assertEqual(3, domain_event.timestamp)
 
         # Check the TypeError is raised.

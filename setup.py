@@ -26,6 +26,7 @@ setup(
         'eventsourcing/domain/model',
         'eventsourcing/infrastructure',
         'eventsourcing/infrastructure/event_sourced_repos',
+        'eventsourcing/infrastructure/stored_events',
         'eventsourcing/utils',
         'eventsourcingtests',
     ],

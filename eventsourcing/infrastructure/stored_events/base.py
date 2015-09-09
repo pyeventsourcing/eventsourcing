@@ -7,6 +7,7 @@ import uuid
 from six import with_metaclass
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import TopicResolutionError
+import dateutil.parser
 
 StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
 
@@ -81,26 +82,6 @@ class InMemoryStoredEventRepository(StoredEventRepository):
         return self._by_topic[event_topic]
 
 
-class ObjectJSONEncoder(json.JSONEncoder):
-
-    def default(self, obj):
-        try:
-            return super(ObjectJSONEncoder, self).default(obj)
-        except TypeError as e:
-            if "not JSON serializable" not in str(e):
-                raise
-            if isinstance(obj, datetime.date):
-                return { 'ISO8601_date': obj.isoformat() }
-            if isinstance(obj, datetime.datetime):
-                return { 'ISO8601_datetime': obj.isoformat() }
-            else:
-                d = { '__class__': obj.__class__.__qualname__,
-                      '__module__': obj.__module__,
-                    }
-                d.update(obj.__dict__)
-                return d
-
-
 def serialize_domain_event(domain_event):
     """Serializes a domain event into a stored event.
 
@@ -142,7 +123,7 @@ def recreate_domain_event(stored_event):
     """
     assert isinstance(stored_event, StoredEvent)
     event_class = resolve_event_topic(stored_event.event_topic)
-    event_data = json.loads(stored_event.event_attrs)
+    event_data = json.loads(stored_event.event_attrs, cls=ObjectJSONDecoder)
     try:
         domain_event = event_class(**event_data)
     except TypeError:
@@ -221,19 +202,39 @@ def resolve_attr(obj, path):
     return resolve_attr(head_obj, tail)
 
 
+class ObjectJSONEncoder(json.JSONEncoder):
+
+    def default(self, obj):
+        try:
+            return super(ObjectJSONEncoder, self).default(obj)
+        except TypeError as e:
+            if "not JSON serializable" not in str(e):
+                raise
+            if isinstance(obj, datetime.datetime):
+                return { 'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z') }
+            if isinstance(obj, datetime.date):
+                return { 'ISO8601_date': obj.isoformat() }
+            else:
+                d = { '__class__': obj.__class__.__qualname__,
+                      '__module__': obj.__module__,
+                    }
+                d.update(obj.__dict__)
+                return d
+
+
 class ObjectJSONDecoder(json.JSONDecoder):
 
-    def __init__(self):
-        super(ObjectJSONDecoder, self).__init__(object_hook=ObjectJSONDecoder.from_jsonable)
+    def __init__(self, **kwargs):
+        super(ObjectJSONDecoder, self).__init__(object_hook=ObjectJSONDecoder.from_jsonable, **kwargs)
 
     @staticmethod
     def from_jsonable(d):
         if '__class__' in d and '__module__' in d:
             return ObjectJSONDecoder._decode_class(d)
-        elif 'ISO8601_date' in d:
-            return ObjectJSONDecoder._decode_date(d)
         elif 'ISO8601_datetime' in d:
             return ObjectJSONDecoder._decode_datetime(d)
+        elif 'ISO8601_date' in d:
+            return ObjectJSONDecoder._decode_date(d)
         return d
 
     @staticmethod
@@ -255,4 +256,5 @@ class ObjectJSONDecoder(json.JSONDecoder):
 
     @staticmethod
     def _decode_datetime(d):
-        return datetime.datetime.strptime(d['ISO8601_date'], '%Y-%m-%dT%H:%M:%S.%f%Z')
+        return dateutil.parser.parse(d['ISO8601_datetime'])
+

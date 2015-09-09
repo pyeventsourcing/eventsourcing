@@ -5,15 +5,13 @@ if hasattr(datetime, 'timezone'):
 else:
     from datetime import tzinfo, timedelta
 
-
     class UTC(tzinfo):
         def utcoffset(self, date_time):
             return timedelta(0)
+
         def dst(self, date_time):
             return timedelta(0)
     utc_timezone = UTC()
-
-
 
 
 def utc_now():
