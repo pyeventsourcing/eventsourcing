@@ -217,8 +217,12 @@ an entity object instance. The factory method then publishes the event (for exam
 saved into the event store by the persistence subscriber) and returns the entity to the caller.
 
 In the example below, the factory method is a module level function which firstly instantiates the
-Example's Created domain event. The Example mutator is invoked, which returns an entity object instance when given a
-Created event. The event is published, and the new domain entity is returned to the caller of the factory method.
+Example Created domain event. The Example class's mutator is invoked with the Created event, which returns an
+Example entity instance. The Example class inherits a mutator that can handle the Created, AttributeChanged,
+and Discarded events. The mutator could have been extended (or replaced) on the Example class, to handle other events,
+but for simplicity there aren't any events defined in this example that the default mutator can't handle. Once the
+Example entity has been instantiated, the Created event is published, and the new domain entity is returned to the
+caller of the factory method.
 
 ```python
 from eventsourcing.domain.model.events import publish
@@ -307,19 +311,37 @@ repository. Check the changed attribute value has been stored.
 with ExampleApplication(db_uri='sqlite:///:memory:') as app:
     
     # Register a new example.
-    example1 = app.register_new_example(a=10, b=20)
+    example1 = app.register_new_example(a=1, b=2)
     
     # Check the example is available in the repo.
+    assert example1.id in app.example_repo
+    
+    # Check the attribute values.
     entity1 = app.example_repo[example1.id]
-    assert entity1.a == 10
-    assert entity1.b == 20
+    assert entity1.a == 1
+    assert entity1.b == 2
     
     # Change attribute values.
     entity1.a = 123
+    entity1.b = 234
     
-    # Check the new value is available in the repo.
+    # Check the new values are available in the repo.
     entity1 = app.example_repo[example1.id]
     assert entity1.a == 123
+    assert entity1.b == 234
+    
+    # Discard the entity.
+    entity1.discard()
+
+    assert example1.id not in app.example_repo
+    
+    # Getting a discarded entity from the repo causes a KeyError.
+    try:
+        app.example_repo[example1.id]
+    except KeyError:
+        pass
+    else:
+        assert False
 
 ```
 
