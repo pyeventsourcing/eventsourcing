@@ -257,4 +257,3 @@ class ObjectJSONDecoder(json.JSONDecoder):
     @staticmethod
     def _decode_datetime(d):
         return dateutil.parser.parse(d['ISO8601_datetime'])
-
