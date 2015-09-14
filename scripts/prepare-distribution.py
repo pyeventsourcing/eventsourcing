@@ -10,7 +10,7 @@ except KeyError:
 
 
 def get_version():
-    return [line.split('=')[1].strip().strip(",").strip("'") for line in open('../setup.py').readlines() if 'version' in line][0]
+    return [line.split('=')[1].strip().strip(",").strip("'") for line in open('../setup.py').readlines() if 'version=' in line][0]
 
 
 def build_and_test(cwd):
