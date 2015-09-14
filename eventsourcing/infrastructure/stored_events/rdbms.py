@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.scoping import ScopedSession
 from sqlalchemy.sql.schema import Column, Sequence
 from sqlalchemy.sql.sqltypes import Integer, String
-from eventsourcing.infrastructure.stored_events import StoredEventRepository, StoredEvent
+from eventsourcing.infrastructure.stored_events.base import StoredEvent, StoredEventRepository
 
 
 def get_scoped_session_facade(uri):
@@ -25,7 +25,7 @@ class SqlStoredEvent(Base):
 
     id = Column(Integer, Sequence('stored_event_id_seq'), primary_key=True)
     event_id = Column(String(), index=True)
-    entity_id = Column(String(), index=True)
+    stored_entity_id = Column(String(), index=True)
     event_topic = Column(String(), index=True)
     event_attrs = Column(String())
 
@@ -38,7 +38,7 @@ def stored_from_sql(sql_stored_event):
     assert isinstance(sql_stored_event, SqlStoredEvent)
     return StoredEvent(
         event_id=sql_stored_event.event_id,
-        entity_id=sql_stored_event.entity_id,
+        stored_entity_id=sql_stored_event.stored_entity_id,
         event_attrs=sql_stored_event.event_attrs,
         event_topic=sql_stored_event.event_topic
     )
@@ -48,7 +48,7 @@ def sql_from_stored(stored_event):
     assert isinstance(stored_event, StoredEvent)
     return SqlStoredEvent(
         event_id=stored_event.event_id,
-        entity_id=stored_event.entity_id,
+        stored_entity_id=stored_event.stored_entity_id,
         event_attrs=stored_event.event_attrs,
         event_topic=stored_event.event_topic
     )
@@ -74,7 +74,6 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         finally:
             self.db_session.close() # Begins a new transaction
 
-
     def __contains__(self, item):
         return bool(self.db_session.query(SqlStoredEvent).filter_by(event_id=item).count())
 
@@ -82,8 +81,8 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         sql_stored_event = self.db_session.query(SqlStoredEvent).filter_by(event_id=item).first()
         return stored_from_sql(sql_stored_event)
 
-    def get_entity_events(self, entity_id):
-        sql_stored_events = self.db_session.query(SqlStoredEvent).filter_by(entity_id=entity_id)
+    def get_entity_events(self, stored_entity_id):
+        sql_stored_events = self.db_session.query(SqlStoredEvent).filter_by(stored_entity_id=stored_entity_id)
         return map(stored_from_sql, sql_stored_events)
 
     def get_topic_events(self, event_topic):

@@ -8,12 +8,10 @@ A library for event sourcing in Python.
 ## Install
 
 Use pip to install the [latest distribution](https://pypi.python.org/pypi/eventsourcing) from
-the Python Package Index.
+the Python Package Index. Please also install the 'test' optional extra, so that the test suite
+might pass, and so that the usage examples below will work.
 
-For the examples below, and so that the test suite might pass, please also install the 'sqlalchemy'
-distribution.
-
-    pip install eventsourcing sqlalchemy
+    pip install eventsourcing[test]
 
 
 After installation, if you run the test suite, it should pass.
@@ -40,7 +38,7 @@ Issues can be registered here:
 
 Event sourcing is really fantastic, but there doesn't appear to be a general library for event sourcing in Python.
 This can present a dilemma at the start of a project: whether or not to delay so that the basics can be put in
-place. The 'rewind' package is coded to work with ZeroMQ. The 'event-store' looks to be along the right lines,
+place. The 'rewind' package is coded to work with ZeroMQas. The 'event-store' looks to be along the right lines,
 but provides a particular event store rather than broader range of elements of event sourcing which can be easily
 extended and optionally combined to make event sourced applications that support their domain.
 
@@ -155,9 +153,9 @@ all events from the event store, with it as the only subscriber (forthcoming)
 * Something to store serialized event attribute values separately from the other event information, to prevent large attribute values inhibiting performance and stability - different sizes could be stored in different ways...
 
 * Different kinds of stored event
-    * IDs generated from content like Git
-    * cryptographically signed
-    * encrypted
+    * IDs generated from content, e.g. like Git
+    * cryptographically signed stored events
+    * encrypted stored events
     
 * Branch and merge mechanism for domain events
 
@@ -187,6 +185,15 @@ class Example(EventSourcedEntity):
     subscriber, and a stored event repository, and a database connection.
     """
 
+    class Created(EventSourcedEntity.Created):
+        pass
+
+    class AttributeChanged(EventSourcedEntity.AttributeChanged):
+        pass
+
+    class Discarded(EventSourcedEntity.Discarded):
+        pass
+
     def __init__(self, a, b, **kwargs):
         super(Example, self).__init__(**kwargs)
         self._a = a
@@ -208,8 +215,12 @@ an entity object instance. The factory method then publishes the event (for exam
 saved into the event store by the persistence subscriber) and returns the entity to the caller.
 
 In the example below, the factory method is a module level function which firstly instantiates the
-Example's Created domain event. The Example mutator is invoked, which returns an entity object instance when given a
-Created event. The event is published, and the new domain entity is returned to the caller of the factory method.
+Example Created domain event. The Example class's mutator is invoked with the Created event, which returns an
+Example entity instance. The Example class inherits a mutator that can handle the Created, AttributeChanged,
+and Discarded events. The mutator could have been extended (or replaced) on the Example class, to handle other events,
+but for simplicity there aren't any events defined in this example that the default mutator can't handle. Once the
+Example entity has been instantiated, the Created event is published, and the new domain entity is returned to the
+caller of the factory method.
 
 ```python
 from eventsourcing.domain.model.events import publish
@@ -224,6 +235,7 @@ def register_new_example(a, b):
     entity = Example.mutator(entity=Example, event=event)
     publish(event=event)
     return entity
+
 ```
 
 Next, define an event sourced repository class for your entity. Inherit from the base class
@@ -270,6 +282,7 @@ class ExampleApplication(EventSourcedApplication):
 
     def register_new_example(self, a, b):
         return register_new_example(a=a, b=b)
+
 ```
 
 
@@ -296,19 +309,38 @@ repository. Check the changed attribute value has been stored.
 with ExampleApplication(db_uri='sqlite:///:memory:') as app:
     
     # Register a new example.
-    example1 = app.register_new_example(a=10, b=20)
+    example1 = app.register_new_example(a=1, b=2)
     
     # Check the example is available in the repo.
+    assert example1.id in app.example_repo
+    
+    # Check the attribute values.
     entity1 = app.example_repo[example1.id]
-    assert entity1.a == 10
-    assert entity1.b == 20
+    assert entity1.a == 1
+    assert entity1.b == 2
     
     # Change attribute values.
     entity1.a = 123
+    entity1.b = 234
     
-    # Check the new value is available in the repo.
+    # Check the new values are available in the repo.
     entity1 = app.example_repo[example1.id]
     assert entity1.a == 123
+    assert entity1.b == 234
+    
+    # Discard the entity.
+    entity1.discard()
+
+    assert example1.id not in app.example_repo
+    
+    # Getting a discarded entity from the repo causes a KeyError.
+    try:
+        app.example_repo[example1.id]
+    except KeyError:
+        pass
+    else:
+        assert False
+
 ```
 
 Congratulations! You have created a new event sourced application!
