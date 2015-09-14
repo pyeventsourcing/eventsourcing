@@ -20,12 +20,12 @@ class StoredEventRepository(with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def __getitem__(self, item):
+    def __getitem__(self, event_id):
         """Returns stored event for given event ID.
         """
 
     @abstractmethod
-    def __contains__(self, item):
+    def __contains__(self, event_id):
         """Tests whether given event ID exists.
         """
 
@@ -66,11 +66,11 @@ class InMemoryStoredEventRepository(StoredEventRepository):
             self._by_topic[topic] = []
         self._by_topic[topic].append(stored_event)
 
-    def __getitem__(self, item):
-        return self._by_id[item]
+    def __getitem__(self, event_id):
+        return self._by_id[event_id]
 
-    def __contains__(self, item):
-        return item in self._by_id
+    def __contains__(self, event_id):
+        return event_id in self._by_id
 
     def get_entity_events(self, stored_entity_id):
         if stored_entity_id not in self._by_stored_entity_id:
