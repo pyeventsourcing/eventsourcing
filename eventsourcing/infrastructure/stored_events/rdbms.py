@@ -59,9 +59,6 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
     def __init__(self, db_session):
         assert isinstance(db_session, ScopedSession)
         self.db_session = db_session
-        self._by_id = {}
-        self._by_entity_id = {}
-        self._by_topic = {}
 
     def append(self, stored_event):
         sql_stored_event = sql_from_stored(stored_event)
@@ -74,11 +71,11 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         finally:
             self.db_session.close() # Begins a new transaction
 
-    def __contains__(self, item):
-        return bool(self.db_session.query(SqlStoredEvent).filter_by(event_id=item).count())
+    def __contains__(self, event_id):
+        return bool(self.db_session.query(SqlStoredEvent).filter_by(event_id=event_id).count())
 
-    def __getitem__(self, item):
-        sql_stored_event = self.db_session.query(SqlStoredEvent).filter_by(event_id=item).first()
+    def __getitem__(self, event_id):
+        sql_stored_event = self.db_session.query(SqlStoredEvent).filter_by(event_id=event_id).first()
         return stored_from_sql(sql_stored_event)
 
     def get_entity_events(self, stored_entity_id):

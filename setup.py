@@ -16,6 +16,13 @@ setup(
         'test': [
             'sqlalchemy',
             'mock',
+            'cassandra-driver==2.6.0rc1',
+        ],
+        'sqlalchemy': [
+            'sqlalchemy',
+        ],
+        'cassandra': [
+            'cassandra-driver==2.6.0rc1',
         ],
     },
     zip_safe=False,

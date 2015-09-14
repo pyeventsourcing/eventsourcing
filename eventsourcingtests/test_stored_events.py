@@ -1,10 +1,13 @@
 import unittest
 import datetime
+import uuid
 from eventsourcing.domain.model.events import DomainEvent
 
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.infrastructure.stored_events.base import StoredEvent, InMemoryStoredEventRepository, \
     serialize_domain_event, recreate_domain_event, resolve_event_topic
+from eventsourcing.infrastructure.stored_events.cassandra_stored_events import CassandraStoredEventRepository, \
+    setup_cassandra_connection, shutdown_cassandra_connection, get_cassandra_setup_params, CqlStoredEvent
 from eventsourcing.infrastructure.stored_events.rdbms import SQLAlchemyStoredEventRepository, \
     get_scoped_session_facade
 from eventsourcing.domain.model.example import Example
@@ -63,7 +66,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
 
     def assertStoredEventRepositoryImplementation(self, stored_event_repo):
         # Store an event for 'entity1'.
-        stored_event1 = StoredEvent(event_id='1',
+        stored_event1 = StoredEvent(event_id=uuid.uuid1().hex,
                                     stored_entity_id='entity1',
                                     event_topic='eventsourcing.domain.model.example#Example.Created',
                                     event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":3}')
@@ -75,7 +78,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         self.assertIsInstance(repr(stored_event_repo[stored_event1.event_id]), str)  # __getitem__
 
         # Store another event for 'entity1'.
-        stored_event2 = StoredEvent(event_id='2',
+        stored_event2 = StoredEvent(event_id=uuid.uuid1().hex,
                                     stored_entity_id='entity1',
                                     event_topic='eventsourcing.domain.model.example#Example.Created',
                                     event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":4}')
@@ -118,4 +121,21 @@ class TestSQLAlchemyStoredEventRepository(StoredEventRepositoryTestCase):
 
     def test(self):
         stored_event_repo = SQLAlchemyStoredEventRepository(get_scoped_session_facade('sqlite:///:memory:'))
+        self.assertStoredEventRepositoryImplementation(stored_event_repo)
+
+
+class TestCassandraStoredEventRepository(StoredEventRepositoryTestCase):
+
+    def setUp(self):
+        super(TestCassandraStoredEventRepository, self).setUp()
+        setup_cassandra_connection(*get_cassandra_setup_params(default_keyspace='eventsourcingtests2'))
+
+    def tearDown(self):
+        for cql_stored_event in CqlStoredEvent.objects.all():
+            cql_stored_event.delete()
+        shutdown_cassandra_connection()
+        super(TestCassandraStoredEventRepository, self).tearDown()
+
+    def test(self):
+        stored_event_repo = CassandraStoredEventRepository()
         self.assertStoredEventRepositoryImplementation(stored_event_repo)
