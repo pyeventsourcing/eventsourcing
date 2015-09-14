@@ -4,6 +4,10 @@ import subprocess
 import sys
 
 
+del os.environ['PYTHONPATH']
+
+
+
 def get_version():
     return [line.split('=')[1].strip().strip(",").strip("'") for line in open('../setup.py').readlines() if 'version' in line][0]
 
