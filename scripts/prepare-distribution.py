@@ -3,9 +3,10 @@ import os
 import subprocess
 import sys
 
-
-del os.environ['PYTHONPATH']
-
+try:
+    del os.environ['PYTHONPATH']
+except KeyError:
+    pass
 
 
 def get_version():
@@ -27,8 +28,7 @@ def build_and_test(cwd):
         rebuild_virtualenv(cwd, tmpcwd, python_executable)
 
         # Install from dist folder.
-        subprocess.check_call(['bin/pip', 'install', 'sqlalchemy'], cwd=tmpcwd)
-        subprocess.check_call(['bin/pip', 'install', 'mock'], cwd=tmpcwd)
+        subprocess.check_call(['bin/pip', 'install', '-r', '../requirements.txt'], cwd=tmpcwd)
         subprocess.check_call(['bin/pip', 'install', '-U', '../dist/eventsourcing-%s.tar.gz' % get_version()], cwd=tmpcwd)
 
         # Check installed tests all pass.
@@ -52,6 +52,8 @@ def build_and_test(cwd):
         # Check installed tests all pass.
         test_installation(tmpcwd)
 
+        remove_virtualenv(cwd, tmpcwd)
+
 
 def test_installation(tmpcwd):
     subprocess.check_call(['bin/python', '-m', 'dateutil.parser'], cwd=tmpcwd)
@@ -59,8 +61,12 @@ def test_installation(tmpcwd):
 
 
 def rebuild_virtualenv(cwd, venv_path, python_executable):
-    subprocess.check_call(['rm', '-rf', venv_path], cwd=cwd)
+    remove_virtualenv(cwd, venv_path)
     subprocess.check_call(['virtualenv', '-p', python_executable, venv_path], cwd=cwd)
+
+
+def remove_virtualenv(cwd, venv_path):
+    subprocess.check_call(['rm', '-rf', venv_path], cwd=cwd)
 
 
 if __name__ == '__main__':
