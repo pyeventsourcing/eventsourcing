@@ -172,6 +172,9 @@ should accept the values it needs to initialize its variables.
 In the example below, an Example entity inherits Created, Discarded,
 and AttributeChanged events from its super class EventSourcedEntity.
 
+To model domain specific events, simply declare them on the entity class
+and then extend the EventSourcedEntity.mutator() method.
+
 ```python
 from eventsourcing.domain.model.entity import EventSourcedEntity, eventsourcedproperty
 
