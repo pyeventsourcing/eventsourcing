@@ -105,7 +105,7 @@ Inspiration:
     
     * SQLAlchemy stored event repository, using ORM to persist stored events in any supported database
     
-    * Cassandra stored event repository, using a column family to persist stored events in Cassandra (forthcoming)
+    * Cassandra stored event repository, using a column family to persist stored events in Cassandra
     
 * Persistence subscriber class, to listen for published domain events and append them to its event store
 
@@ -209,6 +209,7 @@ class Example(EventSourcedEntity):
 
 ```
 
+
 Next, define a factory method that returns new entity instances. Rather than directly constructing the entity object
 instance, it should firstly instantiate a "created" domain event, and then call the mutator to obtain
 an entity object instance. The factory method then publishes the event (for example, so that it might be
@@ -238,8 +239,11 @@ def register_new_example(a, b):
 
 ```
 
-Next, define an event sourced repository class for your entity. Inherit from the base class
-'EventSourcedRepository' and set the 'domain_class' attribute on the subclass.
+
+Now, define an event sourced repository class for your entity. Inherit from
+eventsourcing.infrastructure.event_sourced_repo.EventSourcedRepository and set the
+'domain_class' attribute on the subclass.
+
 In the example below, the ExampleRepository sets the Example class as its domain class.
 
 ```python
@@ -253,18 +257,20 @@ class ExampleRepository(EventSourcedRepository):
 
 ```
 
+
 Finally, define an application to have the event sourced repo and the factory method. Inheriting from
-EventSourcedApplication sets up a persistence subscriber, an event store, and stored event persistence
-when the application is instantiated.
+eventsourcing.application.main.EventSourcingApplication provides a persistence subscriber, an event store,
+and stored event persistence when the application is instantiated. For convenience when using SQLAlchemy and
+Cassandra to store events, two sub-classes are provided: EventSourcingWithSQLAlchemy and EventSourcingWithCassandra.
 
 In the example below, the ExampleApplication has an ExampleRepository, and for convenience the
 'register_new_example' factory method described above (a module level function) is used to implement a
-synonymous method on the application class.
+synonymous method on the application class. It inherits
 
 ```python
-from eventsourcing.application.main import EventSourcedApplication
+from eventsourcing.application.main import EventSourcingWithSQLAlchemy
 
-class ExampleApplication(EventSourcedApplication):
+class ExampleApplication(EventSourcingWithSQLAlchemy):
     """
     An example event sourced application.
 
