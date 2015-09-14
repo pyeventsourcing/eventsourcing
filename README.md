@@ -155,9 +155,9 @@ all events from the event store, with it as the only subscriber (forthcoming)
 * Something to store serialized event attribute values separately from the other event information, to prevent large attribute values inhibiting performance and stability - different sizes could be stored in different ways...
 
 * Different kinds of stored event
-    * IDs generated from content like Git
-    * cryptographically signed
-    * encrypted
+    * IDs generated from content, e.g. like Git
+    * cryptographically signed stored events
+    * encrypted stored events
     
 * Branch and merge mechanism for domain events
 

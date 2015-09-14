@@ -74,7 +74,6 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         finally:
             self.db_session.close() # Begins a new transaction
 
-
     def __contains__(self, item):
         return bool(self.db_session.query(SqlStoredEvent).filter_by(event_id=item).count())
 

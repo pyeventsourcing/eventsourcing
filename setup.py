@@ -1,38 +1,22 @@
-from distutils.core import setup
-
-install_requires = ['six']
-
-# Do we need to install mock?
-install_requires_mock = False
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        install_requires.append('mock')
+from setuptools import setup, find_packages
 
 setup(
     name='eventsourcing',
-    version='0.8.3',
+    version='0.8.4rc5',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
     url = 'https://github.com/johnbywater/eventsourcing',
-    packages=[
-        'eventsourcing',
-        'eventsourcing/application',
-        'eventsourcing/domain',
-        'eventsourcing/domain/model',
-        'eventsourcing/infrastructure',
-        'eventsourcing/infrastructure/event_sourced_repos',
-        'eventsourcing/infrastructure/stored_events',
-        'eventsourcing/utils',
-        'eventsourcingtests',
+    packages=find_packages(),
+    install_requires=[
+        'six',
+        'python-dateutil',
     ],
-    install_requires=install_requires,
     extras_require={
-        'sqlalchemy': ['sqlalchemy'],
+        'test': [
+            'sqlalchemy',
+            'mock',
+        ],
     },
     zip_safe=False,
     long_description = """
