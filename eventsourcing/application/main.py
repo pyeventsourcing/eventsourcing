@@ -50,12 +50,14 @@ class EventSourcingWithSQLAlchemy(EventSourcingApplication):
 
 class EventSourcingWithCassandra(EventSourcingApplication):
 
-    def __init__(self):
-        self.setup_cassandra_connection()
+    def __init__(self, hosts=('localhost',), consistency='QUORUM', default_keyspace='eventsourcing', port=9042,
+                               protocol_version=2, username=None, password=None):
+        self.setup_cassandra_connection(hosts, consistency, default_keyspace, port, protocol_version, username,
+                                        password)
         super(EventSourcingWithCassandra, self).__init__()
 
-    def setup_cassandra_connection(self):
-        setup_cassandra_connection(*get_cassandra_setup_params())
+    def setup_cassandra_connection(self, *args):
+        setup_cassandra_connection(*get_cassandra_setup_params(*args))
 
     def create_stored_event_repo(self):
         return CassandraStoredEventRepository()
