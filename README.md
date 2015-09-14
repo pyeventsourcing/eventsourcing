@@ -8,12 +8,10 @@ A library for event sourcing in Python.
 ## Install
 
 Use pip to install the [latest distribution](https://pypi.python.org/pypi/eventsourcing) from
-the Python Package Index.
+the Python Package Index. Please also install the 'test' optional extra, so that the test suite
+might pass, and so that the usage examples below will work.
 
-For the examples below, and so that the test suite might pass, please also install the 'sqlalchemy'
-distribution.
-
-    pip install eventsourcing sqlalchemy
+    pip install eventsourcing[test]
 
 
 After installation, if you run the test suite, it should pass.
@@ -40,7 +38,7 @@ Issues can be registered here:
 
 Event sourcing is really fantastic, but there doesn't appear to be a general library for event sourcing in Python.
 This can present a dilemma at the start of a project: whether or not to delay so that the basics can be put in
-place. The 'rewind' package is coded to work with ZeroMQ. The 'event-store' looks to be along the right lines,
+place. The 'rewind' package is coded to work with ZeroMQas. The 'event-store' looks to be along the right lines,
 but provides a particular event store rather than broader range of elements of event sourcing which can be easily
 extended and optionally combined to make event sourced applications that support their domain.
 
