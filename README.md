@@ -71,21 +71,21 @@ Inspiration:
 
 ## Features
 
-* Base class for immutable domain events
+* Example application of event sourcing, with an example event sourced entity and example domain events, and with an example event sourced repository containing example entity instances, and an example entity factory method
 
-* Generic immutable stored event type
+* Base class for domain events, for modelling events in a domain
 
 * Function to get event topic from domain event class
 
 * Function to resolve event topic into domain event class
 
-* Function to serialize domain events to stored event objects
+* Generic stored events, which provide a universal format for storing domain events
 
-* Function to recreate domain events from stored event objects
+* Function to serialize a domain event object to a stored event object
+
+* Function to recreate a domain event object from a stored event object
 
 * Base class for stored event repositories
-
-    * Method to get all domain events in the order they occurred (forthcoming)
 
     * Method to get all domain events for given entity ID, in the order they occurred
 
@@ -99,33 +99,39 @@ Inspiration:
 
     * Method to delete all domain events for given domain entity ID (forthcoming)
 
-* Concrete stored event repository implementations for common database management systems (SQL and NoSQL)
+    * Method to get all domain events in the order they occurred (forthcoming)
 
-    * Simple stored event repository, using simple Python objects for stored events (non-persistent)
+* Concrete implementation of a (non-persistent) stored event repository, using simple Python objects only
     
-    * SQLAlchemy stored event repository, using ORM to persist stored events in any supported database
+* Concrete stored event repository implementations for common relational and non-relational database management systems
+
+    * SQLAlchemy stored event repository, using an ORM to persist stored events in relational databases
     
     * Cassandra stored event repository, using a column family to persist stored events in Cassandra
-    
-* Persistence subscriber class, to listen for published domain events and append them to its event store
 
 * Event store class, to convert domain events to stored events appended to its stored event repository
 
-    * Storage retries and fallback strategies, to protect against failing to write an event
+    * Storage retries and fallback strategies, to protect against failing to write an event (forthcoming)
+
+* Persistence subscriber class, to listen for published domain events and append them to its event store
 
 * In-process publish-subscribe mechanism, for in-process domain event propagation to subscriber objects
 
 * Base class for event sourced entities
 
-* Base class for event sourced repositories
+    * Domain events for created, attribute changed, and discarded domain entity events
+    
+    * Mutator to apply created, attribute changed, and discarded domain events to domain entities
 
-* Event player, to return a recreated domain entity for a given domain entity mutator and entity ID
+* Base class for event sourced domain entity repositories, to recover domain entities using an event player
 
-* Update stored event (domain model migration) (forthcoming)
+* Event player, to recover a domain entity for a given domain entity ID, using an event store and a mutator
 
-* Base class for event sourced applications
+* Abstract base class for event sourced applications, having an event store and a persistence subscriber, but requiring a stored event repository
 
-* Base event sourced application class, to have a stored event repository, an event store, a persistence subscriber, domain specific event sourced repositories and entity factory methods
+* Base class for event sourced applications with SQLAlchemy, which provides a stored event repository that uses SQLAlchemy
+
+* Base class for event sourced applications with Cassandra, which provides a stored event repository that uses Cassandra
 
 * Subscriber that publishes domain events to RabbitMQ (forthcoming)
 
@@ -139,9 +145,9 @@ Inspiration:
 
 * Base class for event sourced projections or views (forthcoming)
 
-    * In memory event sourced projection, which needs to replay entire event stream when system starts up
-    
-    * Persistent event sourced projection, which stored its projected state, but needs to replay entire event stream when initialized
+    * In memory event sourced projection, which needs to replay entire event stream when system starts up (forthcoming)
+
+    * Persistent event sourced projection, which stored its projected state, but needs to replay entire event stream when initialized (forthcoming)
 
 * Ability to clear and rebuild a persisted event sourced projection (such as an index), by republishing
 all events from the event store, with it as the only subscriber (forthcoming)
@@ -150,16 +156,18 @@ all events from the event store, with it as the only subscriber (forthcoming)
 
 * Stream pointer, to refer to an event in a stream (forthcoming)
 
-* Something to store serialized event attribute values separately from the other event information, to prevent large attribute values inhibiting performance and stability - different sizes could be stored in different ways...
+* Updating of stored event, to support domain model migration (forthcoming)
+
+* Something to store serialized event attribute values separately from the other event information, to prevent large attribute values inhibiting performance and stability - different sizes could be stored in different ways... (forthcoming)
 
 * Different kinds of stored event
-    * IDs generated from content, e.g. like Git
-    * cryptographically signed stored events
-    * encrypted stored events
+    * IDs generated from content, e.g. like Git (forthcoming)
+    * cryptographically signed stored events (forthcoming)
+    * encrypted stored events (forthcoming)
     
-* Branch and merge mechanism for domain events
+* Branch and merge mechanism for domain events (forthcoming)
 
-* Examples (see below, more examples are forthcoming)
+* More examples (forthcoming)
 
 * Great documentation! (forthcoming)
 
