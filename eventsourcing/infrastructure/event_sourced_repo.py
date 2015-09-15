@@ -24,7 +24,7 @@ class EventPlayer(object):
 
         # Successively apply the domain events to the entity state.
         entity = reduce(self.domain_class.mutator, domain_events, None)
-        if entity is self.domain_class or entity is None:
+        if entity is None:
             # Either entity was not created, or it was already discarded.
             raise KeyError(entity_id)
         else:
