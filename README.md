@@ -174,14 +174,19 @@ all events from the event store, with it as the only subscriber (forthcoming)
 
 ## Usage
 
-Start by defining a domain entity. The entity's constructor
-should accept the values it needs to initialize its variables.
+Start by defining a domain entity as a subclass of class 'EventSourcedEntity' (in module
+'eventsourcing.domain.model.entity'). The domain events can be defined on the domain entity
+class. The entity's constructor will accept the values needed to initialize
+its variables.
 
-In the example below, an Example entity inherits Created, Discarded,
-and AttributeChanged events from its super class EventSourcedEntity.
-
-To model domain specific events, simply declare them on the entity class
-and then extend the EventSourcedEntity.mutator() method.
+In the example below, an 'Example' entity inherits 'Created', 'AttributeChanged', and 'Discarded'
+events from its super class 'EventSourcedEntity'. It also inherits a mutator method that handles
+those events. The Example entity has a constructor which takes two positional arguments ('a' and 'b')
+and keyword arguments ('kwargs') which it passes directly to the base class constructor.
+The 'eventsourcedproperty' decorator is used to define event sourced properties for entity attributes 'a'
+and 'b'. The decorator introduces a setter that generates 'AttributeChanged' events when values are assigned
+to the attributes. The entity inherits a discard() method, which generates the 'Discarded' event when called.
+The 'Created' event is generated in a factory method (see below) and carries values used to initialise an entity.
 
 ```python
 from eventsourcing.domain.model.entity import EventSourcedEntity, eventsourcedproperty
@@ -220,6 +225,10 @@ class Example(EventSourcedEntity):
 
 ```
 
+If you want to model other domain events, simply: declare them on the entity class along with the Create,
+AttributeChanged, and Discarded events; extend the EventSourcedEntity.mutator() method to apply the
+events to entities, by changing the state of the entity; and implement methods on the entity which generate,
+apply, and publish the domain events.
 
 Next, define a factory method that returns new entity instances. Rather than directly constructing the entity object
 instance, it should firstly instantiate a "created" domain event, and then call the mutator to obtain
@@ -269,14 +278,14 @@ class ExampleRepository(EventSourcedRepository):
 ```
 
 
-Finally, define an application to have the event sourced repo and the factory method. Inheriting from
+Finally, define an application to have an event sourced repo and a factory method. Inheriting from
 eventsourcing.application.main.EventSourcingApplication provides a persistence subscriber, an event store,
 and stored event persistence when the application is instantiated. For convenience when using SQLAlchemy and
 Cassandra to store events, two sub-classes are provided: EventSourcingWithSQLAlchemy and EventSourcingWithCassandra.
 
 In the example below, the ExampleApplication has an ExampleRepository, and for convenience the
 'register_new_example' factory method described above (a module level function) is used to implement a
-synonymous method on the application class. It inherits
+synonymous method on the application class. It extends EventSourcingWithSQLAlchemy.
 
 ```python
 from eventsourcing.application.main import EventSourcingWithSQLAlchemy
@@ -302,22 +311,10 @@ class ExampleApplication(EventSourcingWithSQLAlchemy):
 
 ```
 
+For simplicity, this application has just one type of entity. A real application may involve several different
+types of entities, and have several different repositories and factory methods.
 
-The example uses an SQLite in memory relational database, but you could change 'db_uri' to another
-connection string if you have a real database. Here are some example connection strings - for
-an SQLite file, for a PostgreSQL database, and for a MySQL database. See SQLAlchemy's create_engine()
-documentation for details.
-
-```
-sqlite:////tmp/mydatabase
-
-postgresql://scott:tiger@localhost:5432/mydatabase
-
-mysql://scott:tiger@hostname/dbname
-```
-
-
-The event sourced application can be used as a context manager, which helps close things down at the
+An event sourced application object can be used as a context manager, which helps close things down at the
 end. With an application instance, call its factory method to register a new entity. Update an
 attribute value. Use the generated entity ID to subsequently retrieve the registered entity from the
 repository. Check the changed attribute value has been stored.
@@ -361,3 +358,16 @@ with ExampleApplication(db_uri='sqlite:///:memory:') as app:
 ```
 
 Congratulations! You have created a new event sourced application!
+
+The example above uses an SQLite in memory relational database, but you could change 'db_uri' to another
+connection string if you have a real database. Here are some example connection strings - for
+an SQLite file, for a PostgreSQL database, and for a MySQL database. See SQLAlchemy's create_engine()
+documentation for details.
+
+```
+sqlite:////tmp/mydatabase
+
+postgresql://scott:tiger@localhost:5432/mydatabase
+
+mysql://scott:tiger@hostname/dbname
+```
