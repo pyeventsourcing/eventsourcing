@@ -53,33 +53,34 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     def _apply(self, event):
         self.mutator(self, event)
 
-    @staticmethod
-    def mutator(entity, event):
+    @classmethod
+    def mutator(cls, entity=None, event=None):
         assert isinstance(event, DomainEvent), "Not a domain event: {}".format(event)
-        event_type = type(event)
-        if event_type == entity.Created:
-            assert isinstance(entity, type), entity
-            entity = entity(**event.__dict__)
+        event_class = type(event)
+        if event_class == cls.Created:
+            # assert isinstance(entity, type), entity
+            assert entity is None
+            entity_class = cls
+            entity = entity_class(**event.__dict__)
             assert isinstance(entity, EventSourcedEntity), entity
             entity._increment_version()
             return entity
 
-        elif event_type == entity.AttributeChanged:
+        elif event_class == cls.AttributeChanged:
             assert isinstance(entity, EventSourcedEntity), entity
             entity._validate_originator(event)
             setattr(entity, event.name, event.value)
             entity._increment_version()
             return entity
 
-        elif event_type == entity.Discarded:
+        elif event_class == cls.Discarded:
             assert isinstance(entity, EventSourcedEntity), entity
             entity._validate_originator(event)
             entity._is_discarded = True
             entity._increment_version()
             return None
-
         else:
-            raise NotImplementedError(repr(event_type))
+            raise NotImplementedError(repr(event_class))
 
     @classmethod
     def prefix_id(cls, entity_id):

@@ -225,23 +225,18 @@ class Example(EventSourcedEntity):
 
 ```
 
-If you want to model other domain events, simply: declare them on the entity class along with the Create,
-AttributeChanged, and Discarded events; extend the EventSourcedEntity.mutator() method to apply the
-events to entities, by changing the state of the entity; and implement methods on the entity which generate,
-apply, and publish the domain events.
-
 Next, define a factory method that returns new entity instances. Rather than directly constructing the entity object
 instance, it should firstly instantiate a "created" domain event, and then call the mutator to obtain
 an entity object instance. The factory method then publishes the event (for example, so that it might be
 saved into the event store by the persistence subscriber) and returns the entity to the caller.
 
 In the example below, the factory method is a module level function which firstly instantiates the
-Example Created domain event. The Example class's mutator is invoked with the Created event, which returns an
+'Created' domain event. The Example's mutator is invoked with the Created event, which returns an
 Example entity instance. The Example class inherits a mutator that can handle the Created, AttributeChanged,
-and Discarded events. The mutator could have been extended (or replaced) on the Example class, to handle other events,
-but for simplicity there aren't any events defined in this example that the default mutator can't handle. Once the
-Example entity has been instantiated, the Created event is published, and the new domain entity is returned to the
-caller of the factory method.
+and Discarded events. (The mutator could have been extended to handle other events, but for simplicity there
+aren't any events defined in this example that the default mutator can't handle.) Once the
+Example entity has been instantiated by the mutator, the Created event is published, and the new domain entity
+is returned to the caller of the factory method.
 
 ```python
 from eventsourcing.domain.model.events import publish
@@ -253,7 +248,7 @@ def register_new_example(a, b):
     """
     entity_id = uuid.uuid4().hex
     event = Example.Created(entity_id=entity_id, a=a, b=b)
-    entity = Example.mutator(entity=Example, event=event)
+    entity = Example.mutator(event=event)
     publish(event=event)
     return entity
 
@@ -264,7 +259,7 @@ Now, define an event sourced repository class for your entity. Inherit from
 eventsourcing.infrastructure.event_sourced_repo.EventSourcedRepository and set the
 'domain_class' attribute on the subclass.
 
-In the example below, the ExampleRepository sets the Example class as its domain class.
+In the example below, the ExampleRepository sets the Example class as its domain entity class.
 
 ```python
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
@@ -358,6 +353,11 @@ with ExampleApplication(db_uri='sqlite:///:memory:') as app:
 ```
 
 Congratulations! You have created a new event sourced application!
+
+If you want to model other domain events simply declare them on the entity class along with the events, extend 
+the EventSourcedEntity.mutator() method to apply the events to entities by changing the state of the entity; 
+and implement methods on the entity which generate, apply, and publish the domain events.
+
 
 The example above uses an SQLite in memory relational database, but you could change 'db_uri' to another
 connection string if you have a real database. Here are some example connection strings - for
