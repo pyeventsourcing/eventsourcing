@@ -22,9 +22,9 @@ class EventPlayer(object):
         # Recreate the domain events from the stored events.
         domain_events = map(recreate_domain_event, stored_events)
 
-        # Apply the domain events in order to the initial state.
-        entity = reduce(self.domain_class.mutator, domain_events, self.domain_class)
-        if entity is self.domain_class or entity is None:
+        # Successively apply the domain events to the entity state.
+        entity = reduce(self.domain_class.mutator, domain_events, None)
+        if entity is None:
             # Either entity was not created, or it was already discarded.
             raise KeyError(entity_id)
         else:
@@ -44,12 +44,12 @@ class EventSourcedRepository(with_metaclass(ABCMeta)):
         """Defines the type of entity available in this repo.
         """
 
-    def __getitem__(self, item):
-        return self.event_player[item]
+    def __getitem__(self, entity_id):
+        return self.event_player[entity_id]
 
-    def __contains__(self, item):
+    def __contains__(self, entity_id):
         try:
-            self[item]
+            self[entity_id]
         except KeyError:
             return False
         else:

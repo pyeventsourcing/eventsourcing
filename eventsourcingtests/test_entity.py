@@ -8,7 +8,7 @@ from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubsc
 from eventsourcing.infrastructure.stored_events.base import InMemoryStoredEventRepository
 
 
-class TestDomainEntity(unittest.TestCase):
+class TestExampleEntity(unittest.TestCase):
 
     def setUp(self):
         # Setup the persistence subscriber.
@@ -48,11 +48,13 @@ class TestDomainEntity(unittest.TestCase):
         self.assertEqual(100, repo[entity1.id].a)
         entity1.b = -200
         self.assertEqual(-200, repo[entity1.id].b)
-        # entity1.c.append(1)
-        # entity1.c.append(3)
-        # self.assertEqual([1, 3], repo[entity1.id].c)
-        # entity1.c.append(2)
-        # self.assertEqual([1, 3, 2], repo[entity1.id].c)
+
+        self.assertEqual(0, entity1.count_heartbeats())
+        entity1.beat_heart()
+        entity1.beat_heart()
+        entity1.beat_heart()
+        self.assertEqual(3, entity1.count_heartbeats())
+        self.assertEqual(3, repo[entity1.id].count_heartbeats())
 
         # Check the entity can be discarded.
         entity1.discard()

@@ -8,13 +8,13 @@ A library for event sourcing in Python.
 ## Install
 
 Use pip to install the [latest distribution](https://pypi.python.org/pypi/eventsourcing) from
-the Python Package Index. Please also install the 'test' optional extra, so that the test suite
-might pass, and so that the usage examples below will work.
+the Python Package Index. So the test suite might pass, and so the usage example
+below will work, install with the optional extra called 'test'.
 
     pip install eventsourcing[test]
 
 
-After installation, if you run the test suite, it should pass.
+After installation, the test suite should pass.
 
     python -m unittest discover eventsourcingtests -v
 
@@ -36,11 +36,15 @@ Issues can be registered here:
 
 ## Motivation and Inspiration
 
-Event sourcing is really fantastic, but there doesn't appear to be a general library for event sourcing in Python.
-This can present a dilemma at the start of a project: whether or not to delay so that the basics can be put in
-place. The 'rewind' package is coded to work with ZeroMQas. The 'event-store' looks to be along the right lines,
-but provides a particular event store rather than broader range of elements of event sourcing which can be easily
-extended and optionally combined to make event sourced applications that support their domain.
+Event sourcing is really fantastic, but there doesn't appear to be a general library for event sourcing in Python. 
+For example, the 'rewind' distribution is coded to work with ZeroMQ, and anyway the developer has announced his
+attention has switched to more general implementation in Go. The 'event-store' Python distribution looks to be along
+the right lines, but provides a particular event store rather than broader range of elements of event sourcing which
+can be extended and combined to make efficient event sourced applications. The 'meepo' package seems to have a broader
+scope, with some interesting integrations, but doesn't seem to reflect the domain driven design style. Not having a
+good library for event sourcing presents a dilemma at the start of projects using Python that would likely benefit
+from event sourcing: whether or not it would be acceptable to delay so that the basics of event sourcing can be
+implemented first. Having a usable distribution would avoid the dilemma.
 
 Although the event sourcing patterns are each quite simple, and they can be reproduced in code for each project,
 they do suggest cohesive mechanisms, for example applying and publishing the events generated within domain
@@ -61,25 +65,25 @@ Inspiration:
 * Martin Fowler's article on event sourcing
     * http://martinfowler.com/eaaDev/EventSourcing.html
 
-* Robert Smallshire's example code on Bitbucket
-    * https://bitbucket.org/sixty-north/d5-kanban-python/src
-
 * Greg Young's discussions about event sourcing, and EventStore system
     * https://dl.dropboxusercontent.com/u/9162958/CQRS/Events%20as%20a%20Storage%20Mechanism%20CQRS.pdf
-    * https://geteventstore.com/
+    * https://geteventstore.com/ (Java)
+
+* Robert Smallshire's brilliant example code on Bitbucket
+    * https://bitbucket.org/sixty-north/d5-kanban-python/src
 
 
 ## Features
 
 * Example application of event sourcing, with an example event sourced entity and example domain events, and with an example event sourced repository containing example entity instances, and an example entity factory method
 
-* Base class for domain events, for modelling events in a domain
+* Domain event base class, to model events in a domain
+
+* Generic stored event class, to provide a form in which to persist domain events
 
 * Function to get event topic from domain event class
 
 * Function to resolve event topic into domain event class
-
-* Generic stored events, which provide a universal format for storing domain events
 
 * Function to serialize a domain event object to a stored event object
 
@@ -101,31 +105,35 @@ Inspiration:
 
     * Method to get all domain events in the order they occurred (forthcoming)
 
-* Concrete implementation of a (non-persistent) stored event repository, using simple Python objects only
-    
-* Concrete stored event repository implementations for common relational and non-relational database management systems
+* Concrete stored event repository classes
 
-    * SQLAlchemy stored event repository, using an ORM to persist stored events in relational databases
+    * Stored event repository using simple Python objects (non-persistent)
+    
+    * Stored event repository using SQLAlchemy (as an ORM) to persist stored event objects in relational databases
     
     * Cassandra stored event repository, using a column family to persist stored events in Cassandra
 
-* Event store class, to convert domain events to stored events appended to its stored event repository
+* Domain event store class, to save and retrieve domain events as stored events in the stored event repository
 
     * Storage retries and fallback strategies, to protect against failing to write an event (forthcoming)
 
-* Persistence subscriber class, to listen for published domain events and append them to its event store
-
 * In-process publish-subscribe mechanism, for in-process domain event propagation to subscriber objects
+
+* Persistence subscriber class, to subscribe to locally published domain events and append them to an event store
 
 * Base class for event sourced entities
 
-    * Domain events for created, attribute changed, and discarded domain entity events
-    
-    * Mutator to apply created, attribute changed, and discarded domain events to domain entities
+    * Basic domain events, to model basic "created", "attribute changed", and "discarded" entity events
 
-* Base class for event sourced domain entity repositories, to recover domain entities using an event player
+    * Basic "mutator" function, to apply the basic domain events to any domain entity
+
+    * Function decorator for declaring simple event sourced attributes, which publishes 'attribute changed' events
+
+    * A "discard" method to call when the entity is no longer wanted, which publishes the discarded event
 
 * Event player, to recover a domain entity for a given domain entity ID, using an event store and a mutator
+
+* Base class for event sourced domain entity repositories, to recover domain entities using an event player
 
 * Abstract base class for event sourced applications, having an event store and a persistence subscriber, but requiring a stored event repository
 
@@ -141,22 +149,21 @@ Inspiration:
 
 * Republisher that subscribers to Amazon SQS and publishes domain event locally (forthcoming)
 
-* Event sourced indexes, as persisted event source projections, to discover extant entity IDs (forthcoming)
+* Linked pages of domain events, to allow event sourced projections easily to make sure they get all events (forthcoming)
 
 * Base class for event sourced projections or views (forthcoming)
 
     * In memory event sourced projection, which needs to replay entire event stream when system starts up (forthcoming)
 
-    * Persistent event sourced projection, which stored its projected state, but needs to replay entire event stream when initialized (forthcoming)
+    * Persistent event sourced projection, which stored its projected state, but needs to replay entire event stream when initialized  (forthcoming)
 
-* Ability to clear and rebuild a persisted event sourced projection (such as an index), by republishing
-all events from the event store, with it as the only subscriber (forthcoming)
+* Event sourced indexes, as persisted event source projections, to discover extant entity IDs (forthcoming)
 
 * Entity snapshots, to avoid replaying all events (forthcoming)
 
-* Stream pointer, to refer to an event in a stream (forthcoming)
+* Event pointer, to refer to an event in a stream (forthcoming)
 
-* Updating of stored event, to support domain model migration (forthcoming)
+* Updating stored events, to support domain model migration (forthcoming)
 
 * Something to store serialized event attribute values separately from the other event information, to prevent large attribute values inhibiting performance and stability - different sizes could be stored in different ways... (forthcoming)
 
@@ -225,23 +232,18 @@ class Example(EventSourcedEntity):
 
 ```
 
-If you want to model other domain events, simply: declare them on the entity class along with the Create,
-AttributeChanged, and Discarded events; extend the EventSourcedEntity.mutator() method to apply the
-events to entities, by changing the state of the entity; and implement methods on the entity which generate,
-apply, and publish the domain events.
-
 Next, define a factory method that returns new entity instances. Rather than directly constructing the entity object
 instance, it should firstly instantiate a "created" domain event, and then call the mutator to obtain
 an entity object instance. The factory method then publishes the event (for example, so that it might be
 saved into the event store by the persistence subscriber) and returns the entity to the caller.
 
 In the example below, the factory method is a module level function which firstly instantiates the
-Example Created domain event. The Example class's mutator is invoked with the Created event, which returns an
+'Created' domain event. The Example's mutator is invoked with the Created event, which returns an
 Example entity instance. The Example class inherits a mutator that can handle the Created, AttributeChanged,
-and Discarded events. The mutator could have been extended (or replaced) on the Example class, to handle other events,
-but for simplicity there aren't any events defined in this example that the default mutator can't handle. Once the
-Example entity has been instantiated, the Created event is published, and the new domain entity is returned to the
-caller of the factory method.
+and Discarded events. (The mutator could have been extended to handle other events, but for simplicity there
+aren't any events defined in this example that the default mutator can't handle.) Once the
+Example entity has been instantiated by the mutator, the Created event is published, and the new domain entity
+is returned to the caller of the factory method.
 
 ```python
 from eventsourcing.domain.model.events import publish
@@ -253,7 +255,7 @@ def register_new_example(a, b):
     """
     entity_id = uuid.uuid4().hex
     event = Example.Created(entity_id=entity_id, a=a, b=b)
-    entity = Example.mutator(entity=Example, event=event)
+    entity = Example.mutator(event=event)
     publish(event=event)
     return entity
 
@@ -264,7 +266,7 @@ Now, define an event sourced repository class for your entity. Inherit from
 eventsourcing.infrastructure.event_sourced_repo.EventSourcedRepository and set the
 'domain_class' attribute on the subclass.
 
-In the example below, the ExampleRepository sets the Example class as its domain class.
+In the example below, the ExampleRepository sets the Example class as its domain entity class.
 
 ```python
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
@@ -358,6 +360,11 @@ with ExampleApplication(db_uri='sqlite:///:memory:') as app:
 ```
 
 Congratulations! You have created a new event sourced application!
+
+If you want to model other domain events simply declare them on the entity class along with the events, extend 
+the EventSourcedEntity.mutator() method to apply the events to entities by changing the state of the entity; 
+and implement methods on the entity which generate, apply, and publish the domain events.
+
 
 The example above uses an SQLite in memory relational database, but you could change 'db_uri' to another
 connection string if you have a real database. Here are some example connection strings - for
