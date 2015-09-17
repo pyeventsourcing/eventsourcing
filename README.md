@@ -36,16 +36,6 @@ Issues can be registered here:
 
 ## Motivation and Inspiration
 
-Event sourcing is really fantastic, but there doesn't appear to be a general library for event sourcing in Python. 
-For example, the 'rewind' distribution is coded to work with ZeroMQ, and anyway the developer has announced his
-attention has switched to more general implementation in Go. The 'event-store' Python distribution looks to be along
-the right lines, but provides a particular event store rather than broader range of elements of event sourcing which
-can be extended and combined to make efficient event sourced applications. The 'meepo' package seems to have a broader
-scope, with some interesting integrations, but doesn't seem to reflect the domain driven design style. Not having a
-good library for event sourcing presents a dilemma at the start of projects using Python that would likely benefit
-from event sourcing: whether or not it would be acceptable to delay so that the basics of event sourcing can be
-implemented first. Having a usable distribution would avoid the dilemma.
-
 Although the event sourcing patterns are each quite simple, and they can be reproduced in code for each project,
 they do suggest cohesive mechanisms, for example applying and publishing the events generated within domain
 entities, storing and retrieving selections of the events in a highly scalable manner, replaying the stored
@@ -57,8 +47,8 @@ for formalisms for well-documented categories of of algorithms. Expose the capab
 with an INTENTION-REVEALING INTERFACE. Now the other elements of the domain can focus on expressing the problem
 ("what"), delegating the intricacies of the solution ("how") to the framework."_
 
-The list of features below, and the examples beneath, present the 'interfaces' and hopefully the intentions
-for this library. The intricacies of the library mechanisms can be found in the library source code.
+The list of features below, and the examples beneath, present the 'interface' and hopefully the 'intentions'. 
+The 'intricacies' of the library mechanisms can be found in the source code.
 
 Inspiration:
 
