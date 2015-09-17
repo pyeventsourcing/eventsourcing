@@ -65,8 +65,6 @@ Inspiration:
 
 ## Features
 
-* Example application of event sourcing, with an example event sourced entity and example domain events, and with an example event sourced repository containing example entity instances, and an example entity factory method
-
 * Domain event base class, to model events in a domain
 
 * Generic stored event class, to provide a form in which to persist domain events
@@ -87,14 +85,6 @@ Inspiration:
 
     * Method to get single domain event for given event ID
 
-    * Method to get all domain events for given entity ID, from given version of the entity (forthcoming)
-    
-    * Method to get all domain events for given entity ID, until given time (forthcoming)
-
-    * Method to delete all domain events for given domain entity ID (forthcoming)
-
-    * Method to get all domain events in the order they occurred (forthcoming)
-
 * Concrete stored event repository classes
 
     * Stored event repository using simple Python objects (non-persistent)
@@ -103,9 +93,7 @@ Inspiration:
     
     * Cassandra stored event repository, using a column family to persist stored events in Cassandra
 
-* Domain event store class, to save and retrieve domain events as stored events in the stored event repository
-
-    * Storage retries and fallback strategies, to protect against failing to write an event (forthcoming)
+* Domain event store class, serializes and appends new domain events to a stored event repository, and returns domain events recreated from a stored event repository
 
 * In-process publish-subscribe mechanism, for in-process domain event propagation to subscriber objects
 
@@ -117,9 +105,9 @@ Inspiration:
 
     * Basic "mutator" function, to apply the basic domain events to any domain entity
 
-    * Function decorator for declaring simple event sourced attributes, which publishes 'attribute changed' events
+    * Event sourced property decorator which provides a setter that publishes 'attribute changed' events, to help declare simple event sourced attributes
 
-    * A "discard" method to call when the entity is no longer wanted, which publishes the discarded event
+    * A "discard" method which publishes the discarded event, to call when an entity is no longer wanted, 
 
 * Event player, to recover a domain entity for a given domain entity ID, using an event store and a mutator
 
@@ -127,9 +115,25 @@ Inspiration:
 
 * Abstract base class for event sourced applications, having an event store and a persistence subscriber, but requiring a stored event repository
 
-* Base class for event sourced applications with SQLAlchemy, which provides a stored event repository that uses SQLAlchemy
+* Concrete event sourced application classes
 
-* Base class for event sourced applications with Cassandra, which provides a stored event repository that uses Cassandra
+    * Base class for event sourced applications with SQLAlchemy, which provides a stored event repository that uses SQLAlchemy
+
+    * Base class for event sourced applications with Cassandra, which provides a stored event repository that uses Cassandra
+
+* Example application of event sourcing, with an example event sourced entity and example domain events, and with an example event sourced repository containing example entity instances, and an example entity factory method
+
+### Forthcoming features
+
+* Method to get all domain events for given entity ID, from given version of the entity (forthcoming)
+
+* Method to get all domain events for given entity ID, until given time (forthcoming)
+
+* Method to delete all domain events for given domain entity ID (forthcoming)
+
+* Method to get all domain events in the order they occurred (forthcoming)
+
+* Storage retries and fallback strategies, to protect against failing to write an event (forthcoming)
 
 * Subscriber that publishes domain events to RabbitMQ (forthcoming)
 
