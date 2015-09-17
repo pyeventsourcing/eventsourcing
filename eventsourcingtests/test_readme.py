@@ -12,7 +12,7 @@ class TestUsage(unittest.TestCase):
         readme_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), readme_filename)
 
         if not os.path.exists(readme_path):
-            self.skipTest("README file is not available")
+            self.skipTest("usage instructions in README file are not available for testing when package is installed")
 
         temp_filename = '.README.py'
         temp_path = os.path.join(os.path.dirname(readme_path), temp_filename)
