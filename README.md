@@ -356,7 +356,6 @@ with ExampleApplication(db_uri='sqlite:///:memory:') as app:
         pass
     else:
         assert False
-
 ```
 
 Congratulations! You have created a new event sourced application!
