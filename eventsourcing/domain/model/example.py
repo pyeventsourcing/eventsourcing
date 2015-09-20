@@ -1,9 +1,6 @@
-from abc import ABCMeta, abstractmethod
 import uuid
 
-from six import with_metaclass
-
-from eventsourcing.domain.model.entity import EventSourcedEntity, eventsourcedproperty
+from eventsourcing.domain.model.entity import EventSourcedEntity, eventsourcedproperty, EntityRepository
 from eventsourcing.domain.model.events import publish, DomainEvent
 
 
@@ -59,12 +56,9 @@ class Example(EventSourcedEntity):
             return super(Example, cls).mutator(entity, event)
 
 
-class Repository(with_metaclass(ABCMeta)):
-    
-    @abstractmethod
-    def __getitem__(self, item):
-        """Returns example entity for given ID.
-        """
+class Repository(EntityRepository):
+
+    pass
 
 
 def register_new_example(a, b):

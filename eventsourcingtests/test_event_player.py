@@ -22,7 +22,7 @@ class TestEventPlayer(unittest.TestCase):
         event_store.append(event4)
         # Check the event sourced entities are correct.
         # - just use a trivial mutator that always instantiates the 'Example'.
-        event_player = EventPlayer(event_store=event_store, domain_class=Example)
+        event_player = EventPlayer(event_store, Example.mutator, id_prefix='Example')
         self.assertEqual('entity1', event_player['entity1'].id)
         self.assertEqual(1, event_player['entity1'].a)
         self.assertEqual(2, event_player['entity2'].a)
