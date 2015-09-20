@@ -79,9 +79,11 @@ Inspiration:
 
 * Base class for stored event repositories
 
-    * Method to get all domain events for given entity ID, in the order they occurred
+    * Method to append a new stored event to the stored collection
 
-    * Method to get all domain events for given domain event topic
+    * Method to get all stored events for given entity ID
+
+    * Method to get all stored events for given domain event topic
 
     * Method to get single domain event for given event ID
 
@@ -93,7 +95,11 @@ Inspiration:
     
     * Cassandra stored event repository, using a column family to persist stored events in Cassandra
 
-* Domain event store class, serializes and appends new domain events to a stored event repository, and returns domain events recreated from a stored event repository
+* Domain event store class
+
+    * Method to append a new domain event
+    
+    * Method to get all the domain events for an entity
 
 * In-process publish-subscribe mechanism, for in-process domain event propagation to subscriber objects
 
@@ -105,7 +111,7 @@ Inspiration:
 
     * Basic "mutator" function, to apply the basic domain events to any domain entity
 
-    * Event sourced property decorator which provides a setter that publishes 'attribute changed' events, to help declare simple event sourced attributes
+    * Event sourced property decorator, to help declare simple event sourced properties
 
     * A "discard" method which publishes the discarded event, to call when an entity is no longer wanted, 
 
@@ -308,7 +314,7 @@ class ExampleApplication(EventSourcingWithSQLAlchemy):
 ```
 
 For simplicity, this application has just one type of entity. A real application may involve several different
-types of entities, and have several different repositories and factory methods.
+types of entity, factory methods, entity repositories, and event sourced projections.
 
 An event sourced application object can be used as a context manager, which helps close things down at the
 end. With an application instance, call its factory method to register a new entity. Update an
@@ -355,10 +361,10 @@ with ExampleApplication(db_uri='sqlite:///:memory:') as app:
 
 Congratulations! You have created a new event sourced application!
 
-If you want to model other domain events simply declare them on the entity class along with the events, extend 
-the EventSourcedEntity.mutator() method to apply the events to entities by changing the state of the entity; 
-and implement methods on the entity which generate, apply, and publish the domain events.
-
+If you want to model other domain events, then simply declare them on the entity class like the events above,
+and implement methods on the entity which instantiate those domain events, apply them to the entity, publish to
+subscribers. Extend the EventSourcedEntity.mutator() method on the entity class, to apply the domain events to
+entity objects for example by directly changing the internal state of the entity.
 
 The example above uses an SQLite in memory relational database, but you could change 'db_uri' to another
 connection string if you have a real database. Here are some example connection strings - for
