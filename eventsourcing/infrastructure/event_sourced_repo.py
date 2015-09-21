@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractproperty
 from functools import reduce
 from six import with_metaclass
+from eventsourcing.domain.model.entity import EntityRepository
 from eventsourcing.infrastructure.event_store import EventStore
 
 
@@ -26,7 +27,8 @@ class EventPlayer(object):
             return entity
 
 
-class EventSourcedRepository(with_metaclass(ABCMeta)):
+# class EventSourcedRepository(with_metaclass(ABCMeta)):
+class EventSourcedRepository(EntityRepository):
 
     def __init__(self, event_store):
         self.event_player = self.construct_event_player(event_store)

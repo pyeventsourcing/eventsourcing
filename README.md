@@ -229,7 +229,6 @@ class Example(EventSourcedEntity):
     @eventsourcedproperty
     def b(self):
         return self._b
-
 ```
 
 Next, define a factory method that returns new entity instances. Rather than directly constructing the entity object
@@ -258,7 +257,6 @@ def register_new_example(a, b):
     entity = Example.mutator(event=event)
     publish(event=event)
     return entity
-
 ```
 
 
@@ -276,7 +274,6 @@ class ExampleRepository(EventSourcedRepository):
     An example event sourced repository, provides access to Example event sourced entities.
     """
     domain_class = Example
-
 ```
 
 
@@ -310,7 +307,6 @@ class ExampleApplication(EventSourcingWithSQLAlchemy):
 
     def register_new_example(self, a, b):
         return register_new_example(a=a, b=b)
-
 ```
 
 For simplicity, this application has just one type of entity. A real application may involve several different
