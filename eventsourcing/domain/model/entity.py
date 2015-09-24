@@ -1,3 +1,4 @@
+from abc import ABCMeta, abstractmethod
 from inspect import isfunction
 from six import with_metaclass
 from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta
@@ -82,10 +83,6 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         else:
             raise NotImplementedError(repr(event_class))
 
-    @classmethod
-    def prefix_id(cls, entity_id):
-        return cls.__name__ + '::' + entity_id
-
 
 def eventsourcedproperty(*args, **kwargs):
     if len(args) == 1 and len(kwargs) == 0 and isfunction(args[0]):
@@ -99,3 +96,16 @@ def eventsourcedproperty(*args, **kwargs):
     else:
         # Decorator has arguments...
         return eventsourcedproperty
+
+
+class EntityRepository(with_metaclass(ABCMeta)):
+
+    @abstractmethod
+    def __getitem__(self, entity_id):
+        """Returns entity for given ID.
+        """
+
+    @abstractmethod
+    def __contains__(self, entity_id):
+        """Returns True or False, according to whether or not entity exists.
+        """
