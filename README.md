@@ -149,7 +149,7 @@ Inspiration:
 
 * Republisher that subscribers to Amazon SQS and publishes domain event locally (forthcoming)
 
-* Linked pages of domain events, to allow event sourced projections easily to make sure they get all events (forthcoming)
+* Linked pages of domain events ("Archived Log"), to allow event sourced projections easily to make sure they have all the events (forthcoming)
 
 * Base class for event sourced projections or views (forthcoming)
 
@@ -200,13 +200,6 @@ from eventsourcing.domain.model.entity import EventSourcedEntity, eventsourcedpr
 
 
 class Example(EventSourcedEntity):
-    """
-    Example event sourced application.
-
-    This application has an Example repository, and a factory method for
-    registering new examples. It inherits an event store, a persistence
-    subscriber, and a stored event repository, and a database connection.
-    """
 
     class Created(EventSourcedEntity.Created):
         pass
@@ -249,9 +242,6 @@ from eventsourcing.domain.model.events import publish
 import uuid
 
 def register_new_example(a, b):
-    """
-    Factory method for Example entities.
-    """
     entity_id = uuid.uuid4().hex
     event = Example.Created(entity_id=entity_id, a=a, b=b)
     entity = Example.mutator(event=event)
@@ -270,9 +260,7 @@ In the example below, the ExampleRepository sets the Example class as its domain
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
 
 class ExampleRepository(EventSourcedRepository):
-    """
-    An example event sourced repository, provides access to Example event sourced entities.
-    """
+
     domain_class = Example
 ```
 
@@ -290,18 +278,8 @@ synonymous method on the application class. It extends EventSourcingWithSQLAlche
 from eventsourcing.application.main import EventSourcingWithSQLAlchemy
 
 class ExampleApplication(EventSourcingWithSQLAlchemy):
-    """
-    An example event sourced application.
 
-    This application has an Example repository, and a factory method for
-    registering new "examples". It inherits a persistence subscriber, an
-    event store, a stored event repository, and a database connection.
-    """
     def __init__(self, db_uri):
-        """
-        Args:
-            db_uri: Database connection string for stored event repository.
-        """
         super(ExampleApplication, self).__init__(db_uri=db_uri)
         self.example_repo = ExampleRepository(event_store=self.event_store)
 
