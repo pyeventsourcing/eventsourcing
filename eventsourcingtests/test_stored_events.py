@@ -1,17 +1,13 @@
 import unittest
 import datetime
 import uuid
-from eventsourcing.domain.model.events import DomainEvent
 
+from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.infrastructure.stored_events.base import StoredEvent, InMemoryStoredEventRepository, \
     serialize_domain_event, recreate_domain_event, resolve_event_topic
-from eventsourcing.infrastructure.stored_events.cassandra_stored_events import CassandraStoredEventRepository, \
-    setup_cassandra_connection, shutdown_cassandra_connection, get_cassandra_setup_params, CqlStoredEvent
-from eventsourcing.infrastructure.stored_events.rdbms import SQLAlchemyStoredEventRepository, \
-    get_scoped_session_facade
 from eventsourcing.domain.model.example import Example
-from eventsourcing.utils.time import utc_now, utc_timezone
+from eventsourcing.utils.time import utc_timezone
 
 
 class TestStoredEvent(unittest.TestCase):
@@ -115,27 +111,3 @@ class TestInMemoryStoredEventRepository(StoredEventRepositoryTestCase):
 
     def test(self):
         self.assertStoredEventRepositoryImplementation(InMemoryStoredEventRepository())
-
-
-class TestSQLAlchemyStoredEventRepository(StoredEventRepositoryTestCase):
-
-    def test(self):
-        stored_event_repo = SQLAlchemyStoredEventRepository(get_scoped_session_facade('sqlite:///:memory:'))
-        self.assertStoredEventRepositoryImplementation(stored_event_repo)
-
-
-class TestCassandraStoredEventRepository(StoredEventRepositoryTestCase):
-
-    def setUp(self):
-        super(TestCassandraStoredEventRepository, self).setUp()
-        setup_cassandra_connection(*get_cassandra_setup_params(default_keyspace='eventsourcingtests2'))
-
-    def tearDown(self):
-        for cql_stored_event in CqlStoredEvent.objects.all():
-            cql_stored_event.delete()
-        shutdown_cassandra_connection()
-        super(TestCassandraStoredEventRepository, self).tearDown()
-
-    def test(self):
-        stored_event_repo = CassandraStoredEventRepository()
-        self.assertStoredEventRepositoryImplementation(stored_event_repo)
