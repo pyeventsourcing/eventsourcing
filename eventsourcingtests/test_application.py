@@ -1,6 +1,7 @@
 import unittest
 from sqlalchemy.orm.scoping import ScopedSession
-from eventsourcing.application.example import ExampleApplicationWithSQLAlchemy, ExampleApplicationWithCassandra
+from eventsourcing.application.example import ExampleApplicationWithSQLAlchemy
+from eventsourcing.application.example_cassandra import ExampleApplicationWithCassandra
 from eventsourcing.domain.model.example import Example
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepository
 from eventsourcing.infrastructure.event_store import EventStore
