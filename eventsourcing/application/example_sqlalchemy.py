@@ -21,3 +21,4 @@ class ExampleApplicationWithSQLAlchemy(EventSourcingWithSQLAlchemy):
 
     def register_new_example(self, a, b):
         return register_new_example(a=a, b=b)
+

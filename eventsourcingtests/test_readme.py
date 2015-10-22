@@ -19,19 +19,20 @@ class TestUsage(unittest.TestCase):
         lines = []
         count_code_lines = 0
         is_code = False
-        for line in open(readme_path):
-            if is_code and line.startswith('```'):
-                is_code = False
-                line = ''
-            elif is_code:
-                line = line.strip('\n')
-                count_code_lines += 1
-            elif line.startswith('```python'):
-                is_code = True
-                line = ''
-            else:
-                line = ''
-            lines.append(line)
+        with open(readme_path) as file:
+            for line in file:
+                if is_code and line.startswith('```'):
+                    is_code = False
+                    line = ''
+                elif is_code:
+                    line = line.strip('\n')
+                    count_code_lines += 1
+                elif line.startswith('```python'):
+                    is_code = True
+                    line = ''
+                else:
+                    line = ''
+                lines.append(line)
 
         self.assertTrue(count_code_lines)
 
