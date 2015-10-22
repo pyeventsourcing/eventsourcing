@@ -90,10 +90,10 @@ Inspiration:
 * Concrete stored event repository classes
 
     * Stored event repository using simple Python objects (non-persistent)
-    
-    * Stored event repository using SQLAlchemy (as an ORM) to persist stored event objects in relational databases
-    
-    * Cassandra stored event repository, using a column family to persist stored events in Cassandra
+
+    * Stored event repository using SQLAlchemy (as an ORM) to persist stored event objects in a relational database
+
+    * Stored event repository using Cassandra to persist stored events
 
 * Domain event store class
 
@@ -173,6 +173,8 @@ Inspiration:
     * encrypted stored events (forthcoming)
     
 * Branch and merge mechanism for domain events (forthcoming)
+
+* Support for asynchronous I/O, with an application that uses an event loop (forthcoming)
 
 * More examples (forthcoming)
 
