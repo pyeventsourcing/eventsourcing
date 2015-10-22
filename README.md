@@ -277,7 +277,7 @@ In the example below, the ExampleApplication has an ExampleRepository, and for c
 synonymous method on the application class. It extends EventSourcingWithSQLAlchemy.
 
 ```python
-from eventsourcing.application.main import EventSourcingWithSQLAlchemy
+from eventsourcing.application.main_sqlalchemy import EventSourcingWithSQLAlchemy
 
 class ExampleApplication(EventSourcingWithSQLAlchemy):
 
