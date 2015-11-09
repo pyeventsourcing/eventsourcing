@@ -89,11 +89,11 @@ Inspiration:
 
 * Concrete stored event repository classes
 
+    * Stored event repository to persist stored event objects in a relational database, using SQLAlchemy (as an ORM) 
+
+    * Stored event repository to persist stored events in Cassandra
+
     * Stored event repository using simple Python objects (non-persistent)
-
-    * Stored event repository using SQLAlchemy (as an ORM) to persist stored event objects in a relational database
-
-    * Stored event repository using Cassandra to persist stored events
 
 * Domain event store class
 
@@ -130,6 +130,12 @@ Inspiration:
 * Example application of event sourcing, with an example event sourced entity and example domain events, and with an example event sourced repository containing example entity instances, and an example entity factory method
 
 ### Forthcoming features
+
+* Stored event repository to persist stored events in a file using a very simple file format
+
+* Stored event repository to persist stored events using MongoDB
+
+* Stored event repository to persist stored events using HBase
 
 * Method to get all domain events for given entity ID, from given version of the entity (forthcoming)
 
