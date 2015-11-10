@@ -15,7 +15,6 @@ class TestCassandraStoredEventRepository(StoredEventRepositoryTestCase):
         shutdown_cassandra_connection()
         super(TestCassandraStoredEventRepository, self).tearDown()
 
-    def test(self):
+    def test_stored_events_in_cassandra(self):
         stored_event_repo = CassandraStoredEventRepository()
         self.assertStoredEventRepositoryImplementation(stored_event_repo)
-

@@ -11,15 +11,6 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
         self.event_store = self.create_event_store()
         self.persistence_subscriber = self.create_persistence_subscriber()
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-    def close(self):
-        self.persistence_subscriber.close()
-
     @abstractmethod
     def create_stored_event_repo(self):
         raise NotImplementedError()
@@ -30,7 +21,11 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
     def create_persistence_subscriber(self):
         return PersistenceSubscriber(event_store=self.event_store)
 
+    def close(self):
+        self.persistence_subscriber.close()
 
+    def __enter__(self):
+        return self
 
-
-
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()

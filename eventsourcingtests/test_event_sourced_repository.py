@@ -8,7 +8,7 @@ from eventsourcing.domain.model.example import Example
 
 class TestEventSourcedRepository(unittest.TestCase):
 
-    def test(self):
+    def test_get_item(self):
         # Setup an event store.
         stored_event_repo = InMemoryStoredEventRepository()
         event_store = EventStore(stored_event_repo=stored_event_repo)

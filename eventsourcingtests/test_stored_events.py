@@ -109,5 +109,5 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
 
 class TestInMemoryStoredEventRepository(StoredEventRepositoryTestCase):
 
-    def test(self):
+    def test_stored_events_in_memory(self):
         self.assertStoredEventRepositoryImplementation(InMemoryStoredEventRepository())
