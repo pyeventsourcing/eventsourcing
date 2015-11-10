@@ -18,10 +18,10 @@ class EventPlayer(object):
         stored_entity_id = self.id_prefix + '::' + entity_id
         domain_events = self.event_store.get_entity_events(stored_entity_id)
 
-        # Successively apply the domain events to the entity state.
+        # Mutate entity state according to the sequence of domain events.
         entity = reduce(self.mutator, domain_events, None)
         if entity is None:
-            # Either entity was not created, or it was already discarded.
+            # Entity already discarded, or it was never created.
             raise KeyError(entity_id)
         else:
             return entity

@@ -12,7 +12,7 @@ from eventsourcing.domain.model.example import Example
 
 class TestEvents(unittest.TestCase):
 
-    def test_events(self):
+    def test_event_attributes(self):
         event = Example.Created(entity_id='entity1', a=1, b=2)
 
         # Check constructor keyword args lead to read-only attributes.

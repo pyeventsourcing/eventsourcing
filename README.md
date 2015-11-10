@@ -89,11 +89,11 @@ Inspiration:
 
 * Concrete stored event repository classes
 
+    * Stored event repository to persist stored event objects in a relational database, using SQLAlchemy (as an ORM) 
+
+    * Stored event repository to persist stored events in Cassandra
+
     * Stored event repository using simple Python objects (non-persistent)
-    
-    * Stored event repository using SQLAlchemy (as an ORM) to persist stored event objects in relational databases
-    
-    * Cassandra stored event repository, using a column family to persist stored events in Cassandra
 
 * Domain event store class
 
@@ -130,6 +130,12 @@ Inspiration:
 * Example application of event sourcing, with an example event sourced entity and example domain events, and with an example event sourced repository containing example entity instances, and an example entity factory method
 
 ### Forthcoming features
+
+* Stored event repository to persist stored events in a file using a very simple file format
+
+* Stored event repository to persist stored events using MongoDB
+
+* Stored event repository to persist stored events using HBase
 
 * Method to get all domain events for given entity ID, from given version of the entity (forthcoming)
 
@@ -173,6 +179,8 @@ Inspiration:
     * encrypted stored events (forthcoming)
     
 * Branch and merge mechanism for domain events (forthcoming)
+
+* Support for asynchronous I/O, with an application that uses an event loop (forthcoming)
 
 * More examples (forthcoming)
 
@@ -275,7 +283,7 @@ In the example below, the ExampleApplication has an ExampleRepository, and for c
 synonymous method on the application class. It extends EventSourcingWithSQLAlchemy.
 
 ```python
-from eventsourcing.application.main import EventSourcingWithSQLAlchemy
+from eventsourcing.application.with_sqlalchemy import EventSourcingWithSQLAlchemy
 
 class ExampleApplication(EventSourcingWithSQLAlchemy):
 
