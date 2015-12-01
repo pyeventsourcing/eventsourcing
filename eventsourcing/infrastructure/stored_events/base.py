@@ -1,12 +1,9 @@
 from abc import ABCMeta, abstractmethod
-import base64
 from collections import namedtuple
 import datetime
 import importlib
 import json
 import uuid
-
-import pickle
 
 from six import StringIO
 from six import with_metaclass
