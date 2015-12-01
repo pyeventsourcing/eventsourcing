@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='eventsourcing',
-    version='0.9.2',
+    version='0.9.3',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
