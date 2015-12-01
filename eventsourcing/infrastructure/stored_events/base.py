@@ -5,7 +5,7 @@ import importlib
 import json
 import uuid
 
-from six import StringIO
+from six import BytesIO
 from six import with_metaclass
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import TopicResolutionError
@@ -230,7 +230,7 @@ class ObjectJSONEncoder(json.JSONEncoder):
                 return { 'ISO8601_date': obj.isoformat() }
             if numpy is not None and isinstance(obj, numpy.ndarray) and obj.ndim == 1:
 
-                memfile = StringIO.StringIO()
+                memfile = BytesIO()
                 numpy.save(memfile, obj)
                 memfile.seek(0)
                 serialized = json.dumps(memfile.read().decode('latin-1'))
@@ -269,7 +269,7 @@ class ObjectJSONDecoder(json.JSONDecoder):
     @staticmethod
     def _decode_ndarray(d):
         serialized = d['__ndarray__']
-        memfile = StringIO.StringIO()
+        memfile = BytesIO()
         memfile.write(json.loads(serialized).encode('latin-1'))
         memfile.seek(0)
         return numpy.load(memfile)

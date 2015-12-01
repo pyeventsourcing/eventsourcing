@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='eventsourcing',
-    version='0.9.2',
+    version='0.9.3',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
@@ -17,6 +17,7 @@ setup(
             'sqlalchemy',
             'mock',
             'cassandra-driver==2.6.0rc1',
+            'numpy',
         ],
         'sqlalchemy': [
             'sqlalchemy',
@@ -30,12 +31,6 @@ setup(
 This package provides generic support for event sourcing in Python, in a 'domain driven design' style.
 
 An extensive `README file is available on GitHub <https://github.com/johnbywater/eventsourcing/blob/master/README.md>`_.
-
-Version 0.9.1 comes after refactoring the application classes for clarity (mostly renamings).
-
-Version 0.9.0 brings support for event sourcing with Cassandra (previous versions only included support for event
-sourcing with relational databases supported by SQLAlchemy). See class 'EventSourcingWithCassandra' in module
-'eventsourcing.application.main' for more details.
 """,
     keywords=['event sourcing', 'event store', 'domain driven design', 'ddd', 'cqrs', 'cqs'],
     classifiers = [
