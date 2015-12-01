@@ -27,7 +27,6 @@ class EventPlayer(object):
             return entity
 
 
-# class EventSourcedRepository(with_metaclass(ABCMeta)):
 class EventSourcedRepository(EntityRepository):
 
     def __init__(self, event_store):

@@ -60,7 +60,7 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         event_class = type(event)
         if event_class == cls.Created:
             # assert isinstance(entity, type), entity
-            assert entity is None
+            assert entity is None, "Are there multiple Created events for the same ID? %s, %s" % (entity, event)
             entity_class = cls
             entity = entity_class(**event.__dict__)
             assert isinstance(entity, EventSourcedEntity), entity

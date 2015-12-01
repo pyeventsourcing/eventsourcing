@@ -6,7 +6,7 @@ from eventsourcing.infrastructure.stored_events.base import StoredEventRepositor
 class EventStore(object):
 
     def __init__(self, stored_event_repo):
-        assert isinstance(stored_event_repo, StoredEventRepository)
+        assert isinstance(stored_event_repo, StoredEventRepository), stored_event_repo
         self.stored_event_repo = stored_event_repo
 
     def append(self, domain_event):

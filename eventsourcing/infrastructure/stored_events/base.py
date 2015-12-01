@@ -4,10 +4,16 @@ import datetime
 import importlib
 import json
 import uuid
+
+from six import StringIO
 from six import with_metaclass
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import TopicResolutionError
 import dateutil.parser
+try:
+    import numpy
+except ImportError:
+    numpy = None
 
 StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
 
@@ -43,6 +49,7 @@ class StoredEventRepository(with_metaclass(ABCMeta)):
 class InMemoryStoredEventRepository(StoredEventRepository):
 
     def __init__(self):
+        super(InMemoryStoredEventRepository, self).__init__()
         self._by_id = {}
         self._by_stored_entity_id = {}
         self._by_topic = {}
@@ -98,7 +105,14 @@ def serialize_domain_event(domain_event):
     event_id = uuid.uuid1().hex
     stored_entity_id = entity_class_name_from_domain_event(domain_event) + '::' + domain_event.entity_id
     event_topic = topic_from_domain_event(domain_event)
-    event_attrs = json.dumps(domain_event.__dict__, separators=(',', ':'), sort_keys=True, cls=ObjectJSONEncoder)
+    # if 'result_value' in domain_event.__dict__:
+    #     domain_event.__dict__.pop('result_value')
+    event_attrs = json.dumps(
+        domain_event.__dict__,
+        separators=(',', ':'),
+        sort_keys=True,
+        cls=ObjectJSONEncoder,
+    )
     return StoredEvent(
         event_id=event_id,
         stored_entity_id=stored_entity_id,
@@ -214,11 +228,24 @@ class ObjectJSONEncoder(json.JSONEncoder):
                 return { 'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z') }
             if isinstance(obj, datetime.date):
                 return { 'ISO8601_date': obj.isoformat() }
+            if numpy is not None and isinstance(obj, numpy.ndarray) and obj.ndim == 1:
+
+                memfile = StringIO.StringIO()
+                numpy.save(memfile, obj)
+                memfile.seek(0)
+                serialized = json.dumps(memfile.read().decode('latin-1'))
+
+                d = {
+                    '__ndarray__': serialized,
+                }
+                return d
             else:
-                d = { '__class__': obj.__class__.__qualname__,
-                      '__module__': obj.__module__,
-                    }
-                d.update(obj.__dict__)
+                d = {
+                    '__class__': obj.__class__.__qualname__,
+                    '__module__': obj.__module__,
+                }
+                # for attr, value in obj.__dict__.items():
+                #     d[attr] = self.default(value)
                 return d
 
 
@@ -229,13 +256,25 @@ class ObjectJSONDecoder(json.JSONDecoder):
 
     @staticmethod
     def from_jsonable(d):
-        if '__class__' in d and '__module__' in d:
+        if '__ndarray__' in d:
+            return ObjectJSONDecoder._decode_ndarray(d)
+        elif '__class__' in d and '__module__' in d:
             return ObjectJSONDecoder._decode_class(d)
         elif 'ISO8601_datetime' in d:
             return ObjectJSONDecoder._decode_datetime(d)
         elif 'ISO8601_date' in d:
             return ObjectJSONDecoder._decode_date(d)
         return d
+
+    @staticmethod
+    def _decode_ndarray(d):
+        serialized = d['__ndarray__']
+        memfile = StringIO.StringIO()
+        memfile.write(json.loads(serialized).encode('latin-1'))
+        memfile.seek(0)
+        return numpy.load(memfile)
+
+        # return numpy.array(obj_data, d['dtype']).reshape(d['shape'])
 
     @staticmethod
     def _decode_class(d):
@@ -247,7 +286,8 @@ class ObjectJSONDecoder(json.JSONDecoder):
             obj = cls(**d)
         except Exception:
             obj = cls()
-            obj.__dict__.update(d)
+            for attr, value in d.items():
+                obj.__dict__[attr] = ObjectJSONDecoder.from_jsonable(value)
         return obj
 
     @staticmethod
