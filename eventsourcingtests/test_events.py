@@ -27,33 +27,30 @@ class TestEvents(unittest.TestCase):
         # Check timestamp value can be given to domain events.
         self.assertEqual(3, Example.Created(entity_id='entity1', a=1, b=2, timestamp=3).timestamp)
 
-    def test_publish_subscribe(self):
+    def test_publish_subscribe_unsubscribe(self):
         # Check subscribing event handlers with predicates.
         # - when predicate is True, handler should be called
         event = mock.Mock()
         predicate = mock.Mock()
         handler = mock.Mock()
+
+        # When predicate is True, handler should be called ONCE.
         subscribe(event_predicate=predicate, subscriber=handler)
         publish(event)
         predicate.assert_called_once_with(event)
         handler.assert_called_once_with(event)
 
-        # - when predicate is False, handler should NOT be called
+        # When predicate is True, after unsubscribing, handler should NOT be called again.
+        unsubscribe(event_predicate=predicate, subscriber=handler)
+        publish(event)
+        predicate.assert_called_once_with(event)
+        handler.assert_called_once_with(event)
+
+        # When predicate is False, handler should NOT be called.
         predicate = lambda x: False
         handler = mock.Mock()
         subscribe(event_predicate=predicate, subscriber=handler)
         publish(event)
-        self.assertEqual(0, handler.call_count)
-
-    def test_unsubscribe(self):
-        # - when predicate is True, after unsubscribing, handler should NOT be called
-        event = mock.Mock()
-        predicate = mock.Mock()
-        handler = mock.Mock()
-        subscribe(event_predicate=predicate, subscriber=handler)
-        unsubscribe(event_predicate=predicate, subscriber=handler)
-        publish(event)
-        predicate.assert_called_once_with(event)
         self.assertEqual(0, handler.call_count)
 
     def test_hash(self):

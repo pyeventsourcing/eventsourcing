@@ -1,5 +1,7 @@
 from abc import ABCMeta
 import itertools
+from collections import OrderedDict
+
 from six import with_metaclass
 from eventsourcing.utils.time import utc_now
 
@@ -71,7 +73,7 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
             "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
 
 
-_event_handlers = {}
+_event_handlers = OrderedDict()
 
 
 def subscribe(event_predicate, subscriber):
@@ -85,6 +87,8 @@ def unsubscribe(event_predicate, subscriber):
         handlers = _event_handlers[event_predicate]
         if subscriber in handlers:
             handlers.remove(subscriber)
+            if not handlers:
+                _event_handlers.pop(event_predicate)
 
 
 def publish(event):
@@ -96,3 +100,7 @@ def publish(event):
                     matching_handlers.append(handler)
     for handler in matching_handlers:
         handler(event)
+
+
+def assert_event_handlers_empty():
+    assert not len(_event_handlers), _event_handlers
