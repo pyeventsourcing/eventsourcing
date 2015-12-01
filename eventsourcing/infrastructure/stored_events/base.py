@@ -230,7 +230,7 @@ class ObjectJSONEncoder(json.JSONEncoder):
                 return { 'ISO8601_date': obj.isoformat() }
             if numpy is not None and isinstance(obj, numpy.ndarray) and obj.ndim == 1:
 
-                memfile = StringIO.StringIO()
+                memfile = StringIO()
                 numpy.save(memfile, obj)
                 memfile.seek(0)
                 serialized = json.dumps(memfile.read().decode('latin-1'))
@@ -269,7 +269,7 @@ class ObjectJSONDecoder(json.JSONDecoder):
     @staticmethod
     def _decode_ndarray(d):
         serialized = d['__ndarray__']
-        memfile = StringIO.StringIO()
+        memfile = StringIO()
         memfile.write(json.loads(serialized).encode('latin-1'))
         memfile.seek(0)
         return numpy.load(memfile)
