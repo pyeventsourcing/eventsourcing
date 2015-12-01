@@ -3,7 +3,8 @@ import os
 import subprocess
 
 
-del os.environ['PYTHONPATH']
+if 'PYTHONPATH' in os.environ:
+    del os.environ['PYTHONPATH']
 
 
 def get_version():
