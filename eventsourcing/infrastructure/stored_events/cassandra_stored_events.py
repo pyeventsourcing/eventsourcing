@@ -1,5 +1,5 @@
 import os
-from cassandra import ConsistencyLevel
+from cassandra import ConsistencyLevel, AlreadyExists
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.management import sync_table, create_keyspace_simple
@@ -93,8 +93,12 @@ def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspa
 
 def create_cassandra_keyspace_and_tables(default_keyspace):
     os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
-    create_keyspace_simple(default_keyspace, replication_factor=1)
-    sync_table(CqlStoredEvent)
+    try:
+        create_keyspace_simple(default_keyspace, replication_factor=1)
+    except AlreadyExists:
+        pass
+    else:
+        sync_table(CqlStoredEvent)
 
 
 def shutdown_cassandra_connection():
