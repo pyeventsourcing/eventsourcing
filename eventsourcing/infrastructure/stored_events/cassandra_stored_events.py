@@ -5,7 +5,8 @@ from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.management import sync_table, create_keyspace_simple
 import cassandra.cqlengine.connection
 from six import string_types
-from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, StoredEvent
+from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
+from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
 
 class CqlStoredEvent(Model):

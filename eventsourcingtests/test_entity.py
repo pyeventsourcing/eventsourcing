@@ -5,14 +5,14 @@ from eventsourcing.domain.model.example import register_new_example, Example
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepository
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
-from eventsourcing.infrastructure.stored_events.base import InMemoryStoredEventRepository
+from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
 
 
 class TestExampleEntity(unittest.TestCase):
 
     def setUp(self):
         # Setup the persistence subscriber.
-        self.event_store = EventStore(InMemoryStoredEventRepository())
+        self.event_store = EventStore(PythonObjectsStoredEventRepository())
         self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
 
     def tearDown(self):

@@ -4,8 +4,9 @@ import uuid
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import TopicResolutionError
-from eventsourcing.infrastructure.stored_events.base import StoredEvent, InMemoryStoredEventRepository, \
-    serialize_domain_event, recreate_domain_event, resolve_event_topic
+from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
+    resolve_event_topic, StoredEvent
+from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
 from eventsourcing.domain.model.example import Example
 from eventsourcing.utils.time import utc_timezone
 
@@ -24,7 +25,11 @@ class TestStoredEvent(unittest.TestCase):
                          stored_event.event_attrs)
 
     def test_serialize_domain_event_with_numpy_array(self):
-        from eventsourcing.infrastructure.stored_events.base import numpy
+        try:
+            import numpy
+        except ImportError:
+            numpy = None
+
         if numpy is not None:
             event1 = DomainEvent(a=numpy.array([10.123456]), entity_version=0, entity_id='entity1', timestamp=3)
 
@@ -41,7 +46,7 @@ class TestStoredEvent(unittest.TestCase):
                                    stored_entity_id='entity1',
                                    event_topic='eventsourcing.domain.model.events#DomainEvent',
                                    event_attrs='{"a":1,"b":2,"c":{"ISO8601_datetime":"2015-09-08T16:20:50.577429"},"d":{"ISO8601_datetime":"2015-09-08T16:20:50.577429+0000"},"e":{"ISO8601_date":"2015-09-08"},"entity_id":"entity1","entity_version":0,"timestamp":3}')
-        domain_event = recreate_domain_event(stored_event)
+        domain_event = deserialize_domain_event(stored_event)
         self.assertIsInstance(domain_event, DomainEvent)
         self.assertEqual('entity1', domain_event.entity_id)
         self.assertEqual(1, domain_event.a)
@@ -59,7 +64,7 @@ class TestStoredEvent(unittest.TestCase):
                                    stored_entity_id='entity1',
                                    event_topic='os#path',
                                    event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":3}')
-        self.assertRaises(TypeError, recreate_domain_event, stored_event)
+        self.assertRaises(TypeError, deserialize_domain_event, stored_event)
 
     def test_resolve_event_topic(self):
         example_topic = 'eventsourcing.domain.model.example#Example.Created'
@@ -123,4 +128,4 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
 class TestInMemoryStoredEventRepository(StoredEventRepositoryTestCase):
 
     def test_stored_events_in_memory(self):
-        self.assertStoredEventRepositoryImplementation(InMemoryStoredEventRepository())
+        self.assertStoredEventRepositoryImplementation(PythonObjectsStoredEventRepository())

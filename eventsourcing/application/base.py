@@ -6,7 +6,7 @@ from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubsc
 
 class EventSourcingApplication(with_metaclass(ABCMeta)):
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self.stored_event_repo = self.create_stored_event_repo()
         self.event_store = self.create_event_store()
         self.persistence_subscriber = self.create_persistence_subscriber()

@@ -8,12 +8,12 @@ from eventsourcing.infrastructure.stored_events.cassandra_stored_events \
 class EventSourcingWithCassandra(EventSourcingApplication):
 
     def __init__(self, hosts=('localhost',), consistency='QUORUM', default_keyspace='eventsourcing', port=9042,
-                               protocol_version=2, username=None, password=None):
+                               protocol_version=2, username=None, password=None, *args, **kwargs):
 
         self.setup_cassandra_connection(hosts, consistency, default_keyspace, port, protocol_version, username,
                                         password)
 
-        super(EventSourcingWithCassandra, self).__init__()
+        super(EventSourcingWithCassandra, self).__init__(*args, **kwargs)
 
     def setup_cassandra_connection(self, *args):
         setup_cassandra_connection(*get_cassandra_setup_params(*args))
