@@ -1,14 +1,12 @@
-import unittest
 import datetime
+import unittest
 import uuid
 
 from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.domain.model.example import Example
 from eventsourcing.exceptions import TopicResolutionError
-from eventsourcing.infrastructure.stored_events.shared_memory_stored_events import SharedMemoryStoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
     resolve_event_topic, StoredEvent
-from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
-from eventsourcing.domain.model.example import Example
 from eventsourcing.utils.time import utc_timezone
 
 
@@ -126,13 +124,3 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         self.assertEqual(stored_event2.event_attrs, events[1].event_attrs)
 
 
-class TestPythonObjectsStoredEventRepository(StoredEventRepositoryTestCase):
-
-    def test_stored_events_in_memory(self):
-        self.assertStoredEventRepositoryImplementation(PythonObjectsStoredEventRepository())
-
-
-class TestSharedMemoryStoredEventRepository(StoredEventRepositoryTestCase):
-
-    def test_stored_events_in_shared_memory(self):
-        self.assertStoredEventRepositoryImplementation(SharedMemoryStoredEventRepository())
