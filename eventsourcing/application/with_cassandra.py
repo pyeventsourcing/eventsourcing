@@ -5,9 +5,12 @@ from eventsourcing.infrastructure.stored_events.cassandra_stored_events \
     CassandraStoredEventRepository
 
 
+DEFAULT_CASSANDRA_KEYSPACE = 'eventsourcing'
+
+
 class EventSourcingWithCassandra(EventSourcingApplication):
 
-    def __init__(self, hosts=('localhost',), consistency='QUORUM', default_keyspace='eventsourcing', port=9042,
+    def __init__(self, hosts=('localhost',), consistency='QUORUM', default_keyspace=DEFAULT_CASSANDRA_KEYSPACE, port=9042,
                                protocol_version=2, username=None, password=None, *args, **kwargs):
 
         self.setup_cassandra_connection(hosts, consistency, default_keyspace, port, protocol_version, username,
