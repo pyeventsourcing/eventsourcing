@@ -1,6 +1,5 @@
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
-from multiprocessing import Array
 
 class SharedMemoryStoredEventRepository(StoredEventRepository):
 

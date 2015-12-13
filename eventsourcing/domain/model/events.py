@@ -103,4 +103,5 @@ def publish(event):
 
 
 def assert_event_handlers_empty():
-    assert not len(_event_handlers), _event_handlers
+    if len(_event_handlers):
+        raise Exception("Event handlers are still subscribed: %s" % _event_handlers)

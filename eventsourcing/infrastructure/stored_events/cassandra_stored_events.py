@@ -77,7 +77,6 @@ def get_cassandra_setup_params(hosts=('localhost',), consistency='QUORUM', defau
 
     return auth_provider, hosts, consistency, default_keyspace, port, protocol_version
 
-
 def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspace, port, protocol_version):
     cassandra.cqlengine.connection.setup(
         hosts=hosts,
@@ -88,8 +87,6 @@ def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspa
         protocol_version=protocol_version,
         lazy_connect=True,
     )
-    create_cassandra_keyspace_and_tables(default_keyspace)
-
 
 def create_cassandra_keyspace_and_tables(default_keyspace):
     os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
