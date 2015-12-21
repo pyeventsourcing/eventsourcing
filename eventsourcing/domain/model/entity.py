@@ -56,26 +56,26 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
     @classmethod
     def mutator(cls, entity=None, event=None):
-        assert isinstance(event, DomainEvent), "Not a domain event: {}".format(event)
+        # assert isinstance(event, DomainEvent), "Not a domain event: {}".format(event)
         event_class = type(event)
         if event_class == cls.Created:
             # assert isinstance(entity, type), entity
             assert entity is None, "Are there multiple Created events for the same ID? %s, %s" % (entity, event)
             entity_class = cls
             entity = entity_class(**event.__dict__)
-            assert isinstance(entity, EventSourcedEntity), entity
+            # assert isinstance(entity, EventSourcedEntity), entity
             entity._increment_version()
             return entity
 
         elif event_class == cls.AttributeChanged:
-            assert isinstance(entity, EventSourcedEntity), entity
+            # assert isinstance(entity, EventSourcedEntity), entity
             entity._validate_originator(event)
             setattr(entity, event.name, event.value)
             entity._increment_version()
             return entity
 
         elif event_class == cls.Discarded:
-            assert isinstance(entity, EventSourcedEntity), entity
+            # assert isinstance(entity, EventSourcedEntity), entity
             entity._validate_originator(event)
             entity._is_discarded = True
             entity._increment_version()

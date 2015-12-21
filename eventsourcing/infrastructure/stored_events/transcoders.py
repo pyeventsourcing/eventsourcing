@@ -8,16 +8,18 @@ import dateutil.parser
 import numpy
 from six import BytesIO
 
-from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import TopicResolutionError
 
 
-def serialize_domain_event(domain_event, without_json=False):
+def serialize_domain_event(domain_event, without_json=False, with_uuid1=False):
     """
     Serializes a domain event into a stored event.
     """
-    assert isinstance(domain_event, DomainEvent)
-    event_id = uuid.uuid1().hex
+    # assert isinstance(domain_event, DomainEvent)
+    if with_uuid1:
+        event_id = uuid.uuid1().hex
+    else:
+        event_id = uuid.uuid4().hex
     stored_entity_id = entity_class_name_from_domain_event(domain_event) + '::' + domain_event.entity_id
     event_topic = topic_from_domain_event(domain_event)
     if without_json:
@@ -36,7 +38,7 @@ def deserialize_domain_event(stored_event, without_json=False):
     """
     Recreates original domain event from stored event topic and event attrs.
     """
-    assert isinstance(stored_event, StoredEvent)
+    # assert isinstance(stored_event, StoredEvent)
     if without_json:
         domain_event = stored_event.event_attrs
     else:
@@ -58,7 +60,7 @@ def topic_from_domain_event(domain_event):
     Returns:
         A string describing the domain event object's class.
     """
-    assert isinstance(domain_event, DomainEvent)
+    # assert isinstance(domain_event, DomainEvent)
     return domain_event.__module__ + '#' + domain_event.__class__.__qualname__
 
 
@@ -71,7 +73,7 @@ def entity_class_name_from_domain_event(domain_event):
     Returns:
         A string naming the domain entity class.
     """
-    assert isinstance(domain_event, DomainEvent)
+    # assert isinstance(domain_event, DomainEvent)
     return domain_event.__class__.__qualname__.split('.')[0]
 
 

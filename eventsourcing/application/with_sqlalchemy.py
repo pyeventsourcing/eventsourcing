@@ -16,3 +16,7 @@ class EventSourcingWithSQLAlchemy(EventSourcingApplication):
 
     def create_stored_event_repo(self):
         return SQLAlchemyStoredEventRepository(db_session=self.db_session)
+
+    def close(self):
+        super(EventSourcingWithSQLAlchemy, self).close()
+        self.db_session.close()

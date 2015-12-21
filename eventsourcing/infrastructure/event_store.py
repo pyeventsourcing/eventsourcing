@@ -1,6 +1,4 @@
-from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
-from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event
 
 
 class EventStore(object):
@@ -10,7 +8,7 @@ class EventStore(object):
         self.stored_event_repo = stored_event_repo
 
     def append(self, domain_event):
-        assert isinstance(domain_event, DomainEvent)
+        # assert isinstance(domain_event, DomainEvent)
 
         # Serialize the domain event.
         stored_event = self.stored_event_repo.serialize(domain_event)

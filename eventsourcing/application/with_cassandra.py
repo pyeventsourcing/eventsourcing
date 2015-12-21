@@ -10,15 +10,14 @@ DEFAULT_CASSANDRA_KEYSPACE = 'eventsourcing'
 
 class EventSourcingWithCassandra(EventSourcingApplication):
 
-    def __init__(self, hosts=('localhost',), consistency='QUORUM', default_keyspace=DEFAULT_CASSANDRA_KEYSPACE, port=9042,
-                               protocol_version=2, username=None, password=None, *args, **kwargs):
-
+    def __init__(self, hosts=('localhost',), consistency='QUORUM', default_keyspace=DEFAULT_CASSANDRA_KEYSPACE,
+                 port=9042, protocol_version=2, username=None, password=None, **kwargs):
         self.setup_cassandra_connection(hosts, consistency, default_keyspace, port, protocol_version, username,
                                         password)
+        super(EventSourcingWithCassandra, self).__init__(**kwargs)
 
-        super(EventSourcingWithCassandra, self).__init__(*args, **kwargs)
-
-    def setup_cassandra_connection(self, *args):
+    @staticmethod
+    def setup_cassandra_connection(*args):
         setup_cassandra_connection(*get_cassandra_setup_params(*args))
 
     def create_stored_event_repo(self):

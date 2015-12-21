@@ -1,6 +1,5 @@
-from abc import ABCMeta, abstractproperty
+from abc import abstractproperty
 from functools import reduce
-from six import with_metaclass
 from eventsourcing.domain.model.entity import EntityRepository
 from eventsourcing.infrastructure.event_store import EventStore
 
@@ -29,11 +28,14 @@ class EventPlayer(object):
 
 class EventSourcedRepository(EntityRepository):
 
-    def __init__(self, event_store):
+    def __init__(self, event_store, use_cache=False):
         self.event_player = self.construct_event_player(event_store)
+        self._cache = {}
+        self._use_cache = use_cache
 
     def construct_event_player(self, event_store):
-        return EventPlayer(event_store=event_store, mutator=self.domain_class.mutator, id_prefix=self.domain_class.__name__)
+        return EventPlayer(event_store=event_store, mutator=self.domain_class.mutator,
+                           id_prefix=self.domain_class.__name__)
 
     @abstractproperty
     def domain_class(self):
@@ -41,7 +43,18 @@ class EventSourcedRepository(EntityRepository):
         """
 
     def __getitem__(self, entity_id):
-        return self.event_player[entity_id]
+        if not self._use_cache:
+            return self.event_player[entity_id]
+        else:
+            try:
+                return self._cache[entity_id]
+            except KeyError:
+                entity = self.event_player[entity_id]
+                self.add_cache(entity_id, entity)
+                return entity
+
+    def add_cache(self, entity_id, entity):
+        self._cache[entity_id] = entity
 
     def __contains__(self, entity_id):
         try:
