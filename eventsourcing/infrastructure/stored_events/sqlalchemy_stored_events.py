@@ -57,7 +57,8 @@ def sql_from_stored(stored_event):
 
 class SQLAlchemyStoredEventRepository(StoredEventRepository):
 
-    def __init__(self, db_session):
+    def __init__(self, db_session, **kwargs):
+        super(SQLAlchemyStoredEventRepository, self).__init__(**kwargs)
         assert isinstance(db_session, ScopedSession)
         self.db_session = db_session
 

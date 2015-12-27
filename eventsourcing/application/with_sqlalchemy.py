@@ -14,8 +14,8 @@ class EventSourcingWithSQLAlchemy(EventSourcingApplication):
     def create_db_session(uri):
         return get_scoped_session_facade(uri)
 
-    def create_stored_event_repo(self):
-        return SQLAlchemyStoredEventRepository(db_session=self.db_session)
+    def create_stored_event_repo(self, **kwargs):
+        return SQLAlchemyStoredEventRepository(db_session=self.db_session, **kwargs)
 
     def close(self):
         super(EventSourcingWithSQLAlchemy, self).close()

@@ -20,8 +20,8 @@ class EventSourcingWithCassandra(EventSourcingApplication):
     def setup_cassandra_connection(*args):
         setup_cassandra_connection(*get_cassandra_setup_params(*args))
 
-    def create_stored_event_repo(self):
-        return CassandraStoredEventRepository()
+    def create_stored_event_repo(self, **kwargs):
+        return CassandraStoredEventRepository(**kwargs)
 
     def close(self):
         super(EventSourcingWithCassandra, self).close()

@@ -4,5 +4,5 @@ from eventsourcing.infrastructure.stored_events.python_objects_stored_events imp
 
 class EventSourcingWithPythonObjects(EventSourcingApplication):
 
-    def create_stored_event_repo(self):
+    def create_stored_event_repo(self, **kwargs):
         return PythonObjectsStoredEventRepository()

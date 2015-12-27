@@ -10,6 +10,10 @@ class StoredEventRepository(with_metaclass(ABCMeta)):
     serialize_without_json = False
     serialize_with_uuid1 = False
 
+    def __init__(self, json_encoder_cls=None, json_decoder_cls=None):
+        self.json_encoder_cls = json_encoder_cls
+        self.json_decoder_cls = json_decoder_cls
+
     @abstractmethod
     def append(self, stored_event):
         """Saves given stored event in this repository.
@@ -43,11 +47,19 @@ class StoredEventRepository(with_metaclass(ABCMeta)):
         :type domain_event: object
         :param domain_event:
         """
-        return serialize_domain_event(domain_event, without_json=self.serialize_without_json,
-                                      with_uuid1=self.serialize_with_uuid1)
+        return serialize_domain_event(
+            domain_event,
+            json_encoder_cls=self.json_encoder_cls,
+            without_json=self.serialize_without_json,
+            with_uuid1=self.serialize_with_uuid1
+        )
 
     def deserialize(self, stored_event):
         """Returns a domain event from a stored event.
         :type stored_event: object
         """
-        return deserialize_domain_event(stored_event, without_json=self.serialize_without_json)
+        return deserialize_domain_event(
+            stored_event,
+            json_decoder_cls=self.json_decoder_cls,
+            without_json=self.serialize_without_json
+        )

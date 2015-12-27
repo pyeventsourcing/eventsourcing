@@ -11,8 +11,8 @@ class ExampleApplication(EventSourcingApplication):
 
     It doesn't have a stored event repository.
     """
-    def __init__(self):
-        super(ExampleApplication, self).__init__()
+    def __init__(self, **kwargs):
+        super(ExampleApplication, self).__init__(**kwargs)
         self.example_repo = ExampleRepository(event_store=self.event_store)
 
     def register_new_example(self, a, b):

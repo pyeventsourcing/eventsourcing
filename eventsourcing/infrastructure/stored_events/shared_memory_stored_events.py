@@ -1,12 +1,13 @@
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
+
 class SharedMemoryStoredEventRepository(StoredEventRepository):
 
     serialize_without_json = True
 
-    def __init__(self):
-        super(SharedMemoryStoredEventRepository, self).__init__()
+    def __init__(self, **kwargs):
+        super(SharedMemoryStoredEventRepository, self).__init__(**kwargs)
         self._by_id = {}
         self._by_stored_entity_id = {}
         self._by_topic = {}

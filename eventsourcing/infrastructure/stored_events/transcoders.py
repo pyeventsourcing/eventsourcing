@@ -11,7 +11,7 @@ from six import BytesIO
 from eventsourcing.exceptions import TopicResolutionError
 
 
-def serialize_domain_event(domain_event, without_json=False, with_uuid1=False):
+def serialize_domain_event(domain_event, json_encoder_cls=None, without_json=False, with_uuid1=False):
     """
     Serializes a domain event into a stored event.
     """
@@ -25,7 +25,7 @@ def serialize_domain_event(domain_event, without_json=False, with_uuid1=False):
     if without_json:
         event_attrs = domain_event
     else:
-        event_attrs = json.dumps(domain_event.__dict__, separators=(',', ':'), sort_keys=True, cls=ObjectJSONEncoder)
+        event_attrs = json.dumps(domain_event.__dict__, separators=(',', ':'), sort_keys=True, cls=json_encoder_cls)
     return StoredEvent(
         event_id=event_id,
         stored_entity_id=stored_entity_id,
@@ -34,7 +34,7 @@ def serialize_domain_event(domain_event, without_json=False, with_uuid1=False):
     )
 
 
-def deserialize_domain_event(stored_event, without_json=False):
+def deserialize_domain_event(stored_event, json_decoder_cls=None, without_json=False):
     """
     Recreates original domain event from stored event topic and event attrs.
     """
@@ -43,7 +43,7 @@ def deserialize_domain_event(stored_event, without_json=False):
         domain_event = stored_event.event_attrs
     else:
         event_class = resolve_event_topic(stored_event.event_topic)
-        event_data = json.loads(stored_event.event_attrs, cls=ObjectJSONDecoder)
+        event_data = json.loads(stored_event.event_attrs, cls=json_decoder_cls)
         try:
             domain_event = event_class(**event_data)
         except TypeError:
@@ -135,12 +135,10 @@ class ObjectJSONEncoder(json.JSONEncoder):
             if isinstance(obj, datetime.date):
                 return { 'ISO8601_date': obj.isoformat() }
             if numpy is not None and isinstance(obj, numpy.ndarray) and obj.ndim == 1:
-
                 memfile = BytesIO()
                 numpy.save(memfile, obj)
                 memfile.seek(0)
                 serialized = json.dumps(memfile.read().decode('latin-1'))
-
                 d = {
                     '__ndarray__': serialized,
                 }
@@ -150,8 +148,6 @@ class ObjectJSONEncoder(json.JSONEncoder):
                     '__class__': obj.__class__.__qualname__,
                     '__module__': obj.__module__,
                 }
-                # for attr, value in obj.__dict__.items():
-                #     d[attr] = self.default(value)
                 return d
 
 
