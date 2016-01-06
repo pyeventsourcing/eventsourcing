@@ -39,7 +39,6 @@ class TestStoredEvent(unittest.TestCase):
         else:
             self.skipTest("Numpy not installed")
 
-
     def test_recreate_domain_event(self):
         stored_event = StoredEvent(event_id='1',
                                    stored_entity_id='entity1',

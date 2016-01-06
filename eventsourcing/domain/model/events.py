@@ -31,7 +31,6 @@ class QualnameABCMeta(ABCMeta):
                 return "%s.%s" % (c.__qualname__, cls.__name__)
 
 
-
 class DomainEvent(with_metaclass(QualnameABCMeta)):
 
     def __init__(self, entity_id=None, entity_version=None, timestamp=None, **kwargs):

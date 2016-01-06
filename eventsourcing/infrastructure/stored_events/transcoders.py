@@ -15,6 +15,8 @@ def serialize_domain_event(domain_event, json_encoder_cls=None, without_json=Fal
     """
     Serializes a domain event into a stored event.
     """
+    if json_encoder_cls is None:
+        json_encoder_cls = ObjectJSONEncoder
     # assert isinstance(domain_event, DomainEvent)
     if with_uuid1:
         event_id = uuid.uuid1().hex
@@ -39,6 +41,8 @@ def deserialize_domain_event(stored_event, json_decoder_cls=None, without_json=F
     Recreates original domain event from stored event topic and event attrs.
     """
     # assert isinstance(stored_event, StoredEvent)
+    if json_decoder_cls is None:
+        json_decoder_cls = ObjectJSONDecoder
     if without_json:
         domain_event = stored_event.event_attrs
     else:
