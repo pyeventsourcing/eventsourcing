@@ -5,10 +5,13 @@ import uuid
 from collections import namedtuple
 
 import dateutil.parser
-import numpy
 from six import BytesIO
-
 from eventsourcing.exceptions import TopicResolutionError
+
+try:
+    import numpy
+except:
+    numpy = None
 
 
 def serialize_domain_event(domain_event, json_encoder_cls=None, without_json=False, with_uuid1=False):
