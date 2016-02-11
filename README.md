@@ -4,6 +4,9 @@
 
 A library for event sourcing in Python.
 
+## Mailing List
+
+There is a [mailing list](https://groups.google.com/forum/#!forum/eventsourcing-users) for discussion relating to this project.
 
 ## Install
 

@@ -1,11 +1,12 @@
 import os
-from cassandra import ConsistencyLevel
+from cassandra import ConsistencyLevel, AlreadyExists
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine.models import Model, columns
-from cassandra.cqlengine.management import sync_table, create_keyspace_simple
+from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_table
 import cassandra.cqlengine.connection
 from six import string_types
-from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, StoredEvent
+from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
+from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
 
 class CqlStoredEvent(Model):
@@ -36,6 +37,10 @@ def from_cql(sql_stored_event):
 
 
 class CassandraStoredEventRepository(StoredEventRepository):
+
+    # Todo: Eliminate this in favour of automatically setting it in Cassandra (if that's possible).
+    #       - uuid1() is annoying because it does a subprocess.Popen() to get the mac address
+    serialize_with_uuid1 = True
 
     def append(self, stored_event):
         cql_stored_event = to_cql(stored_event)
@@ -76,7 +81,6 @@ def get_cassandra_setup_params(hosts=('localhost',), consistency='QUORUM', defau
 
     return auth_provider, hosts, consistency, default_keyspace, port, protocol_version
 
-
 def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspace, port, protocol_version):
     cassandra.cqlengine.connection.setup(
         hosts=hosts,
@@ -87,13 +91,15 @@ def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspa
         protocol_version=protocol_version,
         lazy_connect=True,
     )
-    create_cassandra_keyspace_and_tables(default_keyspace)
-
 
 def create_cassandra_keyspace_and_tables(default_keyspace):
     os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
-    create_keyspace_simple(default_keyspace, replication_factor=1)
-    sync_table(CqlStoredEvent)
+    try:
+        create_keyspace_simple(default_keyspace, replication_factor=1)
+    except AlreadyExists:
+        pass
+    else:
+        sync_table(CqlStoredEvent)
 
 
 def shutdown_cassandra_connection():

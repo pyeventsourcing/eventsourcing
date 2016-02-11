@@ -6,13 +6,14 @@ from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubsc
 
 class EventSourcingApplication(with_metaclass(ABCMeta)):
 
-    def __init__(self):
-        self.stored_event_repo = self.create_stored_event_repo()
+    def __init__(self, json_encoder_cls=None, json_decoder_cls=None):
+        self.stored_event_repo = self.create_stored_event_repo(json_encoder_cls=json_encoder_cls,
+                                                               json_decoder_cls=json_decoder_cls)
         self.event_store = self.create_event_store()
         self.persistence_subscriber = self.create_persistence_subscriber()
 
     @abstractmethod
-    def create_stored_event_repo(self):
+    def create_stored_event_repo(self, **kwargs):
         raise NotImplementedError()
 
     def create_event_store(self):

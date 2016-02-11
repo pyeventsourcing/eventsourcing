@@ -4,7 +4,8 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.scoping import ScopedSession
 from sqlalchemy.sql.schema import Column, Sequence
 from sqlalchemy.sql.sqltypes import Integer, String
-from eventsourcing.infrastructure.stored_events.base import StoredEvent, StoredEventRepository
+from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
+from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
 
 def get_scoped_session_facade(uri):
@@ -56,7 +57,8 @@ def sql_from_stored(stored_event):
 
 class SQLAlchemyStoredEventRepository(StoredEventRepository):
 
-    def __init__(self, db_session):
+    def __init__(self, db_session, **kwargs):
+        super(SQLAlchemyStoredEventRepository, self).__init__(**kwargs)
         assert isinstance(db_session, ScopedSession)
         self.db_session = db_session
 

@@ -2,14 +2,14 @@ import unittest
 
 from eventsourcing.infrastructure.event_sourced_repo import EventPlayer
 from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.stored_events.base import InMemoryStoredEventRepository
+from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
 from eventsourcing.domain.model.example import Example
 
 
 class TestEventPlayer(unittest.TestCase):
 
     def test_get_entity(self):
-        stored_event_repo = InMemoryStoredEventRepository()
+        stored_event_repo = PythonObjectsStoredEventRepository()
         event_store = EventStore(stored_event_repo)
         # Store example events.
         event1 = Example.Created(entity_id='entity1', timestamp=3, a=1, b=2)

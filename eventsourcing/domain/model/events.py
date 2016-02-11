@@ -31,7 +31,6 @@ class QualnameABCMeta(ABCMeta):
                 return "%s.%s" % (c.__qualname__, cls.__name__)
 
 
-
 class DomainEvent(with_metaclass(QualnameABCMeta)):
 
     def __init__(self, entity_id=None, entity_version=None, timestamp=None, **kwargs):
@@ -103,4 +102,5 @@ def publish(event):
 
 
 def assert_event_handlers_empty():
-    assert not len(_event_handlers), _event_handlers
+    if len(_event_handlers):
+        raise Exception("Event handlers are still subscribed: %s" % _event_handlers)

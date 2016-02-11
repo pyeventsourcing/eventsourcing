@@ -1,6 +1,5 @@
 import unittest
-
-from eventsourcing.infrastructure.stored_events.base import InMemoryStoredEventRepository
+from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.domain.model.example import Example
 
@@ -8,7 +7,7 @@ from eventsourcing.domain.model.example import Example
 class TestEventStore(unittest.TestCase):
 
     def test_get_entity_events(self):
-        repo = InMemoryStoredEventRepository()
+        repo = PythonObjectsStoredEventRepository()
         event_store = EventStore(stored_event_repo=repo)
 
         # Check there are zero stored events in the repo.
