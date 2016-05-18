@@ -4,7 +4,13 @@ from six import with_metaclass
 from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta
 
 
+def make_stored_entity_id(id_prefix, entity_id):
+    return id_prefix + '::' + entity_id
+
+
 class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
+
+    snapshot_threshold = None
 
     class Created(DomainEvent):
         def __init__(self, entity_version=0, **kwargs):

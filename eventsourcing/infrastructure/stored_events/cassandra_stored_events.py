@@ -1,17 +1,19 @@
 import os
+
 from cassandra import ConsistencyLevel, AlreadyExists
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine.models import Model, columns
-from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_table
+from cassandra.cqlengine.management import sync_table, create_keyspace_simple
 import cassandra.cqlengine.connection
-from six import string_types
+import six
+
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
 
 class CqlStoredEvent(Model):
     stored_entity_id = columns.Text(partition_key=True)
-    event_id = columns.TimeUUID(clustering_order='ASC', primary_key=True)
+    event_id = columns.TimeUUID(clustering_order='DESC', primary_key=True)
     event_topic = columns.Text(index=True)
     event_attrs = columns.Text(required=True)
 
@@ -38,8 +40,6 @@ def from_cql(sql_stored_event):
 
 class CassandraStoredEventRepository(StoredEventRepository):
 
-    # Todo: Eliminate this in favour of automatically setting it in Cassandra (if that's possible).
-    #       - uuid1() is annoying because it does a subprocess.Popen() to get the mac address
     serialize_with_uuid1 = True
 
     def append(self, stored_event):
@@ -55,11 +55,30 @@ class CassandraStoredEventRepository(StoredEventRepository):
 
     def get_topic_events(self, event_topic):
         cql_stored_events = CqlStoredEvent.objects(event_topic=event_topic)
-        return map(from_cql, cql_stored_events)
+        return self.map(from_cql, cql_stored_events)
 
-    def get_entity_events(self, stored_entity_id):
-        cql_stored_events = CqlStoredEvent.objects(stored_entity_id=stored_entity_id).order_by('event_id')
-        return map(from_cql, cql_stored_events)
+    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None):
+        query = CqlStoredEvent.objects.filter(stored_entity_id=stored_entity_id)
+        query = query.order_by('event_id')
+        if since is not None:
+            query = query.filter(event_id__gt=since)
+        if before is not None:
+            query = query.filter(event_id__lt=before)
+        if limit is not None:
+            query = query.limit(limit)
+        return self.map(from_cql, query)
+
+    def get_most_recent_event(self, stored_entity_id):
+        queryset = CqlStoredEvent.objects.filter(stored_entity_id=stored_entity_id)
+        queryset = queryset.order_by('-event_id')
+        queryset = queryset.limit(1)
+        cql_stored_events = list(queryset)
+        if len(cql_stored_events) == 1:
+            return from_cql(cql_stored_events[0])
+        elif len(cql_stored_events) == 0:
+            return None
+        else:
+            raise Exception("Shouldn't have more than one object: {}".format(cql_stored_events))
 
 
 def get_cassandra_setup_params(hosts=('localhost',), consistency='QUORUM', default_keyspace='eventsourcing', port=9042,
@@ -72,7 +91,7 @@ def get_cassandra_setup_params(hosts=('localhost',), consistency='QUORUM', defau
         auth_provider = None
 
     # Resolve the consistency level to an object, if it's a string.
-    if isinstance(consistency, string_types):
+    if isinstance(consistency, six.string_types):
         try:
             consistency = getattr(ConsistencyLevel, consistency.upper())
         except AttributeError:
@@ -80,6 +99,7 @@ def get_cassandra_setup_params(hosts=('localhost',), consistency='QUORUM', defau
             raise Exception(msg)
 
     return auth_provider, hosts, consistency, default_keyspace, port, protocol_version
+
 
 def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspace, port, protocol_version):
     cassandra.cqlengine.connection.setup(
@@ -91,6 +111,7 @@ def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspa
         protocol_version=protocol_version,
         lazy_connect=True,
     )
+
 
 def create_cassandra_keyspace_and_tables(default_keyspace):
     os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'

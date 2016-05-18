@@ -1,11 +1,11 @@
 from abc import ABCMeta, abstractmethod
 
-from six import with_metaclass
+import six
 
 from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event
 
 
-class StoredEventRepository(with_metaclass(ABCMeta)):
+class StoredEventRepository(six.with_metaclass(ABCMeta)):
 
     serialize_without_json = False
     serialize_with_uuid1 = False
@@ -31,9 +31,20 @@ class StoredEventRepository(with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def get_entity_events(self, stored_entity_id):
-        """Returns all events for given entity ID.
-        :param stored_entity_id: 
+    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None):
+        """Returns all events for given entity ID in chronological order.
+        :param before:
+        :param since:
+        :param stored_entity_id:
+        :rtype: list
+        """
+
+    @abstractmethod
+    def get_most_recent_event(self, stored_entity_id):
+        """Returns last event for given entity ID.
+
+        :param stored_entity_id:
+        :rtype: DomainEvent, NoneType
         """
 
     @abstractmethod
@@ -63,3 +74,40 @@ class StoredEventRepository(with_metaclass(ABCMeta)):
             json_decoder_cls=self.json_decoder_cls,
             without_json=self.serialize_without_json
         )
+
+    @staticmethod
+    def map(func, iterable):
+        return six.moves.map(func, iterable)
+
+
+class StoredEventIterator(object):
+
+    def __init__(self, repo, stored_entity_id, page_size=1000, since=None, before=None, limit=None):
+        assert isinstance(repo, StoredEventRepository)
+        assert isinstance(stored_entity_id, six.string_types)
+        assert isinstance(page_size, six.integer_types)
+        self.repo = repo
+        self.stored_entity_id = stored_entity_id
+        self.page_size = page_size
+        self.since = since
+        self.before = before
+        self.limit = limit
+
+    def __iter__(self):
+        if self.limit is None:
+            limit = self.limit
+        else:
+            limit = min(self.page_size, self.limit)
+        while True:
+            retrieved_events = self.repo.get_entity_events(self.stored_entity_id,
+                                                           since=self.since,
+                                                           before=self.before,
+                                                           limit=limit
+                                                           )
+            count = 0
+            for stored_event in retrieved_events:
+                yield stored_event
+                self.since = stored_event.event_id
+                count += 1
+            if not count == self.page_size:
+                raise StopIteration

@@ -6,7 +6,10 @@ from collections import namedtuple
 
 import dateutil.parser
 from six import BytesIO
-from eventsourcing.exceptions import TopicResolutionError
+
+from eventsourcing.domain.model.entity import make_stored_entity_id
+from eventsourcing.domain.model.events import topic_from_domain_class, entity_class_name_from_domain_event_class, \
+    resolve_domain_topic, resolve_attr
 
 try:
     import numpy
@@ -22,11 +25,13 @@ def serialize_domain_event(domain_event, json_encoder_cls=None, without_json=Fal
         json_encoder_cls = ObjectJSONEncoder
     # assert isinstance(domain_event, DomainEvent)
     if with_uuid1:
-        event_id = uuid.uuid1().hex
+        # Todo: Use the domain_event.timestamp to generate the UUID v1 (cassandra.util.uuid_from_timestamp).
+        event_id = uuid.uuid1()
     else:
-        event_id = uuid.uuid4().hex
-    stored_entity_id = entity_class_name_from_domain_event(domain_event) + '::' + domain_event.entity_id
-    event_topic = topic_from_domain_event(domain_event)
+        event_id = uuid.uuid4()
+    entity_class_name = entity_class_name_from_domain_event_class(domain_event.__class__)
+    stored_entity_id = make_stored_entity_id(entity_class_name, domain_event.entity_id)
+    event_topic = topic_from_domain_class(domain_event.__class__)
     if without_json:
         event_attrs = domain_event
     else:
@@ -49,84 +54,16 @@ def deserialize_domain_event(stored_event, json_decoder_cls=None, without_json=F
     if without_json:
         domain_event = stored_event.event_attrs
     else:
-        event_class = resolve_event_topic(stored_event.event_topic)
+        event_class = resolve_domain_topic(stored_event.event_topic)
         event_data = json.loads(stored_event.event_attrs, cls=json_decoder_cls)
         try:
-            domain_event = event_class(**event_data)
+            # domain_event = event_class(**event_data)
+            # Todo: Remove line above, and this comment, line above is replaced by lines below in this version.
+            domain_event = object.__new__(event_class)
+            domain_event.__dict__.update(event_data)
         except TypeError:
             raise TypeError("Unable to instantiate class '{}' with data '{}'".format(stored_event.event_topic, stored_event.event_attrs))
     return domain_event
-
-
-def topic_from_domain_event(domain_event):
-    """Returns a string describing a domain event class.
-
-    Args:
-        domain_event: A domain event object.
-
-    Returns:
-        A string describing the domain event object's class.
-    """
-    # assert isinstance(domain_event, DomainEvent)
-    return domain_event.__module__ + '#' + domain_event.__class__.__qualname__
-
-
-def entity_class_name_from_domain_event(domain_event):
-    """Returns entity class name for the domain event.
-
-    Args:
-        domain_event: A domain event object.
-
-    Returns:
-        A string naming the domain entity class.
-    """
-    # assert isinstance(domain_event, DomainEvent)
-    return domain_event.__class__.__qualname__.split('.')[0]
-
-
-def resolve_event_topic(topic):
-    """Return domain event class described by given topic.
-
-    Args:
-        topic: A string describing a domain event class.
-
-    Returns:
-        A domain event class.
-
-    Raises:
-        TopicResolutionError: If there is no such domain event class.
-    """
-    # Todo: Fix up this block to show what the topic is, and where it went wrong.
-    try:
-        module_name, _, class_name = topic.partition('#')
-        module = importlib.import_module(module_name)
-    except ImportError:
-        raise TopicResolutionError()
-    try:
-        cls = resolve_attr(module, class_name)
-    except AttributeError:
-        raise TopicResolutionError()
-    return cls
-
-
-def resolve_attr(obj, path):
-    """A recursive version of getattr for navigating dotted paths.
-
-    Args:
-        obj: An object for which we want to retrieve a nested attribute.
-        path: A dot separated string containing zero or more attribute names.
-
-    Returns:
-        The attribute referred to by obj.a1.a2.a3...
-
-    Raises:
-        AttributeError: If there is no such attribute.
-    """
-    if not path:
-        return obj
-    head, _, tail = path.partition('.')
-    head_obj = getattr(obj, head)
-    return resolve_attr(head_obj, tail)
 
 
 class ObjectJSONEncoder(json.JSONEncoder):
@@ -209,3 +146,10 @@ class ObjectJSONDecoder(json.JSONDecoder):
 
 
 StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
+
+
+def deserialize_domain_entity(entity_topic, entity_attrs):
+    domain_class = resolve_domain_topic(entity_topic)
+    entity = object.__new__(domain_class)
+    entity.__dict__.update(**entity_attrs)
+    return entity

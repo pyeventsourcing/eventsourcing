@@ -8,6 +8,9 @@ class Example(EventSourcedEntity):
     """
     An example event sourced domain model entity.
     """
+
+    snapshot_threshold = 100
+
     class Created(EventSourcedEntity.Created):
         pass
 

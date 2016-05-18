@@ -1,3 +1,5 @@
+from cassandra.util import datetime_from_uuid1
+
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
@@ -5,6 +7,7 @@ from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 class PythonObjectsStoredEventRepository(StoredEventRepository):
 
     serialize_without_json = True
+    serialize_with_uuid1 = True
 
     def __init__(self):
         super(PythonObjectsStoredEventRepository, self).__init__()
@@ -50,11 +53,49 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
     def __contains__(self, event_id):
         return event_id in self._by_id
 
-    def get_entity_events(self, stored_entity_id):
+    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None):
         if stored_entity_id not in self._by_stored_entity_id:
             return []
         else:
-            return self._by_stored_entity_id[stored_entity_id]
+            events = []
+            count = 0
+            stored_events = self._by_stored_entity_id[stored_entity_id]
+            if since is None:
+                since_dt = None
+            else:
+                since_dt = datetime_from_uuid1(since)
+            if before is None:
+                before_dt = None
+            else:
+                before_dt = datetime_from_uuid1(before)
+            for event in stored_events:
+                event_dt = datetime_from_uuid1(event.event_id)
+                if since_dt:
+                    # Exclude if earlier than the 'since' time.
+                    if event_dt <= since_dt:
+                        continue
+                if before_dt:
+                    # Exclude if later than the 'before' time.
+                    if event_dt >= before_dt:
+                        continue
+                count += 1
+                events.append(event)
+
+            if limit is not None:
+                # events.reverse()
+                events = events[:min(limit, len(events))]
+                # events.reverse()
+
+            return events
+
+    def get_most_recent_event(self, stored_entity_id):
+        """
+        :rtype: eventsourcing.infrastructure.stored_events.transcoders.StoredEvent
+        """
+        try:
+            return self._by_stored_entity_id[stored_entity_id][-1]
+        except KeyError:
+            return None
 
     def get_topic_events(self, event_topic):
-        return self._by_topic[event_topic]
+        return reversed(self._by_topic[event_topic])
