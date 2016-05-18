@@ -16,14 +16,14 @@ setup(
         'test': [
             'sqlalchemy',
             'mock',
-            'cassandra-driver==2.6.0rc1',
+            'cassandra-driver==3.3.0',
             'numpy',
         ],
         'sqlalchemy': [
             'sqlalchemy',
         ],
         'cassandra': [
-            'cassandra-driver==2.6.0rc1',
+            'cassandra-driver==3.3.0',
         ],
     },
     zip_safe=False,
