@@ -82,7 +82,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
 
 
 def get_cassandra_setup_params(hosts=('localhost',), consistency='QUORUM', default_keyspace='eventsourcing', port=9042,
-                               protocol_version=2, username=None, password=None):
+                               protocol_version=3, username=None, password=None):
 
     # Construct an "auth provider" object.
     if username and password:
@@ -106,10 +106,10 @@ def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspa
         hosts=hosts,
         default_keyspace=default_keyspace,
         consistency=consistency,
-        port=port,
-        auth_provider=auth_provider,
-        protocol_version=protocol_version,
-        lazy_connect=True,
+        # port=port,
+        # auth_provider=auth_provider,
+        # protocol_version=protocol_version,
+        # lazy_connect=True,
     )
 
 
