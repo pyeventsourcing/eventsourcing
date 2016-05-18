@@ -47,10 +47,12 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
                     self._by_topic[stored_event.event_topic].remove(stored_event)
 
 
-    def __getitem__(self, event_id):
+    def __getitem__(self, pk):
+        (stored_entity_id, event_id) = pk
         return self._by_id[event_id]
 
-    def __contains__(self, event_id):
+    def __contains__(self, pk):
+        (stored_entity_id, event_id) = pk
         return event_id in self._by_id
 
     def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None):
@@ -71,11 +73,11 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
             for event in stored_events:
                 event_dt = datetime_from_uuid1(event.event_id)
                 if since_dt:
-                    # Exclude if earlier than the 'since' time.
+                    # Exclude if earlier or equal to the 'since' time.
                     if event_dt <= since_dt:
                         continue
                 if before_dt:
-                    # Exclude if later than the 'before' time.
+                    # Exclude if later or equal to the 'before' time.
                     if event_dt >= before_dt:
                         continue
                 count += 1

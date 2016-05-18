@@ -79,12 +79,21 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         finally:
             self.db_session.close() # Begins a new transaction
 
-    def __contains__(self, event_id):
-        return bool(self.db_session.query(SqlStoredEvent).filter_by(event_id=event_id.hex).count())
+    def __contains__(self, pk):
+        (stored_entity_id, event_id) = pk
+        query = self.db_session.query(SqlStoredEvent)
+        query = query.filter_by(stored_entity_id=stored_entity_id, event_id=event_id.hex)
+        return bool(query.count())
 
-    def __getitem__(self, event_id):
-        sql_stored_event = self.db_session.query(SqlStoredEvent).filter_by(event_id=event_id.hex).first()
-        return stored_from_sql(sql_stored_event)
+    def __getitem__(self, pk):
+        (stored_entity_id, event_id) = pk
+        query = self.db_session.query(SqlStoredEvent)
+        query = query.filter_by(stored_entity_id=stored_entity_id, event_id=event_id.hex)
+        sql_stored_event = query.first()
+        if sql_stored_event is not None:
+            return stored_from_sql(sql_stored_event)
+        else:
+            raise KeyError
 
     def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None):
         query = self.db_session.query(SqlStoredEvent)

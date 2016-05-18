@@ -21,7 +21,7 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def __getitem__(self, event_id):
+    def __getitem__(self, pk):
         """Returns stored event for given event ID.
         """
 

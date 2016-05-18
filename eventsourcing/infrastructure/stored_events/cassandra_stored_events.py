@@ -28,13 +28,13 @@ def to_cql(stored_event):
     )
 
 
-def from_cql(sql_stored_event):
-    assert isinstance(sql_stored_event, CqlStoredEvent)
+def from_cql(cql_stored_event):
+    assert isinstance(cql_stored_event, CqlStoredEvent), cql_stored_event
     return StoredEvent(
-        event_id=sql_stored_event.event_id,
-        stored_entity_id=sql_stored_event.stored_entity_id,
-        event_attrs=sql_stored_event.event_attrs,
-        event_topic=sql_stored_event.event_topic
+        event_id=cql_stored_event.event_id,
+        stored_entity_id=cql_stored_event.stored_entity_id,
+        event_attrs=cql_stored_event.event_attrs,
+        event_topic=cql_stored_event.event_topic
     )
 
 
@@ -46,12 +46,17 @@ class CassandraStoredEventRepository(StoredEventRepository):
         cql_stored_event = to_cql(stored_event)
         cql_stored_event.save()
 
-    def __getitem__(self, event_id):
+    def __getitem__(self, pk):
+        (entity_id, event_id) = pk
         cql_stored_event = CqlStoredEvent.objects.allow_filtering().filter(event_id=event_id).first()
-        return from_cql(cql_stored_event)
+        if cql_stored_event is not None:
+            return from_cql(cql_stored_event)
+        else:
+            raise KeyError
 
-    def __contains__(self, event_id):
-        return bool(CqlStoredEvent.objects.allow_filtering().filter(event_id=event_id).limit(1).count())
+    def __contains__(self, pk):
+        (stored_entity_id, event_id) = pk
+        return bool(CqlStoredEvent.objects(stored_entity_id=stored_entity_id, event_id=event_id).limit(1).count())
 
     def get_topic_events(self, event_topic):
         cql_stored_events = CqlStoredEvent.objects(event_topic=event_topic)
