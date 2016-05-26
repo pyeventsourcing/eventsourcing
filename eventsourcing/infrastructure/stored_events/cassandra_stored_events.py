@@ -1,4 +1,5 @@
 import os
+from collections import deque
 
 from cassandra import ConsistencyLevel, AlreadyExists
 from cassandra.auth import PlainTextAuthProvider
@@ -12,29 +13,30 @@ from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
 
 class CqlStoredEvent(Model):
-    stored_entity_id = columns.Text(partition_key=True)
-    event_id = columns.TimeUUID(clustering_order='DESC', primary_key=True)
-    event_topic = columns.Text(index=True)
-    event_attrs = columns.Text(required=True)
+    __table_name__ = 'stored_events'
+    n = columns.Text(partition_key=True)  # 'n' is for the stored entity ID
+    v = columns.TimeUUID(clustering_order='DESC', primary_key=True)  # 'v' is for event ID
+    t = columns.Text(required=True)  # 't' is for event topic
+    a = columns.Text(required=True)  # 'a' is for event attributes
 
 
 def to_cql(stored_event):
     assert isinstance(stored_event, StoredEvent)
     return CqlStoredEvent(
-        event_id=stored_event.event_id,
-        stored_entity_id=stored_event.stored_entity_id,
-        event_attrs=stored_event.event_attrs,
-        event_topic=stored_event.event_topic
+        n=stored_event.stored_entity_id,
+        v=stored_event.event_id,
+        t=stored_event.event_topic,
+        a=stored_event.event_attrs
     )
 
 
 def from_cql(cql_stored_event):
     assert isinstance(cql_stored_event, CqlStoredEvent), cql_stored_event
     return StoredEvent(
-        event_id=cql_stored_event.event_id,
-        stored_entity_id=cql_stored_event.stored_entity_id,
-        event_attrs=cql_stored_event.event_attrs,
-        event_topic=cql_stored_event.event_topic
+        stored_entity_id=cql_stored_event.n,
+        event_id=cql_stored_event.v,
+        event_topic=cql_stored_event.t,
+        event_attrs=cql_stored_event.a
     )
 
 
@@ -46,44 +48,36 @@ class CassandraStoredEventRepository(StoredEventRepository):
         cql_stored_event = to_cql(stored_event)
         cql_stored_event.save()
 
-    def __getitem__(self, pk):
-        (entity_id, event_id) = pk
-        cql_stored_event = CqlStoredEvent.objects.allow_filtering().filter(event_id=event_id).first()
-        if cql_stored_event is not None:
-            return from_cql(cql_stored_event)
-        else:
-            raise KeyError
+    # def __getitem__(self, pk):
+    #     (entity_id, event_id) = pk
+    #     cql_stored_event = CqlStoredEvent.objects.allow_filtering().filter(v=event_id).first()
+    #     if cql_stored_event is not None:
+    #         return from_cql(cql_stored_event)
+    #     else:
+    #         raise KeyError
+    #
+    # def __contains__(self, pk):
+    #     (stored_entity_id, event_id) = pk
+    #     return bool(CqlStoredEvent.objects(n=stored_entity_id, v=event_id).limit(1).count())
 
-    def __contains__(self, pk):
-        (stored_entity_id, event_id) = pk
-        return bool(CqlStoredEvent.objects(stored_entity_id=stored_entity_id, event_id=event_id).limit(1).count())
-
-    def get_topic_events(self, event_topic):
-        cql_stored_events = CqlStoredEvent.objects(event_topic=event_topic)
-        return self.map(from_cql, cql_stored_events)
-
-    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None):
-        query = CqlStoredEvent.objects.filter(stored_entity_id=stored_entity_id)
-        query = query.order_by('event_id')
-        if since is not None:
-            query = query.filter(event_id__gt=since)
+    # def get_topic_events(self, event_topic):
+    #     cql_stored_events = CqlStoredEvent.objects(t=event_topic)
+    #     return self.map(from_cql, cql_stored_events)
+    #
+    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None, query_asc=False):
+        query = CqlStoredEvent.objects.filter(n=stored_entity_id)
+        if query_asc:
+            query = query.order_by('v')
         if before is not None:
-            query = query.filter(event_id__lt=before)
+            query = query.filter(v__lt=before)
+        if since is not None:
+            query = query.filter(v__gt=since)
         if limit is not None:
             query = query.limit(limit)
-        return self.map(from_cql, query)
-
-    def get_most_recent_event(self, stored_entity_id):
-        queryset = CqlStoredEvent.objects.filter(stored_entity_id=stored_entity_id)
-        queryset = queryset.order_by('-event_id')
-        queryset = queryset.limit(1)
-        cql_stored_events = list(queryset)
-        if len(cql_stored_events) == 1:
-            return from_cql(cql_stored_events[0])
-        elif len(cql_stored_events) == 0:
-            return None
-        else:
-            raise Exception("Shouldn't have more than one object: {}".format(cql_stored_events))
+        events = self.map(from_cql, query)
+        if not query_asc:
+            events = reversed(list(events))
+        return events
 
 
 def get_cassandra_setup_params(hosts=('localhost',), consistency='QUORUM', default_keyspace='eventsourcing', port=9042,

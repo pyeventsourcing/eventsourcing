@@ -85,10 +85,10 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         # Check the repo returns None for calls to get_most_recent_event() when there aren't any events.
         self.assertIsNone(stored_event_repo.get_most_recent_event(stored_entity_id))
 
-        # Check the repo doesn't contain an event.
-        pk = (stored_entity_id, uuid.uuid1())
-        self.assertNotIn(pk, stored_event_repo)  # __contains__
-        self.assertRaises(KeyError, stored_event_repo.__getitem__, pk)  # __getitem__
+        # # Check the repo doesn't contain an event.
+        # pk = (stored_entity_id, uuid.uuid1())
+        # self.assertNotIn(pk, stored_event_repo)  # __contains__
+        # self.assertRaises(KeyError, stored_event_repo.__getitem__, pk)  # __getitem__
 
         # Store an event for 'entity1'.
         stored_event1 = StoredEvent(event_id=uuid.uuid1(),
@@ -97,11 +97,11 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
                                     event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":3}')
         stored_event_repo.append(stored_event1)
 
-        # Check the repo contains the event.
-        pk = (stored_entity_id, stored_event1.event_id)
-        self.assertIn(pk, stored_event_repo)  # __contains__
-        self.assertIsInstance(stored_event_repo[pk], StoredEvent)  # __getitem__
-        self.assertIsInstance(repr(stored_event_repo[pk]), str)  # __getitem__
+        # # Check the repo contains the event.
+        # pk = (stored_entity_id, stored_event1.event_id)
+        # self.assertIn(pk, stored_event_repo)  # __contains__
+        # self.assertIsInstance(stored_event_repo[pk], StoredEvent)  # __getitem__
+        # self.assertIsInstance(repr(stored_event_repo[pk]), str)  # __getitem__
 
         # Store another event for 'entity1'.
         stored_event2 = StoredEvent(event_id=uuid.uuid1(),
@@ -113,7 +113,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         # Get all events for 'entity1'.
         retrieved_events = stored_event_repo.get_entity_events(stored_entity_id)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
-        self.assertEqual(2, len(list(retrieved_events)))
+        self.assertEqual(2, len(retrieved_events))
         # - check the first event
         self.assertIsInstance(retrieved_events[0], StoredEvent)
         self.assertEqual(stored_event1.event_topic, retrieved_events[0].event_topic)
@@ -123,15 +123,31 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         self.assertEqual(stored_event2.event_topic, retrieved_events[1].event_topic)
         self.assertEqual(stored_event2.event_attrs, retrieved_events[1].event_attrs)
 
+        # Get with limit (depends on query order).
+        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, query_asc=True, limit=1)
+        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, query_asc=True, limit=1)
+        retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
+        # - check the first retrieved event is the first event that was stored
+        self.assertIsInstance(retrieved_events[0], StoredEvent)
+        self.assertEqual(stored_event1.event_topic, retrieved_events[0].event_topic)
+        self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
+
+        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, query_asc=False, limit=1)
+        retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
+        # - check the first retrieved event is the last event that was stored
+        self.assertIsInstance(retrieved_events[0], StoredEvent)
+        self.assertEqual(stored_event2.event_topic, retrieved_events[0].event_topic)
+        self.assertEqual(stored_event2.event_attrs, retrieved_events[0].event_attrs)
+
         # Get the most recent event for 'entity1'.
         most_recent_event = stored_event_repo.get_most_recent_event(stored_entity_id)
         self.assertIsInstance(most_recent_event, StoredEvent)
         self.assertEqual(most_recent_event.event_id, stored_event2.event_id)
 
         # Get all events for the topic.
-        retrieved_events = stored_event_repo.get_topic_events('eventsourcing.domain.model.example#Example.Created')
-        retrieved_events = list(retrieved_events)
-        self.assertEqual(2, len(retrieved_events))
+        # retrieved_events = stored_event_repo.get_topic_events('eventsourcing.domain.model.example#Example.Created')
+        # retrieved_events = list(retrieved_events)
+        # self.assertEqual(2, len(retrieved_events))
 
         # - check the last event is first in the list
         # self.assertIsInstance(retrieved_events[0], StoredEvent)
@@ -168,7 +184,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         start_time = datetime.datetime.now()
         retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, since=last_snapshot_event.event_id)
         retrieved_events = list(retrieved_events)
-        page_duration = (datetime.datetime.now() - start_time).total_seconds()
+        # page_duration = (datetime.datetime.now() - start_time).total_seconds()
         # self.assertLess(page_duration, 0.05)
         # print("Duration: {}".format(page_duration))
 
@@ -181,7 +197,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
 
         # Check the first events can be retrieved easily.
         start_time = datetime.datetime.now()
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, limit=20)
+        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, query_asc=True, limit=20)
         retrieved_events = list(retrieved_events)
         page_duration = (datetime.datetime.now() - start_time).total_seconds()
         # print("Duration: {}".format(page_duration))
@@ -195,7 +211,8 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         start_time = datetime.datetime.now()
         retrieved_events = stored_event_repo.get_entity_events(stored_entity_id,
                                                                since=retrieved_events[-1].event_id,
-                                                               limit=20)
+                                                               limit=20,
+                                                               query_asc=True)
         retrieved_events = list(retrieved_events)
         page_duration = (datetime.datetime.now() - start_time).total_seconds()
         # self.assertLess(page_duration, 0.05)
@@ -206,18 +223,21 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         self.assertEqual(stored_events[18].event_topic, retrieved_events[0].event_topic)
         self.assertEqual(stored_events[18].event_attrs, retrieved_events[0].event_attrs)
 
-        #
-        # Todo: Move this to a separate test?
         # Check the stored event iterator (it's used by the event store).
+        # Todo: Move this to a separate test?
         start_time = datetime.datetime.now()
-
-        iterator = StoredEventIterator(stored_event_repo, stored_entity_id, page_size=50)
-        stored_events = list(iterator)
+        page_size = 50
+        iterator = StoredEventIterator(stored_event_repo, stored_entity_id, page_size=page_size)
+        retrieved_events = list(iterator)
+        self.assertGreater(len(retrieved_events), page_size)
+        # Check the first and last stored event.
+        self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
+        self.assertEqual(stored_events[-1].event_attrs, retrieved_events[-1].event_attrs)
 
         duration = (datetime.datetime.now() - start_time).total_seconds()
 
         # print("Total duration: {}".format(duration))
-        average_item_duration = duration / len(stored_events)
+        average_item_duration = duration / len(retrieved_events)
 
         # print("Average item duration: {}".format(average_item_duration))
         # print("Average item rate: {}".format(1.0 / average_item_duration))

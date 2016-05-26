@@ -47,15 +47,15 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
                     self._by_topic[stored_event.event_topic].remove(stored_event)
 
 
-    def __getitem__(self, pk):
-        (stored_entity_id, event_id) = pk
-        return self._by_id[event_id]
-
-    def __contains__(self, pk):
-        (stored_entity_id, event_id) = pk
-        return event_id in self._by_id
-
-    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None):
+    # def __getitem__(self, pk):
+    #     (stored_entity_id, event_id) = pk
+    #     return self._by_id[event_id]
+    #
+    # def __contains__(self, pk):
+    #     (stored_entity_id, event_id) = pk
+    #     return event_id in self._by_id
+    #
+    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None, query_asc=False):
         if stored_entity_id not in self._by_stored_entity_id:
             return []
         else:
@@ -84,20 +84,22 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
                 events.append(event)
 
             if limit is not None:
-                # events.reverse()
+                if not query_asc:
+                    events.reverse()
                 events = events[:min(limit, len(events))]
-                # events.reverse()
+                if not query_asc:
+                    events.reverse()
 
             return events
 
-    def get_most_recent_event(self, stored_entity_id):
-        """
-        :rtype: eventsourcing.infrastructure.stored_events.transcoders.StoredEvent
-        """
-        try:
-            return self._by_stored_entity_id[stored_entity_id][-1]
-        except KeyError:
-            return None
+    # def get_most_recent_event(self, stored_entity_id):
+    #     """
+    #     :rtype: eventsourcing.infrastructure.stored_events.transcoders.StoredEvent
+    #     """
+    #     try:
+    #         return self._by_stored_entity_id[stored_entity_id][-1]
+    #     except KeyError:
+    #         return None
 
-    def get_topic_events(self, event_topic):
-        return reversed(self._by_topic[event_topic])
+    # def get_topic_events(self, event_topic):
+    #     return reversed(self._by_topic[event_topic])

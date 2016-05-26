@@ -16,10 +16,14 @@ class EventStore(object):
         # Append the stored event to the stored event repo.
         self.stored_event_repo.append(stored_event)
 
-    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None):
+    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None, is_paged=False):
         # Get the events that have been stored for the entity.
-        stored_events = StoredEventIterator(self.stored_event_repo, stored_entity_id, since=since, before=before,
-                                            limit=limit)
+        if is_paged:
+            stored_events = StoredEventIterator(self.stored_event_repo, stored_entity_id, since=since, before=before,
+                                                limit=limit, query_asc=True)
+        else:
+            stored_events = self.stored_event_repo.get_entity_events(stored_entity_id, since=since, before=before,
+                                                                     limit=limit)
 
         # Deserialize all the stored event objects into domain event objects.
         return six.moves.map(self.stored_event_repo.deserialize, stored_events)

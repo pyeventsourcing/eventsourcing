@@ -32,7 +32,7 @@ class SqlStoredEvent(Base):
     event_id = Column(String(), index=True)
     timestamp_ms = Column(Integer(), index=True)
     stored_entity_id = Column(String(), index=True)
-    event_topic = Column(String(), index=True)
+    event_topic = Column(String())
     event_attrs = Column(String())
 
     # def __repr__(self):
@@ -40,7 +40,7 @@ class SqlStoredEvent(Base):
     #         self.id, self.event_id, self.entity_id, self.event_topic, self.event_attrs)
 
 
-def stored_from_sql(sql_stored_event):
+def from_sql(sql_stored_event):
     assert isinstance(sql_stored_event, SqlStoredEvent), sql_stored_event
     return StoredEvent(
         event_id=UUID(sql_stored_event.event_id),
@@ -50,7 +50,7 @@ def stored_from_sql(sql_stored_event):
     )
 
 
-def sql_from_stored(stored_event):
+def to_sql(stored_event):
     assert isinstance(stored_event, StoredEvent)
     return SqlStoredEvent(
         event_id=stored_event.event_id.hex,
@@ -69,7 +69,7 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         self.db_session = db_session
 
     def append(self, stored_event):
-        sql_stored_event = sql_from_stored(stored_event)
+        sql_stored_event = to_sql(stored_event)
         try:
             self.db_session.add(sql_stored_event)
             self.db_session.commit()
@@ -79,42 +79,47 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         finally:
             self.db_session.close() # Begins a new transaction
 
-    def __contains__(self, pk):
-        (stored_entity_id, event_id) = pk
-        query = self.db_session.query(SqlStoredEvent)
-        query = query.filter_by(stored_entity_id=stored_entity_id, event_id=event_id.hex)
-        return bool(query.count())
-
-    def __getitem__(self, pk):
-        (stored_entity_id, event_id) = pk
-        query = self.db_session.query(SqlStoredEvent)
-        query = query.filter_by(stored_entity_id=stored_entity_id, event_id=event_id.hex)
-        sql_stored_event = query.first()
-        if sql_stored_event is not None:
-            return stored_from_sql(sql_stored_event)
-        else:
-            raise KeyError
-
-    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None):
+    # def __contains__(self, pk):
+    #     (stored_entity_id, event_id) = pk
+    #     query = self.db_session.query(SqlStoredEvent)
+    #     query = query.filter_by(stored_entity_id=stored_entity_id, event_id=event_id.hex)
+    #     return bool(query.count())
+    #
+    # def __getitem__(self, pk):
+    #     (stored_entity_id, event_id) = pk
+    #     query = self.db_session.query(SqlStoredEvent)
+    #     query = query.filter_by(stored_entity_id=stored_entity_id, event_id=event_id.hex)
+    #     sql_stored_event = query.first()
+    #     if sql_stored_event is not None:
+    #         return from_sql(sql_stored_event)
+    #     else:
+    #         raise KeyError
+    #
+    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None, query_asc=False):
         query = self.db_session.query(SqlStoredEvent)
         query = query.filter_by(stored_entity_id=stored_entity_id)
-        query = query.order_by(asc(SqlStoredEvent.id))
-        if since is not None:
-            query = query.filter(SqlStoredEvent.timestamp_ms > since.time)
+        if query_asc:
+            query = query.order_by(asc(SqlStoredEvent.id))
+        else:
+            query = query.order_by(desc(SqlStoredEvent.id))
         if before is not None:
             query = query.filter(SqlStoredEvent.timestamp_ms < before.time)
+        if since is not None:
+            query = query.filter(SqlStoredEvent.timestamp_ms > since.time)
         if limit is not None:
             query = query.limit(limit)
-        sql_stored_events = query
-        return self.map(stored_from_sql, sql_stored_events)
+        events = self.map(from_sql, query)
+        if not query_asc:
+            events = reversed(list(events))
+        return events
 
     def get_most_recent_event(self, stored_entity_id):
         query = self.db_session.query(SqlStoredEvent)
         query = query.filter_by(stored_entity_id=stored_entity_id)
         query = query.order_by(desc(SqlStoredEvent.id))
         sql_stored_event = query.first()
-        return stored_from_sql(sql_stored_event) if sql_stored_event else None
+        return from_sql(sql_stored_event) if sql_stored_event else None
 
-    def get_topic_events(self, event_topic):
-        sql_stored_events = self.db_session.query(SqlStoredEvent).filter_by(event_topic=event_topic).order_by(SqlStoredEvent.event_id.desc())
-        return self.map(stored_from_sql, sql_stored_events)
+    # def get_topic_events(self, event_topic):
+    #     sql_stored_events = self.db_session.query(SqlStoredEvent).filter_by(event_topic=event_topic).order_by(SqlStoredEvent.event_id.desc())
+    #     return self.map(from_sql, sql_stored_events)

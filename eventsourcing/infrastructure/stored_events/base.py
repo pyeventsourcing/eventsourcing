@@ -20,18 +20,18 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         :param stored_event: 
         """
 
+    # @abstractmethod
+    # def __getitem__(self, pk):
+    #     """Returns stored event for given event ID.
+    #     """
+    #
+    # @abstractmethod
+    # def __contains__(self, event_id):
+    #     """Tests whether given event ID exists.
+    #     """
+    #
     @abstractmethod
-    def __getitem__(self, pk):
-        """Returns stored event for given event ID.
-        """
-
-    @abstractmethod
-    def __contains__(self, event_id):
-        """Tests whether given event ID exists.
-        """
-
-    @abstractmethod
-    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None):
+    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None, query_asc=False):
         """Returns all events for given entity ID in chronological order.
         :param before:
         :param since:
@@ -39,19 +39,29 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         :rtype: list
         """
 
-    @abstractmethod
     def get_most_recent_event(self, stored_entity_id):
         """Returns last event for given entity ID.
 
         :param stored_entity_id:
         :rtype: DomainEvent, NoneType
         """
+        events = self.get_most_recent_events(stored_entity_id, limit=1)
+        events = list(events)
+        if len(events) == 1:
+            return events[0]
+        elif len(events) == 0:
+            return None
+        else:
+            raise Exception("Shouldn't have more than one object: {}".format(events))
 
-    @abstractmethod
-    def get_topic_events(self, event_topic):
-        """Returns all events for given topic.
-        :param event_topic: 
-        """
+    def get_most_recent_events(self, stored_entity_id, limit=None):
+        return self.get_entity_events(stored_entity_id, limit=limit)
+
+    # @abstractmethod
+    # def get_topic_events(self, event_topic):
+    #     """Returns all events for given topic.
+    #     :param event_topic:
+    #     """
 
     def serialize(self, domain_event):
         """Returns a stored event from a domain event.
@@ -95,19 +105,23 @@ class StoredEventIterator(object):
 
     def __iter__(self):
         if self.limit is None:
+            limit = self.page_size
+        elif self.page_size is None:
             limit = self.limit
         else:
             limit = min(self.page_size, self.limit)
+        since = self.since
         while True:
             retrieved_events = self.repo.get_entity_events(self.stored_entity_id,
-                                                           since=self.since,
+                                                           since=since,
                                                            before=self.before,
-                                                           limit=limit
+                                                           limit=limit,
+                                                           query_asc=True
                                                            )
             count = 0
             for stored_event in retrieved_events:
                 yield stored_event
-                self.since = stored_event.event_id
+                since = stored_event.event_id
                 count += 1
             if not count == self.page_size:
                 raise StopIteration
