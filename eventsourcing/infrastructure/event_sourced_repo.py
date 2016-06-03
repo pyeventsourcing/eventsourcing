@@ -1,6 +1,6 @@
 from abc import abstractproperty
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository
+from eventsourcing.domain.model.entity import EntityRepository
 from eventsourcing.infrastructure.event_player import EventPlayer
 
 
