@@ -85,16 +85,17 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
 @singledispatch
 def entity_mutator(event, _):
-    raise NotImplementedError("Event type not support by this mutator: {}".format(type(event)))
+    raise NotImplementedError("Event type not supported: {}".format(type(event)))
 
 
 @entity_mutator.register(EventSourcedEntity.Created)
-def created_mutator(event, entity_class):
-    if isinstance(entity_class, EventSourcedEntity):
-        raise AssertionError("Are there multiple Created events for the same ID? %s, %s" % (entity_class, event))
-    if not issubclass(entity_class, EventSourcedEntity):
-        raise AssertionError(type(entity_class))
-    self = entity_class(**event.__dict__)
+def created_mutator(event, cls):
+    assert isinstance(event, DomainEvent)
+    assert isinstance(cls, type), ("Expected type but got instance of: {}, possibly "
+                                   "due to duplicate {} events for entity ID {}?"
+                                   "".format(type(cls), type(event), event.entity_id))
+    assert issubclass(cls, EventSourcedEntity), cls
+    self = cls(**event.__dict__)
     self._increment_version()
     return self
 
