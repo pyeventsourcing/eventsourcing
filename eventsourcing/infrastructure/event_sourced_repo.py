@@ -12,7 +12,7 @@ class EventSourcedRepository(EntityRepository):
         self._use_cache = use_cache
 
     def construct_event_player(self, event_store):
-        return EventPlayer(event_store, self.domain_class.mutator, self.domain_class.__name__)
+        return EventPlayer(event_store, self.domain_class)
 
     @abstractproperty
     def domain_class(self):

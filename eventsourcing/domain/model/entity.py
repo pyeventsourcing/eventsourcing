@@ -1,5 +1,12 @@
 from abc import ABCMeta, abstractmethod
 from inspect import isfunction
+
+try:
+    # Python 3.4+
+    from functools import singledispatch
+except ImportError:
+    from singledispatch import singledispatch
+
 from six import with_metaclass
 from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta
 
@@ -10,7 +17,7 @@ def make_stored_entity_id(id_prefix, entity_id):
 
 class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
-    snapshot_threshold = None
+    __snapshot_threshold__ = None
 
     class Created(DomainEvent):
         def __init__(self, entity_version=0, **kwargs):
@@ -45,7 +52,7 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
-    def _change_attribute_value(self, name, value):
+    def _change_attribute(self, name, value):
         self._assert_not_discarded()
         event = self.AttributeChanged(name=name, value=value, entity_id=self._id, entity_version=self._version)
         self._apply(event)
@@ -58,50 +65,58 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         publish(event)
 
     def _apply(self, event):
-        self.mutator(self, event)
+        self.mutator(entity=self, event=event)
 
     @classmethod
     def mutator(cls, entity=None, event=None):
-        # assert isinstance(event, DomainEvent), "Not a domain event: {}".format(event)
-        event_class = type(event)
-        if event_class == cls.Created:
-            # assert isinstance(entity, type), entity
-            assert entity is None, "Are there multiple Created events for the same ID? %s, %s" % (entity, event)
-            entity_class = cls
-            entity = entity_class(**event.__dict__)
-            # assert isinstance(entity, EventSourcedEntity), entity
-            entity._increment_version()
-            return entity
+        return cls._mutator(event, entity if entity is not None else cls)
 
-        elif event_class == cls.AttributeChanged:
-            # assert isinstance(entity, EventSourcedEntity), entity
-            entity._validate_originator(event)
-            setattr(entity, event.name, event.value)
-            entity._increment_version()
-            return entity
-
-        elif event_class == cls.Discarded:
-            # assert isinstance(entity, EventSourcedEntity), entity
-            entity._validate_originator(event)
-            entity._is_discarded = True
-            entity._increment_version()
-            return None
-        else:
-            raise NotImplementedError(repr(event_class))
+    @classmethod
+    def _mutator(cls, event, entity):
+        return mutator(event, entity)
 
 
-def eventsourcedproperty(*args, **kwargs):
-    if len(args) == 1 and len(kwargs) == 0 and isfunction(args[0]):
-        getter = args[0]
+@singledispatch
+def mutator(event, _):
+    raise NotImplementedError("Event type not supported: {}".format(event))
+
+
+@mutator.register(EventSourcedEntity.Created)
+def _(event, entity_class):
+    assert not isinstance(entity_class, EventSourcedEntity), "Are there multiple Created events for the same ID? %s, %s" % (entity_class, event)
+    assert issubclass(entity_class, EventSourcedEntity), "%s event handler requires domain class, got: %s" % (event, entity_class)
+    entity = entity_class(**event.__dict__)
+    entity._increment_version()
+    return entity
+
+
+@mutator.register(EventSourcedEntity.AttributeChanged)
+def _(event, entity):
+    entity._validate_originator(event)
+    setattr(entity, event.name, event.value)
+    entity._increment_version()
+    return entity
+
+
+@mutator.register(EventSourcedEntity.Discarded)
+def _(event, entity):
+    entity._validate_originator(event)
+    entity._is_discarded = True
+    entity._increment_version()
+    return None
+
+
+def mutableproperty(getter):
+    if isfunction(getter):
 
         def setter(self, value):
-            assert isinstance(self, EventSourcedEntity), self
-            self._change_attribute_value(name='_' + getter.__name__, value=value)
+            assert isinstance(self, EventSourcedEntity), type(self)
+            name = '_' + getter.__name__
+            self._change_attribute(name=name, value=value)
 
         return property(fget=getter, fset=setter)
     else:
-        # Decorator has arguments...
-        return eventsourcedproperty
+        raise ValueError(repr(getter))
 
 
 class EntityRepository(with_metaclass(ABCMeta)):

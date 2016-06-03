@@ -9,6 +9,7 @@ setup(
     url = 'https://github.com/johnbywater/eventsourcing',
     packages=find_packages(),
     install_requires=[
+        'singledispatch',
         'six',
         'python-dateutil',
     ],

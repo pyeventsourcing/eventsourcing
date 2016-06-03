@@ -223,7 +223,7 @@ to the attributes. The entity inherits a discard() method, which generates the '
 The 'Created' event is generated in a factory method (see below) and carries values used to initialise an entity.
 
 ```python
-from eventsourcing.domain.model.entity import EventSourcedEntity, eventsourcedproperty
+from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
 
 
 class Example(EventSourcedEntity):
@@ -242,11 +242,11 @@ class Example(EventSourcedEntity):
         self._a = a
         self._b = b
 
-    @eventsourcedproperty
+    @mutableproperty
     def a(self):
         return self._a
 
-    @eventsourcedproperty
+    @mutableproperty
     def b(self):
         return self._b
 ```

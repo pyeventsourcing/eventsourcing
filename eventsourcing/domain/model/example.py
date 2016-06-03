@@ -1,6 +1,7 @@
 import uuid
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, eventsourcedproperty, EntityRepository
+from eventsourcing.domain.model import entity
+from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository
 from eventsourcing.domain.model.events import publish, DomainEvent
 
 
@@ -9,7 +10,7 @@ class Example(EventSourcedEntity):
     An example event sourced domain model entity.
     """
 
-    snapshot_threshold = 100
+    __snapshot_threshold__ = 100
 
     class Created(EventSourcedEntity.Created):
         pass
@@ -29,11 +30,11 @@ class Example(EventSourcedEntity):
         self._b = b
         self._count_heartbeats = 0
 
-    @eventsourcedproperty
+    @mutableproperty
     def a(self):
         return self._a
 
-    @eventsourcedproperty()
+    @mutableproperty
     def b(self):
         return self._b
 
@@ -47,20 +48,25 @@ class Example(EventSourcedEntity):
         return self._count_heartbeats
 
     @classmethod
-    def mutator(cls, entity=None, event=None):
-        assert isinstance(event, DomainEvent), "Not a domain event: {}".format(event)
-        event_type = type(event)
-        if event_type == cls.Heartbeat:
-            assert isinstance(entity, Example), entity
-            entity._count_heartbeats += 1
-            entity._increment_version()
-            return entity
-        else:
-            return super(Example, cls).mutator(entity, event)
+    def _mutator(cls, event, entity):
+        return mutator(event, entity)
+
+
+@entity.singledispatch
+def mutator(event, entity):
+    return EventSourcedEntity._mutator(event=event, entity=entity)
+
+
+@mutator.register(Example.Heartbeat)
+def _(event, entity):
+    entity._validate_originator(event)
+    assert isinstance(entity, Example), entity
+    entity._count_heartbeats += 1
+    entity._increment_version()
+    return entity
 
 
 class Repository(EntityRepository):
-
     pass
 
 

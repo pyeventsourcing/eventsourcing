@@ -36,7 +36,7 @@ class TestEventPlayer(unittest.TestCase):
 
         # Check the event sourced entities are correct.
         # - just use a trivial mutator that always instantiates the 'Example'.
-        event_player = EventPlayer(event_store=event_store, mutator=Example.mutator, domain_class_name='Example')
+        event_player = EventPlayer(event_store=event_store, domain_class=Example)
 
         # The the reconstituted entity has correct attribute values.
         self.assertEqual('entity1', event_player['entity1'].id)
@@ -50,7 +50,7 @@ class TestEventPlayer(unittest.TestCase):
         stored_event_repo = PythonObjectsStoredEventRepository()
         event_store = EventStore(stored_event_repo)
         self.ps = PersistenceSubscriber(event_store)
-        event_player = EventPlayer(event_store=event_store, mutator=Example.mutator, domain_class_name='Example')
+        event_player = EventPlayer(event_store=event_store, domain_class=Example)
 
         # Create a new entity.
         registered_example = register_new_example(a=123, b=234)
@@ -76,7 +76,7 @@ class TestEventPlayer(unittest.TestCase):
         take_snapshot(retrieved_example)
 
         # Check the event sourced entities are correct.
-        #  - should use a snapshot with two additional events
+        #  - should use a snapshot with no additional events
         retrieved_example = event_player[registered_example.id]
         self.assertEqual(retrieved_example.a, 9999)
 
