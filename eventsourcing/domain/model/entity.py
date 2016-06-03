@@ -1,13 +1,14 @@
-from abc import ABCMeta, abstractmethod
-from inspect import isfunction
-
 try:
     # Python 3.4+
     from functools import singledispatch
 except ImportError:
     from singledispatch import singledispatch
 
+from abc import ABCMeta, abstractmethod
+from inspect import isfunction
+
 from six import with_metaclass
+
 from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta
 
 
@@ -39,15 +40,20 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         self._version += 1
 
     def _assert_not_discarded(self):
-        assert not self._is_discarded
+        if self._is_discarded:
+            raise AssertionError("Entity is discarded")
 
     @property
     def id(self):
         return self._id
 
     def _validate_originator(self, event):
-        assert self.id == event.entity_id, (self.id, event.entity_id)
-        assert self._version == event.entity_version, "{} != {}".format(self._version, event.entity_version)
+        if self.id != event.entity_id:
+            raise AssertionError("Entity ID '{}' not equal to event's entity ID '{}'"
+                                 "".format(self.id, event.entity_id))
+        if self._version != event.entity_version:
+            raise AssertionError("Entity version '{}' not equal to event's entity version '{}'"
+                                 "".format(self._version, event.entity_version))
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
@@ -65,44 +71,47 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         publish(event)
 
     def _apply(self, event):
-        self.mutator(entity=self, event=event)
+        self.mutate(event=event, entity=self)
 
     @classmethod
-    def mutator(cls, entity=None, event=None):
-        return cls._mutator(event, entity if entity is not None else cls)
+    def mutate(cls, entity=None, event=None):
+        initial = entity if entity is not None else cls
+        return cls._mutator(event, initial)
 
-    @classmethod
-    def _mutator(cls, event, entity):
-        return mutator(event, entity)
+    @staticmethod
+    def _mutator(event, initial):
+        return entity_mutator(event, initial)
 
 
 @singledispatch
-def mutator(event, _):
-    raise NotImplementedError("Event type not supported: {}".format(event))
+def entity_mutator(event, _):
+    raise NotImplementedError("Event type not support by this mutator: {}".format(type(event)))
 
 
-@mutator.register(EventSourcedEntity.Created)
-def _(event, entity_class):
-    assert not isinstance(entity_class, EventSourcedEntity), "Are there multiple Created events for the same ID? %s, %s" % (entity_class, event)
-    assert issubclass(entity_class, EventSourcedEntity), "%s event handler requires domain class, got: %s" % (event, entity_class)
-    entity = entity_class(**event.__dict__)
-    entity._increment_version()
-    return entity
+@entity_mutator.register(EventSourcedEntity.Created)
+def created_mutator(event, entity_class):
+    if isinstance(entity_class, EventSourcedEntity):
+        raise AssertionError("Are there multiple Created events for the same ID? %s, %s" % (entity_class, event))
+    if not issubclass(entity_class, EventSourcedEntity):
+        raise AssertionError(type(entity_class))
+    self = entity_class(**event.__dict__)
+    self._increment_version()
+    return self
 
 
-@mutator.register(EventSourcedEntity.AttributeChanged)
-def _(event, entity):
-    entity._validate_originator(event)
-    setattr(entity, event.name, event.value)
-    entity._increment_version()
-    return entity
+@entity_mutator.register(EventSourcedEntity.AttributeChanged)
+def attribute_changed_mutator(event, self):
+    self._validate_originator(event)
+    setattr(self, event.name, event.value)
+    self._increment_version()
+    return self
 
 
-@mutator.register(EventSourcedEntity.Discarded)
-def _(event, entity):
-    entity._validate_originator(event)
-    entity._is_discarded = True
-    entity._increment_version()
+@entity_mutator.register(EventSourcedEntity.Discarded)
+def discarded_mutator(event, self):
+    self._validate_originator(event)
+    self._is_discarded = True
+    self._increment_version()
     return None
 
 

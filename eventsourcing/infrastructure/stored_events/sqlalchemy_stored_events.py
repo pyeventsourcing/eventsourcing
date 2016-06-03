@@ -13,7 +13,8 @@ from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
 
 def get_scoped_session_facade(uri):
-    assert uri is not None
+    if uri is None:
+        raise ValueError
     engine = create_engine(uri)
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine)

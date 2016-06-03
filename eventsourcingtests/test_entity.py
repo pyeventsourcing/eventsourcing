@@ -58,8 +58,13 @@ class TestExampleEntity(unittest.TestCase):
 
         # Check the entity can be discarded.
         entity1.discard()
+
+        # Check the repo now raises a KeyError.
         self.assertRaises(KeyError, repo.__getitem__, entity1.id)
 
     def test_mutator_not_implemented_error(self):
-        class UnsupportedEvent(DomainEvent): pass
-        self.assertRaises(NotImplementedError, Example.mutator, Example, UnsupportedEvent('1', '0'))
+
+        class UnsupportedEvent(DomainEvent):
+            pass
+
+        self.assertRaises(NotImplementedError, Example.mutate, Example, UnsupportedEvent('1', '0'))

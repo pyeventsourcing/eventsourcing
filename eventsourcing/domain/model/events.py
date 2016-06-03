@@ -36,9 +36,7 @@ class QualnameABCMeta(ABCMeta):
 
 class DomainEvent(with_metaclass(QualnameABCMeta)):
 
-    def __init__(self, entity_id=None, entity_version=None, timestamp=None, **kwargs):
-        assert entity_id is not None
-        assert entity_version is not None
+    def __init__(self, entity_id, entity_version, timestamp=None, **kwargs):
         self.__dict__['entity_id'] = entity_id
         self.__dict__['entity_version'] = entity_version
         self.__dict__['timestamp'] = timestamp if timestamp is not None else utc_now()

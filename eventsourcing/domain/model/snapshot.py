@@ -29,9 +29,10 @@ class EntitySnapshotted(DomainEvent):
 
 
 def take_snapshot(entity):
-    # Make the 'stored entity ID' for the snapshotted entity.
+    # Make the 'stored entity ID' for the snapshotted "entity".
     stored_snapshotted_entity_id = make_stored_entity_id(entity.__class__.__name__, entity.id)
 
+    # Create the snapshot event.
     entity_snapshotted = EntitySnapshotted(
         entity_id=stored_snapshotted_entity_id,
         last_event_id=uuid1(),
@@ -40,7 +41,7 @@ def take_snapshot(entity):
     )
     publish(entity_snapshotted)
 
-    # Return the event itself (we don't have a mutator for Snapshot entities).
+    # Return the event.
     return entity_snapshotted
 
 

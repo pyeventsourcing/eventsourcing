@@ -1,7 +1,6 @@
 import uuid
 
-from eventsourcing.domain.model import entity
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository
+from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository, entity_mutator, singledispatch
 from eventsourcing.domain.model.events import publish, DomainEvent
 
 
@@ -47,23 +46,23 @@ class Example(EventSourcedEntity):
     def count_heartbeats(self):
         return self._count_heartbeats
 
-    @classmethod
-    def _mutator(cls, event, entity):
-        return mutator(event, entity)
+    @staticmethod
+    def _mutator(event, initial):
+        return example_mutator(event, initial)
 
 
-@entity.singledispatch
-def mutator(event, entity):
-    return EventSourcedEntity._mutator(event=event, entity=entity)
+@singledispatch
+def example_mutator(event, initial):
+    return entity_mutator(event, initial)
 
 
-@mutator.register(Example.Heartbeat)
-def _(event, entity):
-    entity._validate_originator(event)
-    assert isinstance(entity, Example), entity
-    entity._count_heartbeats += 1
-    entity._increment_version()
-    return entity
+@example_mutator.register(Example.Heartbeat)
+def heartbeat_mutator(event, self):
+    self._validate_originator(event)
+    assert isinstance(self, Example), self
+    self._count_heartbeats += 1
+    self._increment_version()
+    return self
 
 
 class Repository(EntityRepository):
@@ -76,6 +75,6 @@ def register_new_example(a, b):
     """
     entity_id = uuid.uuid4().hex
     event = Example.Created(entity_id=entity_id, a=a, b=b)
-    entity = Example.mutator(event=event)
+    entity = Example.mutate(event=event)
     publish(event=event)
     return entity

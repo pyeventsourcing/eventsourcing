@@ -271,7 +271,7 @@ import uuid
 def register_new_example(a, b):
     entity_id = uuid.uuid4().hex
     event = Example.Created(entity_id=entity_id, a=a, b=b)
-    entity = Example.mutator(event=event)
+    entity = Example.mutate(event=event)
     publish(event=event)
     return entity
 ```

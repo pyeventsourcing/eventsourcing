@@ -11,16 +11,15 @@ from eventsourcing.infrastructure.stored_events.transcoders import deserialize_d
 
 class EventPlayer(object):
 
-    def __init__(self, event_store, domain_class):
+    def __init__(self, event_store, entity_id_prefix, mutate_method):
         assert isinstance(event_store, EventStore), event_store
         self.event_store = event_store
-        self.mutator = domain_class.mutator
-        self.domain_class = domain_class
-        self.domain_class_name = domain_class.__name__
+        self.entity_id_prefix = entity_id_prefix
+        self.mutate = mutate_method
 
-    def __getitem__(self, entity_id):
+    def replay_events(self, entity_id):
         # Make the stored entity ID.
-        stored_entity_id = make_stored_entity_id(self.domain_class_name, entity_id)
+        stored_entity_id = make_stored_entity_id(self.entity_id_prefix, entity_id)
 
         # Get snapshot, if exists.
         snapshot = get_snapshot(stored_entity_id, self.event_store)
@@ -40,20 +39,16 @@ class EventPlayer(object):
 
         # Get the entity by replaying the entity's domain events.
         # - left fold the domain events over the initial state
-        domain_entity = reduce(self.mutator, domain_events, initial_state)
-
-        # Never created or already discarded?
-        if domain_entity is None:
-            raise KeyError(entity_id)
+        domain_entity = reduce(self.mutate, domain_events, initial_state)
 
         # Create a snapshot if that was becoming too many events to load.
-        assert isinstance(domain_entity, EventSourcedEntity)
-        snapshot_threshold = type(domain_entity).__snapshot_threshold__
-        if snapshot_threshold is not None:
-            assert isinstance(snapshot_threshold, six.integer_types)
-            version_difference = domain_entity._version - initial_state_version
-            if version_difference > snapshot_threshold:
-                take_snapshot(domain_entity)
+        if isinstance(domain_entity, EventSourcedEntity):
+            snapshot_threshold = type(domain_entity).__snapshot_threshold__
+            if snapshot_threshold is not None:
+                assert isinstance(snapshot_threshold, six.integer_types)
+                version_difference = domain_entity._version - initial_state_version
+                if version_difference > snapshot_threshold:
+                    take_snapshot(domain_entity)
 
         # Return the domain entity.
         return domain_entity

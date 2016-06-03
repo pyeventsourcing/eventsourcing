@@ -35,22 +35,22 @@ class TestEventPlayer(unittest.TestCase):
         event_store.append(event4)
 
         # Check the event sourced entities are correct.
-        # - just use a trivial mutator that always instantiates the 'Example'.
-        event_player = EventPlayer(event_store=event_store, domain_class=Example)
+        # - just use a trivial mutate that always instantiates the 'Example'.
+        event_player = EventPlayer(event_store=event_store, entity_id_prefix='Example', mutate_method=Example.mutate)
 
         # The the reconstituted entity has correct attribute values.
-        self.assertEqual('entity1', event_player['entity1'].id)
-        self.assertEqual(1, event_player['entity1'].a)
-        self.assertEqual(2, event_player['entity2'].a)
+        self.assertEqual('entity1', event_player.replay_events('entity1').id)
+        self.assertEqual(1, event_player.replay_events('entity1').a)
+        self.assertEqual(2, event_player.replay_events('entity2').a)
 
         # Check entity3 raises KeyError.
-        self.assertRaises(KeyError, event_player.__getitem__, 'entity3')
+        self.assertEqual(event_player.replay_events('entity3'), None)
 
     def test_snapshots(self):
         stored_event_repo = PythonObjectsStoredEventRepository()
         event_store = EventStore(stored_event_repo)
         self.ps = PersistenceSubscriber(event_store)
-        event_player = EventPlayer(event_store=event_store, domain_class=Example)
+        event_player = EventPlayer(event_store=event_store, entity_id_prefix='Example', mutate_method=Example.mutate)
 
         # Create a new entity.
         registered_example = register_new_example(a=123, b=234)
@@ -60,7 +60,7 @@ class TestEventPlayer(unittest.TestCase):
 
         # Check the event sourced entities are correct.
         #  - should use a snapshot with no additional events
-        retrieved_example = event_player[registered_example.id]
+        retrieved_example = event_player.replay_events(registered_example.id)
         self.assertEqual(retrieved_example.a, registered_example.a)
 
         # Change attribute value.
@@ -69,7 +69,7 @@ class TestEventPlayer(unittest.TestCase):
 
         # Check the event sourced entities are correct.
         #  - should use a snapshot with two additional events
-        retrieved_example = event_player[registered_example.id]
+        retrieved_example = event_player.replay_events(registered_example.id)
         self.assertEqual(retrieved_example.a, 9999)
 
         # Take a snapshot.
@@ -77,6 +77,6 @@ class TestEventPlayer(unittest.TestCase):
 
         # Check the event sourced entities are correct.
         #  - should use a snapshot with no additional events
-        retrieved_example = event_player[registered_example.id]
+        retrieved_example = event_player.replay_events(registered_example.id)
         self.assertEqual(retrieved_example.a, 9999)
 
