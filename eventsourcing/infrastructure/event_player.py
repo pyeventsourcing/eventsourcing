@@ -33,12 +33,14 @@ class EventPlayer(object):
         # Decide since when we need to get the events.
         since = snapshot.last_event_id if snapshot else None
 
-        # Get entity's domain events from event store.
+        # Get entity's domain events from the event store.
         domain_events = self.event_store.get_entity_events(stored_entity_id, since=since)
 
-        # Get the entity by a left fold of the domain events over the initial state.
+        # Get the entity, left fold the domain events over the initial state.
         domain_entity = reduce(self.mutate, domain_events, initial_state)
 
+        # Todo: Move this onto the domain entity (maybe) and make it know of last snapshot so it.
+        # Todo: Or maybe have a completely indepdendent snapshotting object which listens to events and checks.
         # Take a snapshot if too many versions since the initial version for this type.
         if domain_entity is not None:
             assert isinstance(domain_entity, EventSourcedEntity)
