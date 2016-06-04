@@ -11,19 +11,6 @@ class EventSourcedRepository(EntityRepository):
         self._cache = {}
         self._use_cache = use_cache
 
-    @property
-    def domain_class_name(self):
-        return self.domain_class.__name__
-
-    @property
-    def mutate_func(self):
-        return self.domain_class.mutate
-
-    @abstractproperty
-    def domain_class(self):
-        """Defines the type of entity available in this repo.
-        """
-
     def __contains__(self, entity_id):
         try:
             self.__getitem__(entity_id)
@@ -53,3 +40,15 @@ class EventSourcedRepository(EntityRepository):
 
         # Return entity.
         return entity
+
+    @property
+    def domain_class_name(self):
+        return self.domain_class.__name__
+
+    @property
+    def mutate_func(self):
+        return self.domain_class.mutate
+
+    @abstractproperty
+    def domain_class(self):
+        pass

@@ -65,7 +65,7 @@ def heartbeat_mutator(event, self):
     return self
 
 
-class Repository(EntityRepository):
+class ExampleRepository(EntityRepository):
     pass
 
 

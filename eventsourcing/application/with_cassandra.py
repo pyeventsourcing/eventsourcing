@@ -1,8 +1,6 @@
 from eventsourcing.application.base import EventSourcingApplication
-from eventsourcing.infrastructure.stored_events.cassandra_stored_events \
-    import setup_cassandra_connection, \
-    get_cassandra_setup_params, shutdown_cassandra_connection, \
-    CassandraStoredEventRepository
+from eventsourcing.infrastructure.stored_events.cassandra_stored_events import setup_cassandra_connection, \
+    get_cassandra_setup_params, shutdown_cassandra_connection, CassandraStoredEventRepository
 
 
 DEFAULT_CASSANDRA_KEYSPACE = 'eventsourcing'

@@ -7,7 +7,6 @@ from collections import namedtuple
 import dateutil.parser
 from six import BytesIO
 
-from eventsourcing.domain.model.entity import make_stored_entity_id
 from eventsourcing.domain.model.events import topic_from_domain_class, entity_class_name_from_domain_event_class, \
     resolve_domain_topic, resolve_attr
 
@@ -153,3 +152,7 @@ def deserialize_domain_entity(entity_topic, entity_attrs):
     entity = object.__new__(domain_class)
     entity.__dict__.update(**entity_attrs)
     return entity
+
+
+def make_stored_entity_id(id_prefix, entity_id):
+    return id_prefix + '::' + entity_id

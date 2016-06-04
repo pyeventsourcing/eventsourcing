@@ -1,3 +1,5 @@
+from eventsourcing.domain.model.exceptions import ConsistencyError
+
 try:
     # Python 3.4+
     from functools import singledispatch
@@ -10,10 +12,6 @@ from inspect import isfunction
 from six import with_metaclass
 
 from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta
-
-
-def make_stored_entity_id(id_prefix, entity_id):
-    return id_prefix + '::' + entity_id
 
 
 class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
@@ -48,12 +46,15 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         return self._id
 
     def _validate_originator(self, event):
-        if self.id != event.entity_id:
-            raise AssertionError("Entity ID '{}' not equal to event's entity ID '{}'"
-                                 "".format(self.id, event.entity_id))
+        # Check event originator's entity ID matches our own ID.
+        if self._id != event.entity_id:
+            raise ConsistencyError("Entity ID '{}' not equal to event's entity ID '{}'"
+                                       "".format(self.id, event.entity_id))
+
+        # Check event originator's version number matches our own version number.
         if self._version != event.entity_version:
-            raise AssertionError("Entity version '{}' not equal to event's entity version '{}'"
-                                 "".format(self._version, event.entity_version))
+            raise ConsistencyError("Entity version '{}' not equal to event's entity version '{}'"
+                                       "".format(self._version, event.entity_version))
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__

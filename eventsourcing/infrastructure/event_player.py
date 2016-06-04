@@ -2,11 +2,11 @@ from functools import reduce
 
 import six
 
-from eventsourcing.domain.model.entity import make_stored_entity_id, EventSourcedEntity
+from eventsourcing.domain.model.entity import EventSourcedEntity
 from eventsourcing.domain.model.snapshot import take_snapshot
 from eventsourcing.domain.services.snapshot import get_snapshot
 from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.stored_events.transcoders import deserialize_domain_entity
+from eventsourcing.infrastructure.stored_events.transcoders import deserialize_domain_entity, make_stored_entity_id
 
 
 class EventPlayer(object):
@@ -55,4 +55,4 @@ class EventPlayer(object):
 
 
 def entity_from_snapshot(snapshot):
-    return deserialize_domain_entity(snapshot.snapshotted_entity_topic, snapshot.snapshotted_entity_attrs)
+    return deserialize_domain_entity(snapshot.snapshot_topic, snapshot.snapshot_attrs)
