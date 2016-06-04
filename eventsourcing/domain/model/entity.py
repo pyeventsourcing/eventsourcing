@@ -1,4 +1,5 @@
 from eventsourcing.domain.model.exceptions import ConsistencyError
+from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
     # Python 3.4+
@@ -28,11 +29,11 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     class Discarded(DomainEvent):
         pass
 
-    def __init__(self, entity_id, entity_version, timestamp):
+    def __init__(self, entity_id, entity_version, uuid):
         self._id = entity_id
         self._version = entity_version
         self._is_discarded = False
-        self._created_on = timestamp
+        self._created_on_uuid = uuid
 
     def _increment_version(self):
         self._version += 1
@@ -44,6 +45,14 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     @property
     def id(self):
         return self._id
+
+    @property
+    def version(self):
+        return self._version
+
+    @property
+    def created_on(self):
+        return timestamp_from_uuid(self._created_on_uuid)
 
     def _validate_originator(self, event):
         # Check event originator's entity ID matches our own ID.

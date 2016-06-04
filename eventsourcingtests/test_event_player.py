@@ -1,4 +1,5 @@
 import unittest
+from uuid import uuid1
 
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.domain.model.example import Example, register_new_example
@@ -25,18 +26,18 @@ class TestEventPlayer(unittest.TestCase):
         event_store = EventStore(stored_event_repo=PythonObjectsStoredEventRepository())
 
         # Store example events.
-        event1 = Example.Created(entity_id='entity1', timestamp=3, a=1, b=2)
+        event1 = Example.Created(entity_id='entity1', uuid=uuid1().hex, a=1, b=2)
         event_store.append(event1)
-        event2 = Example.Created(entity_id='entity2', timestamp=4, a=2, b=4)
+        event2 = Example.Created(entity_id='entity2', uuid=uuid1().hex, a=2, b=4)
         event_store.append(event2)
-        event3 = Example.Created(entity_id='entity3', timestamp=5, a=3, b=6)
+        event3 = Example.Created(entity_id='entity3', uuid=uuid1().hex, a=3, b=6)
         event_store.append(event3)
-        event4 = Example.Discarded(entity_id='entity3', timestamp=6, entity_version=1)
+        event4 = Example.Discarded(entity_id='entity3', uuid=uuid1().hex, entity_version=1)
         event_store.append(event4)
 
         # Check the event sourced entities are correct.
         # - just use a trivial mutate that always instantiates the 'Example'.
-        event_player = EventPlayer(event_store=event_store, entity_id_prefix='Example', mutate_method=Example.mutate)
+        event_player = EventPlayer(event_store=event_store, id_prefix='Example', mutate_func=Example.mutate)
 
         # The the reconstituted entity has correct attribute values.
         self.assertEqual('entity1', event_player.replay_events('entity1').id)
@@ -50,7 +51,7 @@ class TestEventPlayer(unittest.TestCase):
         stored_event_repo = PythonObjectsStoredEventRepository()
         event_store = EventStore(stored_event_repo)
         self.ps = PersistenceSubscriber(event_store)
-        event_player = EventPlayer(event_store=event_store, entity_id_prefix='Example', mutate_method=Example.mutate)
+        event_player = EventPlayer(event_store=event_store, id_prefix='Example', mutate_func=Example.mutate)
 
         # Create a new entity.
         registered_example = register_new_example(a=123, b=234)

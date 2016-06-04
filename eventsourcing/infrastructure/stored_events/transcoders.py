@@ -3,12 +3,13 @@ import importlib
 import json
 import uuid
 from collections import namedtuple
+from uuid import UUID
 
 import dateutil.parser
 from six import BytesIO
 
-from eventsourcing.domain.model.events import topic_from_domain_class, entity_class_name_from_domain_event_class, \
-    resolve_domain_topic, resolve_attr
+from eventsourcing.domain.model.entity import EventSourcedEntity
+from eventsourcing.domain.model.events import topic_from_domain_class, resolve_domain_topic, resolve_attr, DomainEvent
 
 try:
     import numpy
@@ -24,12 +25,10 @@ def serialize_domain_event(domain_event, json_encoder_cls=None, without_json=Fal
         json_encoder_cls = ObjectJSONEncoder
     # assert isinstance(domain_event, DomainEvent)
     if with_uuid1:
-        # Todo: Use the domain_event.timestamp to generate the UUID v1 (cassandra.util.uuid_from_timestamp).
-        event_id = uuid.uuid1()
+        event_id = UUID(domain_event.uuid)
     else:
         event_id = uuid.uuid4()
-    entity_class_name = entity_class_name_from_domain_event_class(domain_event.__class__)
-    stored_entity_id = make_stored_entity_id(entity_class_name, domain_event.entity_id)
+    stored_entity_id = make_stored_entity_id(id_prefix_from_event(domain_event), domain_event.entity_id)
     event_topic = topic_from_domain_class(domain_event.__class__)
     if without_json:
         event_attrs = domain_event
@@ -156,3 +155,23 @@ def deserialize_domain_entity(entity_topic, entity_attrs):
 
 def make_stored_entity_id(id_prefix, entity_id):
     return id_prefix + '::' + entity_id
+
+
+def id_prefix_from_event(domain_event):
+    assert isinstance(domain_event, DomainEvent), type(domain_event)
+    return id_prefix_from_event_class(type(domain_event))
+
+
+def id_prefix_from_event_class(domain_event_class):
+    assert issubclass(domain_event_class, DomainEvent), type(domain_event_class)
+    return domain_event_class.__qualname__.split('.')[0]
+
+
+def id_prefix_from_entity(domain_entity):
+    assert isinstance(domain_entity, EventSourcedEntity)
+    return id_prefix_from_entity_class(type(domain_entity))
+
+
+def id_prefix_from_entity_class(domain_class):
+    assert issubclass(domain_class, EventSourcedEntity)
+    return domain_class.__name__

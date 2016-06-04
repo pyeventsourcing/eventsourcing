@@ -20,16 +20,6 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         :param stored_event: 
         """
 
-    # @abstractmethod
-    # def __getitem__(self, pk):
-    #     """Returns stored event for given event ID.
-    #     """
-    #
-    # @abstractmethod
-    # def __contains__(self, event_id):
-    #     """Tests whether given event ID exists.
-    #     """
-    #
     @abstractmethod
     def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None, query_asc=False):
         """Returns all events for given entity ID in chronological order.

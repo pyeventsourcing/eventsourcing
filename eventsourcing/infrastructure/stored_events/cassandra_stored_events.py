@@ -48,22 +48,6 @@ class CassandraStoredEventRepository(StoredEventRepository):
         cql_stored_event = to_cql(stored_event)
         cql_stored_event.save()
 
-    # def __getitem__(self, pk):
-    #     (entity_id, event_id) = pk
-    #     cql_stored_event = CqlStoredEvent.objects.allow_filtering().filter(v=event_id).first()
-    #     if cql_stored_event is not None:
-    #         return from_cql(cql_stored_event)
-    #     else:
-    #         raise KeyError
-    #
-    # def __contains__(self, pk):
-    #     (stored_entity_id, event_id) = pk
-    #     return bool(CqlStoredEvent.objects(n=stored_entity_id, v=event_id).limit(1).count())
-
-    # def get_topic_events(self, event_topic):
-    #     cql_stored_events = CqlStoredEvent.objects(t=event_topic)
-    #     return self.map(from_cql, cql_stored_events)
-    #
     def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None, query_asc=False):
         query = CqlStoredEvent.objects.filter(n=stored_entity_id)
         if query_asc:

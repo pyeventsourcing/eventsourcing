@@ -1,4 +1,7 @@
 import datetime
+from uuid import UUID
+
+import six
 
 if hasattr(datetime, 'timezone'):
     utc_timezone = datetime.timezone.utc
@@ -21,3 +24,9 @@ def utc_now():
     except AttributeError:
         now_timestamp = (now_datetime - datetime.datetime(1970, 1, 1, tzinfo=utc_timezone)).total_seconds()
     return now_timestamp
+
+
+def timestamp_from_uuid(uuid_arg):
+    if isinstance(uuid_arg, six.string_types):
+        uuid_arg = UUID(uuid_arg)
+    return (uuid_arg.time - 0x01B21DD213814000) / 1e7

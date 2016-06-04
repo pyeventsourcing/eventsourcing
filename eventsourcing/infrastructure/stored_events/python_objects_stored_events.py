@@ -1,7 +1,6 @@
-from cassandra.util import datetime_from_uuid1
-
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
+from eventsourcing.utils.time import timestamp_from_uuid
 
 
 class PythonObjectsStoredEventRepository(StoredEventRepository):
@@ -63,22 +62,22 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
             count = 0
             stored_events = self._by_stored_entity_id[stored_entity_id]
             if since is None:
-                since_dt = None
+                since_timestamp = None
             else:
-                since_dt = datetime_from_uuid1(since)
+                since_timestamp = timestamp_from_uuid(since)
             if before is None:
-                before_dt = None
+                before_timestamp = None
             else:
-                before_dt = datetime_from_uuid1(before)
+                before_timestamp = timestamp_from_uuid(before)
             for event in stored_events:
-                event_dt = datetime_from_uuid1(event.event_id)
-                if since_dt:
+                event_timestamp = timestamp_from_uuid(event.event_id)
+                if since_timestamp:
                     # Exclude if earlier or equal to the 'since' time.
-                    if event_dt <= since_dt:
+                    if event_timestamp <= since_timestamp:
                         continue
-                if before_dt:
+                if before_timestamp:
                     # Exclude if later or equal to the 'before' time.
-                    if event_dt >= before_dt:
+                    if event_timestamp >= before_timestamp:
                         continue
                 count += 1
                 events.append(event)

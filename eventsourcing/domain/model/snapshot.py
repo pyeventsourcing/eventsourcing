@@ -2,7 +2,8 @@ from uuid import uuid1
 
 from eventsourcing.domain.model.events import DomainEvent, publish
 from eventsourcing.domain.model.example import Example
-from eventsourcing.infrastructure.stored_events.transcoders import topic_from_domain_class, make_stored_entity_id
+from eventsourcing.infrastructure.stored_events.transcoders import topic_from_domain_class, make_stored_entity_id, \
+    id_prefix_from_entity
 
 
 class Snapshot(DomainEvent):
@@ -25,21 +26,18 @@ class Snapshot(DomainEvent):
 
 
 def take_snapshot(entity):
-    # Make the 'stored entity ID' for the snapshotted "entity".
-    stored_snapshotted_entity_id = make_stored_entity_id(entity.__class__.__name__, entity.id)
+    # Make the 'stored entity ID' for the entity.
+    id_prefix = id_prefix_from_entity(entity)
+    stored_snapshotted_entity_id = make_stored_entity_id(id_prefix, entity.id)
 
     # Create the snapshot event.
-    entity_snapshotted = Snapshot(
+    snapshot = Snapshot(
         entity_id=stored_snapshotted_entity_id,
         last_event_id=uuid1(),
         topic=topic_from_domain_class(Example),
         attrs=entity.__dict__.copy(),
     )
-    publish(entity_snapshotted)
+    publish(snapshot)
 
     # Return the event.
-    return entity_snapshotted
-
-
-def make_stored_snapshot_entity_id(stored_entity_id):
-    return make_stored_entity_id(Snapshot.__name__, stored_entity_id)
+    return snapshot

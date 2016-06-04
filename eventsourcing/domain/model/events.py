@@ -1,12 +1,13 @@
 import importlib
-from abc import ABCMeta
 import itertools
+from abc import ABCMeta
 from collections import OrderedDict
+from uuid import uuid1
 
 from six import with_metaclass
 
 from eventsourcing.exceptions import TopicResolutionError
-from eventsourcing.utils.time import utc_now
+from eventsourcing.utils.time import timestamp_from_uuid
 
 
 class QualnameABCMeta(ABCMeta):
@@ -36,10 +37,10 @@ class QualnameABCMeta(ABCMeta):
 
 class DomainEvent(with_metaclass(QualnameABCMeta)):
 
-    def __init__(self, entity_id, entity_version, timestamp=None, **kwargs):
+    def __init__(self, entity_id, entity_version, uuid=None, **kwargs):
         self.__dict__['entity_id'] = entity_id
         self.__dict__['entity_version'] = entity_version
-        self.__dict__['timestamp'] = timestamp if timestamp is not None else utc_now()
+        self.__dict__['uuid'] = uuid if uuid is not None else uuid1().hex
         self.__dict__.update(kwargs)
 
     def __setattr__(self, key, value):
@@ -55,7 +56,11 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
 
     @property
     def timestamp(self):
-        return self.__dict__['timestamp']
+        return timestamp_from_uuid(self.__dict__['uuid'])
+
+    @property
+    def uuid(self):
+        return self.__dict__['uuid']
 
     def __eq__(self, rhs):
         if type(self) is not type(rhs):
@@ -118,19 +123,6 @@ def topic_from_domain_class(domain_class):
     """
     # assert isinstance(domain_event, DomainEvent)
     return domain_class.__module__ + '#' + domain_class.__qualname__
-
-
-def entity_class_name_from_domain_event_class(domain_event_class):
-    """Returns entity class name for the domain event.
-
-    Args:
-        domain_event_class: A domain event object.
-
-    Returns:
-        A string naming the domain entity class.
-    """
-    # assert isinstance(domain_event_class, DomainEvent)
-    return domain_event_class.__qualname__.split('.')[0]
 
 
 def resolve_domain_topic(topic):

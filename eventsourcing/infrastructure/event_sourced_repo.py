@@ -1,15 +1,22 @@
 from abc import abstractproperty
 
-from eventsourcing.domain.model.entity import EntityRepository
+from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity
 from eventsourcing.infrastructure.event_player import EventPlayer
+from eventsourcing.infrastructure.stored_events.transcoders import id_prefix_from_entity_class
 
 
 class EventSourcedRepository(EntityRepository):
 
     def __init__(self, event_store, use_cache=False):
-        self.event_player = EventPlayer(event_store, self.domain_class_name, self.domain_class.mutate)
+        id_prefix = id_prefix_from_entity_class(self.domain_class)
+        mutate_func = self.domain_class.mutate
+        self.event_player = EventPlayer(event_store, id_prefix, mutate_func)
         self._cache = {}
         self._use_cache = use_cache
+
+    @abstractproperty
+    def domain_class(self):
+        return EventSourcedEntity
 
     def __contains__(self, entity_id):
         try:
@@ -40,15 +47,3 @@ class EventSourcedRepository(EntityRepository):
 
         # Return entity.
         return entity
-
-    @property
-    def domain_class_name(self):
-        return self.domain_class.__name__
-
-    @property
-    def mutate_func(self):
-        return self.domain_class.mutate
-
-    @abstractproperty
-    def domain_class(self):
-        pass
