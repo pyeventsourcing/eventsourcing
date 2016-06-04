@@ -7,21 +7,21 @@ from eventsourcing.infrastructure.stored_events.transcoders import topic_from_do
 
 class Snapshot(DomainEvent):
 
-    def __init__(self, entity_id, last_event_id, snapshot_topic, snapshot_attrs):
+    def __init__(self, entity_id, last_event_id, topic, attrs):
         super(Snapshot, self).__init__(entity_id=entity_id, entity_version=0, last_event_id=last_event_id,
-                                       snapshot_topic=snapshot_topic, snapshot_attrs=snapshot_attrs)
+                                       topic=topic, attrs=attrs)
 
     @property
-    def snapshot_topic(self):
+    def topic(self):
         """Path to the class.
         """
-        return self.__dict__['snapshot_topic']
+        return self.__dict__['topic']
 
     @property
-    def snapshot_attrs(self):
+    def attrs(self):
         """Attributes of the instance.
         """
-        return self.__dict__['snapshot_attrs']
+        return self.__dict__['attrs']
 
 
 def take_snapshot(entity):
@@ -32,8 +32,8 @@ def take_snapshot(entity):
     entity_snapshotted = Snapshot(
         entity_id=stored_snapshotted_entity_id,
         last_event_id=uuid1(),
-        snapshot_topic=topic_from_domain_class(Example),
-        snapshot_attrs=entity.__dict__.copy(),
+        topic=topic_from_domain_class(Example),
+        attrs=entity.__dict__.copy(),
     )
     publish(entity_snapshotted)
 

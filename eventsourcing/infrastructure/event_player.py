@@ -25,28 +25,25 @@ class EventPlayer(object):
         snapshot = get_snapshot(stored_entity_id, self.event_store)
 
         # Mutate entity state according to the sequence of domain events.
-        initial_state = None if snapshot is None else entity_from_snapshot(snapshot)
+        start_state = None if snapshot is None else entity_from_snapshot(snapshot)
 
-        # Remember the version of the initial state (it will change when subsequent events are applied).
-        if initial_state is None:
-            initial_state_version = 0
-        else:
-            initial_state_version = initial_state._version
+        # Hold on to the version of the initial state.
+        start_version = 0 if start_state is None else start_state._version
 
         # Get entity's domain events from event store.
         since = snapshot.last_event_id if snapshot else None
         domain_events = self.event_store.get_entity_events(stored_entity_id, since=since)
 
-        # Get the entity by replaying the entity's domain events.
-        # - left fold the domain events over the initial state
-        domain_entity = reduce(self.mutate, domain_events, initial_state)
+        # Get the entity by a left fold of the domain events over the initial state.
+        domain_entity = reduce(self.mutate, domain_events, start_state)
 
-        # Create a snapshot if that was becoming too many events to load.
-        if isinstance(domain_entity, EventSourcedEntity):
-            snapshot_threshold = type(domain_entity).__snapshot_threshold__
+        # Create a snapshot if that was becoming too many events to load for this type.
+        if domain_entity is not None:
+            assert isinstance(domain_entity, EventSourcedEntity)
+            snapshot_threshold = domain_entity.__snapshot_threshold__
             if snapshot_threshold is not None:
                 assert isinstance(snapshot_threshold, six.integer_types)
-                version_difference = domain_entity._version - initial_state_version
+                version_difference = domain_entity._version - start_version
                 if version_difference > snapshot_threshold:
                     take_snapshot(domain_entity)
 
@@ -55,4 +52,4 @@ class EventPlayer(object):
 
 
 def entity_from_snapshot(snapshot):
-    return deserialize_domain_entity(snapshot.snapshot_topic, snapshot.snapshot_attrs)
+    return deserialize_domain_entity(snapshot.topic, snapshot.attrs)
