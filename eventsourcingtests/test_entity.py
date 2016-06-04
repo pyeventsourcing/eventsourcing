@@ -62,9 +62,9 @@ class TestExampleEntity(unittest.TestCase):
         # Check the repo now raises a KeyError.
         self.assertRaises(KeyError, repo.__getitem__, entity1.id)
 
-    def test_mutator_not_implemented_error(self):
+    def test_not_implemented_error(self):
+        # Define an event class.
+        class UnsupportedEvent(DomainEvent): pass
 
-        class UnsupportedEvent(DomainEvent):
-            pass
-
+        # Check we get an error when attempting to mutate on the event.
         self.assertRaises(NotImplementedError, Example.mutate, Example, UnsupportedEvent('1', '0'))
