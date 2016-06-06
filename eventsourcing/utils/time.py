@@ -27,6 +27,11 @@ def utc_now():
 
 
 def timestamp_from_uuid(uuid_arg):
+    "Return a floating point unix timestamp to 6 decimal places."
+    return timestamp_long_from_uuid(uuid_arg) / 1e7
+
+
+def timestamp_long_from_uuid(uuid_arg):
     if isinstance(uuid_arg, six.string_types):
         uuid_arg = UUID(uuid_arg)
-    return (uuid_arg.time - 0x01B21DD213814000) / 1e7
+    return (uuid_arg.time - 0x01B21DD213814000)

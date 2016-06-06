@@ -1,6 +1,6 @@
 import six
 
-from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, StoredEventIterator
+from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 
 
 class EventStore(object):
@@ -16,22 +16,31 @@ class EventStore(object):
         # Append the stored event to the stored event repo.
         self.stored_event_repo.append(stored_event)
 
-    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None, is_paged=False):
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, page_size=None):
         # Get the events that have been stored for the entity.
-        if is_paged:
-            stored_events = StoredEventIterator(self.stored_event_repo, stored_entity_id, since=since, before=before,
-                                                limit=limit, query_asc=True)
+        if not page_size:
+            stored_events = self.stored_event_repo.get_entity_events(
+                stored_entity_id=stored_entity_id,
+                after=after,
+                until=until,
+                limit=limit
+            )
         else:
-            stored_events = self.stored_event_repo.get_entity_events(stored_entity_id, since=since, before=before,
-                                                                     limit=limit)
+            stored_events = self.stored_event_repo.iterate_entity_events(
+                stored_entity_id=stored_entity_id,
+                after=after,
+                until=until,
+                limit=limit,
+                page_size=page_size
+            )
 
         # Deserialize all the stored event objects into domain event objects.
         return six.moves.map(self.stored_event_repo.deserialize, stored_events)
 
-    def get_most_recent_event(self, stored_entity_id):
+    def get_most_recent_event(self, stored_entity_id, until=None):
         """Returns last event for given entity ID.
 
         :rtype: DomainEvent, NoneType
         """
-        stored_event = self.stored_event_repo.get_most_recent_event(stored_entity_id)
+        stored_event = self.stored_event_repo.get_most_recent_event(stored_entity_id, until=until)
         return None if stored_event is None else self.stored_event_repo.deserialize(stored_event)

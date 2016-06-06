@@ -1,5 +1,4 @@
 import os
-from collections import deque
 
 from cassandra import ConsistencyLevel, AlreadyExists
 from cassandra.auth import PlainTextAuthProvider
@@ -8,7 +7,7 @@ from cassandra.cqlengine.management import sync_table, create_keyspace_simple
 import cassandra.cqlengine.connection
 import six
 
-from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
+from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, ThreadedStoredEventIterator
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
 
@@ -34,7 +33,7 @@ def from_cql(cql_stored_event):
     assert isinstance(cql_stored_event, CqlStoredEvent), cql_stored_event
     return StoredEvent(
         stored_entity_id=cql_stored_event.n,
-        event_id=cql_stored_event.v,
+        event_id=cql_stored_event.v.hex,
         event_topic=cql_stored_event.t,
         event_attrs=cql_stored_event.a
     )
@@ -44,18 +43,22 @@ class CassandraStoredEventRepository(StoredEventRepository):
 
     serialize_with_uuid1 = True
 
+    @property
+    def iterator_class(self):
+        return ThreadedStoredEventIterator
+
     def append(self, stored_event):
         cql_stored_event = to_cql(stored_event)
         cql_stored_event.save()
 
-    def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None, query_asc=False):
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_asc=False):
         query = CqlStoredEvent.objects.filter(n=stored_entity_id)
         if query_asc:
             query = query.order_by('v')
-        if before is not None:
-            query = query.filter(v__lt=before)
-        if since is not None:
-            query = query.filter(v__gt=since)
+        if until is not None:
+            query = query.filter(v__lte=until)
+        if after is not None:
+            query = query.filter(v__gt=after)
         if limit is not None:
             query = query.limit(limit)
         events = self.map(from_cql, query)

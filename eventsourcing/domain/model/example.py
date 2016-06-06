@@ -9,7 +9,8 @@ class Example(EventSourcedEntity):
     An example event sourced domain model entity.
     """
 
-    __snapshot_threshold__ = 100
+    # __page_size__ = 1000
+    # __page_size__ = 50
 
     class Created(EventSourcedEntity.Created):
         pass
@@ -72,6 +73,8 @@ class ExampleRepository(EntityRepository):
 def register_new_example(a, b):
     """
     Factory method for example entities.
+
+    :rtype: Example
     """
     entity_id = uuid.uuid4().hex
     event = Example.Created(entity_id=entity_id, a=a, b=b)

@@ -57,7 +57,7 @@ class TestEventPlayer(unittest.TestCase):
         registered_example = register_new_example(a=123, b=234)
 
         # Take a snapshot.
-        take_snapshot(registered_example)
+        take_snapshot(registered_example, uuid1().hex)
 
         # Check the event sourced entities are correct.
         #  - should use a snapshot with no additional events
@@ -74,7 +74,7 @@ class TestEventPlayer(unittest.TestCase):
         self.assertEqual(retrieved_example.a, 9999)
 
         # Take a snapshot.
-        take_snapshot(retrieved_example)
+        take_snapshot(retrieved_example, uuid1().hex)
 
         # Check the event sourced entities are correct.
         #  - should use a snapshot with no additional events

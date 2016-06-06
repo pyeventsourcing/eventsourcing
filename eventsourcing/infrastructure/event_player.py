@@ -1,57 +1,64 @@
 from functools import reduce
 
-import six
-
-from eventsourcing.domain.model.entity import EventSourcedEntity
 from eventsourcing.domain.model.snapshot import take_snapshot
 from eventsourcing.domain.services.snapshot import get_snapshot
 from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.stored_events.transcoders import deserialize_domain_entity, make_stored_entity_id
+from eventsourcing.infrastructure.stored_events.transcoders import deserialize_domain_entity,make_stored_entity_id
 
 
 class EventPlayer(object):
 
-    def __init__(self, event_store, id_prefix, mutate_func):
+    def __init__(self, event_store, id_prefix, mutate_func, page_size=None):
         assert isinstance(event_store, EventStore), event_store
         self.event_store = event_store
         self.id_prefix = id_prefix
         self.mutate = mutate_func
+        self.page_size = page_size
 
-    def replay_events(self, entity_id):
+    def replay_events(self, entity_id, until=None):
         # Make the stored entity ID.
-        stored_entity_id = make_stored_entity_id(self.id_prefix, entity_id)
+        stored_entity_id = self.make_stored_entity_id(entity_id)
 
-        # Get snapshot, if exists.
-        snapshot = get_snapshot(stored_entity_id, self.event_store)
-
-        # Mutate entity state according to the sequence of domain events.
+        # Try to get initial state from a snapshot.
+        snapshot = get_snapshot(stored_entity_id, self.event_store, until=until)
         initial_state = None if snapshot is None else entity_from_snapshot(snapshot)
 
-        # Get the initial version.
-        initial_version = 0 if initial_state is None else initial_state._version
-
-        # Decide since when we need to get the events.
-        since = snapshot.last_event_id if snapshot else None
+        # Decide after when we need to get the events.
+        after = snapshot.last_event_id if snapshot else None
 
         # Get entity's domain events from the event store.
-        domain_events = self.event_store.get_entity_events(stored_entity_id, since=since)
+        domain_events = self.event_store.get_entity_events(
+            stored_entity_id=stored_entity_id,
+            after=after,
+            until=until,
+            page_size=self.page_size
+        )
 
-        # Get the entity, left fold the domain events over the initial state.
+        # Mutate initial state using the sequence of domain events.
         domain_entity = reduce(self.mutate, domain_events, initial_state)
-
-        # Todo: Move this onto the domain entity (maybe) and make it know of last snapshot so it.
-        # Todo: Or maybe have a completely indepdendent snapshotting object which listens to events and checks.
-        # Take a snapshot if too many versions since the initial version for this type.
-        if domain_entity is not None:
-            assert isinstance(domain_entity, EventSourcedEntity)
-            threshold = domain_entity.__snapshot_threshold__
-            if isinstance(threshold, six.integer_types) and threshold >= 0:
-                difference = domain_entity.version - initial_version
-                if difference > threshold:
-                    take_snapshot(domain_entity)
 
         # Return the domain entity.
         return domain_entity
+
+    def get_most_recent_event(self, entity_id, until=None):
+        return self.event_store.get_most_recent_event(self.make_stored_entity_id(entity_id), until=until)
+
+    def make_stored_entity_id(self, entity_id):
+        return make_stored_entity_id(self.id_prefix, entity_id)
+
+    def take_snapshot(self, entity_id, until=None):
+        # Get the most recent event (optionally until a particular time).
+        most_recent_event = self.get_most_recent_event(entity_id, until=until)
+
+        # Nothing to snapshot?
+        if most_recent_event is None:
+            return
+
+        # Get entity in the state after this event was applied.
+        entity = self.replay_events(entity_id, until=most_recent_event.uuid)
+
+        # Take a snapshot of the entity exactly when this event was applied.
+        return take_snapshot(entity, last_event_id=most_recent_event.uuid)
 
 
 def entity_from_snapshot(snapshot):

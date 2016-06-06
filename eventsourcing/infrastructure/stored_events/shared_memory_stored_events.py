@@ -40,7 +40,7 @@ class SharedMemoryStoredEventRepository(PythonObjectsStoredEventRepository):
     # def __contains__(self, event_id):
     #     return event_id in self._by_id
     #
-    # def get_entity_events(self, stored_entity_id, since=None, before=None, limit=None):
+    # def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None):
     #     if stored_entity_id not in self._by_stored_entity_id:
     #         return []
     #     else:

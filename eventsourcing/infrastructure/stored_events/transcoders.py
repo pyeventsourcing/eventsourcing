@@ -25,9 +25,9 @@ def serialize_domain_event(domain_event, json_encoder_cls=None, without_json=Fal
         json_encoder_cls = ObjectJSONEncoder
     # assert isinstance(domain_event, DomainEvent)
     if with_uuid1:
-        event_id = UUID(domain_event.uuid)
+        event_id = domain_event.uuid
     else:
-        event_id = uuid.uuid4()
+        event_id = uuid.uuid4().hex
     stored_entity_id = make_stored_entity_id(id_prefix_from_event(domain_event), domain_event.entity_id)
     event_topic = topic_from_domain_class(domain_event.__class__)
     if without_json:

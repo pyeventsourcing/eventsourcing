@@ -17,7 +17,7 @@ from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCM
 
 class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
-    __snapshot_threshold__ = None
+    __page_size__ = None
 
     class Created(DomainEvent):
         def __init__(self, entity_version=0, **kwargs):
@@ -101,9 +101,9 @@ def entity_mutator(event, _):
 @entity_mutator.register(EventSourcedEntity.Created)
 def created_mutator(event, cls):
     assert isinstance(event, DomainEvent)
-    assert isinstance(cls, type), ("Expected type but got instance of: {}, possibly "
-                                   "due to duplicate {} events for entity ID {}?"
-                                   "".format(type(cls), type(event), event.entity_id))
+    if not isinstance(cls, type):
+        raise ConsistencyError("Unable to mutate entity instance {} with event type {}"
+                               "".format(event.entity_id, type(event)))
     assert issubclass(cls, EventSourcedEntity), cls
     self = cls(**event.__dict__)
     self._increment_version()
