@@ -11,18 +11,28 @@ There is a [mailing list](https://groups.google.com/forum/#!forum/eventsourcing-
 ## Install
 
 Use pip to install the [latest distribution](https://pypi.python.org/pypi/eventsourcing) from
-the Python Package Index. So the test suite might pass, and so the usage example
-below will work, install with the optional extra called 'test'.
+the Python Package Index.
+
+    pip install eventsourcing
+
+If you want to run the test suite, or try the example below, then please install with the 
+optional extra called 'test'.
 
     pip install eventsourcing[test]
-
 
 After installation, the test suite should pass.
 
     python -m unittest discover eventsourcingtests -v
 
-
 Please register an issue if you find a bug.
+
+### Cassandra and Upgrading From 0.9.4
+
+If you are using Cassandra and upgrading from version 0.9.4, or earlier, please note that version 0.9.4 is 
+the last version with ascending as the declared ordering of 'event_id' in column family 'cql_stored_event'.
+Subsequent versions have the this ordering declared as descending. The change was made to support both paging
+through long histories of events and getting only recent events after a snapshot. It is possible this change
+could cause bugs. Please test your upgrades. Please get in touch if you would like to discuss.
 
 
 ## Development
@@ -65,6 +75,11 @@ Inspiration:
 * Robert Smallshire's brilliant example code on Bitbucket
     * https://bitbucket.org/sixty-north/d5-kanban-python/src
 
+See also:
+
+* Wikipedia page on Object-relational impedance mismatch
+    * https://en.wikipedia.org/wiki/Object-relational_impedance_mismatch
+
 
 ## Features
 
@@ -92,7 +107,7 @@ Inspiration:
 
 * Concrete stored event repository classes
 
-    * Stored event repository to persist stored event objects in a relational database, using SQLAlchemy (as an ORM) 
+    * Stored event repository to persist stored event objects in a relational database, using SQLAlchemy (as an ORM)
 
     * Stored event repository to persist stored events in Cassandra
 
@@ -131,6 +146,7 @@ Inspiration:
     * Base class for event sourced applications with Cassandra, which provides a stored event repository that uses Cassandra
 
 * Example application of event sourcing, with an example event sourced entity and example domain events, and with an example event sourced repository containing example entity instances, and an example entity factory method
+
 
 ### Forthcoming features
 
@@ -207,7 +223,7 @@ to the attributes. The entity inherits a discard() method, which generates the '
 The 'Created' event is generated in a factory method (see below) and carries values used to initialise an entity.
 
 ```python
-from eventsourcing.domain.model.entity import EventSourcedEntity, eventsourcedproperty
+from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
 
 
 class Example(EventSourcedEntity):
@@ -226,11 +242,11 @@ class Example(EventSourcedEntity):
         self._a = a
         self._b = b
 
-    @eventsourcedproperty
+    @mutableproperty
     def a(self):
         return self._a
 
-    @eventsourcedproperty
+    @mutableproperty
     def b(self):
         return self._b
 ```
@@ -255,7 +271,7 @@ import uuid
 def register_new_example(a, b):
     entity_id = uuid.uuid4().hex
     event = Example.Created(entity_id=entity_id, a=a, b=b)
-    entity = Example.mutator(event=event)
+    entity = Example.mutate(event=event)
     publish(event=event)
     return entity
 ```

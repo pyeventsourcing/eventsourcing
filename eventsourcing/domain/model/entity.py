@@ -1,10 +1,23 @@
+from eventsourcing.domain.model.exceptions import ConsistencyError
+from eventsourcing.utils.time import timestamp_from_uuid
+
+try:
+    # Python 3.4+
+    from functools import singledispatch
+except ImportError:
+    from singledispatch import singledispatch
+
 from abc import ABCMeta, abstractmethod
 from inspect import isfunction
+
 from six import with_metaclass
+
 from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta
 
 
 class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
+
+    __page_size__ = None
 
     class Created(DomainEvent):
         def __init__(self, entity_version=0, **kwargs):
@@ -16,30 +29,46 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     class Discarded(DomainEvent):
         pass
 
-    def __init__(self, entity_id, entity_version, timestamp):
+    def __init__(self, entity_id, entity_version, domain_event_id):
         self._id = entity_id
         self._version = entity_version
         self._is_discarded = False
-        self._created_on = timestamp
+        self._initial_event_id = domain_event_id
 
     def _increment_version(self):
         self._version += 1
 
     def _assert_not_discarded(self):
-        assert not self._is_discarded
+        if self._is_discarded:
+            raise AssertionError("Entity is discarded")
 
     @property
     def id(self):
         return self._id
 
+    @property
+    def version(self):
+        return self._version
+
+    @property
+    def created_on(self):
+        return timestamp_from_uuid(self._initial_event_id)
+
     def _validate_originator(self, event):
-        assert self.id == event.entity_id, (self.id, event.entity_id)
-        assert self._version == event.entity_version, "{} != {}".format(self._version, event.entity_version)
+        # Check event originator's entity ID matches our own ID.
+        if self._id != event.entity_id:
+            raise ConsistencyError("Entity ID '{}' not equal to event's entity ID '{}'"
+                                       "".format(self.id, event.entity_id))
+
+        # Check event originator's version number matches our own version number.
+        if self._version != event.entity_version:
+            raise ConsistencyError("Entity version '{}' not equal to event's entity version '{}'"
+                                       "".format(self._version, event.entity_version))
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
-    def _change_attribute_value(self, name, value):
+    def _change_attribute(self, name, value):
         self._assert_not_discarded()
         event = self.AttributeChanged(name=name, value=value, entity_id=self._id, entity_version=self._version)
         self._apply(event)
@@ -52,50 +81,62 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         publish(event)
 
     def _apply(self, event):
-        self.mutator(self, event)
+        self.mutate(event=event, entity=self)
 
     @classmethod
-    def mutator(cls, entity=None, event=None):
-        # assert isinstance(event, DomainEvent), "Not a domain event: {}".format(event)
-        event_class = type(event)
-        if event_class == cls.Created:
-            # assert isinstance(entity, type), entity
-            assert entity is None, "Are there multiple Created events for the same ID? %s, %s" % (entity, event)
-            entity_class = cls
-            entity = entity_class(**event.__dict__)
-            # assert isinstance(entity, EventSourcedEntity), entity
-            entity._increment_version()
-            return entity
+    def mutate(cls, entity=None, event=None):
+        initial = entity if entity is not None else cls
+        return cls._mutator(event, initial)
 
-        elif event_class == cls.AttributeChanged:
-            # assert isinstance(entity, EventSourcedEntity), entity
-            entity._validate_originator(event)
-            setattr(entity, event.name, event.value)
-            entity._increment_version()
-            return entity
-
-        elif event_class == cls.Discarded:
-            # assert isinstance(entity, EventSourcedEntity), entity
-            entity._validate_originator(event)
-            entity._is_discarded = True
-            entity._increment_version()
-            return None
-        else:
-            raise NotImplementedError(repr(event_class))
+    @staticmethod
+    def _mutator(event, initial):
+        return entity_mutator(event, initial)
 
 
-def eventsourcedproperty(*args, **kwargs):
-    if len(args) == 1 and len(kwargs) == 0 and isfunction(args[0]):
-        getter = args[0]
+@singledispatch
+def entity_mutator(event, _):
+    raise NotImplementedError("Event type not supported: {}".format(type(event)))
+
+
+@entity_mutator.register(EventSourcedEntity.Created)
+def created_mutator(event, cls):
+    assert isinstance(event, DomainEvent)
+    if not isinstance(cls, type):
+        raise ConsistencyError("Unable to mutate entity instance {} with event type {}"
+                               "".format(event.entity_id, type(event)))
+    assert issubclass(cls, EventSourcedEntity), cls
+    self = cls(**event.__dict__)
+    self._increment_version()
+    return self
+
+
+@entity_mutator.register(EventSourcedEntity.AttributeChanged)
+def attribute_changed_mutator(event, self):
+    self._validate_originator(event)
+    setattr(self, event.name, event.value)
+    self._increment_version()
+    return self
+
+
+@entity_mutator.register(EventSourcedEntity.Discarded)
+def discarded_mutator(event, self):
+    self._validate_originator(event)
+    self._is_discarded = True
+    self._increment_version()
+    return None
+
+
+def mutableproperty(getter):
+    if isfunction(getter):
 
         def setter(self, value):
-            assert isinstance(self, EventSourcedEntity), self
-            self._change_attribute_value(name='_' + getter.__name__, value=value)
+            assert isinstance(self, EventSourcedEntity), type(self)
+            name = '_' + getter.__name__
+            self._change_attribute(name=name, value=value)
 
         return property(fget=getter, fset=setter)
     else:
-        # Decorator has arguments...
-        return eventsourcedproperty
+        raise ValueError(repr(getter))
 
 
 class EntityRepository(with_metaclass(ABCMeta)):

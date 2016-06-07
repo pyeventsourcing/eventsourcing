@@ -1,9 +1,13 @@
-from abc import ABCMeta
+import importlib
 import itertools
+from abc import ABCMeta
 from collections import OrderedDict
+from uuid import uuid1
 
 from six import with_metaclass
-from eventsourcing.utils.time import utc_now
+
+from eventsourcing.exceptions import TopicResolutionError
+from eventsourcing.utils.time import timestamp_from_uuid
 
 
 class QualnameABCMeta(ABCMeta):
@@ -33,12 +37,10 @@ class QualnameABCMeta(ABCMeta):
 
 class DomainEvent(with_metaclass(QualnameABCMeta)):
 
-    def __init__(self, entity_id=None, entity_version=None, timestamp=None, **kwargs):
-        assert entity_id is not None
-        assert entity_version is not None
+    def __init__(self, entity_id, entity_version, domain_event_id=None, **kwargs):
         self.__dict__['entity_id'] = entity_id
         self.__dict__['entity_version'] = entity_version
-        self.__dict__['timestamp'] = utc_now() if timestamp is None else timestamp
+        self.__dict__['domain_event_id'] = domain_event_id if domain_event_id is not None else uuid1().hex
         self.__dict__.update(kwargs)
 
     def __setattr__(self, key, value):
@@ -53,8 +55,12 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
         return self.__dict__['entity_version']
 
     @property
+    def domain_event_id(self):
+        return self.__dict__['domain_event_id']
+
+    @property
     def timestamp(self):
-        return self.__dict__['timestamp']
+        return timestamp_from_uuid(self.__dict__['domain_event_id'])
 
     def __eq__(self, rhs):
         if type(self) is not type(rhs):
@@ -104,3 +110,61 @@ def publish(event):
 def assert_event_handlers_empty():
     if len(_event_handlers):
         raise Exception("Event handlers are still subscribed: %s" % _event_handlers)
+
+
+def topic_from_domain_class(domain_class):
+    """Returns a string describing a domain event class.
+
+    Args:
+        domain_event: A domain event object.
+
+    Returns:
+        A string describing the domain event object's class.
+    """
+    # assert isinstance(domain_event, DomainEvent)
+    return domain_class.__module__ + '#' + domain_class.__qualname__
+
+
+def resolve_domain_topic(topic):
+    """Return domain class described by given topic.
+
+    Args:
+        topic: A string describing a domain class.
+
+    Returns:
+        A domain class.
+
+    Raises:
+        TopicResolutionError: If there is no such domain class.
+    """
+    # Todo: Fix up this block to show what the topic is, and where it went wrong.
+    try:
+        module_name, _, class_name = topic.partition('#')
+        module = importlib.import_module(module_name)
+    except ImportError:
+        raise TopicResolutionError()
+    try:
+        cls = resolve_attr(module, class_name)
+    except AttributeError:
+        raise TopicResolutionError()
+    return cls
+
+
+def resolve_attr(obj, path):
+    """A recursive version of getattr for navigating dotted paths.
+
+    Args:
+        obj: An object for which we want to retrieve a nested attribute.
+        path: A dot separated string containing zero or more attribute names.
+
+    Returns:
+        The attribute referred to by obj.a1.a2.a3...
+
+    Raises:
+        AttributeError: If there is no such attribute.
+    """
+    if not path:
+        return obj
+    head, _, tail = path.partition('.')
+    head_obj = getattr(obj, head)
+    return resolve_attr(head_obj, tail)

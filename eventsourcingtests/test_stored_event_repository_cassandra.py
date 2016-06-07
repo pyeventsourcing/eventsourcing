@@ -21,4 +21,4 @@ class TestCassandraStoredEventRepository(StoredEventRepositoryTestCase):
 
     def test_stored_events_in_cassandra(self):
         stored_event_repo = CassandraStoredEventRepository()
-        self.assertStoredEventRepositoryImplementation(stored_event_repo)
+        self.checkStoredEventRepository(stored_event_repo)

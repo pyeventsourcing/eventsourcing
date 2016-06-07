@@ -2,7 +2,7 @@ import unittest
 from eventsourcing.domain.model.events import DomainEvent
 
 from eventsourcing.domain.model.example import register_new_example, Example
-from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepository
+from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
 from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
@@ -30,7 +30,7 @@ class TestExampleEntity(unittest.TestCase):
         self.assertNotEqual(example1, example2)
 
         # Setup the repo.
-        repo = ExampleRepository(self.event_store)
+        repo = ExampleRepo(self.event_store)
 
         # Check the example entities can be retrieved from the example repository.
         entity1 = repo[example1.id]
@@ -58,8 +58,13 @@ class TestExampleEntity(unittest.TestCase):
 
         # Check the entity can be discarded.
         entity1.discard()
+
+        # Check the repo now raises a KeyError.
         self.assertRaises(KeyError, repo.__getitem__, entity1.id)
 
-    def test_mutator_not_implemented_error(self):
+    def test_not_implemented_error(self):
+        # Define an event class.
         class UnsupportedEvent(DomainEvent): pass
-        self.assertRaises(NotImplementedError, Example.mutator, Example, UnsupportedEvent('1', '0'))
+
+        # Check we get an error when attempting to mutate on the event.
+        self.assertRaises(NotImplementedError, Example.mutate, Example, UnsupportedEvent('1', '0'))

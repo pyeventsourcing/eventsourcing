@@ -1,5 +1,6 @@
+singledispatch
 six
 sqlalchemy
 mock
 python-dateutil
-cassandra-driver==2.6.0rc1
+cassandra-driver==2.6.0

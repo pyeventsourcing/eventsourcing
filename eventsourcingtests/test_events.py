@@ -1,4 +1,7 @@
 import unittest
+from uuid import uuid1
+
+from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
     from unittest import mock
@@ -25,7 +28,9 @@ class TestEvents(unittest.TestCase):
         self.assertIsInstance(event.timestamp, float)
 
         # Check timestamp value can be given to domain events.
-        self.assertEqual(3, Example.Created(entity_id='entity1', a=1, b=2, timestamp=3).timestamp)
+        self.assertEqual(3, Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3).domain_event_id)
+        domain_event_id = uuid1().hex
+        self.assertEqual(timestamp_from_uuid(domain_event_id), Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=domain_event_id).timestamp)
 
     def test_publish_subscribe_unsubscribe(self):
         # Check subscribing event handlers with predicates.
@@ -54,19 +59,19 @@ class TestEvents(unittest.TestCase):
         self.assertEqual(0, handler.call_count)
 
     def test_hash(self):
-        event1 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
-        event2 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
+        event1 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)
+        event2 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)
         self.assertEqual(hash(event1), hash(event2))
 
     def test_equality_comparison(self):
-        event1 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
-        event2 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
-        event3 = Example.Created(entity_id='entity1', a=3, b=2, timestamp=3)
+        event1 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)
+        event2 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)
+        event3 = Example.Created(entity_id='entity1', a=3, b=2, domain_event_id=3)
         self.assertEqual(event1, event2)
         self.assertNotEqual(event1, event3)
         self.assertNotEqual(event2, event3)
         self.assertNotEqual(event2, None)
 
     def test_repr(self):
-        event1 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
-        self.assertEqual("Example.Created(a=1, b=2, entity_id='entity1', entity_version=0, timestamp=3)", repr(event1))
+        event1 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)
+        self.assertEqual("Example.Created(a=1, b=2, domain_event_id=3, entity_id='entity1', entity_version=0)", repr(event1))

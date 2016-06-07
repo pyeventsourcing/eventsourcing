@@ -1,6 +1,5 @@
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.application.with_pythonobjects import EventSourcingWithPythonObjects
-from eventsourcing.application.with_sqlalchemy import EventSourcingWithSQLAlchemy
 
 
 class ExampleApplicationWithPythonObjects(EventSourcingWithPythonObjects, ExampleApplication):

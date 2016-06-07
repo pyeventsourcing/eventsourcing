@@ -1,65 +1,75 @@
 from abc import abstractproperty
-from functools import reduce
-from eventsourcing.domain.model.entity import EntityRepository
-from eventsourcing.infrastructure.event_store import EventStore
 
-
-class EventPlayer(object):
-
-    def __init__(self, event_store, mutator, id_prefix=''):
-        assert isinstance(event_store, EventStore), event_store
-        self.event_store = event_store
-        self.mutator = mutator
-        self.id_prefix = id_prefix
-
-    def __getitem__(self, entity_id):
-        # Get the entity's domain events from the event store.
-        stored_entity_id = self.id_prefix + '::' + entity_id
-        domain_events = self.event_store.get_entity_events(stored_entity_id)
-
-        # Mutate entity state according to the sequence of domain events.
-        entity = reduce(self.mutator, domain_events, None)
-        if entity is None:
-            # Entity already discarded, or it was never created.
-            raise KeyError(entity_id)
-        else:
-            return entity
+from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity
+from eventsourcing.domain.model.snapshot import take_snapshot
+from eventsourcing.infrastructure.event_player import EventPlayer
+from eventsourcing.infrastructure.stored_events.transcoders import id_prefix_from_entity_class
 
 
 class EventSourcedRepository(EntityRepository):
 
     def __init__(self, event_store, use_cache=False):
-        self.event_player = self.construct_event_player(event_store)
+        domain_class = self.domain_class
+        assert issubclass(domain_class, EventSourcedEntity)
+        self.event_player = EventPlayer(
+            event_store=event_store,
+            id_prefix=id_prefix_from_entity_class(domain_class),
+            mutate_func=domain_class.mutate,
+            page_size=domain_class.__page_size__
+        )
         self._cache = {}
         self._use_cache = use_cache
 
-    def construct_event_player(self, event_store):
-        return EventPlayer(event_store=event_store, mutator=self.domain_class.mutator,
-                           id_prefix=self.domain_class.__name__)
-
     @abstractproperty
     def domain_class(self):
-        """Defines the type of entity available in this repo.
+        """
+        Returns the type of entity held by this repository.
         """
 
-    def __getitem__(self, entity_id):
-        if not self._use_cache:
-            return self.event_player[entity_id]
-        else:
-            try:
-                return self._cache[entity_id]
-            except KeyError:
-                entity = self.event_player[entity_id]
-                self.add_cache(entity_id, entity)
-                return entity
-
-    def add_cache(self, entity_id, entity):
-        self._cache[entity_id] = entity
-
     def __contains__(self, entity_id):
+        """
+        Returns a boolean value according to whether or the entity with given ID exists.
+        """
         try:
-            self[entity_id]
+            self.__getitem__(entity_id)
         except KeyError:
             return False
         else:
             return True
+
+    def __getitem__(self, entity_id):
+        """
+        Returns entity with given ID.
+        """
+        # Get entity from the cache.
+        if self._use_cache:
+            try:
+                return self._cache[entity_id]
+            except KeyError:
+                pass
+
+        # Reconstitute the entity.
+        entity = self.event_player.replay_events(entity_id)
+
+        # Never created or already discarded?
+        if entity is None:
+            raise KeyError(entity_id)
+
+        # Put entity in the cache.
+        if self._use_cache:
+             self._cache[entity_id] = entity
+
+        # Return entity.
+        return entity
+
+    def reconstitute_entity(self, entity_id, until=None):
+        # Replay domain events.
+        return self.event_player.replay_events(entity_id, until=until)
+
+    def take_snapshot(self, entity_id, until=None):
+        """
+        Takes a snapshot of the entity as it existed the time of the most recent event.
+        :param entity_id:
+        :return:
+        """
+        self.event_player.take_snapshot(entity_id, until=until)

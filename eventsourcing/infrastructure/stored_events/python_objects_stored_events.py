@@ -1,10 +1,12 @@
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
+from eventsourcing.utils.time import timestamp_from_uuid
 
 
 class PythonObjectsStoredEventRepository(StoredEventRepository):
 
     serialize_without_json = True
+    serialize_with_uuid1 = True
 
     def __init__(self):
         super(PythonObjectsStoredEventRepository, self).__init__()
@@ -43,18 +45,39 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
                 if stored_event.event_topic in self._by_topic:
                     self._by_topic[stored_event.event_topic].remove(stored_event)
 
-
-    def __getitem__(self, event_id):
-        return self._by_id[event_id]
-
-    def __contains__(self, event_id):
-        return event_id in self._by_id
-
-    def get_entity_events(self, stored_entity_id):
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_asc=False):
         if stored_entity_id not in self._by_stored_entity_id:
             return []
         else:
-            return self._by_stored_entity_id[stored_entity_id]
+            events = []
+            count = 0
+            stored_events = self._by_stored_entity_id[stored_entity_id]
+            if after is None:
+                after_timestamp = None
+            else:
+                after_timestamp = timestamp_from_uuid(after)
+            if until is None:
+                until_timestamp = None
+            else:
+                until_timestamp = timestamp_from_uuid(until)
+            for event in stored_events:
+                event_timestamp = timestamp_from_uuid(event.event_id)
+                if after_timestamp:
+                    # Exclude if earlier or equal to the 'after' time.
+                    if event_timestamp <= after_timestamp:
+                        continue
+                if until_timestamp:
+                    # Exclude if later than the 'until' time.
+                    if event_timestamp > until_timestamp:
+                        continue
+                count += 1
+                events.append(event)
 
-    def get_topic_events(self, event_topic):
-        return self._by_topic[event_topic]
+            if limit is not None:
+                if not query_asc:
+                    events.reverse()
+                events = events[:min(limit, len(events))]
+                if not query_asc:
+                    events.reverse()
+
+            return events

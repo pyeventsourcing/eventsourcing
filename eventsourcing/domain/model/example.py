@@ -1,6 +1,6 @@
 import uuid
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, eventsourcedproperty, EntityRepository
+from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository, entity_mutator, singledispatch
 from eventsourcing.domain.model.events import publish, DomainEvent
 
 
@@ -8,6 +8,10 @@ class Example(EventSourcedEntity):
     """
     An example event sourced domain model entity.
     """
+
+    # __page_size__ = 1000
+    # __page_size__ = 50
+
     class Created(EventSourcedEntity.Created):
         pass
 
@@ -26,11 +30,11 @@ class Example(EventSourcedEntity):
         self._b = b
         self._count_heartbeats = 0
 
-    @eventsourcedproperty
+    @mutableproperty
     def a(self):
         return self._a
 
-    @eventsourcedproperty()
+    @mutableproperty
     def b(self):
         return self._b
 
@@ -43,30 +47,37 @@ class Example(EventSourcedEntity):
     def count_heartbeats(self):
         return self._count_heartbeats
 
-    @classmethod
-    def mutator(cls, entity=None, event=None):
-        assert isinstance(event, DomainEvent), "Not a domain event: {}".format(event)
-        event_type = type(event)
-        if event_type == cls.Heartbeat:
-            assert isinstance(entity, Example), entity
-            entity._count_heartbeats += 1
-            entity._increment_version()
-            return entity
-        else:
-            return super(Example, cls).mutator(entity, event)
+    @staticmethod
+    def _mutator(event, initial):
+        return example_mutator(event, initial)
 
 
-class Repository(EntityRepository):
+@singledispatch
+def example_mutator(event, initial):
+    return entity_mutator(event, initial)
 
+
+@example_mutator.register(Example.Heartbeat)
+def heartbeat_mutator(event, self):
+    self._validate_originator(event)
+    assert isinstance(self, Example), self
+    self._count_heartbeats += 1
+    self._increment_version()
+    return self
+
+
+class ExampleRepository(EntityRepository):
     pass
 
 
 def register_new_example(a, b):
     """
     Factory method for example entities.
+
+    :rtype: Example
     """
     entity_id = uuid.uuid4().hex
     event = Example.Created(entity_id=entity_id, a=a, b=b)
-    entity = Example.mutator(event=event)
+    entity = Example.mutate(event=event)
     publish(event=event)
     return entity

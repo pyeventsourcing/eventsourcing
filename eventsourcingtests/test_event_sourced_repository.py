@@ -1,6 +1,6 @@
 import unittest
 
-from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepository
+from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
 from eventsourcing.domain.model.example import Example
@@ -18,7 +18,7 @@ class TestEventSourcedRepository(unittest.TestCase):
         event_store.append(Example.Created(entity_id=entity_id, a=1, b=2))
 
         # Setup an example repository.
-        example_repo = ExampleRepository(event_store=event_store)
+        example_repo = ExampleRepo(event_store=event_store)
 
         # Check the repo has the example.
         self.assertIn(entity_id, example_repo)

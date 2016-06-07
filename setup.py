@@ -2,13 +2,14 @@ from setuptools import setup, find_packages
 
 setup(
     name='eventsourcing',
-    version='0.9.4',
+    version='1.0.1',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
     url = 'https://github.com/johnbywater/eventsourcing',
     packages=find_packages(),
     install_requires=[
+        'singledispatch',
         'six',
         'python-dateutil',
     ],
@@ -16,14 +17,14 @@ setup(
         'test': [
             'sqlalchemy',
             'mock',
-            'cassandra-driver==2.6.0rc1',
+            'cassandra-driver==2.6.0',
             'numpy',
         ],
         'sqlalchemy': [
             'sqlalchemy',
         ],
         'cassandra': [
-            'cassandra-driver==2.6.0rc1',
+            'cassandra-driver==2.6.0',
         ],
     },
     zip_safe=False,

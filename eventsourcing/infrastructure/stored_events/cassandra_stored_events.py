@@ -1,69 +1,74 @@
 import os
+
 from cassandra import ConsistencyLevel, AlreadyExists
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine.models import Model, columns
-from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_table
+from cassandra.cqlengine.management import sync_table, create_keyspace_simple
 import cassandra.cqlengine.connection
-from six import string_types
-from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
+import six
+
+from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, ThreadedStoredEventIterator
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
 
 class CqlStoredEvent(Model):
-    stored_entity_id = columns.Text(partition_key=True)
-    event_id = columns.TimeUUID(clustering_order='ASC', primary_key=True)
-    event_topic = columns.Text(index=True)
-    event_attrs = columns.Text(required=True)
+    __table_name__ = 'stored_events'
+    n = columns.Text(partition_key=True)  # 'n' is for the stored entity ID
+    v = columns.TimeUUID(clustering_order='DESC', primary_key=True)  # 'v' is for event ID
+    t = columns.Text(required=True)  # 't' is for event topic
+    a = columns.Text(required=True)  # 'a' is for event attributes
 
 
 def to_cql(stored_event):
     assert isinstance(stored_event, StoredEvent)
     return CqlStoredEvent(
-        event_id=stored_event.event_id,
-        stored_entity_id=stored_event.stored_entity_id,
-        event_attrs=stored_event.event_attrs,
-        event_topic=stored_event.event_topic
+        n=stored_event.stored_entity_id,
+        v=stored_event.event_id,
+        t=stored_event.event_topic,
+        a=stored_event.event_attrs
     )
 
 
-def from_cql(sql_stored_event):
-    assert isinstance(sql_stored_event, CqlStoredEvent)
+def from_cql(cql_stored_event):
+    assert isinstance(cql_stored_event, CqlStoredEvent), cql_stored_event
     return StoredEvent(
-        event_id=sql_stored_event.event_id,
-        stored_entity_id=sql_stored_event.stored_entity_id,
-        event_attrs=sql_stored_event.event_attrs,
-        event_topic=sql_stored_event.event_topic
+        stored_entity_id=cql_stored_event.n,
+        event_id=cql_stored_event.v.hex,
+        event_topic=cql_stored_event.t,
+        event_attrs=cql_stored_event.a
     )
 
 
 class CassandraStoredEventRepository(StoredEventRepository):
 
-    # Todo: Eliminate this in favour of automatically setting it in Cassandra (if that's possible).
-    #       - uuid1() is annoying because it does a subprocess.Popen() to get the mac address
     serialize_with_uuid1 = True
+
+    @property
+    def iterator_class(self):
+        return ThreadedStoredEventIterator
 
     def append(self, stored_event):
         cql_stored_event = to_cql(stored_event)
         cql_stored_event.save()
 
-    def __getitem__(self, event_id):
-        cql_stored_event = CqlStoredEvent.objects.allow_filtering().filter(event_id=event_id).first()
-        return from_cql(cql_stored_event)
-
-    def __contains__(self, event_id):
-        return bool(CqlStoredEvent.objects.allow_filtering().filter(event_id=event_id).limit(1).count())
-
-    def get_topic_events(self, event_topic):
-        cql_stored_events = CqlStoredEvent.objects(event_topic=event_topic)
-        return map(from_cql, cql_stored_events)
-
-    def get_entity_events(self, stored_entity_id):
-        cql_stored_events = CqlStoredEvent.objects(stored_entity_id=stored_entity_id).order_by('event_id')
-        return map(from_cql, cql_stored_events)
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_asc=False):
+        query = CqlStoredEvent.objects.filter(n=stored_entity_id)
+        if query_asc:
+            query = query.order_by('v')
+        if until is not None:
+            query = query.filter(v__lte=until)
+        if after is not None:
+            query = query.filter(v__gt=after)
+        if limit is not None:
+            query = query.limit(limit)
+        events = self.map(from_cql, query)
+        if not query_asc:
+            events = reversed(list(events))
+        return events
 
 
 def get_cassandra_setup_params(hosts=('localhost',), consistency='QUORUM', default_keyspace='eventsourcing', port=9042,
-                               protocol_version=2, username=None, password=None):
+                               protocol_version=3, username=None, password=None):
 
     # Construct an "auth provider" object.
     if username and password:
@@ -72,7 +77,7 @@ def get_cassandra_setup_params(hosts=('localhost',), consistency='QUORUM', defau
         auth_provider = None
 
     # Resolve the consistency level to an object, if it's a string.
-    if isinstance(consistency, string_types):
+    if isinstance(consistency, six.string_types):
         try:
             consistency = getattr(ConsistencyLevel, consistency.upper())
         except AttributeError:
@@ -81,16 +86,18 @@ def get_cassandra_setup_params(hosts=('localhost',), consistency='QUORUM', defau
 
     return auth_provider, hosts, consistency, default_keyspace, port, protocol_version
 
+
 def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspace, port, protocol_version):
     cassandra.cqlengine.connection.setup(
         hosts=hosts,
         default_keyspace=default_keyspace,
         consistency=consistency,
-        port=port,
-        auth_provider=auth_provider,
-        protocol_version=protocol_version,
-        lazy_connect=True,
+        # port=port,
+        # auth_provider=auth_provider,
+        # protocol_version=protocol_version,
+        # lazy_connect=True,
     )
+
 
 def create_cassandra_keyspace_and_tables(default_keyspace):
     os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'

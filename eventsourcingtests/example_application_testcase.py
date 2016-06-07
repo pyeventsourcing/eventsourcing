@@ -1,7 +1,7 @@
 import unittest
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.domain.model.example import Example
-from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepository
+from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
@@ -26,7 +26,7 @@ class ExampleApplicationTestCase(unittest.TestCase):
         self.assertEqual(app.persistence_subscriber.event_store, app.event_store)
 
         # Check there's an example repository.
-        self.assertIsInstance(app.example_repo, ExampleRepository)
+        self.assertIsInstance(app.example_repo, ExampleRepo)
 
         # Register a new example.
         example1 = app.register_new_example(a=10, b=20)
