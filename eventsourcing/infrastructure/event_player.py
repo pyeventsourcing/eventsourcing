@@ -47,17 +47,19 @@ class EventPlayer(object):
         return make_stored_entity_id(self.id_prefix, entity_id)
 
     def take_snapshot(self, entity_id, until=None):
-        # Get the most recent event (optionally until a particular time).
+        # Get the ultimate event (until a particular time).
         most_recent_event = self.get_most_recent_event(entity_id, until=until)
 
-        # Nothing to snapshot?
+        # If there isn't any event, there's nothing to snapshot, so return None.
         if most_recent_event is None:
-            return
+            return None
 
-        # Nothing happened after last snapshot?
+        # If there is something to snapshot, then get the ultimate snapshot (until a particular time)?
         last_snapshot = self.get_snapshot(entity_id, until=until)
+
+        # If there's a snapshot, and it is conincident with the last event, then there's nothing to do.
         if last_snapshot and last_snapshot.domain_event_id == most_recent_event.domain_event_id:
-            return
+            return last_snapshot
 
         # Get entity in the state after this event was applied.
         entity = self.replay_events(entity_id, until=most_recent_event.domain_event_id)
