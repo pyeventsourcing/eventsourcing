@@ -24,7 +24,7 @@ class EventPlayer(object):
         initial_state = None if snapshot is None else entity_from_snapshot(snapshot)
 
         # Decide after when we need to get the events.
-        after = snapshot.last_event_id if snapshot else None
+        after = snapshot.domain_event_id if snapshot else None
 
         # Get entity's domain events from the event store.
         domain_events = self.event_store.get_entity_events(
@@ -54,11 +54,20 @@ class EventPlayer(object):
         if most_recent_event is None:
             return
 
+        # Nothing happened after last snapshot?
+        last_snapshot = self.get_snapshot(entity_id, until=until)
+        if last_snapshot and last_snapshot.domain_event_id == most_recent_event.domain_event_id:
+            return
+
         # Get entity in the state after this event was applied.
-        entity = self.replay_events(entity_id, until=most_recent_event.uuid)
+        entity = self.replay_events(entity_id, until=most_recent_event.domain_event_id)
 
         # Take a snapshot of the entity exactly when this event was applied.
-        return take_snapshot(entity, last_event_id=most_recent_event.uuid)
+        return take_snapshot(entity, at_event_id=most_recent_event.domain_event_id)
+
+    def get_snapshot(self, entity_id, until=None):
+        stored_entity_id = self.make_stored_entity_id(entity_id=entity_id)
+        return get_snapshot(stored_entity_id, self.event_store, until=until)
 
 
 def entity_from_snapshot(snapshot):

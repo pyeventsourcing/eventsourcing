@@ -37,10 +37,10 @@ class QualnameABCMeta(ABCMeta):
 
 class DomainEvent(with_metaclass(QualnameABCMeta)):
 
-    def __init__(self, entity_id, entity_version, uuid=None, **kwargs):
+    def __init__(self, entity_id, entity_version, domain_event_id=None, **kwargs):
         self.__dict__['entity_id'] = entity_id
         self.__dict__['entity_version'] = entity_version
-        self.__dict__['uuid'] = uuid if uuid is not None else uuid1().hex
+        self.__dict__['domain_event_id'] = domain_event_id if domain_event_id is not None else uuid1().hex
         self.__dict__.update(kwargs)
 
     def __setattr__(self, key, value):
@@ -55,12 +55,12 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
         return self.__dict__['entity_version']
 
     @property
-    def timestamp(self):
-        return timestamp_from_uuid(self.__dict__['uuid'])
+    def domain_event_id(self):
+        return self.__dict__['domain_event_id']
 
     @property
-    def uuid(self):
-        return self.__dict__['uuid']
+    def timestamp(self):
+        return timestamp_from_uuid(self.__dict__['domain_event_id'])
 
     def __eq__(self, rhs):
         if type(self) is not type(rhs):

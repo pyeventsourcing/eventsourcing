@@ -29,11 +29,11 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     class Discarded(DomainEvent):
         pass
 
-    def __init__(self, entity_id, entity_version, uuid):
+    def __init__(self, entity_id, entity_version, domain_event_id):
         self._id = entity_id
         self._version = entity_version
         self._is_discarded = False
-        self._created_on_uuid = uuid
+        self._initial_event_id = domain_event_id
 
     def _increment_version(self):
         self._version += 1
@@ -52,7 +52,7 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
     @property
     def created_on(self):
-        return timestamp_from_uuid(self._created_on_uuid)
+        return timestamp_from_uuid(self._initial_event_id)
 
     def _validate_originator(self, event):
         # Check event originator's entity ID matches our own ID.

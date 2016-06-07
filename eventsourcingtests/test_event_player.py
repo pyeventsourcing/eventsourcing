@@ -26,13 +26,13 @@ class TestEventPlayer(unittest.TestCase):
         event_store = EventStore(stored_event_repo=PythonObjectsStoredEventRepository())
 
         # Store example events.
-        event1 = Example.Created(entity_id='entity1', uuid=uuid1().hex, a=1, b=2)
+        event1 = Example.Created(entity_id='entity1', a=1, b=2)
         event_store.append(event1)
-        event2 = Example.Created(entity_id='entity2', uuid=uuid1().hex, a=2, b=4)
+        event2 = Example.Created(entity_id='entity2', a=2, b=4)
         event_store.append(event2)
-        event3 = Example.Created(entity_id='entity3', uuid=uuid1().hex, a=3, b=6)
+        event3 = Example.Created(entity_id='entity3', a=3, b=6)
         event_store.append(event3)
-        event4 = Example.Discarded(entity_id='entity3', uuid=uuid1().hex, entity_version=1)
+        event4 = Example.Discarded(entity_id='entity3', entity_version=1)
         event_store.append(event4)
 
         # Check the event sourced entities are correct.
