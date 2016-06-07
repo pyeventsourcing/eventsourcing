@@ -9,9 +9,6 @@ class Example(EventSourcedEntity):
     An example event sourced domain model entity.
     """
 
-    # __page_size__ = 1000
-    # __page_size__ = 50
-
     class Created(EventSourcedEntity.Created):
         pass
 
@@ -47,7 +44,7 @@ class Example(EventSourcedEntity):
     def count_heartbeats(self):
         return self._count_heartbeats
 
-    @staticmethod
+    @staticmethod   
     def _mutator(event, initial):
         return example_mutator(event, initial)
 
