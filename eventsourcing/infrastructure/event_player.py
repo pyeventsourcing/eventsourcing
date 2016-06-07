@@ -3,7 +3,7 @@ from functools import reduce
 from eventsourcing.domain.model.snapshot import take_snapshot
 from eventsourcing.domain.services.snapshot import get_snapshot
 from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.stored_events.transcoders import deserialize_domain_entity,make_stored_entity_id
+from eventsourcing.infrastructure.stored_events.transcoders import deserialize_domain_entity, make_stored_entity_id
 
 
 class EventPlayer(object):
@@ -41,7 +41,10 @@ class EventPlayer(object):
         return domain_entity
 
     def get_most_recent_event(self, entity_id, until=None):
-        return self.event_store.get_most_recent_event(self.make_stored_entity_id(entity_id), until=until)
+        stored_entity_id = self.make_stored_entity_id(entity_id)
+        return self.event_store.get_most_recent_event(
+            stored_entity_id=stored_entity_id,
+            until=until)
 
     def make_stored_entity_id(self, entity_id):
         return make_stored_entity_id(self.id_prefix, entity_id)
@@ -57,7 +60,7 @@ class EventPlayer(object):
         # If there is something to snapshot, then get the ultimate snapshot (until a particular time)?
         last_snapshot = self.get_snapshot(entity_id, until=until)
 
-        # If there's a snapshot, and it is conincident with the last event, then there's nothing to do.
+        # If there's a snapshot, and it is coincident with the last event, then there's nothing to do.
         if last_snapshot and last_snapshot.domain_event_id == most_recent_event.domain_event_id:
             return last_snapshot
 
