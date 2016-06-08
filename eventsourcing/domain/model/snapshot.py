@@ -1,5 +1,3 @@
-from uuid import uuid1
-
 from eventsourcing.domain.model.events import DomainEvent, publish
 from eventsourcing.domain.model.example import Example
 from eventsourcing.infrastructure.stored_events.transcoders import topic_from_domain_class, make_stored_entity_id, \
@@ -9,8 +7,11 @@ from eventsourcing.infrastructure.stored_events.transcoders import topic_from_do
 class Snapshot(DomainEvent):
 
     def __init__(self, entity_id, topic, attrs, domain_event_id):
-        super(Snapshot, self).__init__(entity_id=entity_id, entity_version=0, domain_event_id=domain_event_id,
-                                       topic=topic, attrs=attrs)
+        super(Snapshot, self).__init__(entity_id=entity_id,
+                                       topic=topic,
+                                       attrs=attrs,
+                                       domain_event_id=domain_event_id,
+                                       entity_version=0)
 
     @property
     def topic(self):
@@ -23,6 +24,10 @@ class Snapshot(DomainEvent):
         """Attributes of the instance.
         """
         return self.__dict__['attrs']
+
+    @property
+    def at_event_id(self):
+        return self.__dict__['domain_event_id']
 
 
 def take_snapshot(entity, at_event_id):

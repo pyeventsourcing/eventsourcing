@@ -16,7 +16,10 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
 
     @abstractmethod
     def create_stored_event_repo(self, **kwargs):
-        raise NotImplementedError()
+        """Returns an instance of a subclass of StoredEventRepository.
+
+        :rtype: StoredEventRepository
+        """
 
     def create_event_store(self):
         return EventStore(self.stored_event_repo)

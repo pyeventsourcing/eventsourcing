@@ -9,8 +9,7 @@ class Example(EventSourcedEntity):
     An example event sourced domain model entity.
     """
 
-    # __page_size__ = 1000
-    # __page_size__ = 50
+    __page_size__ = 1000  # Needed to have an event history longer than 10000 in Cassandra.
 
     class Created(EventSourcedEntity.Created):
         pass
@@ -47,7 +46,7 @@ class Example(EventSourcedEntity):
     def count_heartbeats(self):
         return self._count_heartbeats
 
-    @staticmethod
+    @staticmethod   
     def _mutator(event, initial):
         return example_mutator(event, initial)
 

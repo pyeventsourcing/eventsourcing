@@ -1,14 +1,16 @@
 from abc import abstractproperty
 
 from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity
-from eventsourcing.domain.model.snapshot import take_snapshot
-from eventsourcing.infrastructure.event_player import EventPlayer
+from eventsourcing.infrastructure.event_player import EventPlayer, entity_from_snapshot
+from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.stored_events.transcoders import id_prefix_from_entity_class
 
 
 class EventSourcedRepository(EntityRepository):
 
     def __init__(self, event_store, use_cache=False):
+        assert isinstance(event_store, EventStore)
+        self.event_store = event_store
         domain_class = self.domain_class
         assert issubclass(domain_class, EventSourcedEntity)
         self.event_player = EventPlayer(
@@ -49,7 +51,7 @@ class EventSourcedRepository(EntityRepository):
                 pass
 
         # Reconstitute the entity.
-        entity = self.event_player.replay_events(entity_id)
+        entity = self.get_entity(entity_id)
 
         # Never created or already discarded?
         if entity is None:
@@ -62,14 +64,20 @@ class EventSourcedRepository(EntityRepository):
         # Return entity.
         return entity
 
-    def reconstitute_entity(self, entity_id, until=None):
-        # Replay domain events.
-        return self.event_player.replay_events(entity_id, until=until)
+    def get_entity(self, entity_id, until=None):
+        """
+        Returns entity with given ID, optionally as it was at the given time.
+        """
+        # Get a snapshot (None if none exist).
+        snapshot = self.event_player.get_snapshot(entity_id, until)
 
-    def take_snapshot(self, entity_id, until=None):
-        """
-        Takes a snapshot of the entity as it existed the time of the most recent event.
-        :param entity_id:
-        :return:
-        """
-        self.event_player.take_snapshot(entity_id, until=until)
+        # Decide the initial state, and after when we need to get the events.
+        if snapshot is None:
+            after = None
+            initial_state = None
+        else:
+            after = snapshot.domain_event_id
+            initial_state = entity_from_snapshot(snapshot)
+
+        # Replay domain events.
+        return self.event_player.replay_events(entity_id, after=after, until=until, initial_state=initial_state)

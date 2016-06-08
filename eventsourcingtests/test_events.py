@@ -9,7 +9,8 @@ except ImportError:
     import mock
 
 
-from eventsourcing.domain.model.events import subscribe, publish, unsubscribe
+from eventsourcing.domain.model.events import subscribe, publish, unsubscribe, assert_event_handlers_empty, \
+    EventHandlersNotEmptyError
 from eventsourcing.domain.model.example import Example
 
 
@@ -39,8 +40,16 @@ class TestEvents(unittest.TestCase):
         predicate = mock.Mock()
         handler = mock.Mock()
 
+        # Check we can assert there are no event handlers subscribed.
+        assert_event_handlers_empty()
+
         # When predicate is True, handler should be called ONCE.
         subscribe(event_predicate=predicate, subscriber=handler)
+
+        # Check we can assert there are event handlers subscribed.
+        self.assertRaises(EventHandlersNotEmptyError, assert_event_handlers_empty)
+
+        # Check what happens when an event is published.
         publish(event)
         predicate.assert_called_once_with(event)
         handler.assert_called_once_with(event)
@@ -51,12 +60,21 @@ class TestEvents(unittest.TestCase):
         predicate.assert_called_once_with(event)
         handler.assert_called_once_with(event)
 
+        # Check we can assert there are no event handlers subscribed.
+        assert_event_handlers_empty()
+
         # When predicate is False, handler should NOT be called.
         predicate = lambda x: False
         handler = mock.Mock()
         subscribe(event_predicate=predicate, subscriber=handler)
         publish(event)
         self.assertEqual(0, handler.call_count)
+
+        # Unsubscribe.
+        unsubscribe(event_predicate=predicate, subscriber=handler)
+
+        # Check we can assert there are no event handlers subscribed.
+        assert_event_handlers_empty()
 
     def test_hash(self):
         event1 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)

@@ -9,10 +9,21 @@ except ImportError:
 
 from abc import ABCMeta, abstractmethod
 from inspect import isfunction
-
 from six import with_metaclass
 
 from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta
+
+
+class EntityIDConsistencyError(ConsistencyError):
+    pass
+
+
+class EntityVersionConsistencyError(ConsistencyError):
+    pass
+
+
+class MutatorRequiresTypeError(ConsistencyError):
+    pass
 
 
 class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
@@ -57,12 +68,12 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     def _validate_originator(self, event):
         # Check event originator's entity ID matches our own ID.
         if self._id != event.entity_id:
-            raise ConsistencyError("Entity ID '{}' not equal to event's entity ID '{}'"
-                                       "".format(self.id, event.entity_id))
+            raise EntityIDConsistencyError("Entity ID '{}' not equal to event's entity ID '{}'"
+                                           "".format(self.id, event.entity_id))
 
         # Check event originator's version number matches our own version number.
         if self._version != event.entity_version:
-            raise ConsistencyError("Entity version '{}' not equal to event's entity version '{}'"
+            raise EntityVersionConsistencyError("Entity version '{}' not equal to event's entity version '{}'"
                                        "".format(self._version, event.entity_version))
 
     def __eq__(self, other):
@@ -102,8 +113,9 @@ def entity_mutator(event, _):
 def created_mutator(event, cls):
     assert isinstance(event, DomainEvent)
     if not isinstance(cls, type):
-        raise ConsistencyError("Unable to mutate entity instance {} with event type {}"
-                               "".format(event.entity_id, type(event)))
+        raise MutatorRequiresTypeError("created_mutator needs a type instance: {} "
+                                       "(event entity id: {}, event type: {})"
+                                       "".format(type(cls), event.entity_id, type(event)))
     assert issubclass(cls, EventSourcedEntity), cls
     self = cls(**event.__dict__)
     self._increment_version()

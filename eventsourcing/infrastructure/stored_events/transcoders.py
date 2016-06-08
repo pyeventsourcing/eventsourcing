@@ -3,7 +3,6 @@ import importlib
 import json
 import uuid
 from collections import namedtuple
-from uuid import UUID
 
 import dateutil.parser
 from six import BytesIO
@@ -46,7 +45,7 @@ def deserialize_domain_event(stored_event, json_decoder_cls=None, without_json=F
     """
     Recreates original domain event from stored event topic and event attrs.
     """
-    # assert isinstance(stored_event, StoredEvent)
+    assert isinstance(stored_event, StoredEvent)
     if json_decoder_cls is None:
         json_decoder_cls = ObjectJSONDecoder
     if without_json:
@@ -55,8 +54,6 @@ def deserialize_domain_event(stored_event, json_decoder_cls=None, without_json=F
         event_class = resolve_domain_topic(stored_event.event_topic)
         event_data = json.loads(stored_event.event_attrs, cls=json_decoder_cls)
         try:
-            # domain_event = event_class(**event_data)
-            # Todo: Remove line above, and this comment, line above is replaced by lines below in this version.
             domain_event = object.__new__(event_class)
             domain_event.__dict__.update(event_data)
         except TypeError:
@@ -147,9 +144,20 @@ StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_
 
 
 def deserialize_domain_entity(entity_topic, entity_attrs):
+    """
+    Return a new domain entity object from a given topic (a string) and attributes (a dict).
+    """
+
+    # Get the domain entity class from the entity topic.
     domain_class = resolve_domain_topic(entity_topic)
+
+    # Instantiate the domain entity class.
     entity = object.__new__(domain_class)
-    entity.__dict__.update(**entity_attrs)
+
+    # Set the attributes.
+    entity.__dict__.update(entity_attrs)
+
+    # Return a new domain entity object.
     return entity
 
 

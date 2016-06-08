@@ -1,15 +1,21 @@
 from setuptools import setup, find_packages
 
+try:
+    from functools import singledispatch
+    install_requires_single_dispatch = []
+except ImportError:
+    install_requires_single_dispatch = ['singledispatch']
+
+
 setup(
     name='eventsourcing',
-    version='1.0.1',
+    version='1.0.2',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
     url = 'https://github.com/johnbywater/eventsourcing',
     packages=find_packages(),
-    install_requires=[
-        'singledispatch',
+    install_requires= install_requires_single_dispatch + [
         'six',
         'python-dateutil',
     ],

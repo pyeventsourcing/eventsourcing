@@ -228,7 +228,7 @@ class ThreadedStoredEventIterator(StoredEventIterator):
             stored_entity_id=self.stored_entity_id,
             after=self.after,
             until=self.until,
-            limit=self.limit,
+            page_size=self.page_size,
             query_asc=True
         )
         thread.start()
@@ -237,13 +237,13 @@ class ThreadedStoredEventIterator(StoredEventIterator):
 
 class GetEntityEventsThread(Thread):
 
-    def __init__(self, repo, stored_entity_id, after=None, until=None, limit=None, query_asc=False, *args, **kwargs):
+    def __init__(self, repo, stored_entity_id, after=None, until=None, page_size=None, query_asc=False, *args, **kwargs):
         super(GetEntityEventsThread, self).__init__(*args, **kwargs)
         self.repo = repo
         self.stored_entity_id = stored_entity_id
         self.after = after
         self.until = until
-        self.limit = limit
+        self.page_size = page_size
         self.query_asc = query_asc
         self.stored_events = None
 
@@ -252,6 +252,6 @@ class GetEntityEventsThread(Thread):
             stored_entity_id=self.stored_entity_id,
             after=self.after,
             until=self.until,
-            limit=self.limit,
+            limit=self.page_size,
             query_asc=self.query_asc
         ))
