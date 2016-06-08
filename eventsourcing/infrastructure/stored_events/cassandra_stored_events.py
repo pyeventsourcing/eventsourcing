@@ -99,10 +99,10 @@ def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspa
     )
 
 
-def create_cassandra_keyspace_and_tables(default_keyspace):
+def create_cassandra_keyspace_and_tables(default_keyspace, replication_factor=1):
     os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
     try:
-        create_keyspace_simple(default_keyspace, replication_factor=1)
+        create_keyspace_simple(default_keyspace, replication_factor=replication_factor)
     except AlreadyExists:
         pass
     else:

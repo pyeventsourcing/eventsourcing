@@ -107,9 +107,14 @@ def publish(event):
         handler(event)
 
 
+class EventHandlersNotEmptyError(Exception):
+    pass
+
+
 def assert_event_handlers_empty():
     if len(_event_handlers):
-        raise Exception("Event handlers are still subscribed: %s" % _event_handlers)
+        msg = "Event handlers are still subscribed: %s" % _event_handlers
+        raise EventHandlersNotEmptyError(msg)
 
 
 def topic_from_domain_class(domain_class):

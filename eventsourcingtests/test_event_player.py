@@ -3,7 +3,7 @@ from uuid import uuid1
 
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.domain.model.example import Example, register_new_example
-from eventsourcing.domain.model.snapshot import take_snapshot
+from eventsourcing.domain.model.snapshot import take_snapshot, Snapshot
 from eventsourcing.infrastructure.event_player import EventPlayer, entity_from_snapshot
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
@@ -115,3 +115,34 @@ class TestEventPlayer(unittest.TestCase):
         retrieved_example = event_player.replay_events(registered_example.id, initial_state=initial_state, after=after, until=timecheck2)
         self.assertEqual(retrieved_example.a, 999)
 
+    def test_take_snapshot(self):
+        # Check the EventPlayer's take_snapshot() method.
+        stored_event_repo = PythonObjectsStoredEventRepository()
+        event_store = EventStore(stored_event_repo)
+        self.ps = PersistenceSubscriber(event_store)
+        event_player = EventPlayer(event_store=event_store, id_prefix='Example', mutate_func=Example.mutate)
+
+        # Check the method returns None when there are no events.
+        snapshot = event_player.take_snapshot('wrong')
+        self.assertIsNone(snapshot)
+
+        # Create a new entity.
+        example = register_new_example(a=123, b=234)
+
+        # Take a snapshot with the entity.
+        snapshot1 = event_player.take_snapshot(example.id)
+        self.assertIsInstance(snapshot1, Snapshot)
+
+        # Take another snapshot with the entity.
+        snapshot2 = event_player.take_snapshot(example.id)
+        # - should return the previous snapshot
+        self.assertIsInstance(snapshot2, Snapshot)
+        self.assertEqual(snapshot2.at_event_id, snapshot1.at_event_id)
+
+        # Generate a domain event.
+        example.beat_heart()
+
+        # Take another snapshot with the entity.
+        # - should use the previous snapshot and the heartbeat event
+        snapshot3 = event_player.take_snapshot(example.id)
+        self.assertNotEqual(snapshot3.at_event_id, snapshot1.at_event_id)

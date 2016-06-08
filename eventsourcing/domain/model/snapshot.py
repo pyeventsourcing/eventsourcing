@@ -1,5 +1,3 @@
-from uuid import uuid1
-
 from eventsourcing.domain.model.events import DomainEvent, publish
 from eventsourcing.domain.model.example import Example
 from eventsourcing.infrastructure.stored_events.transcoders import topic_from_domain_class, make_stored_entity_id, \

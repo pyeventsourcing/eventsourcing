@@ -31,6 +31,7 @@ class PerformanceTestCase(TestCase):
 
         repetitions = 10
 
+        # NB: Use range(1, 5) to test whether we can get more than 10000 event from Cassandra.
         for i in six.moves.range(1, 5):
             # Setup a number of entities, with different lengths of event history.
             payload = 3
