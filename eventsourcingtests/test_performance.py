@@ -26,7 +26,8 @@ class PerformanceTestCase(TestCase):
         # Initialise dict of entities.
         self.entities = {}
 
-        print("{} report:\n".format(type(self).__name__))
+        report_name = type(self).__name__[4:]
+        print("\n{} report:\n".format(report_name))
 
         repetitions = 10
 
