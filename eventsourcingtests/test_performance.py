@@ -77,7 +77,7 @@ class PerformanceTestCase(TestCase):
                   "".format(num_beats, time_replaying, num_beats / time_replaying, time_replaying / num_beats))
 
             # Take snapshot, and beat heart a few more times.
-            self.app.example_repo.take_snapshot(example.id, until=uuid1().hex)
+            self.app.example_repo.event_player.take_snapshot(example.id, until=uuid1().hex)
 
             extra_beats = 4
             for _ in six.moves.range(extra_beats):
@@ -86,9 +86,9 @@ class PerformanceTestCase(TestCase):
 
             # Get the entity using snapshot and replaying events since the snapshot.
             start_replay = utc_now()
-            for _ in six.moves.range(repetitions * 10):
+            for _ in six.moves.range(repetitions):
                 _ = self.app.example_repo[example.id]
-            time_replaying = (utc_now() - start_replay) / (repetitions * 10)
+            time_replaying = (utc_now() - start_replay) / repetitions
 
             events_per_second = (extra_beats + 1) / time_replaying  # +1 for the snapshot event
             beats_per_second = num_beats / time_replaying
