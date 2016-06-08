@@ -68,28 +68,16 @@ class EventSourcedRepository(EntityRepository):
         """
         Returns entity with given ID, optionally as it was at the given time.
         """
-        # Try to get initial state from a snapshot.
-        snapshot = self.get_snapshot(entity_id, until)
-        initial_state = None if snapshot is None else entity_from_snapshot(snapshot)
+        # Get a snapshot (None if none exist).
+        snapshot = self.event_player.get_snapshot(entity_id, until)
 
-        # Decide after when we need to get the events.
-        after = snapshot.domain_event_id if snapshot else None
+        # Decide the initial state, and after when we need to get the events.
+        if snapshot is None:
+            after = None
+            initial_state = None
+        else:
+            after = snapshot.domain_event_id
+            initial_state = entity_from_snapshot(snapshot)
 
         # Replay domain events.
         return self.event_player.replay_events(entity_id, after=after, until=until, initial_state=initial_state)
-
-    def take_snapshot(self, entity_id, until=None):
-        """
-        Takes a snapshot of the entity as it existed after the most recent event, optionally until a given time.
-
-        Delegates to the event player.
-        """
-        return self.event_player.take_snapshot(entity_id, until=until)
-
-    def get_snapshot(self, entity_id, until=None):
-        """
-        Returns a snapshot of the entity, optionally as it existed until a given time.
-
-        Delegates to the event player.
-        """
-        return self.event_player.get_snapshot(entity_id, until=until)
