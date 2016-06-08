@@ -3,7 +3,6 @@ import importlib
 import json
 import uuid
 from collections import namedtuple
-from uuid import UUID
 
 import dateutil.parser
 from six import BytesIO
@@ -147,9 +146,20 @@ StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_
 
 
 def deserialize_domain_entity(entity_topic, entity_attrs):
+    """
+    Return a new domain entity object from a given topic (a string) and attributes (a dict).
+    """
+
+    # Get the domain entity class from the entity topic.
     domain_class = resolve_domain_topic(entity_topic)
+
+    # Instantiate the domain entity class.
     entity = object.__new__(domain_class)
-    entity.__dict__.update(**entity_attrs)
+
+    # Set the attributes.
+    entity.__dict__.update(entity_attrs)
+
+    # Return a new domain entity object.
     return entity
 
 

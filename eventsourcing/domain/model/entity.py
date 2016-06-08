@@ -102,7 +102,7 @@ def entity_mutator(event, _):
 def created_mutator(event, cls):
     assert isinstance(event, DomainEvent)
     if not isinstance(cls, type):
-        raise ConsistencyError("Unable to mutate entity instance {} with event type {}"
+        raise ConsistencyError("Can't mutate entity instance (id: {}) with a created event (event type: {})"
                                "".format(event.entity_id, type(event)))
     assert issubclass(cls, EventSourcedEntity), cls
     self = cls(**event.__dict__)

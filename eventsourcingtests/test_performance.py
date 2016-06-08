@@ -1,9 +1,9 @@
-from math import floor
 from unittest.case import TestCase
 from uuid import uuid1
 
 import six
 from cassandra.cqlengine.management import drop_keyspace
+from math import floor
 
 from eventsourcing.application.example.with_cassandra import ExampleApplicationWithCassandra
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
@@ -28,10 +28,9 @@ class PerformanceTestCase(TestCase):
 
         print("{} report:\n".format(type(self).__name__))
 
-        # repetitions = 10
-        repetitions = 1
+        repetitions = 10
 
-        for i in six.moves.range(0, 4):
+        for i in six.moves.range(1, 5):
             # Setup a number of entities, with different lengths of event history.
             payload = 3
             # payload = str([uuid4().hex for _ in six.moves.range(100000)])
@@ -54,20 +53,18 @@ class PerformanceTestCase(TestCase):
                 repo = self.app.example_repo.event_player.event_store.stored_event_repo
 
                 start_last_n = utc_now()
+                last_n_stored_events = []
                 for _ in six.moves.range(repetitions):
                     last_n_stored_events = repo.get_most_recent_events(stored_entity_id, limit=n)
                 time_last_n = (utc_now() - start_last_n) / repetitions
 
                 num_retrieved_events = len(list(last_n_stored_events))
                 events_per_second = num_retrieved_events / time_last_n
-                print("Time to get last {} events after {} events: {:.6f}s ({:.0f} events/s)"
-                      "".format(n, num_beats + 1, time_last_n, events_per_second))
+                print(("Time to get last {:>"+str(i+1)+"} events after {} events: {:.6f}s ({:.0f} events/s)"
+                      "").format(n, num_beats + 1, time_last_n, events_per_second))
 
-            last_n(1)
-            last_n(10)
-            last_n(100)
-            last_n(1000)
-            last_n(10000)
+            for j in range(0, i+1):
+                last_n(10**j)
 
             # Get the entity by replaying all events (which it must since there isn't a snapshot).
             start_replay = utc_now()
@@ -87,9 +84,9 @@ class PerformanceTestCase(TestCase):
 
             # Get the entity using snapshot and replaying events since the snapshot.
             start_replay = utc_now()
-            for _ in six.moves.range(repetitions):
+            for _ in six.moves.range(repetitions * 10):
                 _ = self.app.example_repo[example.id]
-            time_replaying = (utc_now() - start_replay) / repetitions
+            time_replaying = (utc_now() - start_replay) / (repetitions * 10)
 
             events_per_second = (extra_beats + 1) / time_replaying  # +1 for the snapshot event
             beats_per_second = num_beats / time_replaying

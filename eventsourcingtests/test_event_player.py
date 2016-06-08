@@ -4,7 +4,7 @@ from uuid import uuid1
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.domain.model.example import Example, register_new_example
 from eventsourcing.domain.model.snapshot import take_snapshot
-from eventsourcing.infrastructure.event_player import EventPlayer
+from eventsourcing.infrastructure.event_player import EventPlayer, entity_from_snapshot
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
 from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
@@ -57,27 +57,61 @@ class TestEventPlayer(unittest.TestCase):
         registered_example = register_new_example(a=123, b=234)
 
         # Take a snapshot.
-        take_snapshot(registered_example, uuid1().hex)
+        snapshot = take_snapshot(registered_example, uuid1().hex)
 
-        # Check the event sourced entities are correct.
-        #  - should use a snapshot with no additional events
-        retrieved_example = event_player.replay_events(registered_example.id)
-        self.assertEqual(retrieved_example.a, registered_example.a)
+        # Replay from this snapshot.
+        initial_state = entity_from_snapshot(snapshot)
+        after = snapshot.domain_event_id
+        retrieved_example = event_player.replay_events(registered_example.id, initial_state=initial_state, after=after)
+        # Check the attributes are correct.
+        self.assertEqual(retrieved_example.a, 123)
+
+        # Remember the time now.
+        timecheck1 = uuid1().hex
 
         # Change attribute value.
         retrieved_example.a = 999
+
+        # Check the initial state doesn't move.
+        self.assertEqual(initial_state.a, 123)
+
+        # Remember the time now.
+        timecheck2 = uuid1().hex
+
+        # Change attribute value.
         retrieved_example.a = 9999
 
+        # Remember the time now.
+        timecheck3 = uuid1().hex
+
         # Check the event sourced entities are correct.
-        #  - should use a snapshot with two additional events
+        assert initial_state.a == 123
         retrieved_example = event_player.replay_events(registered_example.id)
         self.assertEqual(retrieved_example.a, 9999)
 
-        # Take a snapshot.
-        take_snapshot(retrieved_example, uuid1().hex)
+        # Take another snapshot.
+        snapshot2 = take_snapshot(retrieved_example, uuid1().hex)
 
-        # Check the event sourced entities are correct.
-        #  - should use a snapshot with no additional events
-        retrieved_example = event_player.replay_events(registered_example.id)
+        # Check we can replay from this snapshot.
+        initial_state2 = entity_from_snapshot(snapshot2)
+        after2 = snapshot2.domain_event_id
+        retrieved_example = event_player.replay_events(registered_example.id, initial_state=initial_state2, after=after2)
+        # Check the attributes are correct.
         self.assertEqual(retrieved_example.a, 9999)
+
+        # Check we can get historical state at timecheck1.
+        retrieved_example = event_player.replay_events(registered_example.id, until=timecheck1)
+        self.assertEqual(retrieved_example.a, 123)
+
+        # Check we can get historical state at timecheck2.
+        retrieved_example = event_player.replay_events(registered_example.id, until=timecheck2)
+        self.assertEqual(retrieved_example.a, 999)
+
+        # Check we can get historical state at timecheck3.
+        retrieved_example = event_player.replay_events(registered_example.id, until=timecheck3)
+        self.assertEqual(retrieved_example.a, 9999)
+
+        # Similarly, check we can get historical state using a snapshot
+        retrieved_example = event_player.replay_events(registered_example.id, initial_state=initial_state, after=after, until=timecheck2)
+        self.assertEqual(retrieved_example.a, 999)
 
