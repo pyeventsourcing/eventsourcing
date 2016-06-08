@@ -211,8 +211,9 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         self.assertEqual(stored_events[18].event_attrs, retrieved_events[0].event_attrs)
 
         # Check the stored event iterator can get all the events.
-        # Todo: Move this to a separate test?
-        start_time = datetime.datetime.now()
+        # Todo: Move this test of the SimpleStoredEventIterator to a separate test case?
+        # Todo: Write a test case for ThreadedStoredEventIterator.
+        # start_time = datetime.datetime.now()
         page_size = 50
         iterator = SimpleStoredEventIterator(stored_event_repo, stored_entity_id, page_size=page_size)
         retrieved_events = list(iterator)
@@ -225,11 +226,11 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
         self.assertEqual(stored_events[-1].event_attrs, retrieved_events[-1].event_attrs)
 
-        duration = (datetime.datetime.now() - start_time).total_seconds()
+        # duration = (datetime.datetime.now() - start_time).total_seconds()
 
         # print("Total duration: {}".format(duration))
-        average_item_duration = duration / len(retrieved_events)
+        # average_item_duration = duration / len(retrieved_events)
 
         # print("Average item duration: {}".format(average_item_duration))
         # print("Average item rate: {}".format(1.0 / average_item_duration))
-        self.assertLess(average_item_duration, 0.0005)
+        # self.assertLess(average_item_duration, 0.0005)
