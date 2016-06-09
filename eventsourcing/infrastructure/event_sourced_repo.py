@@ -29,7 +29,7 @@ class EventSourcedRepository(EntityRepository):
 
     def __contains__(self, entity_id):
         """
-        Returns a boolean value according to whether entity ID exists.
+        Returns a boolean value according to whether entity with given ID exists.
         """
         return self.get_entity(entity_id) is not None
 
