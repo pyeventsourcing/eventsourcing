@@ -60,9 +60,10 @@ class TestEventPlayer(unittest.TestCase):
         snapshot = take_snapshot(registered_example, uuid1().hex)
 
         # Replay from this snapshot.
+        after = snapshot.at_event_id
         initial_state = entity_from_snapshot(snapshot)
-        after = snapshot.domain_event_id
         retrieved_example = event_player.replay_events(registered_example.id, initial_state=initial_state, after=after)
+
         # Check the attributes are correct.
         self.assertEqual(retrieved_example.a, 123)
 

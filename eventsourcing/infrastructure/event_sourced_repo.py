@@ -9,10 +9,15 @@ from eventsourcing.infrastructure.stored_events.transcoders import id_prefix_fro
 class EventSourcedRepository(EntityRepository):
 
     def __init__(self, event_store, use_cache=False):
+        # Check we got an event store.
         assert isinstance(event_store, EventStore)
         self.event_store = event_store
+
+        # Check we got an event sourced entity class.
         domain_class = self.domain_class
         assert issubclass(domain_class, EventSourcedEntity)
+
+        # Instantiate an event player for the domain class.
         self.event_player = EventPlayer(
             event_store=event_store,
             id_prefix=id_prefix_from_entity_class(domain_class),
@@ -22,22 +27,11 @@ class EventSourcedRepository(EntityRepository):
         self._cache = {}
         self._use_cache = use_cache
 
-    @abstractproperty
-    def domain_class(self):
-        """
-        Returns the type of entity held by this repository.
-        """
-
     def __contains__(self, entity_id):
         """
-        Returns a boolean value according to whether or the entity with given ID exists.
+        Returns a boolean value according to whether entity ID exists.
         """
-        try:
-            self.__getitem__(entity_id)
-        except KeyError:
-            return False
-        else:
-            return True
+        return self.get_entity(entity_id) is not None
 
     def __getitem__(self, entity_id):
         """
@@ -64,6 +58,12 @@ class EventSourcedRepository(EntityRepository):
         # Return entity.
         return entity
 
+    @abstractproperty
+    def domain_class(self):
+        """
+        Returns the type of entity held by this repository.
+        """
+
     def get_entity(self, entity_id, until=None):
         """
         Returns entity with given ID, optionally as it was at the given time.
@@ -76,7 +76,7 @@ class EventSourcedRepository(EntityRepository):
             after = None
             initial_state = None
         else:
-            after = snapshot.domain_event_id
+            after = snapshot.at_event_id
             initial_state = entity_from_snapshot(snapshot)
 
         # Replay domain events.
