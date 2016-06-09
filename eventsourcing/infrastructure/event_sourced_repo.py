@@ -68,6 +68,7 @@ class EventSourcedRepository(EntityRepository):
         """
         Returns entity with given ID, optionally as it was at the given time.
         """
+
         # Get a snapshot (None if none exist).
         snapshot = self.event_player.get_snapshot(entity_id, until)
 
