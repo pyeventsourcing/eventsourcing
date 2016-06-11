@@ -127,7 +127,6 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
 
         # Get with limit (depends on query order).
         retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, is_ascending=True, limit=1)
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, is_ascending=True, limit=1)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
         # - check the first retrieved event is the first event that was stored
         self.assertIsInstance(retrieved_events[0], StoredEvent)
