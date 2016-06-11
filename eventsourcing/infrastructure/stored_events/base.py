@@ -41,7 +41,7 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         return self.iterator_class(
             repo=self,
             stored_entity_id=stored_entity_id,
-            # page_size=min(page_size or limit, limit or page_size),
+            page_size=min(page_size or limit, limit or page_size),
             after=after,
             until=until,
             limit=limit,
