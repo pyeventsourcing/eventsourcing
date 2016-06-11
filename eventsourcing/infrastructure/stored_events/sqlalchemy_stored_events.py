@@ -98,10 +98,10 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
     #     else:
     #         raise KeyError
     #
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_asc=False):
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True):
         query = self.db_session.query(SqlStoredEvent)
         query = query.filter_by(stored_entity_id=stored_entity_id)
-        if query_asc:
+        if is_ascending:
             query = query.order_by(asc(SqlStoredEvent.id))
         else:
             query = query.order_by(desc(SqlStoredEvent.id))
@@ -112,7 +112,7 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         if limit is not None:
             query = query.limit(limit)
         events = self.map(from_sql, query)
-        if not query_asc:
+        if not is_ascending:
             events = reversed(list(events))
         return events
 

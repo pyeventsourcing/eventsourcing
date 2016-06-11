@@ -3,7 +3,8 @@ from threading import Thread
 
 import six
 
-from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event
+from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
+    StoredEvent
 
 
 class StoredEventRepository(six.with_metaclass(ABCMeta)):
@@ -22,7 +23,7 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_asc=False):
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True):
         """Returns all events for given entity ID in chronological order. Limit is max 10000.
         :param until:
         :param after:
@@ -30,8 +31,8 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         :rtype: list
         """
 
-    def iterate_entity_events(self, stored_entity_id, after=None, until=None, limit=None, page_size=None):
-        """Returns all events for given entity ID in chronological by paging through the stored events.
+    def iterate_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True, page_size=None):
+        """Returns all events for given entity ID by paging through the stored events.
         :param until:
         :param after:
         :param stored_entity_id:
@@ -40,10 +41,11 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         return self.iterator_class(
             repo=self,
             stored_entity_id=stored_entity_id,
+            # page_size=min(page_size or limit, limit or page_size),
             after=after,
             until=until,
             limit=limit,
-            page_size=page_size,
+            is_ascending=is_ascending,
         )
 
     @property
@@ -66,7 +68,7 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
             raise Exception("Shouldn't have more than one object: {}".format(events))
 
     def get_most_recent_events(self, stored_entity_id, until=None, limit=None):
-        return self.get_entity_events(stored_entity_id, until=until, limit=limit)
+        return self.get_entity_events(stored_entity_id, until=until, limit=limit, is_ascending=False)
 
     def serialize(self, domain_event):
         """Returns a stored event from a domain event.
@@ -77,7 +79,7 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
             domain_event,
             json_encoder_cls=self.json_encoder_cls,
             without_json=self.serialize_without_json,
-            with_uuid1=self.serialize_with_uuid1
+            with_uuid1=self.serialize_with_uuid1,
         )
 
     def deserialize(self, stored_event):
@@ -87,7 +89,8 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         return deserialize_domain_event(
             stored_event,
             json_decoder_cls=self.json_decoder_cls,
-            without_json=self.serialize_without_json
+            without_json=self.serialize_without_json,
+            with_uuid1=self.serialize_with_uuid1,
         )
 
     @staticmethod
@@ -99,8 +102,8 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
 
     DEFAULT_PAGE_SIZE = 1000
 
-    def __init__(self, repo, stored_entity_id, page_size=None, after=None, until=None, limit=None):
-        assert isinstance(repo, StoredEventRepository)
+    def __init__(self, repo, stored_entity_id, page_size=None, after=None, until=None, limit=None, is_ascending=True):
+        assert isinstance(repo, StoredEventRepository), type(repo)
         assert isinstance(stored_entity_id, six.string_types)
         assert isinstance(page_size, (six.integer_types, type(None)))
         assert isinstance(limit, (six.integer_types, type(None)))
@@ -112,8 +115,9 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
         self.limit = limit
         self.page_counter = 0
         self.all_event_counter = 0
+        self.is_ascending = is_ascending
 
-    def inc_page_counter(self):
+    def _inc_page_counter(self):
         """
         Increments the page counter.
 
@@ -124,8 +128,16 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
         """
         self.page_counter += 1
 
-    def inc_all_event_counter(self):
+    def _inc_all_event_counter(self):
         self.all_event_counter += 1
+
+    def _update_position(self, stored_event):
+        assert isinstance(stored_event, StoredEvent), type(stored_event)
+        self.after = stored_event.event_id
+        # if self.is_ascending:
+        #     self.after = stored_event.event_id
+        # else:
+        #     self.until = stored_event.event_id
 
     @abstractmethod
     def __iter__(self):
@@ -142,13 +154,15 @@ class SimpleStoredEventIterator(StoredEventIterator):
                                                         after=self.after,
                                                         until=self.until,
                                                         limit=self.page_size,
-                                                        query_asc=True
+                                                        is_ascending=self.is_ascending
                                                         )
             # Count the page.
-            self.inc_page_counter()
+            self._inc_page_counter()
 
             # Start counting events in this page.
             in_page_event_counter = 0
+
+            position = None
 
             # Yield each stored event, so long as we aren't over the limit.
             for stored_event in stored_events:
@@ -158,14 +172,20 @@ class SimpleStoredEventIterator(StoredEventIterator):
                     raise StopIteration
 
                 # Count each event.
-                self.inc_all_event_counter()
+                self._inc_all_event_counter()
                 in_page_event_counter += 1
 
                 # Yield the event.
                 yield stored_event
 
-                # Update loop variables.
-                self.after = stored_event.event_id
+                # Update position variables.
+                # if self.is_ascending:
+                # else:
+                # if position is None and not self.is_ascending:
+                position = stored_event
+
+            if position != None:
+                self._update_position(position)
 
             # Decide if this is the last page.
             is_last_page = in_page_event_counter != self.page_size
@@ -187,7 +207,7 @@ class ThreadedStoredEventIterator(StoredEventIterator):
             thread.join()
 
             # Count the page.
-            self.inc_page_counter()
+            self._inc_page_counter()
 
             # Get the stored events from the thread.
             stored_events = thread.stored_events
@@ -200,7 +220,12 @@ class ThreadedStoredEventIterator(StoredEventIterator):
 
             if not is_last_page:
                 # Update loop variables.
-                self.after = stored_events[-1].event_id
+                if self.is_ascending:
+                    position = stored_events[-1]
+                else:
+                    position = stored_events[-1]
+                # position = stored_events[-1]
+                self._update_position(position)
 
                 # Start the next thread.
                 thread = self.start_thread()
@@ -213,7 +238,7 @@ class ThreadedStoredEventIterator(StoredEventIterator):
                     raise StopIteration
 
                 # Count each event.
-                self.inc_all_event_counter()
+                self._inc_all_event_counter()
 
                 # Yield the event.
                 yield stored_event
@@ -229,7 +254,7 @@ class ThreadedStoredEventIterator(StoredEventIterator):
             after=self.after,
             until=self.until,
             page_size=self.page_size,
-            query_asc=True
+            is_ascending=self.is_ascending
         )
         thread.start()
         return thread
@@ -237,15 +262,15 @@ class ThreadedStoredEventIterator(StoredEventIterator):
 
 class GetEntityEventsThread(Thread):
 
-    def __init__(self, repo, stored_entity_id, after=None, until=None, page_size=None, query_asc=False, *args, **kwargs):
+    def __init__(self, repo, stored_entity_id, after=None, until=None, page_size=None, is_ascending=True, *args, **kwargs):
         super(GetEntityEventsThread, self).__init__(*args, **kwargs)
         self.repo = repo
         self.stored_entity_id = stored_entity_id
         self.after = after
         self.until = until
         self.page_size = page_size
-        self.query_asc = query_asc
         self.stored_events = None
+        self.is_ascending = is_ascending
 
     def run(self):
         self.stored_events = list(self.repo.get_entity_events(
@@ -253,5 +278,5 @@ class GetEntityEventsThread(Thread):
             after=self.after,
             until=self.until,
             limit=self.page_size,
-            query_asc=self.query_asc
+            is_ascending=self.is_ascending
         ))

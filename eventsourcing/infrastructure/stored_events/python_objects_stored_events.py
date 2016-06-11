@@ -45,7 +45,7 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
                 if stored_event.event_topic in self._by_topic:
                     self._by_topic[stored_event.event_topic].remove(stored_event)
 
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_asc=False):
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True):
         if stored_entity_id not in self._by_stored_entity_id:
             return []
         else:
@@ -74,10 +74,10 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
                 events.append(event)
 
             if limit is not None:
-                if not query_asc:
+                if not is_ascending:
                     events.reverse()
                 events = events[:min(limit, len(events))]
-                if not query_asc:
+                if not is_ascending:
                     events.reverse()
 
             return events

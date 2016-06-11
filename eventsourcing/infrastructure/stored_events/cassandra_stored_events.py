@@ -13,10 +13,17 @@ from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
 class CqlStoredEvent(Model):
     __table_name__ = 'stored_events'
-    n = columns.Text(partition_key=True)  # 'n' is for the stored entity ID
-    v = columns.TimeUUID(clustering_order='DESC', primary_key=True)  # 'v' is for event ID
-    t = columns.Text(required=True)  # 't' is for event topic
-    a = columns.Text(required=True)  # 'a' is for event attributes
+    # 'n' - stored entity ID (normally a string, with the entity type name at the start)
+    n = columns.Text(partition_key=True)
+
+    # 'v' - event ID (normally a UUID1)
+    v = columns.TimeUUID(clustering_order='DESC', primary_key=True)
+
+    # 't' - event topic (path to the event object class)
+    t = columns.Text(required=True)
+
+    # 'a' - event attributes (the entity object __dict__)
+    a = columns.Text(required=True)
 
 
 def to_cql(stored_event):
@@ -51,9 +58,9 @@ class CassandraStoredEventRepository(StoredEventRepository):
         cql_stored_event = to_cql(stored_event)
         cql_stored_event.save()
 
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_asc=False):
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True):
         query = CqlStoredEvent.objects.filter(n=stored_entity_id)
-        if query_asc:
+        if is_ascending:
             query = query.order_by('v')
         if until is not None:
             query = query.filter(v__lte=until)
@@ -62,7 +69,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
         if limit is not None:
             query = query.limit(limit)
         events = self.map(from_cql, query)
-        if not query_asc:
+        if not is_ascending:
             events = reversed(list(events))
         return events
 

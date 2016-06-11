@@ -53,10 +53,13 @@ class EventSourcedRepository(EntityRepository):
 
         # Put entity in the cache.
         if self._use_cache:
-             self._cache[entity_id] = entity
+            self.add_cache(entity_id, entity)
 
         # Return entity.
         return entity
+
+    def add_cache(self, entity_id, entity):
+        self._cache[entity_id] = entity
 
     @abstractproperty
     def domain_class(self):

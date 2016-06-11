@@ -5,7 +5,6 @@ from eventsourcing.domain.model.entity import mutableproperty, EntityIDConsisten
     EventSourcedEntity, created_mutator, MutatorRequiresTypeError
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.domain.model.example import register_new_example, Example
-from eventsourcing.domain.model.exceptions import ConsistencyError
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber

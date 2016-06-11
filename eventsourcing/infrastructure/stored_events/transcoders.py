@@ -23,16 +23,16 @@ def serialize_domain_event(domain_event, json_encoder_cls=None, without_json=Fal
     if json_encoder_cls is None:
         json_encoder_cls = ObjectJSONEncoder
     # assert isinstance(domain_event, DomainEvent)
+    event_attrs = domain_event.__dict__.copy()
     if with_uuid1:
-        event_id = domain_event.domain_event_id
+        event_id = event_attrs.pop('domain_event_id')
     else:
         event_id = uuid.uuid4().hex
     stored_entity_id = make_stored_entity_id(id_prefix_from_event(domain_event), domain_event.entity_id)
-    event_topic = topic_from_domain_class(domain_event.__class__)
-    if without_json:
-        event_attrs = domain_event
-    else:
-        event_attrs = json.dumps(domain_event.__dict__, separators=(',', ':'), sort_keys=True, cls=json_encoder_cls)
+    event_class = type(domain_event)
+    event_topic = topic_from_domain_class(event_class)
+    if not without_json:
+        event_attrs = json.dumps(event_attrs, separators=(',', ':'), sort_keys=True, cls=json_encoder_cls)
     return StoredEvent(
         event_id=event_id,
         stored_entity_id=stored_entity_id,
@@ -41,23 +41,28 @@ def serialize_domain_event(domain_event, json_encoder_cls=None, without_json=Fal
     )
 
 
-def deserialize_domain_event(stored_event, json_decoder_cls=None, without_json=False):
+def deserialize_domain_event(stored_event, json_decoder_cls=None, without_json=False, with_uuid1=False):
     """
     Recreates original domain event from stored event topic and event attrs.
     """
     assert isinstance(stored_event, StoredEvent)
-    if json_decoder_cls is None:
-        json_decoder_cls = ObjectJSONDecoder
+
+    event_class = resolve_domain_topic(stored_event.event_topic)
     if without_json:
-        domain_event = stored_event.event_attrs
+        event_attrs = stored_event.event_attrs
     else:
-        event_class = resolve_domain_topic(stored_event.event_topic)
-        event_data = json.loads(stored_event.event_attrs, cls=json_decoder_cls)
-        try:
-            domain_event = object.__new__(event_class)
-            domain_event.__dict__.update(event_data)
-        except TypeError:
-            raise TypeError("Unable to instantiate class '{}' with data '{}'".format(stored_event.event_topic, stored_event.event_attrs))
+        if json_decoder_cls is None:
+            json_decoder_cls = ObjectJSONDecoder
+        event_attrs = json.loads(stored_event.event_attrs, cls=json_decoder_cls)
+
+    if with_uuid1:
+        event_attrs['domain_event_id'] = stored_event.event_id
+
+    try:
+        domain_event = object.__new__(event_class)
+        domain_event.__dict__.update(event_attrs)
+    except TypeError:
+        raise TypeError("Unable to instantiate class '{}' with data '{}'".format(stored_event.event_topic, event_attrs))
     return domain_event
 
 
