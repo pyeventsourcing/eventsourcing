@@ -150,8 +150,13 @@ class SimpleStoredEventIterator(StoredEventIterator):
         # Get pages of events until we hit the last page.
         while True:
             # Get next page of events.
+            limit = self.page_size
+
+            if not self.is_ascending and self.page_counter > 0:
+                limit += 1
+
             stored_events = self.repo.get_entity_events(self.stored_entity_id, after=self.after, until=self.until,
-                                                        limit=self.page_size, query_ascending=self.is_ascending,
+                                                        limit=limit, query_ascending=self.is_ascending,
                                                         results_ascending=self.is_ascending)
             # Count the page.
             self._inc_page_counter()
@@ -161,8 +166,17 @@ class SimpleStoredEventIterator(StoredEventIterator):
 
             position = None
 
+            skip_first_item = False
+            if not self.is_ascending and self.page_counter > 1:
+                skip_first_item = True
+
             # Yield each stored event, so long as we aren't over the limit.
             for stored_event in stored_events:
+
+                # Skip if it's the first item of all but the first page when iterating in descending order.
+                if skip_first_item:
+                    skip_first_item = False
+                    continue
 
                 # Stop if we're over the limit.
                 if self.limit and self.all_event_counter >= self.limit:

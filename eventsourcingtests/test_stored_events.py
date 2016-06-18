@@ -219,29 +219,27 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         self.assertEqual(iterator.page_counter, 3)
         self.assertEqual(iterator.all_event_counter, num_fixture_events + num_extra_events)
 
-        # Check the first and last stored event.
+        # Check the first stored event is at the start.
         self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
+        # Check the last stored event is at the end.
         self.assertEqual(stored_events[-1].event_attrs, retrieved_events[-1].event_attrs)
 
         # Iterate descending.
         iterator = SimpleStoredEventIterator(stored_event_repo, stored_entity_id, page_size=page_size,
                                              is_ascending=False)
+        # Make a list of events.
         retrieved_events = list(iterator)
+
+        # Check there is more than a page-full.
         self.assertGreater(len(retrieved_events), page_size)
 
-        self.assertEqual(iterator.page_counter, 2)
+        # Check there are three pages.
+        self.assertEqual(iterator.page_counter, 3)
+
+        # Check there are the expected number of events.
         self.assertEqual(iterator.all_event_counter, num_fixture_events + num_extra_events)
 
-        # Check the first and last stored event.
-        self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
-        self.assertEqual(stored_events[-1].event_attrs, retrieved_events[-1].event_attrs)
-
-
-        # duration = (datetime.datetime.now() - start_time).total_seconds()
-
-        # print("Total duration: {}".format(duration))
-        # average_item_duration = duration / len(retrieved_events)
-
-        # print("Average item duration: {}".format(average_item_duration))
-        # print("Average item rate: {}".format(1.0 / average_item_duration))
-        # self.assertLess(average_item_duration, 0.0005)
+        # Check the first stored event is at the end.
+        self.assertEqual(stored_event1.event_attrs, retrieved_events[-1].event_attrs)
+        # Check the last stored event is at the start.
+        self.assertEqual(stored_events[-1].event_attrs, retrieved_events[0].event_attrs)
