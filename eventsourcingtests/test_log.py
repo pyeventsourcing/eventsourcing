@@ -38,6 +38,7 @@ class TestLog(unittest.TestCase):
         event5 = log.append(message5)
         event6 = log.append(message6)
 
+        # Check we can get all the lines (query running in descending order).
         lines = list(log.get_lines())
         self.assertEqual(len(lines), 6)
         self.assertEqual(message1, lines[0])
@@ -47,67 +48,82 @@ class TestLog(unittest.TestCase):
         self.assertEqual(message5, lines[4])
         self.assertEqual(message6, lines[5])
 
+        # Check we can get all the lines (query running in ascending order).
         lines = list(log.get_lines(is_ascending=True))
         self.assertEqual(len(lines), 6)
-        self.assertEqual(message1, lines[0])
-        self.assertEqual(message2, lines[1])
-        self.assertEqual(message3, lines[2])
-        self.assertEqual(message4, lines[3])
-        self.assertEqual(message5, lines[4])
-        self.assertEqual(message6, lines[5])
+        self.assertEqual(lines[0], message1)
+        self.assertEqual(lines[1], message2)
+        self.assertEqual(lines[2], message3)
+        self.assertEqual(lines[3], message4)
+        self.assertEqual(lines[4], message5)
+        self.assertEqual(lines[5], message6)
 
-        lines = list(log.get_lines(until=halfway, is_ascending=True))
-        self.assertEqual(len(lines), 3)
-        self.assertEqual(message1, lines[0])
-        self.assertEqual(message2, lines[1])
-        self.assertEqual(message3, lines[2])
-
-        lines = list(log.get_lines(after=halfway, is_ascending=True))
-        self.assertEqual(len(lines), 3)
-        self.assertEqual(message4, lines[0])
-        self.assertEqual(message5, lines[1])
-        self.assertEqual(message6, lines[2])
-
-        lines = list(log.get_lines(until=halfway, is_ascending=False))
-        self.assertEqual(len(lines), 3)
-        self.assertEqual(message1, lines[0])
-        self.assertEqual(message2, lines[1])
-        self.assertEqual(message3, lines[2])
-
+        # Check we can get lines after halfway (query running in descending order).
         lines = list(log.get_lines(after=halfway, is_ascending=False))
         self.assertEqual(len(lines), 3)
-        self.assertEqual(message4, lines[0])
-        self.assertEqual(message5, lines[1])
-        self.assertEqual(message6, lines[2])
+        self.assertEqual(lines[0], message4)
+        self.assertEqual(lines[1], message5)
+        self.assertEqual(lines[2], message6)
 
-        lines = list(log.get_lines(limit=3, is_ascending=True))
+        # Check we can get lines until halfway (query running in descending order).
+        lines = list(log.get_lines(until=halfway, is_ascending=False))
         self.assertEqual(len(lines), 3)
-        self.assertEqual(message1, lines[0])
-        self.assertEqual(message2, lines[1])
-        self.assertEqual(message3, lines[2])
+        self.assertEqual(lines[0], message1)
+        self.assertEqual(lines[1], message2)
+        self.assertEqual(lines[2], message3)
 
+        # Check we can get lines until halfway (query running in ascending order).
+        lines = list(log.get_lines(until=halfway, is_ascending=True))
+        self.assertEqual(len(lines), 3)
+        self.assertEqual(lines[0], message1)
+        self.assertEqual(lines[1], message2)
+        self.assertEqual(lines[2], message3)
+
+        # Check we can get lines after halfway (query running in ascending order).
+        lines = list(log.get_lines(after=halfway, is_ascending=True))
+        self.assertEqual(len(lines), 3)
+        self.assertEqual(lines[0], message4)
+        self.assertEqual(lines[1], message5)
+        self.assertEqual(lines[2], message6)
+
+        # Check we can get last three lines (query running in descending order).
         lines = list(log.get_lines(limit=3, is_ascending=False))
         self.assertEqual(len(lines), 3)
-        self.assertEqual(message4, lines[0])
-        self.assertEqual(message5, lines[1])
-        self.assertEqual(message6, lines[2])
+        self.assertEqual(lines[0], message4)
+        self.assertEqual(lines[1], message5)
+        self.assertEqual(lines[2], message6)
 
+        # Check we can get first three lines (query running in ascending order).
+        lines = list(log.get_lines(limit=3, is_ascending=True))
+        self.assertEqual(len(lines), 3)
+        self.assertEqual(lines[0], message1)
+        self.assertEqual(lines[1], message2)
+        self.assertEqual(lines[2], message3)
+
+        # Check we can get last line (query running in descending order).
         lines = list(log.get_lines(limit=1, after=halfway, is_ascending=False))
         self.assertEqual(len(lines), 1)
-        self.assertEqual(message6, lines[0])
+        self.assertEqual(lines[0], message6)
 
+        # Check we can get the first line after halfway (query running in ascending order).
         lines = list(log.get_lines(limit=1, after=halfway, is_ascending=True))
         self.assertEqual(len(lines), 1)
-        self.assertEqual(message4, lines[0])
+        self.assertEqual(lines[0], message4)
 
+        # Check we can get the first line before halfway (query running in descending order).
         lines = list(log.get_lines(limit=1, until=halfway, is_ascending=False))
         self.assertEqual(len(lines), 1)
-        self.assertEqual(message3, lines[0])
+        self.assertEqual(lines[0], message3)
 
+        # Check we can get the first line (query running in ascending order).
         lines = list(log.get_lines(limit=1, until=halfway, is_ascending=True))
         self.assertEqual(len(lines), 1)
-        self.assertEqual(message1, lines[0])
+        self.assertEqual(lines[0], message1)
 
+        # Check there isn't a line after the last line (query running in ascending order).
+        lines = list(log.get_lines(limit=1, after=event6.domain_event_id, is_ascending=True))
+        self.assertEqual(len(lines), 0)
 
+        # Check there is nothing somehow both after and until halfway.
         lines = list(log.get_lines(after=halfway, until=halfway))
         self.assertEqual(len(lines), 0)

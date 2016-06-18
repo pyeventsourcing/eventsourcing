@@ -126,14 +126,14 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         self.assertEqual(stored_event2.event_attrs, retrieved_events[1].event_attrs)
 
         # Get with limit (depends on query order).
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, is_ascending=True, limit=1)
+        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=True)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
         # - check the first retrieved event is the first event that was stored
         self.assertIsInstance(retrieved_events[0], StoredEvent)
         self.assertEqual(stored_event1.event_topic, retrieved_events[0].event_topic)
         self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
 
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, is_ascending=False, limit=1)
+        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=False)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
         # - check the first retrieved event is the last event that was stored
         self.assertIsInstance(retrieved_events[0], StoredEvent)
@@ -183,7 +183,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
 
         # Check the first events can be retrieved easily.
         start_time = datetime.datetime.now()
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, is_ascending=True, limit=20)
+        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, limit=20, query_ascending=True)
         retrieved_events = list(retrieved_events)
         page_duration = (datetime.datetime.now() - start_time).total_seconds()
         # print("Duration: {}".format(page_duration))
@@ -195,10 +195,8 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
 
         # Check the next page of events can be retrieved easily.
         start_time = datetime.datetime.now()
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id,
-                                                               after=retrieved_events[-1].event_id,
-                                                               limit=20,
-                                                               is_ascending=True)
+        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, after=retrieved_events[-1].event_id,
+                                                               limit=20, query_ascending=True)
         retrieved_events = list(retrieved_events)
         page_duration = (datetime.datetime.now() - start_time).total_seconds()
         # self.assertLess(page_duration, 0.05)
@@ -224,6 +222,20 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         # Check the first and last stored event.
         self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
         self.assertEqual(stored_events[-1].event_attrs, retrieved_events[-1].event_attrs)
+
+        # Iterate descending.
+        iterator = SimpleStoredEventIterator(stored_event_repo, stored_entity_id, page_size=page_size,
+                                             is_ascending=False)
+        retrieved_events = list(iterator)
+        self.assertGreater(len(retrieved_events), page_size)
+
+        self.assertEqual(iterator.page_counter, 2)
+        self.assertEqual(iterator.all_event_counter, num_fixture_events + num_extra_events)
+
+        # Check the first and last stored event.
+        self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
+        self.assertEqual(stored_events[-1].event_attrs, retrieved_events[-1].event_attrs)
+
 
         # duration = (datetime.datetime.now() - start_time).total_seconds()
 

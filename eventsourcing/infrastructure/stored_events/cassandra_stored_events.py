@@ -58,9 +58,10 @@ class CassandraStoredEventRepository(StoredEventRepository):
         cql_stored_event = to_cql(stored_event)
         cql_stored_event.save()
 
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True):
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
+                          results_ascending=True):
         query = CqlStoredEvent.objects.filter(n=stored_entity_id)
-        if is_ascending:
+        if query_ascending:
             query = query.order_by('v')
         if until is not None:
             query = query.filter(v__lte=until)
@@ -69,8 +70,9 @@ class CassandraStoredEventRepository(StoredEventRepository):
         if limit is not None:
             query = query.limit(limit)
         events = self.map(from_cql, query)
-        if not is_ascending:
-            events = reversed(list(events))
+        events = list(events)
+        if results_ascending and not query_ascending:
+            events.reverse()
         return events
 
 

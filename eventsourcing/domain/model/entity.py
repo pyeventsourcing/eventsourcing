@@ -1,4 +1,4 @@
-from eventsourcing.domain.model.exceptions import ConsistencyError
+from eventsourcing.domain.model.exceptions import ConsistencyError, ProgrammingError
 from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
@@ -149,9 +149,15 @@ def mutableproperty(getter):
             assert isinstance(self, EventSourcedEntity), type(self)
             name = '_' + getter.__name__
             self._change_attribute(name=name, value=value)
-        return property(fget=getter, fset=setter)
+
+        def new_getter(self):
+            assert isinstance(self, EventSourcedEntity), type(self)
+            name = '_' + getter.__name__
+            return getattr(self, name)
+
+        return property(fget=new_getter, fset=setter)
     else:
-        raise ValueError(repr(getter))
+        raise ProgrammingError("Expected a function, got: {}".format(repr(getter)))
 
 
 class EntityRepository(with_metaclass(ABCMeta)):

@@ -10,6 +10,7 @@ from eventsourcing.application.example.with_pythonobjects import ExampleApplicat
 from eventsourcing.application.example.with_sqlalchemy import ExampleApplicationWithSQLAlchemy
 from eventsourcing.application.with_cassandra import DEFAULT_CASSANDRA_KEYSPACE
 from eventsourcing.domain.model.example import register_new_example
+from eventsourcing.domain.model.log import get_log, Log
 from eventsourcing.infrastructure.stored_events.cassandra_stored_events import create_cassandra_keyspace_and_tables
 from eventsourcing.infrastructure.stored_events.transcoders import make_stored_entity_id
 from eventsourcing.utils.time import utc_now
@@ -21,7 +22,8 @@ class PerformanceTestCase(TestCase):
         self.skipTest('Abstract test ignored\n')
         self.app = None
 
-    def test_example_performance(self):
+
+    def _test_entity_performance(self):
 
         # Initialise dict of entities.
         self.entities = {}
@@ -96,6 +98,108 @@ class PerformanceTestCase(TestCase):
                   "".format(extra_beats, time_replaying, events_per_second, beats_per_second))
             
             print("")
+
+    def test_log_performance(self):
+        log = get_log('example', self.app.event_store)
+
+        # Write a load of messages.
+        start_write = utc_now()
+        number_of_messages = 110
+        events = []
+        for i in range(number_of_messages):
+            event = log.append('Log message number {}'.format(i))
+            events.append(event)
+        time_to_write = (utc_now() - start_write)
+        print("Time to log {} messages: {:.2f}s ({:.0f} messages/s, {:.6f}s each)"
+              "".format(number_of_messages, time_to_write, number_of_messages/ time_to_write,
+                        time_to_write / number_of_messages))
+
+        # Read pages of messages in descending order.
+        # - get a limited number until a time, then use the earliest in that list as the position
+        position = events[-1].domain_event_id
+
+        page_size = 10
+
+        # Page back through the log in reverse chronological order.
+        previous_position = None
+        next_position = None
+        count_pages = 0
+        total_time_to_read = 0
+        total_num_reads = 0
+        while True:
+            start_read = utc_now()
+            page_of_events, next_position = self.get_message_logged_events_and_next_position(log, position, page_size)
+            time_to_read = (utc_now() - start_read)
+            total_time_to_read += time_to_read
+            total_num_reads += 1
+            count_pages += 1
+            if next_position is None:
+                break
+            else:
+                previous_position, position = position, next_position
+
+        # Check we got to the end of the line.
+        self.assertIsNone(next_position)
+        self.assertTrue(previous_position)
+        self.assertEqual(count_pages, 11)
+
+        # Page forward through the log in chronological order.
+        count_pages = 0
+        position = None
+        while True:
+            start_read = utc_now()
+            page_of_events, next_position = self.get_message_logged_events_and_next_position(log, position, page_size, is_chronological=True)
+            time_to_read = (utc_now() - start_read)
+            total_time_to_read += time_to_read
+            total_num_reads += 1
+            count_pages += 1
+            if next_position is None:
+                break
+            else:
+                position = next_position
+
+        self.assertEqual(count_pages, 11)
+        self.assertIsNone(next_position)
+        self.assertTrue(previous_position)
+
+        reads_per_second = total_num_reads / total_time_to_read
+        messages_per_second = reads_per_second * number_of_messages
+        print("Time to read {} pages of logged messages: {:.6f}s ({:.0f} pages/s, {:.0f} messages/s))"
+              "".format(total_num_reads, total_time_to_read, reads_per_second, messages_per_second))
+
+
+        # self.assertEqual(len(page_lines), 10)
+        # self.assertEqual(page_lines[-1], events[-1].message)
+        # self.assertEqual(page_lines[-10], events[-10].message)
+        #
+        # position = events[0]
+        # page_lines = log.get_lines(until=position.domain_event_id, limit=page_size+1)
+        # page_lines = list(page_lines)
+        # self.assertEqual(len(page_lines), 1)
+        # self.assertEqual(page_lines[-1], events[-1].message)
+        # self.assertEqual(page_lines[-10], events[-10].message)
+
+
+        repetitions = 1
+
+    def get_message_logged_events_and_next_position(self, log, position, page_size, is_chronological=False):
+        assert isinstance(log, Log), type(log)
+        assert isinstance(position, (six.string_types, type(None))), type(position)
+        assert isinstance(page_size, six.integer_types), type(page_size)
+        assert isinstance(is_chronological, bool)
+        if is_chronological:
+            events = log.get_message_logged_events(after=position, limit=page_size + 1, is_ascending=True)
+        else:
+            events = log.get_message_logged_events(until=position, limit=page_size + 1)
+        events = list(events)
+        if len(events) == page_size + 1:
+            if is_chronological:
+                events, next_position = events[:-1], events[-1].domain_event_id
+            else:
+                events, next_position = events[1:], events[0].domain_event_id
+        else:
+            events, next_position = events, None
+        return events, next_position
 
 
 class TestCassandraPerformance(PerformanceTestCase):

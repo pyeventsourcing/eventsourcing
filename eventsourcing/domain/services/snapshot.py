@@ -6,6 +6,7 @@ from eventsourcing.infrastructure.stored_events.transcoders import make_stored_e
 def get_snapshot(stored_entity_id, event_store, until=None):
     """
     Get the last snapshot for entity.
+
     :rtype: Snapshot
     """
     assert isinstance(event_store, EventStore)

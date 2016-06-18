@@ -23,15 +23,15 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True):
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
+                          results_ascending=True):
         """Returns all events for given entity ID in chronological order. Limit is max 10000.
-        :param until:
-        :param after:
-        :param stored_entity_id:
+
         :rtype: list
         """
 
-    def iterate_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True, page_size=None):
+    def iterate_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
+                              page_size=None):
         """Returns all events for given entity ID by paging through the stored events.
         :param until:
         :param after:
@@ -68,7 +68,7 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
             raise Exception("Shouldn't have more than one object: {}".format(events))
 
     def get_most_recent_events(self, stored_entity_id, until=None, limit=None):
-        return self.get_entity_events(stored_entity_id, until=until, limit=limit, is_ascending=False)
+        return self.get_entity_events(stored_entity_id, until=until, limit=limit, query_ascending=False, results_ascending=False)
 
     def serialize(self, domain_event):
         """Returns a stored event from a domain event.
@@ -133,11 +133,11 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
 
     def _update_position(self, stored_event):
         assert isinstance(stored_event, StoredEvent), type(stored_event)
-        self.after = stored_event.event_id
-        # if self.is_ascending:
-        #     self.after = stored_event.event_id
-        # else:
-        #     self.until = stored_event.event_id
+        # self.after = stored_event.event_id
+        if self.is_ascending:
+            self.after = stored_event.event_id
+        else:
+            self.until = stored_event.event_id
 
     @abstractmethod
     def __iter__(self):
@@ -150,12 +150,9 @@ class SimpleStoredEventIterator(StoredEventIterator):
         # Get pages of events until we hit the last page.
         while True:
             # Get next page of events.
-            stored_events = self.repo.get_entity_events(self.stored_entity_id,
-                                                        after=self.after,
-                                                        until=self.until,
-                                                        limit=self.page_size,
-                                                        is_ascending=self.is_ascending
-                                                        )
+            stored_events = self.repo.get_entity_events(self.stored_entity_id, after=self.after, until=self.until,
+                                                        limit=self.page_size, query_ascending=self.is_ascending,
+                                                        results_ascending=self.is_ascending)
             # Count the page.
             self._inc_page_counter()
 
@@ -261,8 +258,8 @@ class ThreadedStoredEventIterator(StoredEventIterator):
 
 
 class GetEntityEventsThread(Thread):
-
-    def __init__(self, repo, stored_entity_id, after=None, until=None, page_size=None, is_ascending=True, *args, **kwargs):
+    def __init__(self, repo, stored_entity_id, after=None, until=None, page_size=None, is_ascending=True, *args,
+                 **kwargs):
         super(GetEntityEventsThread, self).__init__(*args, **kwargs)
         self.repo = repo
         self.stored_entity_id = stored_entity_id
@@ -273,10 +270,6 @@ class GetEntityEventsThread(Thread):
         self.is_ascending = is_ascending
 
     def run(self):
-        self.stored_events = list(self.repo.get_entity_events(
-            stored_entity_id=self.stored_entity_id,
-            after=self.after,
-            until=self.until,
-            limit=self.page_size,
-            is_ascending=self.is_ascending
-        ))
+        self.stored_events = list(
+            self.repo.get_entity_events(stored_entity_id=self.stored_entity_id, after=self.after, until=self.until,
+                                        limit=self.page_size, query_ascending=self.is_ascending))
