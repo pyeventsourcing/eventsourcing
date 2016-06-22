@@ -23,21 +23,22 @@ setup(
         'test': [
             'sqlalchemy',
             'mock',
-            'cassandra-driver==2.6.0',
+            'cassandra-driver==3.3.0',
             'numpy',
         ],
         'sqlalchemy': [
             'sqlalchemy',
         ],
         'cassandra': [
-            'cassandra-driver==2.6.0',
+            'cassandra-driver==3.3.0',
         ],
     },
     zip_safe=False,
     long_description = """
 This package provides generic support for event sourcing in Python, in a 'domain driven design' style.
 
-An extensive `README file is available on GitHub <https://github.com/johnbywater/eventsourcing/blob/master/README.md>`_.
+An extensive
+`README file is available on GitHub <https://github.com/johnbywater/eventsourcing/blob/master/README.md>`_.
 """,
     keywords=['event sourcing', 'event store', 'domain driven design', 'ddd', 'cqrs', 'cqs'],
     classifiers = [
@@ -49,9 +50,9 @@ An extensive `README file is available on GitHub <https://github.com/johnbywater
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.2',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Topic :: Software Development :: Libraries :: Python Modules',
    ],
 )
