@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative.api import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -15,7 +13,7 @@ from eventsourcing.utils.time import timestamp_long_from_uuid
 
 def get_scoped_session_facade(uri):
     if uri is None: raise ValueError
-    engine = create_engine(uri)
+    engine = create_engine(uri, strategy='threadlocal')
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine)
     scoped_session_facade = scoped_session(session_factory)
@@ -35,10 +33,6 @@ class SqlStoredEvent(Base):
     stored_entity_id = Column(String(), index=True)
     event_topic = Column(String())
     event_attrs = Column(String())
-
-    # def __repr__(self):
-    #     return "<SqlStoredEvent(id='%s', event_id='%s', entity_id='%s', event_topic='%s', event_attrs='%s')>" % (
-    #         self.id, self.event_id, self.entity_id, self.event_topic, self.event_attrs)
 
 
 def from_sql(sql_stored_event):
@@ -82,46 +76,25 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         finally:
             self.db_session.close() # Begins a new transaction
 
-    # def __contains__(self, pk):
-    #     (stored_entity_id, event_id) = pk
-    #     query = self.db_session.query(SqlStoredEvent)
-    #     query = query.filter_by(stored_entity_id=stored_entity_id, event_id=event_id.hex)
-    #     return bool(query.count())
-    #
-    # def __getitem__(self, pk):
-    #     (stored_entity_id, event_id) = pk
-    #     query = self.db_session.query(SqlStoredEvent)
-    #     query = query.filter_by(stored_entity_id=stored_entity_id, event_id=event_id.hex)
-    #     sql_stored_event = query.first()
-    #     if sql_stored_event is not None:
-    #         return from_sql(sql_stored_event)
-    #     else:
-    #         raise KeyError
-    #
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):
-        query = self.db_session.query(SqlStoredEvent)
-        query = query.filter_by(stored_entity_id=stored_entity_id)
-        if query_ascending:
-            query = query.order_by(asc(SqlStoredEvent.id))
-        else:
-            query = query.order_by(desc(SqlStoredEvent.id))
-        if until is not None:
-            query = query.filter(SqlStoredEvent.timestamp_long <= timestamp_long_from_uuid(until))
-        if after is not None:
-            query = query.filter(SqlStoredEvent.timestamp_long > timestamp_long_from_uuid(after))
-        if limit is not None:
-            query = query.limit(limit)
-        events = self.map(from_sql, query)
+        try:
+            query = self.db_session.query(SqlStoredEvent)
+            query = query.filter_by(stored_entity_id=stored_entity_id)
+            if query_ascending:
+                query = query.order_by(asc(SqlStoredEvent.id))
+            else:
+                query = query.order_by(desc(SqlStoredEvent.id))
+            if until is not None:
+                query = query.filter(SqlStoredEvent.timestamp_long <= timestamp_long_from_uuid(until))
+            if after is not None:
+                query = query.filter(SqlStoredEvent.timestamp_long > timestamp_long_from_uuid(after))
+            if limit is not None:
+                query = query.limit(limit)
+            events = self.map(from_sql, query)
+            events = list(events)
+        finally:
+            self.db_session.close()
         if results_ascending and not query_ascending:
-            events = reversed(list(events))
+            events.reverse()
         return events
-
-    def get_most_recent_event(self, stored_entity_id, until=None):
-        query = self.db_session.query(SqlStoredEvent)
-        query = query.filter_by(stored_entity_id=stored_entity_id)
-        query = query.order_by(desc(SqlStoredEvent.id))
-        if until is not None:
-            query = query.filter(SqlStoredEvent.timestamp_long <= timestamp_long_from_uuid(until))
-        sql_stored_event = query.first()
-        return from_sql(sql_stored_event) if sql_stored_event else None

@@ -1,10 +1,40 @@
+import os
+import unittest
+from tempfile import NamedTemporaryFile
+
 from eventsourcing.infrastructure.stored_events.sqlalchemy_stored_events import SQLAlchemyStoredEventRepository, \
     get_scoped_session_facade
-from eventsourcingtests.test_stored_events import StoredEventRepositoryTestCase
+from eventsourcingtests.test_stored_events import BasicStoredEventRepositoryTestCase, SimpleStoredEventIteratorTestCase, \
+    ThreadedStoredEventIteratorTestCase
 
 
-class TestSQLAlchemyStoredEventRepository(StoredEventRepositoryTestCase):
+class SQLAlchemyTestCase(unittest.TestCase):
 
-    def test_stored_events_in_sqlalchemy(self):
-        stored_event_repo = SQLAlchemyStoredEventRepository(get_scoped_session_facade('sqlite:///:memory:'))
-        self.checkStoredEventRepository(stored_event_repo)
+    @property
+    def stored_event_repo(self):
+        try:
+            return self._stored_event_repo
+        except AttributeError:
+            self.temp_file = NamedTemporaryFile('a')
+            uri = 'sqlite:///' + self.temp_file.name
+            scoped_session_facade = get_scoped_session_facade(uri)
+            stored_event_repo = SQLAlchemyStoredEventRepository(scoped_session_facade)
+            self._stored_event_repo = stored_event_repo
+            return self._stored_event_repo
+
+    def tearDown(self):
+        # Unlink temporary file.
+        if self.temp_file:
+            self.temp_file.close()
+
+
+class TestSQLAlchemyStoredEventRepository(SQLAlchemyTestCase, BasicStoredEventRepositoryTestCase):
+    pass
+
+
+class TestSimpleStoredEventIteratorWithSQLAlchemy(SQLAlchemyTestCase, SimpleStoredEventIteratorTestCase):
+    pass
+
+
+class TestThreadedStoredEventIteratorWithSQLAlchemy(SQLAlchemyTestCase, ThreadedStoredEventIteratorTestCase):
+    pass

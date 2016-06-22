@@ -111,7 +111,7 @@ def entity_mutator(event, _):
 
 @entity_mutator.register(EventSourcedEntity.Created)
 def created_mutator(event, cls):
-    assert isinstance(event, DomainEvent)
+    assert isinstance(event, DomainEvent), event
     if not isinstance(cls, type):
         raise MutatorRequiresTypeError("created_mutator needs a type instance: {} "
                                        "(event entity id: {}, event type: {})"
@@ -124,6 +124,7 @@ def created_mutator(event, cls):
 
 @entity_mutator.register(EventSourcedEntity.AttributeChanged)
 def attribute_changed_mutator(event, self):
+    assert isinstance(self, EventSourcedEntity), self
     self._validate_originator(event)
     setattr(self, event.name, event.value)
     self._increment_version()
@@ -132,6 +133,7 @@ def attribute_changed_mutator(event, self):
 
 @entity_mutator.register(EventSourcedEntity.Discarded)
 def discarded_mutator(event, self):
+    assert isinstance(self, EventSourcedEntity), self
     self._validate_originator(event)
     self._is_discarded = True
     self._increment_version()

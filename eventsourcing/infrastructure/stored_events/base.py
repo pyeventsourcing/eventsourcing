@@ -212,10 +212,12 @@ class ThreadedStoredEventIterator(StoredEventIterator):
         # Start a thread to get a page of events.
         thread = self.start_thread()
 
+        is_first_page = True
+
         # Get pages of stored events, until the page isn't full.
         while True:
             # Wait for the next page of events.
-            thread.join()
+            thread.join(timeout=30)
 
             # Count the page.
             self._inc_page_counter()
@@ -231,15 +233,20 @@ class ThreadedStoredEventIterator(StoredEventIterator):
 
             if not is_last_page:
                 # Update loop variables.
-                if self.is_ascending:
-                    position = stored_events[-1]
-                else:
-                    position = stored_events[-1]
-                # position = stored_events[-1]
+                position = stored_events[-1]
                 self._update_position(position)
 
                 # Start the next thread.
                 thread = self.start_thread()
+
+            # Decide if first item should be skipped.
+            # - this is due to the way 'after' and 'until' are defined in get_entity_events()
+            # Todo: Think about changing the way 'after' and 'until' are defined to work the same in either direction.
+            if is_first_page:
+                is_first_page = False
+                skip_first_item = False
+            else:
+                skip_first_item = not self.is_ascending
 
             # Yield each stored event.
             for stored_event in stored_events:
@@ -247,6 +254,11 @@ class ThreadedStoredEventIterator(StoredEventIterator):
                 # Stop if we're over the limit.
                 if self.limit and self.all_event_counter >= self.limit:
                     raise StopIteration
+
+                # Skip the first item.
+                if skip_first_item:
+                    skip_first_item = False
+                    continue
 
                 # Count each event.
                 self._inc_all_event_counter()
@@ -275,15 +287,21 @@ class GetEntityEventsThread(Thread):
     def __init__(self, repo, stored_entity_id, after=None, until=None, page_size=None, is_ascending=True, *args,
                  **kwargs):
         super(GetEntityEventsThread, self).__init__(*args, **kwargs)
+        assert isinstance(repo, StoredEventRepository)
         self.repo = repo
         self.stored_entity_id = stored_entity_id
         self.after = after
         self.until = until
         self.page_size = page_size
-        self.stored_events = None
         self.is_ascending = is_ascending
+        self.stored_events = None
 
     def run(self):
-        self.stored_events = list(
-            self.repo.get_entity_events(stored_entity_id=self.stored_entity_id, after=self.after, until=self.until,
-                                        limit=self.page_size, query_ascending=self.is_ascending))
+        self.stored_events = list(self.repo.get_entity_events(
+            stored_entity_id=self.stored_entity_id,
+            after=self.after,
+            until=self.until,
+            limit=self.page_size,
+            query_ascending=self.is_ascending,
+            results_ascending=self.is_ascending,
+        ))

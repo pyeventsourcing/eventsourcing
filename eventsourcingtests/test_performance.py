@@ -1,29 +1,42 @@
-from unittest.case import TestCase
 from uuid import uuid1
 
 import six
 from cassandra.cqlengine.management import drop_keyspace
 from math import floor
 
+from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.application.example.with_cassandra import ExampleApplicationWithCassandra
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
 from eventsourcing.application.example.with_sqlalchemy import ExampleApplicationWithSQLAlchemy
 from eventsourcing.application.with_cassandra import DEFAULT_CASSANDRA_KEYSPACE
-from eventsourcing.domain.model.example import register_new_example
+from eventsourcing.domain.model.example import register_new_example, Example
 from eventsourcing.domain.model.log import get_log, Log
 from eventsourcing.infrastructure.stored_events.cassandra_stored_events import create_cassandra_keyspace_and_tables
 from eventsourcing.infrastructure.stored_events.transcoders import make_stored_entity_id
 from eventsourcing.utils.time import utc_now
+from eventsourcingtests.test_stored_events import AbstractTestCase
 
 
-class PerformanceTestCase(TestCase):
+class PerformanceTestCase(AbstractTestCase):
 
     def setUp(self):
-        self.skipTest('Abstract test ignored\n')
-        self.app = None
+        super(PerformanceTestCase, self).setUp()
+        self.app = self.create_app()
+        assert isinstance(self.app, ExampleApplication)
 
+    def create_app(self):
+        """Returns instance of application object to be tested.
 
-    def _test_entity_performance(self):
+        Sub-classes are required to override this method to return an application object.
+        """
+        raise NotImplementedError
+
+    def test_entity_performance(self):
+        """
+        Reports on the performance of Example entity and repo.
+
+        NB: This test doesn't actually check anything, so it isn't really a test.
+        """
 
         # Initialise dict of entities.
         self.entities = {}
@@ -73,7 +86,10 @@ class PerformanceTestCase(TestCase):
             # Get the entity by replaying all events (which it must since there isn't a snapshot).
             start_replay = utc_now()
             for _ in six.moves.range(repetitions):
-                _ = self.app.example_repo[example.id]
+                example = self.app.example_repo[example.id]
+                assert isinstance(example, Example)
+                assert example.count_heartbeats() == num_beats
+
             time_replaying = (utc_now() - start_replay) / repetitions
             print("Time to replay {} beats: {:.2f}s ({:.0f} beats/s, {:.6f}s each)"
                   "".format(num_beats, time_replaying, num_beats / time_replaying, time_replaying / num_beats))
@@ -89,7 +105,7 @@ class PerformanceTestCase(TestCase):
             # Get the entity using snapshot and replaying events since the snapshot.
             start_replay = utc_now()
             for _ in six.moves.range(repetitions):
-                _ = self.app.example_repo[example.id]
+                example = self.app.example_repo[example.id]
             time_replaying = (utc_now() - start_replay) / repetitions
 
             events_per_second = (extra_beats + 1) / time_replaying  # +1 for the snapshot event
@@ -204,9 +220,11 @@ class PerformanceTestCase(TestCase):
 
 class TestCassandraPerformance(PerformanceTestCase):
 
+    def create_app(self):
+        return ExampleApplicationWithCassandra()
+
     def setUp(self):
-        # Setup the example application.
-        self.app = ExampleApplicationWithCassandra()
+        super(TestCassandraPerformance, self).setUp()
 
         # Setup the keyspace and column family for stored events.
         create_cassandra_keyspace_and_tables(DEFAULT_CASSANDRA_KEYSPACE)
@@ -218,12 +236,13 @@ class TestCassandraPerformance(PerformanceTestCase):
         # Close the application.
         self.app.close()
 
+        super(TestCassandraPerformance, self).tearDown()
+
 
 class TestSQLAlchemyPerformance(PerformanceTestCase):
 
-    def setUp(self):
-        # Setup the example application.
-        self.app = ExampleApplicationWithSQLAlchemy(db_uri='sqlite:///:memory:')
+    def create_app(self):
+        return ExampleApplicationWithSQLAlchemy(db_uri='sqlite:///:memory:')
 
     def tearDown(self):
         # Close the application.
@@ -232,9 +251,9 @@ class TestSQLAlchemyPerformance(PerformanceTestCase):
 
 class TestPythonObjectsPerformance(PerformanceTestCase):
 
-    def setUp(self):
+    def create_app(self):
         # Setup the example application.
-        self.app = ExampleApplicationWithPythonObjects()
+        return ExampleApplicationWithPythonObjects()
 
     def tearDown(self):
         # Close the application.

@@ -1,13 +1,15 @@
 import datetime
 import unittest
 import uuid
+from uuid import uuid1
 
 import six
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.domain.model.example import Example
 from eventsourcing.exceptions import TopicResolutionError
-from eventsourcing.infrastructure.stored_events.base import SimpleStoredEventIterator
+from eventsourcing.infrastructure.stored_events.base import SimpleStoredEventIterator, ThreadedStoredEventIterator, \
+    StoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
     resolve_domain_topic, StoredEvent, ObjectJSONDecoder, ObjectJSONEncoder
 from eventsourcing.utils.time import utc_timezone
@@ -63,7 +65,7 @@ class TestStoredEvent(unittest.TestCase):
         stored_event = StoredEvent(event_id='1',
                                    stored_entity_id='entity1',
                                    event_topic='os#path',
-                                   event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":3}')
+                                   event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":3}')
         self.assertRaises(TypeError, deserialize_domain_event, stored_event, json_decoder_cls=ObjectJSONDecoder)
 
     def test_resolve_event_topic(self):
@@ -76,13 +78,35 @@ class TestStoredEvent(unittest.TestCase):
         self.assertRaises(TopicResolutionError, resolve_domain_topic, example_topic)
 
 
-class StoredEventRepositoryTestCase(unittest.TestCase):
+class AbstractTestCase(unittest.TestCase):
 
-    def checkStoredEventRepository(self, stored_event_repo):
+    def setUp(self):
+        """
+        Returns None if test case class ends with 'TestCase', which means the test case isn't included in the suite.
+        """
+        if type(self).__name__.endswith('TestCase'):
+            self.skipTest('Abstract test ignored.\n')
+        else:
+            super(AbstractTestCase, self).setUp()
+
+
+class AbstractStoredEventRepositoryTestCase(AbstractTestCase):
+
+    @property
+    def stored_event_repo(self):
+        """
+        :rtype: StoredEventRepository
+        """
+        raise NotImplementedError
+
+
+class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
+
+    def test_stored_event_repo(self):
         stored_entity_id = 'Entity::entity1'
 
         # Check the repo returns None for calls to get_most_recent_event() when there aren't any events.
-        self.assertIsNone(stored_event_repo.get_most_recent_event(stored_entity_id))
+        self.assertIsNone(self.stored_event_repo.get_most_recent_event(stored_entity_id))
 
         # # Check the repo doesn't contain an event.
         # pk = (stored_entity_id, domain_event_id.uuid1())
@@ -93,8 +117,8 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         stored_event1 = StoredEvent(event_id=uuid.uuid1().hex,
                                     stored_entity_id=stored_entity_id,
                                     event_topic='eventsourcing.domain.model.example#Example.Created',
-                                    event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":3}')
-        stored_event_repo.append(stored_event1)
+                                    event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":3}')
+        self.stored_event_repo.append(stored_event1)
 
         # # Check the repo contains the event.
         # pk = (stored_entity_id, stored_event1.event_id)
@@ -106,11 +130,11 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         stored_event2 = StoredEvent(event_id=uuid.uuid1().hex,
                                     stored_entity_id=stored_entity_id,
                                     event_topic='eventsourcing.domain.model.example#Example.Created',
-                                    event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":4}')
-        stored_event_repo.append(stored_event2)
+                                    event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":4}')
+        self.stored_event_repo.append(stored_event2)
 
         # Get all events for 'entity1'.
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id)
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
 
         num_fixture_events = 2
@@ -126,14 +150,14 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         self.assertEqual(stored_event2.event_attrs, retrieved_events[1].event_attrs)
 
         # Get with limit (depends on query order).
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=True)
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=True)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
         # - check the first retrieved event is the first event that was stored
         self.assertIsInstance(retrieved_events[0], StoredEvent)
         self.assertEqual(stored_event1.event_topic, retrieved_events[0].event_topic)
         self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
 
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=False)
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=False)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
         # - check the first retrieved event is the last event that was stored
         self.assertIsInstance(retrieved_events[0], StoredEvent)
@@ -141,12 +165,12 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         self.assertEqual(stored_event2.event_attrs, retrieved_events[0].event_attrs)
 
         # Get the most recent event for 'entity1'.
-        most_recent_event = stored_event_repo.get_most_recent_event(stored_entity_id)
+        most_recent_event = self.stored_event_repo.get_most_recent_event(stored_entity_id)
         self.assertIsInstance(most_recent_event, StoredEvent)
         self.assertEqual(most_recent_event.event_id, stored_event2.event_id)
 
         # Get all events for 'entity1' since the first event's timestamp.
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, after=stored_event1.event_id)
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, after=stored_event1.event_id)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
         self.assertEqual(1, len(list(retrieved_events)))
         # - check the last event is first
@@ -161,14 +185,14 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
             stored_event_i = StoredEvent(event_id=uuid.uuid1().hex,
                                          stored_entity_id=stored_entity_id,
                                          event_topic='eventsourcing.domain.model.example#Example.Created',
-                                         event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":%s}' % (page_count+10))
+                                         event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":%s}' % (page_count+10))
             stored_events.append(stored_event_i)
-            stored_event_repo.append(stored_event_i)
+            self.stored_event_repo.append(stored_event_i)
 
         last_snapshot_event = stored_events[-20]
 
         # start_time = datetime.datetime.now()
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, after=last_snapshot_event.event_id)
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, after=last_snapshot_event.event_id)
         retrieved_events = list(retrieved_events)
         # page_duration = (datetime.datetime.now() - start_time).total_seconds()
         # self.assertLess(page_duration, 0.05)
@@ -183,7 +207,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
 
         # Check the first events can be retrieved easily.
         start_time = datetime.datetime.now()
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, limit=20, query_ascending=True)
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, limit=20, query_ascending=True)
         retrieved_events = list(retrieved_events)
         page_duration = (datetime.datetime.now() - start_time).total_seconds()
         # print("Duration: {}".format(page_duration))
@@ -195,7 +219,7 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
 
         # Check the next page of events can be retrieved easily.
         start_time = datetime.datetime.now()
-        retrieved_events = stored_event_repo.get_entity_events(stored_entity_id, after=retrieved_events[-1].event_id,
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, after=retrieved_events[-1].event_id,
                                                                limit=20, query_ascending=True)
         retrieved_events = list(retrieved_events)
         page_duration = (datetime.datetime.now() - start_time).total_seconds()
@@ -207,39 +231,88 @@ class StoredEventRepositoryTestCase(unittest.TestCase):
         self.assertEqual(stored_events[18].event_topic, retrieved_events[0].event_topic)
         self.assertEqual(stored_events[18].event_attrs, retrieved_events[0].event_attrs)
 
-        # Check the stored event iterator can get all the events.
-        # Todo: Move this test of the SimpleStoredEventIterator to a separate test case?
-        # Todo: Write a test case for ThreadedStoredEventIterator.
-        # start_time = datetime.datetime.now()
-        page_size = 50
-        iterator = SimpleStoredEventIterator(stored_event_repo, stored_entity_id, page_size=page_size)
-        retrieved_events = list(iterator)
-        self.assertGreater(len(retrieved_events), page_size)
 
-        self.assertEqual(iterator.page_counter, 3)
-        self.assertEqual(iterator.all_event_counter, num_fixture_events + num_extra_events)
+class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
 
-        # Check the first stored event is at the start.
-        self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
-        # Check the last stored event is at the end.
-        self.assertEqual(stored_events[-1].event_attrs, retrieved_events[-1].event_attrs)
+    @property
+    def stored_entity_id(self):
+        return 'Entity::1'
+
+    @property
+    def num_events(self):
+        return 12
+
+    @property
+    def iterator_cls(self):
+        """
+        Returns iterator class.
+        """
+        raise NotImplementedError
+
+    def create_iterator(self, is_ascending, page_size):
+        return self.iterator_cls(
+            repo=self.stored_event_repo,
+            stored_entity_id=self.stored_entity_id,
+            page_size=page_size,
+            is_ascending=is_ascending,
+        )
+
+    def setup_stored_events(self):
+        self.stored_events = []
+        for page_number in six.moves.range(12):
+            stored_event = StoredEvent(
+                event_id=uuid.uuid1().hex,
+                stored_entity_id=self.stored_entity_id,
+                event_topic='eventsourcing.domain.model.example#Example.Created',
+                event_attrs='{"a":%s,"b":2,"stored_entity_id":"%s","timestamp":%s}' % (
+                    page_number, self.stored_entity_id, uuid1().hex
+                )
+            )
+            self.stored_events.append(stored_event)
+            self.stored_event_repo.append(stored_event)
+
+    def test(self):
+        self.setup_stored_events()
+
+        assert isinstance(self.stored_event_repo, StoredEventRepository)
+        stored_events = self.stored_event_repo.get_entity_events(stored_entity_id=self.stored_entity_id)
+        stored_events = list(stored_events)
+        self.assertEqual(len(stored_events), self.num_events)
+
+        # Check can get all events.
+        page_size = 5
+
+        # Iterate ascending.
+        is_ascending = True
+        expect_at_start = self.stored_events[0].event_attrs
+        expect_at_end = self.stored_events[-1].event_attrs
+        self.assert_iterator_yields_events(is_ascending, expect_at_start, expect_at_end, page_size)
 
         # Iterate descending.
-        iterator = SimpleStoredEventIterator(stored_event_repo, stored_entity_id, page_size=page_size,
-                                             is_ascending=False)
-        # Make a list of events.
+        is_ascending = False
+        expect_at_start = self.stored_events[-1].event_attrs
+        expect_at_end = self.stored_events[0].event_attrs
+        self.assert_iterator_yields_events(is_ascending, expect_at_start, expect_at_end, page_size)
+
+    def assert_iterator_yields_events(self, is_ascending, expect_at_start, expect_at_end, page_size):
+        iterator = self.create_iterator(is_ascending, page_size)
         retrieved_events = list(iterator)
-
-        # Check there is more than a page-full.
         self.assertGreater(len(retrieved_events), page_size)
-
-        # Check there are three pages.
         self.assertEqual(iterator.page_counter, 3)
+        self.assertEqual(iterator.all_event_counter, self.num_events)
+        self.assertEqual(expect_at_start, retrieved_events[0].event_attrs)
+        self.assertEqual(expect_at_end, retrieved_events[-1].event_attrs)
 
-        # Check there are the expected number of events.
-        self.assertEqual(iterator.all_event_counter, num_fixture_events + num_extra_events)
 
-        # Check the first stored event is at the end.
-        self.assertEqual(stored_event1.event_attrs, retrieved_events[-1].event_attrs)
-        # Check the last stored event is at the start.
-        self.assertEqual(stored_events[-1].event_attrs, retrieved_events[0].event_attrs)
+class SimpleStoredEventIteratorTestCase(IteratorTestCase):
+
+    @property
+    def iterator_cls(self):
+        return SimpleStoredEventIterator
+
+
+class ThreadedStoredEventIteratorTestCase(IteratorTestCase):
+
+    @property
+    def iterator_cls(self):
+        return ThreadedStoredEventIterator
