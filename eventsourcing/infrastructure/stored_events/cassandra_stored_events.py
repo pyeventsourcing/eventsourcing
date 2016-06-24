@@ -3,12 +3,14 @@ import os
 from cassandra import ConsistencyLevel, AlreadyExists
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine.models import Model, columns
-from cassandra.cqlengine.management import sync_table, create_keyspace_simple
+from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_keyspace
 import cassandra.cqlengine.connection
 import six
 
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, ThreadedStoredEventIterator
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
+
+DEFAULT_CASSANDRA_KEYSPACE = 'eventsourcing'
 
 
 class CqlStoredEvent(Model):
@@ -63,10 +65,22 @@ class CassandraStoredEventRepository(StoredEventRepository):
         query = CqlStoredEvent.objects.filter(n=stored_entity_id)
         if query_ascending:
             query = query.order_by('v')
+
+        # if after is not None:
+        #     if query_ascending:
+        #         query = query.filter(v__gt=after)
+        #     else:
+        #         query = query.filter(v__gte=after)
+        # if until is not None:
+        #     if query_ascending:
+        #         query = query.filter(v__lte=until)
+        #     else:
+        #         query = query.filter(v__lt=until)
+
         if until is not None:
             query = query.filter(v__lte=until)
         if after is not None:
-            query = query.filter(v__gt=after)
+                query = query.filter(v__gt=after)
         if limit is not None:
             query = query.limit(limit)
         events = self.map(from_cql, query)
@@ -76,7 +90,8 @@ class CassandraStoredEventRepository(StoredEventRepository):
         return events
 
 
-def get_cassandra_setup_params(hosts=('localhost',), consistency='QUORUM', default_keyspace='eventsourcing', port=9042,
+def get_cassandra_setup_params(hosts=('localhost',), consistency='LOCAL_QUORUM',
+                               default_keyspace=DEFAULT_CASSANDRA_KEYSPACE, port=9042,
                                protocol_version=3, username=None, password=None):
 
     # Construct an "auth provider" object.
@@ -99,23 +114,28 @@ def get_cassandra_setup_params(hosts=('localhost',), consistency='QUORUM', defau
 def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspace, port, protocol_version):
     cassandra.cqlengine.connection.setup(
         hosts=hosts,
-        default_keyspace=default_keyspace,
         consistency=consistency,
-        # port=port,
+        default_keyspace=default_keyspace,
+        port=port,
         # auth_provider=auth_provider,
-        # protocol_version=protocol_version,
+        protocol_version=protocol_version,
         # lazy_connect=True,
     )
 
 
-def create_cassandra_keyspace_and_tables(default_keyspace, replication_factor=1):
+def create_cassandra_keyspace_and_tables(keyspace=DEFAULT_CASSANDRA_KEYSPACE, replication_factor=1):
+    # Avoid warnings about this variable not being set.
     os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
     try:
-        create_keyspace_simple(default_keyspace, replication_factor=replication_factor)
+        create_keyspace_simple(keyspace, replication_factor=replication_factor)
     except AlreadyExists:
         pass
     else:
         sync_table(CqlStoredEvent)
+
+
+def drop_cassandra_keyspace(keyspace=DEFAULT_CASSANDRA_KEYSPACE):
+    drop_keyspace(keyspace)
 
 
 def shutdown_cassandra_connection():

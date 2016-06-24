@@ -1,17 +1,16 @@
+from math import floor
 from uuid import uuid1
 
 import six
-from cassandra.cqlengine.management import drop_keyspace
-from math import floor
 
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.application.example.with_cassandra import ExampleApplicationWithCassandra
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
 from eventsourcing.application.example.with_sqlalchemy import ExampleApplicationWithSQLAlchemy
-from eventsourcing.application.with_cassandra import DEFAULT_CASSANDRA_KEYSPACE
 from eventsourcing.domain.model.example import register_new_example, Example
 from eventsourcing.domain.model.log import get_log, Log
-from eventsourcing.infrastructure.stored_events.cassandra_stored_events import create_cassandra_keyspace_and_tables
+from eventsourcing.infrastructure.stored_events.cassandra_stored_events import create_cassandra_keyspace_and_tables, \
+    drop_cassandra_keyspace
 from eventsourcing.infrastructure.stored_events.transcoders import make_stored_entity_id
 from eventsourcing.utils.time import utc_now
 from eventsourcingtests.test_stored_events import AbstractTestCase
@@ -47,7 +46,7 @@ class PerformanceTestCase(AbstractTestCase):
         repetitions = 10
 
         # NB: Use range(1, 5) to test whether we can get more than 10000 event from Cassandra.
-        for i in six.moves.range(1, 5):
+        for i in six.moves.range(1, 4):
             # Setup a number of entities, with different lengths of event history.
             payload = 3
             # payload = str([uuid4().hex for _ in six.moves.range(100000)])
@@ -227,11 +226,11 @@ class TestCassandraPerformance(PerformanceTestCase):
         super(TestCassandraPerformance, self).setUp()
 
         # Setup the keyspace and column family for stored events.
-        create_cassandra_keyspace_and_tables(DEFAULT_CASSANDRA_KEYSPACE)
+        create_cassandra_keyspace_and_tables()
 
     def tearDown(self):
         # Drop the keyspace.
-        drop_keyspace(DEFAULT_CASSANDRA_KEYSPACE)
+        drop_cassandra_keyspace()
 
         # Close the application.
         self.app.close()
