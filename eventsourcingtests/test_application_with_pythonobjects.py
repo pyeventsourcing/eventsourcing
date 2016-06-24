@@ -4,7 +4,5 @@ from eventsourcingtests.example_application_testcase import ExampleApplicationTe
 
 class TestApplicationWithPythonObjects(ExampleApplicationTestCase):
 
-    def test_application_with_python_objects(self):
-        # Setup the example application, use it as a context manager.
-        with ExampleApplicationWithPythonObjects() as app:
-            self.assert_is_example_application(app)
+    def create_app(self):
+        return ExampleApplicationWithPythonObjects()

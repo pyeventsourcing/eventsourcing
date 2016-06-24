@@ -6,11 +6,13 @@ from eventsourcingtests.example_application_testcase import ExampleApplicationTe
 
 class TestApplicationWithCassandra(ExampleApplicationTestCase):
 
-    def test_application_with_cassandra(self):
-        # Setup the example application, use it as a context manager.
-        with ExampleApplicationWithCassandra() as app:
-            create_cassandra_keyspace_and_tables()
-            try:
-                self.assert_is_example_application(app)
-            finally:
-                drop_cassandra_keyspace()
+    def create_app(self):
+        return ExampleApplicationWithCassandra()
+
+    def setUp(self):
+        super(TestApplicationWithCassandra, self).setUp()
+        create_cassandra_keyspace_and_tables()
+
+    def tearDown(self):
+        drop_cassandra_keyspace()
+        super(TestApplicationWithCassandra, self).tearDown()
