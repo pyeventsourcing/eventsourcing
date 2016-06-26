@@ -8,7 +8,8 @@ from eventsourcing.application.example.with_cassandra import ExampleApplicationW
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
 from eventsourcing.application.example.with_sqlalchemy import ExampleApplicationWithSQLAlchemy
 from eventsourcing.domain.model.example import register_new_example, Example
-from eventsourcing.domain.model.log import get_log, Log
+from eventsourcing.domain.model.logger import get_logger
+from eventsourcing.infrastructure.log_reader import get_log_reader, LogReader
 from eventsourcing.infrastructure.stored_events.cassandra_stored_events import create_cassandra_keyspace_and_tables, \
     drop_cassandra_keyspace
 from eventsourcing.infrastructure.stored_events.transcoders import make_stored_entity_id
@@ -115,14 +116,15 @@ class PerformanceTestCase(AbstractTestCase):
             print("")
 
     def test_log_performance(self):
-        log = get_log('example', self.app.event_store)
+        logger = get_logger('example')
+        log_reader = get_log_reader('example', self.app.event_store)
 
         # Write a load of messages.
         start_write = utc_now()
         number_of_messages = 110
         events = []
         for i in range(number_of_messages):
-            event = log.append('Log message number {}'.format(i))
+            event = logger.append('Logger message number {}'.format(i))
             events.append(event)
         time_to_write = (utc_now() - start_write)
         print("Time to log {} messages: {:.2f}s ({:.0f} messages/s, {:.6f}s each)"
@@ -143,7 +145,7 @@ class PerformanceTestCase(AbstractTestCase):
         total_num_reads = 0
         while True:
             start_read = utc_now()
-            page_of_events, next_position = self.get_message_logged_events_and_next_position(log, position, page_size)
+            page_of_events, next_position = self.get_message_logged_events_and_next_position(log_reader, position, page_size)
             time_to_read = (utc_now() - start_read)
             total_time_to_read += time_to_read
             total_num_reads += 1
@@ -163,7 +165,7 @@ class PerformanceTestCase(AbstractTestCase):
         position = None
         while True:
             start_read = utc_now()
-            page_of_events, next_position = self.get_message_logged_events_and_next_position(log, position, page_size, is_chronological=True)
+            page_of_events, next_position = self.get_message_logged_events_and_next_position(log_reader, position, page_size, is_chronological=True)
             time_to_read = (utc_now() - start_read)
             total_time_to_read += time_to_read
             total_num_reads += 1
@@ -188,7 +190,7 @@ class PerformanceTestCase(AbstractTestCase):
         # self.assertEqual(page_lines[-10], events[-10].message)
         #
         # position = events[0]
-        # page_lines = log.get_lines(until=position.domain_event_id, limit=page_size+1)
+        # page_lines = log.get_messages(until=position.domain_event_id, limit=page_size+1)
         # page_lines = list(page_lines)
         # self.assertEqual(len(page_lines), 1)
         # self.assertEqual(page_lines[-1], events[-1].message)
@@ -197,15 +199,15 @@ class PerformanceTestCase(AbstractTestCase):
 
         repetitions = 1
 
-    def get_message_logged_events_and_next_position(self, log, position, page_size, is_chronological=False):
-        assert isinstance(log, Log), type(log)
+    def get_message_logged_events_and_next_position(self, log_reader, position, page_size, is_chronological=False):
+        assert isinstance(log_reader, LogReader), type(log_reader)
         assert isinstance(position, (six.string_types, type(None))), type(position)
         assert isinstance(page_size, six.integer_types), type(page_size)
         assert isinstance(is_chronological, bool)
         if is_chronological:
-            events = log.get_message_logged_events(after=position, limit=page_size + 1, is_ascending=True)
+            events = log_reader.get_events(after=position, limit=page_size + 1, is_ascending=True)
         else:
-            events = log.get_message_logged_events(until=position, limit=page_size + 1)
+            events = log_reader.get_events(until=position, limit=page_size + 1)
         events = list(events)
         if len(events) == page_size + 1:
             if is_chronological:
