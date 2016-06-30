@@ -108,23 +108,12 @@ class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         # Check the repo returns None for calls to get_most_recent_event() when there aren't any events.
         self.assertIsNone(self.stored_event_repo.get_most_recent_event(stored_entity_id))
 
-        # # Check the repo doesn't contain an event.
-        # pk = (stored_entity_id, domain_event_id.uuid1())
-        # self.assertNotIn(pk, stored_event_repo)  # __contains__
-        # self.assertRaises(KeyError, stored_event_repo.__getitem__, pk)  # __getitem__
-
         # Store an event for 'entity1'.
         stored_event1 = StoredEvent(event_id=uuid.uuid1().hex,
                                     stored_entity_id=stored_entity_id,
                                     event_topic='eventsourcing.domain.model.example#Example.Created',
                                     event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":3}')
         self.stored_event_repo.append(stored_event1)
-
-        # # Check the repo contains the event.
-        # pk = (stored_entity_id, stored_event1.event_id)
-        # self.assertIn(pk, stored_event_repo)  # __contains__
-        # self.assertIsInstance(stored_event_repo[pk], StoredEvent)  # __getitem__
-        # self.assertIsInstance(repr(stored_event_repo[pk]), str)  # __getitem__
 
         # Store another event for 'entity1'.
         stored_event2 = StoredEvent(event_id=uuid.uuid1().hex,
@@ -259,7 +248,8 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
 
     def setup_stored_events(self):
         self.stored_events = []
-        for page_number in six.moves.range(12):
+        self.number_of_stored_events = 12
+        for page_number in six.moves.range(self.number_of_stored_events):
             stored_event = StoredEvent(
                 event_id=uuid.uuid1().hex,
                 stored_entity_id=self.stored_entity_id,
@@ -297,6 +287,7 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
     def assert_iterator_yields_events(self, is_ascending, expect_at_start, expect_at_end, page_size):
         iterator = self.create_iterator(is_ascending, page_size)
         retrieved_events = list(iterator)
+        self.assertEqual(len(retrieved_events), len(self.stored_events))
         self.assertGreater(len(retrieved_events), page_size)
         self.assertEqual(iterator.page_counter, 3)
         self.assertEqual(iterator.all_event_counter, self.num_events)

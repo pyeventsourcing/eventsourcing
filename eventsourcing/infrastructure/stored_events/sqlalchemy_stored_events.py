@@ -85,10 +85,19 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
                 query = query.order_by(asc(SqlStoredEvent.id))
             else:
                 query = query.order_by(desc(SqlStoredEvent.id))
-            if until is not None:
-                query = query.filter(SqlStoredEvent.timestamp_long <= timestamp_long_from_uuid(until))
+
             if after is not None:
-                query = query.filter(SqlStoredEvent.timestamp_long > timestamp_long_from_uuid(after))
+                if query_ascending:
+                    query = query.filter(SqlStoredEvent.timestamp_long > timestamp_long_from_uuid(after))
+                else:
+                    query = query.filter(SqlStoredEvent.timestamp_long >= timestamp_long_from_uuid(after))
+
+            if until is not None:
+                if query_ascending:
+                    query = query.filter(SqlStoredEvent.timestamp_long <= timestamp_long_from_uuid(until))
+                else:
+                    query = query.filter(SqlStoredEvent.timestamp_long < timestamp_long_from_uuid(until))
+
             if limit is not None:
                 query = query.limit(limit)
             events = self.map(from_sql, query)

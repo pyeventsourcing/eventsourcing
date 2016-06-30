@@ -8,7 +8,6 @@ from eventsourcing.infrastructure.stored_events.transcoders import serialize_dom
 
 
 class StoredEventRepository(six.with_metaclass(ABCMeta)):
-
     serialize_without_json = False
     serialize_with_uuid1 = False
 
@@ -65,10 +64,17 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         elif len(events) == 0:
             return None
         else:
-            raise Exception("Shouldn't have more than one object: {}".format(events))
+            raise Exception("Shouldn't have more than one event object: {}"
+                            "".format(events))
 
     def get_most_recent_events(self, stored_entity_id, until=None, limit=None):
-        return self.get_entity_events(stored_entity_id, until=until, limit=limit, query_ascending=False, results_ascending=False)
+        return self.get_entity_events(
+            stored_entity_id=stored_entity_id,
+            until=until,
+            limit=limit,
+            query_ascending=False,
+            results_ascending=False,
+        )
 
     def serialize(self, domain_event):
         """Returns a stored event from a domain event.
@@ -99,7 +105,6 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
 
 
 class StoredEventIterator(six.with_metaclass(ABCMeta)):
-
     DEFAULT_PAGE_SIZE = 1000
 
     def __init__(self, repo, stored_entity_id, page_size=None, after=None, until=None, limit=None, is_ascending=True):
@@ -132,8 +137,9 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
         self.all_event_counter += 1
 
     def _update_position(self, stored_event):
+        if stored_event is None:
+            return
         assert isinstance(stored_event, StoredEvent), type(stored_event)
-        # self.after = stored_event.event_id
         if self.is_ascending:
             self.after = stored_event.event_id
         else:
@@ -145,38 +151,30 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
 
 
 class SimpleStoredEventIterator(StoredEventIterator):
-
     def __iter__(self):
         # Get pages of events until we hit the last page.
         while True:
             # Get next page of events.
             limit = self.page_size
 
-            if not self.is_ascending and self.page_counter > 0:
-                limit += 1
+            # Get the events.
+            stored_events = self.repo.get_entity_events(
+                stored_entity_id=self.stored_entity_id,
+                after=self.after,
+                until=self.until,
+                limit=limit,
+                query_ascending=self.is_ascending,
+                results_ascending=self.is_ascending,
+            )
 
-            stored_events = self.repo.get_entity_events(self.stored_entity_id, after=self.after, until=self.until,
-                                                        limit=limit, query_ascending=self.is_ascending,
-                                                        results_ascending=self.is_ascending)
             # Count the page.
             self._inc_page_counter()
 
             # Start counting events in this page.
             in_page_event_counter = 0
 
-            position = None
-
-            skip_first_item = False
-            if not self.is_ascending and self.page_counter > 1:
-                skip_first_item = True
-
             # Yield each stored event, so long as we aren't over the limit.
             for stored_event in stored_events:
-
-                # Skip if it's the first item of all but the first page when iterating in descending order.
-                if skip_first_item:
-                    skip_first_item = False
-                    continue
 
                 # Stop if we're over the limit.
                 if self.limit and self.all_event_counter >= self.limit:
@@ -189,14 +187,8 @@ class SimpleStoredEventIterator(StoredEventIterator):
                 # Yield the event.
                 yield stored_event
 
-                # Update position variables.
-                # if self.is_ascending:
-                # else:
-                # if position is None and not self.is_ascending:
-                position = stored_event
-
-            if position != None:
-                self._update_position(position)
+                # Remember the position as the last event.
+                self._update_position(stored_event)
 
             # Decide if this is the last page.
             is_last_page = in_page_event_counter != self.page_size
@@ -207,12 +199,9 @@ class SimpleStoredEventIterator(StoredEventIterator):
 
 
 class ThreadedStoredEventIterator(StoredEventIterator):
-
     def __iter__(self):
         # Start a thread to get a page of events.
         thread = self.start_thread()
-
-        is_first_page = True
 
         # Get pages of stored events, until the page isn't full.
         while True:
@@ -239,26 +228,12 @@ class ThreadedStoredEventIterator(StoredEventIterator):
                 # Start the next thread.
                 thread = self.start_thread()
 
-            # Decide if first item should be skipped.
-            # - this is due to the way 'after' and 'until' are defined in get_entity_events()
-            # Todo: Think about changing the way 'after' and 'until' are defined to work the same in either direction.
-            if is_first_page:
-                is_first_page = False
-                skip_first_item = False
-            else:
-                skip_first_item = not self.is_ascending
-
             # Yield each stored event.
             for stored_event in stored_events:
 
                 # Stop if we're over the limit.
                 if self.limit and self.all_event_counter >= self.limit:
                     raise StopIteration
-
-                # Skip the first item.
-                if skip_first_item:
-                    skip_first_item = False
-                    continue
 
                 # Count each event.
                 self._inc_all_event_counter()
