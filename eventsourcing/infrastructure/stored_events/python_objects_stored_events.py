@@ -54,14 +54,25 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
                 until_timestamp = timestamp_from_uuid(until)
             for event in stored_events:
                 event_timestamp = timestamp_from_uuid(event.event_id)
+
+                # Exclude if earlier than the 'after' time.
                 if after_timestamp:
-                    # Exclude if earlier or equal to the 'after' time.
-                    if event_timestamp <= after_timestamp:
-                        continue
+                    if query_ascending:
+                        if event_timestamp <= after_timestamp:
+                            continue
+                    else:
+                        if event_timestamp < after_timestamp:
+                            continue
+
+                # Exclude if later than the 'until' time.
                 if until_timestamp:
-                    # Exclude if later than the 'until' time.
-                    if event_timestamp > until_timestamp:
-                        continue
+                    if query_ascending:
+                        if event_timestamp > until_timestamp:
+                            continue
+                    else:
+                        if event_timestamp >= until_timestamp:
+                            continue
+
                 count += 1
                 events.append(event)
 

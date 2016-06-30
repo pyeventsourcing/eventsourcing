@@ -63,14 +63,20 @@ class CassandraStoredEventRepository(StoredEventRepository):
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):
         query = CqlStoredEvent.objects.filter(n=stored_entity_id)
+
         if query_ascending:
             query = query.order_by('v')
 
-        if until is not None:
-            query = query.filter(v__lte=until)
-
         if after is not None:
-            query = query.filter(v__gt=after)
+            if query_ascending:
+                query = query.filter(v__gt=after)
+            else:
+                query = query.filter(v__gte=after)
+        if until is not None:
+            if query_ascending:
+                query = query.filter(v__lte=until)
+            else:
+                query = query.filter(v__lt=until)
 
         if limit is not None:
             query = query.limit(limit)

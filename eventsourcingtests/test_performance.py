@@ -122,7 +122,7 @@ class PerformanceTestCase(AbstractTestCase):
 
         # Write a load of messages.
         start_write = utc_now()
-        number_of_messages = 110
+        number_of_messages = 111
         events = []
         for i in range(number_of_messages):
             event = logger.info('Logger message number {}'.format(i))
