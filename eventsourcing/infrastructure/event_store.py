@@ -26,7 +26,7 @@ class EventStore(object):
                 until=until,
                 limit=limit,
                 query_ascending=is_ascending,
-                results_ascending=True,
+                results_ascending=is_ascending,
             )
         else:
             stored_events = self.stored_event_repo.iterate_entity_events(

@@ -8,7 +8,7 @@ from eventsourcing.application.example.with_cassandra import ExampleApplicationW
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
 from eventsourcing.application.example.with_sqlalchemy import ExampleApplicationWithSQLAlchemy
 from eventsourcing.domain.model.example import register_new_example, Example
-from eventsourcing.domain.model.logger import get_logger
+from eventsourcing.domain.model.logger import get_logger, start_new_log
 from eventsourcing.infrastructure.log_reader import get_log_reader, LogReader
 from eventsourcing.infrastructure.stored_events.cassandra_stored_events import create_cassandra_keyspace_and_tables, \
     drop_cassandra_keyspace
@@ -116,15 +116,16 @@ class PerformanceTestCase(AbstractTestCase):
             print("")
 
     def test_log_performance(self):
-        logger = get_logger('example')
-        log_reader = get_log_reader('example', self.app.event_store)
+        log = start_new_log('example', bucket_size='year')
+        logger = get_logger(log)
+        log_reader = get_log_reader(log, self.app.event_store)
 
         # Write a load of messages.
         start_write = utc_now()
         number_of_messages = 110
         events = []
         for i in range(number_of_messages):
-            event = logger.append('Logger message number {}'.format(i))
+            event = logger.info('Logger message number {}'.format(i))
             events.append(event)
         time_to_write = (utc_now() - start_write)
         print("Time to log {} messages: {:.2f}s ({:.0f} messages/s, {:.6f}s each)"
@@ -156,16 +157,16 @@ class PerformanceTestCase(AbstractTestCase):
                 previous_position, position = position, next_position
 
         # Check we got to the end of the line.
+        self.assertEqual(count_pages, 11)
         self.assertIsNone(next_position)
         self.assertTrue(previous_position)
-        self.assertEqual(count_pages, 11)
 
         # Page forward through the log in chronological order.
         count_pages = 0
         position = None
         while True:
             start_read = utc_now()
-            page_of_events, next_position = self.get_message_logged_events_and_next_position(log_reader, position, page_size, is_chronological=True)
+            page_of_events, next_position = self.get_message_logged_events_and_next_position(log_reader, position, page_size, is_ascending=True)
             time_to_read = (utc_now() - start_read)
             total_time_to_read += time_to_read
             total_num_reads += 1
@@ -184,38 +185,24 @@ class PerformanceTestCase(AbstractTestCase):
         print("Time to read {} pages of logged messages: {:.6f}s ({:.0f} pages/s, {:.0f} messages/s))"
               "".format(total_num_reads, total_time_to_read, reads_per_second, messages_per_second))
 
-
-        # self.assertEqual(len(page_lines), 10)
-        # self.assertEqual(page_lines[-1], events[-1].message)
-        # self.assertEqual(page_lines[-10], events[-10].message)
-        #
-        # position = events[0]
-        # page_lines = log.get_messages(until=position.domain_event_id, limit=page_size+1)
-        # page_lines = list(page_lines)
-        # self.assertEqual(len(page_lines), 1)
-        # self.assertEqual(page_lines[-1], events[-1].message)
-        # self.assertEqual(page_lines[-10], events[-10].message)
-
-
-        repetitions = 1
-
-    def get_message_logged_events_and_next_position(self, log_reader, position, page_size, is_chronological=False):
+    def get_message_logged_events_and_next_position(self, log_reader, position, page_size, is_ascending=False):
         assert isinstance(log_reader, LogReader), type(log_reader)
         assert isinstance(position, (six.string_types, type(None))), type(position)
         assert isinstance(page_size, six.integer_types), type(page_size)
-        assert isinstance(is_chronological, bool)
-        if is_chronological:
-            events = log_reader.get_events(after=position, limit=page_size + 1, is_ascending=True)
+        assert isinstance(is_ascending, bool)
+        if is_ascending:
+            after = position
+            until = None
         else:
-            events = log_reader.get_events(until=position, limit=page_size + 1)
+            after = None
+            until = position
+
+        events = log_reader.get_events(after=after, until=until, limit=page_size + 1, is_ascending=is_ascending)
         events = list(events)
         if len(events) == page_size + 1:
-            if is_chronological:
-                events, next_position = events[:-1], events[-1].domain_event_id
-            else:
-                events, next_position = events[1:], events[0].domain_event_id
+            next_position = events.pop().domain_event_id
         else:
-            events, next_position = events, None
+            next_position = None
         return events, next_position
 
 

@@ -66,27 +66,21 @@ class CassandraStoredEventRepository(StoredEventRepository):
         if query_ascending:
             query = query.order_by('v')
 
-        # if after is not None:
-        #     if query_ascending:
-        #         query = query.filter(v__gt=after)
-        #     else:
-        #         query = query.filter(v__gte=after)
-        # if until is not None:
-        #     if query_ascending:
-        #         query = query.filter(v__lte=until)
-        #     else:
-        #         query = query.filter(v__lt=until)
-
         if until is not None:
             query = query.filter(v__lte=until)
+
         if after is not None:
-                query = query.filter(v__gt=after)
+            query = query.filter(v__gt=after)
+
         if limit is not None:
             query = query.limit(limit)
+
         events = self.map(from_cql, query)
         events = list(events)
+
         if results_ascending and not query_ascending:
             events.reverse()
+
         return events
 
 
