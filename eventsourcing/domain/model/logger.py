@@ -1,4 +1,6 @@
 import datetime
+from time import mktime
+
 import six
 from dateutil.relativedelta import relativedelta
 from six import with_metaclass
@@ -68,11 +70,27 @@ ONE_HOUR = relativedelta(hours=1)
 ONE_MINUTE = relativedelta(minutes=1)
 ONE_SECOND = relativedelta(seconds=1)
 
+
 def next_bucket_starts(timestamp, bucket_size):
-    return (bucket_starts(timestamp, bucket_size) + bucket_duration(bucket_size)).timestamp()
+    starts = bucket_starts(timestamp, bucket_size)
+    duration = bucket_duration(bucket_size)
+    return timestamp_from_datetime((starts + duration))
+
 
 def previous_bucket_starts(timestamp, bucket_size):
-    return (bucket_starts(timestamp, bucket_size) - bucket_duration(bucket_size)).timestamp()
+    starts = bucket_starts(timestamp, bucket_size)
+    duration = bucket_duration(bucket_size)
+    return timestamp_from_datetime((starts - duration))
+
+
+def timestamp_from_datetime(dt):
+    assert dt.tzinfo, "Datetime object does not have tzinfo"
+    try:
+        # Only in Python 3.3+.
+        return dt.timestamp()
+    except AttributeError:
+        return mktime(dt.timetuple()) + dt.microsecond/1000000.0
+
 
 def bucket_starts(timestamp, bucket_size):
     dt = datetime.datetime.utcfromtimestamp(timestamp)
