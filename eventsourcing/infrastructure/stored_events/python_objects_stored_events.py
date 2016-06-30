@@ -12,40 +12,32 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
         super(PythonObjectsStoredEventRepository, self).__init__()
         self._by_id = {}
         self._by_stored_entity_id = {}
-        self._by_topic = {}
 
     def append(self, stored_event):
         assert isinstance(stored_event, StoredEvent)
-        event_id = stored_event.event_id
         stored_entity_id = stored_event.stored_entity_id
-        topic = stored_event.event_topic
+        event_id = stored_event.event_id
 
-        if topic.endswith('Discarded'):
-
+        # Remove entity if it's a discarded event.
+        if stored_event.event_topic.endswith('Discarded'):
             self.remove_entity(stored_entity_id)
-
+        # Otherwise add event to entity's list of events.
         else:
-            # Index by event ID.
-            self._by_id[event_id] = stored_event
-
             # Index by entity ID.
             if stored_entity_id not in self._by_stored_entity_id:
                 self._by_stored_entity_id[stored_entity_id] = []
             self._by_stored_entity_id[stored_entity_id].append(stored_event)
 
-            # Index by event topic.
-            if topic not in self._by_topic:
-                self._by_topic[topic] = []
-            self._by_topic[topic].append(stored_event)
+            # Index by event ID.
+            self._by_id[event_id] = stored_event
 
     def remove_entity(self, stored_entity_id):
         if stored_entity_id in self._by_stored_entity_id:
             for stored_event in self._by_stored_entity_id.pop(stored_entity_id):
                 del(self._by_id[stored_event.event_id])
-                if stored_event.event_topic in self._by_topic:
-                    self._by_topic[stored_event.event_topic].remove(stored_event)
 
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_asc=False):
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
+                          results_ascending=True):
         if stored_entity_id not in self._by_stored_entity_id:
             return []
         else:
@@ -62,22 +54,33 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
                 until_timestamp = timestamp_from_uuid(until)
             for event in stored_events:
                 event_timestamp = timestamp_from_uuid(event.event_id)
+
+                # Exclude if earlier than the 'after' time.
                 if after_timestamp:
-                    # Exclude if earlier or equal to the 'after' time.
-                    if event_timestamp <= after_timestamp:
-                        continue
+                    if query_ascending:
+                        if event_timestamp <= after_timestamp:
+                            continue
+                    else:
+                        if event_timestamp < after_timestamp:
+                            continue
+
+                # Exclude if later than the 'until' time.
                 if until_timestamp:
-                    # Exclude if later than the 'until' time.
-                    if event_timestamp > until_timestamp:
-                        continue
+                    if query_ascending:
+                        if event_timestamp > until_timestamp:
+                            continue
+                    else:
+                        if event_timestamp >= until_timestamp:
+                            continue
+
                 count += 1
                 events.append(event)
 
             if limit is not None:
-                if not query_asc:
+                if not query_ascending:
                     events.reverse()
-                events = events[:min(limit, len(events))]
-                if not query_asc:
+                events = events[:limit]
+                if results_ascending and not query_ascending:
                     events.reverse()
 
             return events

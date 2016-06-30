@@ -24,8 +24,11 @@ class EventPlayer(object):
             stored_entity_id=stored_entity_id,
             after=after,
             until=until,
-            page_size=self.page_size
+            page_size=self.page_size,
         )
+
+        # domain_events = list(domain_events)
+
 
         # Duplicate initial state, to preserve state of given object.
         if initial_state is not None:

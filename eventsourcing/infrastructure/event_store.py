@@ -16,14 +16,17 @@ class EventStore(object):
         # Append the stored event to the stored event repo.
         self.stored_event_repo.append(stored_event)
 
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, page_size=None):
+    def get_entity_events(self, stored_entity_id, after=None, until=None,
+                          limit=None, is_ascending=True, page_size=None):
         # Get the events that have been stored for the entity.
         if not page_size:
             stored_events = self.stored_event_repo.get_entity_events(
                 stored_entity_id=stored_entity_id,
                 after=after,
                 until=until,
-                limit=limit
+                limit=limit,
+                query_ascending=is_ascending,
+                results_ascending=is_ascending,
             )
         else:
             stored_events = self.stored_event_repo.iterate_entity_events(
@@ -31,6 +34,7 @@ class EventStore(object):
                 after=after,
                 until=until,
                 limit=limit,
+                is_ascending=is_ascending,
                 page_size=page_size
             )
 

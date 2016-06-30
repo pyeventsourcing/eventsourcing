@@ -1,4 +1,4 @@
-from eventsourcing.domain.model.exceptions import ConsistencyError
+from eventsourcing.domain.model.exceptions import ConsistencyError, ProgrammingError
 from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
@@ -111,7 +111,7 @@ def entity_mutator(event, _):
 
 @entity_mutator.register(EventSourcedEntity.Created)
 def created_mutator(event, cls):
-    assert isinstance(event, DomainEvent)
+    assert isinstance(event, DomainEvent), event
     if not isinstance(cls, type):
         raise MutatorRequiresTypeError("created_mutator needs a type instance: {} "
                                        "(event entity id: {}, event type: {})"
@@ -124,6 +124,7 @@ def created_mutator(event, cls):
 
 @entity_mutator.register(EventSourcedEntity.AttributeChanged)
 def attribute_changed_mutator(event, self):
+    assert isinstance(self, EventSourcedEntity), self
     self._validate_originator(event)
     setattr(self, event.name, event.value)
     self._increment_version()
@@ -132,6 +133,7 @@ def attribute_changed_mutator(event, self):
 
 @entity_mutator.register(EventSourcedEntity.Discarded)
 def discarded_mutator(event, self):
+    assert isinstance(self, EventSourcedEntity), self
     self._validate_originator(event)
     self._is_discarded = True
     self._increment_version()
@@ -139,26 +141,37 @@ def discarded_mutator(event, self):
 
 
 def mutableproperty(getter):
+    """
+    When used as a class method decorator, returns a property object
+    with the method as the getter and a setter defined to call instance
+    method _change_attribute(), which publishes an AttributeChanged event.
+    """
     if isfunction(getter):
-
         def setter(self, value):
             assert isinstance(self, EventSourcedEntity), type(self)
             name = '_' + getter.__name__
             self._change_attribute(name=name, value=value)
 
-        return property(fget=getter, fset=setter)
+        def new_getter(self):
+            assert isinstance(self, EventSourcedEntity), type(self)
+            name = '_' + getter.__name__
+            return getattr(self, name)
+
+        return property(fget=new_getter, fset=setter)
     else:
-        raise ValueError(repr(getter))
+        raise ProgrammingError("Expected a function, got: {}".format(repr(getter)))
 
 
 class EntityRepository(with_metaclass(ABCMeta)):
 
     @abstractmethod
     def __getitem__(self, entity_id):
-        """Returns entity for given ID.
+        """
+        Returns entity for given ID.
         """
 
     @abstractmethod
     def __contains__(self, entity_id):
-        """Returns True or False, according to whether or not entity exists.
+        """
+        Returns True or False, according to whether or not entity exists.
         """
