@@ -199,16 +199,16 @@ class Logger(with_metaclass(QualnameABCMeta)):
         self.log = log
 
     def debug(self, message):
-        return self.log.append_message(message)
+        return self.log.append_message(message, level='DEBUG')
 
     def info(self, message):
-        return self.log.append_message(message)
+        return self.log.append_message(message, level='INFO')
 
     def warning(self, message):
-        return self.log.append_message(message)
+        return self.log.append_message(message, level='WARNING')
 
     def error(self, message):
-        return self.log.append_message(message)
+        return self.log.append_message(message, level='ERROR')
 
     def critical(self, message):
-        return self.log.append_message(message)
+        return self.log.append_message(message, level='CRITICAL')
