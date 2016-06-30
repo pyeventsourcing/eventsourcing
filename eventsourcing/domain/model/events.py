@@ -146,16 +146,15 @@ def resolve_domain_topic(topic):
     Raises:
         TopicResolutionError: If there is no such domain class.
     """
-    # Todo: Fix up this block to show what the topic is, and where it went wrong.
     try:
         module_name, _, class_name = topic.partition('#')
         module = importlib.import_module(module_name)
-    except ImportError:
-        raise TopicResolutionError()
+    except ImportError as e:
+        raise TopicResolutionError("{}: {}".format(topic, e))
     try:
         cls = resolve_attr(module, class_name)
-    except AttributeError:
-        raise TopicResolutionError()
+    except AttributeError as e:
+        raise TopicResolutionError("{}: {}".format(topic, e))
     return cls
 
 
