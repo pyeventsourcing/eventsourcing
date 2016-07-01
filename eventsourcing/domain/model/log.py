@@ -5,7 +5,7 @@ import six
 from dateutil.relativedelta import relativedelta
 from six import with_metaclass
 
-from eventsourcing.domain.model.entity import EventSourcedEntity
+from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository
 from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta, create_domain_event_id
 from eventsourcing.utils.time import timestamp_from_uuid, utc_timezone
 
@@ -169,6 +169,10 @@ class Log(EventSourcedEntity):
         )
         publish(event)
         return event
+
+
+class LogRepository(EntityRepository):
+    pass
 
 
 def start_new_log(name, bucket_size):

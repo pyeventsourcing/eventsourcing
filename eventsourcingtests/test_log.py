@@ -4,7 +4,8 @@ from time import sleep
 from uuid import uuid1
 
 from eventsourcing.domain.model.events import assert_event_handlers_empty
-from eventsourcing.domain.model.logger import get_logger, Logger, start_new_log, Log
+from eventsourcing.domain.model.log import get_logger, Logger, start_new_log, Log
+from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.log_reader import get_log_reader
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
@@ -20,12 +21,14 @@ class TestLog(unittest.TestCase):
         self.event_store = EventStore(PythonObjectsStoredEventRepository())
         self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
 
+        self.log_repo = LogRepo(self.event_store)
+
     def tearDown(self):
         self.persistence_subscriber.close()
         assert_event_handlers_empty()
 
     def test_entity_lifecycle(self):
-        log = start_new_log(name='log1', bucket_size='year')
+        log = self.log_repo.get_or_create(log_name='log1', bucket_size='year')
         self.assertIsInstance(log, Log)
         self.assertEqual(log.name, 'log1')
         self.assertEqual(log.bucket_size, 'year')

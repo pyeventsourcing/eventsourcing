@@ -4,7 +4,7 @@ import six
 from six import with_metaclass
 
 from eventsourcing.domain.model.events import QualnameABCMeta
-from eventsourcing.domain.model.logger import Log, MessageLogged, make_bucket_id, next_bucket_starts, \
+from eventsourcing.domain.model.log import Log, MessageLogged, make_bucket_id, next_bucket_starts, \
     previous_bucket_starts
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.stored_events.transcoders import make_stored_entity_id
