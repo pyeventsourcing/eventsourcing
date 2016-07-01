@@ -149,8 +149,10 @@ class TestLog(unittest.TestCase):
         start = datetime.datetime.now()
         logger = get_logger(log)
         number_of_messages = 300
+        events = []
         for i in range(number_of_messages):
-            logger.info(str(i))
+            message_logged = logger.info(str(i))
+            events.append(message_logged)
             sleep(0.01)
         self.assertGreater(datetime.datetime.now() - start, datetime.timedelta(seconds=1))
 
@@ -159,7 +161,7 @@ class TestLog(unittest.TestCase):
         messages = list(reader.get_messages(is_ascending=False, page_size=10))
         self.assertEqual(len(messages), number_of_messages)
 
-        # Expect the order of the messages the reverse of the created order.
+        # Expect the order of the messages is the reverse of the created order.
         self.assertEqual(messages, list(reversed([str(i) for i in range(number_of_messages)])))
 
         # Get the messages in ascending order.
@@ -168,3 +170,62 @@ class TestLog(unittest.TestCase):
 
         # Expect the order of the messages is the same as the created order.
         self.assertEqual(messages, [str(i) for i in range(number_of_messages)])
+
+
+        # Get a limited number of messages in descending order.
+        limit = 150
+        messages = list(reader.get_messages(is_ascending=False, page_size=10, limit=limit))
+        self.assertLess(limit, number_of_messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the reverse of the created order.
+        self.assertEqual(messages, list(reversed([str(i) for i in range(number_of_messages)]))[:limit])
+
+        # Get a limited number of messages in ascending order.
+        limit = 150
+        messages = list(reader.get_messages(is_ascending=True, page_size=10, limit=limit))
+        self.assertLess(limit, number_of_messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the same as the created order.
+        self.assertEqual(messages, [str(i) for i in range(limit)])
+
+        # Get a limited number of messages in descending order from the midpoint down.
+        limit = 110
+        midpoint = events[150].domain_event_id
+        messages = list(reader.get_messages(is_ascending=False, page_size=10, limit=limit, until=midpoint))
+        self.assertLess(limit, number_of_messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the reverse of the created order.
+        self.assertEqual(messages, list(reversed([str(i) for i in range(150 - limit, 150)])))
+
+        # Get a limited number of messages in ascending order from the midpoint up.
+        limit = 110
+        midpoint = events[149].domain_event_id
+        messages = list(reader.get_messages(is_ascending=True, page_size=10, limit=limit, after=midpoint))
+        self.assertLess(limit, number_of_messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the same as the created order.
+        self.assertEqual(messages, [str(i) for i in range(150, 150 + limit)])
+
+        # Get a limited number of messages in descending order above the midpoint down.
+        limit = 200
+        midpoint = events[150].domain_event_id
+        messages = list(reader.get_messages(is_ascending=False, page_size=10, limit=limit, after=midpoint))
+        self.assertLess(limit, number_of_messages)
+        self.assertEqual(len(messages), 150)
+
+        # Expect the order of the messages is the reverse of the created order.
+        self.assertEqual(messages, list(reversed([str(i) for i in range(150, 300)])))
+
+        # Get a limited number of messages in ascending order below the midpoint up.
+        limit = 200
+        midpoint = events[149].domain_event_id
+        messages = list(reader.get_messages(is_ascending=True, page_size=10, limit=limit, until=midpoint))
+        self.assertLess(limit, number_of_messages)
+        self.assertEqual(len(messages), 150)
+
+        # Expect the order of the messages is the same as the created order.
+        self.assertEqual(messages, [str(i) for i in range(150)])
