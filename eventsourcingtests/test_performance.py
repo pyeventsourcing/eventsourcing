@@ -8,7 +8,7 @@ from eventsourcing.application.example.with_cassandra import ExampleApplicationW
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
 from eventsourcing.application.example.with_sqlalchemy import ExampleApplicationWithSQLAlchemy
 from eventsourcing.domain.model.example import register_new_example, Example
-from eventsourcing.domain.model.logger import get_logger, start_new_log
+from eventsourcing.domain.model.log import get_logger, start_new_log
 from eventsourcing.infrastructure.log_reader import get_log_reader, LogReader
 from eventsourcing.infrastructure.stored_events.cassandra_stored_events import create_cassandra_keyspace_and_tables, \
     drop_cassandra_keyspace
