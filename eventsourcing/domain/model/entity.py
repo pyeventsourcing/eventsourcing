@@ -36,7 +36,7 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
     # If the entity won't have very many events, marking the entity as
     # "short" by setting __is_short__ value equal to True will mean
-    # the festest path for getting all the events is used.
+    # the fastest path for getting all the events is used.
     __is_short__ = False
 
     class Created(DomainEvent):
