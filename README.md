@@ -194,11 +194,13 @@ See also:
 
 ### Forthcoming features
 
-* List-based collections
-
-* Set-based collections
-
-* Base class for collections
+* Collections
+ 
+    * List-based collections
+ 
+    * Set-based collections
+ 
+    * Base class for collections
 
 * Stored event repository to persist stored events in a file using a very simple file format
 
