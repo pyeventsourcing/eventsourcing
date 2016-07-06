@@ -248,7 +248,7 @@ class LogTestCase(AbstractTestCase):
         self.assertEqual(messages, [str(i) for i in range(150)])
 
         #
-        # Use the last_domain_event_id to start part way through.
+        # Use the last position to start part way through.
         limit = 20
         last_position = reader.position
         messages = reader.get_messages(is_ascending=True, page_size=10, limit=limit, after=last_position)
