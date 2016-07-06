@@ -6,6 +6,9 @@ python:
   - "2.7"
   - "3.3"
   - "3.4"
-#  - "3.5"   # Suspended on 6 July because Travis Cassandra isn't working on this version today.
+# Suspended on 6 July because Travis Cassandra isn't working on this version today.
+#  - anyway, apparently the Cassandra driver doesn't support Python 3.5
+#  - maybe it will someday
+#  - "3.5"
 install: pip install -r requirements.txt
 script: python -m unittest discover eventsourcingtests -v
