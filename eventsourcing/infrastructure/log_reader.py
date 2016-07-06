@@ -26,12 +26,12 @@ class LogReader(with_metaclass(QualnameABCMeta)):
         self.event_store = event_store
         assert isinstance(page_size, six.integer_types)
         self.page_size = page_size
-        self.last_domain_event_id = None
+        self.position = None
 
     def get_messages(self, after=None, until=None, limit=None, is_ascending=False, page_size=None):
         for event in self.get_events(after, until, limit, is_ascending, page_size):
             if isinstance(event, MessageLogged):
-                self.last_domain_event_id = event.domain_event_id
+                self.position = event.domain_event_id
                 yield event.message
 
     def get_events(self, after=None, until=None, limit=None, is_ascending=False, page_size=None):
