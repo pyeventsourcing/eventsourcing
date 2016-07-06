@@ -1,6 +1,7 @@
 import uuid
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository, entity_mutator, singledispatch
+from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository, entity_mutator, \
+    singledispatch
 from eventsourcing.domain.model.events import publish, DomainEvent
 
 
@@ -46,7 +47,7 @@ class Example(EventSourcedEntity):
     def count_heartbeats(self):
         return self._count_heartbeats
 
-    @staticmethod   
+    @staticmethod
     def _mutator(event, initial):
         return example_mutator(event, initial)
 

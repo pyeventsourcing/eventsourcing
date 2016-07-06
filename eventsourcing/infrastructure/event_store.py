@@ -17,18 +17,9 @@ class EventStore(object):
         self.stored_event_repo.append(stored_event)
 
     def get_entity_events(self, stored_entity_id, after=None, until=None,
-                          limit=None, is_ascending=True, page_size=None):
+                          limit=None, is_ascending=True, page_size=None, is_short=False):
         # Get the events that have been stored for the entity.
-        if not page_size:
-            stored_events = self.stored_event_repo.get_entity_events(
-                stored_entity_id=stored_entity_id,
-                after=after,
-                until=until,
-                limit=limit,
-                query_ascending=is_ascending,
-                results_ascending=is_ascending,
-            )
-        else:
+        if page_size:
             stored_events = self.stored_event_repo.iterate_entity_events(
                 stored_entity_id=stored_entity_id,
                 after=after,
@@ -36,6 +27,25 @@ class EventStore(object):
                 limit=limit,
                 is_ascending=is_ascending,
                 page_size=page_size
+            )
+        elif is_short:
+            stored_events = self.stored_event_repo.get_entity_events(
+                stored_entity_id=stored_entity_id,
+                after=after,
+                until=until,
+                limit=limit,
+                query_ascending=False,  # Speed up for Cassandra, assuming primary TimeUUID key is stored descending.
+                results_ascending=False,  # Still need to return the events in ascending order.
+            )
+            stored_events = reversed(stored_events)
+        else:
+            stored_events = self.stored_event_repo.get_entity_events(
+                stored_entity_id=stored_entity_id,
+                after=after,
+                until=until,
+                limit=limit,
+                query_ascending=is_ascending,
+                results_ascending=is_ascending,
             )
 
         # Deserialize all the stored event objects into domain event objects.

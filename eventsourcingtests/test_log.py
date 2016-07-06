@@ -1,5 +1,4 @@
 import datetime
-import unittest
 from time import sleep
 from uuid import uuid1
 
@@ -9,21 +8,41 @@ from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.log_reader import get_log_reader
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
-from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
+from eventsourcingtests.test_stored_event_repository_cassandra import CassandraTestCase
+from eventsourcingtests.test_stored_event_repository_python_objects import PythonObjectsTestCase
+from eventsourcingtests.test_stored_event_repository_sqlalchemy import SQLAlchemyTestCase
+from eventsourcingtests.test_stored_events import AbstractTestCase
 
 
-class TestLog(unittest.TestCase):
+class LogTestCase(AbstractTestCase):
+    @property
+    def stored_event_repo(self):
+        """
+        Returns a stored event repository.
+
+        Concrete log test cases will provide this method.
+        """
+        raise NotImplementedError
+
     def setUp(self):
+        super(LogTestCase, self).setUp()
+
+        # Check we're starting clean, event handler-wise.
         assert_event_handlers_empty()
 
         # Setup the persistence subscriber.
-        self.event_store = EventStore(PythonObjectsStoredEventRepository())
+        self.event_store = EventStore(self.stored_event_repo)
         self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
 
         self.log_repo = LogRepo(self.event_store)
 
     def tearDown(self):
+        # Close the persistence subscriber.
         self.persistence_subscriber.close()
+
+        super(LogTestCase, self).tearDown()
+
+        # Check we finished clean, event handler-wise.
         assert_event_handlers_empty()
 
     def test_entity_lifecycle(self):
@@ -51,14 +70,14 @@ class TestLog(unittest.TestCase):
 
         # Check we can get all the messages (query running in descending order).
         log_reader = get_log_reader(log, event_store=self.event_store)
-        messages = list(log_reader.get_messages())
+        messages = list(log_reader.get_messages(is_ascending=False))
         self.assertEqual(len(messages), 6)
-        self.assertEqual(message1, messages[0])
-        self.assertEqual(message2, messages[1])
-        self.assertEqual(message3, messages[2])
-        self.assertEqual(message4, messages[3])
-        self.assertEqual(message5, messages[4])
-        self.assertEqual(message6, messages[5])
+        self.assertEqual(messages[0], message6)
+        self.assertEqual(messages[1], message5)
+        self.assertEqual(messages[2], message4)
+        self.assertEqual(messages[3], message3)
+        self.assertEqual(messages[4], message2)
+        self.assertEqual(messages[5], message1)
 
         # Check we can get all the messages (query running in ascending order).
         messages = list(log_reader.get_messages(is_ascending=True))
@@ -73,16 +92,16 @@ class TestLog(unittest.TestCase):
         # Check we can get messages after halfway (query running in descending order).
         messages = list(log_reader.get_messages(after=halfway, is_ascending=False))
         self.assertEqual(len(messages), 3)
-        self.assertEqual(messages[0], message4)
+        self.assertEqual(messages[0], message6)
         self.assertEqual(messages[1], message5)
-        self.assertEqual(messages[2], message6)
+        self.assertEqual(messages[2], message4)
 
         # Check we can get messages until halfway (query running in descending order).
         messages = list(log_reader.get_messages(until=halfway, is_ascending=False))
         self.assertEqual(len(messages), 3)
-        self.assertEqual(messages[0], message1)
+        self.assertEqual(messages[0], message3)
         self.assertEqual(messages[1], message2)
-        self.assertEqual(messages[2], message3)
+        self.assertEqual(messages[2], message1)
 
         # Check we can get messages until halfway (query running in ascending order).
         messages = list(log_reader.get_messages(until=halfway, is_ascending=True))
@@ -282,3 +301,15 @@ class TestLog(unittest.TestCase):
 
         # Expect the order of the messages is the reverse of the created order.
         self.assertEqual(messages, [str(i) for i in range(108 + limit * 2, 108 + limit, -1)])
+
+
+class TestLogWithCassandra(CassandraTestCase, LogTestCase):
+    pass
+
+
+class TestLogWithPythonObjects(PythonObjectsTestCase, LogTestCase):
+    pass
+
+
+class TestLogWithSQLAlchemy(SQLAlchemyTestCase, LogTestCase):
+    pass

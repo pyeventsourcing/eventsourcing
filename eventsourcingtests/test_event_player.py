@@ -43,9 +43,26 @@ class TestEventPlayer(unittest.TestCase):
         self.assertEqual('entity1', event_player.replay_events('entity1').id)
         self.assertEqual(1, event_player.replay_events('entity1').a)
         self.assertEqual(2, event_player.replay_events('entity2').a)
+        self.assertEqual(None, event_player.replay_events('entity3'))
 
         # Check entity3 raises KeyError.
         self.assertEqual(event_player.replay_events('entity3'), None)
+
+        # Check it works for "short" entities (should be faster, but the main thing is that it still works).
+        # - just use a trivial mutate that always instantiates the 'Example'.
+        event5 = Example.AttributeChanged(entity_id='entity1', entity_version=1, name='a', value=10)
+        event_store.append(event5)
+
+        event_player = EventPlayer(event_store=event_store, id_prefix='Example', mutate_func=Example.mutate)
+        self.assertEqual(10, event_player.replay_events('entity1').a)
+
+        event_player = EventPlayer(
+            event_store=event_store,
+            id_prefix='Example',
+            mutate_func=Example.mutate,
+            is_short=True,
+        )
+        self.assertEqual(10, event_player.replay_events('entity1').a)
 
     def test_snapshots(self):
         stored_event_repo = PythonObjectsStoredEventRepository()
