@@ -1,12 +1,14 @@
 # Event sourcing in Python
 
-[![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png)](https://travis-ci.org/johnbywater/eventsourcing)
+ [ ! [ Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png)]
+(https://travis-ci.org/johnbywater/eventsourcing)
 
 A library for event sourcing in Python.
 
 ## Mailing List
 
-There is a [mailing list](https://groups.google.com/forum/#!forum/eventsourcing-users) for discussion relating to this project.
+There is a [mailing list](https://groups.google.com/forum/#!forum/eventsourcing-users) for discussion relating to 
+this project.
 
 ## Install
 
@@ -34,14 +36,14 @@ Subsequent versions have the this ordering declared as descending. The change wa
 through long histories of events and getting only recent events after a snapshot.
 
 A few things have been renamed, for example '@mutableproperty' is the new name for '@eventsourcedproperty'.
-This change was made to reflect the fact that immutable properties are also eventsourced.
+This change was made to reflect the fact that immutable properties are also event sourced.
 
 The EventSourcedEntity class now has a property 'created_on', which replaces the attribute '_created_on'.
-This follows from the fact that the domain events no longer have an floating point attribute 'timestamp' 
+This change follows from the fact that the domain events no longer have an floating point attribute 'timestamp' 
 but instead a UUID attribute 'domain_event_id', which is set on an event sourced entity as '_initial_event_id'.
 That UUID value is used to generate the floating point timestamp value of the 'created_on' property.
 
-Please note, the mutator style has changed to use the singledispatch package. Mutators were implemented as a
+Please note, the mutator style has changed to use the `singledispatch` package. Mutators were implemented as a
 big if-elif-else block. Subclasses of EventSourcedEntity must implement a static method called _mutator() in
 order to have their own mutator function invoked when mutate() is called.
 
@@ -104,7 +106,58 @@ See also:
 
 ## Features
 
+* Example application of event sourcing, with an example event sourced entity and example domain events, and with
+ an example event sourced repository containing example entity instances, and an example entity factory method
+
+* Storage-specific event sourced application classes
+
+    * Base class for event sourced applications with SQLAlchemy
+
+    * Base class for event sourced applications with Cassandra
+
+    * Base class for event sourced applications with simple Python objects (non-persistent)
+
+* Base class for event sourced applications, which provides an event store and a persistence subscriber, but 
+ which requires subclasses to implement a method that provides a stored event repository instance
+
+
+* Example event sourced entity
+
+* Base class for event sourced entities
+
+    * Basic domain events, to model basic "created", "attribute changed", and "discarded" entity events
+
+    * Mutator function, to apply a domain event to an entity, variously according to the type of the event
+
+    * Event sourced property decorator, to help declare simple event sourced properties
+
+    * A "discard" method which publishes the discarded event, to call when an entity is no longer wanted, 
+
 * Domain event base class, to model events in a domain
+
+* In-process publish-subscribe mechanism, for in-process domain event propagation
+
+* Persistence subscriber class, to subscribe to locally published domain events and append them to an event store
+
+* Example event sourced domain entity repository
+
+* Base class for event sourced domain entity repositories
+
+* Event player, to recover a domain entity for a given domain entity ID, using an event store and a mutator
+
+* Domain event store class
+
+    * Method to append a new domain event
+    
+    * Method to get all the domain events for an entity
+
+* Concrete stored event repository classes
+
+    * Stored event repository to persist stored event objects in a relational database, using SQLAlchemy (as an ORM)
+
+    * Stored event repository to persist stored events in Cassandra
+
+    * Stored event repository using simple Python objects (non-persistent)
 
 * Generic stored event class, to provide a form in which to persist domain events
 
@@ -126,60 +179,34 @@ See also:
 
     * Method to get single domain event for given event ID
 
-* Concrete stored event repository classes
+* Entity snapshots, to avoid replaying all events
 
-    * Stored event repository to persist stored event objects in a relational database, using SQLAlchemy (as an ORM)
+* Method to get domain events for given entity ID, from given time
 
-    * Stored event repository to persist stored events in Cassandra
+* Method to get domain events for given entity ID, until given time
 
-    * Stored event repository using simple Python objects (non-persistent)
+* Method to get a limited number of domain events 
 
-* Domain event store class
+* Generator that retrieves events in a succession of pages, emitting a continuous stream in ascending or descending
+ order
 
-    * Method to append a new domain event
-    
-    * Method to get all the domain events for an entity
-
-* In-process publish-subscribe mechanism, for in-process domain event propagation to subscriber objects
-
-* Persistence subscriber class, to subscribe to locally published domain events and append them to an event store
-
-* Base class for event sourced entities
-
-    * Basic domain events, to model basic "created", "attribute changed", and "discarded" entity events
-
-    * Basic "mutator" function, to apply the basic domain events to any domain entity
-
-    * Event sourced property decorator, to help declare simple event sourced properties
-
-    * A "discard" method which publishes the discarded event, to call when an entity is no longer wanted, 
-
-* Event player, to recover a domain entity for a given domain entity ID, using an event store and a mutator
-
-* Base class for event sourced domain entity repositories, to recover domain entities using an event player
-
-* Abstract base class for event sourced applications, having an event store and a persistence subscriber, but requiring a stored event repository
-
-* Concrete event sourced application classes
-
-    * Base class for event sourced applications with SQLAlchemy, which provides a stored event repository that uses SQLAlchemy
-
-    * Base class for event sourced applications with Cassandra, which provides a stored event repository that uses Cassandra
-
-* Example application of event sourcing, with an example event sourced entity and example domain events, and with an example event sourced repository containing example entity instances, and an example entity factory method
-
+* Time-bucketed logs, useful for accumulating an indefinite list of messages in an accessible manner
 
 ### Forthcoming features
+
+* Collections
+ 
+    * List-based collections
+ 
+    * Set-based collections
+ 
+    * Base class for collections
 
 * Stored event repository to persist stored events in a file using a very simple file format
 
 * Stored event repository to persist stored events using MongoDB
 
 * Stored event repository to persist stored events using HBase
-
-* Method to get all domain events for given entity ID, from given version of the entity (forthcoming)
-
-* Method to get all domain events for given entity ID, until given time (forthcoming)
 
 * Method to delete all domain events for given domain entity ID (forthcoming)
 
@@ -195,23 +222,25 @@ See also:
 
 * Republisher that subscribers to Amazon SQS and publishes domain event locally (forthcoming)
 
-* Linked pages of domain events ("Archived Log"), to allow event sourced projections easily to make sure they have all the events (forthcoming)
+* Linked pages of domain events ("Archived Log"), to allow event sourced projections easily to make sure they have 
+all the events (forthcoming)
 
 * Base class for event sourced projections or views (forthcoming)
 
     * In memory event sourced projection, which needs to replay entire event stream when system starts up (forthcoming)
 
-    * Persistent event sourced projection, which stored its projected state, but needs to replay entire event stream when initialized  (forthcoming)
+    * Persistent event sourced projection, which stored its projected state, but needs to replay entire event stream
+      when initialized  (forthcoming)
 
 * Event sourced indexes, as persisted event source projections, to discover extant entity IDs (forthcoming)
-
-* Entity snapshots, to avoid replaying all events (forthcoming)
 
 * Event pointer, to refer to an event in a stream (forthcoming)
 
 * Updating stored events, to support domain model migration (forthcoming)
 
-* Something to store serialized event attribute values separately from the other event information, to prevent large attribute values inhibiting performance and stability - different sizes could be stored in different ways... (forthcoming)
+* Something to store serialized event attribute values separately from the other event information, to prevent large 
+attribute values inhibiting performance and stability - different sizes could be stored in different ways... 
+(forthcoming)
 
 * Different kinds of stored event
     * IDs generated from content, e.g. like Git (forthcoming)

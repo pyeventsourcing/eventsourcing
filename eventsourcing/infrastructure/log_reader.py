@@ -26,13 +26,17 @@ class LogReader(with_metaclass(QualnameABCMeta)):
         self.event_store = event_store
         assert isinstance(page_size, six.integer_types)
         self.page_size = page_size
+        self.position = None
 
     def get_messages(self, after=None, until=None, limit=None, is_ascending=False, page_size=None):
         for event in self.get_events(after, until, limit, is_ascending, page_size):
             if isinstance(event, MessageLogged):
+                self.position = event.domain_event_id
                 yield event.message
 
     def get_events(self, after=None, until=None, limit=None, is_ascending=False, page_size=None):
+        assert limit is None or limit > 0
+
         if after is None:
             after_timestamp = None
         else:
@@ -50,6 +54,9 @@ class LogReader(with_metaclass(QualnameABCMeta)):
         else:
             timestamp = now_timestamp if until is None else min(until_timestamp, now_timestamp)
 
+        # Start counting events.
+        count_events = 0
+
         while True:
             entity_id = make_bucket_id(self.log.name, timestamp, self.log.bucket_size)
             stored_entity_id = make_stored_entity_id('MessageLogged', entity_id)
@@ -63,6 +70,11 @@ class LogReader(with_metaclass(QualnameABCMeta)):
             ):
                 yield message_logged_event
 
+                if limit is not None:
+                    count_events += 1
+                    if count_events >= limit:
+                        raise StopIteration
+
             # See if there's another bucket.
             if is_ascending:
                 next_timestamp = next_bucket_starts(timestamp, self.log.bucket_size)
@@ -71,7 +83,7 @@ class LogReader(with_metaclass(QualnameABCMeta)):
                 else:
                     timestamp = next_timestamp
             else:
-                if timestamp <= (after_timestamp or started_on):
+                if timestamp < (after_timestamp or started_on):
                     raise StopIteration
                 else:
                     timestamp = previous_bucket_starts(timestamp, self.log.bucket_size)

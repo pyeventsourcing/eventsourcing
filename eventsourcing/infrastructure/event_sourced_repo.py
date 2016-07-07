@@ -8,6 +8,18 @@ from eventsourcing.infrastructure.stored_events.transcoders import id_prefix_fro
 
 class EventSourcedRepository(EntityRepository):
 
+    # The page size by which events are retrieved. If this
+    # value is set to a positive integer, the events of
+    # the entity will be retrieved in pages, using a series
+    # of queries, rather than with one potentially large query.
+    __page_size__ = None
+
+    # If the entity won't have very many events, marking the entity as
+    # "short" by setting __is_short__ value equal to True will mean
+    # the fastest path for getting all the events is used.
+    __is_short__ = False
+
+
     def __init__(self, event_store, use_cache=False):
         # Check we got an event store.
         assert isinstance(event_store, EventStore)
@@ -22,7 +34,8 @@ class EventSourcedRepository(EntityRepository):
             event_store=event_store,
             id_prefix=id_prefix_from_entity_class(domain_class),
             mutate_func=domain_class.mutate,
-            page_size=domain_class.__page_size__
+            page_size=self.__page_size__ or domain_class.__page_size__,
+            is_short=self.__is_short__ or domain_class.__is_short__,
         )
         self._cache = {}
         self._use_cache = use_cache

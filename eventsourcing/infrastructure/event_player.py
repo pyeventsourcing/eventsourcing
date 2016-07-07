@@ -8,12 +8,13 @@ from eventsourcing.infrastructure.stored_events.transcoders import deserialize_d
 
 class EventPlayer(object):
 
-    def __init__(self, event_store, id_prefix, mutate_func, page_size=None):
+    def __init__(self, event_store, id_prefix, mutate_func, page_size=None, is_short=False):
         assert isinstance(event_store, EventStore), event_store
         self.event_store = event_store
         self.id_prefix = id_prefix
         self.mutate = mutate_func
         self.page_size = page_size
+        self.is_short = is_short
 
     def replay_events(self, entity_id, after=None, until=None, initial_state=None):
         # Make the stored entity ID.
@@ -25,10 +26,8 @@ class EventPlayer(object):
             after=after,
             until=until,
             page_size=self.page_size,
+            is_short=self.is_short
         )
-
-        # domain_events = list(domain_events)
-
 
         # Duplicate initial state, to preserve state of given object.
         if initial_state is not None:

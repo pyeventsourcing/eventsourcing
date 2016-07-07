@@ -28,7 +28,16 @@ class MutatorRequiresTypeError(ConsistencyError):
 
 class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
+    # The page size by which events are retrieved. If this
+    # value is set to a positive integer, the events of
+    # the entity will be retrieved in pages, using a series
+    # of queries, rather than with one potentially large query.
     __page_size__ = None
+
+    # If the entity won't have very many events, marking the entity as
+    # "short" by setting __is_short__ value equal to True will mean
+    # the fastest path for getting all the events is used.
+    __is_short__ = False
 
     class Created(DomainEvent):
         def __init__(self, entity_version=0, **kwargs):

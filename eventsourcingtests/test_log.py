@@ -1,5 +1,4 @@
 import datetime
-import unittest
 from time import sleep
 from uuid import uuid1
 
@@ -9,22 +8,41 @@ from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.log_reader import get_log_reader
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
-from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
+from eventsourcingtests.test_stored_event_repository_cassandra import CassandraTestCase
+from eventsourcingtests.test_stored_event_repository_python_objects import PythonObjectsTestCase
+from eventsourcingtests.test_stored_event_repository_sqlalchemy import SQLAlchemyTestCase
+from eventsourcingtests.test_stored_events import AbstractTestCase
 
 
-class TestLog(unittest.TestCase):
+class LogTestCase(AbstractTestCase):
+    @property
+    def stored_event_repo(self):
+        """
+        Returns a stored event repository.
+
+        Concrete log test cases will provide this method.
+        """
+        raise NotImplementedError
 
     def setUp(self):
+        super(LogTestCase, self).setUp()
+
+        # Check we're starting clean, event handler-wise.
         assert_event_handlers_empty()
 
         # Setup the persistence subscriber.
-        self.event_store = EventStore(PythonObjectsStoredEventRepository())
+        self.event_store = EventStore(self.stored_event_repo)
         self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
 
         self.log_repo = LogRepo(self.event_store)
 
     def tearDown(self):
+        # Close the persistence subscriber.
         self.persistence_subscriber.close()
+
+        super(LogTestCase, self).tearDown()
+
+        # Check we finished clean, event handler-wise.
         assert_event_handlers_empty()
 
     def test_entity_lifecycle(self):
@@ -52,14 +70,14 @@ class TestLog(unittest.TestCase):
 
         # Check we can get all the messages (query running in descending order).
         log_reader = get_log_reader(log, event_store=self.event_store)
-        messages = list(log_reader.get_messages())
+        messages = list(log_reader.get_messages(is_ascending=False))
         self.assertEqual(len(messages), 6)
-        self.assertEqual(message1, messages[0])
-        self.assertEqual(message2, messages[1])
-        self.assertEqual(message3, messages[2])
-        self.assertEqual(message4, messages[3])
-        self.assertEqual(message5, messages[4])
-        self.assertEqual(message6, messages[5])
+        self.assertEqual(messages[0], message6)
+        self.assertEqual(messages[1], message5)
+        self.assertEqual(messages[2], message4)
+        self.assertEqual(messages[3], message3)
+        self.assertEqual(messages[4], message2)
+        self.assertEqual(messages[5], message1)
 
         # Check we can get all the messages (query running in ascending order).
         messages = list(log_reader.get_messages(is_ascending=True))
@@ -74,16 +92,16 @@ class TestLog(unittest.TestCase):
         # Check we can get messages after halfway (query running in descending order).
         messages = list(log_reader.get_messages(after=halfway, is_ascending=False))
         self.assertEqual(len(messages), 3)
-        self.assertEqual(messages[0], message4)
+        self.assertEqual(messages[0], message6)
         self.assertEqual(messages[1], message5)
-        self.assertEqual(messages[2], message6)
+        self.assertEqual(messages[2], message4)
 
         # Check we can get messages until halfway (query running in descending order).
         messages = list(log_reader.get_messages(until=halfway, is_ascending=False))
         self.assertEqual(len(messages), 3)
-        self.assertEqual(messages[0], message1)
+        self.assertEqual(messages[0], message3)
         self.assertEqual(messages[1], message2)
-        self.assertEqual(messages[2], message3)
+        self.assertEqual(messages[2], message1)
 
         # Check we can get messages until halfway (query running in ascending order).
         messages = list(log_reader.get_messages(until=halfway, is_ascending=True))
@@ -149,8 +167,10 @@ class TestLog(unittest.TestCase):
         start = datetime.datetime.now()
         logger = get_logger(log)
         number_of_messages = 300
+        events = []
         for i in range(number_of_messages):
-            logger.info(str(i))
+            message_logged = logger.info(str(i))
+            events.append(message_logged)
             sleep(0.01)
         self.assertGreater(datetime.datetime.now() - start, datetime.timedelta(seconds=1))
 
@@ -159,7 +179,7 @@ class TestLog(unittest.TestCase):
         messages = list(reader.get_messages(is_ascending=False, page_size=10))
         self.assertEqual(len(messages), number_of_messages)
 
-        # Expect the order of the messages the reverse of the created order.
+        # Expect the order of the messages is the reverse of the created order.
         self.assertEqual(messages, list(reversed([str(i) for i in range(number_of_messages)])))
 
         # Get the messages in ascending order.
@@ -168,3 +188,128 @@ class TestLog(unittest.TestCase):
 
         # Expect the order of the messages is the same as the created order.
         self.assertEqual(messages, [str(i) for i in range(number_of_messages)])
+
+        # Get a limited number of messages in descending order.
+        limit = 150
+        messages = list(reader.get_messages(is_ascending=False, page_size=10, limit=limit))
+        self.assertLess(limit, number_of_messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the reverse of the created order.
+        self.assertEqual(messages, list(reversed([str(i) for i in range(number_of_messages)]))[:limit])
+
+        # Get a limited number of messages in ascending order.
+        limit = 150
+        messages = list(reader.get_messages(is_ascending=True, page_size=10, limit=limit))
+        self.assertLess(limit, number_of_messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the same as the created order.
+        self.assertEqual(messages, [str(i) for i in range(limit)])
+
+        # Get a limited number of messages in descending order from the midpoint down.
+        limit = 110
+        midpoint = events[150].domain_event_id
+        messages = list(reader.get_messages(is_ascending=False, page_size=10, limit=limit, until=midpoint))
+        self.assertLess(limit, number_of_messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the reverse of the created order.
+        self.assertEqual(messages, list(reversed([str(i) for i in range(150 - limit, 150)])))
+
+        # Get a limited number of messages in ascending order from the midpoint up.
+        limit = 110
+        midpoint = events[149].domain_event_id
+        messages = list(reader.get_messages(is_ascending=True, page_size=10, limit=limit, after=midpoint))
+        self.assertLess(limit, number_of_messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the same as the created order.
+        self.assertEqual(messages, [str(i) for i in range(150, 150 + limit)])
+
+        # Get a limited number of messages in descending order above the midpoint down.
+        limit = 200
+        midpoint = events[150].domain_event_id
+        messages = list(reader.get_messages(is_ascending=False, page_size=10, limit=limit, after=midpoint))
+        self.assertLess(limit, number_of_messages)
+        self.assertEqual(len(messages), 150)
+
+        # Expect the order of the messages is the reverse of the created order.
+        self.assertEqual(messages, list(reversed([str(i) for i in range(150, 300)])))
+
+        # Get a limited number of messages in ascending order below the midpoint up.
+        limit = 200
+        midpoint = events[149].domain_event_id
+        messages = list(reader.get_messages(is_ascending=True, page_size=10, limit=limit, until=midpoint))
+        self.assertLess(limit, number_of_messages)
+        self.assertEqual(len(messages), 150)
+
+        # Expect the order of the messages is the same as the created order.
+        self.assertEqual(messages, [str(i) for i in range(150)])
+
+        #
+        # Use the last position to start part way through.
+        limit = 20
+        last_position = reader.position
+        messages = reader.get_messages(is_ascending=True, page_size=10, limit=limit, after=last_position)
+        messages = list(messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the same as the created order.
+        self.assertEqual(messages, [str(i) for i in range(150, 150 + limit)])
+
+        # Do it again.
+        last_position = reader.position
+        messages = reader.get_messages(is_ascending=True, page_size=10, limit=limit, after=last_position)
+        messages = list(messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the same as the created order.
+        self.assertEqual(messages, [str(i) for i in range(150 + limit, 150 + limit * 2)])
+
+        # Go back.
+        last_position = reader.position
+        messages = reader.get_messages(is_ascending=False, page_size=10, limit=limit, until=last_position)
+        messages = list(messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the reverse of the created order.
+        self.assertEqual(messages, [str(i) for i in range(148 + limit * 2, 148 + limit, -1)])
+
+        # Go back.
+        last_position = reader.position
+        messages = reader.get_messages(is_ascending=False, page_size=10, limit=limit, until=last_position)
+        messages = list(messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the reverse of the created order.
+        self.assertEqual(messages, [str(i) for i in range(128 + limit * 2, 128 + limit, -1)])
+
+        # Go back.
+        last_position = reader.position
+        messages = reader.get_messages(is_ascending=False, page_size=10, limit=limit, until=last_position)
+        messages = list(messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the reverse of the created order.
+        self.assertEqual(messages, [str(i) for i in range(108 + limit * 2, 108 + limit, -1)])
+
+        # Repeat.
+        messages = reader.get_messages(is_ascending=False, page_size=10, limit=limit, until=last_position)
+        messages = list(messages)
+        self.assertEqual(len(messages), limit)
+
+        # Expect the order of the messages is the reverse of the created order.
+        self.assertEqual(messages, [str(i) for i in range(108 + limit * 2, 108 + limit, -1)])
+
+
+class TestLogWithCassandra(CassandraTestCase, LogTestCase):
+    pass
+
+
+class TestLogWithPythonObjects(PythonObjectsTestCase, LogTestCase):
+    pass
+
+
+class TestLogWithSQLAlchemy(SQLAlchemyTestCase, LogTestCase):
+    pass
