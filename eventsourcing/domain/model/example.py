@@ -10,7 +10,7 @@ class Example(EventSourcedEntity):
     An example event sourced domain model entity.
     """
 
-    # __page_size__ = 1000  # Needed to have an event history longer than 10000 in Cassandra.
+    __page_size__ = 1000  # Needed to get an event history longer than 10000 in Cassandra.
 
     class Created(EventSourcedEntity.Created):
         pass

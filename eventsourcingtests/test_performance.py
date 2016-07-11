@@ -47,7 +47,7 @@ class PerformanceTestCase(AbstractTestCase):
         repetitions = 10
 
         # NB: Use range(1, 5) to test whether we can get more than 10000 event from Cassandra.
-        for i in six.moves.range(1, 4):
+        for i in six.moves.range(1, 5):
             # Setup a number of entities, with different lengths of event history.
             payload = 3
             # payload = str([uuid4().hex for _ in six.moves.range(100000)])
@@ -88,7 +88,8 @@ class PerformanceTestCase(AbstractTestCase):
             for _ in six.moves.range(repetitions):
                 example = self.app.example_repo[example.id]
                 assert isinstance(example, Example)
-                assert example.count_heartbeats() == num_beats
+                heartbeats = example.count_heartbeats()
+                assert heartbeats == num_beats, (heartbeats, num_beats)
 
             time_replaying = (utc_now() - start_replay) / repetitions
             print("Time to replay {} beats: {:.2f}s ({:.0f} beats/s, {:.6f}s each)"
