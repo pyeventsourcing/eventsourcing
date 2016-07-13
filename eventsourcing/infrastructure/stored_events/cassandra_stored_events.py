@@ -10,7 +10,11 @@ import six
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, ThreadedStoredEventIterator
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
-DEFAULT_CASSANDRA_KEYSPACE = 'eventsourcing'
+DEFAULT_CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
+DEFAULT_CASSANDRA_CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', 'LOCAL_QUORUM')
+DEFAULT_CASSANDRA_HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', 'localhost').split(',')]
+DEFAULT_CASSANDRA_PORT = int(os.getenv('CASSANDRA_PORT', 9042))
+DEFAULT_CASSANDRA_PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', 3))
 
 
 class CqlStoredEvent(Model):
@@ -90,9 +94,9 @@ class CassandraStoredEventRepository(StoredEventRepository):
         return events
 
 
-def get_cassandra_setup_params(hosts=('localhost',), consistency='LOCAL_QUORUM',
-                               default_keyspace=DEFAULT_CASSANDRA_KEYSPACE, port=9042,
-                               protocol_version=3, username=None, password=None):
+def get_cassandra_setup_params(hosts=DEFAULT_CASSANDRA_HOSTS, consistency=DEFAULT_CASSANDRA_CONSISTENCY_LEVEL,
+                               default_keyspace=DEFAULT_CASSANDRA_KEYSPACE, port=DEFAULT_CASSANDRA_PORT,
+                               protocol_version=DEFAULT_CASSANDRA_PROTOCOL_VERSION, username=None, password=None):
 
     # Construct an "auth provider" object.
     if username and password:
