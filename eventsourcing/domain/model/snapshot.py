@@ -1,5 +1,4 @@
 from eventsourcing.domain.model.events import DomainEvent, publish
-from eventsourcing.domain.model.example import Example
 from eventsourcing.infrastructure.stored_events.transcoders import topic_from_domain_class, make_stored_entity_id, \
     id_prefix_from_entity
 
@@ -39,7 +38,7 @@ def take_snapshot(entity, at_event_id):
     snapshot = Snapshot(
         entity_id=stored_snapshotted_entity_id,
         domain_event_id=at_event_id,
-        topic=topic_from_domain_class(Example),
+        topic=topic_from_domain_class(entity.__class__),
         attrs=entity.__dict__.copy(),
     )
     publish(snapshot)
