@@ -1,6 +1,5 @@
 # Event sourcing in Python
 
-[![ Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png?branch=develop)]
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png?branch=master)]
 (https://travis-ci.org/johnbywater/eventsourcing)
 
