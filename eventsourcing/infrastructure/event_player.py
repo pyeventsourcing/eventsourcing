@@ -29,7 +29,7 @@ class EventPlayer(object):
             is_short=self.is_short
         )
 
-        # Duplicate initial state, to preserve state of given object.
+        # Copy initial state, to preserve state of given object.
         if initial_state is not None:
             initial_state_copy = object.__new__(type(initial_state))
             initial_state_copy.__dict__.update(initial_state.__dict__)
