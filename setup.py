@@ -2,9 +2,9 @@ from setuptools import setup, find_packages
 
 try:
     from functools import singledispatch
-    install_requires_single_dispatch = []
+    install_requires_singledispatch = []
 except ImportError:
-    install_requires_single_dispatch = ['singledispatch']
+    install_requires_singledispatch = ['singledispatch']
 
 
 setup(
@@ -15,10 +15,10 @@ setup(
     author_email='john.bywater@appropriatesoftware.net',
     url = 'https://github.com/johnbywater/eventsourcing',
     packages=find_packages(),
-    install_requires= install_requires_single_dispatch + [
+    install_requires=[
         'six',
         'python-dateutil',
-    ],
+    ] + install_requires_singledispatch,
     extras_require={
         'test': [
             'sqlalchemy',
