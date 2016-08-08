@@ -208,6 +208,8 @@ See also:
 
 * Stored event repository to persist stored events using HBase
 
+* Stored event repository to persist stored events using DynamoDB
+
 * Method to delete all domain events for given domain entity ID (forthcoming)
 
 * Method to get all domain events in the order they occurred (forthcoming)
