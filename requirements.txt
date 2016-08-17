@@ -4,3 +4,4 @@ six
 sqlalchemy
 mock
 python-dateutil
+PyCrypto

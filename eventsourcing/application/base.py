@@ -8,9 +8,11 @@ from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubsc
 
 class EventSourcingApplication(with_metaclass(ABCMeta)):
 
-    def __init__(self, json_encoder_cls=None, json_decoder_cls=None):
+    def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt_stored_events=False):
         self.stored_event_repo = self.create_stored_event_repo(json_encoder_cls=json_encoder_cls,
-                                                               json_decoder_cls=json_decoder_cls)
+                                                               json_decoder_cls=json_decoder_cls,
+                                                               cipher=cipher,
+                                                               always_encrypt=always_encrypt_stored_events)
         self.event_store = self.create_event_store()
         self.persistence_subscriber = self.create_persistence_subscriber()
 

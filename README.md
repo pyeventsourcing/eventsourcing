@@ -192,6 +192,9 @@ See also:
 
 * Time-bucketed logs, useful for accumulating an indefinite list of messages in an accessible manner
 
+* Encrypted stored events
+
+
 ### Forthcoming features
 
 * Collections
@@ -207,6 +210,8 @@ See also:
 * Stored event repository to persist stored events using MongoDB
 
 * Stored event repository to persist stored events using HBase
+
+* Stored event repository to persist stored events using DynamoDB
 
 * Method to delete all domain events for given domain entity ID (forthcoming)
 
@@ -245,7 +250,6 @@ attribute values inhibiting performance and stability - different sizes could be
 * Different kinds of stored event
     * IDs generated from content, e.g. like Git (forthcoming)
     * cryptographically signed stored events (forthcoming)
-    * encrypted stored events (forthcoming)
     
 * Branch and merge mechanism for domain events (forthcoming)
 
