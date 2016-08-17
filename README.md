@@ -192,6 +192,9 @@ See also:
 
 * Time-bucketed logs, useful for accumulating an indefinite list of messages in an accessible manner
 
+* Encrypted stored events
+
+
 ### Forthcoming features
 
 * Collections
@@ -247,7 +250,6 @@ attribute values inhibiting performance and stability - different sizes could be
 * Different kinds of stored event
     * IDs generated from content, e.g. like Git (forthcoming)
     * cryptographically signed stored events (forthcoming)
-    * encrypted stored events (forthcoming)
     
 * Branch and merge mechanism for domain events (forthcoming)
 
