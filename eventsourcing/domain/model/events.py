@@ -41,6 +41,8 @@ def create_domain_event_id():
 
 class DomainEvent(with_metaclass(QualnameABCMeta)):
 
+    always_encrypt = False
+
     def __init__(self, entity_id, entity_version, domain_event_id=None, **kwargs):
         self.__dict__['entity_id'] = entity_id
         self.__dict__['entity_version'] = entity_version

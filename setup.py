@@ -25,6 +25,7 @@ setup(
             'mock',
             'cassandra-driver==3.5.0',
             'numpy',
+            'PyCrypto',
         ],
         'sqlalchemy': [
             'sqlalchemy',

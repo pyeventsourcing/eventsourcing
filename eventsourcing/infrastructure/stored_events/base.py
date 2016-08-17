@@ -11,9 +11,11 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
     serialize_without_json = False
     serialize_with_uuid1 = False
 
-    def __init__(self, json_encoder_cls=None, json_decoder_cls=None):
+    def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False):
         self.json_encoder_cls = json_encoder_cls
         self.json_decoder_cls = json_decoder_cls
+        self.cipher = cipher
+        self.always_encrypt = always_encrypt
 
     @abstractmethod
     def append(self, stored_event):
@@ -86,6 +88,8 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
             json_encoder_cls=self.json_encoder_cls,
             without_json=self.serialize_without_json,
             with_uuid1=self.serialize_with_uuid1,
+            cipher=self.cipher,
+            always_encrypt=self.always_encrypt,
         )
 
     def deserialize(self, stored_event):
@@ -97,6 +101,8 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
             json_decoder_cls=self.json_decoder_cls,
             without_json=self.serialize_without_json,
             with_uuid1=self.serialize_with_uuid1,
+            cipher=self.cipher,
+            always_encrypt=self.always_encrypt,
         )
 
     @staticmethod
