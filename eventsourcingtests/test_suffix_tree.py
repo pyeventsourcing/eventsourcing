@@ -6,6 +6,8 @@ from eventsourcing.domain.model.events import publish
 
 
 def register_new_node():
+    """Factory method, registers new node.
+    """
     node_id = uuid4().hex
     event = Node.Created(entity_id=node_id)
     entity = Node.mutate(event=event)
@@ -14,12 +16,17 @@ def register_new_node():
 
 
 def make_edge_id(source_node_index, first_char):
+    """Returns a string made from given params.
+    """
     return "{}::{}".format(source_node_index, first_char)
 
 
-def register_new_edge(edge_id, first_char_index, last_char_index, source_node_id, dest_node_id):
+def register_new_edge(edge_id, label, first_char_index, last_char_index, source_node_id, dest_node_id):
+    """Factory method, registers new edge.
+    """
     event = Edge.Created(
         entity_id=edge_id,
+        label=label,
         first_char_index=first_char_index,
         last_char_index=last_char_index,
         source_node_id=source_node_id,
@@ -31,6 +38,8 @@ def register_new_edge(edge_id, first_char_index, last_char_index, source_node_id
 
 
 def register_new_suffix_tree(string, case_insensitive=False):
+    """Factory method, returns new suffix tree object.
+    """
     suffix_tree_id = uuid4().hex
     event = SuffixTree.Created(
         entity_id=suffix_tree_id,
@@ -44,10 +53,6 @@ def register_new_suffix_tree(string, case_insensitive=False):
 
 class Node(EventSourcedEntity):
     """A node in the suffix tree.
-
-    suffix_node_id
-        the id of a node with a matching suffix, representing a suffix link.
-        None indicates this node has no suffix link.
     """
 
     class Created(EventSourcedEntity.Created): pass
@@ -62,6 +67,10 @@ class Node(EventSourcedEntity):
 
     @mutableproperty
     def suffix_node_id(self):
+        """The id of a node with a matching suffix, representing a suffix link.
+
+        None indicates this node has no suffix link.
+        """
         return self._suffix_node_id
 
     def __repr__(self):
@@ -70,18 +79,6 @@ class Node(EventSourcedEntity):
 
 class Edge(EventSourcedEntity):
     """An edge in the suffix tree.
-
-    first_char_index
-        index of start of string part represented by this edge
-
-    last_char_index
-        index of end of string part represented by this edge
-
-    source_node_id
-        id of source node of edge
-
-    dest_node_id
-        id of destination node of edge
     """
 
     class Created(EventSourcedEntity.Created): pass
@@ -90,31 +87,48 @@ class Edge(EventSourcedEntity):
 
     class Discarded(EventSourcedEntity.Discarded): pass
 
-    def __init__(self, first_char_index, last_char_index, source_node_id, dest_node_id, **kwargs):
+    def __init__(self, label, first_char_index, last_char_index, source_node_id, dest_node_id, **kwargs):
         super(Edge, self).__init__(**kwargs)
+        self._label = label
         self._first_char_index = first_char_index
         self._last_char_index = last_char_index
         self._source_node_id = source_node_id
         self._dest_node_id = dest_node_id
 
     @mutableproperty
+    def label(self):
+        """String part represented by this edge.
+        """
+        return self._label
+
+    @mutableproperty
     def first_char_index(self):
+        """Index of start of string part represented by this edge.
+        """
         return self._first_char_index
 
     @property
     def last_char_index(self):
+        """Index of end of string part represented by this edge.
+        """
         return self._last_char_index
 
     @mutableproperty
     def source_node_id(self):
+        """Id of source node of edge.
+        """
         return self._source_node_id
 
     @property
     def dest_node_id(self):
+        """Id of destination node of edge.
+        """
         return self._dest_node_id
 
     @property
     def length(self):
+        """Number of chars in the string part represented by this edge.
+        """
         return self.last_char_index - self.first_char_index
 
     def __repr__(self):
@@ -124,24 +138,47 @@ class Edge(EventSourcedEntity):
 
 class Suffix(object):
     """Represents a suffix from first_char_index to last_char_index.
-
-    source_node_id
-        index of node where this suffix starts
-
-    first_char_index
-        index of start of suffix in string
-
-    last_char_index
-        index of end of suffix in string
     """
 
     def __init__(self, source_node_id, first_char_index, last_char_index):
-        self.source_node_id = source_node_id
-        self.first_char_index = first_char_index
-        self.last_char_index = last_char_index
+        self._source_node_id = source_node_id
+        self._first_char_index = first_char_index
+        self._last_char_index = last_char_index
+
+    @property
+    def source_node_id(self):
+        """Index of node where this suffix starts.
+        """
+        return self._source_node_id
+
+    @source_node_id.setter
+    def source_node_id(self, value):
+        self._source_node_id = value
+
+    @property
+    def first_char_index(self):
+        """Index of start of suffix in string.
+        """
+        return self._first_char_index
+
+    @first_char_index.setter
+    def first_char_index(self, value):
+        self._first_char_index = value
+
+    @property
+    def last_char_index(self):
+        """Index of end of suffix in string.
+        """
+        return self._last_char_index
+
+    @last_char_index.setter
+    def last_char_index(self, value):
+        self._last_char_index = value
 
     @property
     def length(self):
+        """Number of chars in string.
+        """
         return self.last_char_index - self.first_char_index
 
     def explicit(self):
@@ -178,7 +215,9 @@ class SuffixTree(EventSourcedEntity):
         self._case_insensitive = case_insensitive
         self._N = len(string) - 1
         node = register_new_node()
-        self._nodes = {node.id: node}
+        self._nodes = {
+            node.id: node
+        }
         self._root_node_id = node.id
         self._edges = {}
         self._active = Suffix(self._root_node_id, 0, -1)
@@ -200,20 +239,20 @@ class SuffixTree(EventSourcedEntity):
         return self._nodes
 
     @property
+    def root_node_id(self):
+        return self._root_node_id
+
+    @property
     def edges(self):
         return self._edges
 
     @property
-    def activate(self):
+    def active(self):
         return self._active
 
     @property
     def case_insensitive(self):
         return self._case_insensitive
-
-    @property
-    def active(self):
-        return self._active
 
     def __repr__(self):
         """
@@ -258,8 +297,10 @@ class SuffixTree(EventSourcedEntity):
             node = register_new_node()
             self.nodes[node.id] = node
             edge_id = make_edge_id(last_char_index, self.string[last_char_index])
+            label = self.string[last_char_index:self.N + 1]
             e = register_new_edge(
                 edge_id=edge_id,
+                label=label,
                 first_char_index=last_char_index,
                 last_char_index=self.N,
                 source_node_id=parent_node_id,
@@ -271,7 +312,7 @@ class SuffixTree(EventSourcedEntity):
                 self.nodes[last_parent_node_id].suffix_node_id = parent_node_id
             last_parent_node_id = parent_node_id
 
-            if self.active.source_node_id == self._root_node_id:
+            if self.active.source_node_id == self.root_node_id:
                 self.active.first_char_index += 1
             else:
                 self.active.source_node_id = self.nodes[self.active.source_node_id].suffix_node_id
@@ -282,19 +323,25 @@ class SuffixTree(EventSourcedEntity):
         self._canonize_suffix(self.active)
 
     def _insert_edge(self, edge):
-        edge_id = make_edge_id(edge.source_node_id, self.string[edge.first_char_index])
+        # assert self.string[edge.first_char_index] == edge.label[0]
+        edge_id = make_edge_id(edge.source_node_id, edge.label[0])
         self.edges[edge_id] = edge
 
     def _remove_edge(self, edge):
-        edge_id = make_edge_id(edge.source_node_id, self.string[edge.first_char_index])
+        # assert self.string[edge.first_char_index] == edge.label[0]
+        edge_id = make_edge_id(edge.source_node_id, edge.label[0])
         self.edges.pop(edge_id)
 
     def _split_edge(self, edge, suffix):
         node = register_new_node()
         self.nodes[node.id] = node
-        edge_id = make_edge_id(edge.first_char_index, self.string[edge.first_char_index])
+        # assert self.string[edge.first_char_index] == edge.label[0]
+        edge_id = make_edge_id(edge.first_char_index, edge.label[0])
+        # assert self.string[edge.first_char_index:edge.first_char_index + suffix.length + 1] == edge.label[:suffix.length + 1]
+        label = edge.label[:suffix.length + 1]
         e = register_new_edge(
             edge_id=edge_id,
+            label=label,
             first_char_index=edge.first_char_index,
             last_char_index=edge.first_char_index + suffix.length,
             source_node_id=suffix.source_node_id,
@@ -304,7 +351,9 @@ class SuffixTree(EventSourcedEntity):
         self._remove_edge(edge)
         self._insert_edge(e)
         self.nodes[e.dest_node_id].suffix_node_id = suffix.source_node_id  ### need to add node for each edge
+
         edge.first_char_index += suffix.length + 1
+        edge.label = edge.label[suffix.length + 1:]
         edge.source_node_id = e.dest_node_id
         self._insert_edge(edge)
         return e.dest_node_id
@@ -330,7 +379,7 @@ class SuffixTree(EventSourcedEntity):
             return -1
         if self.case_insensitive:
             substring = substring.lower()
-        curr_node_id = self._root_node_id
+        curr_node_id = self.root_node_id
         i = 0
         while i < len(substring):
             edge_id = make_edge_id(curr_node_id, substring[i])
@@ -338,7 +387,7 @@ class SuffixTree(EventSourcedEntity):
             if not edge:
                 return -1
             ln = min(edge.length + 1, len(substring) - i)
-            if substring[i:i + ln] != self.string[edge.first_char_index:edge.first_char_index + ln]:
+            if substring[i:i + ln] != edge.label[:ln]:
                 return -1
             i += edge.length + 1
             curr_node_id = edge.dest_node_id
@@ -389,10 +438,3 @@ class SuffixTreeTest(unittest.TestCase):
         st = register_new_suffix_tree(f.read(), case_insensitive=True)
         self.assertEqual(st.find_substring('ukkonen'), 1498)
         self.assertEqual(st.find_substring('Optimal'), 1830)
-
-        # def test_repr(self):
-        #     st = SuffixTree("t")
-        #     output = '\tStart \tEnd \tSuf \tFirst \tLast \tString\n\t0 \t1 \t-1 \t0 \t0 \tt\n'
-        #     # import pdb;
-        #     # pdb.set_trace()
-        #     self.assertEqual(st.__repr__(), output)
