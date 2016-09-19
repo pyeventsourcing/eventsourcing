@@ -3,7 +3,7 @@ from sqlalchemy.ext.declarative.api import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.scoping import ScopedSession
 from sqlalchemy.sql.expression import asc, desc
-from sqlalchemy.sql.schema import Column, Sequence
+from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import Integer, String, BigInteger
 
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
@@ -31,15 +31,22 @@ class SqlStoredEvent(Base):
     event_id = Column(String(), index=True)
     timestamp_long = Column(BigInteger(), index=True)
     stored_entity_id = Column(String(), index=True)
+    stored_entity_version = Column(Integer())
     event_topic = Column(String())
     event_attrs = Column(String())
+
+    __table_args__ = (
+        UniqueConstraint('stored_entity_id', 'stored_entity_version', name='_stored_entity_id_stored_entity_version_uc'),
+    )
 
 
 def from_sql(sql_stored_event):
     assert isinstance(sql_stored_event, SqlStoredEvent), sql_stored_event
+    sql_stored_event.event_attrs["entity_version"] = sql_stored_event.stored_entity_version
     return StoredEvent(
         event_id=sql_stored_event.event_id,
         stored_entity_id=sql_stored_event.stored_entity_id,
+        stored_entity_version=sql_stored_event.stored_entity_version,
         event_attrs=sql_stored_event.event_attrs,
         event_topic=sql_stored_event.event_topic
     )
@@ -47,10 +54,13 @@ def from_sql(sql_stored_event):
 
 def to_sql(stored_event):
     assert isinstance(stored_event, StoredEvent)
+    stored_entity_version = stored_event.event_attrs["entity_version"]
+    del stored_event.event_attrs["entity_version"]
     return SqlStoredEvent(
         event_id=stored_event.event_id,
         timestamp_long=timestamp_long_from_uuid(stored_event.event_id),
         stored_entity_id=stored_event.stored_entity_id,
+        stored_entity_version=stored_entity_version,
         event_attrs=stored_event.event_attrs,
         event_topic=stored_event.event_topic
     )
