@@ -28,12 +28,12 @@ class SqlStoredEvent(Base):
     __tablename__ = 'stored_events'
 
     id = Column(Integer, Sequence('stored_event_id_seq'), primary_key=True)
-    event_id = Column(String(255), index=True)
+    event_id = Column(String(), index=True)
     timestamp_long = Column(BigInteger(), index=True)
-    stored_entity_id = Column(String(255), index=True)
+    stored_entity_id = Column(String(), index=True)
     stored_entity_version = Column(Integer())
-    event_topic = Column(String(255))
-    event_attrs = Column(Text())
+    event_topic = Column(String())
+    event_attrs = Column(String())
 
     __table_args__ = (
         UniqueConstraint('stored_entity_id', 'stored_entity_version', name='_stored_entity_id_stored_entity_version_uc'),
