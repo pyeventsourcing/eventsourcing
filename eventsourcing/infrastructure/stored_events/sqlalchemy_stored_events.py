@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.scoping import ScopedSession
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
-from sqlalchemy.sql.sqltypes import Integer, String, BigInteger, Text
+from sqlalchemy.sql.sqltypes import Integer, String, BigInteger
 
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
