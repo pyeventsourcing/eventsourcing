@@ -3,7 +3,7 @@ from sqlalchemy.ext.declarative.api import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.scoping import ScopedSession
 from sqlalchemy.sql.expression import asc, desc
-from sqlalchemy.sql.schema import Column, Sequence
+from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import Integer, String, BigInteger
 
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
@@ -31,28 +31,12 @@ class SqlStoredEvent(Base):
     event_id = Column(String(), index=True)
     timestamp_long = Column(BigInteger(), index=True)
     stored_entity_id = Column(String(), index=True)
+    stored_entity_version = Column(Integer())
     event_topic = Column(String())
     event_attrs = Column(String())
 
-
-def from_sql(sql_stored_event):
-    assert isinstance(sql_stored_event, SqlStoredEvent), sql_stored_event
-    return StoredEvent(
-        event_id=sql_stored_event.event_id,
-        stored_entity_id=sql_stored_event.stored_entity_id,
-        event_attrs=sql_stored_event.event_attrs,
-        event_topic=sql_stored_event.event_topic
-    )
-
-
-def to_sql(stored_event):
-    assert isinstance(stored_event, StoredEvent)
-    return SqlStoredEvent(
-        event_id=stored_event.event_id,
-        timestamp_long=timestamp_long_from_uuid(stored_event.event_id),
-        stored_entity_id=stored_event.stored_entity_id,
-        event_attrs=stored_event.event_attrs,
-        event_topic=stored_event.event_topic
+    __table_args__ = (
+        UniqueConstraint('stored_entity_id', 'stored_entity_version', name='_stored_entity_id_stored_entity_version_uc'),
     )
 
 
@@ -65,8 +49,28 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         assert isinstance(db_session, ScopedSession)
         self.db_session = db_session
 
+    def from_sql(self, sql_stored_event):
+        assert isinstance(sql_stored_event, SqlStoredEvent), sql_stored_event
+        return StoredEvent(
+            event_id=sql_stored_event.event_id,
+            stored_entity_id=sql_stored_event.stored_entity_id,
+            event_attrs=sql_stored_event.event_attrs,
+            event_topic=sql_stored_event.event_topic
+        )
+
+    def to_sql(self, stored_event):
+        assert isinstance(stored_event, StoredEvent)
+        return SqlStoredEvent(
+            event_id=stored_event.event_id,
+            timestamp_long=timestamp_long_from_uuid(stored_event.event_id),
+            stored_entity_id=stored_event.stored_entity_id,
+            stored_entity_version=self.deserialize(stored_event).entity_version,
+            event_attrs=stored_event.event_attrs,
+            event_topic=stored_event.event_topic
+        )
+
     def append(self, stored_event):
-        sql_stored_event = to_sql(stored_event)
+        sql_stored_event = self.to_sql(stored_event)
         try:
             self.db_session.add(sql_stored_event)
             self.db_session.commit()
@@ -100,7 +104,7 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
 
             if limit is not None:
                 query = query.limit(limit)
-            events = self.map(from_sql, query)
+            events = self.map(self.from_sql, query)
             events = list(events)
         finally:
             self.db_session.close()
