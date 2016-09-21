@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.scoping import ScopedSession
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence
-from sqlalchemy.sql.sqltypes import Integer, String, BigInteger
+from sqlalchemy.sql.sqltypes import Integer, String, BigInteger, Text
 
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
@@ -28,11 +28,11 @@ class SqlStoredEvent(Base):
     __tablename__ = 'stored_events'
 
     id = Column(Integer, Sequence('stored_event_id_seq'), primary_key=True)
-    event_id = Column(String(), index=True)
+    event_id = Column(String(255), index=True)
     timestamp_long = Column(BigInteger(), index=True)
-    stored_entity_id = Column(String(), index=True)
-    event_topic = Column(String())
-    event_attrs = Column(String())
+    stored_entity_id = Column(String(255), index=True)
+    event_topic = Column(String(255))
+    event_attrs = Column(Text())
 
 
 def from_sql(sql_stored_event):

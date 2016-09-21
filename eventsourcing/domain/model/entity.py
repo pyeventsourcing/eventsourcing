@@ -26,6 +26,10 @@ class MutatorRequiresTypeError(ConsistencyError):
     pass
 
 
+class EntityIsDiscarded(AssertionError):
+    pass
+
+
 class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
     # The page size by which events are retrieved. If this
@@ -60,7 +64,7 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
     def _assert_not_discarded(self):
         if self._is_discarded:
-            raise AssertionError("Entity is discarded")
+            raise EntityIsDiscarded("Entity is discarded")
 
     @property
     def id(self):
