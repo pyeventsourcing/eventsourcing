@@ -148,6 +148,8 @@ class SuffixTree(EventSourcedEntity):
         # Create a new node, to give edge a new dest,
         # and create a new edge that finishes the suffix
         # from the new node.
+        # Todo: Change this to shorted the current edge, to go to the new node,
+        # then add a new edge from the new node to the original dest node.
         node = register_new_node()
         self.nodes[node.id] = node
         # assert self.string[edge.first_char_index] == edge.label[0]
