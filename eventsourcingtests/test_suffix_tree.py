@@ -1,8 +1,12 @@
 # coding=utf-8
 
+import os
 import unittest
 
 from eventsourcing.domain.model.suffixtree import register_new_suffix_tree
+
+
+LONG_TEXT_FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'test_suffix_tree.txt')
 
 
 class SuffixTreeTest(unittest.TestCase):
@@ -31,14 +35,14 @@ class SuffixTreeTest(unittest.TestCase):
         self.assertFalse(st.has_substring('A'))
 
     def test_long_string(self):
-        f = open("test.txt")
+        f = open(LONG_TEXT_FIXTURE_PATH)
         st = register_new_suffix_tree(f.read())
         self.assertEqual(st.find_substring('Ukkonen'), 1498)
         self.assertEqual(st.find_substring('Optimal'), 11074)
         self.assertFalse(st.has_substring('ukkonen'))
 
     def test_case_sensitivity(self):
-        f = open("test.txt")
+        f = open(LONG_TEXT_FIXTURE_PATH)
         st = register_new_suffix_tree(f.read(), case_insensitive=True)
         self.assertEqual(st.find_substring('ukkonen'), 1498)
         self.assertEqual(st.find_substring('Optimal'), 1830)
