@@ -11,10 +11,10 @@ from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubsc
 from eventsourcing.tests.test_stored_event_repository_cassandra import CassandraTestCase
 from eventsourcing.tests.test_stored_event_repository_python_objects import PythonObjectsTestCase
 from eventsourcing.tests.test_stored_event_repository_sqlalchemy import SQLAlchemyTestCase
-from eventsourcing.tests.test_stored_events import Abstract2TestCase
+from eventsourcing.tests.test_stored_events import AbstractTestCase
 
 
-class LogTestCase(Abstract2TestCase):
+class LogTestCase(AbstractTestCase):
     @property
     def stored_event_repo(self):
         """

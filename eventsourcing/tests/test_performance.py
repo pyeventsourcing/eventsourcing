@@ -15,10 +15,10 @@ from eventsourcing.infrastructure.stored_events.cassandra_stored_events import c
 from eventsourcing.infrastructure.stored_events.transcoders import make_stored_entity_id
 from eventsourcing.utils.time import utc_now
 from eventsourcing.tests.test_application_with_encryption import AESStoredEventCipher
-from eventsourcing.tests.test_stored_events import Abstract2TestCase
+from eventsourcing.tests.test_stored_events import AbstractTestCase
 
 
-class PerformanceTestCase(Abstract2TestCase):
+class PerformanceTestCase(AbstractTestCase):
 
     def setUp(self):
         super(PerformanceTestCase, self).setUp()

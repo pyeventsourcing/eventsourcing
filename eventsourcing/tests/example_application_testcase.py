@@ -1,13 +1,13 @@
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.domain.model.example import Example
-from eventsourcing.tests.test_stored_events import Abstract2TestCase
+from eventsourcing.tests.test_stored_events import AbstractTestCase
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 
 
-class ExampleApplicationTestCase(Abstract2TestCase):
+class ExampleApplicationTestCase(AbstractTestCase):
 
     def setUp(self):
         super(ExampleApplicationTestCase, self).setUp()

@@ -41,8 +41,8 @@ class SuffixTreeTest(unittest.TestCase):
         self.assertEqual(st.find_substring('Optimal'), 11074)
         self.assertFalse(st.has_substring('ukkonen'))
 
-    def test_case_sensitivity(self):
-        st = register_new_suffix_tree(LONG_TEXT)
+    def test_case_insensitivity(self):
+        st = register_new_suffix_tree(LONG_TEXT, case_insensitive=True)
         self.assertEqual(st.find_substring('ukkonen'), 1498)
         self.assertEqual(st.find_substring('Optimal'), 1830)
 
