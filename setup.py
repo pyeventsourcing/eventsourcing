@@ -16,22 +16,23 @@ setup(
     url='https://github.com/johnbywater/eventsourcing',
     packages=find_packages(),
     install_requires=[
-        'six',
         'python-dateutil',
+        'singledispatch',
+        'six',
     ] + install_requires_singledispatch,
     extras_require={
-        'test': [
-            'sqlalchemy',
-            'mock',
+        'cassandra': [
             'cassandra-driver==3.5.0',
+        ],
+        'test': [
+            'cassandra-driver==3.5.0',
+            'mock',
             'numpy',
             'PyCrypto',
+            'sqlalchemy',
         ],
         'sqlalchemy': [
             'sqlalchemy',
-        ],
-        'cassandra': [
-            'cassandra-driver==3.5.0',
         ],
     },
     zip_safe=False,
@@ -57,3 +58,5 @@ An extensive
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
 )
+
+

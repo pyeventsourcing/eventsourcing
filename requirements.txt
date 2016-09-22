@@ -1,7 +1,0 @@
-cassandra-driver==3.5.0
-singledispatch
-six
-sqlalchemy
-mock
-python-dateutil
-PyCrypto
