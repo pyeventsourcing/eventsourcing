@@ -1,4 +1,4 @@
-cassandra-driver
+cassandra-driver==3.5.0
 singledispatch
 six
 sqlalchemy

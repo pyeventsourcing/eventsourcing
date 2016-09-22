@@ -23,7 +23,7 @@ setup(
         'test': [
             'sqlalchemy',
             'mock',
-            'cassandra-driver',
+            'cassandra-driver==3.5.0',
             'numpy',
             'PyCrypto',
         ],
@@ -31,7 +31,7 @@ setup(
             'sqlalchemy',
         ],
         'cassandra': [
-            'cassandra-driver',
+            'cassandra-driver==3.5.0',
         ],
     },
     zip_safe=False,
