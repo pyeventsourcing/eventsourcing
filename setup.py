@@ -27,7 +27,7 @@ setup(
         'test': [
             'cassandra-driver==3.5.0',
             'mock',
-            'numpy',
+            # 'numpy',
             'PyCrypto',
             'sqlalchemy',
         ],
