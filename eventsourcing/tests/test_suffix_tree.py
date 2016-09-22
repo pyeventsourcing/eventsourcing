@@ -150,8 +150,9 @@ Generalised suffix tree
 ^ a b Marina Barsky, Ulrike Stege, Alex Thomo, and Chris Upton (2009). "Suffix trees for very large genomic sequences". CIKM '09: Proceedings of the 18th ACM Conference on Information and Knowledge Management. ACM.
 ^ "The disk-based suffix tree for pattern search in sequenced genomes". Retrieved 2009-10-15.
 [edit]External links
+"""
 
-
+LONG_TEXT_CONT = """
 This article's use of external links may not follow Wikipedia's policies or guidelines. Please improve this article by removing excessive and inappropriate external links. (August 2010)
 Suffix Trees by Dr. Sartaj Sahni (CISE Department Chair at University of Florida)
 Suffix Trees by Lloyd Allison
