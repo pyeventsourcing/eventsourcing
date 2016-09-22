@@ -1,7 +1,7 @@
 import unittest
 
 from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
-from eventsourcingtests.test_stored_events import BasicStoredEventRepositoryTestCase, \
+from eventsourcing.tests.test_stored_events import BasicStoredEventRepositoryTestCase, \
     SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase
 
 

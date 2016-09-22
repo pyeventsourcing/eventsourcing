@@ -8,13 +8,13 @@ from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.log_reader import get_log_reader
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
-from eventsourcingtests.test_stored_event_repository_cassandra import CassandraTestCase
-from eventsourcingtests.test_stored_event_repository_python_objects import PythonObjectsTestCase
-from eventsourcingtests.test_stored_event_repository_sqlalchemy import SQLAlchemyTestCase
-from eventsourcingtests.test_stored_events import AbstractTestCase
+from eventsourcing.tests.test_stored_event_repository_cassandra import CassandraTestCase
+from eventsourcing.tests.test_stored_event_repository_python_objects import PythonObjectsTestCase
+from eventsourcing.tests.test_stored_event_repository_sqlalchemy import SQLAlchemyTestCase
+from eventsourcing.tests.test_stored_events import Abstract2TestCase
 
 
-class LogTestCase(AbstractTestCase):
+class LogTestCase(Abstract2TestCase):
     @property
     def stored_event_repo(self):
         """

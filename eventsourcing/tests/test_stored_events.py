@@ -78,7 +78,7 @@ class TestStoredEvent(unittest.TestCase):
         self.assertRaises(TopicResolutionError, resolve_domain_topic, example_topic)
 
 
-class AbstractTestCase(unittest.TestCase):
+class Abstract2TestCase(unittest.TestCase):
 
     def setUp(self):
         """
@@ -87,10 +87,11 @@ class AbstractTestCase(unittest.TestCase):
         if type(self).__name__.endswith('TestCase'):
             self.skipTest('Abstract test ignored.\n')
         else:
-            super(AbstractTestCase, self).setUp()
+            assert isinstance(self, Abstract2TestCase), (self, Abstract2TestCase)
+            super(Abstract2TestCase, self).setUp()
 
 
-class AbstractStoredEventRepositoryTestCase(AbstractTestCase):
+class AbstractStoredEventRepositoryTestCase(Abstract2TestCase):
 
     @property
     def stored_event_repo(self):

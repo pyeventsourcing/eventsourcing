@@ -1,11 +1,10 @@
-import os
 import unittest
 from tempfile import NamedTemporaryFile
 
+from eventsourcing.tests.test_stored_events import BasicStoredEventRepositoryTestCase, SimpleStoredEventIteratorTestCase, \
+    ThreadedStoredEventIteratorTestCase
 from eventsourcing.infrastructure.stored_events.sqlalchemy_stored_events import SQLAlchemyStoredEventRepository, \
     get_scoped_session_facade
-from eventsourcingtests.test_stored_events import BasicStoredEventRepositoryTestCase, SimpleStoredEventIteratorTestCase, \
-    ThreadedStoredEventIteratorTestCase
 
 
 class SQLAlchemyTestCase(unittest.TestCase):

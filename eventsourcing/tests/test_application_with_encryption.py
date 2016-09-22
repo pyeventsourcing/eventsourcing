@@ -5,7 +5,7 @@ from Crypto import Random
 from Crypto.Cipher import AES
 
 from eventsourcing.application.example.with_cassandra import ExampleApplicationWithCassandra
-from eventsourcingtests.test_application_with_cassandra import TestApplicationWithCassandra
+from eventsourcing.tests.test_application_with_cassandra import TestApplicationWithCassandra
 
 
 class TestApplicationWithEncryption(TestApplicationWithCassandra):
