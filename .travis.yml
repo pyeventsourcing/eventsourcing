@@ -10,4 +10,4 @@ python:
 #  - apparently the Cassandra driver doesn't support Python 3.5, maybe it will someday
 #  - "3.5"
 install: pip install -r requirements.txt
-script: python -m unittest discover eventsourcingtests -v
+script: python -m unittest discover eventsourcing.tests -v
