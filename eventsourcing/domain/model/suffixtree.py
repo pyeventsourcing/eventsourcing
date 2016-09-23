@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 from uuid import uuid4
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
+from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository
 from eventsourcing.domain.model.events import publish
 
 
@@ -111,7 +111,7 @@ class SuffixTree(EventSourcedEntity):
 
             node = register_new_node()
             self.nodes[node.id] = node
-            edge_id = make_edge_id(last_char_index, self.string[last_char_index])
+            edge_id = make_edge_id(parent_node_id, self.string[last_char_index])
             label = self.string[last_char_index:self.N + 1]
             e = register_new_edge(
                 edge_id=edge_id,
@@ -153,11 +153,11 @@ class SuffixTree(EventSourcedEntity):
         node = register_new_node()
         self.nodes[node.id] = node
         # assert self.string[edge.first_char_index] == edge.label[0]
-        edge_id = make_edge_id(edge.first_char_index, edge.label[0])
+        new_edge_id = make_edge_id(suffix.source_node_id, edge.label[0])
         # assert self.string[edge.first_char_index:edge.first_char_index + suffix.length + 1] == edge.label[:suffix.length + 1]
         label = edge.label[:suffix.length + 1]
-        e = register_new_edge(
-            edge_id=edge_id,
+        new_edge = register_new_edge(
+            edge_id=new_edge_id,
             label=label,
             first_char_index=edge.first_char_index,
             last_char_index=edge.first_char_index + suffix.length,
@@ -166,14 +166,18 @@ class SuffixTree(EventSourcedEntity):
         )
 
         self._remove_edge(edge)
-        self._insert_edge(e)
-        self.nodes[e.dest_node_id].suffix_node_id = suffix.source_node_id  ### need to add node for each edge
+        self._insert_edge(new_edge)
+
+        dest_node = self.nodes[new_edge.dest_node_id]
+        dest_node.suffix_node_id = suffix.source_node_id
 
         edge.first_char_index += suffix.length + 1
         edge.label = edge.label[suffix.length + 1:]
-        edge.source_node_id = e.dest_node_id
+        edge.source_node_id = new_edge.dest_node_id
         self._insert_edge(edge)
-        return e.dest_node_id
+
+        # Return the
+        return new_edge.dest_node_id
 
     def _canonize_suffix(self, suffix):
         """This canonizes the suffix, walking along its suffix string until it
@@ -212,6 +216,35 @@ class SuffixTree(EventSourcedEntity):
 
     def has_substring(self, substring):
         return self.find_substring(substring) != -1
+
+
+# Domain services
+def find_substring(substring, suffix_tree, edge_repo, case_insensitive=False):
+    """Returns the index of substring in string or -1 if it is not found.
+    """
+    assert isinstance(edge_repo, EdgeRepository)
+    if not substring:
+        return -1
+    if case_insensitive:
+        substring = substring.lower()
+    curr_node_id = suffix_tree.root_node_id
+    i = 0
+    while i < len(substring):
+        edge_id = make_edge_id(curr_node_id, substring[i])
+        try:
+            edge = edge_repo[edge_id]
+        except KeyError:
+            return -1
+        ln = min(edge.length + 1, len(substring) - i)
+        if substring[i:i + ln] != edge.label[:ln]:
+            return -1
+        i += edge.length + 1
+        curr_node_id = edge.dest_node_id
+    return edge.first_char_index - len(substring) + ln
+
+
+def has_substring(substring, suffix_tree, edge_repo, case_insensitive=False):
+    return find_substring(substring, suffix_tree, edge_repo, case_insensitive) != -1
 
 
 class Node(EventSourcedEntity):
@@ -270,7 +303,7 @@ class Edge(EventSourcedEntity):
         """
         return self._first_char_index
 
-    @property
+    @mutableproperty
     def last_char_index(self):
         """Index of end of string part represented by this edge.
         """
@@ -398,3 +431,15 @@ def register_new_suffix_tree(string, case_insensitive=False):
     entity = SuffixTree.mutate(event=event)
     publish(event)
     return entity
+
+
+class SuffixTreeRepository(EntityRepository):
+    pass
+
+
+class NodeRepository(EntityRepository):
+    pass
+
+
+class EdgeRepository(EntityRepository):
+    pass

@@ -4,36 +4,74 @@ from __future__ import unicode_literals
 import os
 import unittest
 
-from eventsourcing.domain.model.suffixtree import register_new_suffix_tree
-
+from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
+from eventsourcing.domain.model.suffixtree import register_new_suffix_tree, find_substring, has_substring
+from eventsourcing.infrastructure.event_sourced_repos.suffixtree_repo import SuffixTreeRepo, NodeRepo, EdgeRepo
 
 LONG_TEXT_FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'test_suffix_tree.txt')
+
+
+class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
+
+    def __init__(self, **kwargs):
+        super(SuffixTreeApplication, self).__init__(**kwargs)
+        self.tree_repo = SuffixTreeRepo(self.event_store)
+        self.node_repo = NodeRepo(self.event_store)
+        self.edge_repo = EdgeRepo(self.event_store)
+
+    def register_new_suffixtree(self, string, case_insensitive=False):
+        return register_new_suffix_tree(string, case_insensitive)
+
+    def find_substring(self, substring, suffix_tree, case_insensitive=False):
+        return find_substring(
+            substring=substring,
+            suffix_tree=suffix_tree,
+            edge_repo=self.edge_repo,
+            case_insensitive=case_insensitive,
+        )
+
+    def has_substring(self, substring, suffix_tree, case_insensitive=False):
+        return has_substring(
+            substring=substring,
+            suffix_tree=suffix_tree,
+            edge_repo=self.edge_repo,
+            case_insensitive=case_insensitive,
+        )
 
 
 class SuffixTreeTest(unittest.TestCase):
     """Some functional tests.
     """
 
+    def setUp(self):
+        self.app = SuffixTreeApplication()
+
     def test_empty_string(self):
         st = register_new_suffix_tree('')
-        self.assertEqual(st.find_substring('not there'), -1)
-        self.assertEqual(st.find_substring(''), -1)
-        self.assertFalse(st.has_substring('not there'))
-        self.assertFalse(st.has_substring(''))
+        self.assertEqual(self.app.find_substring('not there', st), -1)
+        self.assertEqual(self.app.find_substring('', st), -1)
+        self.assertFalse(self.app.has_substring('not there', st))
+        self.assertFalse(self.app.has_substring('', st))
 
     def test_repeated_string(self):
         st = register_new_suffix_tree("aaa")
-        self.assertEqual(st.find_substring('a'), 0)
-        self.assertEqual(st.find_substring('aa'), 0)
-        self.assertEqual(st.find_substring('aaa'), 0)
-        self.assertEqual(st.find_substring('b'), -1)
-        self.assertTrue(st.has_substring('a'))
-        self.assertTrue(st.has_substring('aa'))
-        self.assertTrue(st.has_substring('aaa'))
-        self.assertFalse(st.has_substring('aaaa'))
-        self.assertFalse(st.has_substring('b'))
+        self.assertEqual(self.app.find_substring('a', st), 0)
+        self.assertEqual(self.app.find_substring('aa', st), 0)
+        self.assertEqual(self.app.find_substring('aaa', st), 0)
+        self.assertEqual(self.app.find_substring('b', st), -1)
+        self.assertTrue(self.app.has_substring('a', st))
+        self.assertTrue(self.app.has_substring('aa', st))
+        self.assertTrue(self.app.has_substring('aaa', st))
+        self.assertFalse(self.app.has_substring('aaaa', st))
+        self.assertFalse(self.app.has_substring('b', st))
         # case sensitive by default
-        self.assertFalse(st.has_substring('A'))
+        self.assertFalse(self.app.has_substring('A', st))
+
+    def test_mississippi(self):
+        st = register_new_suffix_tree("mississippi")
+        self.assertEqual(st.find_substring('a'), -1)
+        self.assertEqual(st.find_substring('m'), 0)
+        self.assertEqual(st.find_substring('i'), 1)
 
     def test_long_string(self):
         st = register_new_suffix_tree(LONG_TEXT)
