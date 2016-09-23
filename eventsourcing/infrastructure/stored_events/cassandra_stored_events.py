@@ -121,9 +121,9 @@ def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspa
         consistency=consistency,
         default_keyspace=default_keyspace,
         port=port,
-        # auth_provider=auth_provider,
+        auth_provider=auth_provider,
         protocol_version=protocol_version,
-        # lazy_connect=True,
+        lazy_connect=True,
     )
 
 
