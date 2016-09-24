@@ -115,10 +115,8 @@ class SuffixTree(EventSourcedEntity):
             node = register_new_node()
             self.nodes[node.id] = node
             edge_id = make_edge_id(parent_node_id, self.string[last_char_index])
-            label = self.string[last_char_index:self.N + 1]
             e = register_new_edge(
                 edge_id=edge_id,
-                label=label,
                 first_char_index=last_char_index,
                 last_char_index=self.N,
                 source_node_id=parent_node_id,
@@ -141,11 +139,11 @@ class SuffixTree(EventSourcedEntity):
         self._canonize_suffix(self.active)
 
     def _insert_edge(self, edge):
-        edge_id = make_edge_id(edge.source_node_id, edge.label[0])
+        edge_id = make_edge_id(edge.source_node_id, self.string[edge.first_char_index])
         self.edges[edge_id] = edge
 
     def _remove_edge(self, edge):
-        edge_id = make_edge_id(edge.source_node_id, edge.label[0])
+        edge_id = make_edge_id(edge.source_node_id, self.string[edge.first_char_index])
         self.edges.pop(edge_id)
 
     def _split_edge(self, first_edge, suffix):
@@ -156,20 +154,15 @@ class SuffixTree(EventSourcedEntity):
         new_node = register_new_node(suffix.source_node_id)
         self.nodes[new_node.id] = new_node
 
-        # Split the label.
-        first_label = first_edge.label[:suffix.length + 1]
-        second_label = first_edge.label[suffix.length + 1:]
-
         # Split the char indexes.
         first_edge_last_char_index = first_edge.first_char_index + suffix.length
         second_edge_first_char_index = first_edge.first_char_index + suffix.length + 1
         second_edge_last_char_index = first_edge.last_char_index
 
         # Create a new edge, from the middle node to the original destination.
-        second_edge_id = make_edge_id(new_node.id, second_label[0])
+        second_edge_id = make_edge_id(new_node.id, self.string[first_edge.first_char_index + suffix.length + 1])
         second_edge = register_new_edge(
             edge_id=second_edge_id,
-            label=second_label,
             first_char_index=second_edge_first_char_index,
             last_char_index=second_edge_last_char_index,
             source_node_id=new_node.id,
@@ -178,7 +171,6 @@ class SuffixTree(EventSourcedEntity):
         self._insert_edge(second_edge)
 
         # Shorten the first edge.
-        first_edge.label = first_label
         first_edge.last_char_index = first_edge_last_char_index
         first_edge.dest_node_id = new_node.id
 
@@ -234,19 +226,12 @@ class Edge(EventSourcedEntity):
 
     class Discarded(EventSourcedEntity.Discarded): pass
 
-    def __init__(self, label, first_char_index, last_char_index, source_node_id, dest_node_id, **kwargs):
+    def __init__(self, first_char_index, last_char_index, source_node_id, dest_node_id, **kwargs):
         super(Edge, self).__init__(**kwargs)
-        self._label = label
         self._first_char_index = first_char_index
         self._last_char_index = last_char_index
         self._source_node_id = source_node_id
         self._dest_node_id = dest_node_id
-
-    @mutableproperty
-    def label(self):
-        """String part represented by this edge.
-        """
-        return self._label
 
     @mutableproperty
     def first_char_index(self):
@@ -276,7 +261,7 @@ class Edge(EventSourcedEntity):
     def length(self):
         """Number of chars in the string part represented by this edge.
         """
-        return len(self.label) - 1
+        return self.last_char_index - self.first_char_index
 
     def __repr__(self):
         return 'Edge(%d, %d, %d, %d)' % (self.source_node_id, self.dest_node_id
@@ -356,12 +341,11 @@ def make_edge_id(source_node_index, first_char):
     return "{}::{}".format(source_node_index, first_char)
 
 
-def register_new_edge(edge_id, label, first_char_index, last_char_index, source_node_id, dest_node_id):
+def register_new_edge(edge_id, first_char_index, last_char_index, source_node_id, dest_node_id):
     """Factory method, registers new edge.
     """
     event = Edge.Created(
         entity_id=edge_id,
-        label=label,
         first_char_index=first_char_index,
         last_char_index=last_char_index,
         source_node_id=source_node_id,
@@ -421,7 +405,7 @@ def find_substring(substring, suffix_tree, edge_repo):
         except KeyError:
             return -1
         ln = min(edge.length + 1, len(substring) - i)
-        if substring[i:i + ln] != edge.label[:ln]:
+        if substring[i:i + ln] != suffix_tree.string[edge.first_char_index:edge.first_char_index + ln]:
             return -1
         i += edge.length + 1
         curr_node_id = edge.dest_node_id
