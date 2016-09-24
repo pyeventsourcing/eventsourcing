@@ -4,43 +4,9 @@ from __future__ import unicode_literals
 import os
 import unittest
 
-import datetime
-
-from eventsourcing.application.example.with_cassandra import ExampleApplicationWithCassandra
-from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
-from eventsourcing.domain.model.suffixtree import register_new_suffix_tree, find_substring, has_substring
-from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepo
-from eventsourcing.infrastructure.event_sourced_repos.suffixtree_repo import SuffixTreeRepo, NodeRepo, EdgeRepo
+from eventsourcing.domain.model.suffixtree import register_new_suffix_tree, SuffixTree, SuffixTreeApplication
 
 LONG_TEXT_FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'test_suffix_tree.txt')
-
-
-class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
-
-    def __init__(self, **kwargs):
-        super(SuffixTreeApplication, self).__init__(**kwargs)
-        self.suffix_tree_repo = SuffixTreeRepo(self.event_store)
-        self.node_repo = NodeRepo(self.event_store)
-        self.edge_repo = EdgeRepo(self.event_store)
-        self.collections = CollectionRepo(self.event_store)
-
-    def register_new_suffixtree(self, string, case_insensitive=False):
-        return register_new_suffix_tree(string, case_insensitive)
-
-    def find_substring(self, substring, suffix_tree_id):
-        suffix_tree = self.suffix_tree_repo[suffix_tree_id]
-        started = datetime.datetime.now()
-        result = find_substring(substring=substring, suffix_tree=suffix_tree, edge_repo=self.edge_repo)
-        print("- found substring '{}' in: {}".format(substring, datetime.datetime.now() - started))
-        return result
-
-    def has_substring(self, substring, suffix_tree_id):
-        suffix_tree = self.suffix_tree_repo[suffix_tree_id]
-        return has_substring(
-            substring=substring,
-            suffix_tree=suffix_tree,
-            edge_repo=self.edge_repo,
-        )
 
 
 class SuffixTreeTest(unittest.TestCase):
@@ -51,7 +17,9 @@ class SuffixTreeTest(unittest.TestCase):
         self.app = SuffixTreeApplication()
 
     def test_empty_string(self):
-        st = register_new_suffix_tree('')
+        st = register_new_suffix_tree()
+        assert isinstance(st, SuffixTree)
+        st.add_string('')
         self.assertEqual(self.app.find_substring('not there', st.id), -1)
         self.assertEqual(self.app.find_substring('', st.id), -1)
         self.assertFalse(self.app.has_substring('not there', st.id))
@@ -72,10 +40,16 @@ class SuffixTreeTest(unittest.TestCase):
         self.assertFalse(self.app.has_substring('A', st.id))
 
     def test_mississippi(self):
-        st = register_new_suffix_tree("mississippi")
+        st = register_new_suffix_tree()
+        st.add_string("mississippi")
         self.assertEqual(self.app.find_substring('a', st.id), -1)
         self.assertEqual(self.app.find_substring('m', st.id), 0)
         self.assertEqual(self.app.find_substring('i', st.id), 1)
+        # st.add_string("mudpie")
+        # self.assertEqual(self.app.find_substring('m', st.id), 0)
+        # self.assertEqual(self.app.find_substring('u', st.id), 1)
+        # self.assertEqual(self.app.find_substring('d', st.id), 2)
+        # self.assertEqual(self.app.find_substring('pie', st.id), 3)
 
     def test_mississippi_plus(self):
         st = register_new_suffix_tree("mississippi")

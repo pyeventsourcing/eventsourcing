@@ -1,6 +1,7 @@
 # coding=utf-8
 from __future__ import unicode_literals
 
+import datetime
 from uuid import uuid4
 
 import six
@@ -23,28 +24,20 @@ class SuffixTree(EventSourcedEntity):
     class Discarded(EventSourcedEntity.Discarded):
         pass
 
-    def __init__(self, string, case_insensitive=False, **kwargs):
+    def __init__(self, root_node_id, case_insensitive=False, **kwargs):
         """
         string
             the string for which to construct a suffix tree
         """
         super(SuffixTree, self).__init__(**kwargs)
-        self._string = string
+        self._root_node_id = root_node_id
         self._case_insensitive = case_insensitive
-        self._N = len(string) - 1
-        node = register_new_node()
-        self._nodes = {
-            node.id: node
-        }
-        self._root_node_id = node.id
+        self._nodes = {}
         self._edges = {}
-        self._active = Suffix(self._root_node_id, 0, -1)
-        if self._case_insensitive:
-            self._string = self._string.lower()
-        for i in range(len(string)):
-            self._add_prefix(i)
+        self._N = None
+        self._string = None
 
-    @property
+    @mutableproperty
     def string(self):
         return self._string
 
@@ -92,6 +85,15 @@ class SuffixTree(EventSourcedEntity):
             top = min(curr_index, edge.last_char_index)
             s += self.string[edge.first_char_index:top + 1] + "\n"
         return s
+
+    def add_string(self, string):
+        self._active = Suffix(self._root_node_id, 0, -1)
+        self._N = len(string) - 1
+        if self._case_insensitive:
+            string = string.lower()
+        self.string = string
+        for i in range(len(string)):
+            self._add_prefix(i)
 
     def _add_prefix(self, last_char_index):
         """The core construction method.
@@ -356,17 +358,28 @@ def register_new_edge(edge_id, first_char_index, last_char_index, source_node_id
     return entity
 
 
-def register_new_suffix_tree(string, case_insensitive=False):
+def register_new_suffix_tree(string=None, case_insensitive=False):
     """Factory method, returns new suffix tree object.
     """
+    root_node = register_new_node()
+
     suffix_tree_id = uuid4().hex
     event = SuffixTree.Created(
         entity_id=suffix_tree_id,
-        string=string,
+        root_node_id=root_node.id,
         case_insensitive=case_insensitive,
     )
     entity = SuffixTree.mutate(event=event)
+
+    assert isinstance(entity, SuffixTree)
+
+    entity.nodes[root_node.id] = root_node
+
     publish(event)
+
+    if string is not None:
+        entity.add_string(string)
+
     return entity
 
 
@@ -414,3 +427,36 @@ def find_substring(substring, suffix_tree, edge_repo):
 
 def has_substring(substring, suffix_tree, edge_repo):
     return find_substring(substring, suffix_tree, edge_repo) != -1
+
+
+# Application
+from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
+from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepo
+from eventsourcing.infrastructure.event_sourced_repos.suffixtree_repo import SuffixTreeRepo, NodeRepo, EdgeRepo
+
+class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
+
+    def __init__(self, **kwargs):
+        super(SuffixTreeApplication, self).__init__(**kwargs)
+        self.suffix_tree_repo = SuffixTreeRepo(self.event_store)
+        self.node_repo = NodeRepo(self.event_store)
+        self.edge_repo = EdgeRepo(self.event_store)
+        self.collections = CollectionRepo(self.event_store)
+
+    def register_new_suffixtree(self, string, case_insensitive=False):
+        return register_new_suffix_tree(string, case_insensitive)
+
+    def find_substring(self, substring, suffix_tree_id):
+        suffix_tree = self.suffix_tree_repo[suffix_tree_id]
+        started = datetime.datetime.now()
+        result = find_substring(substring=substring, suffix_tree=suffix_tree, edge_repo=self.edge_repo)
+        print("- found substring '{}' in: {}".format(substring, datetime.datetime.now() - started))
+        return result
+
+    def has_substring(self, substring, suffix_tree_id):
+        suffix_tree = self.suffix_tree_repo[suffix_tree_id]
+        return has_substring(
+            substring=substring,
+            suffix_tree=suffix_tree,
+            edge_repo=self.edge_repo,
+        )
