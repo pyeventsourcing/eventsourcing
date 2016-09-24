@@ -4,8 +4,12 @@ from __future__ import unicode_literals
 import os
 import unittest
 
+import datetime
+
+from eventsourcing.application.example.with_cassandra import ExampleApplicationWithCassandra
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
 from eventsourcing.domain.model.suffixtree import register_new_suffix_tree, find_substring, has_substring
+from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepo
 from eventsourcing.infrastructure.event_sourced_repos.suffixtree_repo import SuffixTreeRepo, NodeRepo, EdgeRepo
 
 LONG_TEXT_FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'test_suffix_tree.txt')
@@ -15,27 +19,27 @@ class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
 
     def __init__(self, **kwargs):
         super(SuffixTreeApplication, self).__init__(**kwargs)
-        self.tree_repo = SuffixTreeRepo(self.event_store)
+        self.suffix_tree_repo = SuffixTreeRepo(self.event_store)
         self.node_repo = NodeRepo(self.event_store)
         self.edge_repo = EdgeRepo(self.event_store)
+        self.collections = CollectionRepo(self.event_store)
 
     def register_new_suffixtree(self, string, case_insensitive=False):
         return register_new_suffix_tree(string, case_insensitive)
 
-    def find_substring(self, substring, suffix_tree, case_insensitive=False):
-        return find_substring(
-            substring=substring,
-            suffix_tree=suffix_tree,
-            edge_repo=self.edge_repo,
-            case_insensitive=case_insensitive,
-        )
+    def find_substring(self, substring, suffix_tree_id):
+        suffix_tree = self.suffix_tree_repo[suffix_tree_id]
+        started = datetime.datetime.now()
+        result = find_substring(substring=substring, suffix_tree=suffix_tree, edge_repo=self.edge_repo)
+        print("- found substring '{}' in: {}".format(substring, datetime.datetime.now() - started))
+        return result
 
-    def has_substring(self, substring, suffix_tree, case_insensitive=False):
+    def has_substring(self, substring, suffix_tree_id):
+        suffix_tree = self.suffix_tree_repo[suffix_tree_id]
         return has_substring(
             substring=substring,
             suffix_tree=suffix_tree,
             edge_repo=self.edge_repo,
-            case_insensitive=case_insensitive,
         )
 
 
@@ -48,41 +52,47 @@ class SuffixTreeTest(unittest.TestCase):
 
     def test_empty_string(self):
         st = register_new_suffix_tree('')
-        self.assertEqual(self.app.find_substring('not there', st), -1)
-        self.assertEqual(self.app.find_substring('', st), -1)
-        self.assertFalse(self.app.has_substring('not there', st))
-        self.assertFalse(self.app.has_substring('', st))
+        self.assertEqual(self.app.find_substring('not there', st.id), -1)
+        self.assertEqual(self.app.find_substring('', st.id), -1)
+        self.assertFalse(self.app.has_substring('not there', st.id))
+        self.assertFalse(self.app.has_substring('', st.id))
 
     def test_repeated_string(self):
         st = register_new_suffix_tree("aaa")
-        self.assertEqual(self.app.find_substring('a', st), 0)
-        self.assertEqual(self.app.find_substring('aa', st), 0)
-        self.assertEqual(self.app.find_substring('aaa', st), 0)
-        self.assertEqual(self.app.find_substring('b', st), -1)
-        self.assertTrue(self.app.has_substring('a', st))
-        self.assertTrue(self.app.has_substring('aa', st))
-        self.assertTrue(self.app.has_substring('aaa', st))
-        self.assertFalse(self.app.has_substring('aaaa', st))
-        self.assertFalse(self.app.has_substring('b', st))
+        self.assertEqual(self.app.find_substring('a', st.id), 0)
+        self.assertEqual(self.app.find_substring('aa', st.id), 0)
+        self.assertEqual(self.app.find_substring('aaa', st.id), 0)
+        self.assertEqual(self.app.find_substring('b', st.id), -1)
+        self.assertTrue(self.app.has_substring('a', st.id))
+        self.assertTrue(self.app.has_substring('aa', st.id))
+        self.assertTrue(self.app.has_substring('aaa', st.id))
+        self.assertFalse(self.app.has_substring('aaaa', st.id))
+        self.assertFalse(self.app.has_substring('b', st.id))
         # case sensitive by default
-        self.assertFalse(self.app.has_substring('A', st))
+        self.assertFalse(self.app.has_substring('A', st.id))
 
     def test_mississippi(self):
         st = register_new_suffix_tree("mississippi")
-        self.assertEqual(st.find_substring('a'), -1)
-        self.assertEqual(st.find_substring('m'), 0)
-        self.assertEqual(st.find_substring('i'), 1)
+        self.assertEqual(self.app.find_substring('a', st.id), -1)
+        self.assertEqual(self.app.find_substring('m', st.id), 0)
+        self.assertEqual(self.app.find_substring('i', st.id), 1)
+
+    def test_mississippi_plus(self):
+        st = register_new_suffix_tree("mississippi")
+        self.assertEqual(self.app.find_substring('a', st.id), -1)
+        self.assertEqual(self.app.find_substring('m', st.id), 0)
+        self.assertEqual(self.app.find_substring('i', st.id), 1)
 
     def test_long_string(self):
         st = register_new_suffix_tree(LONG_TEXT)
-        self.assertEqual(st.find_substring('Ukkonen'), 1498)
-        self.assertEqual(st.find_substring('Optimal'), 11074)
-        self.assertFalse(st.has_substring('ukkonen'))
+        self.assertEqual(self.app.find_substring('Ukkonen', st.id), 1498)
+        self.assertEqual(self.app.find_substring('Optimal', st.id), 11074)
+        self.assertFalse(self.app.has_substring('ukkonen', st.id))
 
     def test_case_insensitivity(self):
         st = register_new_suffix_tree(LONG_TEXT, case_insensitive=True)
-        self.assertEqual(st.find_substring('ukkonen'), 1498)
-        self.assertEqual(st.find_substring('Optimal'), 1830)
+        self.assertEqual(self.app.find_substring('ukkonen', st.id), 1498)
+        self.assertEqual(self.app.find_substring('Optimal', st.id), 1830)
 
 
 LONG_TEXT = """In computer science, a suffix tree (also called PAT tree or, in an earlier form, position tree) is a data structure that presents the suffixes of a given string in a way that allows for a particularly fast implementation of many important string operations.
