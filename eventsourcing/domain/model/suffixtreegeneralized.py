@@ -558,6 +558,7 @@ class SuffixTreeApplication(ExampleApplicationWithCassandra):
 def get_leaf_nodes(node_id, node_repo, length_until_end=0, edge_length=0, uniques=None, limit=None):
     length_until_end = length_until_end + edge_length
     node = node_repo[node_id]
+    assert isinstance(node, SuffixTreeNode)
     if node._child_node_ids:
         for (child_node_id, edge_length) in node._child_node_ids.items():
             for leaf in get_leaf_nodes(

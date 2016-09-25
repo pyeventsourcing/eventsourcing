@@ -197,8 +197,9 @@ class SuffixTreeGeneralizedTest(CassandraTestCase):
         # Find 'e'.
         strings = self.app.find_strings('e', st.id)
         self.assertEqual(len(strings), 3)
-        self.assertIn(string1_id, strings, (string1_id, string2_id, strings))
-        self.assertIn(string2_id, strings, (string1_id, string2_id, strings))
+        self.assertIn(string1_id, strings, (string1_id, string2_id, string3_id, strings))
+        self.assertIn(string2_id, strings, (string1_id, string2_id, string3_id, strings))
+        self.assertIn(string3_id, strings, (string1_id, string2_id, string3_id, strings))
 
         # Find 'e' - limit 1.
         strings = self.app.find_strings('e', st.id, limit=1)
