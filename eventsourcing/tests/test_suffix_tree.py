@@ -10,8 +10,6 @@ LONG_TEXT_FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'test_suffix_tr
 
 
 class SuffixTreeTest(unittest.TestCase):
-    """Some functional tests.
-    """
 
     def setUp(self):
         self.app = SuffixTreeApplication()
@@ -42,17 +40,6 @@ class SuffixTreeTest(unittest.TestCase):
     def test_mississippi(self):
         st = register_new_suffix_tree()
         st.add_string("mississippi")
-        self.assertEqual(self.app.find_substring('a', st.id), -1)
-        self.assertEqual(self.app.find_substring('m', st.id), 0)
-        self.assertEqual(self.app.find_substring('i', st.id), 1)
-        # st.add_string("mudpie")
-        # self.assertEqual(self.app.find_substring('m', st.id), 0)
-        # self.assertEqual(self.app.find_substring('u', st.id), 1)
-        # self.assertEqual(self.app.find_substring('d', st.id), 2)
-        # self.assertEqual(self.app.find_substring('pie', st.id), 3)
-
-    def test_mississippi_plus(self):
-        st = register_new_suffix_tree("mississippi")
         self.assertEqual(self.app.find_substring('a', st.id), -1)
         self.assertEqual(self.app.find_substring('m', st.id), 0)
         self.assertEqual(self.app.find_substring('i', st.id), 1)

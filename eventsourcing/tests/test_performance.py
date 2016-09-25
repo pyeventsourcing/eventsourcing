@@ -43,7 +43,7 @@ class PerformanceTestCase(AbstractTestCase):
         self.entities = {}
 
         report_name = type(self).__name__[4:]
-        print("\n{} report:\n".format(report_name))
+        print("\n\n{} report:\n".format(report_name))
 
         repetitions = 10
 
