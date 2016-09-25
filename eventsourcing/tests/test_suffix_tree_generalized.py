@@ -224,3 +224,21 @@ class SuffixTreeGeneralizedTest(CassandraTestCase):
         self.assertNotIn(string1_id, strings)
         self.assertNotIn(string2_id, strings)
         self.assertIn(string3_id, strings)
+
+    def test_add_string_to_suffixtree_from_repo(self):
+        # Check adding strings after getting the tree from the repo.
+        st = register_new_suffix_tree()
+
+        st = self.app.get_suffix_tree(st.id)
+        st.add_string('blue', '1')
+
+        st = self.app.get_suffix_tree(st.id)
+        st.add_string('green', '2')
+
+        st = self.app.get_suffix_tree(st.id)
+        st.add_string('yellow', '3')
+
+        st = self.app.get_suffix_tree(st.id)
+        strings_ids = self.app.find_strings('e', st.id)
+        self.assertEqual(3, len(strings_ids))
+        self.assertEqual(['1', '2', '3'], sorted(strings_ids))

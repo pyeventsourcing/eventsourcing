@@ -39,6 +39,8 @@ class SuffixTreeGeneralized(EventSourcedEntity):
         self._N = None
         self._string = None
         self._active = None
+        self._node_repo = None
+        self._edge_repo = None
 
     @mutableproperty
     def string(self):
@@ -82,7 +84,7 @@ class SuffixTreeGeneralized(EventSourcedEntity):
                 continue
             s += "\t%s \t%s \t%s \t%s \t%s \t" % (edge.source_node_id
                                                   , edge.dest_node_id
-                                                  , self.nodes[edge.dest_node_id].suffix_node_id
+                                                  , self.get_node(edge.dest_node_id).suffix_node_id
                                                   , edge.first_char_index
                                                   , edge.last_char_index)
 
@@ -91,20 +93,20 @@ class SuffixTreeGeneralized(EventSourcedEntity):
         return s
 
     def add_string(self, string, string_id):
-        # assert self.string is None
+        assert isinstance(string_id, six.string_types)
         assert self._root_node_id is not None
         self._active = Suffix(self._root_node_id, 0, -1)
         if self._case_insensitive:
             string = string.lower()
         assert STRING_ID_END not in string_id
         assert STRING_ID_END not in string
-        string += string_id + STRING_ID_END
+        string += u"{}{}".format(string_id, STRING_ID_END)
         self._N = len(string) - 1
         self.string = string
         for i in range(len(string)):
             self._add_prefix(i, string, string_id)
 
-    def _add_prefix(self, last_char_index, string, string_id):
+    def _add_prefix(self, i, string, string_id):
         """The core construction method.
         """
         last_parent_node_id = None
@@ -112,14 +114,18 @@ class SuffixTreeGeneralized(EventSourcedEntity):
             parent_node_id = self.active.source_node_id
             # assert parent_node_id is not None, self.active
             if self.active.explicit():
-                edge_id = make_edge_id(self.active.source_node_id, string[last_char_index])
-                if edge_id in self.edges:
+                edge_id = make_edge_id(self.active.source_node_id, string[i])
+                try:
+                    self.get_edge(edge_id)
+                except KeyError:
+                    pass
+                else:
                     # prefix is already in tree
                     break
             else:
                 edge_id = make_edge_id(self.active.source_node_id, string[self.active.first_char_index])
-                e = self.edges[edge_id]
-                if e.label[self.active.length + 1] == string[last_char_index]:
+                e = self.get_edge(edge_id)
+                if e.label[self.active.length + 1] == string[i]:
                     # prefix is already in tree
                     break
                 # Split the edge, with a new middle node that will be the parent node.
@@ -128,8 +134,8 @@ class SuffixTreeGeneralized(EventSourcedEntity):
             # Make a new node, and a new edge from the parent node.
             node = register_new_node(string_id=string_id)
             self._cache_node(node)
-            label = string[last_char_index:self.N+1]
-            edge_id = make_edge_id(parent_node_id, string[last_char_index])
+            label = string[i:self.N + 1]
+            edge_id = make_edge_id(parent_node_id, string[i])
             e = register_new_edge(
                 label=label,
                 edge_id=edge_id,
@@ -137,24 +143,57 @@ class SuffixTreeGeneralized(EventSourcedEntity):
                 dest_node_id=node.id,
             )
             self._cache_edge(e)
+
             # Register the new child.
-            # assert parent_node_id is not None
-            self.nodes[parent_node_id].add_child_node_id(node.id, e.length + 1)
+            self.get_node(parent_node_id).add_child_node_id(node.id, e.length + 1)
 
             if last_parent_node_id is not None:
-                self.nodes[last_parent_node_id].suffix_node_id = parent_node_id
+                self.get_node(last_parent_node_id).suffix_node_id = parent_node_id
             last_parent_node_id = parent_node_id
 
             if self.active.source_node_id == self.root_node_id:
                 self.active.first_char_index += 1
             else:
-                self.active.source_node_id = self.nodes[self.active.source_node_id].suffix_node_id
+                self.active.source_node_id = self.get_node(self.active.source_node_id).suffix_node_id
                 self.active.source_node_id
             self._canonize_suffix(self.active)
         if last_parent_node_id is not None:
-            self.nodes[last_parent_node_id].suffix_node_id = parent_node_id
+            self.get_node(last_parent_node_id).suffix_node_id = parent_node_id
         self.active.last_char_index += 1
         self._canonize_suffix(self.active)
+
+    def get_edge(self, edge_id):
+        # Raises KeyError is not found because this method was factored out from various places that
+        # used the repo directly and so expected a KeyError to be raised if edge is not in repo.
+        if not self._edge_repo:
+            return self.edges[edge_id]
+        try:
+            return self.edges[edge_id]
+        except KeyError as e:
+            try:
+                edge = self._edge_repo[edge_id]
+            except KeyError:
+                raise e
+            else:
+                self._cache_edge(edge)
+                return edge
+
+
+    def get_node(self, node_id):
+        # Raises KeyError is not found because this method was factored out from various places that
+        # used the repo directly and so expected a KeyError to be raised if node is not in repo.
+        if not self._node_repo:
+            return self.nodes[node_id]
+        try:
+            return self.nodes[node_id]
+        except KeyError as e:
+            try:
+                node = self._node_repo[node_id]
+            except KeyError:
+                raise e
+            else:
+                self._cache_node(node)
+                return node
 
     def _cache_node(self, node):
         self.nodes[node.id] = node
@@ -162,10 +201,6 @@ class SuffixTreeGeneralized(EventSourcedEntity):
     def _cache_edge(self, edge):
         edge_id = make_edge_id(edge.source_node_id, edge.label[0])
         self.edges[edge_id] = edge
-
-    def _uncache_edge(self, edge):
-        edge_id = make_edge_id(edge.source_node_id, edge.label[0])
-        self.edges.pop(edge_id)
 
     def _split_edge(self, first_edge, suffix):
         assert isinstance(first_edge, SuffixTreeEdge)
@@ -199,7 +234,7 @@ class SuffixTreeGeneralized(EventSourcedEntity):
 
         # Remove the original dest node from the children of the original
         # source node, and add the new middle node to the children.
-        original_source_node = self.nodes[first_edge.source_node_id]
+        original_source_node = self.get_node(first_edge.source_node_id)
         original_source_node.remove_child_node_id(original_dest_node_id)
         original_source_node.add_child_node_id(new_middle_node.id, first_edge.length + 1)
 
@@ -212,7 +247,7 @@ class SuffixTreeGeneralized(EventSourcedEntity):
         """
         if not suffix.explicit():
             edge_id = make_edge_id(suffix.source_node_id, self.string[suffix.first_char_index])
-            e = self.edges[edge_id]
+            e = self.get_edge(edge_id)
             if e.length <= suffix.length:
                 suffix.first_char_index += e.length + 1
                 suffix.source_node_id = e.dest_node_id
@@ -278,6 +313,7 @@ class SuffixTreeNode(EventSourcedEntity):
     @staticmethod
     def _mutator(event, initial):
         return suffix_tree_node_mutator(event, initial)
+
 
 @singledispatch
 def suffix_tree_node_mutator(event, initial):
@@ -528,6 +564,12 @@ class SuffixTreeApplication(ExampleApplicationWithCassandra):
 
     def register_new_suffixtree(self, string, case_insensitive=False):
         return register_new_suffix_tree(string, case_insensitive)
+
+    def get_suffix_tree(self, suffix_tree_id):
+        suffix_tree = self.suffix_tree_repo[suffix_tree_id]
+        suffix_tree._node_repo = self.node_repo
+        suffix_tree._edge_repo = self.edge_repo
+        return suffix_tree
 
     def find_substring_edge(self, substring, suffix_tree_id):
         suffix_tree = self.suffix_tree_repo[suffix_tree_id]
