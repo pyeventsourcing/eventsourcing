@@ -69,22 +69,7 @@ class SuffixTree(EventSourcedEntity):
         """
         Lists edges in the suffix tree
         """
-        curr_index = self.N
-        s = "\tStart \tEnd \tSuf \tFirst \tLast \tString\n"
-        values = self.edges.values()
-        values.sort(key=lambda x: x.source_node_id)
-        for edge in values:
-            if edge.source_node_id == None:
-                continue
-            s += "\t%s \t%s \t%s \t%s \t%s \t" % (edge.source_node_id
-                                                  , edge.dest_node_id
-                                                  , self.nodes[edge.dest_node_id].suffix_node_id
-                                                  , edge.first_char_index
-                                                  , edge.last_char_index)
-
-            top = min(curr_index, edge.last_char_index)
-            s += self.string[edge.first_char_index:top + 1] + "\n"
-        return s
+        return "SuffixTree({})".format(self.id)
 
     def add_string(self, string):
         assert self.string is None

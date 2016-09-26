@@ -242,3 +242,57 @@ class SuffixTreeGeneralizedTest(CassandraTestCase):
         strings_ids = self.app.find_strings('e', st.id)
         self.assertEqual(3, len(strings_ids))
         self.assertEqual(['1', '2', '3'], sorted(strings_ids))
+
+    def test_remove_string_from_suffixtree(self):
+        st = register_new_suffix_tree()
+        st.add_string('blue', '1')
+        st.add_string('green', '2')
+
+        strings_ids = self.app.find_strings('b', st.id)
+        self.assertEqual(1, len(strings_ids))
+
+        strings_ids = self.app.find_strings('l', st.id)
+        self.assertEqual(1, len(strings_ids))
+
+        strings_ids = self.app.find_strings('r', st.id)
+        self.assertEqual(1, len(strings_ids))
+
+        strings_ids = self.app.find_strings('g', st.id)
+        self.assertEqual(1, len(strings_ids))
+
+        strings_ids = self.app.find_strings('e', st.id)
+        self.assertEqual(2, len(strings_ids))
+
+        st.remove_string('blue', '1')
+
+        strings_ids = self.app.find_strings('b', st.id)
+        self.assertEqual(0, len(strings_ids))
+
+        strings_ids = self.app.find_strings('l', st.id)
+        self.assertEqual(0, len(strings_ids))
+
+        strings_ids = self.app.find_strings('r', st.id)
+        self.assertEqual(1, len(strings_ids))
+
+        strings_ids = self.app.find_strings('g', st.id)
+        self.assertEqual(1, len(strings_ids))
+
+        strings_ids = self.app.find_strings('e', st.id)
+        self.assertEqual(2, len(strings_ids))
+
+        st.add_string('green', '2')
+
+        strings_ids = self.app.find_strings('b', st.id)
+        self.assertEqual(1, len(strings_ids))
+
+        strings_ids = self.app.find_strings('l', st.id)
+        self.assertEqual(1, len(strings_ids))
+
+        strings_ids = self.app.find_strings('r', st.id)
+        self.assertEqual(1, len(strings_ids))
+
+        strings_ids = self.app.find_strings('g', st.id)
+        self.assertEqual(1, len(strings_ids))
+
+        strings_ids = self.app.find_strings('e', st.id)
+        self.assertEqual(2, len(strings_ids))
