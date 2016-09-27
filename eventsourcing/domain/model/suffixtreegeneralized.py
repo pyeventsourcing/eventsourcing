@@ -161,7 +161,7 @@ class SuffixTreeGeneralized(EventSourcedEntity):
                 last_parent_node.suffix_node_id = parent_node_id
             last_parent_node = parent_node
 
-            # Move to the next shortest suffix along by one.
+            # Move the suffix along by one.
             if self.active.source_node_id == self.root_node_id:
                 self.active.first_char_index += 1
             else:
@@ -196,19 +196,6 @@ class SuffixTreeGeneralized(EventSourcedEntity):
             # For now, just set the string_id to None.
             if leaf_node.string_id == string_id:
                 leaf_node.string_id = None
-
-
-        # Todo: Remove all leaf nodes with string_id, either by collecting all the nodes when they are
-        # Todo: created or by walking the tree using the string and discovering the leaf nodes all over again.
-        # Todo: The problem with going after the leaf nodes directly is there aren't currently any links up the treee
-        # Todo: so maybe a node could have a parent node ID, that gets updated when an edge is split, which is used
-        # Todo: to remove inner nodes that are no longer needed.
-        # Todo: Also remove edges to the node.
-        # Todo: Also remove inner nodes that have no children because a leaf or inner node was removed.
-        # Todo: Also remove edges to removed inner nodes.
-        # Todo: Also remove any removed nodes from collections of children.
-        # Todo: Also remove any nodes that only have one child, because they were a branch that is no longer needed,
-        # Todo: but connect that child to the removed node's parent with an edge, and add it to parent's collection of child nodes.
 
     def get_edge(self, edge_id):
         # Raises KeyError is not found because this method was factored out from various places that
