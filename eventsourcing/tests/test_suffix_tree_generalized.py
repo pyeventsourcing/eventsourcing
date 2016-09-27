@@ -278,9 +278,9 @@ class SuffixTreeGeneralizedTest(CassandraTestCase):
         self.assertEqual(1, len(strings_ids))
 
         strings_ids = self.app.find_strings('e', st.id)
-        self.assertEqual(2, len(strings_ids))
+        self.assertEqual(1, len(strings_ids))
 
-        st.add_string('green', '2')
+        st.add_string('blue', '1')
 
         strings_ids = self.app.find_strings('b', st.id)
         self.assertEqual(1, len(strings_ids))

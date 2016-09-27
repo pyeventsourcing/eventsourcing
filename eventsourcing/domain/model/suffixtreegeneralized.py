@@ -103,40 +103,61 @@ class SuffixTreeGeneralized(EventSourcedEntity):
             if self.active.explicit():
                 # Stop if prefix is already in tree.
                 edge_id = make_edge_id(self.active.source_node_id, string[i])
-                if self.has_edge(edge_id):
-                    break
+                try:
+                    e = self.get_edge(edge_id)
+                except KeyError:
+                    pass
+                else:
+                    dest_node = self.get_node(e.dest_node_id)
+                    if dest_node.string_id is None:
+                        pass
+                        dest_node.string_id = string_id
+                    else:
+                        break
             else:
                 # Stop if prefix is already in tree.
                 edge_id = make_edge_id(self.active.source_node_id, string[self.active.first_char_index])
                 e = self.get_edge(edge_id)
                 if e.label[self.active.length + 1] == string[i]:
-                    break
+                    dest_node = self.get_node(e.dest_node_id)
+                    if not dest_node.string_id:
+                    #     pass
+                        dest_node.string_id = string_id
+                    else:
+                        break
 
                 # Split the edge, with a new middle node that will be the parent node.
                 parent_node_id = self._split_edge(e, self.active)
 
-            # Make a new leaf node.
-            node = register_new_node(string_id=string_id)
-            self._cache_node(node)
-
-            # Make a label for the edge to the leaf, using the suffix of the string from i onwards.
-            label = string[i:]
-
-            # Make a new edge to the new leaf node, from the parent node.
             edge_id = make_edge_id(parent_node_id, string[i])
-            e = register_new_edge(
-                label=label,
-                edge_id=edge_id,
-                source_node_id=parent_node_id,
-                dest_node_id=node.id,
-            )
-            self._cache_edge(e)
-
-            # Register the new child node.
             parent_node = self.get_node(parent_node_id)
-            parent_node.add_child_node_id(node.id, e.length + 1)
+            try:
+                e = self.get_edge(edge_id)
+            except KeyError:
+                # Make a new leaf node, with the string ID.
+                node = register_new_node(string_id=string_id)
+                self._cache_node(node)
 
-            # Unless parent is root, set the parent's suffix node.
+                # Make a label for the edge to the leaf, using the suffix of the string from i onwards.
+                label = string[i:]
+
+                # Make a new edge to the new leaf node, from the parent node.
+                e = register_new_edge(
+                    label=label,
+                    edge_id=edge_id,
+                    source_node_id=parent_node_id,
+                    dest_node_id=node.id,
+                )
+                # Register the new leaf node as a child node of the parent node.
+                parent_node.add_child_node_id(node.id, e.length + 1)
+                self._cache_edge(e)
+            # else:
+                # node = self.get_node(e.dest_node_id)
+                # assert node.string_id is None, node.string_id
+                # node.string_id = string_id
+
+            # Unless parent is root, set the last parent's suffix
+            # node as the current parent's suffix node.
             if last_parent_node is not None:
                 last_parent_node.suffix_node_id = parent_node_id
             last_parent_node = parent_node
@@ -148,6 +169,11 @@ class SuffixTreeGeneralized(EventSourcedEntity):
                 self.active.source_node_id = self.get_node(self.active.source_node_id).suffix_node_id
 
             self._canonize_suffix(self.active, string)
+
+            # If we're re-adding a string, we need to set the string ID.
+            node = self.get_node(self.active.source_node_id)
+            if node.string_id is not None:
+                node.string_id = string_id
 
         if last_parent_node is not None:
             last_parent_node.suffix_node_id = parent_node_id
@@ -164,7 +190,19 @@ class SuffixTreeGeneralized(EventSourcedEntity):
         self._N = len(string) - 1
         self.string = string
         for i in range(len(string)):
-            self._disassociate_leaf(i, string, string_id)
+
+            # Walk down the tree.
+            suffix = Suffix(self.root_node_id, i, self._N)
+            self._canonize_suffix(suffix, string)
+
+            leaf_node = self.get_node(suffix.source_node_id)
+            assert isinstance(leaf_node, SuffixTreeNode)
+
+            # For now, just set the string_id to None.
+            if leaf_node.string_id == string_id:
+                leaf_node.string_id = None
+
+
         # Todo: Remove all leaf nodes with string_id, either by collecting all the nodes when they are
         # Todo: created or by walking the tree using the string and discovering the leaf nodes all over again.
         # Todo: The problem with going after the leaf nodes directly is there aren't currently any links up the treee
@@ -266,6 +304,8 @@ class SuffixTreeGeneralized(EventSourcedEntity):
         is explicit or there are no more matched nodes.
         """
         if not suffix.explicit():
+            if len(string) < suffix.first_char_index + 1:
+                raise AssertionError
             edge_id = make_edge_id(suffix.source_node_id, string[suffix.first_char_index])
             e = self.get_edge(edge_id)
             if e.length <= suffix.length:
@@ -300,13 +340,11 @@ class SuffixTreeNode(EventSourcedEntity):
 
         None indicates this node has no suffix link.
         """
-        return self._suffix_node_id
 
     @mutableproperty
     def string_id(self):
         """The id of a string being added to the generalised suffix tree when this node was created.
         """
-        return self._suffix_node_id
 
     def __repr__(self):
         return "SuffixTreeNode(suffix link: {})".format(self.suffix_node_id)
@@ -625,6 +663,9 @@ def get_leaf_nodes(node_id, node_repo, length_until_end=0, edge_length=0, unique
 
     # If it's a leaf node...
     if not node._child_node_ids:
+        if node.string_id is None:
+            raise StopIteration
+
         # Check we don't already have this one.
         if node.string_id not in uniques:
             # Check the match isn't part of the appended string ID.
