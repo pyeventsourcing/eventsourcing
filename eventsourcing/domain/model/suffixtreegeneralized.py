@@ -98,6 +98,7 @@ class SuffixTreeGeneralized(EventSourcedEntity):
         """The core construction method.
         """
         last_parent_node = None
+        dest_node = None
         while True:
             parent_node_id = self.active.source_node_id
             if self.active.explicit():
@@ -129,7 +130,7 @@ class SuffixTreeGeneralized(EventSourcedEntity):
                     break
 
                 # Split the edge, with a new middle node that will be the parent node.
-                parent_node_id = self._split_edge(e, self.active)
+                parent_node_id = self._split_edge(e, self.active, string_id)
 
             edge_id = make_edge_id(parent_node_id, string[i])
             parent_node = self.get_node(parent_node_id)
@@ -155,7 +156,7 @@ class SuffixTreeGeneralized(EventSourcedEntity):
                 self._cache_edge(e)
 
             # Unless parent is root, set the last parent's suffix
-            # node as the current parent's suffix node.
+            # node ID as the current parent node ID.
             if last_parent_node is not None:
                 last_parent_node.suffix_node_id = parent_node_id
             last_parent_node = parent_node
@@ -168,15 +169,11 @@ class SuffixTreeGeneralized(EventSourcedEntity):
 
             self._canonize_suffix(self.active, string)
 
+
         if last_parent_node is not None:
             last_parent_node.suffix_node_id = parent_node_id
         self.active.last_char_index += 1
         self._canonize_suffix(self.active, string)
-
-        # If we're re-adding a string, we need to set the string ID.
-        node = self.get_node(self.active.source_node_id)
-        if node.string_id is not None:
-            node.string_id = string_id
 
     def remove_string(self, string, string_id):
         assert isinstance(string_id, six.string_types)
@@ -258,12 +255,12 @@ class SuffixTreeGeneralized(EventSourcedEntity):
         edge_id = make_edge_id(edge.source_node_id, edge.label[0])
         self.edges[edge_id] = edge
 
-    def _split_edge(self, first_edge, suffix):
+    def _split_edge(self, first_edge, suffix, string_id):
         assert isinstance(first_edge, SuffixTreeEdge)
         assert isinstance(suffix, Suffix)
 
         # Create a new middle node that will split the edge.
-        new_middle_node = register_new_node(suffix_node_id=suffix.source_node_id)
+        new_middle_node = register_new_node(suffix_node_id=suffix.source_node_id, string_id=string_id)
         self._cache_node(new_middle_node)
 
         # Split the label.
@@ -534,9 +531,10 @@ def register_new_edge(edge_id, label, source_node_id, dest_node_id):
 def register_new_suffix_tree(string=None, string_id=None, case_insensitive=False):
     """Factory method, returns new suffix tree object.
     """
-    root_node = register_new_node()
-
     suffix_tree_id = uuid4().hex
+
+    root_node = register_new_node(string_id=suffix_tree_id)
+
     event = SuffixTreeGeneralized.Created(
         entity_id=suffix_tree_id,
         root_node_id=root_node.id,
