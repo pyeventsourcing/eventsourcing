@@ -101,7 +101,7 @@ class SuffixTreeGeneralized(EventSourcedEntity):
         while True:
             parent_node_id = self.active.source_node_id
             if self.active.explicit():
-                # Stop if prefix is already in tree.
+                # Break if prefix is already in tree.
                 edge_id = make_edge_id(self.active.source_node_id, string[i])
                 try:
                     e = self.get_edge(edge_id)
@@ -110,21 +110,23 @@ class SuffixTreeGeneralized(EventSourcedEntity):
                 else:
                     dest_node = self.get_node(e.dest_node_id)
                     if dest_node.string_id is None:
-                        pass
+                        # pass
                         dest_node.string_id = string_id
                     else:
                         break
+                    # break
             else:
-                # Stop if prefix is already in tree.
+                # Break if prefix is already in tree.
                 edge_id = make_edge_id(self.active.source_node_id, string[self.active.first_char_index])
                 e = self.get_edge(edge_id)
                 if e.label[self.active.length + 1] == string[i]:
                     dest_node = self.get_node(e.dest_node_id)
-                    if not dest_node.string_id:
-                    #     pass
-                        dest_node.string_id = string_id
-                    else:
-                        break
+                    # if not dest_node.string_id:
+                    # #     pass
+                    #     dest_node.string_id = string_id
+                    # else:
+                    #     break
+                    break
 
                 # Split the edge, with a new middle node that will be the parent node.
                 parent_node_id = self._split_edge(e, self.active)
@@ -151,10 +153,6 @@ class SuffixTreeGeneralized(EventSourcedEntity):
                 # Register the new leaf node as a child node of the parent node.
                 parent_node.add_child_node_id(node.id, e.length + 1)
                 self._cache_edge(e)
-            # else:
-                # node = self.get_node(e.dest_node_id)
-                # assert node.string_id is None, node.string_id
-                # node.string_id = string_id
 
             # Unless parent is root, set the last parent's suffix
             # node as the current parent's suffix node.
@@ -170,15 +168,15 @@ class SuffixTreeGeneralized(EventSourcedEntity):
 
             self._canonize_suffix(self.active, string)
 
-            # If we're re-adding a string, we need to set the string ID.
-            node = self.get_node(self.active.source_node_id)
-            if node.string_id is not None:
-                node.string_id = string_id
-
         if last_parent_node is not None:
             last_parent_node.suffix_node_id = parent_node_id
         self.active.last_char_index += 1
         self._canonize_suffix(self.active, string)
+
+        # If we're re-adding a string, we need to set the string ID.
+        node = self.get_node(self.active.source_node_id)
+        if node.string_id is not None:
+            node.string_id = string_id
 
     def remove_string(self, string, string_id):
         assert isinstance(string_id, six.string_types)
