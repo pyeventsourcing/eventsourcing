@@ -2,11 +2,9 @@
 from __future__ import unicode_literals
 
 import os
-import traceback
-import unittest
 import uuid
 
-from eventsourcing.domain.model.suffixtreegeneralized import register_new_suffix_tree, SuffixTreeGeneralized, SuffixTreeApplication, \
+from eventsourcing.domain.model.generalizedsuffixtree import register_new_suffix_tree, GeneralizedSuffixTree, SuffixTreeApplication, \
     STRING_ID_END
 from eventsourcing.tests.test_stored_event_repository_cassandra import CassandraTestCase
 
@@ -21,7 +19,7 @@ class SuffixTreeGeneralizedTest(CassandraTestCase):
 
     def test_empty_string(self):
         st = register_new_suffix_tree()
-        assert isinstance(st, SuffixTreeGeneralized)
+        assert isinstance(st, GeneralizedSuffixTree)
         st.add_string('', '1')
         self.assertEqual(self.app.find_substring_edge('not there', st.id), (None, None))
         self.assertEqual(self.app.find_substring_edge('', st.id), (None, None))
