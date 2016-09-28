@@ -28,35 +28,6 @@ After installation, the test suite should pass.
 
 Please register an issue if you find a bug.
 
-### Upgrading From 0.9.4 to 1.0.1+
-
-If you are upgrading from version 0.9.4, or earlier, please note that version 0.9.4 is 
-the last version with ascending as the declared ordering of 'event_id' in column family 'cql_stored_event'.
-Subsequent versions have the this ordering declared as descending. The change was made to support both paging
-through long histories of events and getting only recent events after a snapshot.
-
-A few things have been renamed, for example '@mutableproperty' is the new name for '@eventsourcedproperty'.
-This change was made to reflect the fact that immutable properties are also event sourced.
-
-The EventSourcedEntity class now has a property 'created_on', which replaces the attribute '_created_on'.
-This change follows from the fact that the domain events no longer have an floating point attribute 'timestamp' 
-but instead a UUID attribute 'domain_event_id', which is set on an event sourced entity as '_initial_event_id'.
-That UUID value is used to generate the floating point timestamp value of the 'created_on' property.
-
-Please note, the mutator style has changed to use the `singledispatch` package. Mutators were implemented as a
-big if-elif-else block. Subclasses of EventSourcedEntity must implement a static method called _mutator() in
-order to have their own mutator function invoked when mutate() is called.
-
-There is a new method called _apply() on EventSourcedEntity, which makes operations that need to apply events
-have a suitably named method to call. The apply() method calls the mutate() class method, which is also used by the
-event source repository to replay events. The mutate() class method calls the static method _mutator() with the
-event and an initial state. So the static method _mutator is a good method to override in order to introduce 
-a mutator for the class.
-
-Please see the Example class for details, and the documentation for singledispatch.
-
-Also, for Cassandra users, the table name for stored events has changed to 'stored_events'. The column names 
-have changed to be single characters, for storage efficiency. Production data will need to be migrated.
 
 
 ## Development
@@ -188,25 +159,23 @@ See also:
 
 * Method to get a limited number of domain events 
 
-* Generator that retrieves events in a succession of pages, emitting a continuous stream in ascending or descending
- order
+* Generator that retrieves events in a succession of pages, emitting a
+ continuous stream in ascending or descending order
 
-* Time-bucketed logs, useful for accumulating an indefinite list of messages in an accessible manner
+* Time-bucketed logs, useful for accumulating an indefinite list of
+ messages in an accessible manner
 
-* Encrypted stored events
+* Encrypted stored events, providing application level encryption
+
+* Set-based collections
 
 
 ### Forthcoming features
 
-* Collections
- 
-    * List-based collections
- 
-    * Set-based collections
- 
-    * Base class for collections
+* List-based collections
 
-* Stored event repository to persist stored events in a file using a very simple file format
+* Stored event repository to persist stored events in a file using a
+ very simple file format
 
 * Stored event repository to persist stored events using MongoDB
 
@@ -272,7 +241,7 @@ In the example below, an 'Example' entity inherits 'Created', 'AttributeChanged'
 events from its super class 'EventSourcedEntity'. It also inherits a mutator method that handles
 those events. The Example entity has a constructor which takes two positional arguments ('a' and 'b')
 and keyword arguments ('kwargs') which it passes directly to the base class constructor.
-The 'eventsourcedproperty' decorator is used to define event sourced properties for entity attributes 'a'
+The 'mutableproperty' decorator is used to define mutable event sourced properties for entity attributes 'a'
 and 'b'. The decorator introduces a setter that generates 'AttributeChanged' events when values are assigned
 to the attributes. The entity inherits a discard() method, which generates the 'Discarded' event when called.
 The 'Created' event is generated in a factory method (see below) and carries values used to initialise an entity.
@@ -416,10 +385,12 @@ with ExampleApplication(db_uri='sqlite:///:memory:') as app:
 
 Congratulations! You have created a new event sourced application!
 
-If you want to model other domain events, then simply declare them on the entity class like the events above,
-and implement methods on the entity which instantiate those domain events, apply them to the entity, publish to
-subscribers. Extend the EventSourcedEntity.mutator() method on the entity class, to apply the domain events to
-entity objects for example by directly changing the internal state of the entity.
+If you want to model other domain events, then simply declare them on
+the entity class like the events above, and implement methods on the
+entity which instantiate those domain events, apply them to the entity,
+publish to subscribers. Add mutator functions to apply the domain
+events to the entity objects, for example by directly changing the
+internal state of the entity.
 
 The example above uses an SQLite in memory relational database, but you could change 'db_uri' to another
 connection string if you have a real database. Here are some example connection strings - for
@@ -433,3 +404,34 @@ postgresql://scott:tiger@localhost:5432/mydatabase
 
 mysql://scott:tiger@hostname/dbname
 ```
+
+
+### Upgrading From 0.9.4 to 1.0.1+
+
+If you are upgrading from version 0.9.4, or earlier, please note that version 0.9.4 is 
+the last version with ascending as the declared ordering of 'event_id' in column family 'cql_stored_event'.
+Subsequent versions have the this ordering declared as descending. The change was made to support both paging
+through long histories of events and getting only recent events after a snapshot.
+
+A few things have been renamed, for example '@mutableproperty' is the new name for '@eventsourcedproperty'.
+This change was made to reflect the fact that immutable properties are also event sourced.
+
+The EventSourcedEntity class now has a property 'created_on', which replaces the attribute '_created_on'.
+This change follows from the fact that the domain events no longer have an floating point attribute 'timestamp' 
+but instead a UUID attribute 'domain_event_id', which is set on an event sourced entity as '_initial_event_id'.
+That UUID value is used to generate the floating point timestamp value of the 'created_on' property.
+
+Please note, the mutator style has changed to use the `singledispatch` package. Mutators were implemented as a
+big if-elif-else block. Subclasses of EventSourcedEntity must implement a static method called _mutator() in
+order to have their own mutator function invoked when mutate() is called.
+
+There is a new method called _apply() on EventSourcedEntity, which makes operations that need to apply events
+have a suitably named method to call. The apply() method calls the mutate() class method, which is also used by the
+event source repository to replay events. The mutate() class method calls the static method _mutator() with the
+event and an initial state. So the static method _mutator is a good method to override in order to introduce 
+a mutator for the class.
+
+Please see the Example class for details, and the documentation for singledispatch.
+
+Also, for Cassandra users, the table name for stored events has changed to 'stored_events'. The column names 
+have changed to be single characters, for storage efficiency. Production data will need to be migrated.
