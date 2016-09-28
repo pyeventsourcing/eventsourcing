@@ -213,8 +213,8 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             leaf_node = self.get_node(suffix.source_node_id)
             assert isinstance(leaf_node, SuffixTreeNode)
 
-            # Forget the string ID.
-            #  - but don't discard the entity, because we might
+            # Disassociate the string ID from the leaf node.
+            #  - but don't discard the node entity, because we might
             #    need to add this suffix back into the tree,
             #    and pruning hard would be relatively complicated
             #  - it would be possible separately to either rebuild
@@ -247,6 +247,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
     def get_node(self, node_id):
         # Raises KeyError is not found because this method was factored out from various places that
         # used the repo directly and so expected a KeyError to be raised if node is not in repo.
+        # Todo: Change this (and callers) to return (and handle) None when the edge is not found.
         """
 
         :rtype: SuffixTreeNode
@@ -635,7 +636,6 @@ class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
         if edge is None:
             return []
 
-        # leaf_nodes = get_leaf_nodes_recursive(edge.dest_node_id, self.node_repo, edge.length + 1 - ln, limit=limit)
         leaf_nodes = get_leaf_nodes(
             node_id=edge.dest_node_id,
             node_repo=self.node_repo,
@@ -695,12 +695,20 @@ def get_leaf_nodes(node_id, node_repo, length_until_end=0, edge_length=0, limit=
             if node.string_id in unique_string_ids:
                 continue
 
-            # Check the match isn't part of the appended string ID.
-            if len(node.string_id) + len(STRING_ID_END) <= length_until_end:
-                unique_string_ids.add(node.string_id)
-                yield node
-                if limit is not None and len(unique_string_ids) >= limit:
-                    raise StopIteration
+            # Check the match doesn't encroach upon the string's extension.
+            extension_length = len(node.string_id) + len(STRING_ID_END)
+            if length_until_end < extension_length:
+                continue
+
+            # Remember the string ID, we only want one node per string ID.
+            unique_string_ids.add(node.string_id)
+
+            # Yield the node.
+            yield node
+
+            # Check if the limit has been reached.
+            if limit is not None and len(unique_string_ids) >= limit:
+                raise StopIteration
 
         # Otherwise it's a node with children, so put then on the stack.
         else:

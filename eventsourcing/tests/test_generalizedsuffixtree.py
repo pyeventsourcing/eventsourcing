@@ -155,9 +155,8 @@ class SuffixTreeGeneralizedTest(CassandraTestCase):
         edge, ln = self.app.find_substring_edge('red', st.id)
         self.assertEqual(edge.label, 'red#' + STRING_ID_END)
 
-    def test_find_strings(self):
+    def test_find_string_ids(self):
         # This test is the first to involve the children of nodes.
-
         st = register_new_suffix_tree()
         string1_id = uuid.uuid4().hex
         string2_id = uuid.uuid4().hex
