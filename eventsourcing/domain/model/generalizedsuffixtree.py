@@ -673,7 +673,6 @@ def get_leaf_nodes(node_id, node_repo, length_until_end=0, edge_length=0, limit=
     stack = list()
 
     stack.append((node_id, edge_length, None))
-    visited_nodes = set()
     unique_string_ids = set()
     cum_lengths_until_end = {None: length_until_end}
     while stack:
@@ -686,14 +685,6 @@ def get_leaf_nodes(node_id, node_repo, length_until_end=0, edge_length=0, limit=
         node = node_repo[node_id]
         assert isinstance(node, SuffixTreeNode)
 
-        # # Avoid going around in circles (suffix tree is a DAG so this shouldn't make any difference.
-        # if node.id in visited_nodes:
-        #     continue
-        #
-        # # Remember that we've visited this node.
-        # visited_nodes.add(node.id)
-        #
-        # If it's a leaf node...
         if not node._child_node_ids:
 
             # If a string has been removed, leaf nodes will have None as the value of string_id.
