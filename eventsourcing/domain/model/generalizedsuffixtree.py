@@ -610,6 +610,8 @@ def has_substring(substring, suffix_tree, edge_repo):
 from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepo
 from eventsourcing.infrastructure.event_sourced_repos.generalizedsuffixtree_repo import GeneralizedSuffixTreeRepo, NodeRepo, EdgeRepo
 
+
+# Todo: Move this to a separate package called 'suffixtrees'
 class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
 
     def __init__(self, **kwargs):
@@ -633,7 +635,13 @@ class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
         if edge is None:
             return []
 
-        leaf_nodes = get_leaf_nodes(edge.dest_node_id, self.node_repo, edge.length + 1 - ln, uniques=set(), limit=limit)
+        # leaf_nodes = get_leaf_nodes_recursive(edge.dest_node_id, self.node_repo, edge.length + 1 - ln, limit=limit)
+        leaf_nodes = get_leaf_nodes(
+            node_id=edge.dest_node_id,
+            node_repo=self.node_repo,
+            length_until_end=edge.length + 1 - ln,
+            limit=limit
+        )
 
         return [l.string_id for l in leaf_nodes]
 
@@ -653,38 +661,57 @@ class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
         )
 
 
-# Todo: Change this to be a loop rather than reentrant.
-# Find all leaf nodes under the given node (nodes with zero child nodes).
-def get_leaf_nodes(node_id, node_repo, length_until_end=0, edge_length=0, uniques=None, limit=None,
-                   hop_count=0, hop_max=3):
+def get_leaf_nodes(node_id, node_repo, length_until_end=0, edge_length=0, limit=None,
+                   hop_count=0, hop_max=300):
+    """Generator that performs a depth first search on the suffix tree from the given node,
+    yielding unique string IDs as they are discovered.
+    """
     if hop_count >= hop_max:
         raise StopIteration
     hop_count += 1
-    length_until_end = length_until_end + edge_length
-    node = node_repo[node_id]
-    assert isinstance(node, SuffixTreeNode)
 
-    # If it's a leaf node...
-    if not node._child_node_ids:
-        if node.string_id is None:
-            raise StopIteration
+    stack = list()
 
-        # Check not already seen.
-        if node.string_id not in uniques:
+    stack.append((node_id, edge_length, None))
+    visited_nodes = set()
+    unique_string_ids = set()
+    cum_lengths_until_end = {None: length_until_end}
+    while stack:
+
+        (node_id, edge_length, parent_node_id) = stack.pop()
+
+        length_until_end = cum_lengths_until_end[parent_node_id] + edge_length
+        cum_lengths_until_end[node_id] = length_until_end
+
+        node = node_repo[node_id]
+        assert isinstance(node, SuffixTreeNode)
+
+        # # Avoid going around in circles (suffix tree is a DAG so this shouldn't make any difference.
+        # if node.id in visited_nodes:
+        #     continue
+        #
+        # # Remember that we've visited this node.
+        # visited_nodes.add(node.id)
+        #
+        # If it's a leaf node...
+        if not node._child_node_ids:
+
+            # If a string has been removed, leaf nodes will have None as the value of string_id.
+            if node.string_id is None:
+                continue
+
+            # Deduplicate string IDs (the substring might match more than one suffix in any given string).
+            if node.string_id in unique_string_ids:
+                continue
+
             # Check the match isn't part of the appended string ID.
             if len(node.string_id) + len(STRING_ID_END) <= length_until_end:
-                uniques.add(node.string_id)
+                unique_string_ids.add(node.string_id)
                 yield node
-                if limit is not None and len(uniques) >= limit:
+                if limit is not None and len(unique_string_ids) >= limit:
                     raise StopIteration
 
-    # If not a leaf, recurse down into the tree.
-    else:
-        for (child_node_id, edge_length) in node._child_node_ids.items():
-            leaf_nodes = get_leaf_nodes(node_id=child_node_id, node_repo=node_repo, length_until_end=length_until_end,
-                                        edge_length=edge_length, uniques=uniques, limit=limit, hop_count=hop_count,
-                                        hop_max=hop_max)
-            for leaf in leaf_nodes:
-                yield leaf
-                if limit is not None and len(uniques) >= limit:
-                    raise StopIteration
+        # Otherwise it's a node with children, so put then on the stack.
+        else:
+            for (child_node_id, edge_length) in node._child_node_ids.items():
+                stack.append((child_node_id, edge_length, node.id))

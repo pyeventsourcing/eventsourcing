@@ -238,7 +238,7 @@ class SuffixTreeGeneralizedTest(CassandraTestCase):
 
         st = self.app.get_suffix_tree(st.id)
         strings_ids = self.app.find_strings('e', st.id)
-        self.assertEqual(3, len(strings_ids))
+        self.assertEqual(3, len(strings_ids), strings_ids)
         self.assertEqual(['1', '2', '3'], sorted(strings_ids))
 
     def test_remove_string_from_suffixtree(self):
