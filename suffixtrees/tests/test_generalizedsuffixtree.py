@@ -4,9 +4,10 @@ from __future__ import unicode_literals
 import os
 import uuid
 
-from eventsourcing.domain.model.generalizedsuffixtree import register_new_suffix_tree, GeneralizedSuffixTree, SuffixTreeApplication, \
-    STRING_ID_END
 from eventsourcing.tests.test_stored_event_repository_cassandra import CassandraTestCase
+from suffixtrees.domain.model.generalizedsuffixtree import register_new_suffix_tree, GeneralizedSuffixTree, \
+    STRING_ID_END
+from suffixtrees.application import SuffixTreeApplication
 
 LONG_TEXT_FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'test_suffix_tree.txt')
 

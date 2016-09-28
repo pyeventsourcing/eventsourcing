@@ -58,6 +58,7 @@ Please see the Example class for details, and the documentation for singledispat
 Also, for Cassandra users, the table name for stored events has changed to 'stored_events'. The column names 
 have changed to be single characters, for storage efficiency. Production data will need to be migrated.
 
+
 ## Development
 
 The project is hosted on GitHub.

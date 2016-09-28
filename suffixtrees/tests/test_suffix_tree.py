@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 import os
 import unittest
 
-from eventsourcing.domain.model.suffixtree import register_new_suffix_tree, SuffixTree, SuffixTreeApplication
+from suffixtrees.domain.model.suffixtree import register_new_suffix_tree, SuffixTree, SuffixTreeApplication
 
 LONG_TEXT_FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'test_suffix_tree.txt')
 

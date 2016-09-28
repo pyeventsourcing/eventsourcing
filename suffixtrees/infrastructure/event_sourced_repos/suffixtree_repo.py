@@ -1,6 +1,6 @@
-from eventsourcing.domain.model.suffixtree import SuffixTree, SuffixTreeRepository, NodeRepository, Node, Edge, \
-    EdgeRepository
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository
+from suffixtrees.domain.model.suffixtree import SuffixTree, SuffixTreeRepository, NodeRepository, Node, Edge, \
+    EdgeRepository
 
 
 class SuffixTreeRepo(EventSourcedRepository, SuffixTreeRepository):
