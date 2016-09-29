@@ -1,8 +1,8 @@
 import datetime
 
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
-from suffixtrees.domain.model.generalizedsuffixtree import register_new_suffix_tree, get_leaf_nodes, \
-    find_substring_edge, has_substring
+from suffixtrees.domain.model.generalizedsuffixtree import register_new_suffix_tree, find_substring_edge, has_substring
+from suffixtrees.domain.services.generalizedsuffixtree import get_leaf_nodes
 from suffixtrees.infrastructure.event_sourced_repos.generalizedsuffixtree_repo import GeneralizedSuffixTreeRepo, \
     NodeRepo, EdgeRepo
 
@@ -24,10 +24,10 @@ class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
         suffix_tree._edge_repo = self.edge_repo
         return suffix_tree
 
-    def find_strings(self, substring, suffix_tree_id, limit=None):
+    def find_string_ids(self, substring, suffix_tree_id, limit=None):
         edge, ln = self.find_substring_edge(substring=substring, suffix_tree_id=suffix_tree_id)
         if edge is None:
-            return []
+            return set()
 
         leaf_nodes = get_leaf_nodes(
             node_id=edge.dest_node_id,
@@ -36,7 +36,7 @@ class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
             limit=limit
         )
 
-        return [l.string_id for l in leaf_nodes]
+        return set((l.string_id for l in leaf_nodes))
 
     def find_substring_edge(self, substring, suffix_tree_id):
         suffix_tree = self.suffix_tree_repo[suffix_tree_id]

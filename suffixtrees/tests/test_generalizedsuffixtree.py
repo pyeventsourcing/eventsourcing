@@ -8,6 +8,7 @@ from eventsourcing.tests.test_stored_event_repository_cassandra import Cassandra
 from suffixtrees.domain.model.generalizedsuffixtree import register_new_suffix_tree, GeneralizedSuffixTree, \
     STRING_ID_END
 from suffixtrees.application import SuffixTreeApplication
+from suffixtrees.tests.test_suffix_tree import LONG_TEXT, LONG_TEXT_CONT
 
 LONG_TEXT_FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'test_suffix_tree.txt')
 
@@ -171,57 +172,57 @@ class SuffixTreeGeneralizedTest(CassandraTestCase):
         st.add_string("blues", string_id=string3_id)
         # st.add_string("ssblu", string_id=string4_id)
 
-        strings = self.app.find_strings('$', st.id)
+        strings = self.app.find_string_ids('$', st.id)
         assert not strings, strings
-        strings = self.app.find_strings('0', st.id)
+        strings = self.app.find_string_ids('0', st.id)
         assert not strings, strings
-        strings = self.app.find_strings('1', st.id)
+        strings = self.app.find_string_ids('1', st.id)
         assert not strings, strings
-        strings = self.app.find_strings('2', st.id)
+        strings = self.app.find_string_ids('2', st.id)
         assert not strings, strings
-        strings = self.app.find_strings('3', st.id)
+        strings = self.app.find_string_ids('3', st.id)
         assert not strings, strings
-        strings = self.app.find_strings('4', st.id)
+        strings = self.app.find_string_ids('4', st.id)
         assert not strings, strings
-        strings = self.app.find_strings('5', st.id)
+        strings = self.app.find_string_ids('5', st.id)
         assert not strings, strings
-        strings = self.app.find_strings('6', st.id)
+        strings = self.app.find_string_ids('6', st.id)
         assert not strings, strings
-        strings = self.app.find_strings('7', st.id)
+        strings = self.app.find_string_ids('7', st.id)
         assert not strings, strings
 
         # Find 'b'.
-        strings = self.app.find_strings('b', st.id)
+        strings = self.app.find_string_ids('b', st.id)
         self.assertIn(string1_id, strings)
         self.assertNotIn(string2_id, strings)
 
         # Find 'e'.
-        strings = self.app.find_strings('e', st.id)
+        strings = self.app.find_string_ids('e', st.id)
         self.assertEqual(len(strings), 3)
         self.assertIn(string1_id, strings, (string1_id, string2_id, string3_id, strings))
         self.assertIn(string2_id, strings, (string1_id, string2_id, string3_id, strings))
         self.assertIn(string3_id, strings, (string1_id, string2_id, string3_id, strings))
 
         # Find 'e' - limit 1.
-        strings = self.app.find_strings('e', st.id, limit=1)
+        strings = self.app.find_string_ids('e', st.id, limit=1)
         self.assertEqual(len(strings), 1)
 
         # Find 'e' - limit 2.
-        strings = self.app.find_strings('e', st.id, limit=2)
+        strings = self.app.find_string_ids('e', st.id, limit=2)
         self.assertEqual(len(strings), 2)
 
         # Find 'r'.
-        strings = self.app.find_strings('r', st.id)
+        strings = self.app.find_string_ids('r', st.id)
         self.assertNotIn(string1_id, strings)
         self.assertIn(string2_id, strings)
 
         # Find 'd'.
-        strings = self.app.find_strings('d', st.id)
+        strings = self.app.find_string_ids('d', st.id)
         self.assertNotIn(string1_id, strings)
         self.assertIn(string2_id, strings)
 
         # Find 's'.
-        strings = self.app.find_strings('s', st.id)
+        strings = self.app.find_string_ids('s', st.id)
         self.assertNotIn(string1_id, strings)
         self.assertNotIn(string2_id, strings)
         self.assertIn(string3_id, strings)
@@ -240,7 +241,7 @@ class SuffixTreeGeneralizedTest(CassandraTestCase):
         st.add_string('yellow', '3')
 
         st = self.app.get_suffix_tree(st.id)
-        strings_ids = self.app.find_strings('e', st.id)
+        strings_ids = self.app.find_string_ids('e', st.id)
         self.assertEqual(3, len(strings_ids), strings_ids)
         self.assertEqual(['1', '2', '3'], sorted(strings_ids))
 
@@ -249,60 +250,78 @@ class SuffixTreeGeneralizedTest(CassandraTestCase):
         st.add_string('blue', '1')
         st.add_string('green', '2')
 
-        strings_ids = self.app.find_strings('b', st.id)
+        strings_ids = self.app.find_string_ids('b', st.id)
         self.assertEqual(1, len(strings_ids))
 
-        strings_ids = self.app.find_strings('l', st.id)
+        strings_ids = self.app.find_string_ids('l', st.id)
         self.assertEqual(1, len(strings_ids))
 
-        strings_ids = self.app.find_strings('u', st.id)
+        strings_ids = self.app.find_string_ids('u', st.id)
         self.assertEqual(1, len(strings_ids))
 
-        strings_ids = self.app.find_strings('r', st.id)
+        strings_ids = self.app.find_string_ids('r', st.id)
         self.assertEqual(1, len(strings_ids))
 
-        strings_ids = self.app.find_strings('g', st.id)
+        strings_ids = self.app.find_string_ids('g', st.id)
         self.assertEqual(1, len(strings_ids))
 
-        strings_ids = self.app.find_strings('e', st.id)
+        strings_ids = self.app.find_string_ids('e', st.id)
         self.assertEqual(2, len(strings_ids))
 
         st.remove_string('blue', '1')
 
-        strings_ids = self.app.find_strings('b', st.id)
+        strings_ids = self.app.find_string_ids('b', st.id)
         self.assertEqual(0, len(strings_ids))
 
-        strings_ids = self.app.find_strings('l', st.id)
+        strings_ids = self.app.find_string_ids('l', st.id)
         self.assertEqual(0, len(strings_ids))
 
-        strings_ids = self.app.find_strings('u', st.id)
+        strings_ids = self.app.find_string_ids('u', st.id)
         self.assertEqual(0, len(strings_ids))
 
-        strings_ids = self.app.find_strings('r', st.id)
+        strings_ids = self.app.find_string_ids('r', st.id)
         self.assertEqual(1, len(strings_ids))
 
-        strings_ids = self.app.find_strings('g', st.id)
+        strings_ids = self.app.find_string_ids('g', st.id)
         self.assertEqual(1, len(strings_ids))
 
-        strings_ids = self.app.find_strings('e', st.id)
+        strings_ids = self.app.find_string_ids('e', st.id)
         self.assertEqual(1, len(strings_ids))
 
         st.add_string('blue', '1')
 
-        strings_ids = self.app.find_strings('b', st.id)
+        strings_ids = self.app.find_string_ids('b', st.id)
         self.assertEqual(1, len(strings_ids))
 
-        strings_ids = self.app.find_strings('l', st.id)
+        strings_ids = self.app.find_string_ids('l', st.id)
         self.assertEqual(1, len(strings_ids))
 
-        strings_ids = self.app.find_strings('u', st.id)
+        strings_ids = self.app.find_string_ids('u', st.id)
         self.assertEqual(1, len(strings_ids))
 
-        strings_ids = self.app.find_strings('r', st.id)
+        strings_ids = self.app.find_string_ids('r', st.id)
         self.assertEqual(1, len(strings_ids))
 
-        strings_ids = self.app.find_strings('g', st.id)
+        strings_ids = self.app.find_string_ids('g', st.id)
         self.assertEqual(1, len(strings_ids))
 
-        strings_ids = self.app.find_strings('e', st.id)
+        strings_ids = self.app.find_string_ids('e', st.id)
         self.assertEqual(2, len(strings_ids))
+
+    def test_long_string(self):
+        st = register_new_suffix_tree()
+        st = register_new_suffix_tree()
+        st.add_string(LONG_TEXT, '1')
+        self.assertEqual(self.app.find_string_ids('Ukkonen', st.id), {'1'})
+        self.assertEqual(self.app.find_string_ids('Optimal', st.id), {'1'})
+        self.assertFalse(self.app.find_string_ids('ukkonen', st.id))
+        st.add_string(LONG_TEXT_CONT, '2')
+        self.assertEqual(self.app.find_string_ids('Burrows-Wheeler', st.id), {'2'})
+        self.assertEqual(self.app.find_string_ids('suffix', st.id), {'1', '2'})
+
+    def test_case_insensitivity(self):
+        st = register_new_suffix_tree(LONG_TEXT, case_insensitive=True)
+        self.assertEqual(self.app.find_substring('ukkonen', st.id), {'1'})
+        self.assertEqual(self.app.find_substring('Optimal', st.id), {'1'})
+        st.add_string(LONG_TEXT_CONT, '2')
+        self.assertEqual(self.app.find_string_ids('burrows-wheeler', st.id), {'2'})
