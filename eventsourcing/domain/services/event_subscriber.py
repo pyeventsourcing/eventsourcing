@@ -19,10 +19,10 @@ def subscribe_to(event_class):
             return isinstance(event, event_class)
         return event_type_predicate
 
-    def wrap(query_func):
-        subscribe(create_type_predicate(), query_func)
+    def wrap(handler_func):
+        subscribe(create_type_predicate(), handler_func)
 
-        def query_func_wrapper(*args, **kwargs):
-            query_func(*args, **kwargs)
-        return query_func_wrapper
+        def handler_func_wrapper(*args, **kwargs):
+            handler_func(*args, **kwargs)
+        return handler_func_wrapper
     return wrap
