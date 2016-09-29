@@ -310,18 +310,21 @@ class SuffixTreeGeneralizedTest(CassandraTestCase):
 
     def test_long_string(self):
         st = register_new_suffix_tree()
-        st = register_new_suffix_tree()
-        st.add_string(LONG_TEXT, '1')
+        st.add_string(LONG_TEXT[:12000], '1')
         self.assertEqual(self.app.find_string_ids('Ukkonen', st.id), {'1'})
         self.assertEqual(self.app.find_string_ids('Optimal', st.id), {'1'})
         self.assertFalse(self.app.find_string_ids('ukkonen', st.id))
-        st.add_string(LONG_TEXT_CONT, '2')
+        st.add_string(LONG_TEXT_CONT[:1000], '2')
         self.assertEqual(self.app.find_string_ids('Burrows-Wheeler', st.id), {'2'})
         self.assertEqual(self.app.find_string_ids('suffix', st.id), {'1', '2'})
 
     def test_case_insensitivity(self):
-        st = register_new_suffix_tree(LONG_TEXT, case_insensitive=True)
-        self.assertEqual(self.app.find_substring('ukkonen', st.id), {'1'})
-        self.assertEqual(self.app.find_substring('Optimal', st.id), {'1'})
-        st.add_string(LONG_TEXT_CONT, '2')
+        st = register_new_suffix_tree(case_insensitive=True)
+        st.add_string(LONG_TEXT[:12000], '1')
+        self.assertEqual(self.app.find_string_ids('ukkonen', st.id), {'1'})
+        self.assertEqual(self.app.find_string_ids('Optimal', st.id), {'1'})
+        self.assertEqual(self.app.find_string_ids('burrows-wheeler', st.id), set())
+        st.add_string(LONG_TEXT_CONT[:1000], '2')
+        self.assertEqual(self.app.find_string_ids('ukkonen', st.id), {'1'})
+        self.assertEqual(self.app.find_string_ids('Optimal', st.id), {'1'})
         self.assertEqual(self.app.find_string_ids('burrows-wheeler', st.id), {'2'})
