@@ -1,8 +1,9 @@
+from functools import wraps
 from eventsourcing.domain.model.events import subscribe
 
 
 def subscribe_to(event_class):
-    """ Annotation for wrapping up a custom event handler function and subscribe to a certain event type
+    """ Decorator for making a custom event handler function subscribe to a certain event type
     Args:
         event_class: DomainEvent class or its child classes that the handler function should subscribe to
 
@@ -22,6 +23,7 @@ def subscribe_to(event_class):
     def wrap(handler_func):
         subscribe(create_type_predicate(), handler_func)
 
+        @wraps(handler_func)
         def handler_func_wrapper(*args, **kwargs):
             handler_func(*args, **kwargs)
         return handler_func_wrapper
