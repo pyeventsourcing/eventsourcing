@@ -1,9 +1,9 @@
 from suffixtrees.domain.model.generalizedsuffixtree import SuffixTreeNode, STRING_ID_END
 
 
-def get_leaf_nodes(node_id, node_repo, length_until_end=0, edge_length=0, limit=None, hop_count=0, hop_max=None):
+def get_string_ids(node_id, node_repo, length_until_end=0, edge_length=0, limit=None, hop_count=0, hop_max=None):
     """Generator that performs a depth first search on the suffix tree
-    from the given node, yielding unique string IDs as they are discovered.
+    from the given node, yielding leaf node string IDs as they are discovered.
     """
     if hop_max is not None and hop_count >= hop_max:
         raise StopIteration
@@ -35,23 +35,24 @@ def get_leaf_nodes(node_id, node_repo, length_until_end=0, edge_length=0, limit=
 
         else:
             # If a string has been removed, leaf nodes will have None as the value of string_id.
-            if node.string_id is None:
+            string_id = node.string_id
+            if string_id is None:
                 continue
 
             # Deduplicate string IDs (the substring might match more than one suffix in any given string).
-            if node.string_id in unique_string_ids:
+            if string_id in unique_string_ids:
                 continue
 
             # Check the match doesn't encroach upon the string's extension.
-            extension_length = len(node.string_id) + len(STRING_ID_END)
+            extension_length = len(string_id) + len(STRING_ID_END)
             if length_until_end < extension_length:
                 continue
 
             # Remember the string ID, we only want one node per string ID.
-            unique_string_ids.add(node.string_id)
+            unique_string_ids.add(string_id)
 
-            # Yield the node.
-            yield node
+            # Yield the string ID.
+            yield string_id
 
             # Check if the limit has been reached.
             if limit is not None and len(unique_string_ids) >= limit:

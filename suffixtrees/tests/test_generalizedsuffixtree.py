@@ -7,17 +7,15 @@ import uuid
 from eventsourcing.tests.test_stored_event_repository_cassandra import CassandraTestCase
 from suffixtrees.domain.model.generalizedsuffixtree import register_new_suffix_tree, GeneralizedSuffixTree, \
     STRING_ID_END
-from suffixtrees.application import SuffixTreeApplication
+from suffixtrees.application import SuffixTreeApplicationWithPythonObjects
 from suffixtrees.tests.test_suffix_tree import LONG_TEXT, LONG_TEXT_CONT
 
-LONG_TEXT_FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'test_suffix_tree.txt')
 
-
-class SuffixTreeGeneralizedTest(CassandraTestCase):
+class GeneralizedSuffixTreeTest(CassandraTestCase):
 
     def setUp(self):
-        super(SuffixTreeGeneralizedTest, self).setUp()
-        self.app = SuffixTreeApplication()
+        super(GeneralizedSuffixTreeTest, self).setUp()
+        self.app = SuffixTreeApplicationWithPythonObjects()
 
     def tearDown(self):
         self.app.close()
