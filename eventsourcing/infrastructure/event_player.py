@@ -12,7 +12,7 @@ class EventPlayer(object):
         assert isinstance(event_store, EventStore), event_store
         self.event_store = event_store
         self.id_prefix = id_prefix
-        self.mutate = mutate_func
+        self.mutate_func = mutate_func
         self.page_size = page_size
         self.is_short = is_short
 
@@ -36,7 +36,7 @@ class EventPlayer(object):
             initial_state = initial_state_copy
 
         # Mutate initial state using the sequence of domain events.
-        domain_entity = reduce(self.mutate, domain_events, initial_state)
+        domain_entity = reduce(self.mutate_func, domain_events, initial_state)
 
         # Return the resulting domain entity.
         return domain_entity

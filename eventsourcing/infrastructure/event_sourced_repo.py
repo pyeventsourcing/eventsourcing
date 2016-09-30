@@ -19,26 +19,35 @@ class EventSourcedRepository(EntityRepository):
     # the fastest path for getting all the events is used.
     __is_short__ = False
 
+    event_player_class = EventPlayer
 
     def __init__(self, event_store, use_cache=False):
+        self._cache = {}
+        self._use_cache = use_cache
+
         # Check we got an event store.
         assert isinstance(event_store, EventStore)
         self.event_store = event_store
 
-        # Check we got an event sourced entity class.
-        domain_class = self.domain_class
-        assert issubclass(domain_class, EventSourcedEntity)
+        # Check domain class is a type of event sourced entity.
+        assert issubclass(self.domain_class, EventSourcedEntity)
 
-        # Instantiate an event player for the domain class.
-        self.event_player = EventPlayer(
-            event_store=event_store,
-            id_prefix=id_prefix_from_entity_class(domain_class),
-            mutate_func=domain_class.mutate,
-            page_size=self.__page_size__ or domain_class.__page_size__,
-            is_short=self.__is_short__ or domain_class.__is_short__,
+        # Instantiate an event player.
+        self.event_player = self.create_event_player()
+
+    def create_event_player(self):
+        """
+        Returns an event player, an instance of EventPlayer.
+
+        :rtype: EventPlayer
+        """
+        return self.event_player_class(
+            event_store=self.event_store,
+            id_prefix=id_prefix_from_entity_class(self.domain_class),
+            mutate_func=self.domain_class.mutate,
+            page_size=self.__page_size__ or self.domain_class.__page_size__,
+            is_short=self.__is_short__ or self.domain_class.__is_short__,
         )
-        self._cache = {}
-        self._use_cache = use_cache
 
     def __contains__(self, entity_id):
         """
@@ -79,6 +88,7 @@ class EventSourcedRepository(EntityRepository):
         """
         Returns the type of entity held by this repository.
         """
+        return EventSourcedEntity
 
     def get_entity(self, entity_id, until=None):
         """
