@@ -3,7 +3,7 @@ import mock
 
 from eventsourcing.domain.model.entity import mutableproperty, EntityIDConsistencyError, EntityVersionConsistencyError, \
     EventSourcedEntity, created_mutator, MutatorRequiresTypeError
-from eventsourcing.domain.model.events import DomainEvent, subscribe, unsubscribe, assert_event_handlers_empty
+from eventsourcing.domain.model.events import DomainEvent, subscribe, unsubscribe, assert_event_handlers_empty, publish
 from eventsourcing.domain.model.example import register_new_example, Example
 from eventsourcing.domain.model.exceptions import ProgrammingError
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
@@ -91,6 +91,17 @@ class TestExampleEntity(unittest.TestCase):
         entity2._validate_originator(
             DomainEvent(entity_id=entity2.id, entity_version=entity2.version)
         )
+
+        # Check an entity can be reregistered with the same ID.
+        replacement_event = Example.Created(entity_id=entity1.id, a=11, b=12)
+        # replacement = Example.mutate(event=replacement_event)
+        publish(event=replacement_event)
+
+        # Check the replacement entity can be retrieved from the example repository.
+        replacement = repo[entity1.id]
+        assert isinstance(replacement, Example)
+        self.assertEqual(replacement.a, 11)
+        self.assertEqual(replacement.b, 12)
 
     def test_not_implemented_error(self):
         # Define an event class.
