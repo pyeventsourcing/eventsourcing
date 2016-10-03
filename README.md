@@ -169,6 +169,9 @@ See also:
 
 * Set-based collections
 
+* Optimistic concurrency control
+
+* Generalized suffix trees
 
 ### Forthcoming features
 

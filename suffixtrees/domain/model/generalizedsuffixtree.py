@@ -109,9 +109,9 @@ class GeneralizedSuffixTree(EventSourcedEntity):
                     # tree, so continue by adding an edge and a node.
                     pass
                 else:
-                    # Although, in case it's a leaf node that remains because
-                    # an earlier suffix of string ID was removed, and so
-                    # doesn't have a 'string_id' value, then set 'string_id' now.
+                    # Although, if edge destination is a leaf node that doesn't have
+                    # a 'string_id' value (because an earlier suffix of string ID
+                    # was removed), then set its 'string_id' attribute now.
                     dest_node = self.get_node(e.dest_node_id)
                     if self.is_leaf(dest_node) and dest_node.string_id is None:
                         dest_node.string_id = string_id
