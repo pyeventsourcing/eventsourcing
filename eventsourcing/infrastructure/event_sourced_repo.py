@@ -19,11 +19,10 @@ class EventSourcedRepository(EntityRepository):
     # the fastest path for getting all the events is used.
     __is_short__ = False
 
-    event_player_class = EventPlayer
-
-    def __init__(self, event_store, use_cache=False):
+    def __init__(self, event_store, use_cache=False, snapshot_strategy=None):
         self._cache = {}
         self._use_cache = use_cache
+        self._snapshot_strategy = snapshot_strategy
 
         # Check we got an event store.
         assert isinstance(event_store, EventStore)
@@ -32,21 +31,15 @@ class EventSourcedRepository(EntityRepository):
         # Check domain class is a type of event sourced entity.
         assert issubclass(self.domain_class, EventSourcedEntity)
 
-        # Instantiate an event player.
-        self.event_player = self.create_event_player()
-
-    def create_event_player(self):
-        """
-        Returns an event player, an instance of EventPlayer.
-
-        :rtype: EventPlayer
-        """
-        return self.event_player_class(
+        # Instantiate an event player for this repo, with
+        # repo-specific mutate function, page size, etc.
+        self.event_player = EventPlayer(
             event_store=self.event_store,
             id_prefix=id_prefix_from_entity_class(self.domain_class),
             mutate_func=self.domain_class.mutate,
             page_size=self.__page_size__ or self.domain_class.__page_size__,
             is_short=self.__is_short__ or self.domain_class.__is_short__,
+            snapshot_strategy=self._snapshot_strategy,
         )
 
     def __contains__(self, entity_id):
@@ -92,7 +85,7 @@ class EventSourcedRepository(EntityRepository):
 
     def get_entity(self, entity_id, until=None):
         """
-        Returns entity with given ID, optionally as it was at the given time.
+        Returns entity with given ID, optionally as it was until the given domain event ID.
         """
 
         # Get a snapshot (None if none exist).
