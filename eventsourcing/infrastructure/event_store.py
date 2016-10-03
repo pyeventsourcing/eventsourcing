@@ -1,5 +1,7 @@
 import six
 
+from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.exceptions import ConcurrencyError
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 
 
@@ -10,8 +12,20 @@ class EventStore(object):
         self.stored_event_repo = stored_event_repo
 
     def append(self, domain_event):
+        assert isinstance(domain_event, DomainEvent)
         # Serialize the domain event.
         stored_event = self.stored_event_repo.serialize(domain_event)
+
+        # Optimistic concurrency control.
+        if domain_event.entity_version:
+            last_event = self.get_most_recent_event(stored_event.stored_entity_id)
+            if last_event is not None:
+                assert isinstance(last_event, DomainEvent), last_event
+                last_version = last_event.entity_version
+                this_version = domain_event.entity_version
+                if this_version - 1 != last_version:
+                    raise ConcurrencyError("Can't append event at version {}, last stored version is {}"
+                                           "".format(this_version, last_version))
 
         # Append the stored event to the stored event repo.
         self.stored_event_repo.append(stored_event)
