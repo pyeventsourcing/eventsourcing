@@ -7,6 +7,7 @@ from eventsourcing.domain.model.snapshot import take_snapshot, Snapshot
 from eventsourcing.infrastructure.event_player import EventPlayer, entity_from_snapshot
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
+from eventsourcing.infrastructure.snapshot_strategy import EventSourcedSnapshotStrategy
 from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
 
 
@@ -133,12 +134,17 @@ class TestEventPlayer(unittest.TestCase):
         retrieved_example = event_player.replay_events(registered_example.id, initial_state=initial_state, after=after, until=timecheck2)
         self.assertEqual(retrieved_example.a, 999)
 
-    def test_take_snapshot(self):
+    def test_with_snapshots(self):
         # Check the EventPlayer's take_snapshot() method.
         stored_event_repo = PythonObjectsStoredEventRepository()
         event_store = EventStore(stored_event_repo)
         self.ps = PersistenceSubscriber(event_store)
-        event_player = EventPlayer(event_store=event_store, id_prefix='Example', mutate_func=Example.mutate)
+        event_player = EventPlayer(
+            event_store=event_store,
+            id_prefix='Example',
+            mutate_func=Example.mutate,
+            snapshot_strategy=EventSourcedSnapshotStrategy(event_store=event_store)
+        )
 
         # Check the method returns None when there are no events.
         snapshot = event_player.take_snapshot('wrong')
