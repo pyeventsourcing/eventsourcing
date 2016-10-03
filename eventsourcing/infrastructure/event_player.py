@@ -13,6 +13,8 @@ class EventPlayer(object):
 
     def __init__(self, event_store, id_prefix, mutate_func, page_size=None, is_short=False, snapshot_strategy=None):
         assert isinstance(event_store, EventStore), event_store
+        if snapshot_strategy is not None:
+            assert isinstance(snapshot_strategy, AbstractSnapshotStrategy)
         self.event_store = event_store
         self.id_prefix = id_prefix
         self.mutate_func = mutate_func
@@ -52,9 +54,8 @@ class EventPlayer(object):
         """Takes a snapshot of the entity as it existed after
         the most recent event, optionally until a given time.
         """
-        assert isinstance(self.snapshot_strategy, AbstractSnapshotStrategy), (
-            "Can't take snapshots without a snapshot strategy."
-        )
+        if self.snapshot_strategy is None:
+            raise ValueError("Can't take snapshots without a snapshot strategy.")
 
         # Get the last event (optionally until a particular time).
         last_event = self.get_most_recent_event(entity_id, until=until)
