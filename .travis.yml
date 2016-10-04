@@ -17,4 +17,3 @@ install:
 
 script:
 - python -m unittest discover eventsourcing.tests -v
-- python -m unittest discover suffixtrees.tests -v
