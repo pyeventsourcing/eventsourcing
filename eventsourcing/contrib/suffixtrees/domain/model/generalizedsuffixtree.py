@@ -163,7 +163,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             # Register the new leaf node as a child node of the parent node.
             parent_node = self.get_node(parent_node_id)
             # - also pass in the number of chars, used when finding strings
-            parent_node.add_child_node_id(new_node.id, new_edge.length + 1)
+            parent_node.add_child(new_node.id, new_edge.length + 1)
 
             # Create suffix link from last parent to current parent (unless it's root).
             self.create_suffix_link(last_parent_node_id, parent_node_id)
@@ -204,7 +204,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         self._cache_edge(second_edge)
 
         # Add the original dest node as a child of the new middle node.
-        new_middle_node.add_child_node_id(original_dest_node_id, second_edge.length + 1)
+        new_middle_node.add_child(original_dest_node_id, second_edge.length + 1)
 
         # Shorten the first edge (last so that everything above is in place).
         try:
@@ -219,10 +219,9 @@ class GeneralizedSuffixTree(EventSourcedEntity):
 
         # Remove the original dest node as child of the original
         # source node, and add the new middle node instead.
-        # Todo: Maybe make this a single "Node.ChildReplaced" event?
         original_source_node = self.get_node(first_edge.source_node_id)
-        original_source_node.add_child_node_id(new_middle_node.id, first_edge.length + 1)
-        original_source_node.remove_child_node_id(original_dest_node_id)
+        assert isinstance(original_source_node, SuffixTreeNode)
+        original_source_node.switch_child(original_dest_node_id, new_middle_node.id, first_edge.length + 1)
 
         # Return middle node.
         return new_middle_node.id
@@ -354,6 +353,8 @@ class SuffixTreeNode(EventSourcedEntity):
 
     class ChildNodeRemoved(DomainEvent): pass
 
+    class ChildNodeSwitched(DomainEvent): pass
+
     def __init__(self, suffix_node_id=None, string_id=None, *args, **kwargs):
         super(SuffixTreeNode, self).__init__(*args, **kwargs)
         self.suffix_node_id = suffix_node_id
@@ -371,7 +372,7 @@ class SuffixTreeNode(EventSourcedEntity):
     def __repr__(self):
         return "SuffixTreeNode(suffix link: {})".format(self.suffix_node_id)
 
-    def add_child_node_id(self, child_node_id, edge_len):
+    def add_child(self, child_node_id, edge_len):
         event = SuffixTreeNode.ChildNodeAdded(
             entity_id=self.id,
             entity_version=self.version,
@@ -381,11 +382,22 @@ class SuffixTreeNode(EventSourcedEntity):
         self._apply(event)
         publish(event)
 
-    def remove_child_node_id(self, child_node_id):
+    def remove_child(self, child_node_id):
         event = SuffixTreeNode.ChildNodeRemoved(
             entity_id=self.id,
             entity_version=self.version,
             child_node_id=child_node_id,
+        )
+        self._apply(event)
+        publish(event)
+
+    def switch_child(self, old_node_id, new_node_id, new_edge_len):
+        event = SuffixTreeNode.ChildNodeSwitched(
+            entity_id=self.id,
+            entity_version=self.version,
+            old_node_id=old_node_id,
+            new_node_id=new_node_id,
+            new_edge_len=new_edge_len,
         )
         self._apply(event)
         publish(event)
@@ -415,6 +427,18 @@ def child_node_removed_mutator(event, self):
         del(self._child_node_ids[event.child_node_id])
     except KeyError:
         pass
+    self._increment_version()
+    return self
+
+
+@suffix_tree_node_mutator.register(SuffixTreeNode.ChildNodeSwitched)
+def child_node_switched_mutator(event, self):
+    assert isinstance(self, SuffixTreeNode), self
+    try:
+        del(self._child_node_ids[event.old_node_id])
+    except KeyError:
+        pass
+    self._child_node_ids[event.new_node_id] = event.new_edge_len
     self._increment_version()
     return self
 
