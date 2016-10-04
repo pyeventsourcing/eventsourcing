@@ -201,7 +201,7 @@ def deserialize_domain_entity(entity_topic, entity_attrs):
 
 
 def make_stored_entity_id(id_prefix, entity_id):
-    return id_prefix + '::' + entity_id
+    return '%s::%s' % (id_prefix, entity_id)
 
 
 def id_prefix_from_event(domain_event):
