@@ -1,4 +1,4 @@
-import eventsourcingtests.test_application_with_pythonobjects as testcase
+import eventsourcing.tests.test_application_with_pythonobjects as testcase
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
 from eventsourcing.domain.model.example import Example

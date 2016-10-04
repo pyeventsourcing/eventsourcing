@@ -9,6 +9,7 @@ from singledispatch import singledispatch
 
 from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository, entity_mutator
 from eventsourcing.domain.model.events import publish, DomainEvent
+from eventsourcing.exceptions import ConcurrencyError
 
 # Use a private code point to terminate the string IDs.
 STRING_ID_END = '\uEFFF'
@@ -93,7 +94,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
     def _add_prefix(self, i, string, string_id):
         """The core construction method.
         """
-        last_parent_node = None
+        last_parent_node_id = None
         parent_node_id = None
         while True:
             parent_node_id = self.suffix.source_node_id
@@ -103,7 +104,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
                 # Explicit suffix points to an existing node. Try to find the node.
                 prefix = string[i]
                 try:
-                    e = self.get_edge(make_edge_id(self.suffix.source_node_id, prefix))
+                    edge = self.get_edge(make_edge_id(self.suffix.source_node_id, prefix))
                 except KeyError:
                     # If the edge doesn't exist, the prefix isn't in the
                     # tree, so continue by adding an edge and a node.
@@ -112,7 +113,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
                     # Although, if edge destination is a leaf node that doesn't have
                     # a 'string_id' value (because an earlier suffix of string ID
                     # was removed), then set its 'string_id' attribute now.
-                    dest_node = self.get_node(e.dest_node_id)
+                    dest_node = self.get_node(edge.dest_node_id)
                     if self.is_leaf(dest_node) and dest_node.string_id is None:
                         dest_node.string_id = string_id
 
@@ -125,54 +126,54 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             else:
                 # Break if prefix is already in tree.
                 prefix = string[self.suffix.first_char_index]
-                e = self.get_edge(make_edge_id(self.suffix.source_node_id, prefix))
-                if e.label[self.suffix.length + 1] == string[i]:
+                edge = self.get_edge(make_edge_id(self.suffix.source_node_id, prefix))
+                if edge.label[self.suffix.length + 1] == string[i]:
 
                     # The suffix was found in this edge, so exit the loop.
                     break
 
                 # Split the edge, with a new middle node that will be the parent node.
-                parent_node_id = self._split_edge(e, self.suffix, string_id)
+                parent_node_id = self._split_edge(edge, self.suffix)
 
             # Otherwise the prefix isn't in the tree, so create an edge and node for this prefix.
-            node = register_new_node(string_id=string_id)
-            self._cache_node(node)
+            new_node = register_new_node(string_id=string_id)
+            self._cache_node(new_node)
 
 
             # Make a new edge from the parent node to the
             # new leaf node. Make a label for the edge to
             # the leaf, using the suffix of the string
             # from i onwards.
-            e = register_new_edge(
+            new_edge = register_new_edge(
                 edge_id=make_edge_id(parent_node_id, string[i]),
                 label=string[i:],
                 source_node_id=parent_node_id,
-                dest_node_id=node.id,
+                dest_node_id=new_node.id,
             )
+            self._cache_edge(new_edge)
 
             # Register the new leaf node as a child node of the parent node.
             parent_node = self.get_node(parent_node_id)
             # - also pass in the number of chars, used when finding strings
-            parent_node.add_child_node_id(node.id, e.length + 1)
-            self._cache_edge(e)
+            parent_node.add_child_node_id(new_node.id, new_edge.length + 1)
 
             # Unless parent is root, set the last parent's suffix
             # node ID as the current parent node ID.
-            if last_parent_node is not None:
-                assert isinstance(last_parent_node, SuffixTreeNode)
-                last_parent_node.suffix_node_id = parent_node_id
+            if last_parent_node_id is not None:
+                assert isinstance(last_parent_node_id, SuffixTreeNode)
+                last_parent_node_id.suffix_node_id = parent_node_id
 
             # Remember the last parent node.
-            last_parent_node = parent_node
+            last_parent_node_id = parent_node_id
 
             # Adjust the active suffix.
             self.move_suffix_along_by_one(string)
 
         # Create suffix link from last parent to current parent.
-        if last_parent_node is not None:
+        if last_parent_node_id is not None:
             assert parent_node_id is not None
+            last_parent_node = self.get_node(last_parent_node_id)
             last_parent_node.suffix_node_id = parent_node_id
-
 
         self.suffix.last_char_index += 1
         self._canonize_suffix(self.suffix, string)
@@ -186,13 +187,13 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         self._canonize_suffix(self.suffix, string)
 
     def is_leaf(self, dest_node):
-        return self.is_inner_node(dest_node) and not self.is_root_node(dest_node)
+        return not self.is_inner_node(dest_node) and not self.is_root_node(dest_node)
 
     def is_root_node(self, dest_node):
         return dest_node.id == self.root_node_id
 
     def is_inner_node(self, dest_node):
-        return dest_node.suffix_node_id is None
+        return dest_node.suffix_node_id is not None
 
     def remove_string(self, string, string_id):
         assert isinstance(string_id, six.string_types)
@@ -201,6 +202,10 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         assert STRING_ID_END not in string_id
         assert STRING_ID_END not in string
         string += u"{}{}".format(string_id, STRING_ID_END)
+        # Disassociate the string ID from its leaf nodes.
+        #    and pruning hard would be relatively complicated
+        #    need to add this suffix back into the tree,
+        #  - but don't discard the node entity, because we might
         for i in range(len(string)):
 
             # Walk down the tree.
@@ -210,13 +215,6 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             # Get the leaf node.
             leaf_node = self.get_node(suffix.source_node_id)
             assert isinstance(leaf_node, SuffixTreeNode)
-
-            # Disassociate the string ID from the leaf node.
-            #  - but don't discard the node entity, because we might
-            #    need to add this suffix back into the tree,
-            #    and pruning hard would be relatively complicated
-            #  - it would be possible separately to either rebuild
-            #    the tree, or garbage collect leaf nodes
             if leaf_node.string_id == string_id:
                 leaf_node.string_id = None
 
@@ -270,7 +268,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         edge_id = make_edge_id(edge.source_node_id, edge.label[0])
         self.edges[edge_id] = edge
 
-    def _split_edge(self, first_edge, suffix, string_id):
+    def _split_edge(self, first_edge, suffix):
         assert isinstance(first_edge, SuffixTreeEdge)
         assert isinstance(suffix, Suffix)
 
@@ -296,9 +294,18 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         # Add the original dest node as a child of the new middle node.
         new_middle_node.add_child_node_id(original_dest_node_id, second_edge.length + 1)
 
-        # Shorten the first edge.
-        first_edge.label = first_label
-        first_edge.dest_node_id = new_middle_node.id
+        # Shorten the first edge (last so that everything above is in place).
+        try:
+            # Todo: Change this to be a single "Edge.Shortened" event, so there's only one event.
+            first_edge.label = first_label
+            first_edge.dest_node_id = new_middle_node.id
+        except ConcurrencyError:
+            # If the first edge has changed by now, then abort this split by
+            # discarding the new_middle_node and the second_edge, which haven't
+            # been connected to the tree yet, so can safely be discarded.
+            new_middle_node.discard()
+            second_edge.discard()
+            raise
 
         # Remove the original dest node from the children of the original
         # source node, and add the new middle node to the children.
