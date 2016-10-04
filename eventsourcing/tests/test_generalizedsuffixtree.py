@@ -20,7 +20,7 @@ class GeneralizedSuffixTreeTest(CassandraTestCase):
         self.app.close()
 
     def test_empty_string(self):
-        st = register_new_suffix_tree()
+        st = self.app.register_new_suffix_tree()
         assert isinstance(st, GeneralizedSuffixTree)
         st.add_string('', '1')
         self.assertEqual(self.app.find_substring_edge('not there', st.id), (None, None))
@@ -29,7 +29,7 @@ class GeneralizedSuffixTreeTest(CassandraTestCase):
         self.assertFalse(self.app.has_substring('', st.id))
 
     def test_repeated_string(self):
-        st = register_new_suffix_tree()
+        st = self.app.register_new_suffix_tree()
         st.add_string("aaa", '1')
         edge, ln = self.app.find_substring_edge('a', st.id)
         self.assertEqual(edge.label, 'a')
@@ -48,7 +48,7 @@ class GeneralizedSuffixTreeTest(CassandraTestCase):
         self.assertFalse(self.app.has_substring('A', st.id))
 
     def test_mississippi(self):
-        st = register_new_suffix_tree()
+        st = self.app.register_new_suffix_tree()
         st.add_string("mississippi", "$")
         st.add_string("mudpie", "#")
         st.add_string("ball", "%")
@@ -114,7 +114,7 @@ class GeneralizedSuffixTreeTest(CassandraTestCase):
         self.assertEqual(edge.label, '&' + STRING_ID_END)
 
     def test_colours(self):
-        st = register_new_suffix_tree()
+        st = self.app.register_new_suffix_tree()
         st.add_string("blue", "$")
         st.add_string("red", "#")
 
@@ -160,7 +160,7 @@ class GeneralizedSuffixTreeTest(CassandraTestCase):
 
     def test_find_string_ids(self):
         # This test is the first to involve the children of nodes.
-        st = register_new_suffix_tree()
+        st = self.app.register_new_suffix_tree()
         string1_id = uuid.uuid4().hex
         string2_id = uuid.uuid4().hex
         string3_id = uuid.uuid4().hex
@@ -227,7 +227,7 @@ class GeneralizedSuffixTreeTest(CassandraTestCase):
 
     def test_add_string_to_suffixtree_from_repo(self):
         # Check adding strings after getting the tree from the repo.
-        st = register_new_suffix_tree()
+        st = self.app.register_new_suffix_tree()
 
         st = self.app.get_suffix_tree(st.id)
         st.add_string('blue', '1')
@@ -244,7 +244,7 @@ class GeneralizedSuffixTreeTest(CassandraTestCase):
         self.assertEqual(['1', '2', '3'], sorted(strings_ids))
 
     def test_remove_string_from_suffixtree(self):
-        st = register_new_suffix_tree()
+        st = self.app.register_new_suffix_tree()
         st.add_string('blue', '1')
         st.add_string('green', '2')
 
@@ -307,7 +307,7 @@ class GeneralizedSuffixTreeTest(CassandraTestCase):
         self.assertEqual(2, len(strings_ids))
 
     def test_long_string(self):
-        st = register_new_suffix_tree()
+        st = self.app.register_new_suffix_tree()
         st.add_string(LONG_TEXT[:12000], '1')
         self.assertEqual(self.app.find_string_ids('Ukkonen', st.id), {'1'})
         self.assertEqual(self.app.find_string_ids('Optimal', st.id), {'1'})
@@ -317,7 +317,7 @@ class GeneralizedSuffixTreeTest(CassandraTestCase):
         self.assertEqual(self.app.find_string_ids('suffix', st.id), {'1', '2'})
 
     def test_case_insensitivity(self):
-        st = register_new_suffix_tree(case_insensitive=True)
+        st = self.app.register_new_suffix_tree(case_insensitive=True)
         st.add_string(LONG_TEXT[:12000], '1')
         self.assertEqual(self.app.find_string_ids('ukkonen', st.id), {'1'})
         self.assertEqual(self.app.find_string_ids('Optimal', st.id), {'1'})

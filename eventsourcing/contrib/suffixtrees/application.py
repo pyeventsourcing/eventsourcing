@@ -4,11 +4,12 @@ from eventsourcing.application.base import EventSourcingApplication
 from eventsourcing.application.with_cassandra import EventSourcingWithCassandra
 from eventsourcing.application.with_pythonobjects import EventSourcingWithPythonObjects
 from eventsourcing.application.with_sqlalchemy import EventSourcingWithSQLAlchemy
-from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import register_new_suffix_tree
+from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import register_new_suffix_tree, \
+    GeneralizedSuffixTree
 from eventsourcing.contrib.suffixtrees.domain.services.generalizedsuffixtree import get_string_ids, find_substring_edge, \
     has_substring
 from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.generalizedsuffixtree_repo import \
-    GeneralizedSuffixTreeRepo, NodeRepo, EdgeRepo
+    GeneralizedSuffixTreeRepo, NodeRepo, EdgeRepo, NodeChildCollectionRepo
 
 
 class AbstractSuffixTreeApplication(EventSourcingApplication):
@@ -17,18 +18,25 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
         super(AbstractSuffixTreeApplication, self).__init__(**kwargs)
         self.suffix_tree_repo = GeneralizedSuffixTreeRepo(self.event_store)
         self.node_repo = NodeRepo(self.event_store)
+        self.node_child_collection_repo = NodeChildCollectionRepo(self.event_store)
         self.edge_repo = EdgeRepo(self.event_store)
 
-    def register_new_suffixtree(self, string, case_insensitive=False):
+    def register_new_suffix_tree(self, case_insensitive=False):
         """Returns a new suffix tree entity.
         """
-        return register_new_suffix_tree(string, case_insensitive)
+        suffix_tree = register_new_suffix_tree(case_insensitive=case_insensitive)
+        suffix_tree._node_repo = self.node_repo
+        suffix_tree._node_child_collection_repo = self.node_child_collection_repo
+        suffix_tree._edge_repo = self.edge_repo
+        return suffix_tree
 
     def get_suffix_tree(self, suffix_tree_id):
         """Returns a suffix tree entity, equipped with node and edge repos it (at least at the moment) needs.
         """
         suffix_tree = self.suffix_tree_repo[suffix_tree_id]
+        assert isinstance(suffix_tree, GeneralizedSuffixTree)
         suffix_tree._node_repo = self.node_repo
+        suffix_tree._node_child_collection_repo = self.node_child_collection_repo
         suffix_tree._edge_repo = self.edge_repo
         return suffix_tree
 
@@ -47,6 +55,7 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
         string_ids = get_string_ids(
             node_id=edge.dest_node_id,
             node_repo=self.node_repo,
+            node_child_collection_repo=self.node_child_collection_repo,
             length_until_end=edge.length + 1 - ln,
             limit=limit
         )

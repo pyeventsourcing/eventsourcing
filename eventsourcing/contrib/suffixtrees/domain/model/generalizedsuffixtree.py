@@ -38,6 +38,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         self._string = None
         self._suffix = None
         self._node_repo = None
+        self._node_child_collection_repo = None
         self._edge_repo = None
 
     @mutableproperty
@@ -161,9 +162,9 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             self._cache_edge(new_edge)
 
             # Register the new leaf node as a child node of the parent node.
-            parent_node = self.get_node(parent_node_id)
-            # - also pass in the number of chars, used when finding strings
-            parent_node.add_child(new_node.id, new_edge.length + 1)
+            parent_node_child_collection = self.get_node_child_collection(parent_node_id)
+            # - also pass in the number of chars (used when finding strings)
+            parent_node_child_collection.add_child(new_node.id, new_edge.length + 1)
 
             # Create suffix link from last parent to current parent (unless it's root).
             self.create_suffix_link(last_parent_node_id, parent_node_id)
@@ -204,7 +205,8 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         self._cache_edge(second_edge)
 
         # Add the original dest node as a child of the new middle node.
-        new_middle_node.add_child(original_dest_node_id, second_edge.length + 1)
+        new_middle_node_child_collection = self.get_node_child_collection(new_middle_node.id)
+        new_middle_node_child_collection.add_child(original_dest_node_id, second_edge.length + 1)
 
         # Shorten the first edge (last so that everything above is in place).
         try:
@@ -219,9 +221,9 @@ class GeneralizedSuffixTree(EventSourcedEntity):
 
         # Remove the original dest node as child of the original
         # source node, and add the new middle node instead.
-        original_source_node = self.get_node(first_edge.source_node_id)
-        assert isinstance(original_source_node, SuffixTreeNode)
-        original_source_node.switch_child(original_dest_node_id, new_middle_node.id, first_edge.length + 1)
+        original_source_node_child_collection = self.get_node_child_collection(first_edge.source_node_id)
+        assert isinstance(original_source_node_child_collection, SuffixTreeNodeChildCollection)
+        original_source_node_child_collection.switch_child(original_dest_node_id, new_middle_node.id, first_edge.length + 1)
 
         # Return middle node.
         return new_middle_node.id
@@ -320,6 +322,19 @@ class GeneralizedSuffixTree(EventSourcedEntity):
     def _cache_node(self, node):
         self.nodes[node.id] = node
 
+    def get_node_child_collection(self, node_id):
+        """
+        Returns children of node.
+
+        :rtype: SuffixTreeNodeChildren
+        """
+        try:
+            node = self._node_child_collection_repo[node_id]
+        except KeyError:
+            node = register_new_node_child_collection(node_id)
+        return node
+
+
     def _cache_edge(self, edge):
         edge_id = make_edge_id(edge.source_node_id, edge.label[0])
         self.edges[edge_id] = edge
@@ -349,20 +364,10 @@ class SuffixTreeNode(EventSourcedEntity):
 
     class Discarded(EventSourcedEntity.Discarded): pass
 
-    class ChildNodeAdded(DomainEvent): pass
-
-    class ChildNodeRemoved(DomainEvent): pass
-
-    class ChildNodeSwitched(DomainEvent): pass
-
     def __init__(self, suffix_node_id=None, string_id=None, *args, **kwargs):
         super(SuffixTreeNode, self).__init__(*args, **kwargs)
         self.suffix_node_id = suffix_node_id
         self._string_id = string_id
-
-        # Todo: Make these be a different thing, so we don't need to replay them just
-        # to get the string ID.
-        self._child_node_ids = OrderedDict()
 
     @mutableproperty
     def string_id(self):
@@ -372,8 +377,34 @@ class SuffixTreeNode(EventSourcedEntity):
     def __repr__(self):
         return "SuffixTreeNode(suffix link: {})".format(self.suffix_node_id)
 
+
+class SuffixTreeNodeChildCollection(EventSourcedEntity):
+    """A collecton of child nodes in the suffix tree.
+    """
+
+    class Created(EventSourcedEntity.Created): pass
+
+    class AttributeChanged(EventSourcedEntity.AttributeChanged): pass
+
+    class Discarded(EventSourcedEntity.Discarded): pass
+
+    class ChildNodeAdded(DomainEvent): pass
+
+    class ChildNodeRemoved(DomainEvent): pass
+
+    class ChildNodeSwitched(DomainEvent): pass
+
+    def __init__(self, *args, **kwargs):
+        super(SuffixTreeNodeChildCollection, self).__init__(*args, **kwargs)
+        self._child_node_ids = OrderedDict()
+
+    @mutableproperty
+    def string_id(self):
+        """The id of a string being added to the generalised suffix tree when this node was created.
+        """
+
     def add_child(self, child_node_id, edge_len):
-        event = SuffixTreeNode.ChildNodeAdded(
+        event = SuffixTreeNodeChildCollection.ChildNodeAdded(
             entity_id=self.id,
             entity_version=self.version,
             child_node_id=child_node_id,
@@ -382,17 +413,8 @@ class SuffixTreeNode(EventSourcedEntity):
         self._apply(event)
         publish(event)
 
-    def remove_child(self, child_node_id):
-        event = SuffixTreeNode.ChildNodeRemoved(
-            entity_id=self.id,
-            entity_version=self.version,
-            child_node_id=child_node_id,
-        )
-        self._apply(event)
-        publish(event)
-
     def switch_child(self, old_node_id, new_node_id, new_edge_len):
-        event = SuffixTreeNode.ChildNodeSwitched(
+        event = SuffixTreeNodeChildCollection.ChildNodeSwitched(
             entity_id=self.id,
             entity_version=self.version,
             old_node_id=old_node_id,
@@ -404,36 +426,25 @@ class SuffixTreeNode(EventSourcedEntity):
 
     @staticmethod
     def _mutator(event, initial):
-        return suffix_tree_node_mutator(event, initial)
+        return suffix_tree_node_child_collection_mutator(event, initial)
 
 
 @singledispatch
-def suffix_tree_node_mutator(event, initial):
+def suffix_tree_node_child_collection_mutator(event, initial):
     return entity_mutator(event, initial)
 
 
-@suffix_tree_node_mutator.register(SuffixTreeNode.ChildNodeAdded)
-def child_node_added_mutator(event, self):
-    assert isinstance(self, SuffixTreeNode), self
+@suffix_tree_node_child_collection_mutator.register(SuffixTreeNodeChildCollection.ChildNodeAdded)
+def child_node_child_collection_added_mutator(event, self):
+    assert isinstance(self, SuffixTreeNodeChildCollection), self
     self._child_node_ids[event.child_node_id] = event.edge_len
     self._increment_version()
     return self
 
 
-@suffix_tree_node_mutator.register(SuffixTreeNode.ChildNodeRemoved)
-def child_node_removed_mutator(event, self):
-    assert isinstance(self, SuffixTreeNode), self
-    try:
-        del(self._child_node_ids[event.child_node_id])
-    except KeyError:
-        pass
-    self._increment_version()
-    return self
-
-
-@suffix_tree_node_mutator.register(SuffixTreeNode.ChildNodeSwitched)
-def child_node_switched_mutator(event, self):
-    assert isinstance(self, SuffixTreeNode), self
+@suffix_tree_node_child_collection_mutator.register(SuffixTreeNodeChildCollection.ChildNodeSwitched)
+def child_node_child_collection_switched_mutator(event, self):
+    assert isinstance(self, SuffixTreeNodeChildCollection), self
     try:
         del(self._child_node_ids[event.old_node_id])
     except KeyError:
@@ -585,6 +596,17 @@ def register_new_node(suffix_node_id=None, string_id=None):
     return entity
 
 
+def register_new_node_child_collection(node_id):
+    """Factory method, registers new node child collection.
+    """
+    event = SuffixTreeNodeChildCollection.Created(
+        entity_id=node_id,
+    )
+    entity = SuffixTreeNodeChildCollection.mutate(event=event)
+    publish(event)
+    return entity
+
+
 def make_edge_id(source_node_id, first_char):
     """Returns a string made from given params.
     """
@@ -615,6 +637,8 @@ def register_new_suffix_tree(case_insensitive=False):
     suffix_tree_id = uuid4().hex
 
     root_node = register_new_node()
+    assert isinstance(root_node, SuffixTreeNode)
+    # root_node.suffix_node_id = root_node.id
 
     event = GeneralizedSuffixTree.Created(
         entity_id=suffix_tree_id,
