@@ -21,6 +21,13 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
         self.node_child_collection_repo = NodeChildCollectionRepo(self.event_store)
         self.edge_repo = EdgeRepo(self.event_store)
 
+    def close(self):
+        super(AbstractSuffixTreeApplication, self).close()
+        self.suffix_tree_repo = None
+        self.node_repo = None
+        self.node_child_collection_repo = None
+        self.edge_repo = None
+
     def register_new_suffix_tree(self, case_insensitive=False):
         """Returns a new suffix tree entity.
         """

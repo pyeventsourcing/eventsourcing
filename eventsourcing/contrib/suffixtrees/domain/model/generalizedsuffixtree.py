@@ -34,7 +34,6 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         self._root_node_id = root_node_id
         self._case_insensitive = case_insensitive
         self._nodes = {}
-        self._edges = {}
         self._string = None
         self._suffix = None
         self._node_repo = None
@@ -52,10 +51,6 @@ class GeneralizedSuffixTree(EventSourcedEntity):
     @property
     def root_node_id(self):
         return self._root_node_id
-
-    @property
-    def edges(self):
-        return self._edges
 
     @property
     def suffix(self):
@@ -159,7 +154,6 @@ class GeneralizedSuffixTree(EventSourcedEntity):
                 source_node_id=parent_node_id,
                 dest_node_id=new_node.id,
             )
-            self._cache_edge(new_edge)
 
             # Register the new leaf node as a child node of the parent node.
             parent_node_child_collection = self.get_node_child_collection(parent_node_id)
@@ -202,7 +196,6 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             source_node_id=new_middle_node.id,
             dest_node_id=original_dest_node_id,
         )
-        self._cache_edge(second_edge)
 
         # Add the original dest node as a child of the new middle node.
         new_middle_node_child_collection = self.get_node_child_collection(new_middle_node.id)
@@ -279,18 +272,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
     def get_edge(self, edge_id):
         # Raises KeyError is not found because this method was factored out from various places that
         # used the repo directly and so expected a KeyError to be raised if edge is not in repo.
-        if not self._edge_repo:
-            return self.edges[edge_id]
-        try:
-            return self.edges[edge_id]
-        except KeyError as e:
-            try:
-                edge = self._edge_repo[edge_id]
-            except KeyError:
-                raise e
-            else:
-                self._cache_edge(edge)
-                return edge
+        return self._edge_repo[edge_id]
 
     def has_edge(self, edge_id):
         try:
@@ -333,11 +315,6 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         except KeyError:
             node = register_new_node_child_collection(node_id)
         return node
-
-
-    def _cache_edge(self, edge):
-        edge_id = make_edge_id(edge.source_node_id, edge.label[0])
-        self.edges[edge_id] = edge
 
     def _canonize_suffix(self, suffix, string):
         """This canonizes the suffix, walking along its suffix string until it

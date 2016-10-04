@@ -31,6 +31,9 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
 
     def close(self):
         self.persistence_subscriber.close()
+        self.stored_event_repo = None
+        self.event_store = None
+        self.persistence_subscriber = None
 
     def __enter__(self):
         return self
