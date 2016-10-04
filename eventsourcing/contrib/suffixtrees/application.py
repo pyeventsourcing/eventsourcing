@@ -43,7 +43,7 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
         if edge is None:
             return set()
 
-        # Get all the leaf nodes beneath the edge's destination node.
+        # Get all the string IDs beneath the edge's destination node.
         string_ids = get_string_ids(
             node_id=edge.dest_node_id,
             node_repo=self.node_repo,

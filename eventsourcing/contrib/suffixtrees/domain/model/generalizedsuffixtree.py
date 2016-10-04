@@ -208,9 +208,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
 
         # Shorten the first edge (last so that everything above is in place).
         try:
-            # Todo: Change this to be a single "Edge.Shortened" event, so there's only one event.
-            first_edge.label = first_label
-            first_edge.dest_node_id = new_middle_node.id
+            first_edge.shorten(label=first_label, dest_node_id=new_middle_node.id)
         except ConcurrencyError:
             # If the first edge has changed by now, then abort this split by
             # discarding the new_middle_node and the second_edge, which haven't
@@ -431,6 +429,15 @@ class SuffixTreeEdge(EventSourcedEntity):
     class AttributeChanged(EventSourcedEntity.AttributeChanged):
         pass
 
+    class Shortened(DomainEvent):
+        @property
+        def label(self):
+            return self.__dict__['label']
+
+        @property
+        def dest_node_id(self):
+            return self.__dict__['dest_node_id']
+
     class Discarded(EventSourcedEntity.Discarded):
         pass
 
@@ -466,6 +473,37 @@ class SuffixTreeEdge(EventSourcedEntity):
 
     def __repr__(self):
         return 'SuffixTreeEdge({}, {}, {})'.format(self.source_node_id, self.dest_node_id, self.label)
+
+    def shorten(self, label, dest_node_id):
+        self._assert_not_discarded()
+        event = SuffixTreeEdge.Shortened(
+            entity_id=self._id,
+            entity_version=self._version,
+            label=label,
+            dest_node_id=dest_node_id,
+        )
+        self._apply(event)
+        publish(event)
+
+    @staticmethod
+    def _mutator(event, initial):
+        return suffix_tree_edge_mutator(event, initial)
+
+
+@singledispatch
+def suffix_tree_edge_mutator(event, initial):
+    return entity_mutator(event, initial)
+
+
+@suffix_tree_edge_mutator.register(SuffixTreeEdge.Shortened)
+def suffix_tree_edge_shortened_mutator(event, self):
+    assert isinstance(event, SuffixTreeEdge.Shortened), event
+    assert isinstance(self, SuffixTreeEdge), type(self)
+    self._validate_originator(event)
+    self._label = event.label
+    self._dest_node_id = event.dest_node_id
+    self._increment_version()
+    return self
 
 
 class Suffix(object):
