@@ -30,7 +30,8 @@ class GeneralizedSuffixTreeTest(CassandraTestCase):
         self.assertFalse(self.app.has_substring('', st.id))
 
     def test_repeated_string(self):
-        st = register_new_suffix_tree("aaa", '1')
+        st = register_new_suffix_tree()
+        st.add_string("aaa", '1')
         edge, ln = self.app.find_substring_edge('a', st.id)
         self.assertEqual(edge.label, 'a')
         edge, ln = self.app.find_substring_edge('aa', st.id)

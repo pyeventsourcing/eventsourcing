@@ -344,9 +344,10 @@ def register_new_edge(edge_id, first_char_index, last_char_index, source_node_id
     return entity
 
 
-def register_new_suffix_tree(string=None, case_insensitive=False):
+def register_new_suffix_tree(case_insensitive=False):
     """Factory method, returns new suffix tree object.
     """
+    assert isinstance(case_insensitive, bool)
     root_node = register_new_node()
 
     suffix_tree_id = uuid4().hex
@@ -362,9 +363,6 @@ def register_new_suffix_tree(string=None, case_insensitive=False):
     entity.nodes[root_node.id] = root_node
 
     publish(event)
-
-    if string is not None:
-        entity.add_string(string)
 
     return entity
 

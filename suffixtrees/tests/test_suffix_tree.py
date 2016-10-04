@@ -24,7 +24,8 @@ class SuffixTreeTest(unittest.TestCase):
         self.assertFalse(self.app.has_substring('', st.id))
 
     def test_repeated_string(self):
-        st = register_new_suffix_tree("aaa")
+        st = register_new_suffix_tree()
+        st.add_string("aaa")
         self.assertEqual(self.app.find_substring('a', st.id), 0)
         self.assertEqual(self.app.find_substring('aa', st.id), 0)
         self.assertEqual(self.app.find_substring('aaa', st.id), 0)
@@ -45,13 +46,15 @@ class SuffixTreeTest(unittest.TestCase):
         self.assertEqual(self.app.find_substring('i', st.id), 1)
 
     def test_long_string(self):
-        st = register_new_suffix_tree(LONG_TEXT)
+        st = register_new_suffix_tree()
+        st.add_string(LONG_TEXT)
         self.assertEqual(self.app.find_substring('Ukkonen', st.id), 1498)
         self.assertEqual(self.app.find_substring('Optimal', st.id), 11074)
         self.assertFalse(self.app.has_substring('ukkonen', st.id))
 
     def test_case_insensitivity(self):
-        st = register_new_suffix_tree(LONG_TEXT, case_insensitive=True)
+        st = register_new_suffix_tree(case_insensitive=True)
+        st.add_string(LONG_TEXT)
         self.assertEqual(self.app.find_substring('ukkonen', st.id), 1498)
         self.assertEqual(self.app.find_substring('Optimal', st.id), 1830)
 
