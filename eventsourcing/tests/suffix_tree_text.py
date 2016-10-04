@@ -1,3 +1,6 @@
+# coding=utf-8
+from __future__ import unicode_literals
+
 LONG_TEXT_CONT = """
 This article's use of external links may not follow Wikipedia's policies or guidelines. Please improve this article by removing excessive and inappropriate external links. (August 2010)
 Suffix Trees by Dr. Sartaj Sahni (CISE Department Chair at University of Florida)
