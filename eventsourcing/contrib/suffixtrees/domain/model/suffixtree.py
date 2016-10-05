@@ -415,7 +415,6 @@ def has_substring(substring, suffix_tree, edge_repo):
 
 # Application
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
-from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepo
 from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.suffixtree_repo import SuffixTreeRepo, NodeRepo, EdgeRepo
 
 
@@ -426,7 +425,12 @@ class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
         self.suffix_tree_repo = SuffixTreeRepo(self.event_store)
         self.node_repo = NodeRepo(self.event_store)
         self.edge_repo = EdgeRepo(self.event_store)
-        self.collections = CollectionRepo(self.event_store)
+
+    def close(self):
+        super(SuffixTreeApplication, self).close()
+        self.suffix_tree_repo = None
+        self.node_repo = None
+        self.edge_repo = None
 
     def register_new_suffixtree(self, string, case_insensitive=False):
         return register_new_suffix_tree(string, case_insensitive)

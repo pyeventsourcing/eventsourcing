@@ -16,6 +16,9 @@ class SuffixTreeTest(unittest.TestCase):
     def setUp(self):
         self.app = SuffixTreeApplication()
 
+    def tearDown(self):
+        self.app.close()
+
     def test_empty_string(self):
         st = register_new_suffix_tree()
         assert isinstance(st, SuffixTree)
