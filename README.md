@@ -24,9 +24,10 @@ optional extra called 'test'.
 
 After installation, the test suite should pass.
 
-    python -m unittest discover eventsourcingtests -v
+    python -m unittest discover eventsourcing.tests -v
 
 Please register an issue if you find a bug.
+
 
 
 ## Development
@@ -168,6 +169,9 @@ See also:
 
 * Set-based collections
 
+* Optimistic concurrency control
+
+* Generalized suffix trees
 
 ### Forthcoming features
 

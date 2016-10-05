@@ -1,5 +1,5 @@
 from eventsourcing.application.example.with_sqlalchemy import ExampleApplicationWithSQLAlchemy
-from eventsourcingtests.example_application_testcase import ExampleApplicationTestCase
+from eventsourcing.tests.example_application_testcase import ExampleApplicationTestCase
 
 
 class TestApplicationWithSQLAlchemy(ExampleApplicationTestCase):

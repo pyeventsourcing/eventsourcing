@@ -1,10 +1,10 @@
 import unittest
 
+from eventsourcing.tests.test_stored_events import BasicStoredEventRepositoryTestCase, \
+    SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase
 from eventsourcing.infrastructure.stored_events.cassandra_stored_events import CassandraStoredEventRepository, \
     setup_cassandra_connection, get_cassandra_setup_params, \
     create_cassandra_keyspace_and_tables, drop_cassandra_keyspace
-from eventsourcingtests.test_stored_events import BasicStoredEventRepositoryTestCase, \
-    SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase
 
 
 class CassandraTestCase(unittest.TestCase):
