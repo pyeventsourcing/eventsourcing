@@ -17,7 +17,7 @@ class TestApplicationWithEncryption(TestApplicationWithCassandra):
 
 class AESStoredEventCipher(object):
 
-    BLOCK_SIZE = 32
+    BLOCK_SIZE = 16
 
     def __init__(self, aes_key):
         self.aes_key = aes_key
@@ -35,18 +35,20 @@ class AESStoredEventCipher(object):
         # Create an AES cipher.
         cipher = AES.new(self.aes_key, self.aes_mode, iv)
 
-        # Construct the cipher text.
-        return base64.b64encode(
+        # Construct the ciphertext string.
+        ciphertext = base64.b64encode(
             iv + cipher.encrypt(
                 self._pad(
                     base64.b64encode(
                         zlib.compress(
                             plaintext.encode('utf8')
                         )
-                    ).decode('utf8')
+                    )
                 )
             )
         ).decode('utf8')
+
+        return ciphertext
 
     def decrypt(self, ciphertext):
         # Recover the initialisation vector.
@@ -57,8 +59,8 @@ class AESStoredEventCipher(object):
         # Create the AES cipher.
         cipher = AES.new(self.aes_key, self.aes_mode, iv)
 
-        # Construct the plain text.
-        return zlib.decompress(
+        # Construct the plaintext string.
+        plaintext = zlib.decompress(
             base64.b64decode(
                 self._unpad(
                     cipher.decrypt(
@@ -68,9 +70,11 @@ class AESStoredEventCipher(object):
             )
         ).decode('utf8')
 
+        return plaintext
+
     def _pad(self, s):
         padding_size = self.bs - len(s) % self.bs
-        return s + (padding_size) * chr(padding_size)
+        return s + padding_size * chr(padding_size).encode('utf8')
 
     @staticmethod
     def _unpad(s):

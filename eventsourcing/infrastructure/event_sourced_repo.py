@@ -19,26 +19,28 @@ class EventSourcedRepository(EntityRepository):
     # the fastest path for getting all the events is used.
     __is_short__ = False
 
+    def __init__(self, event_store, use_cache=False, snapshot_strategy=None):
+        self._cache = {}
+        self._use_cache = use_cache
+        self._snapshot_strategy = snapshot_strategy
 
-    def __init__(self, event_store, use_cache=False):
         # Check we got an event store.
         assert isinstance(event_store, EventStore)
         self.event_store = event_store
 
-        # Check we got an event sourced entity class.
-        domain_class = self.domain_class
-        assert issubclass(domain_class, EventSourcedEntity)
+        # Check domain class is a type of event sourced entity.
+        assert issubclass(self.domain_class, EventSourcedEntity)
 
-        # Instantiate an event player for the domain class.
+        # Instantiate an event player for this repo, with
+        # repo-specific mutate function, page size, etc.
         self.event_player = EventPlayer(
-            event_store=event_store,
-            id_prefix=id_prefix_from_entity_class(domain_class),
-            mutate_func=domain_class.mutate,
-            page_size=self.__page_size__ or domain_class.__page_size__,
-            is_short=self.__is_short__ or domain_class.__is_short__,
+            event_store=self.event_store,
+            id_prefix=id_prefix_from_entity_class(self.domain_class),
+            mutate_func=self.domain_class.mutate,
+            page_size=self.__page_size__ or self.domain_class.__page_size__,
+            is_short=self.__is_short__ or self.domain_class.__is_short__,
+            snapshot_strategy=self._snapshot_strategy,
         )
-        self._cache = {}
-        self._use_cache = use_cache
 
     def __contains__(self, entity_id):
         """
@@ -79,10 +81,11 @@ class EventSourcedRepository(EntityRepository):
         """
         Returns the type of entity held by this repository.
         """
+        return EventSourcedEntity
 
     def get_entity(self, entity_id, until=None):
         """
-        Returns entity with given ID, optionally as it was at the given time.
+        Returns entity with given ID, optionally as it was until the given domain event ID.
         """
 
         # Get a snapshot (None if none exist).

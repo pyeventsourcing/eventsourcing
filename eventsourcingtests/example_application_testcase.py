@@ -7,21 +7,29 @@ from eventsourcing.infrastructure.stored_events.base import StoredEventRepositor
 from eventsourcingtests.test_stored_events import AbstractTestCase
 
 
-class ExampleApplicationTestCase(AbstractTestCase):
-
-    def setUp(self):
-        super(ExampleApplicationTestCase, self).setUp()
-        self.app = self.create_app()
+class ApplicationTestCase(AbstractTestCase):
 
     def create_app(self):
-        raise ExampleApplication()
+        raise NotImplementedError
+
+    def setUp(self):
+        super(ApplicationTestCase, self).setUp()
+        self.app = self.create_app()
 
     def tearDown(self):
         self.app.close()
-        super(ExampleApplicationTestCase, self).tearDown()
+        super(ApplicationTestCase, self).tearDown()
+
+
+class ExampleApplicationTestCase(ApplicationTestCase):
 
     def test(self):
-        assert isinstance(self.app, ExampleApplication)  # For PyCharm...
+        """Checks self.app both is and work in the way an
+        instance of a subclass of ExampleApplication should do.
+        """
+
+        # Check we're dealing with an example application.
+        assert isinstance(self.app, ExampleApplication)
 
         # Check there's a stored event repo.
         self.assertIsInstance(self.app.stored_event_repo, StoredEventRepository)

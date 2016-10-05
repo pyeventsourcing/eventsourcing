@@ -9,7 +9,7 @@ except ImportError:
 
 setup(
     name='eventsourcing',
-    version='1.0.9',
+    version='1.0.10',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
@@ -23,7 +23,7 @@ setup(
         'test': [
             'sqlalchemy',
             'mock',
-            'cassandra-driver==3.5.0',
+            'cassandra-driver',
             'numpy',
             'PyCrypto',
         ],
@@ -31,12 +31,12 @@ setup(
             'sqlalchemy',
         ],
         'cassandra': [
-            'cassandra-driver==3.5.0',
+            'cassandra-driver',
         ],
     },
     zip_safe=False,
     long_description="""
-This package provides generic support for event sourcing in Python, in a 'domain driven design' style.
+This package provides generic support for event sourcing in Python.
 
 An extensive
 `README file is available on GitHub <https://github.com/johnbywater/eventsourcing/blob/master/README.md>`_.

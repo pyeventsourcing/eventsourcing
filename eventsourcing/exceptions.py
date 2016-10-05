@@ -4,3 +4,7 @@ class EventSourcingError(Exception):
 
 class TopicResolutionError(EventSourcingError):
     pass
+
+
+class ConcurrencyError(EventSourcingError):
+    pass
