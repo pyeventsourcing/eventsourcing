@@ -12,6 +12,7 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, length_until_
     stack = list()
 
     stack.append((node_id, edge_length, None))
+    unique_node_ids = set(node_id)
     unique_string_ids = set()
     cum_lengths_until_end = {None: length_until_end}
     while stack:
@@ -45,7 +46,9 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, length_until_
                             break
 
                         # Put the child node on the stack.
-                        stack.append((child_node_id, edge_length, node.id))
+                        if child_node_id not in unique_node_ids:
+                            unique_node_ids.add(child_node_id)
+                            stack.append((child_node_id, edge_length, node.id))
 
                         # Increase the hop count.
                         hop_count += 1

@@ -1,23 +1,28 @@
 # coding=utf-8
 from __future__ import unicode_literals
 
+import traceback
 import uuid
+from multiprocessing.pool import Pool
+from unittest.case import TestCase
 
-from eventsourcing.contrib.suffixtrees.application import SuffixTreeApplicationWithPythonObjects
+from eventsourcing.contrib.suffixtrees.application import SuffixTreeApplicationWithPythonObjects, \
+    SuffixTreeApplicationWithCassandra, AbstractSuffixTreeApplication
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import GeneralizedSuffixTree, \
     STRING_ID_END
 from eventsourcing.tests.suffix_tree_text import LONG_TEXT, LONG_TEXT_CONT
 from eventsourcing.tests.test_stored_event_repository_cassandra import CassandraTestCase
 
 
-class GeneralizedSuffixTreeTest(CassandraTestCase):
+class TestGeneralizedSuffixTree(TestCase):
 
     def setUp(self):
-        super(GeneralizedSuffixTreeTest, self).setUp()
+        super(TestGeneralizedSuffixTree, self).setUp()
         self.app = SuffixTreeApplicationWithPythonObjects()
 
     def tearDown(self):
         self.app.close()
+        super(TestGeneralizedSuffixTree, self).tearDown()
 
     def test_empty_string(self):
         st = self.app.register_new_suffix_tree()
@@ -316,6 +321,34 @@ class GeneralizedSuffixTreeTest(CassandraTestCase):
         self.assertEqual(self.app.find_string_ids('Burrows-Wheeler', st.id), {'2'})
         self.assertEqual(self.app.find_string_ids('suffix', st.id), {'1', '2'})
 
+    def test_split_long_string(self):
+        # Split the long string into separate strings, and make some IDs.
+        list_of_strings = [w for w in LONG_TEXT[:1000].split(' ') if w]
+        string_ids = {}
+        for string in list_of_strings:
+            string_id = uuid.uuid4().hex
+            string_ids[string_id] = string
+
+        # Build the suffix tree.
+        st = self.app.register_new_suffix_tree()
+        for string_id, string in string_ids.items():
+            st.add_string(string, string_id)
+
+        # Check the suffix tree.
+        for string_id, string in string_ids.items():
+            self.assertIn(string_id, self.app.find_string_ids(string, st.id))
+
+        # Build the suffix tree.
+        #  - this time, get the suffix tree afresh from the repo each time
+        st = self.app.register_new_suffix_tree()
+        for string_id, string in string_ids.items():
+            st = self.app.get_suffix_tree(st.id)
+            st.add_string(string, string_id)
+
+        # Check the suffix tree.
+        for string_id, string in string_ids.items():
+            self.assertIn(string_id, self.app.find_string_ids(string, st.id))
+
     def test_case_insensitivity(self):
         st = self.app.register_new_suffix_tree(case_insensitive=True)
         st.add_string(LONG_TEXT[:12000], '1')
@@ -326,3 +359,90 @@ class GeneralizedSuffixTreeTest(CassandraTestCase):
         self.assertEqual(self.app.find_string_ids('ukkonen', st.id), {'1'})
         self.assertEqual(self.app.find_string_ids('Optimal', st.id), {'1'})
         self.assertEqual(self.app.find_string_ids('burrows-wheeler', st.id), {'2'})
+
+
+class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
+
+    def setUp(self):
+        super(TestMultiprocessingWithGeneralizedSuffixTree, self).setUp()
+
+    def tearDown(self):
+        super(TestMultiprocessingWithGeneralizedSuffixTree, self).tearDown()
+        if self.app is not None:
+            self.app.close()
+
+    def test(self):
+        # Split the long string into separate strings, and make some IDs.
+        list_of_args = [w for w in LONG_TEXT[:100].split(' ') if w]
+        string_ids = {}
+        for string in list_of_args:
+            string_id = uuid.uuid4().hex
+            string_ids[string_id] = string
+
+        # Create a new suffix tree.
+        self.app = SuffixTreeApplicationWithCassandra()
+        st = self.app.register_new_suffix_tree()
+        assert st.id in self.app.suffix_tree_repo
+
+        # Close the app, so the pool doesn't inherit it.
+        self.app.close()
+
+        # Start the pool.
+        pool = Pool(initializer=pool_initializer, processes=1)
+
+        list_of_args = [[s, sid, st.id] for sid, s in string_ids.items() if s]
+        results = pool.map(add_string_to_suffix_tree, list_of_args)
+        for result in results:
+            if isinstance(result, Exception):
+                print(result.args[0][1])
+                raise result
+
+        # Creat the app again.
+        self.app = SuffixTreeApplicationWithCassandra()
+
+        # Check the suffix tree.
+        for string_id, string in string_ids.items():
+            results = self.app.find_string_ids(string, st.id)
+            self.assertIn(string_id, results, (string, string_id))
+
+        # string_ids = self.app.find_string_ids('computer', suffix_tree.id)
+        # self.assertEqual(sorted(string_ids), ['1'])
+        # # string_ids = self.app.find_string_ids('Ukkonen', suffix_tree.id)
+        # # self.assertEqual(sorted(string_ids), ['1'])
+        # string_ids = self.app.find_string_ids('ba', suffix_tree.id)
+        # self.assertEqual(sorted(string_ids), ['2'])
+        # # string_ids = self.app.find_string_ids('konen', suffix_tree.id)
+        # # self.assertEqual(sorted(string_ids), ['1'])
+        # string_ids = self.app.find_string_ids('o', suffix_tree.id)
+        # self.assertEqual(sorted(string_ids), ['1'])
+        # string_ids = self.app.find_string_ids('a', suffix_tree.id)
+        # self.assertEqual(sorted(string_ids), ['1', '2'])
+        # string_ids = self.app.find_string_ids('n', suffix_tree.id)
+        # self.assertEqual(sorted(string_ids), ['1', '2'])
+        # # self.assertEqual(sorted(string_ids), ['1', '2', '3'])
+
+
+worker_app = None
+
+
+def pool_initializer():
+    global worker_app
+    worker_app = SuffixTreeApplicationWithCassandra()
+
+
+def add_string_to_suffix_tree(args):
+    # random.seed()
+    string, string_id, suffix_tree_id = args
+    try:
+        assert isinstance(worker_app, AbstractSuffixTreeApplication)
+        suffix_tree = worker_app.get_suffix_tree(suffix_tree_id)
+        assert isinstance(suffix_tree, GeneralizedSuffixTree)
+        suffix_tree.add_string(string, string_id)
+    except Exception as e:
+        msg = traceback.format_exc()
+        return Exception((e, msg, string, string_id))
+    return string_id
+
+
+if __name__ == "__main__":
+    pass

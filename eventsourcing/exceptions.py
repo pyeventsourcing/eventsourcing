@@ -8,3 +8,7 @@ class TopicResolutionError(EventSourcingError):
 
 class ConcurrencyError(EventSourcingError):
     pass
+
+
+class AppendError(EventSourcingError):
+    pass

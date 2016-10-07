@@ -6,7 +6,9 @@ from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_keyspace
 import cassandra.cqlengine.connection
 import six
+from cassandra.cqlengine.query import LWTException
 
+from eventsourcing.exceptions import AppendError
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, ThreadedStoredEventIterator
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
@@ -30,6 +32,8 @@ class CqlStoredEvent(Model):
 
     # 'a' - event attributes (the entity object __dict__)
     a = columns.Text(required=True)
+
+    # _if_not_exists = True
 
 
 def to_cql(stored_event):
@@ -62,7 +66,16 @@ class CassandraStoredEventRepository(StoredEventRepository):
 
     def append(self, stored_event):
         cql_stored_event = to_cql(stored_event)
-        cql_stored_event.save()
+        try:
+            cql_stored_event.save()
+        except LWTException as e:
+            # raise
+            msg = "Couldn't save new event (pid {}): {}: {}: {}".format(os.getpid(), cql_stored_event, e, e.existing)
+            # Todo: This might not always be a concurrency error?
+            raise AppendError(msg)
+        # else:
+            # msg = "Saved event (pid {}): {}: {}".format(os.getpid(), cql_stored_event.n, cql_stored_event.t.split('#')[-1])
+            # print(msg)
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):

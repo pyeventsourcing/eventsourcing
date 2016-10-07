@@ -30,7 +30,8 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
         return PersistenceSubscriber(self.event_store)
 
     def close(self):
-        self.persistence_subscriber.close()
+        if self.persistence_subscriber is not None:
+            self.persistence_subscriber.close()
         self.stored_event_repo = None
         self.event_store = None
         self.persistence_subscriber = None

@@ -24,11 +24,14 @@ class EventStore(object):
                 last_version = last_event.entity_version
                 this_version = domain_event.entity_version
                 if this_version - 1 != last_version:
-                    raise ConcurrencyError("Can't append event at version {}, last stored version is {}"
-                                           "".format(this_version, last_version))
+                    msg = "Domain event: {}. Last event: {}.".format(domain_event, last_event)
+                    raise ConcurrencyError("Can't append event {} at version {}, last stored version is {}. Events: {}"
+                                           "".format(stored_event.event_topic, this_version, last_version, msg))
 
         # Append the stored event to the stored event repo.
         self.stored_event_repo.append(stored_event)
+
+        # print("Appended domain event: {}".format(domain_event))
 
     def get_entity_events(self, stored_entity_id, after=None, until=None,
                           limit=None, is_ascending=True, page_size=None, is_short=False):
