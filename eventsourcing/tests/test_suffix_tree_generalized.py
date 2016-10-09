@@ -27,10 +27,16 @@ class GeneralizedSuffixTreeTestCase(TestCase):
 
     def add_string_to_suffix_tree(self, string, string_id, suffix_tree):
         print("")
-        print("Adding string ID {} to suffix tree: '{}'".format(string_id, string[:100]))
+        print("")
+        print("====   Adding string ID {} to suffix tree: '{}'  ====================".format(string_id, string[:100]))
+        print("")
         started = datetime.datetime.now()
         suffix_tree.add_string(string, string_id=string_id)
+        print("")
         print(" - added string in: {}".format(datetime.datetime.now() - started))
+
+
+print("")
 
 
 class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
@@ -44,7 +50,7 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
         self.assertFalse(self.app.has_substring('not there', st.id))
         self.assertFalse(self.app.has_substring('', st.id))
 
-    def test_ab_a(self):
+    def test_add_prefix_of_previous(self):
         st = self.app.register_new_suffix_tree()
         assert isinstance(st, GeneralizedSuffixTree)
         self.add_string_to_suffix_tree('aba', '1', st)
@@ -54,20 +60,51 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
         result_ids = self.app.find_string_ids('a', st.id)
         self.assertEqual(result_ids, {'1', '2'})
 
-    def test_za_za_(self):
+    def test_given_add_duplicate_when_query_with_suffix_then_results_have_both(self):
         st = self.app.register_new_suffix_tree()
         assert isinstance(st, GeneralizedSuffixTree)
-        self.add_string_to_suffix_tree('za', '1', st)
-        self.add_string_to_suffix_tree('za', '2', st)
-        # self.add_string_to_suffix_tree('a', '2', st)
-        # self.add_string_to_suffix_tree('za', '3', st)
-        # self.add_string_to_suffix_tree('zad', '4', st)
-        # self.add_string_to_suffix_tree('za', '5', st)
-        # self.add_string_to_suffix_tree('zae', '6', st)
+        self.add_string_to_suffix_tree('ab', '1', st)
+        self.add_string_to_suffix_tree('ab', '2', st)
 
         # Check the string ID is returned.
+        result_ids = self.app.find_string_ids('b', st.id)
+        self.assertEqual(result_ids, {'1', '2'})
+
+    def test_extended_copy_of_previous_string(self):
+        st = self.app.register_new_suffix_tree()
+        assert isinstance(st, GeneralizedSuffixTree)
+        self.add_string_to_suffix_tree('a', '1', st)
+        self.add_string_to_suffix_tree('ab', '2', st)
+
+        # Check the common prefix can be found.
         result_ids = self.app.find_string_ids('a', st.id)
-        self.assertEqual(result_ids, {'1', '2'})  # , '3', '4', '5', '6'})
+        self.assertEqual(result_ids, {'1', '2'})
+
+        # Check the string ID is returned.
+        result_ids = self.app.find_string_ids('ab', st.id)
+        self.assertEqual(result_ids, {'2'})
+
+    def test_extended_copy_of_longer_previous_string(self):
+        st = self.app.register_new_suffix_tree()
+        assert isinstance(st, GeneralizedSuffixTree)
+        self.add_string_to_suffix_tree('ab', '1', st)
+        self.add_string_to_suffix_tree('abc', '2', st)
+
+        # Check the common prefix can be found.
+        result_ids = self.app.find_string_ids('a', st.id)
+        self.assertEqual(result_ids, {'1', '2'})
+
+        # Check the common prefix can be found.
+        result_ids = self.app.find_string_ids('ab', st.id)
+        self.assertEqual(result_ids, {'1', '2'})
+
+        # Check the extention can be found.
+        result_ids = self.app.find_string_ids('c', st.id)
+        self.assertEqual(result_ids, {'2'})
+
+        # Check the extended string can be found.
+        result_ids = self.app.find_string_ids('abc', st.id)
+        self.assertEqual(result_ids, {'2'})
 
     def test_non_repeating_string(self):
         st = self.app.register_new_suffix_tree()
@@ -643,7 +680,11 @@ class TestGeneralizedSuffixTreeSlow(GeneralizedSuffixTreeTestCase):
 
     def test_split_long_string(self):
         # Split the long string into separate strings, and make some IDs.
-        list_of_strings = [w for w in LONG_TEXT[:1000].split(' ') if w]
+        list_of_strings = [w for w in LONG_TEXT[:100].split(' ') if w]
+
+        print(list_of_strings)
+        # return
+
         string_ids = {}
         for string in list_of_strings:
             string_id = uuid.uuid4().hex
@@ -685,6 +726,7 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
 
     def setUp(self):
         super(TestMultiprocessingWithGeneralizedSuffixTree, self).setUp()
+        self.app = None
 
     def tearDown(self):
         super(TestMultiprocessingWithGeneralizedSuffixTree, self).tearDown()
@@ -694,6 +736,8 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
     def test(self):
         # Split the long string into separate strings, and make some IDs.
         words = list([w for w in LONG_TEXT[:100].split(' ') if w])
+
+        print("Words: {}".format(words))
 
         # Avoid adding the same string twice (or a prefix of a previous string).
         #  - because it's a current problem unless we append string IDs, which makes things too slow
