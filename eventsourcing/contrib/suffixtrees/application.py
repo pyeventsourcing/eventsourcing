@@ -5,7 +5,7 @@ from eventsourcing.application.with_cassandra import EventSourcingWithCassandra
 from eventsourcing.application.with_pythonobjects import EventSourcingWithPythonObjects
 from eventsourcing.application.with_sqlalchemy import EventSourcingWithSQLAlchemy
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import register_new_suffix_tree, \
-    GeneralizedSuffixTree
+    GeneralizedSuffixTree, _print
 from eventsourcing.contrib.suffixtrees.domain.services.generalizedsuffixtree import get_string_ids, find_substring_edge, \
     has_substring
 from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.generalizedsuffixtree_repo import \

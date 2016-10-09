@@ -1,7 +1,7 @@
 import six
 
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import SuffixTreeNode, STRING_ID_END, \
-    GeneralizedSuffixTree, EdgeRepository, make_edge_id, StringidCollection
+    GeneralizedSuffixTree, EdgeRepository, make_edge_id, StringidCollection, _print
 
 
 def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_collection_repo, length_until_end=0, edge_length=0,
@@ -11,7 +11,7 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
     """
     stack = list()
 
-    print("Searching for string IDs from node: {}".format(node_id))
+    _print("Searching for string IDs from node: {}".format(node_id))
 
     stack.append((node_id, edge_length, None))
     unique_node_ids = set(node_id)
@@ -46,9 +46,9 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
                     continue
 
                 # Check the match doesn't encroach upon the string's extension.
-                extension_length = len(string_id) + len(STRING_ID_END)
+                # extension_length = len(string_id) + len(STRING_ID_END)
                 # extension_length = len(string_id)
-                # extension_length = len(STRING_ID_END)
+                extension_length = len(STRING_ID_END)
                 if length_until_end < extension_length:
                     continue
 

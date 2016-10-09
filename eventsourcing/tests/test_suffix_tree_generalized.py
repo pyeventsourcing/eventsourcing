@@ -10,20 +10,30 @@ from unittest.case import TestCase
 from eventsourcing.contrib.suffixtrees.application import SuffixTreeApplicationWithPythonObjects, \
     SuffixTreeApplicationWithCassandra, AbstractSuffixTreeApplication
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import GeneralizedSuffixTree, \
-    STRING_ID_END, SuffixTreeEdge, SuffixTreeNode
+    SuffixTreeEdge, SuffixTreeNode
 from eventsourcing.tests.suffix_tree_text import LONG_TEXT, LONG_TEXT_CONT
 from eventsourcing.tests.test_stored_event_repository_cassandra import CassandraTestCase
 
 
-class TestGeneralizedSuffixTree(TestCase):
+class GeneralizedSuffixTreeTestCase(TestCase):
 
     def setUp(self):
-        super(TestGeneralizedSuffixTree, self).setUp()
+        super(GeneralizedSuffixTreeTestCase, self).setUp()
         self.app = SuffixTreeApplicationWithPythonObjects()
 
     def tearDown(self):
         self.app.close()
-        super(TestGeneralizedSuffixTree, self).tearDown()
+        super(GeneralizedSuffixTreeTestCase, self).tearDown()
+
+    def add_string_to_suffix_tree(self, string, string_id, suffix_tree):
+        print("")
+        print("Adding string ID {} to suffix tree: '{}'".format(string_id, string[:100]))
+        started = datetime.datetime.now()
+        suffix_tree.add_string(string, string_id=string_id)
+        print(" - added string in: {}".format(datetime.datetime.now() - started))
+
+
+class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
 
     def test_empty_string(self):
         st = self.app.register_new_suffix_tree()
@@ -37,7 +47,7 @@ class TestGeneralizedSuffixTree(TestCase):
     def test_ab_a(self):
         st = self.app.register_new_suffix_tree()
         assert isinstance(st, GeneralizedSuffixTree)
-        self.add_string_to_suffix_tree('ab', '1', st)
+        self.add_string_to_suffix_tree('aba', '1', st)
         self.add_string_to_suffix_tree('a', '2', st)
 
         # Check the string ID is returned.
@@ -533,14 +543,6 @@ class TestGeneralizedSuffixTree(TestCase):
         self.assertNotIn(string2_id, strings)
         self.assertIn(string3_id, strings)
 
-    def add_string_to_suffix_tree(self, string, string_id, suffix_tree):
-        print("")
-        print("Adding string ID {} to suffix tree: {}...".format(string_id, string[100:]))
-        started = datetime.datetime.now()
-        suffix_tree.add_string(string, string_id=string_id)
-        print(" - added string in: {}".format(datetime.datetime.now() - started))
-
-
     def test_add_string_to_suffixtree_from_repo(self):
         # Check adding strings after getting the tree from the repo.
         st = self.app.register_new_suffix_tree()
@@ -627,6 +629,8 @@ class TestGeneralizedSuffixTree(TestCase):
         self.assertEqual(2, len(strings_ids))
 
 
+class TestGeneralizedSuffixTreeSlow(GeneralizedSuffixTreeTestCase):
+
     def test_long_string(self):
         st = self.app.register_new_suffix_tree()
         self.add_string_to_suffix_tree(LONG_TEXT[:12000], '1', st)
@@ -690,6 +694,15 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
     def test(self):
         # Split the long string into separate strings, and make some IDs.
         words = list([w for w in LONG_TEXT[:100].split(' ') if w])
+
+        # Avoid adding the same string twice (or a prefix of a previous string).
+        #  - because it's a current problem unless we append string IDs, which makes things too slow
+        # words = set(words)
+        # words = [w for w in words if 0 != sum([x.startswith(w) for x in words if x != w])]
+
+        assert words
+
+        # Make a string ID for each string.
         string_ids = {}
         for string in words:
             string_id = uuid.uuid4().hex
@@ -750,7 +763,7 @@ def add_string_to_suffix_tree(args):
     # random.seed()
     string, string_id, suffix_tree_id = args
     print("")
-    print("Adding string to suffix tree: {}: {}".format(string_id, string))
+    print("Adding string to suffix tree: {}: {}".format(string_id, string[:100]))
     try:
         assert isinstance(worker_app, AbstractSuffixTreeApplication)
         suffix_tree = worker_app.get_suffix_tree(suffix_tree_id)
