@@ -1,7 +1,8 @@
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import GeneralizedSuffixTree, \
     GeneralizedSuffixTreeRepository, NodeRepository, SuffixTreeNode, SuffixTreeEdge, EdgeRepository, \
-    SuffixTreeNodeChildCollection
+    SuffixTreeNodeChildCollection, StringidCollection
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository
+from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepo
 
 
 class GeneralizedSuffixTreeRepo(EventSourcedRepository, GeneralizedSuffixTreeRepository):
@@ -18,3 +19,7 @@ class NodeChildCollectionRepo(EventSourcedRepository, NodeRepository):
 
 class EdgeRepo(EventSourcedRepository, EdgeRepository):
     domain_class = SuffixTreeEdge
+
+
+class StringidCollectionRepo(CollectionRepo):
+    domain_class = StringidCollection
