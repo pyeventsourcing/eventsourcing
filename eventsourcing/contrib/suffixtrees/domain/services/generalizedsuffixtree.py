@@ -46,9 +46,9 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
                     continue
 
                 # Check the match doesn't encroach upon the string's extension.
-                extension_length = len(string_id) + len(STRING_ID_END)
+                # extension_length = len(string_id) + len(STRING_ID_END)
                 # extension_length = len(string_id)
-                # extension_length = len(STRING_ID_END)
+                extension_length = len(STRING_ID_END)
                 # extension_length = 0
                 if length_until_end < extension_length:
                     continue

@@ -83,9 +83,9 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         assert STRING_ID_END not in string
 
         # Append the (hopefully unique) string ID to the string.
-        string_extended = u"{}{}{}".format(string, string_id, STRING_ID_END)
+        # string_extended = u"{}{}{}".format(string, string_id, STRING_ID_END)
         # string_extended = u"{}{}".format(string, string_id)
-        # string_extended = u"{}{}".format(string, STRING_ID_END)
+        string_extended = u"{}{}".format(string, STRING_ID_END)
 
         self._suffix = Suffix(self._root_node_id, 0, -1)
         for i in range(len(string_extended)):
@@ -145,11 +145,11 @@ class GeneralizedSuffixTree(EventSourcedEntity):
                                                           args=(edge.dest_node_id, string_id))
                             print("Added string ID '{}' to explicit exact match {}".format(string_id, dest_node))
 
-                            # # Attempt to replicate for a duplicate what happens first time a string was added.
-                            # if edge.dest_node_id not in added_node_ids:
-                            #     print(" ************** new bit (1):")
-                            #     # Adjust the active suffix.
-                            #     self.follow_suffix_link_or_increment_suffix_first_char(string)
+                            # Attempt to replicate for a duplicate what happens first time a string was added.
+                            if edge.dest_node_id not in added_node_ids:
+                                print(" ************** new bit (1):")
+                                # Adjust the active suffix.
+                                self.follow_suffix_link_or_increment_suffix_first_char(string)
 
 
                                 # Adjust the active suffix.

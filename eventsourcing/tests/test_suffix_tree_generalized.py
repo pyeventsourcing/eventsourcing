@@ -680,7 +680,7 @@ class TestGeneralizedSuffixTreeSlow(GeneralizedSuffixTreeTestCase):
 
     def test_split_long_string(self):
         # Split the long string into separate strings, and make some IDs.
-        list_of_strings = [w for w in LONG_TEXT[:100].split(' ') if w]
+        list_of_strings = [w for w in LONG_TEXT[:1000].split(' ') if w]
 
         print(list_of_strings)
         # return
