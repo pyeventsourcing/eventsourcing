@@ -83,11 +83,9 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         assert STRING_ID_END not in string
 
         # Append the (hopefully unique) string ID to the string.
-        # string_extended = u"{}{}{}".format(string, STRING_ID_END, string_id)
-        # string_extended = u"{}{}{}".format(string, string_id, STRING_ID_END)
-        # string_extended = u"{}{}{}".format(string, string_id, '')
-        string_extended = u"{}{}{}".format(string, '', STRING_ID_END)
-        # string_extended = string
+        string_extended = u"{}{}{}".format(string, string_id, STRING_ID_END)
+        # string_extended = u"{}{}".format(string, string_id)
+        # string_extended = u"{}{}".format(string, STRING_ID_END)
 
         self._suffix = Suffix(self._root_node_id, 0, -1)
         for i in range(len(string_extended) - 1):
@@ -98,13 +96,13 @@ class GeneralizedSuffixTree(EventSourcedEntity):
     def _add_prefix(self, i, string, string_id):
         """The core construction method.
         """
-        print("")
+        _print("")
         last_parent_node_id = None
         parent_node_id = None
-        print("starting while loop, i: {} ({})".format(i, string[i]))
+        _print("starting while loop, i: {} ({})".format(i, string[i]))
         while True:
-            print("")
-            print("starting while loop block, letter: '{}'".format(string[self.suffix.first_char_index]))
+            _print("")
+            _print("starting while loop block, letter: '{}'".format(string[self.suffix.first_char_index]))
 
             parent_node_id = self.suffix.source_node_id
 
@@ -120,7 +118,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
                     pass
                 else:
                     # The edge was found, so exit the loop.
-                    print("Edge was found1: {}".format(edge))
+                    _print("Edge was found1: {}".format(edge))
 
                     # # # Although, if edge destination is a leaf node that doesn't have
                     # # # a 'string_id' value (because an earlier suffix of string ID
@@ -130,12 +128,12 @@ class GeneralizedSuffixTree(EventSourcedEntity):
 
                         # If it's an exact match...
                         suffix_label_offset = self.suffix.length + 1
-                        print(">>>>>>>>>>------- label:{} string:{} offset:{} i:{}".format(edge.label[:100], string[i:][:100], suffix_label_offset, i))
+                        _print(">>>>>>>>>>------- label:{} string:{} offset:{} i:{}".format(edge.label[:100], string[i:][:100], suffix_label_offset, i))
                         if edge.label == string[i:]:
                             # Add the string ID to the node collection.
                             retry_after_concurrency_error(self.add_stringid_to_node_collection,
                                                           args=(edge.dest_node_id, string_id))
-                            print("Added1 ID '{}' to {}".format(string_id, dest_node))
+                            _print("Added1 ID '{}' to {}".format(string_id, dest_node))
                     #
                     #
                     #
@@ -153,18 +151,18 @@ class GeneralizedSuffixTree(EventSourcedEntity):
                 # Break if prefix is already in tree.
                 prefix = string[self.suffix.first_char_index]
                 edge = self.get_edge(make_edge_id(self.suffix.source_node_id, prefix))
-                print("Edge was found2: {}".format(edge))
+                _print("Edge was found2: {}".format(edge))
                 suffix_label_offset = self.suffix.length + 1
                 if suffix_label_offset > len(edge.label) - 1:
-                    raise ValueError("Suffix offset too large for label: %s: %s" % (suffix_label_offset, edge.label))
-                print(">>>>>>>>>>++++++++? label:{} string:{} offset:{} i:{}".format(edge.label, string, suffix_label_offset, i))
+                    raise ValueError("Suffix offset too large for label: %s: %s" % (suffix_label_offset, edge.label[:100]))
+                _print(">>>>>>>>>>++++++++? label:{} string:{} offset:{} i:{}".format(edge.label[:100], string[:100], suffix_label_offset, i))
                 if edge.label[suffix_label_offset] == string[i]:
                     # The suffix was found in this edge, so exit the loop.
 
                     # Add the string ID to the node collection.
                     retry_after_concurrency_error(self.add_stringid_to_node_collection,
                                                   args=(edge.dest_node_id, string_id))
-                    print("Added2 ID '{}' to {}".format(string_id, self.get_node(edge.dest_node_id)))
+                    _print("Added2 ID '{}' to {}".format(string_id, self.get_node(edge.dest_node_id)))
 
                     break
 
@@ -175,7 +173,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             new_leaf_node = register_new_node(string_id=string_id, is_leaf=True)
             self._cache_node(new_leaf_node)
 
-            print("Added {}, letter: '{}'".format(new_leaf_node, string[i]))
+            _print("Added {}, letter: '{}'".format(new_leaf_node, string[i]))
 
             # Make a new edge from the parent node to the
             # new leaf node. Make a label for the edge to
@@ -188,7 +186,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
                 dest_node_id=new_leaf_node.id,
             )
 
-            print("Added {}".format(new_edge))
+            _print("Added {}".format(new_edge))
 
             # Add the new leaf node as a child node of the parent node.
             retry_after_concurrency_error(self.add_leaf_to_children_of_parent_node,
@@ -197,7 +195,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             # Add the string ID to the node collection.
             retry_after_concurrency_error(self.add_stringid_to_node_collection,
                                           args=(new_leaf_node.id, string_id))
-            print("Added0 ID '{}' to node {}".format(string_id, new_leaf_node))
+            _print("Added0 ID '{}' to node {}".format(string_id, new_leaf_node))
 
             # Create suffix link from last parent to current parent (unless it's root).
             self.create_suffix_link(last_parent_node_id, parent_node_id)
@@ -216,7 +214,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         self.suffix.last_char_index += 1
         self._canonize_suffix(self.suffix, string)
 
-        print("Parent node at end of add_prefix: {}".format(self.get_node(parent_node_id)))
+        _print("Parent node at end of add_prefix: {}".format(self.get_node(parent_node_id)))
 
     def add_leaf_to_children_of_parent_node(self, parent_node_id, new_node, new_edge):
         parent_node_child_collection = self.get_node_child_collection(parent_node_id)
@@ -237,13 +235,13 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         first_label = orig_label[:suffix.length + 1]
         second_label = orig_label[suffix.length + 1:]
 
-        print("Splitting edge: < {} > - < {} >".format(first_label[:100], second_label[:100]))
+        _print("Splitting edge: < {} > - < {} >".format(first_label[:100], second_label[:100]))
 
         # Create a new middle node that will split the edge.
         new_middle_node = register_new_node(suffix_node_id=suffix.source_node_id)
         self._cache_node(new_middle_node)
 
-        print("New middle: {}".format(new_middle_node))
+        _print("New middle: {}".format(new_middle_node))
 
         # Create a new edge, from the new middle node to the original destination.
         second_edge_id = make_edge_id(source_node_id=new_middle_node.id, first_char=second_label[0])
@@ -256,7 +254,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             dest_node_id=original_dest_node_id,
         )
 
-        print("Split new: {}".format(second_edge))
+        _print("Split new: {}".format(second_edge))
 
         # Add the original dest node as a child of the new middle node.
         retry_after_concurrency_error(self.add_dest_node_to_children_of_new_middle_node,
@@ -273,7 +271,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             sleep(0.1)
             raise e
 
-        print("Split shortened: {}".format(first_edge))
+        _print("Split shortened: {}".format(first_edge))
 
         # Remove the original dest node as child of the original
         # source node, and add the new middle node instead.
@@ -826,3 +824,7 @@ class NodeRepository(EntityRepository):
 
 class EdgeRepository(EntityRepository):
     pass
+
+
+def _print(*args, **kwargs):
+    print(*args, **kwargs)
