@@ -642,7 +642,7 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
         self.assertEqual(1, len(strings_ids))
 
         strings_ids = self.app.find_string_ids('e', st.id)
-        self.assertEqual(1, len(strings_ids))
+        self.assertEqual(1, len(strings_ids), strings_ids)
 
         # Add 'blue' again.
         self.add_string_to_suffix_tree('blue', '1', st)
@@ -735,7 +735,7 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
 
     def test(self):
         # Split the long string into separate strings, and make some IDs.
-        words = list([w for w in LONG_TEXT[:100].split(' ') if w])
+        words = list([w for w in LONG_TEXT[:1000].split(' ') if w])
 
         print("Words: {}".format(words))
 

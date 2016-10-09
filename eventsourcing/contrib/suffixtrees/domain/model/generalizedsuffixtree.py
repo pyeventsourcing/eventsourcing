@@ -12,8 +12,6 @@ from eventsourcing.domain.model.collection import Collection
 from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository, entity_mutator
 from eventsourcing.domain.model.events import publish, DomainEvent
 from eventsourcing.exceptions import ConcurrencyError
-
-# Use a private code point to terminate the string IDs.
 from eventsourcing.infrastructure.retries import retry_after_concurrency_error
 
 STRING_ID_END = '\uEFFF'
@@ -386,34 +384,39 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         return dest_node.is_root
 
     def remove_string(self, string, string_id):
+
         assert isinstance(string_id, six.string_types)
         if self._case_insensitive:
             string = string.lower()
         assert STRING_ID_END not in string_id
         assert STRING_ID_END not in string
-        string += u"{}{}".format(string_id, STRING_ID_END)
+        # string += u"{}{}".format(string_id, STRING_ID_END)
+        string += u"{}".format(STRING_ID_END)
 
         # Disassociate the string ID from its leaf nodes.
         #  - but don't discard the node entity, because we might
         #    need to add this suffix back into the tree,
         #    and a hard prune would be relatively complicated.
         #  - although, it might be useful to have something do garbage collection
+        from eventsourcing.contrib.suffixtrees.domain.services.generalizedsuffixtree import find_substring_edge
+
         for i in range(len(string)):
 
-            # Walk down the tree.
-            suffix = Suffix(self.root_node_id, i, len(string))
-            try:
-                self._canonize_suffix(suffix, string)
-            except KeyError as e:
-                raise
+            # Find the suffix in the tree.
+
+            suffix = string[i:]
+            edge, ln = find_substring_edge(suffix, self, self._edge_repo)
+
+            if edge is None:
+                continue
 
             # Get the leaf node.
-            leaf_node = self.get_node(suffix.source_node_id)
+            leaf_node = self.get_node(edge.dest_node_id)
             assert isinstance(leaf_node, SuffixTreeNode)
             if leaf_node.string_id == string_id:
                 leaf_node.string_id = None
             try:
-                stringid_collection = self._stringid_collection_repo[suffix.source_node_id]
+                stringid_collection = self._stringid_collection_repo[leaf_node.id]
             except KeyError:
                 pass
             else:
