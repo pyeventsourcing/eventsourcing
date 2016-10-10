@@ -789,7 +789,7 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
             # Check all prefixes and suffixes.
             substrings = sorted(list(get_all_substrings(string)))
             print("")
-            print("Checking for all substrings of string '{}': {}".format(repr(string), " ".join(repr(substrings))))
+            print("Checking for all substrings of string '{}': {}".format(repr(string), " ".join([repr(s) for s in substrings])))
             for substring in substrings:
                 results = self.app.find_string_ids(substring, st.id)
                 if string_id not in results:
