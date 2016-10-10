@@ -7,6 +7,7 @@ from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubsc
 
 
 class EventSourcingApplication(with_metaclass(ABCMeta)):
+    persist_events = True
 
     def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt_stored_events=False):
         self.stored_event_repo = self.create_stored_event_repo(json_encoder_cls=json_encoder_cls,
@@ -14,7 +15,10 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
                                                                cipher=cipher,
                                                                always_encrypt=always_encrypt_stored_events)
         self.event_store = self.create_event_store()
-        self.persistence_subscriber = self.create_persistence_subscriber()
+        if self.persist_events:
+            self.persistence_subscriber = self.create_persistence_subscriber()
+        else:
+            self.persistence_subscriber = None
 
     @abstractmethod
     def create_stored_event_repo(self, **kwargs):
@@ -30,7 +34,7 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
         return PersistenceSubscriber(self.event_store)
 
     def close(self):
-        if self.persistence_subscriber is not None:
+        if self.persistence_subscriber:
             self.persistence_subscriber.close()
         self.stored_event_repo = None
         self.event_store = None
