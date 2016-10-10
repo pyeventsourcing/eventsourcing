@@ -7,10 +7,12 @@ import uuid
 from multiprocessing.pool import Pool
 from unittest.case import TestCase
 
+import six
+
 from eventsourcing.contrib.suffixtrees.application import SuffixTreeApplicationWithPythonObjects, \
     SuffixTreeApplicationWithCassandra, AbstractSuffixTreeApplication
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import GeneralizedSuffixTree, \
-    SuffixTreeEdge, SuffixTreeNode
+    SuffixTreeEdge, SuffixTreeNode, STRING_ID_END
 from eventsourcing.tests.suffix_tree_text import LONG_TEXT, LONG_TEXT_CONT
 from eventsourcing.tests.test_stored_event_repository_cassandra import CassandraTestCase
 
@@ -26,17 +28,11 @@ class GeneralizedSuffixTreeTestCase(TestCase):
         super(GeneralizedSuffixTreeTestCase, self).tearDown()
 
     def add_string_to_suffix_tree(self, string, string_id, suffix_tree):
-        print("")
-        print("")
-        print("====   Adding string ID {} to suffix tree: '{}'  ====================".format(string_id, string[:100]))
-        print("")
+        print("Adding string to suffix tree: {}".format(repr(string[:100])))
         started = datetime.datetime.now()
         suffix_tree.add_string(string, string_id=string_id)
-        print("")
         print(" - added string in: {}".format(datetime.datetime.now() - started))
 
-
-print("")
 
 
 class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
@@ -83,6 +79,24 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
         # Check the string ID is returned.
         result_ids = self.app.find_string_ids('ab', st.id)
         self.assertEqual(result_ids, {'2'})
+
+    def test_trucated_copy_of_previous_string(self):
+        st = self.app.register_new_suffix_tree()
+        assert isinstance(st, GeneralizedSuffixTree)
+        self.add_string_to_suffix_tree('1a', '2', st)
+        self.add_string_to_suffix_tree('1ab', '1', st)
+
+        # Check the common prefix can be found.
+        result_ids = self.app.find_string_ids('a', st.id)
+        self.assertEqual(result_ids, {'1', '2'})
+
+        # Check the string ID is returned.
+        result_ids = self.app.find_string_ids('ab', st.id)
+        self.assertEqual(result_ids, {'1'})
+
+        # Check the string ID is returned.
+        result_ids = self.app.find_string_ids('b', st.id)
+        self.assertEqual(result_ids, {'1'})
 
     def test_extended_copy_of_longer_previous_string(self):
         st = self.app.register_new_suffix_tree()
@@ -398,7 +412,6 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
 
         # Check 'mi'.
         edge, ln = self.app.find_substring_edge('mi', st.id)
-        print("Edge ID: {}".format(edge.id))
         # self.assertEqual(edge.label, 'ississippi' + STRING_ID_END)
         self.assertEqual(self.app.find_string_ids('mi', st.id), {'$'})
 
@@ -407,112 +420,106 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
         # self.assertEqual(edge.label, 'udpie' + STRING_ID_END)
         self.assertEqual(self.app.find_string_ids('mu', st.id), {'#'})
 
-        # return
+        # Check 'missi'.
+        edge, ln = self.app.find_substring_edge('missi', st.id)
+        self.assertEqual(edge.label, 'ississippi' + STRING_ID_END)
 
-        # # Check 'missi'.
-        # edge, ln = self.app.find_substring_edge('missi', st.id)
-        # self.assertEqual(edge.label, 'ississippi$' + STRING_ID_END)
-        #
-        # # Check 'issi'.
-        # edge, ln = self.app.find_substring_edge('issi', st.id)
-        # self.assertEqual(edge.label, 'ssi')
-        #
-        # # Check 'is'.
-        # edge, ln = self.app.find_substring_edge('is', st.id)
-        # self.assertEqual(edge.label, 'ssi')
-        #
-        # # Check 'si'.
-        # edge, ln = self.app.find_substring_edge('si', st.id)
-        # self.assertEqual(edge.label, 'i')
-        #
-        # # Check 'issip'.
-        # edge, ln = self.app.find_substring_edge('issip', st.id)
-        # self.assertEqual(edge.label, 'ppi$' + STRING_ID_END)
-        #
-        # # Check 'ssip'.
-        # edge, ln = self.app.find_substring_edge('ssip', st.id)
-        # self.assertEqual(edge.label, 'ppi$' + STRING_ID_END)
-        #
-        # # Check 'sip'.
-        # edge, ln = self.app.find_substring_edge('sip', st.id)
-        # self.assertEqual(edge.label, 'ppi$' + STRING_ID_END)
-        #
-        # # Check 'ip'.
-        # edge, ln = self.app.find_substring_edge('ip', st.id)
-        # self.assertEqual(edge.label, 'ppi$' + STRING_ID_END)
-        #
-        # # Check 'i'.
-        # edge, ln = self.app.find_substring_edge('i', st.id)
-        # self.assertEqual(edge.label, 'i')
-        #
-        # # Check 'ippi'.
-        # edge, ln = self.app.find_substring_edge('ippi', st.id)
-        # self.assertEqual(edge.label, 'ppi$' + STRING_ID_END)
-        #
-        # # Check 'mudpie'.
-        # edge, ln = self.app.find_substring_edge('mudpie', st.id)
-        # self.assertEqual(edge.label, 'udpie#' + STRING_ID_END)
-        #
+        # Check 'issi'.
+        edge, ln = self.app.find_substring_edge('issi', st.id)
+        self.assertEqual(edge.label, 'ssi')
+
+        # Check 'is'.
+        edge, ln = self.app.find_substring_edge('is', st.id)
+        self.assertEqual(edge.label, 'ssi')
+
+        # Check 'si'.
+        edge, ln = self.app.find_substring_edge('si', st.id)
+        self.assertEqual(edge.label, 'i')
+
+        # Check 'issip'.
+        edge, ln = self.app.find_substring_edge('issip', st.id)
+        self.assertEqual(edge.label, 'ppi' + STRING_ID_END)
+
+        # Check 'ssip'.
+        edge, ln = self.app.find_substring_edge('ssip', st.id)
+        self.assertEqual(edge.label, 'ppi' + STRING_ID_END)
+
+        # Check 'sip'.
+        edge, ln = self.app.find_substring_edge('sip', st.id)
+        self.assertEqual(edge.label, 'ppi' + STRING_ID_END)
+
+        # Check 'ip'.
+        edge, ln = self.app.find_substring_edge('ip', st.id)
+        self.assertEqual(edge.label, 'ppi' + STRING_ID_END)
+
+        # Check 'i'.
+        edge, ln = self.app.find_substring_edge('i', st.id)
+        self.assertEqual(edge.label, 'i')
+
+       # Check 'ippi'.
+        edge, ln = self.app.find_substring_edge('ippi', st.id)
+        self.assertEqual(edge.label, 'ppi' + STRING_ID_END)
+
+        # Check 'mudpie'.
+        edge, ln = self.app.find_substring_edge('mudpie', st.id)
+        self.assertEqual(edge.label, 'udpie' + STRING_ID_END)
+
         # Check 'ball'.
         edge, ln = self.app.find_substring_edge('ball', st.id)
-        # self.assertEqual(edge.label, 'ball' + STRING_ID_END)
-        # edge, ln = self.app.find_substring_edge('ball%', st.id)
-        # self.assertEqual(edge.label, '%' + STRING_ID_END)
-        # edge, ln = self.app.find_substring_edge('ball&', st.id)
-        # self.assertEqual(edge.label, '&' + STRING_ID_END)
+        self.assertEqual(edge.label, 'ball' + STRING_ID_END)
 
         # Check ID is returned.
         self.assertEqual(self.app.find_string_ids('mi', st.id), {'$'})
         self.assertEqual(self.app.find_string_ids('si', st.id), {'$'})
         self.assertEqual(self.app.find_string_ids('pp', st.id), {'$'})
         self.assertEqual(self.app.find_string_ids('mu', st.id), {'#'})
-        self.assertEqual(self.app.find_string_ids('m', st.id), {'$', '#'})
-        self.assertEqual(self.app.find_string_ids('b', st.id), {'%', '&'})
+        self.assertEqual(self.app.find_string_ids('m', st.id), {'$','#'})
+        self.assertEqual(self.app.find_string_ids('b', st.id), {'%','&'})
 
     def test_colours(self):
         st = self.app.register_new_suffix_tree()
         self.add_string_to_suffix_tree("blue", "$", st)
         self.add_string_to_suffix_tree("red", "#", st)
 
-        # # Check 'b'.
-        # edge, ln = self.app.find_substring_edge('b', st.id)
-        # self.assertEqual(edge.label, 'blue$' + STRING_ID_END)
-        #
-        # # Check 'l'.
-        # edge, ln = self.app.find_substring_edge('l', st.id)
-        # self.assertEqual(edge.label, 'lue$' + STRING_ID_END)
-        #
-        # # Check 'u'.
-        # edge, ln = self.app.find_substring_edge('u', st.id)
-        # self.assertEqual(edge.label, 'ue$' + STRING_ID_END)
-        #
-        # # Check 'e'.
-        # edge, ln = self.app.find_substring_edge('e', st.id)
-        # self.assertEqual(edge.label, 'e')
-        #
-        # # Check 'ue'.
-        # edge, ln = self.app.find_substring_edge('ue', st.id)
-        # self.assertEqual(edge.label, 'ue$' + STRING_ID_END)
-        #
-        # # Check 'lue'.
-        # edge, ln = self.app.find_substring_edge('lue', st.id)
-        # self.assertEqual(edge.label, 'lue$' + STRING_ID_END)
-        #
-        # # Check 'blue'.
-        # edge, ln = self.app.find_substring_edge('blue', st.id)
-        # self.assertEqual(edge.label, 'blue$' + STRING_ID_END)
-        #
-        # # Check 're'.
-        # edge, ln = self.app.find_substring_edge('re', st.id)
-        # self.assertEqual(edge.label, 'red#' + STRING_ID_END)
-        #
-        # # Check 'ed'.
-        # edge, ln = self.app.find_substring_edge('ed', st.id)
-        # self.assertEqual(edge.label, 'd#' + STRING_ID_END)
-        #
-        # # Check 'red'.
-        # edge, ln = self.app.find_substring_edge('red', st.id)
-        # self.assertEqual(edge.label, 'red#' + STRING_ID_END)
+        # Check 'b'.
+        edge, ln = self.app.find_substring_edge('b', st.id)
+        self.assertEqual(edge.label, 'blue' + STRING_ID_END)
+
+        # Check 'l'.
+        edge, ln = self.app.find_substring_edge('l', st.id)
+        self.assertEqual(edge.label, 'lue' + STRING_ID_END)
+
+        # Check 'u'.
+        edge, ln = self.app.find_substring_edge('u', st.id)
+        self.assertEqual(edge.label, 'ue' + STRING_ID_END)
+
+        # Check 'e'.
+        edge, ln = self.app.find_substring_edge('e', st.id)
+        self.assertEqual(edge.label, 'e')
+
+        # Check 'ue'.
+        edge, ln = self.app.find_substring_edge('ue', st.id)
+        self.assertEqual(edge.label, 'ue' + STRING_ID_END)
+
+        # Check 'lue'.
+        edge, ln = self.app.find_substring_edge('lue', st.id)
+        self.assertEqual(edge.label, 'lue' + STRING_ID_END)
+
+        # Check 'blue'.
+        edge, ln = self.app.find_substring_edge('blue', st.id)
+        self.assertEqual(edge.label, 'blue' + STRING_ID_END)
+
+        # Check 're'.
+        edge, ln = self.app.find_substring_edge('re', st.id)
+        self.assertEqual(edge.label, 'red' + STRING_ID_END)
+
+        # Check 'ed'.
+        edge, ln = self.app.find_substring_edge('ed', st.id)
+        self.assertEqual(edge.label, 'd' + STRING_ID_END)
+
+        # Check 'red'.
+        edge, ln = self.app.find_substring_edge('red', st.id)
+        self.assertEqual(edge.label, 'red' + STRING_ID_END)
 
     def test_find_string_ids(self):
         # This test is the first to involve the children of nodes.
@@ -682,8 +689,7 @@ class TestGeneralizedSuffixTreeSlow(GeneralizedSuffixTreeTestCase):
         # Split the long string into separate strings, and make some IDs.
         list_of_strings = [w for w in LONG_TEXT[:1000].split(' ') if w]
 
-        print(list_of_strings)
-        # return
+        print("Long string split into words: {}".format(list_of_strings))
 
         string_ids = {}
         for string in list_of_strings:
@@ -735,9 +741,9 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
 
     def test(self):
         # Split the long string into separate strings, and make some IDs.
-        words = list([w for w in LONG_TEXT[:1000].split(' ') if w])
+        words = list([w for w in LONG_TEXT[:100].split(' ') if w])
 
-        print("Words: {}".format(words))
+        print("Adding words: {}".format(words))
 
         # Avoid adding the same string twice (or a prefix of a previous string).
         #  - because it's a current problem unless we append string IDs, which makes things too slow
@@ -747,10 +753,10 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
         assert words
 
         # Make a string ID for each string.
-        string_ids = {}
+        strings = {}
         for string in words:
             string_id = uuid.uuid4().hex
-            string_ids[string_id] = string
+            strings[string_id] = string
 
         # Create a new suffix tree.
         self.app = SuffixTreeApplicationWithCassandra()
@@ -763,7 +769,10 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
         # Start the pool.
         pool = Pool(initializer=pool_initializer, processes=1)
 
-        words = [[s, sid, st.id] for sid, s in string_ids.items() if s]
+        words = sorted([[s, sid, st.id] for sid, s in strings.items() if s])
+
+        # Todo: Fix this. Adding strings doesn't work for all when this list is reversed. Not sure why. Also fails sometimes if not sorted.
+        # words = reversed(sorted([[s, sid, st.id] for sid, s in strings.items() if s]))
         results = pool.map(add_string_to_suffix_tree, words)
         for result in results:
             if isinstance(result, Exception):
@@ -773,26 +782,28 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
         # Creat the app again.
         self.app = SuffixTreeApplicationWithCassandra()
 
-        # Check the suffix tree.
-        for string_id, string in string_ids.items():
-            results = self.app.find_string_ids(string, st.id)
-            self.assertIn(string_id, results, (string, string_id))
+        errors = []
 
-        # string_ids = self.app.find_string_ids('computer', suffix_tree.id)
-        # self.assertEqual(sorted(string_ids), ['1'])
-        # # string_ids = self.app.find_string_ids('Ukkonen', suffix_tree.id)
-        # # self.assertEqual(sorted(string_ids), ['1'])
-        # string_ids = self.app.find_string_ids('ba', suffix_tree.id)
-        # self.assertEqual(sorted(string_ids), ['2'])
-        # # string_ids = self.app.find_string_ids('konen', suffix_tree.id)
-        # # self.assertEqual(sorted(string_ids), ['1'])
-        # string_ids = self.app.find_string_ids('o', suffix_tree.id)
-        # self.assertEqual(sorted(string_ids), ['1'])
-        # string_ids = self.app.find_string_ids('a', suffix_tree.id)
-        # self.assertEqual(sorted(string_ids), ['1', '2'])
-        # string_ids = self.app.find_string_ids('n', suffix_tree.id)
-        # self.assertEqual(sorted(string_ids), ['1', '2'])
-        # # self.assertEqual(sorted(string_ids), ['1', '2', '3'])
+        # Check the suffix tree returns string ID for all substrings of string.
+        for string_id, string in strings.items():
+            # Check all prefixes and suffixes.
+            substrings = sorted(list(get_all_substrings(string)))
+            print("")
+            print("Checking for all substrings of string '{}': {}".format(repr(string), " ".join(repr(substrings))))
+            for substring in substrings:
+                results = self.app.find_string_ids(substring, st.id)
+                if string_id not in results:
+                    msg = "Not found: substring '{}' from string '{}'".format(repr(substring), repr(string))
+                    print(msg)
+                    errors.append(msg)
+
+        # Check for errors.
+        self.assertFalse(errors, "\n".join(errors))
+
+
+def get_all_substrings(s):
+    length = len(s)
+    return (s[i:j] for i in six.moves.xrange(length) for j in six.moves.xrange(i + 1, length + 1))
 
 
 worker_app = None
@@ -807,7 +818,7 @@ def add_string_to_suffix_tree(args):
     # random.seed()
     string, string_id, suffix_tree_id = args
     print("")
-    print("Adding string to suffix tree: {}: {}".format(string_id, string[:100]))
+    print("Adding string to suffix tree: {}: {}".format(string_id, repr(string[:100])))
     try:
         assert isinstance(worker_app, AbstractSuffixTreeApplication)
         suffix_tree = worker_app.get_suffix_tree(suffix_tree_id)

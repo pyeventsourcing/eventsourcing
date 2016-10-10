@@ -1,7 +1,7 @@
 import six
 
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import SuffixTreeNode, STRING_ID_END, \
-    GeneralizedSuffixTree, EdgeRepository, make_edge_id, StringidCollection, _print
+    GeneralizedSuffixTree, EdgeRepository, make_edge_id, StringidCollection
 
 
 def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_collection_repo, length_until_end=0, edge_length=0,
@@ -11,7 +11,7 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
     """
     stack = list()
 
-    _print("Searching for string IDs from node: {}".format(node_id))
+    # _print("Searching for string IDs from node: {}".format(node_id))
 
     stack.append((node_id, edge_length, None))
     unique_node_ids = set(node_id)
@@ -53,7 +53,7 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
                 if length_until_end < extension_length:
                     continue
 
-                print("Found string ID '{}' at node: {}".format(string_id, node_id))
+                # print("Found string ID '{}' at node: {}".format(string_id, node_id))
 
                 # Remember the string ID, we only want one node per string ID.
                 unique_string_ids.add(string_id)

@@ -5,7 +5,7 @@ from eventsourcing.application.with_cassandra import EventSourcingWithCassandra
 from eventsourcing.application.with_pythonobjects import EventSourcingWithPythonObjects
 from eventsourcing.application.with_sqlalchemy import EventSourcingWithSQLAlchemy
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import register_new_suffix_tree, \
-    GeneralizedSuffixTree, _print
+    GeneralizedSuffixTree
 from eventsourcing.contrib.suffixtrees.domain.services.generalizedsuffixtree import get_string_ids, find_substring_edge, \
     has_substring
 from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.generalizedsuffixtree_repo import \
@@ -81,11 +81,11 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
         suffix_tree = self.suffix_tree_repo[suffix_tree_id]
         started = datetime.datetime.now()
         edge, ln = find_substring_edge(substring=substring, suffix_tree=suffix_tree, edge_repo=self.edge_repo)
-        if edge is not None:
-            print("Got edge for substring '{}': {}".format(substring, edge))
-        else:
-            print("No edge for substring '{}'".format(substring))
-        print("- searched edge in tree for substring '{}' in: {}".format(substring, datetime.datetime.now() - started))
+        # if edge is not None:
+        #     print("Got edge for substring '{}': {}".format(substring, edge))
+        # else:
+        #     print("No edge for substring '{}'".format(substring))
+        print(" - searched for edge in {} for substring: '{}'".format(datetime.datetime.now() - started, substring))
         return edge, ln
 
     def has_substring(self, substring, suffix_tree_id):
