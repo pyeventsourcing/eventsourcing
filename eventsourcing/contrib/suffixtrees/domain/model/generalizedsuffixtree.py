@@ -20,6 +20,8 @@ STRING_ID_END = '\uEFFF'
 class GeneralizedSuffixTree(EventSourcedEntity):
     """A suffix tree for string matching. Uses Ukkonen's algorithm
     for construction.
+
+    In a distributed application, adding strings to individual suffix trees needs to be serialized, so use locks.
     """
 
     class Created(EventSourcedEntity.Created):
