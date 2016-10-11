@@ -739,7 +739,27 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
         if self.app is not None:
             self.app.close()
 
-    def test(self):
+    # Todo: Fix this - adding strings in a random order sometimes breaks (perhaps a dict is causing indeterminate order).
+    # def test_words(self):
+    #     self.check_words()
+
+    def test_sorted_words(self):
+        self.check_words(is_sorted=True)
+
+    # Todo: Fix this - adding strings in a reversed sorted order always fails. Not sure why all substrings of 'ree' fail. The suffix is obviously not moving along in the same way as it does when the nodes are added. Perhaps it needs to add the IDs when explicit match is made, and then move the first char along by one? Not sure so trace it out?
+    #
+    #         # Check for errors.
+    # >       self.assertFalse(errors, "\n".join(errors))
+    # E       AssertionError: ["Not found: substring ''e'' from string ''tree''", "Not found: substring ''e'' from string ''tree''", "Not found: substring ''ee'' from string ''tree''", "Not found: substring ''r'' from string ''tree''", "Not found: substring ''re'' from string ''tree''", "Not found: substring ''ree'' from string ''tree''"] is not false : Not found: substring ''e'' from string ''tree''
+    # E       Not found: substring ''e'' from string ''tree''
+    # E       Not found: substring ''ee'' from string ''tree''
+    # E       Not found: substring ''r'' from string ''tree''
+    # E       Not found: substring ''re'' from string ''tree''
+    # E       Not found: substring ''ree'' from string ''tree''
+    # def test_reversed_words(self):
+    #     self.check_words(is_reversed=True)
+
+    def check_words(self, is_sorted=False, is_reversed=False):
         # Split the long string into separate strings, and make some IDs.
         words = list([w for w in LONG_TEXT[:100].split(' ') if w])
 
@@ -769,10 +789,13 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
         # Start the pool.
         pool = Pool(initializer=pool_initializer, processes=1)
 
-        words = sorted([[s, sid, st.id] for sid, s in strings.items() if s])
+        words = [[s, sid, st.id] for sid, s in strings.items() if s]
 
-        # Todo: Fix this. Adding strings doesn't work for all when this list is reversed. Not sure why. Also fails sometimes if not sorted.
-        # words = reversed(sorted([[s, sid, st.id] for sid, s in strings.items() if s]))
+        if is_sorted:
+            words = sorted(words)
+        if is_reversed:
+            words = reversed(words)
+
         results = pool.map(add_string_to_suffix_tree, words)
         for result in results:
             if isinstance(result, Exception):
