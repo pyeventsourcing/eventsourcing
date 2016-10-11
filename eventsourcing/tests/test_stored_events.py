@@ -1,7 +1,11 @@
 import datetime
+import json
+import os
+import traceback
 import unittest
 import uuid
-from uuid import uuid1
+from multiprocessing.pool import Pool
+from uuid import uuid1, uuid4
 
 import six
 
@@ -10,6 +14,8 @@ from eventsourcing.domain.model.example import Example
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.infrastructure.stored_events.base import SimpleStoredEventIterator, ThreadedStoredEventIterator, \
     StoredEventRepository
+from eventsourcing.infrastructure.stored_events.cassandra_stored_events import CassandraStoredEventRepository, \
+    setup_cassandra_connection, get_cassandra_setup_params
 from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
     resolve_domain_topic, StoredEvent, ObjectJSONDecoder, ObjectJSONEncoder
 from eventsourcing.utils.time import utc_timezone
@@ -240,6 +246,96 @@ class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.assertIsInstance(retrieved_events[0], StoredEvent)
         self.assertEqual(stored_events[18].event_topic, retrieved_events[0].event_topic)
         self.assertEqual(stored_events[18].event_attrs, retrieved_events[0].event_attrs)
+
+
+class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
+
+    def setUp(self):
+        super(ConcurrentStoredEventRepositoryTestCase, self).setUp()
+        self.app = None
+
+    def tearDown(self):
+        super(ConcurrentStoredEventRepositoryTestCase, self).tearDown()
+        if self.app is not None:
+            self.app.close()
+
+    def test_optimistic_concurrency_control(self):
+
+        # Append lots of events, but have a pool of workers all trying to add the same sequence of events.
+        success_count = 0
+
+        # Start a pool.
+        # pool_size = 4 * (os.cpu_count() + 1)
+        pool_size = os.cpu_count() * 3
+        pool = Pool(initializer=pool_initializer, processes=pool_size, initargs=(type(self.stored_event_repo),))
+
+        # Todo: Instead of counting successes, get the successful numbers back
+        # Todo: as the results, and check they make a contiguous sequence.
+        number_of_events = 200
+        stored_entity_id = uuid4().hex
+        sequence_of_args = [(number_of_events, stored_entity_id)] * pool_size
+        results = pool.map(append_lots_of_events_to_repo, sequence_of_args)
+        for result in results:
+            if isinstance(result, Exception):
+                print(result.args[0][1])
+                raise result
+            else:
+                assert isinstance(result, six.integer_types)
+                success_count += result
+
+        # Check the number of successful writes equals the number of events in one sequence.
+        self.assertEqual(number_of_events, success_count)
+
+
+worker_repo = None
+
+
+def pool_initializer(stored_repo_class, *args):
+    global worker_repo
+
+    if stored_repo_class == CassandraStoredEventRepository:
+        setup_cassandra_connection(*get_cassandra_setup_params())
+        worker_repo = stored_repo_class()
+
+    return
+
+
+def append_lots_of_events_to_repo(args):
+
+    num_events_to_create, stored_entity_id = args
+
+    success_count = 0
+    assert isinstance(worker_repo, StoredEventRepository)
+    assert isinstance(num_events_to_create, six.integer_types)
+
+    try:
+
+        for i in range(num_events_to_create):
+            event = StoredEvent(
+                event_id=uuid1().hex,
+                stored_entity_id=stored_entity_id,
+                event_topic='topic',
+                event_attrs=json.dumps({'a': 1, 'b': 2}),
+            )
+            # print("Appending event {} (child pid {})".format(i, os.getpid()))
+
+            started = datetime.datetime.now()
+            try:
+                worker_repo.append(event, expected_version=i-1 if i else None, new_version=i)
+            except Exception as e:
+                pass
+                # print(traceback.format_exc())
+                # print(e)
+            else:
+                success_count += 1
+                # print(" - appended event {} in: {} (pid {})".format(i, datetime.datetime.now() - started, os.getpid()))
+
+    except Exception as e:
+        msg = traceback.format_exc()
+        print(" - failed to append event: {}".format(msg))
+        return Exception((e, msg))
+    else:
+        return success_count
 
 
 class IteratorTestCase(AbstractStoredEventRepositoryTestCase):

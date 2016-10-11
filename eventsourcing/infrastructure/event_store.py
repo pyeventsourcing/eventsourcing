@@ -16,6 +16,7 @@ class EventStore(object):
         # Serialize the domain event.
         stored_event = self.stored_event_repo.serialize(domain_event)
 
+        # Todo: Maybe delete this section (append() now has optimistic concurrency control?
         # Optimistic concurrency control.
         if domain_event.entity_version:
             last_event = self.get_most_recent_event(stored_event.stored_entity_id)
@@ -28,7 +29,10 @@ class EventStore(object):
                                            "".format(this_version, last_version))
 
         # Append the stored event to the stored event repo.
-        self.stored_event_repo.append(stored_event)
+        #  - pass in some params for lower level optimistic concurrency control
+        next_version = domain_event.entity_version
+        expected_version = next_version - 1 if next_version else None
+        self.stored_event_repo.append(stored_event, expected_version=expected_version, next_version=next_version)
 
     def get_entity_events(self, stored_entity_id, after=None, until=None,
                           limit=None, is_ascending=True, page_size=None, is_short=False):
