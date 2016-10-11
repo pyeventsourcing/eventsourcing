@@ -138,6 +138,27 @@ class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.assertEqual(stored_event2.event_topic, retrieved_events[1].event_topic)
         self.assertEqual(stored_event2.event_attrs, retrieved_events[1].event_attrs)
 
+        # Get with different combinations of query and result ascending or descending.
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=True, results_ascending=True)
+        retrieved_events = list(retrieved_events)
+        self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
+        self.assertEqual(stored_event2.event_attrs, retrieved_events[1].event_attrs)
+
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=True, results_ascending=False)
+        retrieved_events = list(retrieved_events)
+        self.assertEqual(stored_event1.event_attrs, retrieved_events[1].event_attrs)
+        self.assertEqual(stored_event2.event_attrs, retrieved_events[0].event_attrs)
+
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=False, results_ascending=True)
+        retrieved_events = list(retrieved_events)
+        self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
+        self.assertEqual(stored_event2.event_attrs, retrieved_events[1].event_attrs)
+
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=False, results_ascending=False)
+        retrieved_events = list(retrieved_events)
+        self.assertEqual(stored_event1.event_attrs, retrieved_events[1].event_attrs)
+        self.assertEqual(stored_event2.event_topic, retrieved_events[0].event_topic)
+
         # Get with limit (depends on query order).
         retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=True)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
