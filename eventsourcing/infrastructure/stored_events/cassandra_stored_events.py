@@ -88,7 +88,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
         events = self.map(from_cql, query)
         events = list(events)
 
-        if results_ascending and not query_ascending:
+        if results_ascending != query_ascending:
             events.reverse()
 
         return events

@@ -104,6 +104,6 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
             events = list(events)
         finally:
             self.db_session.close()
-        if results_ascending and not query_ascending:
+        if results_ascending != query_ascending:
             events.reverse()
         return events
