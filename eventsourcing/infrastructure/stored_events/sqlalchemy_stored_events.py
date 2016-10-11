@@ -65,7 +65,7 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         assert isinstance(db_session, ScopedSession)
         self.db_session = db_session
 
-    def append(self, stored_event):
+    def append(self, stored_event, expected_version=None, new_version=None):
         sql_stored_event = to_sql(stored_event)
         try:
             self.db_session.add(sql_stored_event)

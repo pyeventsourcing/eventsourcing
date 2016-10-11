@@ -18,7 +18,7 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         self.always_encrypt = always_encrypt
 
     @abstractmethod
-    def append(self, stored_event):
+    def append(self, stored_event, expected_version=None, new_version=None):
         """Saves given stored event in this repository.
         :param stored_event:
         """

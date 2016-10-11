@@ -13,7 +13,7 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
         self._by_id = {}
         self._by_stored_entity_id = {}
 
-    def append(self, stored_event):
+    def append(self, stored_event, expected_version=None, new_version=None):
         assert isinstance(stored_event, StoredEvent)
         stored_entity_id = stored_event.stored_entity_id
         event_id = stored_event.event_id
