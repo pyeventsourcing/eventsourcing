@@ -22,10 +22,10 @@ setup(
     ] + install_requires_singledispatch,
     extras_require={
         'cassandra': [
-            'cassandra-driver==3.5.0',
+            'cassandra-driver==3.7.0',
         ],
         'test': [
-            'cassandra-driver==3.5.0',
+            'cassandra-driver==3.7.0',
             'mock',
             # 'numpy',
             'PyCrypto',
