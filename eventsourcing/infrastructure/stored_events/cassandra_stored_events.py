@@ -94,7 +94,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
                 assert isinstance(expected_version, six.integer_types)
                 expected_version_changed_id = self.make_version_changed_id(expected_version, stored_entity_id)
                 try:
-                    CqlStoredEntityVersion.filter(r=expected_version_changed_id).get()
+                    CqlStoredEntityVersion.get(r=expected_version_changed_id)
                 except CqlStoredEntityVersion.DoesNotExist:
                     raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
                                            "".format(expected_version, stored_entity_id))
@@ -122,7 +122,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
             # when storing subsequent events.
             sleep(0.1)
             try:
-                CqlStoredEvent.filter(n=stored_event.stored_entity_id, v=stored_event.event_id).get()
+                CqlStoredEvent.get(n=stored_event.stored_entity_id, v=stored_event.event_id)
             except CqlStoredEvent.DoesNotExist:
                 # Try hard to recover the situation by removing the
                 # new version, otherwise the entity will be stuck.
