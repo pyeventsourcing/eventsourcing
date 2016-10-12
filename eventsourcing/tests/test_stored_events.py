@@ -4,13 +4,16 @@ import os
 import traceback
 import unittest
 import uuid
+from multiprocessing import cpu_count
 from multiprocessing.pool import Pool
 from tempfile import NamedTemporaryFile
+from time import sleep
 from uuid import uuid1, uuid4
 
 import six
+from six import with_metaclass
 
-from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.domain.model.events import DomainEvent, topic_from_domain_class, QualnameABCMeta
 from eventsourcing.domain.model.example import Example
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.infrastructure.stored_events.base import SimpleStoredEventIterator, ThreadedStoredEventIterator, \
@@ -73,7 +76,7 @@ class TestStoredEvent(unittest.TestCase):
         # Check the TypeError is raised.
         stored_event = StoredEvent(event_id='1',
                                    stored_entity_id='entity1',
-                                   event_topic='os#path',
+                                   event_topic=topic_from_domain_class(NotADomainEvent),
                                    event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":3}')
         self.assertRaises(ValueError, deserialize_domain_event, stored_event, json_decoder_cls=ObjectJSONDecoder)
 
@@ -85,6 +88,10 @@ class TestStoredEvent(unittest.TestCase):
         self.assertRaises(TopicResolutionError, resolve_domain_topic, example_topic)
         example_topic = 'eventsourcing.domain.model.example#Xxxxxxxx.Xxxxxxxx'
         self.assertRaises(TopicResolutionError, resolve_domain_topic, example_topic)
+
+
+class NotADomainEvent(with_metaclass(QualnameABCMeta)):
+    pass
 
 
 class AbstractTestCase(unittest.TestCase):
@@ -269,25 +276,26 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         success_count = 0
 
         # Start a pool.
-        pool_size = os.cpu_count() * 1
+        pool_size = cpu_count() * 4
         pool = Pool(initializer=pool_initializer, processes=pool_size, initargs=(type(self.stored_event_repo), self.temp_file.name))
 
-        # Todo: Instead of counting successes, get the successful numbers back
-        # Todo: as the results, and check they make a contiguous sequence.
-        number_of_events = 50
+        number_of_events = 100
         stored_entity_id = uuid4().hex
         sequence_of_args = [(number_of_events, stored_entity_id)] * pool_size
         results = pool.map(append_lots_of_events_to_repo, sequence_of_args)
+        successes = []
         for result in results:
             if isinstance(result, Exception):
                 print(result.args[0][1])
                 raise result
             else:
-                assert isinstance(result, six.integer_types)
-                success_count += result
+                assert isinstance(result, list), result
+                successes += result
 
         # Check the number of successful writes equals the number of events in one sequence.
-        self.assertEqual(number_of_events, success_count)
+        for i in range(number_of_events):
+            self.assertIn(i, successes)
+        self.assertEqual(number_of_events, len(successes))
 
 
 worker_repo = None
@@ -315,6 +323,8 @@ def append_lots_of_events_to_repo(args):
     assert isinstance(worker_repo, StoredEventRepository)
     assert isinstance(num_events_to_create, six.integer_types)
 
+    successes = []
+
     try:
 
         for i in range(num_events_to_create):
@@ -335,14 +345,16 @@ def append_lots_of_events_to_repo(args):
                 # print(e)
             else:
                 success_count += 1
-                # print(" - appended event {} in: {} (pid {})".format(i, datetime.datetime.now() - started, os.getpid()))
+                successes.append(i)
+                print("{} appended event {} in: {} (pid {})".format(started, i, datetime.datetime.now() - started, os.getpid()))
+                sleep(0.1)
 
     except Exception as e:
         msg = traceback.format_exc()
         print(" - failed to append event: {}".format(msg))
         return Exception((e, msg))
     else:
-        return success_count
+        return successes
 
 
 class IteratorTestCase(AbstractStoredEventRepositoryTestCase):

@@ -36,7 +36,7 @@ class CqlStoredEntityVersion(Model):
     # # Version number (an integer)
     # i = columns.Text(primary_key=True)
 
-    # Version number (an integer)
+    # Entity-version identifier (a string).
     r = columns.Text(partition_key=True)
 
 
@@ -94,6 +94,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
         new_stored_version = None
         if new_version is not None:
             stored_entity_id = stored_event.stored_entity_id
+            # Check the expected version actually exists.
             if expected_version is not None:
                 # Read the expected version exists, raise concurrency exception if not.
                 assert isinstance(expected_version, six.integer_types)

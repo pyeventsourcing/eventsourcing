@@ -24,7 +24,7 @@ class EventStore(object):
                 assert isinstance(last_event, DomainEvent), last_event
                 last_version = last_event.entity_version
                 this_version = domain_event.entity_version
-                if this_version - 1 != last_version:
+                if this_version != last_version + 1:
                     raise ConcurrencyError("Can't append event at version {}, last stored version is {}"
                                            "".format(this_version, last_version))
 

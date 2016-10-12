@@ -73,6 +73,9 @@ def deserialize_domain_event(stored_event, json_decoder_cls=None, without_json=F
     # Get the domain event class from the topic.
     event_class = resolve_domain_topic(stored_event.event_topic)
 
+    if not isinstance(event_class, type):
+        raise ValueError("Event class is not a type: {}".format(event_class))
+
     if not issubclass(event_class, DomainEvent):
         raise ValueError("Event class is not a DomainEvent: {}".format(event_class))
 
