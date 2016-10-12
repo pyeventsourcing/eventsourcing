@@ -276,8 +276,13 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         success_count = 0
 
         # Start a pool.
-        pool_size = cpu_count() * 4
-        pool = Pool(initializer=pool_initializer, processes=pool_size, initargs=(type(self.stored_event_repo), self.temp_file.name))
+        pool_size = 4
+        print("Pool size: {}".format(pool_size))
+        pool = Pool(
+            initializer=pool_initializer,
+            processes=pool_size,
+            initargs=(type(self.stored_event_repo), self.temp_file.name),
+        )
 
         number_of_events = 100
         stored_entity_id = uuid4().hex
@@ -292,7 +297,8 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
                 assert isinstance(result, list), result
                 successes.extend(result)
 
-        # Check the number of successful writes equals the number of events in one sequence.
+        # Check the number of successful
+        # writes equals the number of events.
         for i in range(number_of_events):
             self.assertIn(i, successes)
         self.assertEqual(number_of_events, len(successes))
