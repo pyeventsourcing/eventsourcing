@@ -276,7 +276,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         success_count = 0
 
         # Start a pool.
-        pool_size = 4
+        pool_size = 2
         print("Pool size: {}".format(pool_size))
         pool = Pool(
             initializer=pool_initializer,
@@ -284,7 +284,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
             initargs=(type(self.stored_event_repo), self.temp_file.name),
         )
 
-        number_of_events = 100
+        number_of_events = 20
         stored_entity_id = uuid4().hex
         sequence_of_args = [(number_of_events, stored_entity_id)] * pool_size
         results = pool.map(append_lots_of_events_to_repo, sequence_of_args)
@@ -302,6 +302,9 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         for i in range(number_of_events):
             self.assertIn(i, successes)
         self.assertEqual(number_of_events, len(successes))
+
+        pool.close()
+        pool.join()
 
 
 worker_repo = None
