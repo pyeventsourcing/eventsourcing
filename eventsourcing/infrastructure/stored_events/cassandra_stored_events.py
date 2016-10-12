@@ -40,6 +40,9 @@ class CqlStoredEntityVersion(Model):
     # # Entity-version identifier (a string).
     # r = columns.Text(partition_key=True)
 
+    # Stored event ID (normally a UUID1)
+    v = columns.TimeUUID(required=True)
+
 
 class CqlStoredEvent(Model):
 
@@ -110,7 +113,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
             #    this operation is assumed to succeed only once.
             #  - Raises concurrency exception if a "light weight
             #    transaction" exception is raised by Cassandra.
-            new_stored_version = CqlStoredEntityVersion(n=stored_entity_id, i=str(new_version))
+            new_stored_version = CqlStoredEntityVersion(n=stored_entity_id, i=str(new_version), v=stored_event.event_id)
             try:
                 new_stored_version.save()
             except LWTException as e:
