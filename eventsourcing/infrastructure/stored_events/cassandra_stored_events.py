@@ -31,13 +31,14 @@ class CqlStoredEntityVersion(Model):
     # and helps to implement optimistic concurrency control.
     _if_not_exists = True
 
-    # n = columns.Text(partition_key=True)
-    #
-    # # Version number (an integer)
-    # i = columns.Text(primary_key=True)
+    # Stored entity ID (normally a string, with the entity type name at the start)
+    n = columns.Text(partition_key=True)
 
-    # Entity-version identifier (a string).
-    r = columns.Text(partition_key=True)
+    # Entity version number (an integer)
+    i = columns.Text(primary_key=True)
+
+    # # Entity-version identifier (a string).
+    # r = columns.Text(partition_key=True)
 
 
 class CqlStoredEvent(Model):
@@ -93,14 +94,14 @@ class CassandraStoredEventRepository(StoredEventRepository):
         # Optimistic concurrency control.
         new_stored_version = None
         if new_version is not None:
+            assert isinstance(new_version, six.integer_types)
             stored_entity_id = stored_event.stored_entity_id
             # Check the expected version actually exists.
             if expected_version is not None:
                 # Read the expected version exists, raise concurrency exception if not.
                 assert isinstance(expected_version, six.integer_types)
-                expected_version_changed_id = self.make_version_changed_id(expected_version, stored_entity_id)
                 try:
-                    CqlStoredEntityVersion.get(r=expected_version_changed_id)
+                    CqlStoredEntityVersion.get(n=stored_entity_id, i=str(expected_version))
                 except CqlStoredEntityVersion.DoesNotExist:
                     raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
                                            "".format(expected_version, stored_entity_id))
@@ -109,8 +110,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
             #    this operation is assumed to succeed only once.
             #  - Raises concurrency exception if a "light weight
             #    transaction" exception is raised by Cassandra.
-            new_stored_version_id = self.make_version_changed_id(new_version, stored_entity_id)
-            new_stored_version = CqlStoredEntityVersion(r=new_stored_version_id)
+            new_stored_version = CqlStoredEntityVersion(n=stored_entity_id, i=str(new_version))
             try:
                 new_stored_version.save()
             except LWTException as e:

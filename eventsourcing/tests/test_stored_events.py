@@ -15,7 +15,7 @@ from six import with_metaclass
 
 from eventsourcing.domain.model.events import DomainEvent, topic_from_domain_class, QualnameABCMeta
 from eventsourcing.domain.model.example import Example
-from eventsourcing.exceptions import TopicResolutionError
+from eventsourcing.exceptions import TopicResolutionError, ConcurrencyError
 from eventsourcing.infrastructure.stored_events.base import SimpleStoredEventIterator, ThreadedStoredEventIterator, \
     StoredEventRepository
 from eventsourcing.infrastructure.stored_events.cassandra_stored_events import CassandraStoredEventRepository, \
@@ -290,7 +290,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
                 raise result
             else:
                 assert isinstance(result, list), result
-                successes += result
+                successes.extend(result)
 
         # Check the number of successful writes equals the number of events in one sequence.
         for i in range(number_of_events):
@@ -334,19 +334,19 @@ def append_lots_of_events_to_repo(args):
                 event_topic='topic',
                 event_attrs=json.dumps({'a': 1, 'b': 2}),
             )
-            # print("Appending event {} (child pid {})".format(i, os.getpid()))
+            print("Attempting to append event {} (child pid {})".format(i, os.getpid()))
 
             started = datetime.datetime.now()
             try:
                 worker_repo.append(event, expected_version=i-1 if i else None, new_version=i)
-            except Exception as e:
+            except ConcurrencyError as e:
                 pass
                 # print(traceback.format_exc())
                 # print(e)
             else:
                 success_count += 1
                 successes.append(i)
-                print("{} appended event {} in: {} (pid {})".format(started, i, datetime.datetime.now() - started, os.getpid()))
+                print("Write at {} appended event {} in: {} (pid {})".format(started, i, datetime.datetime.now() - started, os.getpid()))
                 sleep(0.1)
 
     except Exception as e:
