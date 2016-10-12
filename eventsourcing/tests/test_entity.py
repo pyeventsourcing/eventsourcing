@@ -2,7 +2,7 @@ import unittest
 import mock
 
 from eventsourcing.domain.model.entity import mutableproperty, EntityIDConsistencyError, EntityVersionConsistencyError, \
-    EventSourcedEntity, created_mutator, MutatorRequiresTypeError
+    EventSourcedEntity, created_mutator, CreatedMutatorRequiresTypeNotInstance
 from eventsourcing.domain.model.events import DomainEvent, subscribe, unsubscribe, assert_event_handlers_empty, publish
 from eventsourcing.domain.model.example import register_new_example, Example
 from eventsourcing.domain.model.exceptions import ProgrammingError
@@ -185,4 +185,4 @@ class TestExampleEntity(unittest.TestCase):
         self.assertRaises(NotImplementedError, EventSourcedEntity._mutator, 1, 2)
 
     def test_created_mutator_error(self):
-        self.assertRaises(MutatorRequiresTypeError, created_mutator, mock.Mock(spec=DomainEvent), 'not a class')
+        self.assertRaises(CreatedMutatorRequiresTypeNotInstance, created_mutator, mock.Mock(spec=DomainEvent), 'not a class')

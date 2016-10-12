@@ -13,7 +13,7 @@ python:
 
 install:
 - pip install -U pip
-- pip install .[test]
+- pip install -r requirements.txt
 
 script:
 - python -m unittest discover eventsourcing.tests -v

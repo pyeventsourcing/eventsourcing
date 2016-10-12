@@ -5,6 +5,7 @@ import traceback
 import unittest
 import uuid
 from multiprocessing.pool import Pool
+from tempfile import NamedTemporaryFile
 from uuid import uuid1, uuid4
 
 import six
@@ -16,6 +17,8 @@ from eventsourcing.infrastructure.stored_events.base import SimpleStoredEventIte
     StoredEventRepository
 from eventsourcing.infrastructure.stored_events.cassandra_stored_events import CassandraStoredEventRepository, \
     setup_cassandra_connection, get_cassandra_setup_params
+from eventsourcing.infrastructure.stored_events.sqlalchemy_stored_events import get_scoped_session_facade, \
+    SQLAlchemyStoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
     resolve_domain_topic, StoredEvent, ObjectJSONDecoder, ObjectJSONEncoder
 from eventsourcing.utils.time import utc_timezone
@@ -72,7 +75,7 @@ class TestStoredEvent(unittest.TestCase):
                                    stored_entity_id='entity1',
                                    event_topic='os#path',
                                    event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":3}')
-        self.assertRaises(TypeError, deserialize_domain_event, stored_event, json_decoder_cls=ObjectJSONDecoder)
+        self.assertRaises(ValueError, deserialize_domain_event, stored_event, json_decoder_cls=ObjectJSONDecoder)
 
     def test_resolve_event_topic(self):
         example_topic = 'eventsourcing.domain.model.example#Example.Created'
@@ -253,6 +256,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
     def setUp(self):
         super(ConcurrentStoredEventRepositoryTestCase, self).setUp()
         self.app = None
+        self.temp_file = NamedTemporaryFile('a')
 
     def tearDown(self):
         super(ConcurrentStoredEventRepositoryTestCase, self).tearDown()
@@ -265,13 +269,12 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         success_count = 0
 
         # Start a pool.
-        # pool_size = 4 * (os.cpu_count() + 1)
-        pool_size = os.cpu_count() * 3
-        pool = Pool(initializer=pool_initializer, processes=pool_size, initargs=(type(self.stored_event_repo),))
+        pool_size = os.cpu_count() * 1
+        pool = Pool(initializer=pool_initializer, processes=pool_size, initargs=(type(self.stored_event_repo), self.temp_file.name))
 
         # Todo: Instead of counting successes, get the successful numbers back
         # Todo: as the results, and check they make a contiguous sequence.
-        number_of_events = 200
+        number_of_events = 50
         stored_entity_id = uuid4().hex
         sequence_of_args = [(number_of_events, stored_entity_id)] * pool_size
         results = pool.map(append_lots_of_events_to_repo, sequence_of_args)
@@ -290,14 +293,18 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
 worker_repo = None
 
 
-def pool_initializer(stored_repo_class, *args):
+def pool_initializer(stored_repo_class, temp_file_name):
     global worker_repo
 
     if stored_repo_class == CassandraStoredEventRepository:
         setup_cassandra_connection(*get_cassandra_setup_params())
         worker_repo = stored_repo_class()
-
-    return
+    elif stored_repo_class == SQLAlchemyStoredEventRepository:
+        uri = 'sqlite:///' + temp_file_name
+        scoped_session_facade = get_scoped_session_facade(uri)
+        worker_repo = SQLAlchemyStoredEventRepository(scoped_session_facade)
+    else:
+        raise Exception("Stored repo class not yet supported in test: {}".format(stored_repo_class))
 
 
 def append_lots_of_events_to_repo(args):

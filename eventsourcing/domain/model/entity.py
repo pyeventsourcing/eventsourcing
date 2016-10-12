@@ -22,7 +22,7 @@ class EntityVersionConsistencyError(ConsistencyError):
     pass
 
 
-class MutatorRequiresTypeError(ConsistencyError):
+class CreatedMutatorRequiresTypeNotInstance(ConsistencyError):
     pass
 
 
@@ -126,9 +126,10 @@ def entity_mutator(event, _):
 def created_mutator(event, cls):
     assert isinstance(event, DomainEvent), event
     if not isinstance(cls, type):
-        raise MutatorRequiresTypeError("created_mutator needs a type instance: {} "
-                                       "(event entity id: {}, event type: {})"
-                                       "".format(type(cls), event.entity_id, type(event)))
+        msg = ("Mutator for Created event requires entity type not instance: {} "
+               "(event entity id: {}, event type: {})"
+               "".format(type(cls), event.entity_id, type(event)))
+        raise CreatedMutatorRequiresTypeNotInstance(msg)
     assert issubclass(cls, EventSourcedEntity), cls
     self = cls(**event.__dict__)
     self._increment_version()

@@ -31,6 +31,11 @@ class CqlStoredEntityVersion(Model):
     # and helps to implement optimistic concurrency control.
     _if_not_exists = True
 
+    # n = columns.Text(partition_key=True)
+    #
+    # # Version number (an integer)
+    # i = columns.Text(primary_key=True)
+
     # Version number (an integer)
     r = columns.Text(partition_key=True)
 
@@ -94,7 +99,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
                 assert isinstance(expected_version, six.integer_types)
                 expected_version_changed_id = self.make_version_changed_id(expected_version, stored_entity_id)
                 try:
-                    CqlStoredEntityVersion.objects.get(r=expected_version_changed_id)
+                    CqlStoredEntityVersion.get(r=expected_version_changed_id)
                 except CqlStoredEntityVersion.DoesNotExist:
                     raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
                                            "".format(expected_version, stored_entity_id))
@@ -122,7 +127,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
             # when storing subsequent events.
             sleep(0.1)
             try:
-                CqlStoredEvent.objects.get(n=stored_event.stored_entity_id, v=stored_event.event_id)
+                CqlStoredEvent.get(n=stored_event.stored_entity_id, v=stored_event.event_id)
             except CqlStoredEvent.DoesNotExist:
                 # Try hard to recover the situation by removing the
                 # new version, otherwise the entity will be stuck.
@@ -208,6 +213,7 @@ def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspa
         auth_provider=auth_provider,
         protocol_version=protocol_version,
         lazy_connect=True,
+        retry_connect=True,
     )
 
 

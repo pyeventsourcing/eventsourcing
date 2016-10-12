@@ -74,7 +74,7 @@ def deserialize_domain_event(stored_event, json_decoder_cls=None, without_json=F
     event_class = resolve_domain_topic(stored_event.event_topic)
 
     if not issubclass(event_class, DomainEvent):
-        raise TypeError("Event class is not a DomainEvent: {}".format(event_class))
+        raise ValueError("Event class is not a DomainEvent: {}".format(event_class))
 
     # Deserialize event attributes from JSON, optionally decrypted with cipher.
     event_attrs = stored_event.event_attrs
@@ -99,8 +99,8 @@ def deserialize_domain_event(stored_event, json_decoder_cls=None, without_json=F
         domain_event = object.__new__(event_class)
         domain_event.__dict__.update(event_attrs)
     except TypeError:
-        raise TypeError("Unable to instantiate class '{}' with data '{}'"
-                        "".format(stored_event.event_topic, event_attrs))
+        raise ValueError("Unable to instantiate class '{}' with data '{}'"
+                         "".format(stored_event.event_topic, event_attrs))
 
     return domain_event
 
