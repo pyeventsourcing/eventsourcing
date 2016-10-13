@@ -19,7 +19,7 @@ from eventsourcing.exceptions import TopicResolutionError, ConcurrencyError
 from eventsourcing.infrastructure.stored_events.base import SimpleStoredEventIterator, ThreadedStoredEventIterator, \
     StoredEventRepository
 from eventsourcing.infrastructure.stored_events.cassandra_stored_events import CassandraStoredEventRepository, \
-    setup_cassandra_connection, get_cassandra_setup_params
+    setup_cassandra_connection, get_cassandra_setup_params, CqlStoredEntityVersion
 from eventsourcing.infrastructure.stored_events.sqlalchemy_stored_events import get_scoped_session_facade, \
     SQLAlchemyStoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
@@ -271,12 +271,11 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
             self.app.close()
 
     def test_optimistic_concurrency_control(self):
-
-        # Append lots of events, but have a pool of workers all trying to add the same sequence of events.
-        success_count = 0
-
+        """Appends lots of events, but with a pool of workers
+        all trying to add the same sequence of events.
+        """
         # Start a pool.
-        pool_size = 2
+        pool_size = 4
         print("Pool size: {}".format(pool_size))
         pool = Pool(
             initializer=pool_initializer,
@@ -284,25 +283,37 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
             initargs=(type(self.stored_event_repo), self.temp_file.name),
         )
 
-        number_of_events = 20
+        # Start appending lots of events to the repo.
+        number_of_events = 100
         stored_entity_id = uuid4().hex
         sequence_of_args = [(number_of_events, stored_entity_id)] * pool_size
         results = pool.map(append_lots_of_events_to_repo, sequence_of_args)
-        successes = []
+        total_successes = []
+        total_failures = []
         for result in results:
             if isinstance(result, Exception):
                 print(result.args[0][1])
                 raise result
             else:
-                assert isinstance(result, list), result
-                successes.extend(result)
+                successes, failures = result
+                assert isinstance(successes, list), result
+                assert isinstance(failures, list), result
+                total_successes.extend(successes)
+                total_failures.extend(failures)
 
-        # Check the number of successful
-        # writes equals the number of events.
-        for i in range(number_of_events):
-            self.assertIn(i, successes)
-        self.assertEqual(number_of_events, len(successes))
+        # Check each event version was written exactly once.
+        self.assertEqual(sorted([i[0] for i in total_successes]), range(number_of_events))
 
+        # Check each child got to write at least one event.
+        self.assertEqual(len(set([i[1] for i in total_successes])), pool_size)
+
+        # Check each event version at least once wasn't written due to a concurrency error.
+        self.assertEqual(sorted(set([i[0] for i in total_failures])), range(number_of_events))
+
+        # Check each child failed to write at least one event.
+        self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
+
+        # Close and join the pool.
         pool.close()
         pool.join()
 
@@ -333,37 +344,60 @@ def append_lots_of_events_to_repo(args):
     assert isinstance(num_events_to_create, six.integer_types)
 
     successes = []
+    failures = []
 
     try:
 
-        for i in range(num_events_to_create):
-            event = StoredEvent(
-                event_id=uuid1().hex,
-                stored_entity_id=stored_entity_id,
-                event_topic='topic',
-                event_attrs=json.dumps({'a': 1, 'b': 2}),
-            )
-            print("Attempting to append event {} (child pid {})".format(i, os.getpid()))
-
-            started = datetime.datetime.now()
-            try:
-                worker_repo.append(event, expected_version=i-1 if i else None, new_version=i)
-            except ConcurrencyError as e:
-                pass
-                # print(traceback.format_exc())
-                # print(e)
+        while True:
+            # Imitate an entity getting refreshed, by getting the highest entity event version in the repo.
+            events = worker_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=False)
+            if len(events):
+                current_version = json.loads(events[0].event_attrs)['entity_version']
+                new_version = current_version + 1
             else:
-                success_count += 1
-                successes.append(i)
-                print("Write at {} appended event {} in: {} (pid {})".format(started, i, datetime.datetime.now() - started, os.getpid()))
-                sleep(0.1)
+                current_version = None
+                new_version = 0
 
+            # Stop before the version number gets too high.
+            if new_version >= num_events_to_create:
+                break
+
+            pid = os.getpid()
+            try:
+
+                # Append an event.
+                stored_event = StoredEvent(
+                    event_id=uuid1().hex,
+                    stored_entity_id=stored_entity_id,
+                    event_topic='topic',
+                    event_attrs=json.dumps({'a': 1, 'b': 2, 'entity_version': new_version}),
+                )
+                started = datetime.datetime.now()
+                worker_repo.append(
+                    stored_event=stored_event,
+                    expected_version=current_version,
+                    new_version=new_version,
+                    max_retries=10,
+                    artificial_failure_rate=0.1,
+                )
+            except ConcurrencyError:
+                print("PID {} failed to write event at version {} at {}".format(pid, new_version, started, datetime.datetime.now() - started))
+                failures.append((new_version, pid))
+                # sleep(0.01)
+            else:
+                print("PID {} wrote event at version {} at {} in {}".format(pid, new_version, started, datetime.datetime.now() - started))
+                success_count += 1
+                successes.append((new_version, pid))
+                # Delay a successful writer, to give other processes a chance to write the next event.
+                sleep(0.02)
+
+    # Return to parent process the successes and failure, or an exception.
     except Exception as e:
         msg = traceback.format_exc()
         print(" - failed to append event: {}".format(msg))
         return Exception((e, msg))
     else:
-        return successes
+        return (successes, failures)
 
 
 class IteratorTestCase(AbstractStoredEventRepositoryTestCase):

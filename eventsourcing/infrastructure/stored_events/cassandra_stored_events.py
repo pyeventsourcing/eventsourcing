@@ -92,16 +92,16 @@ class CassandraStoredEventRepository(StoredEventRepository):
     def iterator_class(self):
         return ThreadedStoredEventIterator
 
-    def append(self, stored_event, expected_version=None, new_version=None):
+    def append(self, stored_event, expected_version=None, new_version=None, max_retries=3, artificial_failure_rate=0):
 
         # Optimistic concurrency control.
         new_stored_version = None
+        stored_entity_id = stored_event.stored_entity_id
         if new_version is not None:
             assert isinstance(new_version, six.integer_types)
-            stored_entity_id = stored_event.stored_entity_id
             # Check the expected version actually exists.
             if expected_version is not None:
-                # Read the expected version exists, raise concurrency exception if not.
+                # Check the expected version exists, raise concurrency exception if not.
                 assert isinstance(expected_version, six.integer_types)
                 try:
                     CqlStoredEntityVersion.get(n=stored_entity_id, i=str(expected_version))
@@ -109,20 +109,41 @@ class CassandraStoredEventRepository(StoredEventRepository):
                     raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
                                            "".format(expected_version, stored_entity_id))
             # Write the next version.
-            #  - Uses "if not exists" feature of Cassandra, so
-            #    this operation is assumed to succeed only once.
-            #  - Raises concurrency exception if a "light weight
-            #    transaction" exception is raised by Cassandra.
+            #  - uses the "if not exists" optimistic concurrency control feature
+            #    of Cassandra, so this operation is assumed to succeed only once
             new_stored_version = CqlStoredEntityVersion(n=stored_entity_id, i=str(new_version), v=stored_event.event_id)
             try:
                 new_stored_version.save()
             except LWTException as e:
-                raise ConcurrencyError("Couldn't update version because version already exists: {}".format(e))
+                raise ConcurrencyError("Version {} of entity {} already exists: {}".format(new_version, stored_entity_id, e))
+
+        # Increased latency here causes increased contention.
+        if artificial_failure_rate:
+            sleep(artificial_failure_rate)
 
         # Write the stored event into the database.
         try:
-            cql_stored_event = to_cql(stored_event)
-            cql_stored_event.save()
+            retries = max_retries
+            while True:
+                try:
+                    # Instantiate a Cassandra CQL engine object.
+                    cql_stored_event = to_cql(stored_event)
+
+                    # Optionally mimic unreliable database connection.
+                    if random() > 1 - artificial_failure_rate:
+                        raise Exception("Artificial failure")
+
+                    # Save the event.
+                    cql_stored_event.save()
+                except Exception:
+                    if retries <= 0:
+                        raise
+                    else:
+                        retries -= 1
+                        sleep(0.05 + 0.1 * random())
+                else:
+                    break
+
         except Exception as event_write_error:
             # If we get here, we're in trouble because the version has been
             # written, but perhaps not the event, so the entity may be broken
@@ -131,31 +152,31 @@ class CassandraStoredEventRepository(StoredEventRepository):
             # when storing subsequent events.
             sleep(0.1)
             try:
+                # If the event actually exists, despite the exception, all is well.
                 CqlStoredEvent.get(n=stored_event.stored_entity_id, v=stored_event.event_id)
             except CqlStoredEvent.DoesNotExist:
-                # Try hard to recover the situation by removing the
-                # new version, otherwise the entity will be stuck.
+                # Try hard to recover by removing the new version.
                 if new_stored_version is not None:
-                    retries = 5
+                    retries = max_retries * 10
                     while True:
                         try:
+                            # Optionally mimic unreliable database connection.
+                            if random() > 1 - artificial_failure_rate:
+                                raise Exception("Artificial failure")
+                            # Delete the entity version that was just created.
                             new_stored_version.delete()
                         except Exception as version_delete_error:
-                            if retries == 0:
-                                raise Exception("Unable to delete version after failing to write event: {}: {}"
-                                                "".format(event_write_error, version_delete_error))
+                            if retries <= 0:
+                                raise Exception("Unable to delete version {} of entity {} after failing to write"
+                                                "event: event write error {}: version delete error {}"
+                                                .format(new_stored_version, stored_entity_id,
+                                                        event_write_error, version_delete_error))
                             else:
                                 retries -= 1
                                 sleep(0.05 + 0.1 * random())
                         else:
                             break
                 raise event_write_error
-            else:
-                # If the event actually exists, despite the exception, all is well.
-                pass
-
-    def make_version_changed_id(self, expected_version, stored_entity_id):
-        return "VersionChanged::{}::version{}".format(stored_entity_id, expected_version)
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):
