@@ -275,7 +275,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         all trying to add the same sequence of events.
         """
         # Start a pool.
-        pool_size = 4
+        pool_size = 3
         print("Pool size: {}".format(pool_size))
         pool = Pool(
             initializer=pool_initializer,
@@ -284,7 +284,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         )
 
         # Start appending lots of events to the repo.
-        number_of_events = 100
+        number_of_events = 30
         self.assertGreater(number_of_events, pool_size)
         stored_entity_id = uuid4().hex
         sequence_of_args = [(number_of_events, stored_entity_id)] * pool_size
