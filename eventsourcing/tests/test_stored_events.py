@@ -275,7 +275,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         all trying to add the same sequence of events.
         """
         # Start a pool.
-        pool_size = 3
+        pool_size = 2
         print("Pool size: {}".format(pool_size))
         pool = Pool(
             initializer=pool_initializer,
