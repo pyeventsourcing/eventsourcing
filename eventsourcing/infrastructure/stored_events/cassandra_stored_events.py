@@ -94,13 +94,13 @@ class CassandraStoredEventRepository(StoredEventRepository):
         # If the 'new version' is None, skip optimistic concurrency control.
         if new_version is not None:
             assert isinstance(new_version, six.integer_types)
-            # Todo: Make this optional, so somethings don't check this?
-            # # Check the expected version actually exists.
+            # Check the expected version actually exists.
             if expected_version is not None:
                 # Check the expected version exists, raise concurrency exception if not.
                 assert isinstance(expected_version, six.integer_types)
+                expected_entity_version_id = self.make_entity_version_id(stored_entity_id, expected_version)
                 try:
-                    CqlEntityVersion.get(r=self.make_entity_version_id(stored_entity_id, expected_version))
+                    CqlEntityVersion.get(r=expected_entity_version_id)
                 except CqlEntityVersion.DoesNotExist:
                     raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
                                            "".format(expected_version, stored_entity_id))
@@ -108,8 +108,8 @@ class CassandraStoredEventRepository(StoredEventRepository):
             # Write the next version.
             #  - uses the "if not exists" optimistic concurrency control feature
             #    of Cassandra, hence this operation is assumed to succeed only once
-            entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
-            new_entity_version = CqlEntityVersion(r=entity_version_id)
+            new_entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
+            new_entity_version = CqlEntityVersion(r=new_entity_version_id)
             try:
                 new_entity_version.save()
             except LWTException as e:

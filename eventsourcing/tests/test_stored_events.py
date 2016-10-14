@@ -276,7 +276,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         all trying to add the same sequence of events.
         """
         # Start a pool.
-        pool_size = 1
+        pool_size = 2
         print("Pool size: {}".format(pool_size))
         pool = Pool(
             initializer=pool_initializer,
@@ -312,26 +312,26 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         # Check each child got to write at least one event.
         self.assertEqual(len(set([i[1] for i in total_successes])), pool_size)
 
-        # # Check each event version at least once wasn't written due to a concurrency error.
-        # self.assertEqual(sorted(set([i[0] for i in total_failures])), list(range(number_of_events)))
+        # Check each event version at least once wasn't written due to a concurrency error.
+        self.assertEqual(sorted(set([i[0] for i in total_failures])), list(range(number_of_events)))
 
-        # # Check at least one event version wasn't written due to a concurrency error.
-        # self.assertTrue(set([i[0] for i in total_failures]))
-        #
-        # # Check each child failed to write at least one event.
-        # self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
-        #
-        # # Get the events from the repo.
-        # events = self.stored_event_repo.get_entity_events(stored_entity_id)
-        # self.assertEqual(len(events), number_of_events)
-        #
-        # # Check there's actually a contiguous version sequence through the sequnce of events.
-        # version_counter = 0
-        # for event in events:
-        #     assert isinstance(event, StoredEvent)
-        #     attr_values = json.loads(event.event_attrs)
-        #     self.assertEqual(attr_values['entity_version'], version_counter)
-        #     version_counter += 1
+        # Check at least one event version wasn't written due to a concurrency error.
+        self.assertTrue(set([i[0] for i in total_failures]))
+
+        # Check each child failed to write at least one event.
+        self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
+
+        # Get the events from the repo.
+        events = self.stored_event_repo.get_entity_events(stored_entity_id)
+        self.assertEqual(len(events), number_of_events)
+
+        # Check there's actually a contiguous version sequence through the sequnce of events.
+        version_counter = 0
+        for event in events:
+            assert isinstance(event, StoredEvent)
+            attr_values = json.loads(event.event_attrs)
+            self.assertEqual(attr_values['entity_version'], version_counter)
+            version_counter += 1
 
         # Join the pool.
         pool.join()
@@ -383,7 +383,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
                         artificial_failure_rate=0.2,
                     )
                 except ConcurrencyError:
-                    print("PID {} failed to write event at version {} at {}".format(pid, new_version, started, datetime.datetime.now() - started))
+                    # print("PID {} failed to write event at version {} at {}".format(pid, new_version, started, datetime.datetime.now() - started))
                     failures.append((new_version, pid))
                     sleep(0.01)
                 else:

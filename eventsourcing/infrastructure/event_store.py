@@ -16,18 +16,6 @@ class EventStore(object):
         # Serialize the domain event.
         stored_event = self.stored_event_repo.serialize(domain_event)
 
-        # Todo: Maybe delete this section (append() now has optimistic concurrency control?
-        # Optimistic concurrency control.
-        if domain_event.entity_version:
-            last_event = self.get_most_recent_event(stored_event.stored_entity_id)
-            if last_event is not None:
-                assert isinstance(last_event, DomainEvent), last_event
-                last_version = last_event.entity_version
-                this_version = domain_event.entity_version
-                if this_version != last_version + 1:
-                    raise ConcurrencyError("Can't append event at version {}, last stored version is {}"
-                                           "".format(this_version, last_version))
-
         # Append the stored event to the stored event repo.
         #  - pass in some params for lower level optimistic concurrency control
         new_version = domain_event.entity_version
