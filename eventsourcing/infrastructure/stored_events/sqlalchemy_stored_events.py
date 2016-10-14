@@ -81,12 +81,20 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         # Convert stored event named tuple to an SQLAlchemy object.
         sql_stored_event = to_sql(stored_event)
 
+        stored_entity_id = sql_stored_event.stored_entity_id
+        if expected_version:
+            expected_entity_version_id = self.make_entity_version_id(stored_entity_id, expected_version)
+            expected_entity_version = self.db_session.query(SqlEntityVersion).filter_by(id=expected_entity_version_id).first()
+            if expected_entity_version is None:
+                raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
+                                       "".format(expected_version, stored_entity_id))
+
         try:
             # Create a new entity version record.
             if new_version is not None:
-                entity_version_id = self.make_entity_version_id(sql_stored_event.stored_entity_id, new_version)
-                sql_entity_version = SqlEntityVersion(id=entity_version_id)
-                self.db_session.add(sql_entity_version)
+                new_entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
+                new_entity_version = SqlEntityVersion(id=new_entity_version_id)
+                self.db_session.add(new_entity_version)
 
                 if artificial_failure_rate:
 
@@ -106,16 +114,15 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
             # Commit the transaction.
             self.db_session.commit()
 
-        except IntegrityError:
+        except IntegrityError as e:
             # Rollback and raise concurrency error.
             self.db_session.rollback()
-            raise ConcurrencyError()
-
+            raise ConcurrencyError("Version {} of entity {} already exists: {}"
+                                   "".format(new_version, stored_entity_id, e))
         except:
             # Rollback and reraise.
             self.db_session.rollback()
             raise
-
         finally:
             # Begin new transaction.
             self.db_session.close()
