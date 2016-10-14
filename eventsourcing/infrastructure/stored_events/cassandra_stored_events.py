@@ -1,14 +1,13 @@
 import os
-
 from random import random
 from time import sleep
 
-from cassandra import ConsistencyLevel, AlreadyExists
-from cassandra.auth import PlainTextAuthProvider
-from cassandra.cqlengine.models import Model, columns
-from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_keyspace
 import cassandra.cqlengine.connection
 import six
+from cassandra import ConsistencyLevel, AlreadyExists
+from cassandra.auth import PlainTextAuthProvider
+from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_keyspace
+from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
 from eventsourcing.exceptions import ConcurrencyError
@@ -181,10 +180,6 @@ class CassandraStoredEventRepository(StoredEventRepository):
                         else:
                             break
                 raise event_write_error
-
-    @staticmethod
-    def make_entity_version_id(stored_entity_id, version):
-        return "{}::version::{}".format(stored_entity_id, version)
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):

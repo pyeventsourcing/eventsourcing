@@ -60,7 +60,8 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         self._initial_event_id = domain_event_id
 
     def _increment_version(self):
-        self._version += 1
+        if self._version is not None:
+            self._version += 1
 
     def _assert_not_discarded(self):
         if self._is_discarded:

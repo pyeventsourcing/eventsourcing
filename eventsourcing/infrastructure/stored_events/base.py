@@ -18,7 +18,7 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         self.always_encrypt = always_encrypt
 
     @abstractmethod
-    def append(self, stored_event, expected_version=None, new_version=None):
+    def append(self, stored_event, expected_version=None, new_version=None, max_retries=3, artificial_failure_rate=0):
         """Saves given stored event in this repository.
         :param stored_event:
         """
@@ -108,6 +108,10 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
     @staticmethod
     def map(func, iterable):
         return six.moves.map(func, iterable)
+
+    @staticmethod
+    def make_entity_version_id(stored_entity_id, version):
+        return "{}::version::{}".format(stored_entity_id, version)
 
 
 class StoredEventIterator(six.with_metaclass(ABCMeta)):

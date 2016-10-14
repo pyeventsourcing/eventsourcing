@@ -38,3 +38,7 @@ class TestSimpleStoredEventIteratorWithSQLAlchemy(SQLAlchemyTestCase, SimpleStor
 
 class TestThreadedStoredEventIteratorWithSQLAlchemy(SQLAlchemyTestCase, ThreadedStoredEventIteratorTestCase):
     pass
+
+
+class TestConcurrentStoredEventRepositoryWithSQLAlchemy(SQLAlchemyTestCase, ConcurrentStoredEventRepositoryTestCase):
+    pass

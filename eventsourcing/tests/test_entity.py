@@ -128,7 +128,7 @@ class TestExampleEntity(unittest.TestCase):
         self.assertTrue(p.fget)
 
         # Pretend we decorated an object.
-        o = EventSourcedEntity(entity_id='1', entity_version=1, domain_event_id=1)
+        o = EventSourcedEntity(entity_id='1', entity_version=0, domain_event_id=1)
         o.__dict__['_<lambda>'] = 'value1'
 
         # Call the property's getter function.
@@ -163,7 +163,7 @@ class TestExampleEntity(unittest.TestCase):
         subscribe(*subscription)
         entity_id = '1'
         try:
-            aaa = Aaa(entity_id=entity_id, entity_version=0, domain_event_id='0', a=1)
+            aaa = Aaa(entity_id=entity_id, entity_version=None, domain_event_id='0', a=1)
             self.assertEqual(aaa.a, 1)
             aaa.a = 'value1'
             self.assertEqual(aaa.a, 'value1')
