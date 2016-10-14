@@ -4,7 +4,7 @@ from time import sleep
 
 import cassandra.cqlengine.connection
 import six
-from cassandra import ConsistencyLevel, AlreadyExists
+from cassandra import ConsistencyLevel, AlreadyExists, DriverException
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_keyspace
 from cassandra.cqlengine.models import Model, columns
@@ -131,31 +131,38 @@ class CassandraStoredEventRepository(StoredEventRepository):
                     # Optionally mimic an unreliable save() operation.
                     #  - used for testing retries
                     if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
-                        raise Exception("Artificial failure")
+                        raise DriverException("Artificial failure")
 
                     # Save the event.
                     cql_stored_event.save()
-                except Exception:
+
+                except DriverException:
+
                     if retries <= 0:
+                        # Raise the error after retries exhausted.
                         raise
                     else:
+                        # Otherwise retry.
                         retries -= 1
                         sleep(0.05 + 0.1 * random())
                 else:
                     break
 
-        except Exception as event_write_error:
+        except DriverException as event_write_error:
             # If we get here, we're in trouble because the version has been
             # written, but perhaps not the event, so the entity may be broken
             # because it might not be possible to get the entity with version
             # number high enough to pass the optimistic concurrency check
             # when storing subsequent events.
+
+            # Back off for a little bit.
             sleep(0.1)
             try:
                 # If the event actually exists, despite the exception, all is well.
                 CqlStoredEvent.get(n=stored_event.stored_entity_id, v=stored_event.event_id)
+
             except CqlStoredEvent.DoesNotExist:
-                # Try hard to recover by removing the new version.
+                # Otherwise, try hard to recover by removing the new version.
                 if new_entity_version is not None:
                     retries = max_retries * 3
                     while True:
@@ -163,21 +170,25 @@ class CassandraStoredEventRepository(StoredEventRepository):
                             # Optionally mimic an unreliable delete() operation.
                             #  - used for testing retries
                             if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
-                                raise Exception("Artificial failure")
+                                raise DriverException("Artificial failure")
 
                             # Delete the new entity version.
                             new_entity_version.delete()
 
-                        except Exception as version_delete_error:
+                        except DriverException as version_delete_error:
+                            # It's not going very well, so maybe retry.
                             if retries <= 0:
+                                # Raise the error after retries exhausted.
                                 raise Exception("Unable to delete version {} of entity {} after failing to write"
                                                 "event: event write error {}: version delete error {}"
                                                 .format(new_entity_version, stored_entity_id,
                                                         event_write_error, version_delete_error))
                             else:
+                                # Otherwise retry.
                                 retries -= 1
                                 sleep(0.05 + 0.1 * random())
                         else:
+                            # The entity version was deleted, all is well.
                             break
                 raise event_write_error
 
