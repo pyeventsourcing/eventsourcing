@@ -302,6 +302,9 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
                 total_successes.extend(successes)
                 total_failures.extend(failures)
 
+        # Close the pool.
+        pool.close()
+
         # Check each event version was written exactly once.
         self.assertEqual(sorted([i[0] for i in total_successes]), list(range(number_of_events)))
 
@@ -314,9 +317,85 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         # Check each child failed to write at least one event.
         self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
 
-        # Close and join the pool.
-        pool.close()
+        # Get the events from the repo.
+        events = self.stored_event_repo.get_entity_events(stored_entity_id)
+        self.assertEqual(len(events), number_of_events)
+
+        # Check there's actually a contiguous version sequence through the sequnce of events.
+        version_counter = 0
+        for event in events:
+            assert isinstance(event, StoredEvent)
+            attr_values = json.loads(event.event_attrs)
+            self.assertEqual(attr_values['entity_version'], version_counter)
+            version_counter += 1
+
+        # Join the pool.
         pool.join()
+
+    @staticmethod
+    def append_lots_of_events_to_repo(args):
+
+        num_events_to_create, stored_entity_id = args
+
+        success_count = 0
+        assert isinstance(worker_repo, StoredEventRepository)
+        assert isinstance(num_events_to_create, six.integer_types)
+
+        successes = []
+        failures = []
+
+        try:
+
+            while True:
+                # Imitate an entity getting refreshed, by getting the version of the last event.
+                events = worker_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=False)
+                if len(events):
+                    current_version = json.loads(events[0].event_attrs)['entity_version']
+                    new_version = current_version + 1
+                else:
+                    current_version = None
+                    new_version = 0
+
+                # Stop before the version number gets too high.
+                if new_version >= num_events_to_create:
+                    break
+
+                pid = os.getpid()
+                try:
+
+                    # Append an event.
+                    stored_event = StoredEvent(
+                        event_id=uuid1().hex,
+                        stored_entity_id=stored_entity_id,
+                        event_topic='topic',
+                        event_attrs=json.dumps({'a': 1, 'b': 2, 'entity_version': new_version}),
+                    )
+                    started = datetime.datetime.now()
+                    worker_repo.append(
+                        stored_event=stored_event,
+                        new_version=new_version,
+                        expected_version=current_version,
+                        max_retries=100,
+                        artificial_failure_rate=0.1,
+                    )
+                except ConcurrencyError:
+                    # print("PID {} failed to write event at version {} at {}".format(pid, new_version, started, datetime.datetime.now() - started))
+                    failures.append((new_version, pid))
+                    sleep(0.001)
+                else:
+                    # print("PID {} wrote event at version {} at {} in {}".format(pid, new_version, started, datetime.datetime.now() - started))
+                    success_count += 1
+                    successes.append((new_version, pid))
+                    # Delay a successful writer, to give other processes a chance to write the next event.
+                    sleep(0.01)
+
+        # Return to parent process the successes and failure, or an exception.
+        except Exception as e:
+            msg = traceback.format_exc()
+            print(" - failed to append event: {}".format(msg))
+            return Exception((e, msg))
+        else:
+            return (successes, failures)
 
 
 worker_repo = None
@@ -325,80 +404,25 @@ worker_repo = None
 def pool_initializer(stored_repo_class, temp_file_name):
     global worker_repo
 
-    if stored_repo_class == CassandraStoredEventRepository:
-        setup_cassandra_connection(*get_cassandra_setup_params())
-        worker_repo = stored_repo_class()
-    elif stored_repo_class == SQLAlchemyStoredEventRepository:
-        uri = 'sqlite:///' + temp_file_name
-        scoped_session_facade = get_scoped_session_facade(uri)
-        worker_repo = SQLAlchemyStoredEventRepository(scoped_session_facade)
-    else:
-        raise Exception("Stored repo class not yet supported in test: {}".format(stored_repo_class))
+    repo = create_repo(stored_repo_class, temp_file_name)
+    worker_repo = repo
 
 
 def append_lots_of_events_to_repo(args):
+    return ConcurrentStoredEventRepositoryTestCase.append_lots_of_events_to_repo(args)
 
-    num_events_to_create, stored_entity_id = args
 
-    success_count = 0
-    assert isinstance(worker_repo, StoredEventRepository)
-    assert isinstance(num_events_to_create, six.integer_types)
-
-    successes = []
-    failures = []
-
-    try:
-
-        while True:
-            # Imitate an entity getting refreshed, by getting the version of the last event.
-            events = worker_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=False)
-            if len(events):
-                current_version = json.loads(events[0].event_attrs)['entity_version']
-                new_version = current_version + 1
-            else:
-                current_version = None
-                new_version = 0
-
-            # Stop before the version number gets too high.
-            if new_version >= num_events_to_create:
-                break
-
-            pid = os.getpid()
-            try:
-
-                # Append an event.
-                stored_event = StoredEvent(
-                    event_id=uuid1().hex,
-                    stored_entity_id=stored_entity_id,
-                    event_topic='topic',
-                    event_attrs=json.dumps({'a': 1, 'b': 2, 'entity_version': new_version}),
-                )
-                started = datetime.datetime.now()
-                worker_repo.append(
-                    stored_event=stored_event,
-                    new_version=new_version,
-                    expected_version=current_version,
-                    max_retries=100,
-                    artificial_failure_rate=0.1,
-                )
-            except ConcurrencyError:
-                print("PID {} failed to write event at version {} at {}".format(pid, new_version, started, datetime.datetime.now() - started))
-                failures.append((new_version, pid))
-                sleep(0.001)
-            else:
-                print("PID {} wrote event at version {} at {} in {}".format(pid, new_version, started, datetime.datetime.now() - started))
-                success_count += 1
-                successes.append((new_version, pid))
-                # Delay a successful writer, to give other processes a chance to write the next event.
-                sleep(0.01)
-
-    # Return to parent process the successes and failure, or an exception.
-    except Exception as e:
-        msg = traceback.format_exc()
-        print(" - failed to append event: {}".format(msg))
-        return Exception((e, msg))
+def create_repo(stored_repo_class, temp_file_name):
+    if stored_repo_class == CassandraStoredEventRepository:
+        setup_cassandra_connection(*get_cassandra_setup_params())
+        repo = stored_repo_class()
+    elif stored_repo_class == SQLAlchemyStoredEventRepository:
+        uri = 'sqlite:///' + temp_file_name
+        scoped_session_facade = get_scoped_session_facade(uri)
+        repo = SQLAlchemyStoredEventRepository(scoped_session_facade)
     else:
-        return (successes, failures)
+        raise Exception("Stored repo class not yet supported in test: {}".format(stored_repo_class))
+    return repo
 
 
 class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
