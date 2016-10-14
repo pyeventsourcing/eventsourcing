@@ -1,3 +1,5 @@
+from time import sleep
+
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative.api import declarative_base
@@ -76,37 +78,47 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         self.db_session = db_session
 
     def append(self, stored_event, expected_version=None, new_version=None, max_retries=3, artificial_failure_rate=0):
+        # Convert stored event named tuple to an SQLAlchemy object.
         sql_stored_event = to_sql(stored_event)
+
         try:
-            self.__append_event_and_update_version(sql_stored_event,
-                                                   expected_version=expected_version,
-                                                   new_version=new_version,
-                                                   max_retries=max_retries,
-                                                   artificial_failure_rate=artificial_failure_rate,
-                                                   )
+            # Create a new entity version record.
+            if new_version is not None:
+                entity_version_id = self.make_entity_version_id(sql_stored_event.stored_entity_id, new_version)
+                sql_entity_version = SqlEntityVersion(id=entity_version_id)
+                self.db_session.add(sql_entity_version)
+
+                if artificial_failure_rate:
+
+                    # Todo: Add some retries and raise some artificial exceptions?
+                    # if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
+                    #     raise Exception("Artificial failure")
+
+                    # Commit the version number now to generate some contention.
+                    #  - used to generate contention in tests
+                    self.db_session.commit()
+                    self.db_session.close()
+                    sleep(artificial_failure_rate)
+
+            # Create a new stored event record.
+            self.db_session.add(sql_stored_event)
+
+            # Commit the transaction.
             self.db_session.commit()
+
         except IntegrityError:
+            # Rollback and raise concurrency error.
             self.db_session.rollback()
             raise ConcurrencyError()
+
         except:
+            # Rollback and reraise.
             self.db_session.rollback()
             raise
+
         finally:
-            self.db_session.close()  # Begins a new transaction
-
-    def __append_event_and_update_version(self, sql_stored_event, expected_version=None, new_version=None,
-                                          max_retries=3, artificial_failure_rate=0):
-
-        # Try doing this by updating with a where clause that specifies
-        # the number and counting the number of updates, if 0 then it
-        # didn't work so catch the transaction error and raise a
-        #   concurrency error.
-
-        if new_version is not None:
-            entity_version_id = self.make_entity_version_id(sql_stored_event.stored_entity_id, new_version)
-            sql_entity_version = SqlEntityVersion(id=entity_version_id)
-            self.db_session.add(sql_entity_version)
-        self.db_session.add(sql_stored_event)
+            # Begin new transaction.
+            self.db_session.close()
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):

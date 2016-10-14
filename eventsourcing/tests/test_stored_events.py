@@ -276,7 +276,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         all trying to add the same sequence of events.
         """
         # Start a pool.
-        pool_size = 2
+        pool_size = 3
         print("Pool size: {}".format(pool_size))
         pool = Pool(
             initializer=pool_initializer,
@@ -285,7 +285,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         )
 
         # Start appending lots of events to the repo.
-        number_of_events = 30
+        number_of_events = 300
         self.assertGreater(number_of_events, pool_size)
         stored_entity_id = uuid4().hex
         sequence_of_args = [(number_of_events, stored_entity_id)] * pool_size
@@ -313,7 +313,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         self.assertEqual(len(set([i[1] for i in total_successes])), pool_size)
 
         # Check each event version at least once wasn't written due to a concurrency error.
-        self.assertEqual(sorted(set([i[0] for i in total_failures])), list(range(number_of_events)))
+        self.assertEqual(sorted(set(sorted([i[0] for i in total_failures]))), list(range(number_of_events)))
 
         # Check at least one event version wasn't written due to a concurrency error.
         self.assertTrue(set([i[0] for i in total_failures]))
@@ -380,18 +380,20 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
                         new_version=new_version,
                         expected_version=current_version,
                         max_retries=100,
-                        artificial_failure_rate=0.2,
+                        artificial_failure_rate=0.15,
                     )
                 except ConcurrencyError:
-                    # print("PID {} failed to write event at version {} at {}".format(pid, new_version, started, datetime.datetime.now() - started))
+                    # print("PID {} got concurrent exception writing event at version {} at {}".format(
+                    #     pid, new_version, started, datetime.datetime.now() - started))
                     failures.append((new_version, pid))
                     sleep(0.01)
                 else:
-                    print("PID {} wrote event at version {} at {} in {}".format(pid, new_version, started, datetime.datetime.now() - started))
+                    print("PID {} success writing event at version {} at {} in {}".format(
+                        pid, new_version, started, datetime.datetime.now() - started))
                     success_count += 1
                     successes.append((new_version, pid))
                     # Delay a successful writer, to give other processes a chance to write the next event.
-                    sleep(0.02)
+                    sleep(0.03)
 
         # Return to parent process the successes and failure, or an exception.
         except Exception as e:
