@@ -1,4 +1,4 @@
-cassandra-driver==3.6.0
+cassandra-driver==3.7.0
 mock==2.0.0
 pbr==1.10.0
 py==1.4.31
