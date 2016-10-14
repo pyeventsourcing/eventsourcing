@@ -308,7 +308,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         self.assertEqual(len(set([i[1] for i in total_successes])), pool_size)
 
         # Check each event version at least once wasn't written due to a concurrency error.
-        self.assertEqual(sorted(set([i[0] for i in total_failures])), range(number_of_events))
+        self.assertEqual(sorted(set([i[0] for i in total_failures])), list(range(number_of_events)))
 
         # Check each child failed to write at least one event.
         self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
