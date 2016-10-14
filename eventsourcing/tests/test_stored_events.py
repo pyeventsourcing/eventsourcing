@@ -376,6 +376,7 @@ def append_lots_of_events_to_repo(args):
                 started = datetime.datetime.now()
                 worker_repo.append(
                     stored_event=stored_event,
+                    new_version=new_version,
                     expected_version=current_version,
                     max_retries=100,
                     artificial_failure_rate=0.1,
