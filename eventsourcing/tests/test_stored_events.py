@@ -321,11 +321,9 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         # Check each child failed to write at least one event.
         self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
 
-        # Get the events from the repo.
+        # Check there's actually a contiguous version sequence through the sequence of stored events.
         events = self.stored_event_repo.get_entity_events(stored_entity_id)
         self.assertEqual(len(events), number_of_events)
-
-        # Check there's actually a contiguous version sequence through the sequnce of events.
         version_counter = 0
         for event in events:
             assert isinstance(event, StoredEvent)
