@@ -30,9 +30,9 @@ class EventStore(object):
 
         # Append the stored event to the stored event repo.
         #  - pass in some params for lower level optimistic concurrency control
-        next_version = domain_event.entity_version
-        expected_version = next_version - 1 if next_version else None
-        self.stored_event_repo.append(stored_event, expected_version=expected_version, new_version=next_version)
+        new_version = domain_event.entity_version
+        expected_version = new_version - 1 if new_version else None
+        self.stored_event_repo.append(stored_event, expected_version=expected_version, new_version=new_version)
 
     def get_entity_events(self, stored_entity_id, after=None, until=None,
                           limit=None, is_ascending=True, page_size=None, is_short=False):
