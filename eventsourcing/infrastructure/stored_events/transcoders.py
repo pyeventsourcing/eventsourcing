@@ -117,9 +117,9 @@ class ObjectJSONEncoder(json.JSONEncoder):
             if "not JSON serializable" not in str(e):
                 raise
             if isinstance(obj, datetime.datetime):
-                return { 'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z') }
+                return {'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z')}
             if isinstance(obj, datetime.date):
-                return { 'ISO8601_date': obj.isoformat() }
+                return {'ISO8601_date': obj.isoformat()}
             if numpy is not None and isinstance(obj, numpy.ndarray) and obj.ndim == 1:
                 memfile = BytesIO()
                 numpy.save(memfile, obj)

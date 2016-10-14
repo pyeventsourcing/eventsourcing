@@ -87,7 +87,7 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         # Check event originator's version number matches our own version number.
         if self._version != event.entity_version:
             raise EntityVersionConsistencyError("Entity version '{}' not equal to event's entity version '{}'"
-                                       "".format(self._version, event.entity_version))
+                                                "".format(self._version, event.entity_version))
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
