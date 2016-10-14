@@ -131,7 +131,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
 
                     # Optionally mimic an unreliable save() operation.
                     #  - used for testing retries
-                    if random() > 1 - artificial_failure_rate:
+                    if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
                         raise Exception("Artificial failure")
 
                     # Save the event.
@@ -158,12 +158,12 @@ class CassandraStoredEventRepository(StoredEventRepository):
             except CqlStoredEvent.DoesNotExist:
                 # Try hard to recover by removing the new version.
                 if new_entity_version is not None:
-                    retries = max_retries * 10
+                    retries = max_retries * 3
                     while True:
                         try:
                             # Optionally mimic an unreliable delete() operation.
                             #  - used for testing retries
-                            if random() > 1 - artificial_failure_rate:
+                            if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
                                 raise Exception("Artificial failure")
 
                             # Delete the new entity version.
