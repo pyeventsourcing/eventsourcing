@@ -22,26 +22,20 @@ DEFAULT_CASSANDRA_PORT = int(os.getenv('CASSANDRA_PORT', 9042))
 DEFAULT_CASSANDRA_PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', 3))
 
 
-class CqlStoredEntityVersion(Model):
+class CqlEntityVersion(Model):
     """Stores the stored entity ID and entity version as a partition key."""
 
     __table_name__ = 'entity_versions'
 
-    # This makes sure we can't write the same version twice,
-    # and helps to implement optimistic concurrency control.
+    # Makes sure we can't write the same version twice,
+    # helps to implement optimistic concurrency control.
     _if_not_exists = True
 
-    # Stored entity ID (normally a string, with the entity type name at the start)
-    n = columns.Text(partition_key=True)
+    # Entity-version identifier (a string).
+    r = columns.Text(partition_key=True)
 
-    # Entity version number (an integer)
-    i = columns.Text(primary_key=True)
-
-    # # Entity-version identifier (a string).
-    # r = columns.Text(partition_key=True)
-
-    # Stored event ID (normally a UUID1)
-    v = columns.TimeUUID(required=True)
+    # Because models with one column break Cassandra driver 3.5.0.
+    x = columns.Text(default='')
 
 
 class CqlStoredEvent(Model):
@@ -95,29 +89,35 @@ class CassandraStoredEventRepository(StoredEventRepository):
     def append(self, stored_event, expected_version=None, new_version=None, max_retries=3, artificial_failure_rate=0):
 
         # Optimistic concurrency control.
-        new_stored_version = None
+        new_entity_version = None
         stored_entity_id = stored_event.stored_entity_id
+
+        # If the 'new version' is None, skip optimistic concurrency control.
         if new_version is not None:
             assert isinstance(new_version, six.integer_types)
-            # Check the expected version actually exists.
+            # Todo: Make this optional, so somethings don't check this?
+            # # Check the expected version actually exists.
             if expected_version is not None:
                 # Check the expected version exists, raise concurrency exception if not.
                 assert isinstance(expected_version, six.integer_types)
                 try:
-                    CqlStoredEntityVersion.get(n=stored_entity_id, i=str(expected_version))
-                except CqlStoredEntityVersion.DoesNotExist:
+                    CqlEntityVersion.get(r=self.make_entity_version_id(stored_entity_id, expected_version))
+                except CqlEntityVersion.DoesNotExist:
                     raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
                                            "".format(expected_version, stored_entity_id))
+
             # Write the next version.
             #  - uses the "if not exists" optimistic concurrency control feature
-            #    of Cassandra, so this operation is assumed to succeed only once
-            new_stored_version = CqlStoredEntityVersion(n=stored_entity_id, i=str(new_version), v=stored_event.event_id)
+            #    of Cassandra, hence this operation is assumed to succeed only once
+            entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
+            new_entity_version = CqlEntityVersion(r=entity_version_id)
             try:
-                new_stored_version.save()
+                new_entity_version.save()
             except LWTException as e:
                 raise ConcurrencyError("Version {} of entity {} already exists: {}".format(new_version, stored_entity_id, e))
 
         # Increased latency here causes increased contention.
+        #  - used for testing concurrency exceptions
         if artificial_failure_rate:
             sleep(artificial_failure_rate)
 
@@ -129,7 +129,8 @@ class CassandraStoredEventRepository(StoredEventRepository):
                     # Instantiate a Cassandra CQL engine object.
                     cql_stored_event = to_cql(stored_event)
 
-                    # Optionally mimic unreliable database connection.
+                    # Optionally mimic an unreliable save() operation.
+                    #  - used for testing retries
                     if random() > 1 - artificial_failure_rate:
                         raise Exception("Artificial failure")
 
@@ -156,20 +157,23 @@ class CassandraStoredEventRepository(StoredEventRepository):
                 CqlStoredEvent.get(n=stored_event.stored_entity_id, v=stored_event.event_id)
             except CqlStoredEvent.DoesNotExist:
                 # Try hard to recover by removing the new version.
-                if new_stored_version is not None:
+                if new_entity_version is not None:
                     retries = max_retries * 10
                     while True:
                         try:
-                            # Optionally mimic unreliable database connection.
+                            # Optionally mimic an unreliable delete() operation.
+                            #  - used for testing retries
                             if random() > 1 - artificial_failure_rate:
                                 raise Exception("Artificial failure")
-                            # Delete the entity version that was just created.
-                            new_stored_version.delete()
+
+                            # Delete the new entity version.
+                            new_entity_version.delete()
+
                         except Exception as version_delete_error:
                             if retries <= 0:
                                 raise Exception("Unable to delete version {} of entity {} after failing to write"
                                                 "event: event write error {}: version delete error {}"
-                                                .format(new_stored_version, stored_entity_id,
+                                                .format(new_entity_version, stored_entity_id,
                                                         event_write_error, version_delete_error))
                             else:
                                 retries -= 1
@@ -177,6 +181,10 @@ class CassandraStoredEventRepository(StoredEventRepository):
                         else:
                             break
                 raise event_write_error
+
+    @staticmethod
+    def make_entity_version_id(stored_entity_id, version):
+        return "{}::version::{}".format(stored_entity_id, version)
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):
@@ -251,7 +259,7 @@ def create_cassandra_keyspace_and_tables(keyspace=DEFAULT_CASSANDRA_KEYSPACE, re
         pass
     else:
         sync_table(CqlStoredEvent)
-        sync_table(CqlStoredEntityVersion)
+        sync_table(CqlEntityVersion)
 
 
 def drop_cassandra_keyspace(keyspace=DEFAULT_CASSANDRA_KEYSPACE):

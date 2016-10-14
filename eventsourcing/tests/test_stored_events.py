@@ -19,7 +19,7 @@ from eventsourcing.exceptions import TopicResolutionError, ConcurrencyError
 from eventsourcing.infrastructure.stored_events.base import SimpleStoredEventIterator, ThreadedStoredEventIterator, \
     StoredEventRepository
 from eventsourcing.infrastructure.stored_events.cassandra_stored_events import CassandraStoredEventRepository, \
-    setup_cassandra_connection, get_cassandra_setup_params, CqlStoredEntityVersion
+    setup_cassandra_connection, get_cassandra_setup_params
 from eventsourcing.infrastructure.stored_events.sqlalchemy_stored_events import get_scoped_session_facade, \
     SQLAlchemyStoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
@@ -285,6 +285,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
 
         # Start appending lots of events to the repo.
         number_of_events = 100
+        self.assertGreater(number_of_events, pool_size)
         stored_entity_id = uuid4().hex
         sequence_of_args = [(number_of_events, stored_entity_id)] * pool_size
         results = pool.map(append_lots_of_events_to_repo, sequence_of_args)
@@ -302,7 +303,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
                 total_failures.extend(failures)
 
         # Check each event version was written exactly once.
-        self.assertEqual(sorted([i[0] for i in total_successes]), range(number_of_events))
+        self.assertEqual(sorted([i[0] for i in total_successes]), list(range(number_of_events)))
 
         # Check each child got to write at least one event.
         self.assertEqual(len(set([i[1] for i in total_successes])), pool_size)
@@ -349,7 +350,7 @@ def append_lots_of_events_to_repo(args):
     try:
 
         while True:
-            # Imitate an entity getting refreshed, by getting the highest entity event version in the repo.
+            # Imitate an entity getting refreshed, by getting the version of the last event.
             events = worker_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=False)
             if len(events):
                 current_version = json.loads(events[0].event_attrs)['entity_version']
@@ -376,20 +377,19 @@ def append_lots_of_events_to_repo(args):
                 worker_repo.append(
                     stored_event=stored_event,
                     expected_version=current_version,
-                    new_version=new_version,
-                    max_retries=10,
+                    max_retries=100,
                     artificial_failure_rate=0.1,
                 )
             except ConcurrencyError:
                 print("PID {} failed to write event at version {} at {}".format(pid, new_version, started, datetime.datetime.now() - started))
                 failures.append((new_version, pid))
-                # sleep(0.01)
+                sleep(0.001)
             else:
                 print("PID {} wrote event at version {} at {} in {}".format(pid, new_version, started, datetime.datetime.now() - started))
                 success_count += 1
                 successes.append((new_version, pid))
                 # Delay a successful writer, to give other processes a chance to write the next event.
-                sleep(0.02)
+                sleep(0.01)
 
     # Return to parent process the successes and failure, or an exception.
     except Exception as e:
