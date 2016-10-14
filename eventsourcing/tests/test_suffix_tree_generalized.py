@@ -854,7 +854,3 @@ def add_string_to_suffix_tree(args):
         print(" - failed to add string: {}".format(msg))
         return Exception((e, msg, string, string_id))
     return string_id
-
-
-if __name__ == "__main__":
-    pass
