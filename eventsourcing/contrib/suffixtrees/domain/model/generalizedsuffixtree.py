@@ -22,7 +22,9 @@ class GeneralizedSuffixTree(EventSourcedEntity):
     """A suffix tree for string matching. Uses Ukkonen's algorithm
     for construction.
 
-    In a distributed application, adding strings to individual suffix trees needs to be serialized, so use locks.
+    Adding strings to individual suffix trees needs to be serialized,
+    so you need to use locks around calls to add_string() in a
+    distributed application.
     """
 
     class Created(EventSourcedEntity.Created):
@@ -250,8 +252,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         # print("New second edge: {}".format(second_edge))
 
         # Add the original dest node as a child of the new middle node.
-        retry_after_concurrency_error(self.add_dest_node_to_children_of_new_middle_node,
-                                      args=(self, new_middle_node, original_dest_node_id, second_edge))
+        self.add_child_to_parent_node(new_middle_node.id, original_dest_node_id, second_edge.length + 1)
 
         # Shorten the first edge, so its destination is the new middle node.
         try:
@@ -264,28 +265,27 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             sleep(0.1)
             raise e
 
+        # Update the children, to have the new edge length.
+        # Todo: Update the children, to have the new edge length.
+
         # print("Shortened first edge: {}".format(first_edge))
 
         # Remove the original dest node as child of the original
         # source node, and add the new middle node instead.
-        retry_after_concurrency_error(self.switch_child_or_original_source_node,
-                                      args=(self, first_edge, original_dest_node_id, new_middle_node))
+        self.switch_child_node(first_edge.source_node_id, original_dest_node_id, new_middle_node.id, first_edge.length + 1)
 
         # Return middle node.
         return new_middle_node.id
 
-    @staticmethod
-    def add_dest_node_to_children_of_new_middle_node(self, new_middle_node, original_dest_node_id, second_edge):
-        new_middle_node_child_collection = self.get_node_child_collection(new_middle_node.id)
-        if original_dest_node_id not in new_middle_node_child_collection.child_node_ids:
-            new_middle_node_child_collection.add_child(original_dest_node_id, second_edge.length + 1)
+    def add_child_to_parent_node(self, parent_node_id, child_node_id, edge_length):
+        collection = self.get_node_child_collection(parent_node_id)
+        if child_node_id not in collection.child_node_ids:
+            collection.add_child(child_node_id, edge_length)
 
-    @staticmethod
-    def switch_child_or_original_source_node(self, first_edge, original_dest_node_id, new_middle_node):
-        original_source_node_child_collection = self.get_node_child_collection(first_edge.source_node_id)
-        assert isinstance(original_source_node_child_collection, SuffixTreeNodeChildCollection)
-        original_source_node_child_collection.switch_child(original_dest_node_id, new_middle_node.id,
-                                                           first_edge.length + 1)
+    def switch_child_node(self, parent_node_id, old_child_id, new_child_id, edge_length):
+        collection = self.get_node_child_collection(parent_node_id)
+        assert isinstance(collection, SuffixTreeNodeChildCollection)
+        collection.switch_child(old_child_id, new_child_id, edge_length)
 
     def create_suffix_link(self, last_parent_node_id, parent_node_id):
         if last_parent_node_id is not None:

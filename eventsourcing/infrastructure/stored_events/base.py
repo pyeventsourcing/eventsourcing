@@ -1,3 +1,4 @@
+# coding=utf-8
 from abc import ABCMeta, abstractmethod
 from threading import Thread
 
@@ -111,7 +112,7 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
 
     @staticmethod
     def make_entity_version_id(stored_entity_id, version):
-        return "{}::version::{}".format(stored_entity_id, version)
+        return u"{}::version::{}".format(stored_entity_id, version)
 
 
 class StoredEventIterator(six.with_metaclass(ABCMeta)):
