@@ -12,8 +12,8 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
     serialize_without_json = True
     serialize_with_uuid1 = True
 
-    def __init__(self):
-        super(PythonObjectsStoredEventRepository, self).__init__()
+    def __init__(self, *args, **kwargs):
+        super(PythonObjectsStoredEventRepository, self).__init__(*args, **kwargs)
         self._by_id = {}
         self._by_stored_entity_id = {}
         self._entity_versions = defaultdict(lambda: defaultdict(lambda: itertools.chain([0], itertools.cycle([1]))))

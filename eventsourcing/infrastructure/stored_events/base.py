@@ -14,11 +14,12 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
     serialize_without_json = False
     serialize_with_uuid1 = False
 
-    def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False):
+    def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False, check_expected_version=False):
         self.json_encoder_cls = json_encoder_cls
         self.json_decoder_cls = json_decoder_cls
         self.cipher = cipher
         self.always_encrypt = always_encrypt
+        self.check_expected_version = check_expected_version
 
     @abstractmethod
     def append(self, new_event, new_version=None, max_retries=3, artificial_failure_rate=0):
@@ -29,8 +30,9 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         assert isinstance(new_event, StoredEvent)
 
         # Validate the expected version.
-        # noinspection PyTypeChecker
-        self.validate_expected_version(new_event, new_version)
+        if self.check_expected_version:
+            # noinspection PyTypeChecker
+            self.validate_expected_version(new_event, new_version)
 
     @abstractmethod
     def get_entity_version(self, stored_entity_id, version):
