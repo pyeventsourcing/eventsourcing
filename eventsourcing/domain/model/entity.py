@@ -88,8 +88,8 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         # Check event's entity version matches this entity's version.
         if self._version != event.entity_version:
             raise EntityVersionConsistencyError(
-                "Event version '{}' differs from entity version '{}' type '{}' and ID '{}'"
-                "".format(event.entity_version, self._version, type(self).__name__, self._id))
+                "Event version '{}' not equal to entity version '{}', event type: '{}', entity type: '{}', entity ID: '{}'"
+                "".format(event.entity_version, self._version, type(event).__name__, type(self).__name__, self._id))
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__

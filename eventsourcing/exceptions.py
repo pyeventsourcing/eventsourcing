@@ -37,7 +37,3 @@ class RepositoryKeyError(KeyError, EventSourcingError):
     Error when getting an entity from a repo.
     """
     pass
-
-
-class AppendError(EventSourcingError):
-    pass

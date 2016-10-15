@@ -2,7 +2,7 @@ import unittest
 
 from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
 from eventsourcing.tests.test_stored_events import BasicStoredEventRepositoryTestCase, \
-    SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase
+    SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase, ConcurrentStoredEventRepositoryTestCase
 
 
 class PythonObjectsTestCase(unittest.TestCase):
