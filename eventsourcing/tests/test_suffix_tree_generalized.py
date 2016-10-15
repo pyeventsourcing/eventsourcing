@@ -739,15 +739,15 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
         if self.app is not None:
             self.app.close()
 
-    def test_sorted_words(self):
+    def test_words_in_sorted_order(self):
         self.check_words(is_sorted=True)
 
     # Todo: Fix this - adding strings in a random order sometimes breaks (perhaps a dict is causing indeterminate order).
-    # def test_words(self):
+    # def test_words_in_unsorted_order(self):
     #     self.check_words()
 
     # Todo: Fix this - adding strings in a reversed sorted order always fails. Not sure why all substrings of 'ree' fail. The suffix is obviously not moving along in the same way as it does when the nodes are added. Perhaps it needs to add the IDs when explicit match is made, and then move the first char along by one? Not sure so trace it out?
-    # def test_reversed_words(self):
+    # def test_words_in_reverse_sorted_order(self):
     #     self.check_words(is_reversed=True)
     #
     # The error reported is:-
