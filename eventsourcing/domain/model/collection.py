@@ -13,6 +13,10 @@ class Collection(EventSourcedEntity):
         def __init__(self, **kwargs):
             super(Collection.Created, self).__init__(**kwargs)
 
+    class Discarded(EventSourcedEntity.Discarded):
+        def __init__(self, **kwargs):
+            super(Collection.Discarded, self).__init__(**kwargs)
+
     class ItemAdded(DomainEvent):
         @property
         def item(self):

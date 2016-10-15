@@ -402,7 +402,7 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
         self.add_string_to_suffix_tree("ball", "%", st)
         self.add_string_to_suffix_tree("ball", "&", st)
 
-        # # Check there isn't an 'a'.
+        # Check there isn't an 'a'.
         self.assertEqual(self.app.find_substring_edge('j', st.id), (None, None))
 
         # Check 'm'.
@@ -739,25 +739,25 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
         if self.app is not None:
             self.app.close()
 
+    def test_sorted_words(self):
+        self.check_words(is_sorted=True)
+
     # Todo: Fix this - adding strings in a random order sometimes breaks (perhaps a dict is causing indeterminate order).
     # def test_words(self):
     #     self.check_words()
 
-    def test_sorted_words(self):
-        self.check_words(is_sorted=True)
-
     # Todo: Fix this - adding strings in a reversed sorted order always fails. Not sure why all substrings of 'ree' fail. The suffix is obviously not moving along in the same way as it does when the nodes are added. Perhaps it needs to add the IDs when explicit match is made, and then move the first char along by one? Not sure so trace it out?
+    # def test_reversed_words(self):
+    #     self.check_words(is_reversed=True)
     #
-    #         # Check for errors.
+    # The error reported is:-
+    #
     # >       self.assertFalse(errors, "\n".join(errors))
-    # E       AssertionError: ["Not found: substring ''e'' from string ''tree''", "Not found: substring ''e'' from string ''tree''", "Not found: substring ''ee'' from string ''tree''", "Not found: substring ''r'' from string ''tree''", "Not found: substring ''re'' from string ''tree''", "Not found: substring ''ree'' from string ''tree''"] is not false : Not found: substring ''e'' from string ''tree''
     # E       Not found: substring ''e'' from string ''tree''
     # E       Not found: substring ''ee'' from string ''tree''
     # E       Not found: substring ''r'' from string ''tree''
     # E       Not found: substring ''re'' from string ''tree''
     # E       Not found: substring ''ree'' from string ''tree''
-    # def test_reversed_words(self):
-    #     self.check_words(is_reversed=True)
 
     def check_words(self, is_sorted=False, is_reversed=False):
         # Split the long string into separate strings, and make some IDs.
@@ -854,7 +854,3 @@ def add_string_to_suffix_tree(args):
         print(" - failed to add string: {}".format(msg))
         return Exception((e, msg, string, string_id))
     return string_id
-
-
-if __name__ == "__main__":
-    pass

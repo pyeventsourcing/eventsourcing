@@ -11,9 +11,10 @@ from singledispatch import singledispatch
 from eventsourcing.domain.model.collection import Collection
 from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository, entity_mutator
 from eventsourcing.domain.model.events import publish, DomainEvent
-from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 from eventsourcing.infrastructure.retries import retry_after_concurrency_error
 
+# Use a private code point to terminate the string IDs.
 STRING_ID_END = '\uEFFF'
 
 
@@ -403,7 +404,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         """
         try:
             node = self._node_child_collection_repo[node_id]
-        except KeyError:
+        except RepositoryKeyError:
             node = register_new_node_child_collection(node_id)
         return node
 
@@ -427,17 +428,11 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             if len(string) < suffix.first_char_index + 1:
                 raise AssertionError("String length is {} and suffix first char index is {}".format(len(string), suffix.first_char_index))
             edge_id = make_edge_id(suffix.source_node_id, string[suffix.first_char_index])
-            try:
-                e = self.get_edge(edge_id)
-            except KeyError:
-                # return
-                raise
-                # raise ConcurrencyError()
-            else:
-                if e.length <= suffix.length:
-                    suffix.first_char_index += e.length + 1
-                    suffix.source_node_id = e.dest_node_id
-                    self._canonize_suffix(suffix, string)
+            e = self.get_edge(edge_id)
+            if e.length <= suffix.length:
+                suffix.first_char_index += e.length + 1
+                suffix.source_node_id = e.dest_node_id
+                self._canonize_suffix(suffix, string)
 
 
 class SuffixTreeNode(EventSourcedEntity):

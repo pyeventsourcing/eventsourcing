@@ -16,22 +16,11 @@ class EventStore(object):
         # Serialize the domain event.
         stored_event = self.stored_event_repo.serialize(domain_event)
 
-        # Optimistic concurrency control.
-        if domain_event.entity_version:
-            last_event = self.get_most_recent_event(stored_event.stored_entity_id)
-            if last_event is not None:
-                assert isinstance(last_event, DomainEvent), last_event
-                last_version = last_event.entity_version
-                this_version = domain_event.entity_version
-                if this_version - 1 != last_version:
-                    msg = "Domain event: {}. Last event: {}.".format(domain_event, last_event)
-                    raise ConcurrencyError("Can't append event {} at version {}, last stored version is {}. Events: {}"
-                                           "".format(stored_event.event_topic, this_version, last_version, msg))
-
         # Append the stored event to the stored event repo.
-        self.stored_event_repo.append(stored_event)
-
-        # print("Appended domain event: {}".format(domain_event))
+        #  - pass in some params for lower level optimistic concurrency control
+        new_version = domain_event.entity_version
+        expected_version = new_version - 1 if new_version else None
+        self.stored_event_repo.append(stored_event, expected_version=expected_version, new_version=new_version)
 
     def get_entity_events(self, stored_entity_id, after=None, until=None,
                           limit=None, is_ascending=True, page_size=None, is_short=False):

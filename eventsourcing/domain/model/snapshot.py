@@ -29,7 +29,7 @@ class Snapshot(DomainEvent, AbstractSnapshop):
 
     def __init__(self, entity_id, topic, attrs, domain_event_id):
         super(Snapshot, self).__init__(entity_id=entity_id, topic=topic, attrs=attrs, domain_event_id=domain_event_id,
-                                       entity_version=0)
+                                       entity_version=None)
 
     @property
     def topic(self):

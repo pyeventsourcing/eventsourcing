@@ -8,6 +8,7 @@ import six
 
 from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository
 from eventsourcing.domain.model.events import publish
+from eventsourcing.exceptions import RepositoryKeyError
 
 
 class SuffixTree(EventSourcedEntity):
@@ -399,7 +400,7 @@ def find_substring(substring, suffix_tree, edge_repo):
         edge_id = make_edge_id(curr_node_id, substring[i])
         try:
             edge = edge_repo[edge_id]
-        except KeyError:
+        except RepositoryKeyError:
             return -1
         ln = min(edge.length + 1, len(substring) - i)
         if substring[i:i + ln] != suffix_tree.string[edge.first_char_index:edge.first_char_index + ln]:

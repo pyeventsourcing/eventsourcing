@@ -2,6 +2,7 @@ import six
 
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import SuffixTreeNode, STRING_ID_END, \
     GeneralizedSuffixTree, EdgeRepository, make_edge_id, StringidCollection
+from eventsourcing.exceptions import RepositoryKeyError
 
 
 def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_collection_repo, length_until_end=0, edge_length=0,
@@ -92,6 +93,27 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
                     # Increase the hop count.
                     hop_count += 1
 
+        # else:
+        #     # Deduplicate string IDs (the substring might match more than one suffix in any given string).
+        #     if string_id in unique_string_ids:
+        #         continue
+        #
+        #     # Check the match doesn't encroach upon the string's extension.
+        #     extension_length = len(string_id) + len(STRING_ID_END)
+        #     if length_until_end < extension_length:
+        #         continue
+        #
+        #     # Remember the string ID, we only want one node per string ID.
+        #     unique_string_ids.add(string_id)
+        #
+        #     # Yield the string ID.
+        #     yield string_id
+        #
+        #     # Check the limit, stop if we've had enough string IDs.
+        #     if limit is not None and len(unique_string_ids) >= limit:
+        #         raise StopIteration
+
+
 
 def find_substring_edge(substring, suffix_tree, edge_repo):
     """Returns the last edge, if substring in tree, otherwise None.
@@ -109,7 +131,7 @@ def find_substring_edge(substring, suffix_tree, edge_repo):
         edge_id = make_edge_id(curr_node_id, substring[i])
         try:
             edge = edge_repo[edge_id]
-        except KeyError:
+        except RepositoryKeyError:
             return None, None
         ln = min(edge.length + 1, len(substring) - i)
         if substring[i:i + ln] != edge.label[:ln]:

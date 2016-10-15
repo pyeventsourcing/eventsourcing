@@ -1,15 +1,27 @@
 import datetime
+import json
+import os
+import traceback
 import unittest
 import uuid
-from uuid import uuid1
+from multiprocessing.pool import Pool
+from tempfile import NamedTemporaryFile
+from time import sleep
+from uuid import uuid1, uuid4
 
 import six
+from six import with_metaclass
 
-from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.domain.model.events import DomainEvent, topic_from_domain_class, QualnameABCMeta
 from eventsourcing.domain.model.example import Example
-from eventsourcing.exceptions import TopicResolutionError
+from eventsourcing.exceptions import TopicResolutionError, ConcurrencyError
 from eventsourcing.infrastructure.stored_events.base import SimpleStoredEventIterator, ThreadedStoredEventIterator, \
     StoredEventRepository
+from eventsourcing.infrastructure.stored_events.cassandra_stored_events import CassandraStoredEventRepository, \
+    setup_cassandra_connection, get_cassandra_setup_params
+from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
+from eventsourcing.infrastructure.stored_events.sqlalchemy_stored_events import get_scoped_session_facade, \
+    SQLAlchemyStoredEventRepository
 from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
     resolve_domain_topic, StoredEvent, ObjectJSONDecoder, ObjectJSONEncoder
 from eventsourcing.utils.time import utc_timezone
@@ -64,9 +76,9 @@ class TestStoredEvent(unittest.TestCase):
         # Check the TypeError is raised.
         stored_event = StoredEvent(event_id='1',
                                    stored_entity_id='entity1',
-                                   event_topic='os#path',
+                                   event_topic=topic_from_domain_class(NotADomainEvent),
                                    event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":3}')
-        self.assertRaises(TypeError, deserialize_domain_event, stored_event, json_decoder_cls=ObjectJSONDecoder)
+        self.assertRaises(ValueError, deserialize_domain_event, stored_event, json_decoder_cls=ObjectJSONDecoder)
 
     def test_resolve_event_topic(self):
         example_topic = 'eventsourcing.domain.model.example#Example.Created'
@@ -76,6 +88,10 @@ class TestStoredEvent(unittest.TestCase):
         self.assertRaises(TopicResolutionError, resolve_domain_topic, example_topic)
         example_topic = 'eventsourcing.domain.model.example#Xxxxxxxx.Xxxxxxxx'
         self.assertRaises(TopicResolutionError, resolve_domain_topic, example_topic)
+
+
+class NotADomainEvent(with_metaclass(QualnameABCMeta)):
+    pass
 
 
 class AbstractTestCase(unittest.TestCase):
@@ -219,6 +235,178 @@ class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.assertIsInstance(retrieved_events[0], StoredEvent)
         self.assertEqual(stored_events[18].event_topic, retrieved_events[0].event_topic)
         self.assertEqual(stored_events[18].event_attrs, retrieved_events[0].event_attrs)
+
+
+class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
+
+    def setUp(self):
+        super(ConcurrentStoredEventRepositoryTestCase, self).setUp()
+        self.app = None
+        self.temp_file = NamedTemporaryFile('a')
+
+    def tearDown(self):
+        super(ConcurrentStoredEventRepositoryTestCase, self).tearDown()
+        if self.app is not None:
+            self.app.close()
+
+    def test_optimistic_concurrency_control(self):
+        """Appends lots of events, but with a pool of workers
+        all trying to add the same sequence of events.
+        """
+        # Start a pool.
+        pool_size = 3
+        print("Pool size: {}".format(pool_size))
+        pool = Pool(
+            initializer=pool_initializer,
+            processes=pool_size,
+            initargs=(type(self.stored_event_repo), self.temp_file.name),
+        )
+
+        # Append duplicate events to the repo, or at least try...
+        number_of_events = 40
+        self.assertGreater(number_of_events, pool_size)
+        stored_entity_id = uuid4().hex
+        sequence_of_args = [(number_of_events, stored_entity_id)] * pool_size
+        results = pool.map(append_lots_of_events_to_repo, sequence_of_args)
+        total_successes = []
+        total_failures = []
+        for result in results:
+            if isinstance(result, Exception):
+                print(result.args[0][1])
+                raise result
+            else:
+                successes, failures = result
+                assert isinstance(successes, list), result
+                assert isinstance(failures, list), result
+                total_successes.extend(successes)
+                total_failures.extend(failures)
+
+        # Close the pool.
+        pool.close()
+
+        # Check each event version was written exactly once.
+        self.assertEqual(sorted([i[0] for i in total_successes]), list(range(number_of_events)))
+
+        # Check each child got to write at least one event.
+        self.assertEqual(len(set([i[1] for i in total_successes])), pool_size)
+
+        # Check each event version at least once wasn't written due to a concurrency error.
+        self.assertEqual(sorted(set(sorted([i[0] for i in total_failures]))), list(range(number_of_events)))
+
+        # Check at least one event version wasn't written due to a concurrency error.
+        self.assertTrue(set([i[0] for i in total_failures]))
+
+        # Check each child failed to write at least one event.
+        self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
+
+        # Check there's actually a contiguous version sequence through the sequence of stored events.
+        events = self.stored_event_repo.get_entity_events(stored_entity_id)
+        self.assertEqual(len(events), number_of_events)
+        version_counter = 0
+        for event in events:
+            assert isinstance(event, StoredEvent)
+            attr_values = json.loads(event.event_attrs)
+            self.assertEqual(attr_values['entity_version'], version_counter)
+            version_counter += 1
+
+        # Join the pool.
+        pool.join()
+
+    @staticmethod
+    def append_lots_of_events_to_repo(args):
+
+        num_events_to_create, stored_entity_id = args
+
+        success_count = 0
+        assert isinstance(worker_repo, StoredEventRepository)
+        assert isinstance(num_events_to_create, six.integer_types)
+
+        successes = []
+        failures = []
+
+        try:
+
+            while True:
+                # Imitate an entity getting refreshed, by getting the version of the last event.
+                events = worker_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=False)
+                if len(events):
+                    current_version = json.loads(events[0].event_attrs)['entity_version']
+                    new_version = current_version + 1
+                else:
+                    current_version = None
+                    new_version = 0
+
+                # Stop before the version number gets too high.
+                if new_version >= num_events_to_create:
+                    break
+
+                pid = os.getpid()
+                try:
+
+                    # Append an event.
+                    stored_event = StoredEvent(
+                        event_id=uuid1().hex,
+                        stored_entity_id=stored_entity_id,
+                        event_topic='topic',
+                        event_attrs=json.dumps({'a': 1, 'b': 2, 'entity_version': new_version}),
+                    )
+                    started = datetime.datetime.now()
+                    worker_repo.append(
+                        stored_event=stored_event,
+                        new_version=new_version,
+                        expected_version=current_version,
+                        max_retries=100,
+                        artificial_failure_rate=0.15,
+                    )
+                except ConcurrencyError:
+                    # print("PID {} got concurrent exception writing event at version {} at {}".format(
+                    #     pid, new_version, started, datetime.datetime.now() - started))
+                    failures.append((new_version, pid))
+                    sleep(0.02)
+                else:
+                    print("PID {} success writing event at version {} at {} in {}".format(
+                        pid, new_version, started, datetime.datetime.now() - started))
+                    success_count += 1
+                    successes.append((new_version, pid))
+                    # Delay a successful writer, to give other processes a chance to write the next event.
+                    sleep(0.04)
+
+        # Return to parent process the successes and failure, or an exception.
+        except Exception as e:
+            msg = traceback.format_exc()
+            print(" - failed to append event: {}".format(msg))
+            return Exception((e, msg))
+        else:
+            return (successes, failures)
+
+
+worker_repo = None
+
+
+def pool_initializer(stored_repo_class, temp_file_name):
+    global worker_repo
+
+    repo = create_repo(stored_repo_class, temp_file_name)
+    worker_repo = repo
+
+
+def append_lots_of_events_to_repo(args):
+    return ConcurrentStoredEventRepositoryTestCase.append_lots_of_events_to_repo(args)
+
+
+def create_repo(stored_repo_class, temp_file_name):
+    if stored_repo_class == CassandraStoredEventRepository:
+        setup_cassandra_connection(*get_cassandra_setup_params())
+        repo = stored_repo_class()
+    elif stored_repo_class == SQLAlchemyStoredEventRepository:
+        uri = 'sqlite:///' + temp_file_name
+        scoped_session_facade = get_scoped_session_facade(uri)
+        repo = SQLAlchemyStoredEventRepository(scoped_session_facade)
+    elif stored_repo_class == PythonObjectsStoredEventRepository:
+        repo = PythonObjectsStoredEventRepository()
+    else:
+        raise Exception("Stored repo class not yet supported in test: {}".format(stored_repo_class))
+    return repo
 
 
 class IteratorTestCase(AbstractStoredEventRepositoryTestCase):

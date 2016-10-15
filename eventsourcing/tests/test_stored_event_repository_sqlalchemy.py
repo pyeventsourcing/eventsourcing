@@ -2,7 +2,7 @@ import unittest
 from tempfile import NamedTemporaryFile
 
 from eventsourcing.tests.test_stored_events import BasicStoredEventRepositoryTestCase, SimpleStoredEventIteratorTestCase, \
-    ThreadedStoredEventIteratorTestCase
+    ThreadedStoredEventIteratorTestCase, ConcurrentStoredEventRepositoryTestCase
 from eventsourcing.infrastructure.stored_events.sqlalchemy_stored_events import SQLAlchemyStoredEventRepository, \
     get_scoped_session_facade
 
@@ -37,4 +37,8 @@ class TestSimpleStoredEventIteratorWithSQLAlchemy(SQLAlchemyTestCase, SimpleStor
 
 
 class TestThreadedStoredEventIteratorWithSQLAlchemy(SQLAlchemyTestCase, ThreadedStoredEventIteratorTestCase):
+    pass
+
+
+class TestConcurrentStoredEventRepositoryWithSQLAlchemy(SQLAlchemyTestCase, ConcurrentStoredEventRepositoryTestCase):
     pass
