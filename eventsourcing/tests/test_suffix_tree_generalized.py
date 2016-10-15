@@ -402,7 +402,7 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
         self.add_string_to_suffix_tree("ball", "%", st)
         self.add_string_to_suffix_tree("ball", "&", st)
 
-        # # Check there isn't an 'a'.
+        # Check there isn't an 'a'.
         self.assertEqual(self.app.find_substring_edge('j', st.id), (None, None))
 
         # Check 'm'.
@@ -422,7 +422,7 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
 
         # Check 'missi'.
         edge, ln = self.app.find_substring_edge('missi', st.id)
-        self.assertEqual(edge.label, 'ississippi$' + STRING_ID_END)
+        self.assertEqual(edge.label, 'ississippi' + STRING_ID_END)
 
         # Check 'issi'.
         edge, ln = self.app.find_substring_edge('issi', st.id)
@@ -438,35 +438,35 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
 
         # Check 'issip'.
         edge, ln = self.app.find_substring_edge('issip', st.id)
-        self.assertEqual(edge.label, 'ppi$' + STRING_ID_END)
+        self.assertEqual(edge.label, 'ppi' + STRING_ID_END)
 
         # Check 'ssip'.
         edge, ln = self.app.find_substring_edge('ssip', st.id)
-        self.assertEqual(edge.label, 'ppi$' + STRING_ID_END)
+        self.assertEqual(edge.label, 'ppi' + STRING_ID_END)
 
         # Check 'sip'.
         edge, ln = self.app.find_substring_edge('sip', st.id)
-        self.assertEqual(edge.label, 'ppi$' + STRING_ID_END)
+        self.assertEqual(edge.label, 'ppi' + STRING_ID_END)
 
         # Check 'ip'.
         edge, ln = self.app.find_substring_edge('ip', st.id)
-        self.assertEqual(edge.label, 'ppi$' + STRING_ID_END)
+        self.assertEqual(edge.label, 'ppi' + STRING_ID_END)
 
         # Check 'i'.
         edge, ln = self.app.find_substring_edge('i', st.id)
         self.assertEqual(edge.label, 'i')
 
        # Check 'ippi'.
-        edge, ln = self.app.find_substring_edge('ippi$', st.id)
-        self.assertEqual(edge.label, 'ppi$' + STRING_ID_END)
+        edge, ln = self.app.find_substring_edge('ippi', st.id)
+        self.assertEqual(edge.label, 'ppi' + STRING_ID_END)
 
         # Check 'mudpie'.
         edge, ln = self.app.find_substring_edge('mudpie', st.id)
-        self.assertEqual(edge.label, 'udpie#' + STRING_ID_END)
+        self.assertEqual(edge.label, 'udpie' + STRING_ID_END)
 
         # Check 'ball'.
         edge, ln = self.app.find_substring_edge('ball', st.id)
-        self.assertEqual(edge.label, 'ball')
+        self.assertEqual(edge.label, 'ball' + STRING_ID_END)
 
         # Check ID is returned.
         self.assertEqual(self.app.find_string_ids('mi', st.id), {'$'})
@@ -483,15 +483,15 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
 
         # Check 'b'.
         edge, ln = self.app.find_substring_edge('b', st.id)
-        self.assertEqual(edge.label, 'blue$' + STRING_ID_END)
+        self.assertEqual(edge.label, 'blue' + STRING_ID_END)
 
         # Check 'l'.
         edge, ln = self.app.find_substring_edge('l', st.id)
-        self.assertEqual(edge.label, 'lue$' + STRING_ID_END)
+        self.assertEqual(edge.label, 'lue' + STRING_ID_END)
 
         # Check 'u'.
         edge, ln = self.app.find_substring_edge('u', st.id)
-        self.assertEqual(edge.label, 'ue$' + STRING_ID_END)
+        self.assertEqual(edge.label, 'ue' + STRING_ID_END)
 
         # Check 'e'.
         edge, ln = self.app.find_substring_edge('e', st.id)
@@ -499,27 +499,27 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
 
         # Check 'ue'.
         edge, ln = self.app.find_substring_edge('ue', st.id)
-        self.assertEqual(edge.label, 'ue$' + STRING_ID_END)
+        self.assertEqual(edge.label, 'ue' + STRING_ID_END)
 
         # Check 'lue'.
         edge, ln = self.app.find_substring_edge('lue', st.id)
-        self.assertEqual(edge.label, 'lue$' + STRING_ID_END)
+        self.assertEqual(edge.label, 'lue' + STRING_ID_END)
 
         # Check 'blue'.
         edge, ln = self.app.find_substring_edge('blue', st.id)
-        self.assertEqual(edge.label, 'blue$' + STRING_ID_END)
+        self.assertEqual(edge.label, 'blue' + STRING_ID_END)
 
         # Check 're'.
         edge, ln = self.app.find_substring_edge('re', st.id)
-        self.assertEqual(edge.label, 'red#' + STRING_ID_END)
+        self.assertEqual(edge.label, 'red' + STRING_ID_END)
 
         # Check 'ed'.
         edge, ln = self.app.find_substring_edge('ed', st.id)
-        self.assertEqual(edge.label, 'd#' + STRING_ID_END)
+        self.assertEqual(edge.label, 'd' + STRING_ID_END)
 
         # Check 'red'.
         edge, ln = self.app.find_substring_edge('red', st.id)
-        self.assertEqual(edge.label, 'red#' + STRING_ID_END)
+        self.assertEqual(edge.label, 'red' + STRING_ID_END)
 
     def test_find_string_ids(self):
         # This test is the first to involve the children of nodes.
@@ -685,7 +685,7 @@ class TestGeneralizedSuffixTreeSlow(GeneralizedSuffixTreeTestCase):
         self.assertEqual(self.app.find_string_ids('Burrows-Wheeler', st.id), {'2'})
         self.assertEqual(self.app.find_string_ids('suffix', st.id), {'1', '2'})
 
-    def ___test_split_long_string(self):
+    def test_split_long_string(self):
         # Split the long string into separate strings, and make some IDs.
         list_of_strings = [w for w in LONG_TEXT[:1000].split(' ') if w]
 
@@ -739,25 +739,25 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
         if self.app is not None:
             self.app.close()
 
+    def test_sorted_words(self):
+        self.check_words(is_sorted=True)
+
     # Todo: Fix this - adding strings in a random order sometimes breaks (perhaps a dict is causing indeterminate order).
     # def test_words(self):
     #     self.check_words()
 
-    def ___test_sorted_words(self):
-        self.check_words(is_sorted=True)
-
     # Todo: Fix this - adding strings in a reversed sorted order always fails. Not sure why all substrings of 'ree' fail. The suffix is obviously not moving along in the same way as it does when the nodes are added. Perhaps it needs to add the IDs when explicit match is made, and then move the first char along by one? Not sure so trace it out?
+    # def test_reversed_words(self):
+    #     self.check_words(is_reversed=True)
     #
-    #         # Check for errors.
+    # The error reported is:-
+    #
     # >       self.assertFalse(errors, "\n".join(errors))
-    # E       AssertionError: ["Not found: substring ''e'' from string ''tree''", "Not found: substring ''e'' from string ''tree''", "Not found: substring ''ee'' from string ''tree''", "Not found: substring ''r'' from string ''tree''", "Not found: substring ''re'' from string ''tree''", "Not found: substring ''ree'' from string ''tree''"] is not false : Not found: substring ''e'' from string ''tree''
     # E       Not found: substring ''e'' from string ''tree''
     # E       Not found: substring ''ee'' from string ''tree''
     # E       Not found: substring ''r'' from string ''tree''
     # E       Not found: substring ''re'' from string ''tree''
     # E       Not found: substring ''ree'' from string ''tree''
-    # def test_reversed_words(self):
-    #     self.check_words(is_reversed=True)
 
     def check_words(self, is_sorted=False, is_reversed=False):
         # Split the long string into separate strings, and make some IDs.

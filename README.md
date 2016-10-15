@@ -173,65 +173,6 @@ See also:
 
 * Generalized suffix trees
 
-### Forthcoming features
-
-* List-based collections
-
-* Stored event repository to persist stored events in a file using a
- very simple file format
-
-* Stored event repository to persist stored events using MongoDB
-
-* Stored event repository to persist stored events using HBase
-
-* Stored event repository to persist stored events using DynamoDB
-
-* Method to delete all domain events for given domain entity ID (forthcoming)
-
-* Method to get all domain events in the order they occurred (forthcoming)
-
-* Storage retries and fallback strategies, to protect against failing to write an event (forthcoming)
-
-* Subscriber that publishes domain events to RabbitMQ (forthcoming)
-
-* Subscriber that publishes domain events to Amazon SQS (forthcoming)
-
-* Republisher that subscribes to RabbitMQ and publishes domain events locally (forthcoming)
-
-* Republisher that subscribers to Amazon SQS and publishes domain event locally (forthcoming)
-
-* Linked pages of domain events ("Archived Log"), to allow event sourced projections easily to make sure they have 
-all the events (forthcoming)
-
-* Base class for event sourced projections or views (forthcoming)
-
-    * In memory event sourced projection, which needs to replay entire event stream when system starts up (forthcoming)
-
-    * Persistent event sourced projection, which stored its projected state, but needs to replay entire event stream
-      when initialized  (forthcoming)
-
-* Event sourced indexes, as persisted event source projections, to discover extant entity IDs (forthcoming)
-
-* Event pointer, to refer to an event in a stream (forthcoming)
-
-* Updating stored events, to support domain model migration (forthcoming)
-
-* Something to store serialized event attribute values separately from the other event information, to prevent large 
-attribute values inhibiting performance and stability - different sizes could be stored in different ways... 
-(forthcoming)
-
-* Different kinds of stored event
-    * IDs generated from content, e.g. like Git (forthcoming)
-    * cryptographically signed stored events (forthcoming)
-    
-* Branch and merge mechanism for domain events (forthcoming)
-
-* Support for asynchronous I/O, with an application that uses an event loop (forthcoming)
-
-* More examples (forthcoming)
-
-* Great documentation! (forthcoming)
-
 
 ## Usage
 
@@ -438,3 +379,81 @@ Please see the Example class for details, and the documentation for singledispat
 
 Also, for Cassandra users, the table name for stored events has changed to 'stored_events'. The column names 
 have changed to be single characters, for storage efficiency. Production data will need to be migrated.
+
+
+## Forthcoming features
+
+* List-based collections (forthcoming)
+
+* Stored event repository to persist stored events in a file using a
+ very simple file format (forthcoming)
+
+* Stored event repository to persist stored events using MongoDB (forthcoming)
+
+* Stored event repository to persist stored events using HBase (forthcoming)
+
+* Stored event repository to persist stored events using DynamoDB (forthcoming)
+
+* Method to delete all domain events for given domain entity ID (forthcoming)
+
+* Method to get all domain events in the order they occurred (forthcoming)
+
+* Storage retries and fallback strategies, to protect against failing to write an event (forthcoming)
+
+* Subscriber that publishes domain events to RabbitMQ (forthcoming)
+
+* Subscriber that publishes domain events to Amazon SQS (forthcoming)
+
+* Republisher that subscribes to RabbitMQ and publishes domain events locally (forthcoming)
+
+* Republisher that subscribers to Amazon SQS and publishes domain event locally (forthcoming)
+
+* Linked pages of domain events ("Archived Log"), to allow event sourced projections easily to make sure they have 
+all the events (forthcoming)
+
+* Base class for event sourced projections or views (forthcoming)
+
+    * In memory event sourced projection, which needs to replay entire event stream when system starts up (forthcoming)
+
+    * Persistent event sourced projection, which stored its projected state, but needs to replay entire event stream
+      when initialized  (forthcoming)
+
+* Event sourced indexes, as persisted event source projections, to discover extant entity IDs (forthcoming)
+
+* Event pointer, to refer to an event in a stream (forthcoming)
+
+* Updating stored events, to support domain model migration (forthcoming)
+
+* Something to store serialized event attribute values separately from the other event information, to prevent large 
+attribute values inhibiting performance and stability - different sizes could be stored in different ways... 
+(forthcoming)
+
+* Different kinds of stored event
+    * IDs generated from content, e.g. like Git (forthcoming)
+    * cryptographically signed stored events (forthcoming)
+    
+* Branch and merge mechanism for domain events (forthcoming)
+
+* Support for asynchronous I/O, with an application that uses an event loop (forthcoming)
+
+* More examples (forthcoming)
+
+* Great documentation! (forthcoming)
+
+* Context maps (so we can use univerally unique IDs within a context,
+  even though entities arise from other contexts and may not have
+  universally unique IDs e.g. integer sequences)
+
+* Optionally decouple topics from actual code, so classes can be moved.
+
+
+## Version 2, Planned Backwards-Incompatible Changes
+
+* Remove id_prefixes in stored entity ID, because it makes the code a
+  bit complicated, since each domain event needs to know which entity
+  class it is for, and that's not always desirable.
+  
+* Move event classes from abstract classes, so concrete classes can't
+  get confused with events defined on super classes that can't be
+  retrieved from the event store because they don't know which concrete
+  class they pertain to.

@@ -24,8 +24,8 @@ class ApplicationTestCase(AbstractTestCase):
 class ExampleApplicationTestCase(ApplicationTestCase):
 
     def test(self):
-        """Checks self.app both is and works in the way an
-        instance of a subclass of ExampleApplication should do.
+        """
+        Checks application works in the way an ExampleApplication should do.
         """
 
         # Check we're dealing with an example application.

@@ -41,9 +41,6 @@ class CqlStoredEvent(Model):
 
     __table_name__ = 'stored_events'
 
-    # This makes sure we can't overwrite events.
-    _if_not_exists = True
-
     # Stored entity ID (normally a string, with the entity type name at the start)
     n = columns.Text(partition_key=True)
 

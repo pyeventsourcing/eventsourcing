@@ -2,22 +2,28 @@
 from __future__ import unicode_literals
 
 from collections import OrderedDict
+from time import sleep
 from uuid import uuid4
 
 import six
 from singledispatch import singledispatch
 
+from eventsourcing.domain.model.collection import Collection
 from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository, entity_mutator
 from eventsourcing.domain.model.events import publish, DomainEvent
 from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 
-# Use a private code point to terminate the string IDs.
+# Use a private code point to terminate the strings.
 STRING_ID_END = '\uEFFF'
 
 
 class GeneralizedSuffixTree(EventSourcedEntity):
     """A suffix tree for string matching. Uses Ukkonen's algorithm
     for construction.
+
+    Adding strings to individual suffix trees needs to be serialized,
+    so you need to use locks around calls to add_string() in a
+    distributed application.
     """
 
     class Created(EventSourcedEntity.Created):
@@ -33,12 +39,13 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         super(GeneralizedSuffixTree, self).__init__(**kwargs)
         self._root_node_id = root_node_id
         self._case_insensitive = case_insensitive
-        self._nodes = {}
+        # self._nodes = {}
         self._string = None
         self._suffix = None
         self._node_repo = None
         self._node_child_collection_repo = None
         self._edge_repo = None
+        self._stringid_collection_repo = None
 
     @mutableproperty
     def string(self):
@@ -65,14 +72,11 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         Lists edges in the suffix tree
         """
         # Todo: Something that shows the actual tree.
-        return 'GeneralizedSuffixTree(id={})'.format(self.id)
+        return 'GeneralizedSuffixTree(id={0.id}, root_node_id={0.root_node_id}, case_insensitive={0.case_insensitive})'.format(self)
 
     def add_string(self, string, string_id):
         assert isinstance(string, six.string_types)
         assert isinstance(string_id, six.string_types)
-
-        # Create "active" suffix object.
-        self._suffix = Suffix(self._root_node_id, 0, -1)
 
         # Lower the string, if it's a case insensitive tree.
         if self._case_insensitive:
@@ -81,27 +85,20 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         assert STRING_ID_END not in string
 
         # Append the (hopefully unique) string ID to the string.
-        string_extended = u"{}{}{}".format(string, string_id, STRING_ID_END)
+        string_extended = u"{}{}".format(string, STRING_ID_END)
 
-        # Add each suffix.
+        self._suffix = Suffix(self._root_node_id, 0, -1)
         for i in range(len(string_extended)):
-            retries = 5
-            while True:
-                retries -= 1
-                try:
-                    self._add_prefix(i, string_extended, string_id)
-                except ConcurrencyError:
-                    if retries <= 0:
-                        raise
-                else:
-                    break
+            self._add_prefix(i, string_extended, string_id)
 
     def _add_prefix(self, i, string, string_id):
         """The core construction method.
         """
         last_parent_node_id = None
         parent_node_id = None
+        added_node_ids = set()
         while True:
+
             parent_node_id = self.suffix.source_node_id
 
             # Break if prefix is already in tree.
@@ -109,40 +106,62 @@ class GeneralizedSuffixTree(EventSourcedEntity):
                 # Explicit suffix points to an existing node. Try to find the node.
                 prefix = string[i]
                 try:
-                    edge = self.get_edge(make_edge_id(self.suffix.source_node_id, prefix))
+                    edge = self.get_edge(make_edge_id(parent_node_id, prefix))
                 except KeyError:
                     # If the edge doesn't exist, the prefix isn't in the
                     # tree, so continue by adding an edge and a node.
+                    # print("Explicit suffix, edge not found for letter '{}'".format(prefix))
                     pass
                 else:
-                    # Although, if edge destination is a leaf node that doesn't have
-                    # a 'string_id' value (because an earlier suffix of string ID
-                    # was removed), then set its 'string_id' attribute now.
-                    dest_node = self.get_node(edge.dest_node_id)
-                    if self.is_leaf(dest_node) and dest_node.string_id is None:
-                        dest_node.string_id = string_id
-
-                        # Adjust the active suffix.
-                        self.move_suffix_along_by_one(string)
-
                     # The edge was found, so exit the loop.
+                    # print("Explicit suffix, edge found for letter '{}': {}".format(prefix, edge))
+
+                    # Although, might need to add string ID to node collection, if it's a leaf and exact match.
+                    dest_node = self.get_node(edge.dest_node_id)
+                    if self.is_leaf(dest_node):
+
+                        # If it's an exact match...
+                        if edge.label == string[i:]:
+
+                            # Add the string ID to the node collection.
+                            self.add_string_id(edge.dest_node_id, string_id)
+                            # print("Added string ID '{}' to explicit exact match {}".format(string_id, dest_node))
+
+                            # Attempt to replicate for a duplicate what happens first time a string was added.
+                            if edge.dest_node_id not in added_node_ids:
+                                # Adjust the active suffix.
+                                self.follow_suffix_link_or_increment_suffix_first_char(string)
+
                     break
 
             else:
                 # Break if prefix is already in tree.
                 prefix = string[self.suffix.first_char_index]
                 edge = self.get_edge(make_edge_id(self.suffix.source_node_id, prefix))
-                if edge.label[self.suffix.length + 1] == string[i]:
-
+                suffix_label_offset = self.suffix.length + 1
+                if suffix_label_offset > len(edge.label) - 1:
+                    raise ValueError("Suffix offset too large for label: %s: %s" % (suffix_label_offset, edge.label[:100]))
+                # print("Implicit edge dest node: {}".format(edge.dest_node_id))
+                if edge.label[suffix_label_offset] == string[i]:
+                    # print("Matched edge label til end of suffix: {} {}".format(edge.label[:100], suffix_label_offset))
                     # The suffix was found in this edge, so exit the loop.
+
+                    # Add the string ID to the node collection.
+                    self.add_string_id(edge.dest_node_id, string_id)
+                    # print("Added string ID '{}' to implicit exact match: {}".format(string_id, self.get_node(edge.dest_node_id)))
+
                     break
 
-                # Split the edge, with a new middle node that will be the parent node.
-                parent_node_id = self._split_edge(edge, self.suffix)
+                else:
+                    # Split the edge, with a new middle node that will be the parent node.
+                    parent_node_id = self._split_edge(edge, self.suffix)
 
-            # Otherwise the prefix isn't in the tree, so create an edge and node for this prefix.
-            new_node = register_new_node(string_id=string_id)
-            self._cache_node(new_node)
+            # Otherwise the prefix isn't in the tree, so create a node and an edge for this prefix.
+            new_leaf_node = register_new_node(string_id=string_id, is_leaf=True)
+
+            # Remeber this node was created in this call.
+            added_node_ids.add(new_leaf_node.id)
+
 
             # Make a new edge from the parent node to the
             # new leaf node. Make a label for the edge to
@@ -152,13 +171,17 @@ class GeneralizedSuffixTree(EventSourcedEntity):
                 edge_id=make_edge_id(parent_node_id, string[i]),
                 label=string[i:],
                 source_node_id=parent_node_id,
-                dest_node_id=new_node.id,
+                dest_node_id=new_leaf_node.id,
             )
 
-            # Register the new leaf node as a child node of the parent node.
-            parent_node_child_collection = self.get_node_child_collection(parent_node_id)
-            # - also pass in the number of chars (used when finding strings)
-            parent_node_child_collection.add_child(new_node.id, new_edge.length + 1)
+            # print("For letter '{}' added node and edge: {}".format(string[i], new_edge))
+
+            # Add the new leaf node as a child node of the parent node.
+            self.add_child_node(parent_node_id, new_leaf_node.id, new_edge.length + 1)
+
+            # Add the string ID to the node collection.
+            self.add_string_id(new_leaf_node.id, string_id)
+            # print("Added string ID '{}' to new node {}".format(string_id, new_leaf_node))
 
             # Create suffix link from last parent to current parent (unless it's root).
             self.create_suffix_link(last_parent_node_id, parent_node_id)
@@ -167,29 +190,40 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             last_parent_node_id = parent_node_id
 
             # Adjust the active suffix.
-            self.move_suffix_along_by_one(string)
+            self.follow_suffix_link_or_increment_suffix_first_char(string)
 
         # Create suffix link from last parent to current parent (unless it's root).
         self.create_suffix_link(last_parent_node_id, parent_node_id)
 
+        # Which is the last leaf node?
+
         self.suffix.last_char_index += 1
+        # print("Incremented suffix last char index: {}".format(self.suffix.last_char_index))
+
         self._canonize_suffix(self.suffix, string)
+        # print("Cannonized suffix: {}".format(self.suffix))
 
     def _split_edge(self, first_edge, suffix):
         assert isinstance(first_edge, SuffixTreeEdge)
         assert isinstance(suffix, Suffix)
 
         # Split the label.
-        first_label = first_edge.label[:suffix.length + 1]
-        second_label = first_edge.label[suffix.length + 1:]
+        orig_label = first_edge.label
+        first_label = orig_label[:suffix.length + 1]
+        second_label = orig_label[suffix.length + 1:]
+
+        # print("Splitting edge: {}  <==>  {}".format(first_label[:100], second_label[:100]))
 
         # Create a new middle node that will split the edge.
         new_middle_node = register_new_node(suffix_node_id=suffix.source_node_id)
-        self._cache_node(new_middle_node)
+        # self._cache_node(new_middle_node)
+
+        # print("New middle node: {}".format(new_middle_node))
 
         # Create a new edge, from the new middle node to the original destination.
         second_edge_id = make_edge_id(source_node_id=new_middle_node.id, first_char=second_label[0])
         original_dest_node_id = first_edge.dest_node_id
+
         second_edge = register_new_edge(
             label=second_label,
             edge_id=second_edge_id,
@@ -197,77 +231,124 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             dest_node_id=original_dest_node_id,
         )
 
-        # Add the original dest node as a child of the new middle node.
-        new_middle_node_child_collection = self.get_node_child_collection(new_middle_node.id)
-        new_middle_node_child_collection.add_child(original_dest_node_id, second_edge.length + 1)
+        # print("New second edge: {}".format(second_edge))
 
-        # Shorten the first edge (last so that everything above is in place).
+        # Add the original dest node as a child of the new middle node.
+        self.add_child_node(
+            parent_node_id=new_middle_node.id,
+            child_node_id=original_dest_node_id,
+            edge_length=second_edge.length + 1,
+        )
+
+        # Shorten the first edge, so its destination is the new middle node.
         try:
             first_edge.shorten(label=first_label, dest_node_id=new_middle_node.id)
-        except ConcurrencyError:
+            # print("Shortened first edge: {}".format(first_edge))
+        except ConcurrencyError as e:
             # If the first edge has changed by now, then abort this split by
-            # discarding the new_middle_node and the second_edge, which haven't
-            # been connected to the tree yet, so can safely be discarded.
+            # discarding the new_middle_node, which hasn't been connected to
+            # the tree yet, so can safely be discarded.
             new_middle_node.discard()
-            second_edge.discard()
-            raise
+            sleep(0.1)
+            raise e
 
         # Remove the original dest node as child of the original
         # source node, and add the new middle node instead.
-        original_source_node_child_collection = self.get_node_child_collection(first_edge.source_node_id)
-        assert isinstance(original_source_node_child_collection, SuffixTreeNodeChildCollection)
-        original_source_node_child_collection.switch_child(original_dest_node_id, new_middle_node.id, first_edge.length + 1)
+        self.switch_child_node(
+            parent_node_id=first_edge.source_node_id,
+            old_child_id=original_dest_node_id,
+            new_child_id=new_middle_node.id,
+            edge_length=first_edge.length + 1,
+        )
 
         # Return middle node.
         return new_middle_node.id
 
+    def add_child_node(self, parent_node_id, child_node_id, edge_length):
+        collection = self.get_or_create_node_child_collection(parent_node_id)
+        if child_node_id not in collection.child_node_ids:
+            # - also pass in the edge length (used when finding strings)
+            collection.add_child(child_node_id, edge_length)
+
+    def switch_child_node(self, parent_node_id, old_child_id, new_child_id, edge_length):
+        collection = self.get_or_create_node_child_collection(parent_node_id)
+        assert isinstance(collection, SuffixTreeNodeChildCollection)
+        collection.switch_child(old_child_id, new_child_id, edge_length)
+
+    def add_string_id(self, parent_node_id, string_id):
+        collection = self.get_or_create_stringid_collection(parent_node_id)
+        if string_id not in collection.items:
+            collection.add_item(string_id)
+
     def create_suffix_link(self, last_parent_node_id, parent_node_id):
         if last_parent_node_id is not None:
             assert parent_node_id is not None
+
+            # Set suffix_node_id on last_parent_node to parent_node_id.
             last_parent_node = self.get_node(last_parent_node_id)
             assert isinstance(last_parent_node, SuffixTreeNode)
             last_parent_node.suffix_node_id = parent_node_id
 
-    def move_suffix_along_by_one(self, string):
-        # Move the suffix along by one.
+    def follow_suffix_link_or_increment_suffix_first_char(self, string):
+        # If we're at root, there isn't a suffix link, so increment the first char index.
         if self.suffix.source_node_id == self.root_node_id:
+            # print("Incrementing suffix first char...")
             self.suffix.first_char_index += 1
         else:
-            self.suffix.source_node_id = self.get_node(self.suffix.source_node_id).suffix_node_id
+            # If we're not at root, follow the suffix link.
+            last_source_node_id = self.suffix.source_node_id
+            next_source_node_id = self.get_node(last_source_node_id).suffix_node_id
+            # print("Following suffix link from {} to {}".format(last_source_node_id, next_source_node_id))
+            self.suffix.source_node_id = next_source_node_id
         self._canonize_suffix(self.suffix, string)
 
     def is_leaf(self, dest_node):
-        return not self.is_inner_node(dest_node) and not self.is_root_node(dest_node)
+        return dest_node.is_leaf
 
     def is_root_node(self, dest_node):
-        return dest_node.id == self.root_node_id
-
-    def is_inner_node(self, dest_node):
-        return dest_node.suffix_node_id is not None
+        return dest_node.is_root
 
     def remove_string(self, string, string_id):
+        # Todo: Maybe this is an application service?
+
         assert isinstance(string_id, six.string_types)
         if self._case_insensitive:
             string = string.lower()
         assert STRING_ID_END not in string_id
         assert STRING_ID_END not in string
-        string += u"{}{}".format(string_id, STRING_ID_END)
+        # string += u"{}{}".format(string_id, STRING_ID_END)
+        string += u"{}".format(STRING_ID_END)
+
         # Disassociate the string ID from its leaf nodes.
         #  - but don't discard the node entity, because we might
         #    need to add this suffix back into the tree,
         #    and a hard prune would be relatively complicated.
         #  - although, it might be useful to have something do garbage collection
+        from eventsourcing.contrib.suffixtrees.domain.services.generalizedsuffixtree import find_substring_edge
+
         for i in range(len(string)):
 
-            # Walk down the tree.
-            suffix = Suffix(self.root_node_id, i, len(string) - 1)
-            self._canonize_suffix(suffix, string)
+            # Find the suffix in the tree.
+
+            suffix = string[i:]
+            edge, ln = find_substring_edge(suffix, self, self._edge_repo)
+
+            if edge is None:
+                continue
 
             # Get the leaf node.
-            leaf_node = self.get_node(suffix.source_node_id)
+            leaf_node = self.get_node(edge.dest_node_id)
             assert isinstance(leaf_node, SuffixTreeNode)
             if leaf_node.string_id == string_id:
                 leaf_node.string_id = None
+            try:
+                stringid_collection = self._stringid_collection_repo[leaf_node.id]
+            except KeyError:
+                pass
+            else:
+                assert isinstance(stringid_collection, StringidCollection)
+                if string_id in stringid_collection.items:
+                    stringid_collection.remove_item(string_id)
 
     def get_edge(self, edge_id):
         # Raises KeyError is not found because this method was factored out from various places that
@@ -288,32 +369,46 @@ class GeneralizedSuffixTree(EventSourcedEntity):
 
         :rtype: SuffixTreeNode
         """
-        if not self._node_repo:
-            return self.nodes[node_id]
-        try:
-            return self.nodes[node_id]
-        except KeyError as e:
-            try:
-                node = self._node_repo[node_id]
-            except RepositoryKeyError:
-                raise e
-            else:
-                self._cache_node(node)
-                return node
+        # if not self._node_repo:
+        #     return self.nodes[node_id]
+        # try:
+        #     return self.nodes[node_id]
+        # except KeyError as e:
+        #     try:
+        #         node = self._node_repo[node_id]
+        #     except KeyError:
+        #         raise e
+        #     else:
+        #         self._cache_node(node)
+        #         return node
+
+        return self._node_repo[node_id]
 
     def _cache_node(self, node):
         self.nodes[node.id] = node
 
-    def get_node_child_collection(self, node_id):
+    def get_or_create_node_child_collection(self, node_id):
         """
         Returns children of node.
 
-        :rtype: SuffixTreeNodeChildren
+        :rtype: SuffixTreeNodeChildCollection
         """
         try:
             node = self._node_child_collection_repo[node_id]
         except RepositoryKeyError:
             node = register_new_node_child_collection(node_id)
+        return node
+
+    def get_or_create_stringid_collection(self, node_id):
+        """
+        Returns collection of string IDs.
+
+        :rtype: StringidCollection
+        """
+        try:
+            node = self._stringid_collection_repo[node_id]
+        except KeyError:
+            node = register_new_stringid_collection(node_id)
         return node
 
     def _canonize_suffix(self, suffix, string):
@@ -322,7 +417,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         """
         if not suffix.explicit():
             if len(string) < suffix.first_char_index + 1:
-                raise AssertionError
+                raise AssertionError("String length is {} and suffix first char index is {}".format(len(string), suffix.first_char_index))
             edge_id = make_edge_id(suffix.source_node_id, string[suffix.first_char_index])
             e = self.get_edge(edge_id)
             if e.length <= suffix.length:
@@ -341,18 +436,45 @@ class SuffixTreeNode(EventSourcedEntity):
 
     class Discarded(EventSourcedEntity.Discarded): pass
 
-    def __init__(self, suffix_node_id=None, string_id=None, *args, **kwargs):
+    def __init__(self, suffix_node_id=None, string_id=None, is_leaf=False, is_root=False, *args, **kwargs):
         super(SuffixTreeNode, self).__init__(*args, **kwargs)
-        self.suffix_node_id = suffix_node_id
+        self._suffix_node_id = suffix_node_id
         self._string_id = string_id
+        self._is_leaf = is_leaf
+        self._is_root = is_root
 
     @mutableproperty
     def string_id(self):
         """The id of a string being added to the generalised suffix tree when this node was created.
         """
 
+    @mutableproperty
+    def suffix_node_id(self):
+        """The ID of the node representing the suffix of the suffix represented by this node.
+        """
+
+    @property
+    def is_leaf(self):
+        return self._is_leaf
+
+    @property
+    def is_root(self):
+        return self._is_root
+
     def __repr__(self):
-        return "SuffixTreeNode(suffix link: {})".format(self.suffix_node_id)
+        return "Node(id='{}')".format(self.id)
+
+
+class StringidCollection(Collection):
+
+    class Created(Collection.Created):
+        pass
+
+    class ItemAdded(Collection.ItemAdded):
+        pass
+
+    class ItemRemoved(Collection.ItemRemoved):
+        pass
 
 
 class SuffixTreeNodeChildCollection(EventSourcedEntity):
@@ -375,10 +497,9 @@ class SuffixTreeNodeChildCollection(EventSourcedEntity):
         super(SuffixTreeNodeChildCollection, self).__init__(*args, **kwargs)
         self._child_node_ids = OrderedDict()
 
-    @mutableproperty
-    def string_id(self):
-        """The id of a string being added to the generalised suffix tree when this node was created.
-        """
+    @property
+    def child_node_ids(self):
+        return self._child_node_ids
 
     def add_child(self, child_node_id, edge_len):
         event = SuffixTreeNodeChildCollection.ChildNodeAdded(
@@ -484,7 +605,7 @@ class SuffixTreeEdge(EventSourcedEntity):
         return len(self.label) - 1
 
     def __repr__(self):
-        return 'SuffixTreeEdge({}, {}, {})'.format(self.source_node_id, self.dest_node_id, self.label)
+        return "Edge(id='{}' source='{}' dest='{}', label='{}')".format(self.id, self.source_node_id, self.dest_node_id, self.label[:30])
 
     def shorten(self, label, dest_node_id):
         self._assert_not_discarded()
@@ -556,21 +677,39 @@ class Suffix(object):
     def implicit(self):
         return self.last_char_index >= self.first_char_index
 
+    def __repr__(self):
+        return "Suffix(implicit={} first={}, last={}, node={})".format(self.implicit(), self.first_char_index, self.last_char_index, self.source_node_id)
+
 
 # Factory methods.
 
-def register_new_node(suffix_node_id=None, string_id=None):
+def register_new_node(suffix_node_id=None, string_id=None, is_leaf=False, is_root=False):
     """Factory method, registers new node.
     """
+    # Make a unique ID.
     node_id = uuid4().hex
-    event = SuffixTreeNode.Created(
+
+    # Instantiate a Created event.
+    created_event = SuffixTreeNode.Created(
         entity_id=node_id,
         suffix_node_id=suffix_node_id,
         string_id=string_id,
+        is_leaf=is_leaf,
+        is_root=is_root,
     )
-    entity = SuffixTreeNode.mutate(event=event)
-    publish(event)
-    return entity
+
+    # Make the new Node entity.
+    new_node = SuffixTreeNode.mutate(event=created_event)
+
+    # Publish the Created event.
+    publish(created_event)
+
+    # Also create a new child collection, to
+    # avoid any contention around this event.
+    register_new_node_child_collection(node_id)
+
+    # Return the new node.
+    return new_node
 
 
 def register_new_node_child_collection(node_id):
@@ -580,6 +719,17 @@ def register_new_node_child_collection(node_id):
         entity_id=node_id,
     )
     entity = SuffixTreeNodeChildCollection.mutate(event=event)
+    publish(event)
+    return entity
+
+
+def register_new_stringid_collection(node_id):
+    """Factory method, registers new collection of string IDs.
+    """
+    event = StringidCollection.Created(
+        entity_id=node_id,
+    )
+    entity = StringidCollection.mutate(event=event)
     publish(event)
     return entity
 
@@ -613,9 +763,8 @@ def register_new_suffix_tree(case_insensitive=False):
 
     suffix_tree_id = uuid4().hex
 
-    root_node = register_new_node()
+    root_node = register_new_node(is_root=True)
     assert isinstance(root_node, SuffixTreeNode)
-    # root_node.suffix_node_id = root_node.id
 
     event = GeneralizedSuffixTree.Created(
         entity_id=suffix_tree_id,
@@ -626,7 +775,7 @@ def register_new_suffix_tree(case_insensitive=False):
 
     assert isinstance(entity, GeneralizedSuffixTree)
 
-    entity.nodes[root_node.id] = root_node
+    # entity.nodes[root_node.id] = root_node
 
     publish(event)
 

@@ -9,7 +9,7 @@ from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import
 from eventsourcing.contrib.suffixtrees.domain.services.generalizedsuffixtree import get_string_ids, find_substring_edge, \
     has_substring
 from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.generalizedsuffixtree_repo import \
-    GeneralizedSuffixTreeRepo, NodeRepo, EdgeRepo, NodeChildCollectionRepo
+    GeneralizedSuffixTreeRepo, NodeRepo, EdgeRepo, NodeChildCollectionRepo, StringidCollectionRepo
 
 
 class AbstractSuffixTreeApplication(EventSourcingApplication):
@@ -20,6 +20,7 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
         self.node_repo = NodeRepo(self.event_store)
         self.node_child_collection_repo = NodeChildCollectionRepo(self.event_store)
         self.edge_repo = EdgeRepo(self.event_store)
+        self.stringid_collection_repo = StringidCollectionRepo(self.event_store)
 
     def close(self):
         super(AbstractSuffixTreeApplication, self).close()
@@ -27,6 +28,7 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
         self.node_repo = None
         self.node_child_collection_repo = None
         self.edge_repo = None
+        self.stringid_collection_repo = None
 
     def register_new_suffix_tree(self, case_insensitive=False):
         """Returns a new suffix tree entity.
@@ -35,6 +37,7 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
         suffix_tree._node_repo = self.node_repo
         suffix_tree._node_child_collection_repo = self.node_child_collection_repo
         suffix_tree._edge_repo = self.edge_repo
+        suffix_tree._stringid_collection_repo = self.stringid_collection_repo
         return suffix_tree
 
     def get_suffix_tree(self, suffix_tree_id):
@@ -45,6 +48,7 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
         suffix_tree._node_repo = self.node_repo
         suffix_tree._node_child_collection_repo = self.node_child_collection_repo
         suffix_tree._edge_repo = self.edge_repo
+        suffix_tree._stringid_collection_repo = self.stringid_collection_repo
         return suffix_tree
 
     def find_string_ids(self, substring, suffix_tree_id, limit=None):
@@ -63,6 +67,7 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
             node_id=edge.dest_node_id,
             node_repo=self.node_repo,
             node_child_collection_repo=self.node_child_collection_repo,
+            stringid_collection_repo=self.stringid_collection_repo,
             length_until_end=edge.length + 1 - ln,
             limit=limit
         )
@@ -76,7 +81,11 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
         suffix_tree = self.suffix_tree_repo[suffix_tree_id]
         started = datetime.datetime.now()
         edge, ln = find_substring_edge(substring=substring, suffix_tree=suffix_tree, edge_repo=self.edge_repo)
-        print("- found substring '{}' in: {}".format(substring, datetime.datetime.now() - started))
+        # if edge is not None:
+        #     print("Got edge for substring '{}': {}".format(substring, edge))
+        # else:
+        #     print("No edge for substring '{}'".format(substring))
+        print(" - searched for edge in {} for substring: '{}'".format(datetime.datetime.now() - started, substring))
         return edge, ln
 
     def has_substring(self, substring, suffix_tree_id):

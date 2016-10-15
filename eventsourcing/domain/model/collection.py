@@ -79,6 +79,7 @@ def collection_mutator(event, initial):
 
 @collection_mutator.register(Collection.ItemAdded)
 def collection_item_added_mutator(event, entity):
+    assert isinstance(entity, Collection)
     entity._items.add(event.item)
     entity._increment_version()
     return entity

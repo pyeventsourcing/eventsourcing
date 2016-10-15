@@ -80,15 +80,16 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         return timestamp_from_uuid(self._initial_event_id)
 
     def _validate_originator(self, event):
-        # Check event originator's entity ID matches our own ID.
+        # Check event's entity ID matches this entity's ID.
         if self._id != event.entity_id:
             raise EntityIDConsistencyError("Entity ID '{}' not equal to event's entity ID '{}'"
                                            "".format(self.id, event.entity_id))
 
-        # Check event originator's version number matches our own version number.
+        # Check event's entity version matches this entity's version.
         if self._version != event.entity_version:
-            raise EntityVersionConsistencyError("Entity version '{}' not equal to event's entity version '{}'"
-                                                "".format(self._version, event.entity_version))
+            raise EntityVersionConsistencyError(
+                "Event version '{}' not equal to entity version '{}', event type: '{}', entity type: '{}', entity ID: '{}'"
+                "".format(event.entity_version, self._version, type(event).__name__, type(self).__name__, self._id))
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
