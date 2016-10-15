@@ -252,11 +252,16 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         # print("New second edge: {}".format(second_edge))
 
         # Add the original dest node as a child of the new middle node.
-        self.add_child_to_parent_node(new_middle_node.id, original_dest_node_id, second_edge.length + 1)
+        self.add_child_to_parent_node(
+            parent_node_id=new_middle_node.id,
+            child_node_id=original_dest_node_id,
+            edge_length=second_edge.length + 1,
+        )
 
         # Shorten the first edge, so its destination is the new middle node.
         try:
             first_edge.shorten(label=first_label, dest_node_id=new_middle_node.id)
+            # print("Shortened first edge: {}".format(first_edge))
         except ConcurrencyError as e:
             # If the first edge has changed by now, then abort this split by
             # discarding the new_middle_node, which hasn't been connected to
@@ -265,14 +270,14 @@ class GeneralizedSuffixTree(EventSourcedEntity):
             sleep(0.1)
             raise e
 
-        # Update the children, to have the new edge length.
-        # Todo: Update the children, to have the new edge length.
-
-        # print("Shortened first edge: {}".format(first_edge))
-
         # Remove the original dest node as child of the original
         # source node, and add the new middle node instead.
-        self.switch_child_node(first_edge.source_node_id, original_dest_node_id, new_middle_node.id, first_edge.length + 1)
+        self.switch_child_node(
+            parent_node_id=first_edge.source_node_id,
+            old_child_id=original_dest_node_id,
+            new_child_id=new_middle_node.id,
+            edge_length=first_edge.length + 1,
+        )
 
         # Return middle node.
         return new_middle_node.id
@@ -319,6 +324,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         return dest_node.is_root
 
     def remove_string(self, string, string_id):
+        # Todo: Maybe this is an application service?
 
         assert isinstance(string_id, six.string_types)
         if self._case_insensitive:

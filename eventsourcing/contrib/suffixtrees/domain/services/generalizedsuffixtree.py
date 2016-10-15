@@ -66,8 +66,6 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
                 if limit is not None and len(unique_string_ids) >= limit:
                     raise StopIteration
 
-        # else:
-
         # Check the hop count before getting the child collection.
         if hop_max is None or hop_count < hop_max:
             try:
@@ -81,6 +79,10 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
                 for (child_node_id, edge_length) in child_node_ids.items():
 
                     # Check the hop count, stop if we've seen enough tree nodes.
+                    #  - this works by choking off the stack, but we continue
+                    #    to process everything on the stack after this condition
+                    #    which saves putting loads of things on the stack that
+                    #    won't be used, and walking more tree than is necessary
                     if hop_max is not None and hop_count >= hop_max:
                         break
 

@@ -1,7 +1,10 @@
 import os
-import unittest
-from subprocess import Popen, PIPE
 import sys
+import unittest
+from os.path import join, dirname
+from subprocess import Popen, PIPE
+
+import eventsourcing
 
 
 class TestUsage(unittest.TestCase):
@@ -9,7 +12,7 @@ class TestUsage(unittest.TestCase):
     def test_code_snippets_in_readme_file(self):
         # Extract lines of Python code from the README.md file.
         readme_filename = 'README.md'
-        readme_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), readme_filename)
+        readme_path = join(dirname(dirname(eventsourcing.__file__)), readme_filename)
 
         if not os.path.exists(readme_path):
             self.skipTest("usage instructions in README file are not available for testing when package is installed")
