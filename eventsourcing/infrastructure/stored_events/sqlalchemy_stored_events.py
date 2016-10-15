@@ -9,9 +9,9 @@ from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence
 from sqlalchemy.sql.sqltypes import Integer, String, BigInteger, Text
 
-from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
-from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
+from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent, EntityVersion
 from eventsourcing.utils.time import timestamp_long_from_uuid
 
 
@@ -32,7 +32,8 @@ class SqlEntityVersion(Base):
 
     __tablename__ = 'entity_versions'
 
-    id = Column(String(355), primary_key=True)
+    entity_version_id = Column(String(355), primary_key=True)
+    event_id = Column(String(255))
 
 
 class SqlStoredEvent(Base):
@@ -78,14 +79,13 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         self.db_session = db_session
 
     def append(self, stored_event, expected_version=None, new_version=None, max_retries=3, artificial_failure_rate=0):
-        # Convert stored event named tuple to an SQLAlchemy object.
-        sql_stored_event = to_sql(stored_event)
 
-        stored_entity_id = sql_stored_event.stored_entity_id
+        # Check expected version exists.
+        stored_entity_id = stored_event.stored_entity_id
         if expected_version:
-            expected_entity_version_id = self.make_entity_version_id(stored_entity_id, expected_version)
-            expected_entity_version = self.db_session.query(SqlEntityVersion).filter_by(id=expected_entity_version_id).first()
-            if expected_entity_version is None:
+            try:
+                self.get_entity_version(stored_entity_id, expected_version)
+            except EntityVersionDoesNotExist:
                 raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
                                        "".format(expected_version, stored_entity_id))
 
@@ -93,7 +93,10 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
             # Create a new entity version record.
             if new_version is not None:
                 new_entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
-                new_entity_version = SqlEntityVersion(id=new_entity_version_id)
+                new_entity_version = SqlEntityVersion(
+                    entity_version_id=new_entity_version_id,
+                    event_id=stored_event.event_id,
+                )
                 self.db_session.add(new_entity_version)
 
                 if artificial_failure_rate:
@@ -109,7 +112,7 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
                     sleep(artificial_failure_rate)
 
             # Create a new stored event record.
-            self.db_session.add(sql_stored_event)
+            self.db_session.add(to_sql(stored_event))
 
             # Commit the transaction.
             self.db_session.commit()
@@ -126,6 +129,17 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         finally:
             # Begin new transaction.
             self.db_session.close()
+
+    def get_entity_version(self, stored_entity_id, version):
+        entity_version_id = self.make_entity_version_id(stored_entity_id, version)
+        version = self.db_session.query(SqlEntityVersion).filter_by(entity_version_id=entity_version_id).first()
+        if version is None:
+            raise EntityVersionDoesNotExist()
+        assert isinstance(version, SqlEntityVersion)
+        return EntityVersion(
+            entity_version_id=entity_version_id,
+            event_id=version.event_id,
+        )
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):

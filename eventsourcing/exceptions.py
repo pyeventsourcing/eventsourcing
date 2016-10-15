@@ -12,6 +12,13 @@ class TopicResolutionError(EventSourcingError):
     pass
 
 
+class EntityVersionDoesNotExist(EventSourcingError):
+    """
+    Error when accessing an entity version.
+    """
+    pass
+
+
 class ConcurrencyError(EventSourcingError):
     """
     Error appending events to a versioned stream.

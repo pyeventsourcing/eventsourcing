@@ -20,6 +20,8 @@ except:
 
 StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
 
+EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
+
 
 def serialize_domain_event(domain_event, json_encoder_cls=None, without_json=False, with_uuid1=False, cipher=None,
                            always_encrypt=False):

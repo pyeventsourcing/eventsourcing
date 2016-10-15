@@ -1,7 +1,6 @@
 import six
 
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.exceptions import ConcurrencyError
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 
 
@@ -43,7 +42,8 @@ class EventStore(object):
                 query_ascending=False,  # Speed up for Cassandra, assuming primary TimeUUID key is stored descending.
                 results_ascending=False,  # Still need to return the events in ascending order.
             )
-            stored_events = reversed(stored_events)
+            if is_ascending:
+                stored_events = reversed(stored_events)
         else:
             stored_events = self.stored_event_repo.get_entity_events(
                 stored_entity_id=stored_entity_id,
@@ -64,3 +64,6 @@ class EventStore(object):
         """
         stored_event = self.stored_event_repo.get_most_recent_event(stored_entity_id, until=until)
         return None if stored_event is None else self.stored_event_repo.deserialize(stored_event)
+
+    def get_entity_version(self, stored_entity_id, version):
+        return self.stored_event_repo.get_entity_version(stored_entity_id=stored_entity_id, version=version)

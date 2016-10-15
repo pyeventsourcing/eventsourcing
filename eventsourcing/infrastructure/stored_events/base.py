@@ -25,6 +25,13 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
+    def get_entity_version(self, stored_entity_id, version):
+        """Returns entity version object for given entity version ID.
+
+        :rtype: EntityVersion
+        """
+
+    @abstractmethod
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):
         """Returns all events for given entity ID in chronological order. Limit is max 10000.

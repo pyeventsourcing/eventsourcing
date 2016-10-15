@@ -22,7 +22,7 @@ class EventPlayer(object):
         self.is_short = is_short
         self.snapshot_strategy = snapshot_strategy
 
-    def replay_events(self, entity_id, after=None, until=None, initial_state=None):
+    def replay_events(self, entity_id, after=None, until=None, initial_state=None, query_descending=False):
         """Reconstitutes a domain entity from stored events.
         """
 
@@ -35,8 +35,12 @@ class EventPlayer(object):
             after=after,
             until=until,
             page_size=self.page_size,
-            is_short=self.is_short
+            is_short=self.is_short,
+            is_ascending=not query_descending,
         )
+
+        if query_descending:
+            domain_events = reversed(list(domain_events))
 
         # Copy initial state, to preserve state of given object.
         if initial_state is not None:

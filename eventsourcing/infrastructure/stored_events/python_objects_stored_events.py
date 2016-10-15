@@ -1,9 +1,9 @@
 import itertools
 from collections import defaultdict
 
-from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
-from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
+from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent, EntityVersion
 from eventsourcing.utils.time import timestamp_from_uuid
 
 
@@ -17,22 +17,29 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
         self._by_id = {}
         self._by_stored_entity_id = {}
         self._entity_versions = defaultdict(lambda: defaultdict(lambda: itertools.chain([0], itertools.cycle([1]))))
+        self._event_id_by_entity_version_id = {}
 
     def append(self, stored_event, expected_version=None, new_version=None, max_retries=3, artificial_failure_rate=0):
         assert isinstance(stored_event, StoredEvent)
         stored_entity_id = stored_event.stored_entity_id
         event_id = stored_event.event_id
 
-        # Optimistic concurrency control.
-        if new_version is not None:
-            versions = self._entity_versions[stored_entity_id]
-            if expected_version is not None:
-                if expected_version not in versions:
-                    raise ConcurrencyError("Not yet stored version {} for entity {}".format(expected_version, stored_entity_id))
+        # Check expected version exists.
+        if expected_version is not None:
+            try:
+                self.get_entity_version(stored_entity_id, expected_version)
+            except EntityVersionDoesNotExist:
+                raise ConcurrencyError("Expected version {} for entity {} not found"
+                                       "".format(expected_version, stored_entity_id))
 
+        if new_version is not None:
             # Check we're the first to write this event.
+            versions = self._entity_versions[stored_entity_id]
             if next(versions[new_version]) != 0:
-                raise ConcurrencyError("Already stored version {} for entity {}".format(new_version, stored_entity_id))
+                raise ConcurrencyError("New version {} for entity {} already exists"
+                                       "".format(new_version, stored_entity_id))
+            entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
+            self._event_id_by_entity_version_id[entity_version_id] = stored_event.event_id
 
         # Remove entity if it's a discarded event.
         if stored_event.event_topic.endswith('Discarded'):
@@ -47,6 +54,16 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
 
             # Index by event ID.
             self._by_id[event_id] = stored_event
+
+    def get_entity_version(self, stored_entity_id, version):
+        versions = self._entity_versions[stored_entity_id]
+        if version not in versions:
+            raise EntityVersionDoesNotExist()
+        entity_version_id = self.make_entity_version_id(stored_entity_id, version)
+        return EntityVersion(
+            entity_version_id=entity_version_id,
+            event_id=self._event_id_by_entity_version_id[entity_version_id]
+        )
 
     def remove_entity(self, stored_entity_id):
         if stored_entity_id in self._by_stored_entity_id:

@@ -10,9 +10,9 @@ from cassandra.cqlengine.management import sync_table, create_keyspace_simple, d
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
-from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, ThreadedStoredEventIterator
-from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
+from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent, EntityVersion
 
 DEFAULT_CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
 DEFAULT_CASSANDRA_CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', 'LOCAL_QUORUM')
@@ -32,6 +32,9 @@ class CqlEntityVersion(Model):
 
     # Entity-version identifier (a string).
     r = columns.Text(partition_key=True)
+
+    # Stored event ID (normally a UUID1).
+    v = columns.TimeUUID()
 
     # Because models with one column break Cassandra driver 3.5.0.
     x = columns.Text(default='')
@@ -83,6 +86,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
         return ThreadedStoredEventIterator
 
     def append(self, stored_event, expected_version=None, new_version=None, max_retries=3, artificial_failure_rate=0):
+        assert isinstance(stored_event, StoredEvent)
 
         # Optimistic concurrency control.
         new_entity_version = None
@@ -95,10 +99,9 @@ class CassandraStoredEventRepository(StoredEventRepository):
             if expected_version is not None:
                 # Check the expected version exists, raise concurrency exception if not.
                 assert isinstance(expected_version, six.integer_types)
-                expected_entity_version_id = self.make_entity_version_id(stored_entity_id, expected_version)
                 try:
-                    CqlEntityVersion.get(r=expected_entity_version_id)
-                except CqlEntityVersion.DoesNotExist:
+                    self.get_entity_version(stored_entity_id, expected_version)
+                except EntityVersionDoesNotExist:
                     raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
                                            "".format(expected_version, stored_entity_id))
 
@@ -106,7 +109,10 @@ class CassandraStoredEventRepository(StoredEventRepository):
             #  - uses the "if not exists" optimistic concurrency control feature
             #    of Cassandra, hence this operation is assumed to succeed only once
             new_entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
-            new_entity_version = CqlEntityVersion(r=new_entity_version_id)
+            new_entity_version = CqlEntityVersion(
+                r=new_entity_version_id,
+                v=stored_event.event_id,
+            )
             try:
                 new_entity_version.save()
             except LWTException as e:
@@ -188,6 +194,18 @@ class CassandraStoredEventRepository(StoredEventRepository):
                             # The entity version was deleted, all is well.
                             break
                 raise event_write_error
+
+    def get_entity_version(self, stored_entity_id, version):
+        entity_version_id = self.make_entity_version_id(stored_entity_id, version)
+        try:
+            cql_entity_version = CqlEntityVersion.get(r=entity_version_id)
+        except CqlEntityVersion.DoesNotExist:
+            raise EntityVersionDoesNotExist()
+        assert isinstance(cql_entity_version, CqlEntityVersion)
+        return EntityVersion(
+            entity_version_id=entity_version_id,
+            event_id=cql_entity_version.v,
+        )
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):
