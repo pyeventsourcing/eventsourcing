@@ -284,8 +284,8 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
             initargs=(type(self.stored_event_repo), self.temp_file.name),
         )
 
-        # Start appending lots of events to the repo.
-        number_of_events = 300
+        # Append duplicate events to the repo, or at least try...
+        number_of_events = 40
         self.assertGreater(number_of_events, pool_size)
         stored_entity_id = uuid4().hex
         sequence_of_args = [(number_of_events, stored_entity_id)] * pool_size
@@ -384,14 +384,14 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
                     # print("PID {} got concurrent exception writing event at version {} at {}".format(
                     #     pid, new_version, started, datetime.datetime.now() - started))
                     failures.append((new_version, pid))
-                    sleep(0.01)
+                    sleep(0.02)
                 else:
                     print("PID {} success writing event at version {} at {} in {}".format(
                         pid, new_version, started, datetime.datetime.now() - started))
                     success_count += 1
                     successes.append((new_version, pid))
                     # Delay a successful writer, to give other processes a chance to write the next event.
-                    sleep(0.03)
+                    sleep(0.04)
 
         # Return to parent process the successes and failure, or an exception.
         except Exception as e:
