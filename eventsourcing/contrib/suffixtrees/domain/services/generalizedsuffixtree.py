@@ -35,10 +35,6 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
         else:
             assert isinstance(stringid_collection, StringidCollection)
 
-        # # If it doesn't have a string ID, check for any children.
-        string_id = node.string_id
-
-        # if string_id is not None:
         if stringid_collection and stringid_collection.items:
 
             # Deduplicate string IDs (the substring might match more than one suffix in any given string).
@@ -47,10 +43,7 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
                     continue
 
                 # Check the match doesn't encroach upon the string's extension.
-                # extension_length = len(string_id) + len(STRING_ID_END)
-                # extension_length = len(string_id)
                 extension_length = len(STRING_ID_END)
-                # extension_length = 0
                 if length_until_end < extension_length:
                     continue
 
@@ -94,27 +87,6 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
 
                     # Increase the hop count.
                     hop_count += 1
-
-        # else:
-        #     # Deduplicate string IDs (the substring might match more than one suffix in any given string).
-        #     if string_id in unique_string_ids:
-        #         continue
-        #
-        #     # Check the match doesn't encroach upon the string's extension.
-        #     extension_length = len(string_id) + len(STRING_ID_END)
-        #     if length_until_end < extension_length:
-        #         continue
-        #
-        #     # Remember the string ID, we only want one node per string ID.
-        #     unique_string_ids.add(string_id)
-        #
-        #     # Yield the string ID.
-        #     yield string_id
-        #
-        #     # Check the limit, stop if we've had enough string IDs.
-        #     if limit is not None and len(unique_string_ids) >= limit:
-        #         raise StopIteration
-
 
 
 def find_substring_edge(substring, suffix_tree, edge_repo):
