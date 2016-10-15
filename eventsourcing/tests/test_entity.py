@@ -5,7 +5,7 @@ from eventsourcing.domain.model.entity import mutableproperty, EntityIDConsisten
     EventSourcedEntity, created_mutator, CreatedMutatorRequiresTypeNotInstance
 from eventsourcing.domain.model.events import DomainEvent, subscribe, unsubscribe, assert_event_handlers_empty, publish
 from eventsourcing.domain.model.example import register_new_example, Example
-from eventsourcing.domain.model.exceptions import ProgrammingError
+from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
@@ -72,7 +72,7 @@ class TestExampleEntity(unittest.TestCase):
         entity1.discard()
 
         # Check the repo now raises a KeyError.
-        self.assertRaises(KeyError, repo.__getitem__, entity1.id)
+        self.assertRaises(RepositoryKeyError, repo.__getitem__, entity1.id)
 
         # Check the entity can't be discarded twice.
         self.assertRaises(AssertionError, entity1.discard)

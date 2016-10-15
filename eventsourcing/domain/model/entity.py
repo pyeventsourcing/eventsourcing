@@ -1,4 +1,4 @@
-from eventsourcing.domain.model.exceptions import ConsistencyError, ProgrammingError
+from eventsourcing.exceptions import ConsistencyError, ProgrammingError
 from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
