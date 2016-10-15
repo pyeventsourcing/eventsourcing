@@ -33,8 +33,8 @@ class CqlEntityVersion(Model):
     # Entity-version identifier (a string).
     r = columns.Text(partition_key=True)
 
-    # Stored event ID (normally a UUID1).
-    v = columns.TimeUUID()
+    # Stored event ID (normally a uuid1().hex).
+    v = columns.Text()
 
     # Because models with one column break Cassandra driver 3.5.0.
     x = columns.Text(default='')
@@ -85,33 +85,20 @@ class CassandraStoredEventRepository(StoredEventRepository):
     def iterator_class(self):
         return ThreadedStoredEventIterator
 
-    def append(self, stored_event, expected_version=None, new_version=None, max_retries=3, artificial_failure_rate=0):
-        assert isinstance(stored_event, StoredEvent)
+    def append(self, new_event, new_version=None, max_retries=3, artificial_failure_rate=0):
+        super(CassandraStoredEventRepository, self).append(new_event=new_event, new_version=new_version)
 
-        # Optimistic concurrency control.
+        # Write the next version.
+        stored_entity_id = new_event.stored_entity_id
         new_entity_version = None
-        stored_entity_id = stored_event.stored_entity_id
-
-        # If the 'new version' is None, skip optimistic concurrency control.
         if new_version is not None:
             assert isinstance(new_version, six.integer_types)
-            # Check the expected version actually exists.
-            if expected_version is not None:
-                # Check the expected version exists, raise concurrency exception if not.
-                assert isinstance(expected_version, six.integer_types)
-                try:
-                    self.get_entity_version(stored_entity_id, expected_version)
-                except EntityVersionDoesNotExist:
-                    raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
-                                           "".format(expected_version, stored_entity_id))
-
-            # Write the next version.
             #  - uses the "if not exists" optimistic concurrency control feature
             #    of Cassandra, hence this operation is assumed to succeed only once
             new_entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
             new_entity_version = CqlEntityVersion(
                 r=new_entity_version_id,
-                v=stored_event.event_id,
+                v=new_event.event_id,
             )
             try:
                 new_entity_version.save()
@@ -129,7 +116,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
             while True:
                 try:
                     # Instantiate a Cassandra CQL engine object.
-                    cql_stored_event = to_cql(stored_event)
+                    cql_stored_event = to_cql(new_event)
 
                     # Optionally mimic an unreliable save() operation.
                     #  - used for testing retries
@@ -162,10 +149,10 @@ class CassandraStoredEventRepository(StoredEventRepository):
             sleep(0.1)
             try:
                 # If the event actually exists, despite the exception, all is well.
-                CqlStoredEvent.get(n=stored_event.stored_entity_id, v=stored_event.event_id)
+                CqlStoredEvent.get(n=new_event.stored_entity_id, v=new_event.event_id)
 
             except CqlStoredEvent.DoesNotExist:
-                # Otherwise, try hard to recover by removing the new version.
+                # Otherwise, try harder to recover by removing the new version.
                 if new_entity_version is not None:
                     retries = max_retries * 3
                     while True:
@@ -181,7 +168,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
                         except DriverException as version_delete_error:
                             # It's not going very well, so maybe retry.
                             if retries <= 0:
-                                # Raise the error after retries exhausted.
+                                # Raise when retries are exhausted.
                                 raise Exception("Unable to delete version {} of entity {} after failing to write"
                                                 "event: event write error {}: version delete error {}"
                                                 .format(new_entity_version, stored_entity_id,

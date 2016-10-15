@@ -78,25 +78,21 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         assert isinstance(db_session, ScopedSession)
         self.db_session = db_session
 
-    def append(self, stored_event, expected_version=None, new_version=None, max_retries=3, artificial_failure_rate=0):
+    def append(self, new_event, new_version=None, max_retries=3, artificial_failure_rate=0):
+        super(SQLAlchemyStoredEventRepository, self).append(new_event=new_event, new_version=new_version)
 
-        # Check expected version exists.
-        stored_entity_id = stored_event.stored_entity_id
-        if expected_version:
-            try:
-                self.get_entity_version(stored_entity_id, expected_version)
-            except EntityVersionDoesNotExist:
-                raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
-                                       "".format(expected_version, stored_entity_id))
+        stored_entity_id = new_event.stored_entity_id
 
+        # Write new entity version and stored event into the database.
         try:
-            # Create a new entity version record.
             if new_version is not None:
                 new_entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
                 new_entity_version = SqlEntityVersion(
                     entity_version_id=new_entity_version_id,
-                    event_id=stored_event.event_id,
+                    event_id=new_event.event_id,
                 )
+
+                # Add new entity to session.
                 self.db_session.add(new_entity_version)
 
                 if artificial_failure_rate:
@@ -109,10 +105,13 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
                     #  - used to generate contention in tests
                     self.db_session.commit()
                     self.db_session.close()
+
+                    # Increased latency here causes increased contention.
+                    #  - used to generate contention in tests
                     sleep(artificial_failure_rate)
 
-            # Create a new stored event record.
-            self.db_session.add(to_sql(stored_event))
+            # Add stored event to the session.
+            self.db_session.add(to_sql(new_event))
 
             # Commit the transaction.
             self.db_session.commit()

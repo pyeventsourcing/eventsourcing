@@ -29,17 +29,26 @@ class EventPlayer(object):
         # Make the stored entity ID.
         stored_entity_id = self.make_stored_entity_id(entity_id)
 
+        if self.is_short and after is None and until is None and self.page_size is None:
+            # Speed up for events are stored in descending order (e.g. in Cassandra).
+            # - the inclusiveness or exclusiveness of until and after,
+            #   and the end of the stream that is limited depends on
+            #   query_ascending, so we can't use this method with them
+            # - also if there's a page size, it probably isn't short
+            is_ascending=False
+        else:
+            is_ascending = not query_descending
+
         # Get entity's domain events from the event store.
         domain_events = self.event_store.get_entity_events(
             stored_entity_id=stored_entity_id,
             after=after,
             until=until,
             page_size=self.page_size,
-            is_short=self.is_short,
-            is_ascending=not query_descending,
+            is_ascending=is_ascending,
         )
 
-        if query_descending:
+        if not is_ascending:
             domain_events = reversed(list(domain_events))
 
         # Copy initial state, to preserve state of given object.

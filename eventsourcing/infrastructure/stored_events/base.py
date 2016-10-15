@@ -4,8 +4,10 @@ from threading import Thread
 
 import six
 
+from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
     StoredEvent
+from eventsourcing.utils.time import time_from_uuid
 
 
 class StoredEventRepository(six.with_metaclass(ABCMeta)):
@@ -19,33 +21,43 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         self.always_encrypt = always_encrypt
 
     @abstractmethod
-    def append(self, stored_event, expected_version=None, new_version=None, max_retries=3, artificial_failure_rate=0):
-        """Saves given stored event in this repository.
-        :param stored_event:
+    def append(self, new_event, new_version=None, max_retries=3, artificial_failure_rate=0):
         """
+        Saves given stored event in this repository.
+        """
+        # Check the new event is a stored event instance.
+        assert isinstance(new_event, StoredEvent)
+
+        # Validate the expected version.
+        # noinspection PyTypeChecker
+        self.validate_expected_version(new_event, new_version)
 
     @abstractmethod
     def get_entity_version(self, stored_entity_id, version):
-        """Returns entity version object for given entity version ID.
+        """
+        Returns entity version object for given entity version ID.
 
         :rtype: EntityVersion
+
         """
 
     @abstractmethod
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):
-        """Returns all events for given entity ID in chronological order. Limit is max 10000.
+        """
+        Returns all events for given entity ID in chronological order. Limit is max 10000.
 
         :rtype: list
+
         """
 
     def iterate_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
                               page_size=None):
-        """Returns all events for given entity ID by paging through the stored events.
-        :param until:
-        :param after:
-        :param stored_entity_id:
+        """
+        Returns all events for given entity ID by paging through the stored events.
+
         :rtype: list
+
         """
         return self.iterator_class(
             repo=self,
@@ -62,10 +74,11 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         return SimpleStoredEventIterator
 
     def get_most_recent_event(self, stored_entity_id, until=None):
-        """Returns last event for given entity ID.
+        """
+        Returns last event for given entity ID.
 
-        :param stored_entity_id:
         :rtype: DomainEvent, NoneType
+
         """
         events = self.get_most_recent_events(stored_entity_id, until=until, limit=1)
         events = list(events)
@@ -78,6 +91,12 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
                             "".format(events))
 
     def get_most_recent_events(self, stored_entity_id, until=None, limit=None):
+        """
+        Returns a stored event from a domain event.
+
+        :rtype: list
+
+        """
         return self.get_entity_events(
             stored_entity_id=stored_entity_id,
             until=until,
@@ -87,9 +106,11 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         )
 
     def serialize(self, domain_event):
-        """Returns a stored event from a domain event.
-        :type domain_event: object
-        :param domain_event:
+        """
+        Returns a stored event from a domain event.
+
+        :rtype: StoredEvent
+
         """
         return serialize_domain_event(
             domain_event,
@@ -101,8 +122,10 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
         )
 
     def deserialize(self, stored_event):
-        """Returns a domain event from a stored event.
-        :type stored_event: object
+        """
+        Returns a domain event from a stored event.
+
+        :rtype: DomainEvent
         """
         return deserialize_domain_event(
             stored_event,
@@ -119,7 +142,37 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
 
     @staticmethod
     def make_entity_version_id(stored_entity_id, version):
+        """
+        Constructs entity version ID from stored entity ID and version number.
+
+        :rtype: str
+
+        """
         return u"{}::version::{}".format(stored_entity_id, version)
+
+    def validate_expected_version(self, new_event, new_version):
+        """
+        Checks the expected version exists and occurred before the new event.
+
+        Raises a concurrency error if the expected version doesn't exist,
+        or if the new event occurred before the expected version occurred.
+        """
+        stored_entity_id = new_event.stored_entity_id
+        expected_version = self.decide_expected_version(new_version)
+        if expected_version is not None:
+            assert isinstance(expected_version, six.integer_types)
+            try:
+                entity_version = self.get_entity_version(stored_entity_id, expected_version)
+            except EntityVersionDoesNotExist:
+                raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
+                                       "".format(expected_version, stored_entity_id))
+            else:
+                if not time_from_uuid(new_event.event_id) > time_from_uuid(entity_version.event_id):
+                    raise ConcurrencyError("New event ID '{}' occurs before last version event ID '{}' for entity {}"
+                                           "".format(new_event.event_id, entity_version.event_id, stored_entity_id))
+
+    def decide_expected_version(self, new_version):
+        return new_version - 1 if new_version else None
 
 
 class StoredEventIterator(six.with_metaclass(ABCMeta)):
@@ -170,10 +223,19 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
 
 class SimpleStoredEventIterator(StoredEventIterator):
     def __iter__(self):
-        # Get pages of events until we hit the last page.
+        """
+        Yields pages of events until the last page.
+
+       """
         while True:
             # Get next page of events.
-            limit = self.page_size
+            if self.limit is not None:
+                limit = min(self.page_size, self.limit - self.all_event_counter)
+            else:
+                limit = self.page_size
+
+            if limit == 0:
+                raise StopIteration
 
             # Get the events.
             stored_events = self.repo.get_entity_events(

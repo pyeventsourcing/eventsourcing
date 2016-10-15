@@ -18,11 +18,10 @@ class EventStore(object):
         # Append the stored event to the stored event repo.
         #  - pass in some params for lower level optimistic concurrency control
         new_version = domain_event.entity_version
-        expected_version = new_version - 1 if new_version else None
-        self.stored_event_repo.append(stored_event, expected_version=expected_version, new_version=new_version)
+        self.stored_event_repo.append(new_event=stored_event, new_version=new_version)
 
-    def get_entity_events(self, stored_entity_id, after=None, until=None,
-                          limit=None, is_ascending=True, page_size=None, is_short=False):
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
+                          page_size=None):
         # Get the events that have been stored for the entity.
         if page_size:
             stored_events = self.stored_event_repo.iterate_entity_events(
@@ -33,17 +32,6 @@ class EventStore(object):
                 is_ascending=is_ascending,
                 page_size=page_size
             )
-        elif is_short:
-            stored_events = self.stored_event_repo.get_entity_events(
-                stored_entity_id=stored_entity_id,
-                after=after,
-                until=until,
-                limit=limit,
-                query_ascending=False,  # Speed up for Cassandra, assuming primary TimeUUID key is stored descending.
-                results_ascending=False,  # Still need to return the events in ascending order.
-            )
-            if is_ascending:
-                stored_events = reversed(stored_events)
         else:
             stored_events = self.stored_event_repo.get_entity_events(
                 stored_entity_id=stored_entity_id,
