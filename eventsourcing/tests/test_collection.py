@@ -5,6 +5,7 @@ from unittest.case import TestCase
 from eventsourcing.domain.model.collection import register_new_collection, Collection
 from eventsourcing.domain.model.entity import EntityIsDiscarded
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
+from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepo
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
@@ -120,7 +121,7 @@ class TestCollectionRepo(TestCase):
 
     def test(self):
         # Check the collection is not in the repo.
-        with self.assertRaises(KeyError):
+        with self.assertRaises(RepositoryKeyError):
             _ = self.repo['none']
 
         # Register a new collection.
@@ -158,5 +159,5 @@ class TestCollectionRepo(TestCase):
         collection.discard()
 
         # Check the collection is not in the repo.
-        with self.assertRaises(KeyError):
+        with self.assertRaises(RepositoryKeyError):
             _ = self.repo['none']

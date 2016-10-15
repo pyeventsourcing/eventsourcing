@@ -1,6 +1,7 @@
 from abc import abstractproperty
 
 from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity
+from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.event_player import EventPlayer, entity_from_snapshot
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.stored_events.transcoders import id_prefix_from_entity_class
@@ -64,7 +65,7 @@ class EventSourcedRepository(EntityRepository):
 
         # Never created or already discarded?
         if entity is None:
-            raise KeyError(entity_id)
+            raise RepositoryKeyError(entity_id)
 
         # Put entity in the cache.
         if self._use_cache:
