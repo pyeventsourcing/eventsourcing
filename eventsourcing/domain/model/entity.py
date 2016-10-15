@@ -1,4 +1,4 @@
-from eventsourcing.domain.model.exceptions import ConsistencyError, ProgrammingError
+from eventsourcing.exceptions import ConsistencyError, ProgrammingError
 from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
@@ -22,7 +22,7 @@ class EntityVersionConsistencyError(ConsistencyError):
     pass
 
 
-class MutatorRequiresTypeError(ConsistencyError):
+class CreatedMutatorRequiresTypeNotInstance(ConsistencyError):
     pass
 
 
@@ -60,7 +60,8 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         self._initial_event_id = domain_event_id
 
     def _increment_version(self):
-        self._version += 1
+        if self._version is not None:
+            self._version += 1
 
     def _assert_not_discarded(self):
         if self._is_discarded:
@@ -87,7 +88,7 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         # Check event originator's version number matches our own version number.
         if self._version != event.entity_version:
             raise EntityVersionConsistencyError("Entity version '{}' not equal to event's entity version '{}'"
-                                       "".format(self._version, event.entity_version))
+                                                "".format(self._version, event.entity_version))
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
@@ -126,9 +127,10 @@ def entity_mutator(event, _):
 def created_mutator(event, cls):
     assert isinstance(event, DomainEvent), event
     if not isinstance(cls, type):
-        raise MutatorRequiresTypeError("created_mutator needs a type instance: {} "
-                                       "(event entity id: {}, event type: {})"
-                                       "".format(type(cls), event.entity_id, type(event)))
+        msg = ("Mutator for Created event requires entity type not instance: {} "
+               "(event entity id: {}, event type: {})"
+               "".format(type(cls), event.entity_id, type(event)))
+        raise CreatedMutatorRequiresTypeNotInstance(msg)
     assert issubclass(cls, EventSourcedEntity), cls
     self = cls(**event.__dict__)
     self._increment_version()

@@ -9,7 +9,7 @@ from singledispatch import singledispatch
 
 from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository, entity_mutator
 from eventsourcing.domain.model.events import publish, DomainEvent
-from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 
 # Use a private code point to terminate the string IDs.
 STRING_ID_END = '\uEFFF'
@@ -295,7 +295,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         except KeyError as e:
             try:
                 node = self._node_repo[node_id]
-            except KeyError:
+            except RepositoryKeyError:
                 raise e
             else:
                 self._cache_node(node)
@@ -312,7 +312,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         """
         try:
             node = self._node_child_collection_repo[node_id]
-        except KeyError:
+        except RepositoryKeyError:
             node = register_new_node_child_collection(node_id)
         return node
 

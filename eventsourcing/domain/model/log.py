@@ -89,7 +89,7 @@ def timestamp_from_datetime(dt):
         # Only in Python 3.3+.
         return dt.timestamp()
     except AttributeError:
-        return mktime(dt.timetuple()) + dt.microsecond/1000000.0
+        return mktime(dt.timetuple()) + (dt.microsecond / 1000000.0)
 
 
 def bucket_starts(timestamp, bucket_size):

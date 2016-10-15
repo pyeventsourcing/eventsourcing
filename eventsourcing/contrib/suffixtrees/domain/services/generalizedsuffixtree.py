@@ -2,6 +2,7 @@ import six
 
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import SuffixTreeNode, STRING_ID_END, \
     GeneralizedSuffixTree, EdgeRepository, make_edge_id
+from eventsourcing.exceptions import RepositoryKeyError
 
 
 def get_string_ids(node_id, node_repo, node_child_collection_repo, length_until_end=0, edge_length=0,
@@ -32,7 +33,7 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, length_until_
             if hop_max is None or hop_count < hop_max:
                 try:
                     node_child_collection = node_child_collection_repo[node_id]
-                except KeyError:
+                except RepositoryKeyError:
                     # It doesn't matter if there isn't a child collection.
                     pass
                 else:
@@ -88,7 +89,7 @@ def find_substring_edge(substring, suffix_tree, edge_repo):
         edge_id = make_edge_id(curr_node_id, substring[i])
         try:
             edge = edge_repo[edge_id]
-        except KeyError:
+        except RepositoryKeyError:
             return None, None
         ln = min(edge.length + 1, len(substring) - i)
         if substring[i:i + ln] != edge.label[:ln]:

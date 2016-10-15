@@ -2,10 +2,10 @@ import unittest
 import mock
 
 from eventsourcing.domain.model.entity import mutableproperty, EntityIDConsistencyError, EntityVersionConsistencyError, \
-    EventSourcedEntity, created_mutator, MutatorRequiresTypeError
+    EventSourcedEntity, created_mutator, CreatedMutatorRequiresTypeNotInstance
 from eventsourcing.domain.model.events import DomainEvent, subscribe, unsubscribe, assert_event_handlers_empty, publish
 from eventsourcing.domain.model.example import register_new_example, Example
-from eventsourcing.domain.model.exceptions import ProgrammingError
+from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
@@ -72,7 +72,7 @@ class TestExampleEntity(unittest.TestCase):
         entity1.discard()
 
         # Check the repo now raises a KeyError.
-        self.assertRaises(KeyError, repo.__getitem__, entity1.id)
+        self.assertRaises(RepositoryKeyError, repo.__getitem__, entity1.id)
 
         # Check the entity can't be discarded twice.
         self.assertRaises(AssertionError, entity1.discard)
@@ -128,7 +128,7 @@ class TestExampleEntity(unittest.TestCase):
         self.assertTrue(p.fget)
 
         # Pretend we decorated an object.
-        o = EventSourcedEntity(entity_id='1', entity_version=1, domain_event_id=1)
+        o = EventSourcedEntity(entity_id='1', entity_version=0, domain_event_id=1)
         o.__dict__['_<lambda>'] = 'value1'
 
         # Call the property's getter function.
@@ -163,7 +163,7 @@ class TestExampleEntity(unittest.TestCase):
         subscribe(*subscription)
         entity_id = '1'
         try:
-            aaa = Aaa(entity_id=entity_id, entity_version=0, domain_event_id='0', a=1)
+            aaa = Aaa(entity_id=entity_id, entity_version=None, domain_event_id='0', a=1)
             self.assertEqual(aaa.a, 1)
             aaa.a = 'value1'
             self.assertEqual(aaa.a, 'value1')
@@ -185,4 +185,4 @@ class TestExampleEntity(unittest.TestCase):
         self.assertRaises(NotImplementedError, EventSourcedEntity._mutator, 1, 2)
 
     def test_created_mutator_error(self):
-        self.assertRaises(MutatorRequiresTypeError, created_mutator, mock.Mock(spec=DomainEvent), 'not a class')
+        self.assertRaises(CreatedMutatorRequiresTypeNotInstance, created_mutator, mock.Mock(spec=DomainEvent), 'not a class')

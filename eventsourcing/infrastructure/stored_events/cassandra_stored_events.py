@@ -1,12 +1,16 @@
 import os
+from random import random
+from time import sleep
 
-from cassandra import ConsistencyLevel, AlreadyExists
-from cassandra.auth import PlainTextAuthProvider
-from cassandra.cqlengine.models import Model, columns
-from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_keyspace
 import cassandra.cqlengine.connection
 import six
+from cassandra import ConsistencyLevel, AlreadyExists, DriverException
+from cassandra.auth import PlainTextAuthProvider
+from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_keyspace
+from cassandra.cqlengine.models import Model, columns
+from cassandra.cqlengine.query import LWTException
 
+from eventsourcing.exceptions import ConcurrencyError
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, ThreadedStoredEventIterator
 from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
@@ -17,23 +21,44 @@ DEFAULT_CASSANDRA_PORT = int(os.getenv('CASSANDRA_PORT', 9042))
 DEFAULT_CASSANDRA_PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', 3))
 
 
+class CqlEntityVersion(Model):
+    """Stores the stored entity ID and entity version as a partition key."""
+
+    __table_name__ = 'entity_versions'
+
+    # Makes sure we can't write the same version twice,
+    # helps to implement optimistic concurrency control.
+    _if_not_exists = True
+
+    # Entity-version identifier (a string).
+    r = columns.Text(partition_key=True)
+
+    # Because models with one column break Cassandra driver 3.5.0.
+    x = columns.Text(default='')
+
+
 class CqlStoredEvent(Model):
+
     __table_name__ = 'stored_events'
-    # 'n' - stored entity ID (normally a string, with the entity type name at the start)
+
+    # This makes sure we can't overwrite events.
+    _if_not_exists = True
+
+    # Stored entity ID (normally a string, with the entity type name at the start)
     n = columns.Text(partition_key=True)
 
-    # 'v' - event ID (normally a UUID1)
+    # Stored event ID (normally a UUID1)
     v = columns.TimeUUID(clustering_order='DESC', primary_key=True)
 
-    # 't' - event topic (path to the event object class)
+    # Stored event topic (path to the event object class)
     t = columns.Text(required=True)
 
-    # 'a' - event attributes (the entity object __dict__)
+    # Stored event attributes (the entity object __dict__)
     a = columns.Text(required=True)
 
 
 def to_cql(stored_event):
-    assert isinstance(stored_event, StoredEvent)
+    assert isinstance(stored_event, StoredEvent), stored_event
     return CqlStoredEvent(
         n=stored_event.stored_entity_id,
         v=stored_event.event_id,
@@ -60,9 +85,112 @@ class CassandraStoredEventRepository(StoredEventRepository):
     def iterator_class(self):
         return ThreadedStoredEventIterator
 
-    def append(self, stored_event):
-        cql_stored_event = to_cql(stored_event)
-        cql_stored_event.save()
+    def append(self, stored_event, expected_version=None, new_version=None, max_retries=3, artificial_failure_rate=0):
+
+        # Optimistic concurrency control.
+        new_entity_version = None
+        stored_entity_id = stored_event.stored_entity_id
+
+        # If the 'new version' is None, skip optimistic concurrency control.
+        if new_version is not None:
+            assert isinstance(new_version, six.integer_types)
+            # Check the expected version actually exists.
+            if expected_version is not None:
+                # Check the expected version exists, raise concurrency exception if not.
+                assert isinstance(expected_version, six.integer_types)
+                expected_entity_version_id = self.make_entity_version_id(stored_entity_id, expected_version)
+                try:
+                    CqlEntityVersion.get(r=expected_entity_version_id)
+                except CqlEntityVersion.DoesNotExist:
+                    raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
+                                           "".format(expected_version, stored_entity_id))
+
+            # Write the next version.
+            #  - uses the "if not exists" optimistic concurrency control feature
+            #    of Cassandra, hence this operation is assumed to succeed only once
+            new_entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
+            new_entity_version = CqlEntityVersion(r=new_entity_version_id)
+            try:
+                new_entity_version.save()
+            except LWTException as e:
+                raise ConcurrencyError("Version {} of entity {} already exists: {}".format(new_version, stored_entity_id, e))
+
+        # Increased latency here causes increased contention.
+        #  - used for testing concurrency exceptions
+        if artificial_failure_rate:
+            sleep(artificial_failure_rate)
+
+        # Write the stored event into the database.
+        try:
+            retries = max_retries
+            while True:
+                try:
+                    # Instantiate a Cassandra CQL engine object.
+                    cql_stored_event = to_cql(stored_event)
+
+                    # Optionally mimic an unreliable save() operation.
+                    #  - used for testing retries
+                    if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
+                        raise DriverException("Artificial failure")
+
+                    # Save the event.
+                    cql_stored_event.save()
+
+                except DriverException:
+
+                    if retries <= 0:
+                        # Raise the error after retries exhausted.
+                        raise
+                    else:
+                        # Otherwise retry.
+                        retries -= 1
+                        sleep(0.05 + 0.1 * random())
+                else:
+                    break
+
+        except DriverException as event_write_error:
+            # If we get here, we're in trouble because the version has been
+            # written, but perhaps not the event, so the entity may be broken
+            # because it might not be possible to get the entity with version
+            # number high enough to pass the optimistic concurrency check
+            # when storing subsequent events.
+
+            # Back off for a little bit.
+            sleep(0.1)
+            try:
+                # If the event actually exists, despite the exception, all is well.
+                CqlStoredEvent.get(n=stored_event.stored_entity_id, v=stored_event.event_id)
+
+            except CqlStoredEvent.DoesNotExist:
+                # Otherwise, try hard to recover by removing the new version.
+                if new_entity_version is not None:
+                    retries = max_retries * 3
+                    while True:
+                        try:
+                            # Optionally mimic an unreliable delete() operation.
+                            #  - used for testing retries
+                            if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
+                                raise DriverException("Artificial failure")
+
+                            # Delete the new entity version.
+                            new_entity_version.delete()
+
+                        except DriverException as version_delete_error:
+                            # It's not going very well, so maybe retry.
+                            if retries <= 0:
+                                # Raise the error after retries exhausted.
+                                raise Exception("Unable to delete version {} of entity {} after failing to write"
+                                                "event: event write error {}: version delete error {}"
+                                                .format(new_entity_version, stored_entity_id,
+                                                        event_write_error, version_delete_error))
+                            else:
+                                # Otherwise retry.
+                                retries -= 1
+                                sleep(0.05 + 0.1 * random())
+                        else:
+                            # The entity version was deleted, all is well.
+                            break
+                raise event_write_error
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):
@@ -122,8 +250,9 @@ def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspa
         default_keyspace=default_keyspace,
         port=port,
         auth_provider=auth_provider,
-        protocol_version=protocol_version,
+        # protocol_version=protocol_version,
         lazy_connect=True,
+        retry_connect=True,
     )
 
 
@@ -136,6 +265,7 @@ def create_cassandra_keyspace_and_tables(keyspace=DEFAULT_CASSANDRA_KEYSPACE, re
         pass
     else:
         sync_table(CqlStoredEvent)
+        sync_table(CqlEntityVersion)
 
 
 def drop_cassandra_keyspace(keyspace=DEFAULT_CASSANDRA_KEYSPACE):
