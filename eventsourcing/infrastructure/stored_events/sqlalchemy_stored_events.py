@@ -147,9 +147,9 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
             query = self.db_session.query(SqlStoredEvent)
             query = query.filter_by(stored_entity_id=stored_entity_id)
             if query_ascending:
-                query = query.order_by(asc(SqlStoredEvent.id))
+                query = query.order_by(asc(SqlStoredEvent.timestamp_long))
             else:
-                query = query.order_by(desc(SqlStoredEvent.id))
+                query = query.order_by(desc(SqlStoredEvent.timestamp_long))
 
             if after is not None:
                 if query_ascending:
