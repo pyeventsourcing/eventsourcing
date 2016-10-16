@@ -376,21 +376,21 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
                     worker_repo.append(
                         new_stored_event=stored_event,
                         new_version_number=new_version,
-                        max_retries=100,
-                        artificial_failure_rate=0.15,
+                        max_retries=10,
+                        artificial_failure_rate=0.2,
                     )
                 except ConcurrencyError:
                     # print("PID {} got concurrent exception writing event at version {} at {}".format(
                     #     pid, new_version, started, datetime.datetime.now() - started))
                     failures.append((new_version, pid))
-                    sleep(0.02)
+                    sleep(0.01)
                 else:
                     print("PID {} success writing event at version {} at {} in {}".format(
                         pid, new_version, started, datetime.datetime.now() - started))
                     success_count += 1
                     successes.append((new_version, pid))
                     # Delay a successful writer, to give other processes a chance to write the next event.
-                    sleep(0.04)
+                    sleep(0.03)
 
         # Return to parent process the successes and failure, or an exception.
         except Exception as e:
