@@ -19,21 +19,19 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
         self._entity_versions = defaultdict(lambda: defaultdict(lambda: itertools.chain([0], itertools.cycle([1]))))
         self._event_id_by_entity_version_id = {}
 
-    def append(self, new_event, new_version=None, max_retries=3, artificial_failure_rate=0):
-        super(PythonObjectsStoredEventRepository, self).append(new_event=new_event, new_version=new_version)
-
-        # Write the next version.
-        stored_entity_id = new_event.stored_entity_id
-        if new_version is not None:
+    def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3, artificial_failure_rate=0):
+        # Put the event in the various dicts.
+        stored_entity_id = new_stored_event.stored_entity_id
+        if self.always_write_entity_version and new_version_number is not None:
             versions = self._entity_versions[stored_entity_id]
-            if next(versions[new_version]) != 0:
+            if next(versions[new_version_number]) != 0:
                 raise ConcurrencyError("New version {} for entity {} already exists"
-                                       "".format(new_version, stored_entity_id))
-            entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
-            self._event_id_by_entity_version_id[entity_version_id] = new_event.event_id
+                                       "".format(new_version_number, stored_entity_id))
+            entity_version_id = self.make_entity_version_id(stored_entity_id, new_version_number)
+            self._event_id_by_entity_version_id[entity_version_id] = new_stored_event.event_id
 
         # Remove entity if it's a discarded event.
-        if new_event.event_topic.endswith('Discarded'):
+        if new_stored_event.event_topic.endswith('Discarded'):
             self.remove_entity(stored_entity_id)
 
         # Otherwise add event to entity's list of events.
@@ -41,16 +39,16 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
             # Index by entity ID.
             if stored_entity_id not in self._by_stored_entity_id:
                 self._by_stored_entity_id[stored_entity_id] = []
-            self._by_stored_entity_id[stored_entity_id].append(new_event)
+            self._by_stored_entity_id[stored_entity_id].append(new_stored_event)
 
             # Index by event ID.
-            self._by_id[new_event.event_id] = new_event
+            self._by_id[new_stored_event.event_id] = new_stored_event
 
-    def get_entity_version(self, stored_entity_id, version):
+    def get_entity_version(self, stored_entity_id, version_number):
         versions = self._entity_versions[stored_entity_id]
-        if version not in versions:
+        if version_number not in versions:
             raise EntityVersionDoesNotExist()
-        entity_version_id = self.make_entity_version_id(stored_entity_id, version)
+        entity_version_id = self.make_entity_version_id(stored_entity_id, version_number)
         return EntityVersion(
             entity_version_id=entity_version_id,
             event_id=self._event_id_by_entity_version_id[entity_version_id]
@@ -60,7 +58,8 @@ class PythonObjectsStoredEventRepository(StoredEventRepository):
         if stored_entity_id in self._by_stored_entity_id:
             for stored_event in self._by_stored_entity_id.pop(stored_entity_id):
                 del(self._by_id[stored_event.event_id])
-        del(self._entity_versions[stored_entity_id])
+        if self.always_write_entity_version:
+            del(self._entity_versions[stored_entity_id])
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):

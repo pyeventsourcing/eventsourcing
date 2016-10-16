@@ -1,5 +1,6 @@
 from time import sleep
 
+import six
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative.api import declarative_base
@@ -78,21 +79,21 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
         assert isinstance(db_session, ScopedSession)
         self.db_session = db_session
 
-    def append(self, new_event, new_version=None, max_retries=3, artificial_failure_rate=0):
-        super(SQLAlchemyStoredEventRepository, self).append(new_event=new_event, new_version=new_version)
-
-        stored_entity_id = new_event.stored_entity_id
-
-        # Write new entity version and stored event into the database.
+    def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3, artificial_failure_rate=0):
+        """
+        Writes new entity version and stored event into the database in a single transaction.
+        """
+        stored_entity_id = new_stored_event.stored_entity_id
         try:
-            if new_version is not None:
-                new_entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
+            # Write entity version into the transaction.
+            if self.always_write_entity_version and new_version_number is not None:
+                assert isinstance(new_version_number, six.integer_types)
+                new_entity_version_id = self.make_entity_version_id(stored_entity_id, new_version_number)
                 new_entity_version = SqlEntityVersion(
                     entity_version_id=new_entity_version_id,
-                    event_id=new_event.event_id,
+                    event_id=new_stored_event.event_id,
                 )
 
-                # Add new entity to session.
                 self.db_session.add(new_entity_version)
 
                 if artificial_failure_rate:
@@ -110,8 +111,8 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
                     #  - used to generate contention in tests
                     sleep(artificial_failure_rate)
 
-            # Add stored event to the session.
-            self.db_session.add(to_sql(new_event))
+            # Write stored event into the transaction.
+            self.db_session.add(to_sql(new_stored_event))
 
             # Commit the transaction.
             self.db_session.commit()
@@ -120,7 +121,7 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
             # Rollback and raise concurrency error.
             self.db_session.rollback()
             raise ConcurrencyError("Version {} of entity {} already exists: {}"
-                                   "".format(new_version, stored_entity_id, e))
+                                   "".format(new_entity_version, stored_entity_id, e))
         except:
             # Rollback and reraise.
             self.db_session.rollback()
@@ -129,15 +130,15 @@ class SQLAlchemyStoredEventRepository(StoredEventRepository):
             # Begin new transaction.
             self.db_session.close()
 
-    def get_entity_version(self, stored_entity_id, version):
-        entity_version_id = self.make_entity_version_id(stored_entity_id, version)
-        version = self.db_session.query(SqlEntityVersion).filter_by(entity_version_id=entity_version_id).first()
-        if version is None:
+    def get_entity_version(self, stored_entity_id, version_number):
+        entity_version_id = self.make_entity_version_id(stored_entity_id, version_number)
+        version_number = self.db_session.query(SqlEntityVersion).filter_by(entity_version_id=entity_version_id).first()
+        if version_number is None:
             raise EntityVersionDoesNotExist()
-        assert isinstance(version, SqlEntityVersion)
+        assert isinstance(version_number, SqlEntityVersion)
         return EntityVersion(
             entity_version_id=entity_version_id,
-            event_id=version.event_id,
+            event_id=version_number.event_id,
         )
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,

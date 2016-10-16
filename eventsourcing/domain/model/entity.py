@@ -43,6 +43,12 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     # the fastest path for getting all the events is used.
     __is_short__ = False
 
+    # This should be enabled for models that have their consistency
+    # protected against concurrency errors, with e.g. optimistic
+    # concurrency control. See 'always_write_entity_version' constructor
+    # argument in EventSourcingApplication and StoredEventRepo classes.
+    __always_validate_originator_version__ = False
+
     class Created(DomainEvent):
         def __init__(self, entity_version=0, **kwargs):
             super(EventSourcedEntity.Created, self).__init__(entity_version=entity_version, **kwargs)
@@ -86,7 +92,7 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
                                            "".format(self.id, event.entity_id))
 
         # Check event's entity version matches this entity's version.
-        if self._version != event.entity_version:
+        if self.__always_validate_originator_version__ and self._version != event.entity_version:
             raise EntityVersionConsistencyError(
                 "Event version '{}' not equal to entity version '{}', event type: '{}', entity type: '{}', entity ID: '{}'"
                 "".format(event.entity_version, self._version, type(event).__name__, type(self).__name__, self._id))

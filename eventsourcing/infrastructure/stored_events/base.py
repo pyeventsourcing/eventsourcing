@@ -4,43 +4,95 @@ from threading import Thread
 
 import six
 
-from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
+from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist, ProgrammingError
 from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
     StoredEvent
 from eventsourcing.utils.time import time_from_uuid
 
 
+# Todo: Maybe move the serialisation / deserialisation stuff to the event store, since that's the only user.
+
 class StoredEventRepository(six.with_metaclass(ABCMeta)):
     serialize_without_json = False
     serialize_with_uuid1 = False
 
-    def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False, check_expected_version=False):
+    def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False,
+                 always_check_expected_version=False, always_write_entity_version=False):
+        """
+        Base class for a persistent collection of stored events.
+        """
         self.json_encoder_cls = json_encoder_cls
         self.json_decoder_cls = json_decoder_cls
         self.cipher = cipher
         self.always_encrypt = always_encrypt
-        self.check_expected_version = check_expected_version
+        self.always_check_expected_version = always_check_expected_version
+        self.always_write_entity_version = always_write_entity_version
+        if self.always_check_expected_version and not self.always_write_entity_version:
+            raise ProgrammingError("If versions are checked, they must also be written.")
 
-    @abstractmethod
-    def append(self, new_event, new_version=None, max_retries=3, artificial_failure_rate=0):
+    def append(self, new_stored_event, new_version_number=None, max_retries=3, artificial_failure_rate=0):
         """
         Saves given stored event in this repository.
         """
         # Check the new event is a stored event instance.
-        assert isinstance(new_event, StoredEvent)
+        assert isinstance(new_stored_event, StoredEvent)
 
         # Validate the expected version.
-        if self.check_expected_version:
+        if self.always_check_expected_version:
             # noinspection PyTypeChecker
-            self.validate_expected_version(new_event, new_version)
+            self.validate_expected_version(new_stored_event, new_version_number)
+
+        # Write the event.
+        self.write_version_and_event(
+            new_stored_event=new_stored_event,
+            new_version_number=new_version_number,
+            max_retries=max_retries,
+            artificial_failure_rate=artificial_failure_rate,
+        )
+
+
+    def validate_expected_version(self, new_stored_event, new_version_number):
+        """
+        Checks the expected version exists and occurred before the new event.
+
+        Raises a concurrency error if the expected version doesn't exist,
+        or if the new event occurred before the expected version occurred.
+        """
+        assert isinstance(new_stored_event, StoredEvent)
+
+        stored_entity_id = new_stored_event.stored_entity_id
+        expected_version_number = self.decide_expected_version_number(new_version_number)
+        if expected_version_number is not None:
+            assert isinstance(expected_version_number, six.integer_types)
+            try:
+                entity_version = self.get_entity_version(
+                    stored_entity_id=stored_entity_id,
+                    version_number=expected_version_number
+                )
+            except EntityVersionDoesNotExist:
+                raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
+                                       "".format(expected_version_number, stored_entity_id))
+            else:
+                if not time_from_uuid(new_stored_event.event_id) > time_from_uuid(entity_version.event_id):
+                    raise ConcurrencyError("New event ID '{}' occurs before last version event ID '{}' for entity {}"
+                                           "".format(new_stored_event.event_id, entity_version.event_id, stored_entity_id))
+
+    def decide_expected_version_number(self, new_version_number):
+        return new_version_number - 1 if new_version_number else None
 
     @abstractmethod
-    def get_entity_version(self, stored_entity_id, version):
+    def get_entity_version(self, stored_entity_id, version_number):
         """
         Returns entity version object for given entity version ID.
 
         :rtype: EntityVersion
 
+        """
+
+    @abstractmethod
+    def write_version_and_event(self, new_stored_event, new_entity_version=None, max_retries=3, artificial_failure_rate=0):
+        """
+        Writes entity version and stored event into a database.
         """
 
     @abstractmethod
@@ -151,30 +203,6 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
 
         """
         return u"{}::version::{}".format(stored_entity_id, version)
-
-    def validate_expected_version(self, new_event, new_version):
-        """
-        Checks the expected version exists and occurred before the new event.
-
-        Raises a concurrency error if the expected version doesn't exist,
-        or if the new event occurred before the expected version occurred.
-        """
-        stored_entity_id = new_event.stored_entity_id
-        expected_version = self.decide_expected_version(new_version)
-        if expected_version is not None:
-            assert isinstance(expected_version, six.integer_types)
-            try:
-                entity_version = self.get_entity_version(stored_entity_id, expected_version)
-            except EntityVersionDoesNotExist:
-                raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
-                                       "".format(expected_version, stored_entity_id))
-            else:
-                if not time_from_uuid(new_event.event_id) > time_from_uuid(entity_version.event_id):
-                    raise ConcurrencyError("New event ID '{}' occurs before last version event ID '{}' for entity {}"
-                                           "".format(new_event.event_id, entity_version.event_id, stored_entity_id))
-
-    def decide_expected_version(self, new_version):
-        return new_version - 1 if new_version else None
 
 
 class StoredEventIterator(six.with_metaclass(ABCMeta)):

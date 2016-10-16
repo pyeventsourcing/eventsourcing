@@ -85,25 +85,26 @@ class CassandraStoredEventRepository(StoredEventRepository):
     def iterator_class(self):
         return ThreadedStoredEventIterator
 
-    def append(self, new_event, new_version=None, max_retries=3, artificial_failure_rate=0):
-        super(CassandraStoredEventRepository, self).append(new_event=new_event, new_version=new_version)
-
+    def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3, artificial_failure_rate=0):
+        """
+        Writes entity version if not exists, and then writes the stored event.
+        """
         # Write the next version.
-        stored_entity_id = new_event.stored_entity_id
+        stored_entity_id = new_stored_event.stored_entity_id
         new_entity_version = None
-        if new_version is not None:
-            assert isinstance(new_version, six.integer_types)
+        if self.always_write_entity_version and new_version_number is not None:
+            assert isinstance(new_version_number, six.integer_types)
             #  - uses the "if not exists" optimistic concurrency control feature
             #    of Cassandra, hence this operation is assumed to succeed only once
-            new_entity_version_id = self.make_entity_version_id(stored_entity_id, new_version)
+            new_entity_version_id = self.make_entity_version_id(stored_entity_id, new_version_number)
             new_entity_version = CqlEntityVersion(
                 r=new_entity_version_id,
-                v=new_event.event_id,
+                v=new_stored_event.event_id,
             )
             try:
                 new_entity_version.save()
             except LWTException as e:
-                raise ConcurrencyError("Version {} of entity {} already exists: {}".format(new_version, stored_entity_id, e))
+                raise ConcurrencyError("Version {} of entity {} already exists: {}".format(new_entity_version, stored_entity_id, e))
 
         # Increased latency here causes increased contention.
         #  - used for testing concurrency exceptions
@@ -116,7 +117,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
             while True:
                 try:
                     # Instantiate a Cassandra CQL engine object.
-                    cql_stored_event = to_cql(new_event)
+                    cql_stored_event = to_cql(new_stored_event)
 
                     # Optionally mimic an unreliable save() operation.
                     #  - used for testing retries
@@ -149,7 +150,7 @@ class CassandraStoredEventRepository(StoredEventRepository):
             sleep(0.1)
             try:
                 # If the event actually exists, despite the exception, all is well.
-                CqlStoredEvent.get(n=new_event.stored_entity_id, v=new_event.event_id)
+                CqlStoredEvent.get(n=new_stored_event.stored_entity_id, v=new_stored_event.event_id)
 
             except CqlStoredEvent.DoesNotExist:
                 # Otherwise, try harder to recover by removing the new version.
@@ -182,8 +183,8 @@ class CassandraStoredEventRepository(StoredEventRepository):
                             break
                 raise event_write_error
 
-    def get_entity_version(self, stored_entity_id, version):
-        entity_version_id = self.make_entity_version_id(stored_entity_id, version)
+    def get_entity_version(self, stored_entity_id, version_number):
+        entity_version_id = self.make_entity_version_id(stored_entity_id, version_number)
         try:
             cql_entity_version = CqlEntityVersion.get(r=entity_version_id)
         except CqlEntityVersion.DoesNotExist:

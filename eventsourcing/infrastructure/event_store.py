@@ -16,9 +16,7 @@ class EventStore(object):
         stored_event = self.stored_event_repo.serialize(domain_event)
 
         # Append the stored event to the stored event repo.
-        #  - pass in some params for lower level optimistic concurrency control
-        new_version = domain_event.entity_version
-        self.stored_event_repo.append(new_event=stored_event, new_version=new_version)
+        self.stored_event_repo.append(new_stored_event=stored_event, new_version_number=domain_event.entity_version)
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
                           page_size=None):
@@ -54,4 +52,4 @@ class EventStore(object):
         return None if stored_event is None else self.stored_event_repo.deserialize(stored_event)
 
     def get_entity_version(self, stored_entity_id, version):
-        return self.stored_event_repo.get_entity_version(stored_entity_id=stored_entity_id, version=version)
+        return self.stored_event_repo.get_entity_version(stored_entity_id=stored_entity_id, version_number=version)

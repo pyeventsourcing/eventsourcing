@@ -12,8 +12,9 @@ class ExampleApplication(EventSourcingApplication):
 
     It doesn't have a stored event repository.
     """
-    def __init__(self, **kwargs):
-        super(ExampleApplication, self).__init__(**kwargs)
+    def __init__(self, always_check_expected_version=True, always_write_entity_version=True, **kwargs):
+        super(ExampleApplication, self).__init__(always_check_expected_version=always_check_expected_version,
+                                                 always_write_entity_version=always_write_entity_version, **kwargs)
         self.snapshot_strategy = EventSourcedSnapshotStrategy(event_store=self.event_store)
         self.example_repo = ExampleRepo(event_store=self.event_store, snapshot_strategy=self.snapshot_strategy)
 

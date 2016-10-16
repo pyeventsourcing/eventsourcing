@@ -10,7 +10,7 @@ class TestFastForward(testcase.TestApplicationWithPythonObjects):
     def create_app(self):
         return ExampleApplicationWithPythonObjects()
 
-    def test_fastforward(self):
+    def test(self):
         assert isinstance(self.app, ExampleApplication)
         example = self.app.register_new_example(1, 2)
         instance1 = self.app.example_repo[example.id]

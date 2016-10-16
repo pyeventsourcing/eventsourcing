@@ -374,8 +374,8 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
                     )
                     started = datetime.datetime.now()
                     worker_repo.append(
-                        new_event=stored_event,
-                        new_version=new_version,
+                        new_stored_event=stored_event,
+                        new_version_number=new_version,
                         max_retries=100,
                         artificial_failure_rate=0.15,
                     )
@@ -418,13 +418,22 @@ def append_lots_of_events_to_repo(args):
 def create_repo(stored_repo_class, temp_file_name):
     if stored_repo_class == CassandraStoredEventRepository:
         setup_cassandra_connection(*get_cassandra_setup_params())
-        repo = stored_repo_class()
+        repo = CassandraStoredEventRepository(
+            always_check_expected_version=True,
+            always_write_entity_version=True,
+        )
     elif stored_repo_class == SQLAlchemyStoredEventRepository:
         uri = 'sqlite:///' + temp_file_name
         scoped_session_facade = get_scoped_session_facade(uri)
-        repo = SQLAlchemyStoredEventRepository(scoped_session_facade)
+        repo = SQLAlchemyStoredEventRepository(scoped_session_facade,
+            always_check_expected_version=True,
+            always_write_entity_version=True,
+        )
     elif stored_repo_class == PythonObjectsStoredEventRepository:
-        repo = PythonObjectsStoredEventRepository()
+        repo = PythonObjectsStoredEventRepository(
+            always_check_expected_version=True,
+            always_write_entity_version=True,
+        )
     else:
         raise Exception("Stored repo class not yet supported in test: {}".format(stored_repo_class))
     return repo
