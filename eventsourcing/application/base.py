@@ -44,12 +44,14 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
         :param always_write_entity_version: Concurrency errors whenever version already exists when writing new event.
         """
         self.stored_event_repo = self.create_stored_event_repo(
-            json_encoder_cls=json_encoder_cls, json_decoder_cls=json_decoder_cls,
-            cipher=cipher, always_encrypt=always_encrypt_stored_events,
             always_check_expected_version=always_check_expected_version,
             always_write_entity_version=always_write_entity_version or always_check_expected_version,
         )
-        self.event_store = self.create_event_store()
+        self.event_store = self.create_event_store(
+            json_encoder_cls=json_encoder_cls, json_decoder_cls=json_decoder_cls,
+            cipher=cipher, always_encrypt=always_encrypt_stored_events,
+
+        )
         self.persistence_subscriber = self.create_persistence_subscriber()
 
     @abstractmethod
@@ -59,8 +61,12 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
         :rtype: StoredEventRepository
         """
 
-    def create_event_store(self):
-        return EventStore(self.stored_event_repo)
+    def create_event_store(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False):
+        return EventStore(
+            stored_event_repo=self.stored_event_repo,
+            json_encoder_cls=json_encoder_cls, json_decoder_cls=json_decoder_cls,
+            cipher=cipher, always_encrypt=always_encrypt,
+)
 
     def create_persistence_subscriber(self):
         if self.persist_events and self.event_store:

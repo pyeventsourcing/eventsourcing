@@ -9,9 +9,6 @@ from eventsourcing.utils.time import timestamp_from_uuid
 
 class PythonObjectsStoredEventRepository(StoredEventRepository):
 
-    serialize_without_json = True
-    serialize_with_uuid1 = True
-
     def __init__(self, *args, **kwargs):
         super(PythonObjectsStoredEventRepository, self).__init__(*args, **kwargs)
         self._by_id = {}

@@ -5,26 +5,18 @@ from threading import Thread
 import six
 
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist, ProgrammingError
-from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
-    StoredEvent
+from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 from eventsourcing.utils.time import time_from_uuid
 
 
 # Todo: Maybe move the serialisation / deserialisation stuff to the event store, since that's the only user.
 
 class StoredEventRepository(six.with_metaclass(ABCMeta)):
-    serialize_without_json = False
-    serialize_with_uuid1 = False
 
-    def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False,
-                 always_check_expected_version=False, always_write_entity_version=False):
+    def __init__(self, always_check_expected_version=False, always_write_entity_version=False):
         """
         Base class for a persistent collection of stored events.
         """
-        self.json_encoder_cls = json_encoder_cls
-        self.json_decoder_cls = json_decoder_cls
-        self.cipher = cipher
-        self.always_encrypt = always_encrypt
         self.always_check_expected_version = always_check_expected_version
         self.always_write_entity_version = always_write_entity_version
         if self.always_check_expected_version and not self.always_write_entity_version:
@@ -157,37 +149,6 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
             limit=limit,
             query_ascending=False,
             results_ascending=False,
-        )
-
-    def serialize(self, domain_event):
-        """
-        Returns a stored event from a domain event.
-
-        :rtype: StoredEvent
-
-        """
-        return serialize_domain_event(
-            domain_event,
-            json_encoder_cls=self.json_encoder_cls,
-            without_json=self.serialize_without_json,
-            with_uuid1=self.serialize_with_uuid1,
-            cipher=self.cipher,
-            always_encrypt=self.always_encrypt,
-        )
-
-    def deserialize(self, stored_event):
-        """
-        Returns a domain event from a stored event.
-
-        :rtype: DomainEvent
-        """
-        return deserialize_domain_event(
-            stored_event,
-            json_decoder_cls=self.json_decoder_cls,
-            without_json=self.serialize_without_json,
-            with_uuid1=self.serialize_with_uuid1,
-            cipher=self.cipher,
-            always_encrypt=self.always_encrypt,
         )
 
     @staticmethod

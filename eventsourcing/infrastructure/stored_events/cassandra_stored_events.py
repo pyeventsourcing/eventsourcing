@@ -79,8 +79,6 @@ def from_cql(cql_stored_event):
 
 class CassandraStoredEventRepository(StoredEventRepository):
 
-    serialize_with_uuid1 = True
-
     @property
     def iterator_class(self):
         return ThreadedStoredEventIterator

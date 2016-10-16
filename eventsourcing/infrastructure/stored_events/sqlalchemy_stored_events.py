@@ -72,8 +72,6 @@ def to_sql(stored_event):
 
 class SQLAlchemyStoredEventRepository(StoredEventRepository):
 
-    serialize_with_uuid1 = True
-
     def __init__(self, db_session, **kwargs):
         super(SQLAlchemyStoredEventRepository, self).__init__(**kwargs)
         assert isinstance(db_session, ScopedSession)
