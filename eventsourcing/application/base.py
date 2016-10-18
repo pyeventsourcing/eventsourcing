@@ -10,7 +10,7 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
     persist_events = True
 
     def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt_stored_events=False,
-                 always_check_expected_version=False, always_write_entity_version=False):
+                 optimistic_concurrency_control=False, always_write_entity_version=False):
         """
         Initialises event sourcing application attributes. Constructs a stored event repo using a
         concrete method that must be provided by a subclass, an event store using the stored
@@ -39,13 +39,13 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
 
         :param always_encrypt_stored_events:  Apply encryption to all stored events.
 
-        :param always_check_expected_version:  Concurrency errors whenever previous not found when writing new event.
+        :param optimistic_concurrency_control:  Concurrency errors whenever previous not found when writing new event.
 
         :param always_write_entity_version: Concurrency errors whenever version already exists when writing new event.
         """
         self.stored_event_repo = self.create_stored_event_repo(
-            always_check_expected_version=always_check_expected_version,
-            always_write_entity_version=always_write_entity_version or always_check_expected_version,
+            always_check_expected_version=optimistic_concurrency_control,
+            always_write_entity_version=always_write_entity_version or optimistic_concurrency_control,
         )
         self.event_store = self.create_event_store(
             json_encoder_cls=json_encoder_cls, json_decoder_cls=json_decoder_cls,
