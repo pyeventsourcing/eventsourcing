@@ -10,7 +10,7 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
     persist_events = True
 
     def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt_stored_events=False,
-                 optimistic_concurrency_control=False, always_write_entity_version=False):
+                 enable_occ=False, always_write_entity_version=False):
         """
         Initialises event sourcing application attributes. Constructs a stored event repo using a
         concrete method that must be provided by a subclass, an event store using the stored
@@ -39,13 +39,48 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
 
         :param always_encrypt_stored_events:  Apply encryption to all stored events.
 
-        :param optimistic_concurrency_control:  Concurrency errors whenever previous not found when writing new event.
+        :param enable_occ:  Enables optimistic concurrency control, so that an exception
+                            is raised when writing versions that would be out of order. This
+                            also enabled writing of entity versions, which is required for
+                            optimistic concurrency control.
 
-        :param always_write_entity_version: Concurrency errors whenever version already exists when writing new event.
+        :param always_write_entity_version: Enables writing of entity versions, which is
+                                            required for optimistic concurrency control.
+                                            In itself, this option doesn't enable optimistic
+                                            concurrency control, but may help to achieve a
+                                            zero-downtime migration for an application
+                                            developed with a previous version of this package.
+
+        Suggested steps for migration from one-table schema (v1.0.x) to the new two table schema (v1.1.x):
+
+        - upgrade the application to use the new version of this package
+          but don't enable any of the optiions
+
+        - after testing, deploy with the new version of this package, and then migrate
+          the database to add the new 'entity_versions' table
+
+        - change the application to enable writing entity versions
+
+        - after testing, deploy the new version
+
+        - write a script to add to the entity versions table: at one event for each
+          stored entity which corresponds to the very last event for that entity; or
+          for each stored event as it would be if this feature had existed all along
+
+        - change the application to enable optimistic concurrency control - you
+          will also need to change commands that are contentious in your application
+          to retry the command, to get a fresh version of the entity repeat the
+          operation
+
+        - after testing, deploy the new version - your versioned event streams are
+          now protected by optimistic concurrency control, so that they will not
+          become inconsistent, please note that events that are not versioned do not
+          have optimistic concurrency controls applied to them, since there is nothing
+          to control
         """
         self.stored_event_repo = self.create_stored_event_repo(
-            always_check_expected_version=optimistic_concurrency_control,
-            always_write_entity_version=always_write_entity_version or optimistic_concurrency_control,
+            always_check_expected_version=enable_occ,
+            always_write_entity_version=enable_occ or always_write_entity_version,
         )
         self.event_store = self.create_event_store(
             json_encoder_cls=json_encoder_cls, json_decoder_cls=json_decoder_cls,

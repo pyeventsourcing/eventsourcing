@@ -5,10 +5,33 @@
 
 A library for event sourcing in Python.
 
+
+## Features
+
+* Examples - an example event sourcing application, with an example event-sourced repository 
+  containing event-sourced entity instances, and an example entity factory method for creating
+  example entities.
+
+* Various base classes for domain events, domain entities, domain repositories, and application objects.
+
+* Generic event store, with adapters for different database systems (e.g. Cassandra, MySQL).
+
+* Optimistic concurrency control, implemented using the database system features where possible.
+
+* Snapshots, avoids replaying an entire event stream to obtain the current state.
+
+* Symmetric encryption of stored events, provides application level encryption.
+
+* Collections, used for modelling multiplicities.
+
+* Logs, time-bucketed logs and log readers, used for modelling an indefinitely long stream of messages.
+
+
 ## Mailing List
 
 There is a [mailing list](https://groups.google.com/forum/#!forum/eventsourcing-users) for discussion relating to 
-this project.
+this project. Or just use GitHub issues.
+
 
 ## Install
 
@@ -29,7 +52,6 @@ After installation, the test suite should pass.
 Please register an issue if you find a bug.
 
 
-
 ## Development
 
 The project is hosted on GitHub.
@@ -37,7 +59,7 @@ The project is hosted on GitHub.
 * https://github.com/johnbywater/eventsourcing
 
 
-Issues can be registered here:
+Issues can be registered on GitHub:
 
 * https://github.com/johnbywater/eventsourcing/issues
 
@@ -55,7 +77,7 @@ for formalisms for well-documented categories of of algorithms. Expose the capab
 with an INTENTION-REVEALING INTERFACE. Now the other elements of the domain can focus on expressing the problem
 ("what"), delegating the intricacies of the solution ("how") to the framework."_
 
-The list of features below, and the examples beneath, present the 'interface' and hopefully the 'intentions'. 
+The list of features above, and the example of usage below, present the 'interface' and hopefully the 'intentions'. 
 The 'intricacies' of the library mechanisms can be found in the source code.
 
 Inspiration:
@@ -64,114 +86,21 @@ Inspiration:
     * http://martinfowler.com/eaaDev/EventSourcing.html
 
 * Greg Young's discussions about event sourcing, and EventStore system
+    * https://www.youtube.com/watch?v=JHGkaShoyNs
+    * https://www.youtube.com/watch?v=LDW0QWie21s
     * https://dl.dropboxusercontent.com/u/9162958/CQRS/Events%20as%20a%20Storage%20Mechanism%20CQRS.pdf
-    * https://geteventstore.com/ (Java)
+    * https://geteventstore.com/
 
 * Robert Smallshire's brilliant example code on Bitbucket
     * https://bitbucket.org/sixty-north/d5-kanban-python/src
 
 See also:
 
+* 'Evaluation of using NoSQL databases in an event sourcing system' by Johan Rothsberg
+    * http://www.diva-portal.se/smash/get/diva2:877307/FULLTEXT01.pdf
+
 * Wikipedia page on Object-relational impedance mismatch
     * https://en.wikipedia.org/wiki/Object-relational_impedance_mismatch
-
-
-## Features
-
-* Example application of event sourcing, with an example event sourced entity and example domain events, and with
- an example event sourced repository containing example entity instances, and an example entity factory method
-
-* Storage-specific event sourced application classes
-
-    * Base class for event sourced applications with SQLAlchemy
-
-    * Base class for event sourced applications with Cassandra
-
-    * Base class for event sourced applications with simple Python objects (non-persistent)
-
-* Base class for event sourced applications, which provides an event store and a persistence subscriber, but 
- which requires subclasses to implement a method that provides a stored event repository instance
-
-
-* Example event sourced entity
-
-* Base class for event sourced entities
-
-    * Basic domain events, to model basic "created", "attribute changed", and "discarded" entity events
-
-    * Mutator function, to apply a domain event to an entity, variously according to the type of the event
-
-    * Event sourced property decorator, to help declare simple event sourced properties
-
-    * A "discard" method which publishes the discarded event, to call when an entity is no longer wanted, 
-
-* Domain event base class, to model events in a domain
-
-* In-process publish-subscribe mechanism, for in-process domain event propagation
-
-* Persistence subscriber class, to subscribe to locally published domain events and append them to an event store
-
-* Example event sourced domain entity repository
-
-* Base class for event sourced domain entity repositories
-
-* Event player, to recover a domain entity for a given domain entity ID, using an event store and a mutator
-
-* Domain event store class
-
-    * Method to append a new domain event
-    
-    * Method to get all the domain events for an entity
-
-* Concrete stored event repository classes
-
-    * Stored event repository to persist stored event objects in a relational database, using SQLAlchemy (as an ORM)
-
-    * Stored event repository to persist stored events in Cassandra
-
-    * Stored event repository using simple Python objects (non-persistent)
-
-* Generic stored event class, to provide a form in which to persist domain events
-
-* Function to get event topic from domain event class
-
-* Function to resolve event topic into domain event class
-
-* Function to serialize a domain event object to a stored event object
-
-* Function to recreate a domain event object from a stored event object
-
-* Base class for stored event repositories
-
-    * Method to append a new stored event to the stored collection
-
-    * Method to get all stored events for given entity ID
-
-    * Method to get all stored events for given domain event topic
-
-    * Method to get single domain event for given event ID
-
-* Entity snapshots, to avoid replaying all events
-
-* Method to get domain events for given entity ID, from given time
-
-* Method to get domain events for given entity ID, until given time
-
-* Method to get a limited number of domain events 
-
-* Generator that retrieves events in a succession of pages, emitting a
- continuous stream in ascending or descending order
-
-* Time-bucketed logs, useful for accumulating an indefinite list of
- messages in an accessible manner
-
-* Encrypted stored events, providing application level encryption
-
-* Set-based collections
-
-* Optimistic concurrency control
-
-* Generalized suffix trees
 
 
 ## Usage
@@ -267,7 +196,12 @@ Cassandra to store events, two sub-classes are provided: EventSourcingWithSQLAlc
 
 In the example below, the ExampleApplication has an ExampleRepository, and for convenience the
 'register_new_example' factory method described above (a module level function) is used to implement a
-synonymous method on the application class. It extends EventSourcingWithSQLAlchemy.
+synonymous method on the application class. It extends EventSourcingWithSQLAlchemy. It passes a 'db_uri'
+argument, which is used to make the database connection.
+
+It also passes a True value for 'enable_occ' so that optimistic concurrency control 
+is enabled. If you aren't developing a distributed (or otherwise multi-threaded) application, you
+don't need to use the optimistic concurrency control feature.
 
 ```python
 from eventsourcing.application.with_sqlalchemy import EventSourcingWithSQLAlchemy
@@ -275,8 +209,13 @@ from eventsourcing.application.with_sqlalchemy import EventSourcingWithSQLAlchem
 class ExampleApplication(EventSourcingWithSQLAlchemy):
 
     def __init__(self, db_uri):
-        super(ExampleApplication, self).__init__(db_uri=db_uri)
-        self.example_repo = ExampleRepository(event_store=self.event_store)
+        super(ExampleApplication, self).__init__(
+            db_uri=db_uri,
+            enable_occ=True,
+        )
+        self.example_repo = ExampleRepository(
+            event_store=self.event_store,
+        )
 
     def register_new_example(self, a, b):
         return register_new_example(a=a, b=b)
@@ -350,7 +289,17 @@ mysql://scott:tiger@hostname/dbname
 ```
 
 
-### Upgrading From 0.9.4 to 1.0.1+
+### Upgrading From 1.0.x to 1.1.x
+
+You don't need to do anything. However before using the new optimistic concurrency controls
+you will need to migrate an existing database schema to have the new 'entity_versions' table,
+and you will also need to add a record to that table for each stored event. See notes in doc
+string of EventSourcingApplication class for a zero-downtime migration approach.
+
+To enable optimistic concurrency control, set the application constructor argument named
+'enable_occ' to a True value. 
+
+### Upgrading From 0.9.4 to 1.0.x
 
 If you are upgrading from version 0.9.4, or earlier, please note that version 0.9.4 is 
 the last version with ascending as the declared ordering of 'event_id' in column family 'cql_stored_event'.
@@ -379,6 +328,103 @@ Please see the Example class for details, and the documentation for singledispat
 
 Also, for Cassandra users, the table name for stored events has changed to 'stored_events'. The column names 
 have changed to be single characters, for storage efficiency. Production data will need to be migrated.
+
+
+### More Details About the features
+
+* Example application of event sourcing, with an example event sourced entity and example domain events, and with
+ an example event sourced repository containing example entity instances, and an example entity factory method
+
+* Storage-specific event sourced application classes
+
+    * Base class for event sourced applications with SQLAlchemy
+
+    * Base class for event sourced applications with Cassandra
+
+    * Base class for event sourced applications with simple Python objects (non-persistent)
+
+* Base class for event sourced applications, which provides an event store and a persistence subscriber, but 
+ which requires subclasses to implement a method that provides a stored event repository instance
+
+* Example event sourced entity
+
+* Base class for event sourced entities
+
+    * Basic domain events, to model basic "created", "attribute changed", and "discarded" entity events
+
+    * Mutator function, to apply a domain event to an entity, variously according to the type of the event
+
+    * Event sourced property decorator, to help declare simple event sourced properties
+
+    * A "discard" method which publishes the discarded event, to call when an entity is no longer wanted, 
+
+* Domain event base class, to model events in a domain
+
+* In-process publish-subscribe mechanism, for in-process domain event propagation
+
+* Persistence subscriber class, to subscribe to locally published domain events and append them to an event store
+
+* Example event sourced domain entity repository
+
+* Base class for event sourced domain entity repositories
+
+* Event player, to recover a domain entity for a given domain entity ID, using an event store and a mutator
+
+* Domain event store class
+
+    * Method to append a new domain event
+    
+    * Method to get all the domain events for an entity
+
+* Concrete stored event repository classes
+
+    * Stored event repository to persist stored event objects in a relational database, using SQLAlchemy (as an ORM)
+
+    * Stored event repository to persist stored events in Cassandra
+
+    * Stored event repository using simple Python objects (non-persistent)
+
+* Generic stored event class, to provide a form in which to persist domain events
+
+* Function to get event topic from domain event class
+
+* Function to resolve event topic into domain event class
+
+* Function to serialize a domain event object to a stored event object
+
+* Function to recreate a domain event object from a stored event object
+
+* Base class for stored event repositories
+
+    * Method to append a new stored event to the stored collection
+
+    * Method to get all stored events for given entity ID
+
+    * Method to get all stored events for given domain event topic
+
+    * Method to get single domain event for given event ID
+
+* Entity snapshots, to avoid replaying all events
+
+* Method to get domain events for given entity ID, from given time
+
+* Method to get domain events for given entity ID, until given time
+
+* Method to get a limited number of domain events 
+
+* Generator that retrieves events in a succession of pages, emitting a
+ continuous stream in ascending or descending order
+
+* Time-bucketed logs, useful for accumulating an indefinite list of
+ messages in an accessible manner
+
+* Encrypted stored events, providing application level encryption
+
+* Set-based collections
+
+* Optimistic concurrency control
+
+* Generalized suffix trees
 
 
 ## Forthcoming features
