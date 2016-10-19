@@ -1,6 +1,7 @@
 from abc import abstractproperty
 
 from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity
+from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.event_player import EventPlayer, entity_from_snapshot
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.stored_events.transcoders import id_prefix_from_entity_class
@@ -64,7 +65,7 @@ class EventSourcedRepository(EntityRepository):
 
         # Never created or already discarded?
         if entity is None:
-            raise KeyError(entity_id)
+            raise RepositoryKeyError(entity_id)
 
         # Put entity in the cache.
         if self._use_cache:
@@ -101,3 +102,11 @@ class EventSourcedRepository(EntityRepository):
 
         # Replay domain events.
         return self.event_player.replay_events(entity_id, after=after, until=until, initial_state=initial_state)
+
+    def fastforward(self, entity, until=None):
+        assert isinstance(entity, EventSourcedEntity)
+        stored_entity_id = self.event_player.make_stored_entity_id(entity.id)
+        event_version = self.event_store.get_entity_version(stored_entity_id, entity.version)
+        after = event_version.event_id
+        return self.event_player.replay_events(
+            entity_id=entity.id, after=after, until=until, initial_state=entity, query_descending=True)

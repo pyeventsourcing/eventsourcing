@@ -1,4 +1,4 @@
-from eventsourcing.domain.model.exceptions import ConsistencyError, ProgrammingError
+from eventsourcing.exceptions import ConsistencyError, ProgrammingError
 from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
@@ -22,7 +22,7 @@ class EntityVersionConsistencyError(ConsistencyError):
     pass
 
 
-class MutatorRequiresTypeError(ConsistencyError):
+class CreatedMutatorRequiresTypeNotInstance(ConsistencyError):
     pass
 
 
@@ -43,6 +43,12 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     # the fastest path for getting all the events is used.
     __is_short__ = False
 
+    # This should be enabled for models that have their consistency
+    # protected against concurrency errors, with e.g. optimistic
+    # concurrency control. See 'always_write_entity_version' constructor
+    # argument in EventSourcingApplication and StoredEventRepo classes.
+    __always_validate_originator_version__ = False
+
     class Created(DomainEvent):
         def __init__(self, entity_version=0, **kwargs):
             super(EventSourcedEntity.Created, self).__init__(entity_version=entity_version, **kwargs)
@@ -60,7 +66,8 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         self._initial_event_id = domain_event_id
 
     def _increment_version(self):
-        self._version += 1
+        if self._version is not None:
+            self._version += 1
 
     def _assert_not_discarded(self):
         if self._is_discarded:
@@ -79,15 +86,16 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         return timestamp_from_uuid(self._initial_event_id)
 
     def _validate_originator(self, event):
-        # Check event originator's entity ID matches our own ID.
+        # Check event's entity ID matches this entity's ID.
         if self._id != event.entity_id:
             raise EntityIDConsistencyError("Entity ID '{}' not equal to event's entity ID '{}'"
                                            "".format(self.id, event.entity_id))
 
-        # Check event originator's version number matches our own version number.
-        if self._version != event.entity_version:
-            raise EntityVersionConsistencyError("Entity version '{}' not equal to event's entity version '{}'"
-                                       "".format(self._version, event.entity_version))
+        # Check event's entity version matches this entity's version.
+        if self.__always_validate_originator_version__ and self._version != event.entity_version:
+            raise EntityVersionConsistencyError(
+                "Event version '{}' not equal to entity version '{}', event type: '{}', entity type: '{}', entity ID: '{}'"
+                "".format(event.entity_version, self._version, type(event).__name__, type(self).__name__, self._id))
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
@@ -126,9 +134,10 @@ def entity_mutator(event, _):
 def created_mutator(event, cls):
     assert isinstance(event, DomainEvent), event
     if not isinstance(cls, type):
-        raise MutatorRequiresTypeError("created_mutator needs a type instance: {} "
-                                       "(event entity id: {}, event type: {})"
-                                       "".format(type(cls), event.entity_id, type(event)))
+        msg = ("Mutator for Created event requires entity type not instance: {} "
+               "(event entity id: {}, event type: {})"
+               "".format(type(cls), event.entity_id, type(event)))
+        raise CreatedMutatorRequiresTypeNotInstance(msg)
     assert issubclass(cls, EventSourcedEntity), cls
     self = cls(**event.__dict__)
     self._increment_version()

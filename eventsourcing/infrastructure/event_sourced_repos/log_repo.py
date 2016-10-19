@@ -1,4 +1,5 @@
 from eventsourcing.domain.model.log import Log, LogRepository, start_new_log
+from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository
 
 
@@ -16,5 +17,5 @@ class LogRepo(EventSourcedRepository, LogRepository):
         """
         try:
             return self[log_name]
-        except KeyError:
+        except RepositoryKeyError:
             return start_new_log(log_name, bucket_size=bucket_size)

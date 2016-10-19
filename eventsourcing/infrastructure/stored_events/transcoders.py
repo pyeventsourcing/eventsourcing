@@ -20,6 +20,8 @@ except:
 
 StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
 
+EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
+
 
 def serialize_domain_event(domain_event, json_encoder_cls=None, without_json=False, with_uuid1=False, cipher=None,
                            always_encrypt=False):
@@ -73,8 +75,11 @@ def deserialize_domain_event(stored_event, json_decoder_cls=None, without_json=F
     # Get the domain event class from the topic.
     event_class = resolve_domain_topic(stored_event.event_topic)
 
+    if not isinstance(event_class, type):
+        raise ValueError("Event class is not a type: {}".format(event_class))
+
     if not issubclass(event_class, DomainEvent):
-        raise TypeError("Event class is not a DomainEvent: {}".format(event_class))
+        raise ValueError("Event class is not a DomainEvent: {}".format(event_class))
 
     # Deserialize event attributes from JSON, optionally decrypted with cipher.
     event_attrs = stored_event.event_attrs
@@ -99,8 +104,8 @@ def deserialize_domain_event(stored_event, json_decoder_cls=None, without_json=F
         domain_event = object.__new__(event_class)
         domain_event.__dict__.update(event_attrs)
     except TypeError:
-        raise TypeError("Unable to instantiate class '{}' with data '{}'"
-                        "".format(stored_event.event_topic, event_attrs))
+        raise ValueError("Unable to instantiate class '{}' with data '{}'"
+                         "".format(stored_event.event_topic, event_attrs))
 
     return domain_event
 
@@ -114,9 +119,9 @@ class ObjectJSONEncoder(json.JSONEncoder):
             if "not JSON serializable" not in str(e):
                 raise
             if isinstance(obj, datetime.datetime):
-                return { 'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z') }
+                return {'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z')}
             if isinstance(obj, datetime.date):
-                return { 'ISO8601_date': obj.isoformat() }
+                return {'ISO8601_date': obj.isoformat()}
             if numpy is not None and isinstance(obj, numpy.ndarray) and obj.ndim == 1:
                 memfile = BytesIO()
                 numpy.save(memfile, obj)

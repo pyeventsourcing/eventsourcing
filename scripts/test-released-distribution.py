@@ -30,7 +30,7 @@ def test_released_distribution(cwd):
 
 def test_installation(tmpcwd):
     subprocess.check_call(['bin/python', '-m', 'dateutil.parser'], cwd=tmpcwd)
-    subprocess.check_call(['bin/python', '-m' 'unittest', 'discover', 'eventsourcingtests'], cwd=tmpcwd)
+    subprocess.check_call(['bin/python', '-m' 'unittest', 'discover', 'eventsourcing.tests'], cwd=tmpcwd)
 
 
 def rebuild_virtualenv(cwd, venv_path, python_executable):

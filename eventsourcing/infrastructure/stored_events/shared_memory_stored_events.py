@@ -1,13 +1,10 @@
-from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
+# from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
 from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
-from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
+# from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 
 
 # Todo: Figure out if this is actually needed by anything anywhere (no currently visible usages).
 class SharedMemoryStoredEventRepository(PythonObjectsStoredEventRepository):
-    #
-    # serialize_without_json = True
-    # serialize_with_uuid1 = True
     #
     # def __init__(self):
     #     super(SharedMemoryStoredEventRepository, self).__init__()

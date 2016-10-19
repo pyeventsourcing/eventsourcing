@@ -13,6 +13,10 @@ class Collection(EventSourcedEntity):
         def __init__(self, **kwargs):
             super(Collection.Created, self).__init__(**kwargs)
 
+    class Discarded(EventSourcedEntity.Discarded):
+        def __init__(self, **kwargs):
+            super(Collection.Discarded, self).__init__(**kwargs)
+
     class ItemAdded(DomainEvent):
         @property
         def item(self):
@@ -75,6 +79,7 @@ def collection_mutator(event, initial):
 
 @collection_mutator.register(Collection.ItemAdded)
 def collection_item_added_mutator(event, entity):
+    assert isinstance(entity, Collection)
     entity._items.add(event.item)
     entity._increment_version()
     return entity

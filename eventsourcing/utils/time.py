@@ -38,7 +38,12 @@ def timestamp_from_uuid(uuid_arg):
 
 
 def timestamp_long_from_uuid(uuid_arg):
+    return time_from_uuid(uuid_arg) - 0x01B21DD213814000
+
+
+def time_from_uuid(uuid_arg):
     if isinstance(uuid_arg, six.string_types):
         uuid_arg = UUID(uuid_arg)
     assert isinstance(uuid_arg, UUID)
-    return uuid_arg.time - 0x01B21DD213814000
+    uuid_time = uuid_arg.time
+    return uuid_time

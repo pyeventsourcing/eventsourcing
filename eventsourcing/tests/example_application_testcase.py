@@ -1,10 +1,10 @@
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.domain.model.example import Example
+from eventsourcing.tests.test_stored_events import AbstractTestCase
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.infrastructure.event_store import EventStore
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
-from eventsourcingtests.test_stored_events import AbstractTestCase
 
 
 class ApplicationTestCase(AbstractTestCase):
@@ -24,8 +24,8 @@ class ApplicationTestCase(AbstractTestCase):
 class ExampleApplicationTestCase(ApplicationTestCase):
 
     def test(self):
-        """Checks self.app both is and work in the way an
-        instance of a subclass of ExampleApplication should do.
+        """
+        Checks application works in the way an ExampleApplication should do.
         """
 
         # Check we're dealing with an example application.

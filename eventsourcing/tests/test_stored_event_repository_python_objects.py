@@ -1,8 +1,8 @@
 import unittest
 
 from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
-from eventsourcingtests.test_stored_events import BasicStoredEventRepositoryTestCase, \
-    SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase
+from eventsourcing.tests.test_stored_events import BasicStoredEventRepositoryTestCase, \
+    SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase, ConcurrentStoredEventRepositoryTestCase
 
 
 class PythonObjectsTestCase(unittest.TestCase):
@@ -27,3 +27,8 @@ class TestSimpleStoredEventIteratorWithPythonObjects(PythonObjectsTestCase, Simp
 
 class TestThreadedStoredEventIteratorWithPythonObjects(PythonObjectsTestCase, ThreadedStoredEventIteratorTestCase):
     pass
+
+
+# Todo: Revisit this, but with threading rather than multiprocessing because data is stored in process.
+# class TestConcurrentStoredEventRepositoryWithPythonObjects(PythonObjectsTestCase, ConcurrentStoredEventRepositoryTestCase):
+#     pass

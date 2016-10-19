@@ -14,8 +14,8 @@ from eventsourcing.infrastructure.stored_events.cassandra_stored_events import c
     drop_cassandra_keyspace
 from eventsourcing.infrastructure.stored_events.transcoders import make_stored_entity_id
 from eventsourcing.utils.time import utc_now
-from eventsourcingtests.test_application_with_encryption import AESStoredEventCipher
-from eventsourcingtests.test_stored_events import AbstractTestCase
+from eventsourcing.tests.test_application_with_encryption import AESStoredEventCipher
+from eventsourcing.tests.test_stored_events import AbstractTestCase
 
 
 class PerformanceTestCase(AbstractTestCase):
@@ -43,12 +43,12 @@ class PerformanceTestCase(AbstractTestCase):
         self.entities = {}
 
         report_name = type(self).__name__[4:]
-        print("\n{} report:\n".format(report_name))
+        print("\n\n{} report:\n".format(report_name))
 
         repetitions = 10
 
         # NB: Use range(1, 5) to test whether we can get more than 10000 event from Cassandra.
-        for i in six.moves.range(1, 5):
+        for i in six.moves.range(0, 5):
             # Setup a number of entities, with different lengths of event history.
             payload = 3
             # payload = str([uuid4().hex for _ in six.moves.range(100000)])

@@ -9,29 +9,30 @@ except ImportError:
 
 setup(
     name='eventsourcing',
-    version='1.0.10',
+    version='1.1.0',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
     url='https://github.com/johnbywater/eventsourcing',
     packages=find_packages(),
     install_requires=[
-        'six',
         'python-dateutil',
+        'singledispatch',
+        'six',
     ] + install_requires_singledispatch,
     extras_require={
-        'test': [
-            'sqlalchemy',
-            'mock',
+        'cassandra': [
             'cassandra-driver',
-            'numpy',
+        ],
+        'test': [
+            'cassandra-driver',
+            'mock',
+            # 'numpy',
             'PyCrypto',
+            'sqlalchemy',
         ],
         'sqlalchemy': [
             'sqlalchemy',
-        ],
-        'cassandra': [
-            'cassandra-driver',
         ],
     },
     zip_safe=False,
@@ -57,3 +58,5 @@ An extensive
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
 )
+
+
