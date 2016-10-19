@@ -6,33 +6,6 @@
 A library for event sourcing in Python.
 
 
-## Features
-
-* Examples - an example event sourcing application, with an example event-sourced repository 
-  containing event-sourced entity instances, and an example entity factory method for creating
-  example entities.
-
-* Various base classes for domain events, domain entities, domain repositories, and application objects.
-
-* Generic event store, with adapters for different database systems (e.g. Cassandra, MySQL).
-
-* Optimistic concurrency control, implemented using the database system features where possible.
-
-* Snapshots, avoids replaying an entire event stream to obtain the current state.
-
-* Symmetric encryption of stored events, provides application level encryption.
-
-* Collections, used for modelling multiplicities.
-
-* Logs, time-bucketed logs and log readers, used for modelling an indefinitely long stream of messages.
-
-
-## Mailing List
-
-There is a [mailing list](https://groups.google.com/forum/#!forum/eventsourcing-users) for discussion relating to 
-this project. Or just use GitHub issues.
-
-
 ## Install
 
 Use pip to install the [latest distribution](https://pypi.python.org/pypi/eventsourcing) from
@@ -51,6 +24,13 @@ After installation, the test suite should pass.
 
 Please register an issue if you find a bug.
 
+* https://github.com/johnbywater/eventsourcing/issues
+
+
+There is also a mailing list.
+
+* https://groups.google.com/forum/#!forum/eventsourcing-users
+
 
 ## Development
 
@@ -59,12 +39,17 @@ The project is hosted on GitHub.
 * https://github.com/johnbywater/eventsourcing
 
 
-Issues can be registered on GitHub:
+The project uses Travis CI.
+
+* https://travis-ci.org/johnbywater/eventsourcing
+
+
+Issues and requests can be registered on GitHub:
 
 * https://github.com/johnbywater/eventsourcing/issues
 
 
-## Motivation and Inspiration
+## Background
 
 Although the event sourcing patterns are each quite simple, and they can be reproduced in code for each project,
 they do suggest cohesive mechanisms, for example applying and publishing the events generated within domain
@@ -93,6 +78,10 @@ Inspiration:
 
 * Robert Smallshire's brilliant example code on Bitbucket
     * https://bitbucket.org/sixty-north/d5-kanban-python/src
+    
+* Various professional projects that called for this approach, across which I didn't want to rewrite
+  the same things each time
+
 
 See also:
 
@@ -101,6 +90,31 @@ See also:
 
 * Wikipedia page on Object-relational impedance mismatch
     * https://en.wikipedia.org/wiki/Object-relational_impedance_mismatch
+
+
+## Features
+
+* Examples - an example event sourcing application, with an example event-sourced repository 
+  containing event-sourced entity instances, and an example entity factory method for creating
+  example entities.
+
+* Various base classes for domain events, domain entities, domain repositories, and application objects.
+
+* Generic event store, with adapters for different database systems (e.g. Cassandra, MySQL).
+
+* Optimistic concurrency control, implemented using the database system features where possible.
+
+* Snapshots, avoids replaying an entire event stream to obtain the current state.
+
+* Symmetric encryption of stored events, provides application level encryption.
+
+* Collections, used for modelling multiplicities.
+
+* Logs, message logged events, time-bucketed logs, and log readers generator, used for modelling
+  an indefinitely long stream of events in an accessible way, for example it is easy to read
+  from the end or start from a particular time. Writes can be done without needing any concurrency
+  control. This can be used for example to create a log of all other application domain events, so
+  that it is easy to go over the whole application event stream.
 
 
 ## Usage
@@ -224,10 +238,12 @@ class ExampleApplication(EventSourcingWithSQLAlchemy):
 For simplicity, this application has just one type of entity. A real application may involve several different
 types of entity, factory methods, entity repositories, and event sourced projections.
 
-An event sourced application object can be used as a context manager, which helps close things down at the
-end. With an application instance, call its factory method to register a new entity. Update an
-attribute value. Use the generated entity ID to subsequently retrieve the registered entity from the
-repository. Check the changed attribute value has been stored.
+As shown below, an event sourced application object can be used as a context manager, which closes the application
+at the end of the block. With an instance of the example application, call the factory method register_new_entity()
+to register a new entity. Then, update an attribute value by assigning a value. Use the generated entity ID to subsequently
+retrieve the registered entity from the repository. Check the changed attribute value has been stored. Discard
+the entity and see that the repository gives a key error when an attempt is made to get the entity after it
+has been discarded:
 
 ```python
 with ExampleApplication(db_uri='sqlite:///:memory:') as app:
@@ -493,13 +509,20 @@ attribute values inhibiting performance and stability - different sizes could be
 * Optionally decouple topics from actual code, so classes can be moved.
 
 
-## Version 2, Planned Backwards-Incompatible Changes
+## Possible Backwards-Incompatible Changes
+
+* Move base event classes off from abstract classes, so developers don't
+  can't get confused with events defined on super classes that can't be
+  retrieved from the event store, because they don't know which concrete
+  class they pertain to. This would be a code change rather
+  than a data migration thing. 
 
 * Remove id_prefixes in stored entity ID, because it makes the code a
   bit complicated, since each domain event needs to know which entity
-  class it is for, and that's not always desirable.
-  
-* Move event classes from abstract classes, so concrete classes can't
-  get confused with events defined on super classes that can't be
-  retrieved from the event store because they don't know which concrete
-  class they pertain to.
+  class it is for, and that's not always desirable. This would involve
+  internal code changes that probably wouldn't impact on applications
+  using this package, however it would impact existing data. This
+  change might not even be a good idea.
+
+* Stored event repositories that primarily uses version numbers instead
+  of UUIDs to key and order stored events.
