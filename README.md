@@ -1,4 +1,4 @@
-# Event sourcing in Python
+# Event Sourcing in Python
 
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png?branch=develop)]
 (https://travis-ci.org/johnbywater/eventsourcing)
@@ -346,7 +346,7 @@ Also, for Cassandra users, the table name for stored events has changed to 'stor
 have changed to be single characters, for storage efficiency. Production data will need to be migrated.
 
 
-### More Details About the features
+## More Details About the Features
 
 * Example application of event sourcing, with an example event sourced entity and example domain events, and with
  an example event sourced repository containing example entity instances, and an example entity factory method
@@ -443,7 +443,7 @@ have changed to be single characters, for storage efficiency. Production data wi
 * Generalized suffix trees
 
 
-## Forthcoming features
+## Forthcoming Features
 
 * List-based collections (forthcoming)
 
@@ -511,7 +511,7 @@ attribute values inhibiting performance and stability - different sizes could be
 
 ## Possible Backwards-Incompatible Changes
 
-* Move base event classes off from abstract classes, so developers don't
+* Move base event classes off from abstract entity classes, so developers
   can't get confused with events defined on super classes that can't be
   retrieved from the event store, because they don't know which concrete
   class they pertain to. This would be a code change rather
@@ -524,5 +524,6 @@ attribute values inhibiting performance and stability - different sizes could be
   using this package, however it would impact existing data. This
   change might not even be a good idea.
 
-* Stored event repositories that primarily uses version numbers instead
-  of UUIDs to key and order stored events.
+* Stored event repositories that primarily use version numbers instead
+  of UUIDs to key and order stored events. This wouldn't be a backwards
+  incompatible change, but an option.
