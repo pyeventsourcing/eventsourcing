@@ -32,23 +32,6 @@ There is also a mailing list.
 * https://groups.google.com/forum/#!forum/eventsourcing-users
 
 
-## Development
-
-The project is hosted on GitHub.
-
-* https://github.com/johnbywater/eventsourcing
-
-
-The project uses Travis CI.
-
-* https://travis-ci.org/johnbywater/eventsourcing
-
-
-Issues and requests can be registered on GitHub:
-
-* https://github.com/johnbywater/eventsourcing/issues
-
-
 ## Background
 
 Although the event sourcing patterns are each quite simple, and they can be reproduced in code for each project,
@@ -90,6 +73,23 @@ See also:
 
 * Wikipedia page on Object-relational impedance mismatch
     * https://en.wikipedia.org/wiki/Object-relational_impedance_mismatch
+
+
+## Project
+
+The project is hosted on GitHub.
+
+* https://github.com/johnbywater/eventsourcing
+
+
+The project uses Travis CI.
+
+* https://travis-ci.org/johnbywater/eventsourcing
+
+
+Issues and requests can be registered on GitHub:
+
+* https://github.com/johnbywater/eventsourcing/issues
 
 
 ## Features
