@@ -9,8 +9,6 @@ from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
 from eventsourcing.utils.time import time_from_uuid
 
 
-# Todo: Maybe move the serialisation / deserialisation stuff to the event store, since that's the only user.
-
 class StoredEventRepository(six.with_metaclass(ABCMeta)):
 
     def __init__(self, always_check_expected_version=False, always_write_entity_version=False):
