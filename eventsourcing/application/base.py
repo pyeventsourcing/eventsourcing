@@ -3,6 +3,7 @@ from abc import abstractmethod, ABCMeta
 from six import with_metaclass
 
 from eventsourcing.infrastructure.event_store import EventStore
+from eventsourcing.infrastructure.stored_events.transcoders import Transcoder
 from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
 
 
@@ -97,11 +98,19 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
         """
 
     def create_event_store(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False):
+        transcoder = self.create_transcoder(always_encrypt, cipher, json_decoder_cls, json_encoder_cls)
         return EventStore(
             stored_event_repo=self.stored_event_repo,
-            json_encoder_cls=json_encoder_cls, json_decoder_cls=json_decoder_cls,
-            cipher=cipher, always_encrypt=always_encrypt,
-)
+            transcoder=transcoder,
+        )
+
+    def create_transcoder(self, always_encrypt, cipher, json_decoder_cls, json_encoder_cls):
+        return Transcoder(
+            json_encoder_cls=json_encoder_cls,
+            json_decoder_cls=json_decoder_cls,
+            cipher=cipher,
+            always_encrypt=always_encrypt,
+        )
 
     def create_persistence_subscriber(self):
         if self.persist_events and self.event_store:

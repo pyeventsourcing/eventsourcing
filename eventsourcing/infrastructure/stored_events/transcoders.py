@@ -4,9 +4,11 @@ import datetime
 import importlib
 import json
 import uuid
+from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 
 import dateutil.parser
+import six
 from six import BytesIO
 
 from eventsourcing.domain.model.entity import EventSourcedEntity
@@ -17,10 +19,51 @@ try:
 except:
     numpy = None
 
-
 StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
 
 EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
+
+class AbstractTranscoder(six.with_metaclass(ABCMeta)):
+
+    @abstractmethod
+    def serialize(self, domain_event):
+        """Returns a stored event, for the given domain event."""
+
+    @abstractmethod
+    def deserialize(self, stored_event):
+        """Returns a domain event, for the given stored event."""
+
+
+class Transcoder(AbstractTranscoder):
+
+    serialize_without_json = False
+    serialize_with_uuid1 = True
+
+    def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False):
+        self.json_encoder_cls = json_encoder_cls
+        self.json_decoder_cls = json_decoder_cls
+        self.cipher = cipher
+        self.always_encrypt = always_encrypt
+
+    def serialize(self, domain_event):
+        return serialize_domain_event(
+            domain_event,
+            json_encoder_cls=self.json_encoder_cls,
+            without_json=self.serialize_without_json,
+            with_uuid1=self.serialize_with_uuid1,
+            cipher=self.cipher,
+            always_encrypt=self.always_encrypt,
+        )
+
+    def deserialize(self, stored_event):
+        return deserialize_domain_event(
+            stored_event,
+            json_decoder_cls=self.json_decoder_cls,
+            without_json=self.serialize_without_json,
+            with_uuid1=self.serialize_with_uuid1,
+            cipher=self.cipher,
+            always_encrypt=self.always_encrypt,
+        )
 
 
 def serialize_domain_event(domain_event, json_encoder_cls=None, without_json=False, with_uuid1=False, cipher=None,
