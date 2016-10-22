@@ -10,9 +10,9 @@ from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence
 from sqlalchemy.sql.sqltypes import Integer, String, BigInteger, Text
 
+from eventsourcing.domain.services.event_store import AbstractStoredEventRepository
+from eventsourcing.domain.services.transcoders import StoredEvent, EntityVersion
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
-from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
-from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent, EntityVersion
 from eventsourcing.utils.time import timestamp_long_from_uuid
 
 
@@ -70,7 +70,7 @@ def to_sql(stored_event):
     )
 
 
-class SQLAlchemyStoredEventRepository(StoredEventRepository):
+class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
 
     def __init__(self, db_session, **kwargs):
         super(SQLAlchemyStoredEventRepository, self).__init__(**kwargs)

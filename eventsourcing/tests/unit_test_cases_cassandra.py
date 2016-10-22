@@ -1,4 +1,4 @@
-from eventsourcing.infrastructure.stored_events.cassandra_stored_events import CassandraStoredEventRepository, \
+from eventsourcing.infrastructure.stored_events.in_cassandra import CassandraStoredEventRepository, \
     setup_cassandra_connection, get_cassandra_setup_params, create_cassandra_keyspace_and_tables, \
     drop_cassandra_keyspace
 from eventsourcing.tests.unit_test_cases import AbstractTestCase

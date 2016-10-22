@@ -1,9 +1,9 @@
 from functools import reduce
 
 from eventsourcing.domain.model.snapshot import AbstractSnapshop
-from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.snapshot_strategy import AbstractSnapshotStrategy
-from eventsourcing.infrastructure.stored_events.transcoders import deserialize_domain_entity, make_stored_entity_id
+from eventsourcing.domain.services.event_store import EventStore
+from eventsourcing.domain.services.snapshot_strategy import AbstractSnapshotStrategy, entity_from_snapshot
+from eventsourcing.domain.services.transcoders import make_stored_entity_id
 
 
 class EventPlayer(object):
@@ -126,10 +126,3 @@ class EventPlayer(object):
         """Prefixes the given entity ID with the ID prefix for entity's type.
         """
         return make_stored_entity_id(self.id_prefix, entity_id)
-
-
-def entity_from_snapshot(snapshot):
-    """Deserialises a domain entity from a snapshot object.
-    """
-    assert isinstance(snapshot, AbstractSnapshop)
-    return deserialize_domain_entity(snapshot.topic, snapshot.attrs)

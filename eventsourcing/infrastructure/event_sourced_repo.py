@@ -1,10 +1,11 @@
 from abc import abstractproperty
 
 from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity
+from eventsourcing.domain.services.event_store import EventStore
+from eventsourcing.domain.services.snapshot_strategy import entity_from_snapshot
+from eventsourcing.domain.services.transcoders import id_prefix_from_entity_class
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.infrastructure.event_player import EventPlayer, entity_from_snapshot
-from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.stored_events.transcoders import id_prefix_from_entity_class
+from eventsourcing.infrastructure.event_player import EventPlayer
 
 
 class EventSourcedRepository(EntityRepository):

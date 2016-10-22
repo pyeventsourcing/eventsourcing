@@ -5,9 +5,9 @@ from six import with_metaclass
 
 from eventsourcing.domain.model.events import DomainEvent, topic_from_domain_class, QualnameABCMeta
 from eventsourcing.domain.model.example import Example
-from eventsourcing.exceptions import TopicResolutionError
-from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event, \
+from eventsourcing.domain.services.transcoders import serialize_domain_event, deserialize_domain_event, \
     resolve_domain_topic, StoredEvent, ObjectJSONDecoder, ObjectJSONEncoder
+from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.utils.time import utc_timezone
 
 

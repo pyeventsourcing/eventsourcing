@@ -11,16 +11,15 @@ from uuid import uuid4, uuid1
 
 import six
 
+from eventsourcing.domain.services.event_store import AbstractStoredEventRepository, SimpleStoredEventIterator
+from eventsourcing.domain.services.transcoders import StoredEvent
 from eventsourcing.exceptions import ConcurrencyError
-from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, SimpleStoredEventIterator, \
-    ThreadedStoredEventIterator
-from eventsourcing.infrastructure.stored_events.cassandra_stored_events import CassandraStoredEventRepository, \
+from eventsourcing.infrastructure.stored_events.in_cassandra import CassandraStoredEventRepository, \
     setup_cassandra_connection, get_cassandra_setup_params
-from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
-from eventsourcing.infrastructure.stored_events.sqlalchemy_stored_events import SQLAlchemyStoredEventRepository, \
+from eventsourcing.infrastructure.stored_events.in_python_objects import PythonObjectsStoredEventRepository
+from eventsourcing.infrastructure.stored_events.in_sqlalchemy import SQLAlchemyStoredEventRepository, \
     get_scoped_session_facade
-
-from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
+from eventsourcing.infrastructure.stored_events.threaded_iterator import ThreadedStoredEventIterator
 
 
 class AbstractTestCase(TestCase):
@@ -40,7 +39,7 @@ class AbstractStoredEventRepositoryTestCase(AbstractTestCase):
     @property
     def stored_event_repo(self):
         """
-        :rtype: StoredEventRepository
+        :rtype: AbstractStoredEventRepository
         """
         raise NotImplementedError
 
@@ -268,7 +267,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         num_events_to_create, stored_entity_id = args
 
         success_count = 0
-        assert isinstance(worker_repo, StoredEventRepository)
+        assert isinstance(worker_repo, AbstractStoredEventRepository)
         assert isinstance(num_events_to_create, six.integer_types)
 
         successes = []
@@ -410,7 +409,7 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
     def test(self):
         self.setup_stored_events()
 
-        assert isinstance(self.stored_event_repo, StoredEventRepository)
+        assert isinstance(self.stored_event_repo, AbstractStoredEventRepository)
         stored_events = self.stored_event_repo.get_entity_events(stored_entity_id=self.stored_entity_id)
         stored_events = list(stored_events)
         self.assertEqual(len(stored_events), self.num_events)

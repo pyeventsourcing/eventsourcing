@@ -1,5 +1,5 @@
 from eventsourcing.domain.model.events import subscribe, DomainEvent, unsubscribe
-from eventsourcing.infrastructure.event_store import EventStore
+from eventsourcing.domain.services.event_store import EventStore
 
 
 class PersistenceSubscriber(object):

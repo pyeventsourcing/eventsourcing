@@ -9,13 +9,13 @@ from collections import namedtuple
 
 import dateutil.parser
 import six
-from six import BytesIO
 
 from eventsourcing.domain.model.entity import EventSourcedEntity
 from eventsourcing.domain.model.events import topic_from_domain_class, resolve_domain_topic, resolve_attr, DomainEvent
 
 try:
     import numpy
+    from six import BytesIO
 except:
     numpy = None
 

@@ -2,14 +2,14 @@ from __future__ import absolute_import, unicode_literals, division, print_functi
 
 from unittest.case import TestCase
 
+from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.model.collection import register_new_collection, Collection
 from eventsourcing.domain.model.entity import EntityIsDiscarded
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
+from eventsourcing.domain.services.event_store import EventStore
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepo
-from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
-from eventsourcing.infrastructure.stored_events.python_objects_stored_events import \
+from eventsourcing.infrastructure.stored_events.in_python_objects import \
     PythonObjectsStoredEventRepository
 
 

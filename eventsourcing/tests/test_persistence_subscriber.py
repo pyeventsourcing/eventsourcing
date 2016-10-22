@@ -1,11 +1,13 @@
 import unittest
+
+from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
+
 try:
     from unittest import mock
 except:
     import mock
 from eventsourcing.domain.model.events import publish, DomainEvent
-from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
+from eventsourcing.domain.services.event_store import EventStore
 
 
 class TestPersistenceSubscriber(unittest.TestCase):

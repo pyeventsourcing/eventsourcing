@@ -2,9 +2,9 @@ from abc import abstractmethod, ABCMeta
 
 from six import with_metaclass
 
-from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.stored_events.transcoders import Transcoder
-from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
+from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
+from eventsourcing.domain.services.event_store import EventStore
+from eventsourcing.domain.services.transcoders import Transcoder
 
 
 class EventSourcingApplication(with_metaclass(ABCMeta)):
@@ -92,9 +92,9 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
 
     @abstractmethod
     def create_stored_event_repo(self, **kwargs):
-        """Returns an instance of a subclass of StoredEventRepository.
+        """Returns an instance of a subclass of AbstractStoredEventRepository.
 
-        :rtype: StoredEventRepository
+        :rtype: AbstractStoredEventRepository
         """
 
     def create_event_store(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False):
