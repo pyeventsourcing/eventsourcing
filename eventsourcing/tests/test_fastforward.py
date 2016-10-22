@@ -1,13 +1,16 @@
 from eventsourcing.application.example.base import ExampleApplication
+from eventsourcing.application.example.with_cassandra import ExampleApplicationWithCassandra
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
 from eventsourcing.domain.model.example import Example
 from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.tests.unit_test_cases_cassandra import CassandraTestCase
 from eventsourcing.tests.unit_test_cases_example_application import ExampleApplicationTestCase
 
 
-class TestFastForward(ExampleApplicationTestCase):
+class TestFastForward(CassandraTestCase, ExampleApplicationTestCase):
     def create_app(self):
-        return ExampleApplicationWithPythonObjects()
+        return ExampleApplicationWithCassandra()
+        # return ExampleApplicationWithPythonObjects()
 
     def test(self):
         assert isinstance(self.app, ExampleApplication)
@@ -21,8 +24,9 @@ class TestFastForward(ExampleApplicationTestCase):
         self.assertEqual(instance1.version, 1)
         self.assertEqual(instance2.version, 1)
 
-        # Evolve instance1 by one version.
+        # Evolve instance1 by two versions.
         instance1.beat_heart()
+        # instance1.beat_heart()
         self.assertEqual(instance1.version, 2)
 
         # Try to evolve instance2 from the same version.
@@ -33,6 +37,7 @@ class TestFastForward(ExampleApplicationTestCase):
 
         # Reset instance2 to its pre-op state.
         instance2.__dict__.update(preop_state)
+        self.assertEqual(instance2.version, 1)
 
         # Fast forward instance2 from pre-op state.
         instance3 = self.app.example_repo.fastforward(instance2)

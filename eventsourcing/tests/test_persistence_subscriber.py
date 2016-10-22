@@ -7,14 +7,14 @@ try:
 except:
     import mock
 from eventsourcing.domain.model.events import publish, DomainEvent
-from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.eventstore import AbstractEventStore
 
 
 class TestPersistenceSubscriber(unittest.TestCase):
 
     def setUp(self):
         # Set up a persistence subscriber with a (mock) event store.
-        self.event_store = mock.Mock(spec=EventStore)
+        self.event_store = mock.Mock(spec=AbstractEventStore)
         self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
 
     def tearDown(self):

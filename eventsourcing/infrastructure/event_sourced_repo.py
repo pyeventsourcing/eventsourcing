@@ -2,7 +2,7 @@ from abc import abstractproperty
 
 from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity
 from eventsourcing.domain.services.eventplayer import EventPlayer
-from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.eventstore import AbstractEventStore
 from eventsourcing.domain.services.snapshotting import entity_from_snapshot
 from eventsourcing.domain.services.transcoding import id_prefix_from_entity_class
 from eventsourcing.exceptions import RepositoryKeyError
@@ -28,7 +28,7 @@ class EventSourcedRepository(EntityRepository):
         self._snapshot_strategy = snapshot_strategy
 
         # Check we got an event store.
-        assert isinstance(event_store, EventStore)
+        assert isinstance(event_store, AbstractEventStore)
         self.event_store = event_store
 
         # Check domain class is a type of event sourced entity.
@@ -109,22 +109,4 @@ class EventSourcedRepository(EntityRepository):
         """
         Mutates an instance of an entity, according to the events that have occurred since its version.
         """
-        # Make a stored entity ID.
-        assert isinstance(stale_entity, EventSourcedEntity)
-        stored_entity_id = self.event_player.make_stored_entity_id(stale_entity.id)
-
-        # Get the entity version object, which provides the event ID.
-        entity_version = self.event_store.get_entity_version(stored_entity_id, stale_entity.version)
-
-        # Replay the events since the entity version.
-        after = entity_version.event_id
-        fresh_entity = self.event_player.replay_events(
-            entity_id=stale_entity.id,
-            after=after,
-            until=until,
-            initial_state=stale_entity,
-            query_descending=True
-        )
-
-        # Return the fresh instance.
-        return fresh_entity
+        return self.event_player.fastforward(stale_entity, until=until)

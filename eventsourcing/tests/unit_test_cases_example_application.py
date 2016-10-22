@@ -1,7 +1,7 @@
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.model.example import Example
-from eventsourcing.domain.services.eventstore import EventStore, AbstractStoredEventRepository
+from eventsourcing.domain.services.eventstore import AbstractEventStore, AbstractStoredEventRepository
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.tests.unit_test_cases import AbstractTestCase
 
@@ -34,7 +34,7 @@ class ExampleApplicationTestCase(ApplicationTestCase):
         self.assertIsInstance(self.app.stored_event_repo, AbstractStoredEventRepository)
 
         # Check there's an event store.
-        self.assertIsInstance(self.app.event_store, EventStore)
+        self.assertIsInstance(self.app.event_store, AbstractEventStore)
         self.assertEqual(self.app.event_store.stored_event_repo, self.app.stored_event_repo)
 
         # Check there's a persistence subscriber.

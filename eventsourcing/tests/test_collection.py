@@ -6,7 +6,7 @@ from eventsourcing.application.subscribers.persistence import PersistenceSubscri
 from eventsourcing.domain.model.collection import register_new_collection, Collection
 from eventsourcing.domain.model.entity import EntityIsDiscarded
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
-from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.eventstore import AbstractEventStore
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepo
 from eventsourcing.infrastructure.stored_event_repos.with_python_objects import \
@@ -111,7 +111,7 @@ class TestCollectionRepo(TestCase):
         assert_event_handlers_empty()
         # Setup the repo, and a persistence subscriber.
         stored_event_repo = PythonObjectsStoredEventRepository()
-        event_store = EventStore(stored_event_repo=stored_event_repo)
+        event_store = AbstractEventStore(stored_event_repo=stored_event_repo)
         self.repo = CollectionRepo(event_store=event_store)
         self.ps = PersistenceSubscriber(event_store=event_store)
 

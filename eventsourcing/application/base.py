@@ -114,7 +114,9 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
 
     def create_persistence_subscriber(self):
         if self.persist_events and self.event_store:
-            return PersistenceSubscriber(self.event_store)
+            return PersistenceSubscriber(
+                event_store=self.event_store
+            )
 
     def close(self):
         if self.persistence_subscriber is not None:

@@ -5,7 +5,7 @@ from uuid import uuid1
 from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.domain.model.log import get_logger, Logger, start_new_log, Log
-from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.eventstore import AbstractEventStore
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.log_reader import get_log_reader
 from eventsourcing.tests.unit_test_cases import AbstractTestCase
@@ -31,7 +31,7 @@ class LogTestCase(AbstractTestCase):
         assert_event_handlers_empty()
 
         # Setup the persistence subscriber.
-        self.event_store = EventStore(self.stored_event_repo)
+        self.event_store = AbstractEventStore(self.stored_event_repo)
         self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
 
         self.log_repo = LogRepo(self.event_store)

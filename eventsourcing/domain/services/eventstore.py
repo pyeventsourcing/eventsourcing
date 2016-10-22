@@ -9,7 +9,29 @@ from eventsourcing.exceptions import ProgrammingError, EntityVersionDoesNotExist
 from eventsourcing.utils.time import time_from_uuid
 
 
-class EventStore(object):
+class AbstractEventStore(six.with_metaclass(ABCMeta)):
+
+    @abstractmethod
+    def append(self, domain_event):
+        """
+        Put domain event in event store for later retrieval.
+        """
+
+    @abstractmethod
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
+                          page_size=None):
+        pass
+
+    @abstractmethod
+    def get_entity_version(self, stored_entity_id, version):
+        pass
+
+    @abstractmethod
+    def get_most_recent_event(self, stored_entity_id, until=None):
+        pass
+
+
+class EventStore(AbstractEventStore):
 
     def __init__(self, stored_event_repo, transcoder=None):
         assert isinstance(stored_event_repo, AbstractStoredEventRepository), stored_event_repo

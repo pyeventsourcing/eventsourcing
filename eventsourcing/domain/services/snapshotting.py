@@ -4,7 +4,7 @@ import six
 
 from eventsourcing.domain.model.events import topic_from_domain_class, publish
 from eventsourcing.domain.model.snapshot import Snapshot, AbstractSnapshop
-from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.eventstore import AbstractEventStore
 from eventsourcing.domain.services.transcoding import make_stored_entity_id, id_prefix_from_event_class, \
     deserialize_domain_entity, id_prefix_from_entity
 
@@ -42,7 +42,7 @@ def get_snapshot(stored_entity_id, event_store, until=None):
 
     :rtype: Snapshot
     """
-    assert isinstance(event_store, EventStore)
+    assert isinstance(event_store, AbstractEventStore)
     snapshot_entity_id = make_stored_entity_id(id_prefix_from_event_class(Snapshot), stored_entity_id)
     return event_store.get_most_recent_event(snapshot_entity_id, until=until)
 

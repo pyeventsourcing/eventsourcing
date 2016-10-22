@@ -6,7 +6,7 @@ from six import with_metaclass
 from eventsourcing.domain.model.events import QualnameABCMeta
 from eventsourcing.domain.model.log import Log, MessageLogged, make_bucket_id, next_bucket_starts, \
     previous_bucket_starts
-from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.eventstore import AbstractEventStore
 from eventsourcing.domain.services.transcoding import make_stored_entity_id
 from eventsourcing.utils.time import timestamp_from_uuid
 
@@ -22,7 +22,7 @@ class LogReader(with_metaclass(QualnameABCMeta)):
     def __init__(self, log, event_store, page_size=50):
         assert isinstance(log, Log)
         self.log = log
-        assert isinstance(event_store, EventStore)
+        assert isinstance(event_store, AbstractEventStore)
         self.event_store = event_store
         assert isinstance(page_size, six.integer_types)
         self.page_size = page_size
