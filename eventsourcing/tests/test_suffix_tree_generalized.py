@@ -14,7 +14,7 @@ from eventsourcing.contrib.suffixtrees.application import SuffixTreeApplicationW
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import GeneralizedSuffixTree, \
     SuffixTreeEdge, SuffixTreeNode, STRING_ID_END
 from eventsourcing.tests.suffix_tree_text import LONG_TEXT, LONG_TEXT_CONT
-from eventsourcing.tests.test_stored_event_repository_cassandra import CassandraTestCase
+from eventsourcing.tests.unit_test_cases_cassandra import CassandraTestCase
 
 
 class GeneralizedSuffixTreeTestCase(TestCase):

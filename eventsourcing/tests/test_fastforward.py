@@ -1,12 +1,11 @@
-import eventsourcing.tests.test_application_with_pythonobjects as testcase
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
 from eventsourcing.domain.model.example import Example
 from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.tests.example_application_testcase import ExampleApplicationTestCase
 
 
-class TestFastForward(testcase.TestApplicationWithPythonObjects):
-
+class TestFastForward(ExampleApplicationTestCase):
     def create_app(self):
         return ExampleApplicationWithPythonObjects()
 

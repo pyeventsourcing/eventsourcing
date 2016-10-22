@@ -1,13 +1,13 @@
 import os
 import sys
-import unittest
 from os.path import join, dirname
 from subprocess import Popen, PIPE
+from unittest.case import TestCase
 
 import eventsourcing
 
 
-class TestUsage(unittest.TestCase):
+class TestUsage(TestCase):
 
     def test_code_snippets_in_readme_file(self):
         # Extract lines of Python code from the README.md file.

@@ -1,20 +1,6 @@
-import unittest
-
-from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
-from eventsourcing.tests.test_stored_events import BasicStoredEventRepositoryTestCase, \
-    SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase, ConcurrentStoredEventRepositoryTestCase
-
-
-class PythonObjectsTestCase(unittest.TestCase):
-
-    @property
-    def stored_event_repo(self):
-        try:
-            return self._stored_event_repo
-        except AttributeError:
-            stored_event_repo = PythonObjectsStoredEventRepository()
-            self._stored_event_repo = stored_event_repo
-            return stored_event_repo
+from eventsourcing.tests.unit_test_cases import BasicStoredEventRepositoryTestCase, SimpleStoredEventIteratorTestCase, \
+    ThreadedStoredEventIteratorTestCase
+from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsTestCase
 
 
 class TestPythonObjectsStoredEventRepository(PythonObjectsTestCase, BasicStoredEventRepositoryTestCase):

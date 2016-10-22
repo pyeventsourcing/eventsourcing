@@ -1,11 +1,11 @@
-import unittest
+from unittest import TestCase
 
-from eventsourcing.tests.test_stored_events import BasicStoredEventRepositoryTestCase, SimpleStoredEventIteratorTestCase, \
-    ThreadedStoredEventIteratorTestCase
 from eventsourcing.infrastructure.stored_events.shared_memory_stored_events import SharedMemoryStoredEventRepository
+from eventsourcing.tests.unit_test_cases import BasicStoredEventRepositoryTestCase, SimpleStoredEventIteratorTestCase, \
+    ThreadedStoredEventIteratorTestCase
 
 
-class SharedMemoryTestCase(unittest.TestCase):
+class SharedMemoryTestCase(TestCase):
 
     @property
     def stored_event_repo(self):

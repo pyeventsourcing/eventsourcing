@@ -13,9 +13,9 @@ from eventsourcing.infrastructure.log_reader import get_log_reader, LogReader
 from eventsourcing.infrastructure.stored_events.cassandra_stored_events import create_cassandra_keyspace_and_tables, \
     drop_cassandra_keyspace
 from eventsourcing.infrastructure.stored_events.transcoders import make_stored_entity_id
+from eventsourcing.tests.unit_test_cases import AbstractTestCase
 from eventsourcing.utils.time import utc_now
 from eventsourcing.tests.test_application_with_encryption import AESStoredEventCipher
-from eventsourcing.tests.test_stored_events import AbstractTestCase
 
 
 class PerformanceTestCase(AbstractTestCase):
