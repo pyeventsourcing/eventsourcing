@@ -15,7 +15,8 @@ class TestUsage(TestCase):
         readme_path = join(dirname(dirname(eventsourcing.__file__)), readme_filename)
 
         if not os.path.exists(readme_path):
-            self.skipTest("usage instructions in README file are not available for testing when package is installed")
+            self.skipTest("Skipped test because usage instructions in README file are "
+                          "not available for testing once this package is installed")
 
         temp_filename = '.README.py'
         temp_path = os.path.join(os.path.dirname(readme_path), temp_filename)

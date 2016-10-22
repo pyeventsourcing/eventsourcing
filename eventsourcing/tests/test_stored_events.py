@@ -38,7 +38,7 @@ class TestStoredEvent(TestCase):
             self.assertEqual('{"a":{"__ndarray__":"\\"\\\\u0093NUMPY\\\\u0001\\\\u0000F\\\\u0000{\'descr\': \'<f8\', \'fortran_order\': False, \'shape\': (1,), }            \\\\nm\\\\u00fd\\\\u00f4\\\\u009f5?$@\\""},"domain_event_id":3,"entity_id":"entity1","entity_version":0}',
                              stored_event.event_attrs)
         else:
-            self.skipTest("Numpy not installed")
+            self.skipTest("Skipped test because numpy is not installed")
 
     def test_recreate_domain_event(self):
         stored_event = StoredEvent(event_id='1',

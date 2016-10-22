@@ -29,7 +29,7 @@ class AbstractTestCase(TestCase):
         Returns None if test case class ends with 'TestCase', which means the test case isn't included in the suite.
         """
         if type(self).__name__.endswith('TestCase'):
-            self.skipTest('Abstract test ignored.')
+            self.skipTest('Skipped abstract test')
         else:
             super(AbstractTestCase, self).setUp()
 
@@ -304,7 +304,7 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
                         new_stored_event=stored_event,
                         new_version_number=new_version,
                         max_retries=10,
-                        artificial_failure_rate=0.2,
+                        artificial_failure_rate=0.25,
                     )
                 except ConcurrencyError:
                     # print("PID {} got concurrent exception writing event at version {} at {}".format(
