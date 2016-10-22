@@ -2,29 +2,30 @@ import six
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
-from eventsourcing.infrastructure.stored_events.transcoders import serialize_domain_event, deserialize_domain_event
+from eventsourcing.infrastructure.stored_events.transcoders import AbstractTranscoder, Transcoder
 
 
 class EventStore(object):
 
-    serialize_without_json = False
-    serialize_with_uuid1 = True
-
-    def __init__(self, stored_event_repo, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False):
+    def __init__(self, stored_event_repo, transcoder=None):
         assert isinstance(stored_event_repo, StoredEventRepository), stored_event_repo
+        if transcoder is None:
+            transcoder = Transcoder()
+        assert isinstance(transcoder, AbstractTranscoder), transcoder
         self.stored_event_repo = stored_event_repo
-        self.json_encoder_cls = json_encoder_cls
-        self.json_decoder_cls = json_decoder_cls
-        self.cipher = cipher
-        self.always_encrypt = always_encrypt
+
+        self.transcoder = transcoder
 
     def append(self, domain_event):
         assert isinstance(domain_event, DomainEvent)
         # Serialize the domain event.
-        stored_event = self.serialize(domain_event)
+        stored_event = self.transcoder.serialize(domain_event)
 
         # Append the stored event to the stored event repo.
-        self.stored_event_repo.append(new_stored_event=stored_event, new_version_number=domain_event.entity_version)
+        self.stored_event_repo.append(
+            new_stored_event=stored_event,
+            new_version_number=domain_event.entity_version,
+        )
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
                           page_size=None):
@@ -49,7 +50,7 @@ class EventStore(object):
             )
 
         # Deserialize all the stored event objects into domain event objects.
-        return six.moves.map(self.deserialize, stored_events)
+        return six.moves.map(self.transcoder.deserialize, stored_events)
 
     def get_most_recent_event(self, stored_entity_id, until=None):
         """Returns last event for given stored entity ID.
@@ -57,39 +58,7 @@ class EventStore(object):
         :rtype: DomainEvent, NoneType
         """
         stored_event = self.stored_event_repo.get_most_recent_event(stored_entity_id, until=until)
-        return None if stored_event is None else self.deserialize(stored_event)
+        return None if stored_event is None else self.transcoder.deserialize(stored_event)
 
     def get_entity_version(self, stored_entity_id, version):
         return self.stored_event_repo.get_entity_version(stored_entity_id=stored_entity_id, version_number=version)
-
-
-    def serialize(self, domain_event):
-        """
-        Returns a stored event from a domain event.
-
-        :rtype: StoredEvent
-
-        """
-        return serialize_domain_event(
-            domain_event,
-            json_encoder_cls=self.json_encoder_cls,
-            without_json=self.serialize_without_json,
-            with_uuid1=self.serialize_with_uuid1,
-            cipher=self.cipher,
-            always_encrypt=self.always_encrypt,
-        )
-
-    def deserialize(self, stored_event):
-        """
-        Returns a domain event from a stored event.
-
-        :rtype: DomainEvent
-        """
-        return deserialize_domain_event(
-            stored_event,
-            json_decoder_cls=self.json_decoder_cls,
-            without_json=self.serialize_without_json,
-            with_uuid1=self.serialize_with_uuid1,
-            cipher=self.cipher,
-            always_encrypt=self.always_encrypt,
-        )

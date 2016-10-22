@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
-from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent, EntityVersion
+from eventsourcing.infrastructure.stored_events.transcoders import EntityVersion
 from eventsourcing.utils.time import timestamp_from_uuid
 
 
