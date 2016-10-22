@@ -1,8 +1,8 @@
 from eventsourcing.application.example.with_cassandra import ExampleApplicationWithCassandra
 from eventsourcing.infrastructure.stored_events.cassandra_stored_events import create_cassandra_keyspace_and_tables, \
     drop_cassandra_keyspace
-from eventsourcing.tests.example_application_testcase import ExampleApplicationTestCase
 from eventsourcing.tests.unit_test_cases_cassandra import CassandraTestCase
+from eventsourcing.tests.unit_test_cases_example_application import ExampleApplicationTestCase
 
 
 class TestApplicationWithCassandra(CassandraTestCase, ExampleApplicationTestCase):

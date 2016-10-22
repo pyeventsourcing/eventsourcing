@@ -1,5 +1,5 @@
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
-from eventsourcing.tests.example_application_testcase import ExampleApplicationTestCase
+from eventsourcing.tests.unit_test_cases_example_application import ExampleApplicationTestCase
 
 
 class TestApplicationWithPythonObjects(ExampleApplicationTestCase):
