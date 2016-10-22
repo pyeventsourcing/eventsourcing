@@ -1,7 +1,7 @@
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.model.example import Example
-from eventsourcing.domain.services.event_store import EventStore, AbstractStoredEventRepository
+from eventsourcing.domain.services.eventstore import EventStore, AbstractStoredEventRepository
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.tests.unit_test_cases import AbstractTestCase
 

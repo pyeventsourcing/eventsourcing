@@ -10,8 +10,8 @@ from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence
 from sqlalchemy.sql.sqltypes import Integer, String, BigInteger, Text
 
-from eventsourcing.domain.services.event_store import AbstractStoredEventRepository
-from eventsourcing.domain.services.transcoders import StoredEvent, EntityVersion
+from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository
+from eventsourcing.domain.services.transcoding import StoredEvent, EntityVersion
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.utils.time import timestamp_long_from_uuid
 

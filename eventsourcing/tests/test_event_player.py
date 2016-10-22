@@ -5,11 +5,11 @@ from eventsourcing.application.subscribers.persistence import PersistenceSubscri
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.domain.model.example import Example, register_new_example
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.domain.services.event_store import EventStore
-from eventsourcing.domain.services.snapshot_strategy import EventSourcedSnapshotStrategy, entity_from_snapshot, \
+from eventsourcing.domain.services.eventplayer import EventPlayer
+from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.snapshotting import EventSourcedSnapshotStrategy, entity_from_snapshot, \
     take_snapshot
-from eventsourcing.infrastructure.event_player import EventPlayer
-from eventsourcing.infrastructure.stored_events.in_python_objects import PythonObjectsStoredEventRepository
+from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 
 
 class TestEventPlayer(unittest.TestCase):

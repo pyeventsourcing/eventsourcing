@@ -1,5 +1,5 @@
 from eventsourcing.application.base import EventSourcingApplication
-from eventsourcing.infrastructure.stored_events.in_sqlalchemy import \
+from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import \
     get_scoped_session_facade, SQLAlchemyStoredEventRepository
 
 

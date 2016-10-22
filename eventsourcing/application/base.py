@@ -3,8 +3,8 @@ from abc import abstractmethod, ABCMeta
 from six import with_metaclass
 
 from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
-from eventsourcing.domain.services.event_store import EventStore
-from eventsourcing.domain.services.transcoders import Transcoder
+from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.transcoding import Transcoder
 
 
 class EventSourcingApplication(with_metaclass(ABCMeta)):

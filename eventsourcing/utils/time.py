@@ -1,6 +1,6 @@
-import datetime
 from uuid import UUID
 
+import datetime
 import six
 
 if hasattr(datetime, 'timezone'):
@@ -17,15 +17,6 @@ else:
     utc_timezone = UTC()
 
 
-def utc_now():
-    now_datetime = datetime.datetime.now(utc_timezone)
-    try:
-        now_timestamp = now_datetime.timestamp()
-    except AttributeError:
-        now_timestamp = (now_datetime - datetime.datetime(1970, 1, 1, tzinfo=utc_timezone)).total_seconds()
-    return now_timestamp
-
-
 def timestamp_from_uuid(uuid_arg):
     """
     Return a floating point unix timestamp to 6 decimal places.
@@ -38,6 +29,13 @@ def timestamp_from_uuid(uuid_arg):
 
 
 def timestamp_long_from_uuid(uuid_arg):
+    """
+    Returns an integer value representing a unix timestamp in tenths of microseconds.
+
+    :param uuid_arg:
+    :return: Unix timestamp integer in tenths of microseconds.
+    :rtype: int
+    """
     return time_from_uuid(uuid_arg) - 0x01B21DD213814000
 
 

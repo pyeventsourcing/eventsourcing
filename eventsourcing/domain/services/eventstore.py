@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.domain.services.transcoders import AbstractTranscoder, Transcoder, StoredEvent
+from eventsourcing.domain.services.transcoding import AbstractTranscoder, Transcoder, StoredEvent
 from eventsourcing.exceptions import ProgrammingError, EntityVersionDoesNotExist, ConcurrencyError
 from eventsourcing.utils.time import time_from_uuid
 

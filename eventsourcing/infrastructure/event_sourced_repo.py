@@ -1,25 +1,26 @@
 from abc import abstractproperty
 
 from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity
-from eventsourcing.domain.services.event_store import EventStore
-from eventsourcing.domain.services.snapshot_strategy import entity_from_snapshot
-from eventsourcing.domain.services.transcoders import id_prefix_from_entity_class
+from eventsourcing.domain.services.eventplayer import EventPlayer
+from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.snapshotting import entity_from_snapshot
+from eventsourcing.domain.services.transcoding import id_prefix_from_entity_class
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.infrastructure.event_player import EventPlayer
 
 
 class EventSourcedRepository(EntityRepository):
+
+    # If the entity won't have very many events, marking the entity as
+    # "short" by setting __is_short__ value equal to True will mean
+    # the fastest path for getting all the events is used. If you set
+    # a value for page size (see below), this option will have no effect.
+    __is_short__ = False
 
     # The page size by which events are retrieved. If this
     # value is set to a positive integer, the events of
     # the entity will be retrieved in pages, using a series
     # of queries, rather than with one potentially large query.
     __page_size__ = None
-
-    # If the entity won't have very many events, marking the entity as
-    # "short" by setting __is_short__ value equal to True will mean
-    # the fastest path for getting all the events is used.
-    __is_short__ = False
 
     def __init__(self, event_store, use_cache=False, snapshot_strategy=None):
         self._cache = {}
@@ -104,10 +105,26 @@ class EventSourcedRepository(EntityRepository):
         # Replay domain events.
         return self.event_player.replay_events(entity_id, after=after, until=until, initial_state=initial_state)
 
-    def fastforward(self, entity, until=None):
-        assert isinstance(entity, EventSourcedEntity)
-        stored_entity_id = self.event_player.make_stored_entity_id(entity.id)
-        entity_version = self.event_store.get_entity_version(stored_entity_id, entity.version)
+    def fastforward(self, stale_entity, until=None):
+        """
+        Mutates an instance of an entity, according to the events that have occurred since its version.
+        """
+        # Make a stored entity ID.
+        assert isinstance(stale_entity, EventSourcedEntity)
+        stored_entity_id = self.event_player.make_stored_entity_id(stale_entity.id)
+
+        # Get the entity version object, which provides the event ID.
+        entity_version = self.event_store.get_entity_version(stored_entity_id, stale_entity.version)
+
+        # Replay the events since the entity version.
         after = entity_version.event_id
-        return self.event_player.replay_events(
-            entity_id=entity.id, after=after, until=until, initial_state=entity, query_descending=True)
+        fresh_entity = self.event_player.replay_events(
+            entity_id=stale_entity.id,
+            after=after,
+            until=until,
+            initial_state=stale_entity,
+            query_descending=True
+        )
+
+        # Return the fresh instance.
+        return fresh_entity

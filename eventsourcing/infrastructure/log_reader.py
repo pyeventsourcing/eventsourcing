@@ -6,8 +6,8 @@ from six import with_metaclass
 from eventsourcing.domain.model.events import QualnameABCMeta
 from eventsourcing.domain.model.log import Log, MessageLogged, make_bucket_id, next_bucket_starts, \
     previous_bucket_starts
-from eventsourcing.domain.services.event_store import EventStore
-from eventsourcing.domain.services.transcoders import make_stored_entity_id
+from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.transcoding import make_stored_entity_id
 from eventsourcing.utils.time import timestamp_from_uuid
 
 

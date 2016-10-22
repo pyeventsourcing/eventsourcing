@@ -4,8 +4,8 @@ import six
 
 from eventsourcing.domain.model.events import topic_from_domain_class, publish
 from eventsourcing.domain.model.snapshot import Snapshot, AbstractSnapshop
-from eventsourcing.domain.services.event_store import EventStore
-from eventsourcing.domain.services.transcoders import make_stored_entity_id, id_prefix_from_event_class, \
+from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.transcoding import make_stored_entity_id, id_prefix_from_event_class, \
     deserialize_domain_entity, id_prefix_from_entity
 
 

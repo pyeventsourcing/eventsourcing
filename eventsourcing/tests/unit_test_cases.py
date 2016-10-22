@@ -11,15 +11,15 @@ from uuid import uuid4, uuid1
 
 import six
 
-from eventsourcing.domain.services.event_store import AbstractStoredEventRepository, SimpleStoredEventIterator
-from eventsourcing.domain.services.transcoders import StoredEvent
+from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository, SimpleStoredEventIterator
+from eventsourcing.domain.services.transcoding import StoredEvent
 from eventsourcing.exceptions import ConcurrencyError
-from eventsourcing.infrastructure.stored_events.in_cassandra import CassandraStoredEventRepository, \
+from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
     setup_cassandra_connection, get_cassandra_setup_params
-from eventsourcing.infrastructure.stored_events.in_python_objects import PythonObjectsStoredEventRepository
-from eventsourcing.infrastructure.stored_events.in_sqlalchemy import SQLAlchemyStoredEventRepository, \
+from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
+from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository, \
     get_scoped_session_facade
-from eventsourcing.infrastructure.stored_events.threaded_iterator import ThreadedStoredEventIterator
+from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 
 
 class AbstractTestCase(TestCase):

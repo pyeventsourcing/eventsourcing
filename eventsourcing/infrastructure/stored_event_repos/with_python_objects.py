@@ -1,8 +1,8 @@
 import itertools
 from collections import defaultdict
 
-from eventsourcing.domain.services.event_store import AbstractStoredEventRepository
-from eventsourcing.domain.services.transcoders import EntityVersion
+from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository
+from eventsourcing.domain.services.transcoding import EntityVersion
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.utils.time import timestamp_from_uuid
 

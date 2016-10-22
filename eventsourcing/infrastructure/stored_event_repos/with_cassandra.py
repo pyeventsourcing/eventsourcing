@@ -10,10 +10,10 @@ from cassandra.cqlengine.management import sync_table, create_keyspace_simple, d
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
-from eventsourcing.domain.services.event_store import AbstractStoredEventRepository
-from eventsourcing.domain.services.transcoders import StoredEvent, EntityVersion
+from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository
+from eventsourcing.domain.services.transcoding import StoredEvent, EntityVersion
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
-from eventsourcing.infrastructure.stored_events.threaded_iterator import ThreadedStoredEventIterator
+from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 
 DEFAULT_CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
 DEFAULT_CASSANDRA_CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', 'LOCAL_QUORUM')

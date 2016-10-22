@@ -7,7 +7,7 @@ try:
 except:
     import mock
 from eventsourcing.domain.model.events import publish, DomainEvent
-from eventsourcing.domain.services.event_store import EventStore
+from eventsourcing.domain.services.eventstore import EventStore
 
 
 class TestPersistenceSubscriber(unittest.TestCase):

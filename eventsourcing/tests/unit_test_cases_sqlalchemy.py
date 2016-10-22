@@ -1,7 +1,7 @@
 from tempfile import NamedTemporaryFile
 from unittest import TestCase
 
-from eventsourcing.infrastructure.stored_events.in_sqlalchemy import get_scoped_session_facade, \
+from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import get_scoped_session_facade, \
     SQLAlchemyStoredEventRepository
 
 

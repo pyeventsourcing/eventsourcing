@@ -1,7 +1,9 @@
 from unittest.case import TestCase
 from uuid import uuid1
 
-from eventsourcing.utils.time import utc_now, timestamp_from_uuid
+import datetime
+
+from eventsourcing.utils.time import timestamp_from_uuid, utc_timezone
 
 
 class TestUtils(TestCase):
@@ -13,3 +15,12 @@ class TestUtils(TestCase):
         uuid_timestamp = timestamp_from_uuid(uuid)
         self.assertLess(until, uuid_timestamp)
         self.assertGreater(after, uuid_timestamp)
+
+
+def utc_now():
+    now_datetime = datetime.datetime.now(utc_timezone)
+    try:
+        now_timestamp = now_datetime.timestamp()
+    except AttributeError:
+        now_timestamp = (now_datetime - datetime.datetime(1970, 1, 1, tzinfo=utc_timezone)).total_seconds()
+    return now_timestamp

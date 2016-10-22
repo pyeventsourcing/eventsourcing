@@ -1,9 +1,9 @@
 from functools import reduce
 
 from eventsourcing.domain.model.snapshot import AbstractSnapshop
-from eventsourcing.domain.services.event_store import EventStore
-from eventsourcing.domain.services.snapshot_strategy import AbstractSnapshotStrategy, entity_from_snapshot
-from eventsourcing.domain.services.transcoders import make_stored_entity_id
+from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.snapshotting import AbstractSnapshotStrategy, entity_from_snapshot
+from eventsourcing.domain.services.transcoding import make_stored_entity_id
 
 
 class EventPlayer(object):
