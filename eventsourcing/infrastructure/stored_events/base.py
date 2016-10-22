@@ -42,7 +42,6 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
             artificial_failure_rate=artificial_failure_rate,
         )
 
-
     def validate_expected_version(self, new_stored_event, new_version_number):
         """
         Checks the expected version exists and occurred before the new event.
