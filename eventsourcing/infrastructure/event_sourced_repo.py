@@ -106,7 +106,7 @@ class EventSourcedRepository(EntityRepository):
     def fastforward(self, entity, until=None):
         assert isinstance(entity, EventSourcedEntity)
         stored_entity_id = self.event_player.make_stored_entity_id(entity.id)
-        event_version = self.event_store.get_entity_version(stored_entity_id, entity.version)
-        after = event_version.event_id
+        entity_version = self.event_store.get_entity_version(stored_entity_id, entity.version)
+        after = entity_version.event_id
         return self.event_player.replay_events(
             entity_id=entity.id, after=after, until=until, initial_state=entity, query_descending=True)
