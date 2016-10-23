@@ -32,7 +32,10 @@ events and custom subscribers (see example below, and the test cases).
 **Snapshots** — Avoids replaying an entire event stream to obtain the
 current state of an entity, hence entity access time complexity becomes
 *O(1)* with respect to the total number of events *N* in the stream,
-rather than *O(N)*.
+rather than *O(N)*. Snapshotting is implemented as a strategy object in
+the application class, making it easy to use a custom snapshotting
+mechanism and storage. A snapshot strategy is included which reuses the
+capabilities of this library by implementing snapshots as domain events.
 
 **Fast Forwarding** — Of entities to latest published event, used with
 snapshots and also when optimistic currency control exceptions are
@@ -40,13 +43,6 @@ encountered.
 
 **Collections** — An object-oriented alternative to "joins", used for
 modelling multiplicities of different kinds.
-
-**Time-Bucketed Logs** — Logged messages and log readers, for writing
-and reading an indefinitely long stream of events in a scalable manner.
-An example could be a domain event log, that allows all stored events
-in an application to be logged in a linearly scalable manner, and then 
-retrieved quickly in order, limited by number, from any point in time
-until another point in time, in reverse or ascending order.
 
 **Optimistic Concurrency Control** — Implemented using optimistic
 concurrency controls in the adapted database. For example, with
@@ -67,15 +63,22 @@ initialization vector for each encryption. Data is compressed before it
 is encrypted, which can mean application performance is improved when
 encryption is enabled.
 
-**Customizable Transcoding** — Between domain events and stored events,
-allows support to be added for serialization and deserialization of
-custom value object types, and also makes it possible to use different
-database schemas when developing a custom stored event repository.
-
 **Synchronous Publish-Subscribe Mechanism** — Entirely deterministic,
 with handlers called in the order they are registered, and with which
 calls to publish events do not return until all event subscribers have
 returned.
+
+**Time-Bucketed Logs** — Logged messages and log readers, for writing
+and reading an indefinitely long stream of events in a scalable manner.
+An example could be a domain event log, that allows all stored events
+in an application to be logged in a linearly scalable manner, and then 
+retrieved quickly in order, limited by number, from any point in time
+until another point in time, in reverse or ascending order.
+
+**Customizable Transcoding** — Between domain events and stored events,
+allows support to be added for serialization and deserialization of
+custom value object types, and also makes it possible to use different
+database schemas when developing a custom stored event repository.
 
 
 ## Install
