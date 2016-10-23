@@ -329,12 +329,11 @@ events for a particular entity to obtain the current state, and projecting views
 persisted in other models. Quoting from the "Cohesive Mechanism" pages in Eric Evan's Domain Driven Design book:
 
 _"Therefore: Partition a conceptually COHESIVE MECHANISM into a separate lightweight framework. Particularly watch
-for formalisms for well-documented categories of of algorithms. Expose the capabilities of the framework
+for formalisms for well-documented categories of algorithms. Expose the capabilities of the framework
 with an INTENTION-REVEALING INTERFACE. Now the other elements of the domain can focus on expressing the problem
 ("what"), delegating the intricacies of the solution ("how") to the framework."_
 
-The list of features above, and the example of usage below, present the 'interface' and hopefully the 'intentions'. 
-The 'intricacies' of the library mechanisms can be found in the source code.
+The example usage (see above) introduces the "interface". The "intricacies" can be found in the source code.
 
 Inspiration:
 
