@@ -10,24 +10,30 @@ A library for event sourcing in Python.
 
 * Examples - an event sourcing application, with an event-sourced repository 
   containing entity instances, and an entity factory method for creating
-  example entities.
+  example entities (see below).
 
-* Base classes for application objects, repositories, entities and domain events.
+* Extendable object classes for applications, repositories, entities, domain events, and subscribers.
 
 * Generic event store, with adapters for different database systems (e.g. Cassandra, MySQL).
 
-* Robust optimistic concurrency control, implemented using atomic optimistic concurrency
-  control features of the database - for instance, with Cassandra this
-  accomplishes linearly-scalable distributed optimistic concurrency control.
+* Persistent event streams, with and without contiguous version sequences.
+
+* Robust optimistic concurrency control, implemented using atomic optimistic
+  concurrency control features of the database - for instance, with Cassandra
+  this accomplishes linearly-scalable distributed optimistic concurrency
+  control, guaranteeing consistency of an event streams across a
+  distributed application operating concurrently on that stream.
 
 * Snapshots - avoids replaying an entire event stream to obtain the current state of an entity.
 
 * Fast forwarding of entities to latest published event - used with snapshots and also
   when optimistic currency control exceptions are encountered.
 
-* Symmetric encryption of stored events, provides application level encryption.
+* Customizable transcoding into stored events.
 
-* Collections, for modelling multiplicities.
+* Customizable symmetric encryption of stored events, providing application level encryption.
+
+* Collections, for modelling multiplicities of different kinds.
 
 * Time-bucketed logs, logged messages, and log readers - for writing and reading
   an indefinitely long stream of events in a scalable manner.
@@ -499,6 +505,7 @@ attribute values inhibiting performance and stability - different sizes could be
 * Optionally decouple topics from actual code, so classes can be moved.
 
 Todo: Develop above to be a release plan.
+
 
 ## Possible Future Backwards-Incompatible Changes
 
