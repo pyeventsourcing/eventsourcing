@@ -15,9 +15,34 @@ example application below. Also, in the 'eventsourcing.contrib' package,
 there is a persistent "generalized suffix tree" which shows how a more
 complex model could be written.
 
+**Generic Event Store** — With an extendable set of adapters (called
+"stored event repositories" in the code) for popular ORMs and databases
+systems (e.g. Cassandra, SQLAlchemy). Also supports using Python objects
+in memory, for rapid application development. If your database system
+isn't already supported, it will be relatively easy to adapt by writing
+a custom stored event repository. The event store is also derived from
+an abstract base class in case you want to use a custom event store in
+your application. There are test cases you can use that make it easy to
+check your implementation.
+
 **Abstract Base Classes and Test Cases** — Make it simple to develop new
 applications, with custom entities and repositories, custom domain
 events, and custom subscribers (see example below, and test suite cases).
+
+**Snapshots** — Avoids replaying an entire event stream to obtain the
+current state of an entity, hence entity access time complexity becomes
+*O(1)* with respect to the total number of events *N* in the stream,
+rather than *O(N)*.
+
+**Fast Forwarding** — Of entities to latest published event, used with
+snapshots and also when optimistic currency control exceptions are
+encountered.
+
+**Collections** — An object-oriented alternative to "joins", used for
+modelling multiplicities of different kinds.
+
+**Time-Bucketed Logs** — Logged messages and log readers, for writing
+and reading an indefinitely long stream of events in a scalable manner.
 
 **Optimistic Concurrency Control** — Implemented using optimistic
 concurrency controls in the adapted database. For example, with
@@ -38,31 +63,9 @@ initialization vector for each encryption. Data is compressed before it
 is encrypted, which can mean application performance is improved when
 encryption is enabled.
 
-**Generic Event Store** — With an extendable set of adapters (called
-"stored event repositories" in the code) for popular ORMs and databases
-systems (e.g. Cassandra, SQLAlchemy). Also supports using Python objects
-in memory, for rapid application development. If your database system
-isn't already supported, it will be relatively easy to adapt by writing
-a custom stored event repository. The event store is also derived from
-an abstract base class in case you want to use a custom event store in
-your application. There are test cases you can use that make it easy to
-check your implementation.
-
-**Snapshots** — Avoids replaying an entire event stream to obtain the current state of
-an entity, hence entity access time complexity becomes *O(1)* with
-respect to the total number of events *N* in the stream, rather than *O(N)*.
-
-**Fast Forwarding** — Of entities to latest published event, used with snapshots and also
-when optimistic currency control exceptions are encountered.
-
-**Customizable Transcoding** — Between domain events and stored events, allows customization of
-database schemas when developing a custom stored event repositoriy.
-
-**Collections** — An object-oriented alternative to "joins", used for modelling
-multiplicities of different kinds.
-
-**Time-Bucketed Logs** — Logged messages and log readers, for writing and reading an
-indefinitely long stream of events in a scalable manner.
+**Customizable Transcoding** — Between domain events and stored events,
+supports customization of database schema when developing a custom
+stored event repositoriy.
 
 
 ## Install
