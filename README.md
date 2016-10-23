@@ -29,11 +29,6 @@ on an aggregate, to implement pesimistic concurrency control, but that
 is out of the scope of this package. If you wish to do that, perhaps
 something like [Zookeeper](https://zookeeper.apache.org/) might help.
 
-**Snapshots**
-Avoid replaying an entire event stream to obtain the current state of
-an entity, hence entity access time complexity becomes *O(1)* with
-respect to the total number of events *N* in the stream, rather than *O(N)*.
-
 **Application Level Encryption**
 Symmetric encryption of all stored events, including snapshots and
 logged messages, using a customizable cipher. Can optionally be applied
@@ -54,6 +49,11 @@ is also derived from an abstract base class in case you want to
 use a custom event store in your application. There are test cases you
 can use to make sure your implementations have the capabilities required
 by the other parts of the application.
+
+**Snapshots**
+Avoids replaying an entire event stream to obtain the current state of
+an entity, hence entity access time complexity becomes *O(1)* with
+respect to the total number of events *N* in the stream, rather than *O(N)*.
 
 **Fast Forwarding**
 Of entities to latest published event - used with snapshots and also
