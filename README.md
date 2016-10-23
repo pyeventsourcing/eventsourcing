@@ -358,8 +358,10 @@ with ExampleApplication(db_uri=db_uri, enable_occ=True) as app:
 
 Congratulations! You have created a new event sourced application.
 
-If you wanted also to enable application level encryption, pass in a
-cipher, and a True value for 'always_encrypt_stored_events'.
+If you wanted also to enable application-level encryption, pass in a
+cipher, and a True value for 'always_encrypt_stored_events'. With
+application level encryption, your data below the application will
+be encrypted at rest and in transit, which can help prevent data loss.
 
 ```
 from eventsourcing.domain.services.cipher import AESCipher
@@ -370,7 +372,7 @@ with ExampleApplication(db_uri=db_uri, enable_occ=True, cipher=cipher,
                         always_encrypt_stored_events=True):
 
     # Register a new example.
-    example1 = register_new_example(a=1, b=2)
+    example1 = register_new_example(a='secret data', b='more secrets')
     
 
 ```

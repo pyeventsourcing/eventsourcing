@@ -13,7 +13,6 @@ from eventsourcing.domain.services.transcoding import make_stored_entity_id
 from eventsourcing.infrastructure.log_reader import get_log_reader, LogReader
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import create_cassandra_keyspace_and_tables, \
     drop_cassandra_keyspace
-from eventsourcing.infrastructure.stored_events.transcoders import make_stored_entity_id
 from eventsourcing.domain.services.cipher import AESCipher
 from eventsourcing.tests.unit_test_cases import AbstractTestCase
 from eventsourcing.tests.test_utils import utc_now
