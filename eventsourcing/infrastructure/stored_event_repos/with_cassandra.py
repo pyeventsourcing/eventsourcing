@@ -4,7 +4,7 @@ from time import sleep
 
 import cassandra.cqlengine.connection
 import six
-from cassandra import ConsistencyLevel, AlreadyExists, DriverException
+from cassandra import ConsistencyLevel, AlreadyExists, DriverException, OperationTimedOut, InvalidRequest
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_keyspace
 from cassandra.cqlengine.models import Model, columns
@@ -271,7 +271,21 @@ def create_cassandra_keyspace_and_tables(keyspace=DEFAULT_CASSANDRA_KEYSPACE, re
 
 
 def drop_cassandra_keyspace(keyspace=DEFAULT_CASSANDRA_KEYSPACE):
-    drop_keyspace(keyspace)
+    max_retries = 3
+    tried = 0
+    while True:
+        try:
+            drop_keyspace(keyspace)
+            break
+        except InvalidRequest:
+            break
+        except OperationTimedOut:
+            tried += 1
+            if tried <= max_retries:
+                sleep(0.5)
+                continue
+            else:
+                raise
 
 
 def shutdown_cassandra_connection():
