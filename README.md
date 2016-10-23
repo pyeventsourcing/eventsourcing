@@ -363,7 +363,7 @@ cipher, and a True value for 'always_encrypt_stored_events'. With
 application level encryption, your data below the application will
 be encrypted at rest and in transit, which can help prevent data loss.
 
-```
+```python
 from eventsourcing.domain.services.cipher import AESCipher
 
 cipher = AESStoredEventCipher(aes_key='0123456789abcdef')
