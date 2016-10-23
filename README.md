@@ -37,11 +37,12 @@ respect to the total number of events *N* in the stream, rather than *O(N)*.
 **Application Level Encryption**
 Symmetric encryption of all stored events, including snapshots and
 logged messages, using a customizable cipher. Can optionally be applied
-only to a selection of events, or to all the events of and application,
-or not applied at all (the default). Included is an AES cipher in CBC
-mode with 16 byte blocksize (128 bit) that uses a unique initialization
-vector for each encryption and an 16 byte-long encryption key passed in
-at run time.
+to particular events, or all stored events, or not applied at all
+(the default). Included is an AES cipher, in CBC mode with 128 bit
+blocksize, that uses a 16 byte encryption key passed in at run time,
+and which generates a unique 16 byte initialization vector for each
+encryption. Data is compressed before it is encrypted, which can mean
+application performance is improved when encryption is enabled.
 
 **Generic Event Store**
 With an extendable set of adapters called "stored event repositories"
