@@ -29,20 +29,16 @@ check your implementation.
 applications, with custom entities and repositories, custom domain
 events and custom subscribers (see example below, and the test cases).
 
-**Snapshots** — Avoids replaying an entire event stream to obtain the
-current state of an entity, hence entity access time complexity becomes
-*O(1)* with respect to the total number of events *N* in the stream,
-rather than *O(N)*. Snapshotting is implemented as a strategy object in
-the application class, making it easy to use a custom snapshotting
-mechanism and storage. A snapshot strategy is included which reuses the
-capabilities of this library by implementing snapshots as domain events.
-
-**Fast Forwarding** — Of entities to latest published event, used with
-snapshots and also when optimistic currency control exceptions are
-encountered.
-
 **Collections** — An object-oriented alternative to "joins", used for
 modelling multiplicities of different kinds.
+
+**Snapshots** — Avoids replaying an entire event stream to obtain the
+current state of an entity, hence entity access in constant time,
+rather than proportional to the number of events. Snapshotting is
+implemented as a strategy object in the application class, making it
+easy to use a custom snapshotting mechanism and storage. A snapshot
+strategy is included which reuses the capabilities of this library by
+implementing snapshots as domain events.
 
 **Optimistic Concurrency Control** — Implemented using optimistic
 concurrency controls in the adapted database. For example, with
@@ -52,6 +48,10 @@ event stream, across a distributed application. It is also possible to
 serialize the execution of commands on an aggregate, but that is out 
 of the scope of this package. If you wish to do that, perhaps something
 like [Zookeeper](https://zookeeper.apache.org/) might help.
+
+**Fast Forwarding** — Of entities to latest published event, used with
+snapshots and also when optimistic currency control exceptions are
+encountered.
 
 **Application-Level Encryption** — Symmetric encryption of all stored
 events, including snapshots and logged messages, using a customizable
