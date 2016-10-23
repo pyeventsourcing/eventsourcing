@@ -52,16 +52,16 @@ check your implementation.
 an entity, hence entity access time complexity becomes *O(1)* with
 respect to the total number of events *N* in the stream, rather than *O(N)*.
 
-**Fast Forwarding** — Of entities to latest published event - used with snapshots and also
+**Fast Forwarding** — Of entities to latest published event, used with snapshots and also
 when optimistic currency control exceptions are encountered.
 
-**Customizable Transcoding** — Between domain events and stored events - allows customization of
+**Customizable Transcoding** — Between domain events and stored events, allows customization of
 database schemas when developing a custom stored event repositoriy.
 
-**Collections** — An object-oriented alternative to "joins" - used for modelling
+**Collections** — An object-oriented alternative to "joins", used for modelling
 multiplicities of different kinds.
 
-**Time-Bucketed Logs** — Logged messages, and log readers - for writing and reading an
+**Time-Bucketed Logs** — Logged messages and log readers, for writing and reading an
 indefinitely long stream of events in a scalable manner.
 
 
