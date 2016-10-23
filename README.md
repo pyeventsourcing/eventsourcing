@@ -9,14 +9,14 @@ A library for event sourcing in Python.
 ## Features
 
 **Worked Examples**
-Simple application, with example entity, event sourced repository, and
-factory method (see below). Included in the distribute is a slightly
-more sophisticated version of the example application below. Also, in
-the 'eventsourcing.contrib' package, there is a persistent "generalized
+A simple worked example application, with example entity, event sourced
+repository, and factory method (see below). Included is a slightly more
+sophisticated version of the example application below. Also, in the
+'eventsourcing.contrib' package, there is a persistent "generalized
 suffix tree" which shows how a more complex model could be written.
 
 **Abstract Base Classes and Test Cases**
-Simple to develop new applications, with custom entities, repositories,
+Make it simple to develop new applications, with custom entities, repositories,
 domain events, and subscribers (see example below, and test suite cases).
 
 **Optimistic Concurrency Control**
