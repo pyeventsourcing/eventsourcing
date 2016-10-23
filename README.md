@@ -64,8 +64,9 @@ is encrypted, which can mean application performance is improved when
 encryption is enabled.
 
 **Customizable Transcoding** — Between domain events and stored events,
-supports customization of database schema when developing a custom
-stored event repositoriy.
+allows support to be added for serialization and deserialization of
+custom value object types, and also makes it possible to use different
+database schemas when developing a custom stored event repository.
 
 
 ## Install
