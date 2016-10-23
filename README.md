@@ -59,31 +59,6 @@ There is also a mailing list.
 * https://groups.google.com/forum/#!forum/eventsourcing-users
 
 
-## Features
-
-* Examples - an example event sourcing application, with an example event-sourced repository 
-  containing event-sourced entity instances, and an example entity factory method for creating
-  example entities.
-
-* Various base classes for domain events, domain entities, domain repositories, and application objects.
-
-* Generic event store, with adapters for different database systems (e.g. Cassandra, MySQL).
-
-* Optimistic concurrency control, implemented using the database system features where possible.
-
-* Snapshots, avoids replaying an entire event stream to obtain the current state.
-
-* Symmetric encryption of stored events, provides application level encryption.
-
-* Collections, used for modelling multiplicities.
-
-* Logs, message logged events, time-bucketed logs, and log readers generator, used for modelling
-  an indefinitely long stream of events in an accessible way, for example it is easy to read
-  from the end or start from a particular time. Writes can be done without needing any concurrency
-  control. This can be used for example to create a log of all other application domain events, so
-  that it is easy to go over the whole application event stream.
-
-
 ## Usage
 
 Start by defining a domain entity as a subclass of class 'EventSourcedEntity' (in module
@@ -271,6 +246,8 @@ postgresql://scott:tiger@localhost:5432/mydatabase
 mysql://scott:tiger@hostname/dbname
 ```
 
+Todo: Develop above to be a tutorial.
+
 
 ### Upgrading From 1.0.x to 1.1.x
 
@@ -453,7 +430,7 @@ See also:
 
 * Generalized suffix trees
 
-Todo: Develop above list to be an API reference.
+Todo: Develop above to be an API reference.
 
 
 ## Forthcoming Features
@@ -521,7 +498,7 @@ attribute values inhibiting performance and stability - different sizes could be
 
 * Optionally decouple topics from actual code, so classes can be moved.
 
-Todo: Develop above list to be a release plan.
+Todo: Develop above to be a release plan.
 
 ## Possible Future Backwards-Incompatible Changes
 
