@@ -7,7 +7,7 @@ from eventsourcing.domain.model.entity import mutableproperty, EntityIDConsisten
     EventSourcedEntity, created_mutator, CreatedMutatorRequiresTypeNotInstance
 from eventsourcing.domain.model.events import DomainEvent, subscribe, unsubscribe, assert_event_handlers_empty, publish
 from eventsourcing.domain.model.example import register_new_example, Example
-from eventsourcing.domain.services.eventstore import AbstractEventStore
+from eventsourcing.domain.services.eventstore import EventStore
 from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
@@ -17,7 +17,7 @@ class TestExampleEntity(unittest.TestCase):
 
     def setUp(self):
         # Setup the persistence subscriber.
-        self.event_store = AbstractEventStore(PythonObjectsStoredEventRepository())
+        self.event_store = EventStore(PythonObjectsStoredEventRepository())
         self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
 
     def tearDown(self):
