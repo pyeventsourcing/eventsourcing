@@ -1,14 +1,15 @@
 import unittest
 from uuid import uuid1
 
+from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.domain.model.example import Example, register_new_example
-from eventsourcing.domain.model.snapshot import take_snapshot, Snapshot
-from eventsourcing.infrastructure.event_player import EventPlayer, entity_from_snapshot
-from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
-from eventsourcing.infrastructure.snapshot_strategy import EventSourcedSnapshotStrategy
-from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
+from eventsourcing.domain.model.snapshot import Snapshot
+from eventsourcing.domain.services.eventplayer import EventPlayer
+from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.snapshotting import EventSourcedSnapshotStrategy, entity_from_snapshot, \
+    take_snapshot
+from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 
 
 class TestEventPlayer(unittest.TestCase):

@@ -9,13 +9,13 @@ from eventsourcing.application.example.with_pythonobjects import ExampleApplicat
 from eventsourcing.application.example.with_sqlalchemy import ExampleApplicationWithSQLAlchemy
 from eventsourcing.domain.model.example import register_new_example, Example
 from eventsourcing.domain.model.log import get_logger, start_new_log
-from eventsourcing.infrastructure.log_reader import get_log_reader, LogReader
-from eventsourcing.infrastructure.stored_events.cassandra_stored_events import create_cassandra_keyspace_and_tables, \
-    drop_cassandra_keyspace
-from eventsourcing.infrastructure.stored_events.transcoders import make_stored_entity_id
-from eventsourcing.utils.time import utc_now
 from eventsourcing.domain.services.cipher import AESCipher
-from eventsourcing.tests.test_stored_events import AbstractTestCase
+from eventsourcing.domain.services.transcoding import make_stored_entity_id
+from eventsourcing.infrastructure.log_reader import get_log_reader, LogReader
+from eventsourcing.infrastructure.stored_event_repos.with_cassandra import create_cassandra_keyspace_and_tables, \
+    drop_cassandra_keyspace
+from eventsourcing.tests.unit_test_cases import AbstractTestCase
+from eventsourcing.tests.test_utils import utc_now
 
 
 class PerformanceTestCase(AbstractTestCase):

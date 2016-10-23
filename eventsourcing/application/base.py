@@ -2,8 +2,9 @@ from abc import abstractmethod, ABCMeta
 
 from six import with_metaclass
 
-from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
+from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
+from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.domain.services.transcoding import Transcoder
 
 
 class EventSourcingApplication(with_metaclass(ABCMeta)):
@@ -91,21 +92,31 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
 
     @abstractmethod
     def create_stored_event_repo(self, **kwargs):
-        """Returns an instance of a subclass of StoredEventRepository.
+        """Returns an instance of a subclass of AbstractStoredEventRepository.
 
-        :rtype: StoredEventRepository
+        :rtype: AbstractStoredEventRepository
         """
 
     def create_event_store(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False):
+        transcoder = self.create_transcoder(always_encrypt, cipher, json_decoder_cls, json_encoder_cls)
         return EventStore(
             stored_event_repo=self.stored_event_repo,
-            json_encoder_cls=json_encoder_cls, json_decoder_cls=json_decoder_cls,
-            cipher=cipher, always_encrypt=always_encrypt,
-)
+            transcoder=transcoder,
+        )
+
+    def create_transcoder(self, always_encrypt, cipher, json_decoder_cls, json_encoder_cls):
+        return Transcoder(
+            json_encoder_cls=json_encoder_cls,
+            json_decoder_cls=json_decoder_cls,
+            cipher=cipher,
+            always_encrypt=always_encrypt,
+        )
 
     def create_persistence_subscriber(self):
         if self.persist_events and self.event_store:
-            return PersistenceSubscriber(self.event_store)
+            return PersistenceSubscriber(
+                event_store=self.event_store
+            )
 
     def close(self):
         if self.persistence_subscriber is not None:

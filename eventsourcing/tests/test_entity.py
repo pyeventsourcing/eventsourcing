@@ -1,15 +1,16 @@
 import unittest
+
 import mock
 
+from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.model.entity import mutableproperty, EntityIDConsistencyError, EntityVersionConsistencyError, \
     EventSourcedEntity, created_mutator, CreatedMutatorRequiresTypeNotInstance
 from eventsourcing.domain.model.events import DomainEvent, subscribe, unsubscribe, assert_event_handlers_empty, publish
 from eventsourcing.domain.model.example import register_new_example, Example
+from eventsourcing.domain.services.eventstore import EventStore
 from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
-from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
-from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
+from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 
 
 class TestExampleEntity(unittest.TestCase):

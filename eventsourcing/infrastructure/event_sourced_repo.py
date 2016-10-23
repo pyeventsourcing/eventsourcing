@@ -1,13 +1,20 @@
 from abc import abstractproperty
 
 from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity
+from eventsourcing.domain.services.eventplayer import EventPlayer
+from eventsourcing.domain.services.eventstore import AbstractEventStore
+from eventsourcing.domain.services.snapshotting import entity_from_snapshot
+from eventsourcing.domain.services.transcoding import id_prefix_from_entity_class
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.infrastructure.event_player import EventPlayer, entity_from_snapshot
-from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.stored_events.transcoders import id_prefix_from_entity_class
 
 
 class EventSourcedRepository(EntityRepository):
+
+    # If the entity won't have very many events, marking the entity as
+    # "short" by setting __is_short__ value equal to True will mean
+    # the fastest path for getting all the events is used. If you set
+    # a value for page size (see below), this option will have no effect.
+    __is_short__ = False
 
     # The page size by which events are retrieved. If this
     # value is set to a positive integer, the events of
@@ -15,18 +22,13 @@ class EventSourcedRepository(EntityRepository):
     # of queries, rather than with one potentially large query.
     __page_size__ = None
 
-    # If the entity won't have very many events, marking the entity as
-    # "short" by setting __is_short__ value equal to True will mean
-    # the fastest path for getting all the events is used.
-    __is_short__ = False
-
     def __init__(self, event_store, use_cache=False, snapshot_strategy=None):
         self._cache = {}
         self._use_cache = use_cache
         self._snapshot_strategy = snapshot_strategy
 
         # Check we got an event store.
-        assert isinstance(event_store, EventStore)
+        assert isinstance(event_store, AbstractEventStore)
         self.event_store = event_store
 
         # Check domain class is a type of event sourced entity.
@@ -103,10 +105,8 @@ class EventSourcedRepository(EntityRepository):
         # Replay domain events.
         return self.event_player.replay_events(entity_id, after=after, until=until, initial_state=initial_state)
 
-    def fastforward(self, entity, until=None):
-        assert isinstance(entity, EventSourcedEntity)
-        stored_entity_id = self.event_player.make_stored_entity_id(entity.id)
-        event_version = self.event_store.get_entity_version(stored_entity_id, entity.version)
-        after = event_version.event_id
-        return self.event_player.replay_events(
-            entity_id=entity.id, after=after, until=until, initial_state=entity, query_descending=True)
+    def fastforward(self, stale_entity, until=None):
+        """
+        Mutates an instance of an entity, according to the events that have occurred since its version.
+        """
+        return self.event_player.fastforward(stale_entity, until=until)

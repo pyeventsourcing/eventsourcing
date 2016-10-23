@@ -4,15 +4,16 @@ from time import sleep
 
 import cassandra.cqlengine.connection
 import six
-from cassandra import ConsistencyLevel, AlreadyExists, DriverException
+from cassandra import ConsistencyLevel, AlreadyExists, DriverException, OperationTimedOut, InvalidRequest
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_keyspace
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
+from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository
+from eventsourcing.domain.services.transcoding import StoredEvent, EntityVersion
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
-from eventsourcing.infrastructure.stored_events.base import StoredEventRepository, ThreadedStoredEventIterator
-from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent, EntityVersion
+from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 
 DEFAULT_CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
 DEFAULT_CASSANDRA_CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', 'LOCAL_QUORUM')
@@ -77,7 +78,7 @@ def from_cql(cql_stored_event):
     )
 
 
-class CassandraStoredEventRepository(StoredEventRepository):
+class CassandraStoredEventRepository(AbstractStoredEventRepository):
 
     @property
     def iterator_class(self):
@@ -270,7 +271,21 @@ def create_cassandra_keyspace_and_tables(keyspace=DEFAULT_CASSANDRA_KEYSPACE, re
 
 
 def drop_cassandra_keyspace(keyspace=DEFAULT_CASSANDRA_KEYSPACE):
-    drop_keyspace(keyspace)
+    max_retries = 3
+    tried = 0
+    while True:
+        try:
+            drop_keyspace(keyspace)
+            break
+        except InvalidRequest:
+            break
+        except OperationTimedOut:
+            tried += 1
+            if tried <= max_retries:
+                sleep(0.5)
+                continue
+            else:
+                raise
 
 
 def shutdown_cassandra_connection():

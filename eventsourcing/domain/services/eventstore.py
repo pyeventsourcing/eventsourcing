@@ -1,17 +1,96 @@
 # coding=utf-8
 from abc import ABCMeta, abstractmethod
-from threading import Thread
 
 import six
 
-from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist, ProgrammingError
-from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
+from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.domain.services.transcoding import AbstractTranscoder, Transcoder, StoredEvent
+from eventsourcing.exceptions import ProgrammingError, EntityVersionDoesNotExist, ConcurrencyError
 from eventsourcing.utils.time import time_from_uuid
 
 
-# Todo: Maybe move the serialisation / deserialisation stuff to the event store, since that's the only user.
+class AbstractEventStore(six.with_metaclass(ABCMeta)):
 
-class StoredEventRepository(six.with_metaclass(ABCMeta)):
+    @abstractmethod
+    def append(self, domain_event):
+        """
+        Put domain event in event store for later retrieval.
+        """
+
+    @abstractmethod
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
+                          page_size=None):
+        pass
+
+    @abstractmethod
+    def get_entity_version(self, stored_entity_id, version):
+        pass
+
+    @abstractmethod
+    def get_most_recent_event(self, stored_entity_id, until=None):
+        pass
+
+
+class EventStore(AbstractEventStore):
+
+    def __init__(self, stored_event_repo, transcoder=None):
+        assert isinstance(stored_event_repo, AbstractStoredEventRepository), stored_event_repo
+        if transcoder is None:
+            transcoder = Transcoder()
+        assert isinstance(transcoder, AbstractTranscoder), transcoder
+        self.stored_event_repo = stored_event_repo
+
+        self.transcoder = transcoder
+
+    def append(self, domain_event):
+        assert isinstance(domain_event, DomainEvent)
+        # Serialize the domain event.
+        stored_event = self.transcoder.serialize(domain_event)
+
+        # Append the stored event to the stored event repo.
+        self.stored_event_repo.append(
+            new_stored_event=stored_event,
+            new_version_number=domain_event.entity_version,
+        )
+
+    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
+                          page_size=None):
+        # Get the events that have been stored for the entity.
+        if page_size:
+            stored_events = self.stored_event_repo.iterate_entity_events(
+                stored_entity_id=stored_entity_id,
+                after=after,
+                until=until,
+                limit=limit,
+                is_ascending=is_ascending,
+                page_size=page_size
+            )
+        else:
+            stored_events = self.stored_event_repo.get_entity_events(
+                stored_entity_id=stored_entity_id,
+                after=after,
+                until=until,
+                limit=limit,
+                query_ascending=is_ascending,
+                results_ascending=is_ascending,
+            )
+
+        # Deserialize all the stored event objects into domain event objects.
+        return six.moves.map(self.transcoder.deserialize, stored_events)
+
+    def get_most_recent_event(self, stored_entity_id, until=None):
+        """Returns last event for given stored entity ID.
+
+        :rtype: DomainEvent, NoneType
+        """
+        stored_event = self.stored_event_repo.get_most_recent_event(stored_entity_id, until=until)
+        return None if stored_event is None else self.transcoder.deserialize(stored_event)
+
+    def get_entity_version(self, stored_entity_id, version):
+        return self.stored_event_repo.get_entity_version(stored_entity_id=stored_entity_id, version_number=version)
+
+
+class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
     def __init__(self, always_check_expected_version=False, always_write_entity_version=False):
         """
@@ -41,7 +120,6 @@ class StoredEventRepository(six.with_metaclass(ABCMeta)):
             max_retries=max_retries,
             artificial_failure_rate=artificial_failure_rate,
         )
-
 
     def validate_expected_version(self, new_stored_event, new_version_number):
         """
@@ -170,7 +248,7 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
     DEFAULT_PAGE_SIZE = 1000
 
     def __init__(self, repo, stored_entity_id, page_size=None, after=None, until=None, limit=None, is_ascending=True):
-        assert isinstance(repo, StoredEventRepository), type(repo)
+        assert isinstance(repo, AbstractStoredEventRepository), type(repo)
         assert isinstance(stored_entity_id, six.string_types)
         assert isinstance(page_size, (six.integer_types, type(None)))
         assert isinstance(limit, (six.integer_types, type(None)))
@@ -267,87 +345,3 @@ class SimpleStoredEventIterator(StoredEventIterator):
             # If that was the last page, then stop iterating.
             if is_last_page:
                 raise StopIteration
-
-
-class ThreadedStoredEventIterator(StoredEventIterator):
-    def __iter__(self):
-        # Start a thread to get a page of events.
-        thread = self.start_thread()
-
-        # Get pages of stored events, until the page isn't full.
-        while True:
-            # Wait for the next page of events.
-            thread.join(timeout=30)
-
-            # Count the page.
-            self._inc_page_counter()
-
-            # Get the stored events from the thread.
-            stored_events = thread.stored_events
-
-            # Count the number of stored events in this page.
-            num_stored_events = len(stored_events)
-
-            # Decide if this is the last page.
-            is_last_page = num_stored_events != self.page_size
-
-            if not is_last_page:
-                # Update loop variables.
-                position = stored_events[-1]
-                self._update_position(position)
-
-                # Start the next thread.
-                thread = self.start_thread()
-
-            # Yield each stored event.
-            for stored_event in stored_events:
-
-                # Stop if we're over the limit.
-                if self.limit and self.all_event_counter >= self.limit:
-                    raise StopIteration
-
-                # Count each event.
-                self._inc_all_event_counter()
-
-                # Yield the event.
-                yield stored_event
-
-            # If that was the last page, then stop iterating.
-            if is_last_page:
-                raise StopIteration
-
-    def start_thread(self):
-        thread = GetEntityEventsThread(
-            repo=self.repo,
-            stored_entity_id=self.stored_entity_id,
-            after=self.after,
-            until=self.until,
-            page_size=self.page_size,
-            is_ascending=self.is_ascending
-        )
-        thread.start()
-        return thread
-
-
-class GetEntityEventsThread(Thread):
-    def __init__(self, repo, stored_entity_id, after=None, until=None, page_size=None, is_ascending=True, *args,
-                 **kwargs):
-        super(GetEntityEventsThread, self).__init__(*args, **kwargs)
-        assert isinstance(repo, StoredEventRepository)
-        self.repo = repo
-        self.stored_entity_id = stored_entity_id
-        self.after = after
-        self.until = until
-        self.page_size = page_size
-        self.is_ascending = is_ascending
-        self.stored_events = None
-
-    def run(self):
-        self.stored_events = list(self.repo.get_entity_events(
-            stored_entity_id=self.stored_entity_id,
-            after=self.after,
-            until=self.until,
-            limit=self.page_size,
-            query_ascending=self.is_ascending,
-            results_ascending=self.is_ascending,
-        ))

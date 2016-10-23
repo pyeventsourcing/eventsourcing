@@ -1,6 +1,6 @@
 # from eventsourcing.infrastructure.stored_events.base import StoredEventRepository
-from eventsourcing.infrastructure.stored_events.python_objects_stored_events import PythonObjectsStoredEventRepository
-# from eventsourcing.infrastructure.stored_events.transcoders import StoredEvent
+from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
+# from eventsourcing.infrastructure.stored_event_repos.transcoders import StoredEvent
 
 
 # Todo: Figure out if this is actually needed by anything anywhere (no currently visible usages).

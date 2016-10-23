@@ -2,16 +2,16 @@ import datetime
 from time import sleep
 from uuid import uuid1
 
+from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.domain.model.log import get_logger, Logger, start_new_log, Log
+from eventsourcing.domain.services.eventstore import EventStore
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.log_reader import get_log_reader
-from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
-from eventsourcing.tests.test_stored_event_repository_cassandra import CassandraTestCase
-from eventsourcing.tests.test_stored_event_repository_python_objects import PythonObjectsTestCase
-from eventsourcing.tests.test_stored_event_repository_sqlalchemy import SQLAlchemyTestCase
-from eventsourcing.tests.test_stored_events import AbstractTestCase
+from eventsourcing.tests.unit_test_cases import AbstractTestCase
+from eventsourcing.tests.unit_test_cases_cassandra import CassandraStoredEventRepoTestCase
+from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsTestCase
+from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyTestCase
 
 
 class LogTestCase(AbstractTestCase):
@@ -303,7 +303,7 @@ class LogTestCase(AbstractTestCase):
         self.assertEqual(messages, [str(i) for i in range(108 + limit * 2, 108 + limit, -1)])
 
 
-class TestLogWithCassandra(CassandraTestCase, LogTestCase):
+class TestLogWithCassandra(CassandraStoredEventRepoTestCase, LogTestCase):
     pass
 
 

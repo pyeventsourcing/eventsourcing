@@ -1,5 +1,5 @@
 from eventsourcing.application.base import EventSourcingApplication
-from eventsourcing.infrastructure.stored_events.cassandra_stored_events import setup_cassandra_connection, \
+from eventsourcing.infrastructure.stored_event_repos.with_cassandra import setup_cassandra_connection, \
     get_cassandra_setup_params, CassandraStoredEventRepository, DEFAULT_CASSANDRA_KEYSPACE, DEFAULT_CASSANDRA_HOSTS, \
     DEFAULT_CASSANDRA_CONSISTENCY_LEVEL, DEFAULT_CASSANDRA_PORT, DEFAULT_CASSANDRA_PROTOCOL_VERSION
 

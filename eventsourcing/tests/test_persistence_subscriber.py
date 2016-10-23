@@ -1,18 +1,20 @@
 import unittest
+
+from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
+
 try:
     from unittest import mock
 except:
     import mock
 from eventsourcing.domain.model.events import publish, DomainEvent
-from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.persistence_subscriber import PersistenceSubscriber
+from eventsourcing.domain.services.eventstore import AbstractEventStore
 
 
 class TestPersistenceSubscriber(unittest.TestCase):
 
     def setUp(self):
         # Set up a persistence subscriber with a (mock) event store.
-        self.event_store = mock.Mock(spec=EventStore)
+        self.event_store = mock.Mock(spec=AbstractEventStore)
         self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
 
     def tearDown(self):

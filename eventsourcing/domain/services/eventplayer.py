@@ -1,9 +1,10 @@
 from functools import reduce
 
+from eventsourcing.domain.model.entity import EventSourcedEntity
 from eventsourcing.domain.model.snapshot import AbstractSnapshop
-from eventsourcing.infrastructure.event_store import EventStore
-from eventsourcing.infrastructure.snapshot_strategy import AbstractSnapshotStrategy
-from eventsourcing.infrastructure.stored_events.transcoders import deserialize_domain_entity, make_stored_entity_id
+from eventsourcing.domain.services.eventstore import AbstractEventStore
+from eventsourcing.domain.services.snapshotting import AbstractSnapshotStrategy, entity_from_snapshot
+from eventsourcing.domain.services.transcoding import make_stored_entity_id
 
 
 class EventPlayer(object):
@@ -12,7 +13,7 @@ class EventPlayer(object):
     """
 
     def __init__(self, event_store, id_prefix, mutate_func, page_size=None, is_short=False, snapshot_strategy=None):
-        assert isinstance(event_store, EventStore), event_store
+        assert isinstance(event_store, AbstractEventStore), event_store
         if snapshot_strategy is not None:
             assert isinstance(snapshot_strategy, AbstractSnapshotStrategy)
         self.event_store = event_store
@@ -127,9 +128,31 @@ class EventPlayer(object):
         """
         return make_stored_entity_id(self.id_prefix, entity_id)
 
+    def fastforward(self, stale_entity, until=None):
+        assert isinstance(stale_entity, EventSourcedEntity)
 
-def entity_from_snapshot(snapshot):
-    """Deserialises a domain entity from a snapshot object.
-    """
-    assert isinstance(snapshot, AbstractSnapshop)
-    return deserialize_domain_entity(snapshot.topic, snapshot.attrs)
+        # Get the entity version object, which provides the event ID.
+        stored_entity_id = self.make_stored_entity_id(stale_entity.id)
+
+        # The last applied event version is the one before the current
+        # version number, because each mutator increments the version
+        # after an event is applied, and it starts by checking the
+        # version number is the same. Hence version of the last applied
+        # is the value of the entity's version property minus one.
+        last_applied_version_number = stale_entity.version - 1
+        last_applied_entity_version = self.event_store.get_entity_version(
+            stored_entity_id=stored_entity_id,
+            version=last_applied_version_number
+        )
+        last_applied_event_id = last_applied_entity_version.event_id
+
+        # Replay the events since the entity version.
+        fresh_entity = self.replay_events(
+            entity_id=stale_entity.id,
+            after=last_applied_event_id,
+            until=until,
+            initial_state=stale_entity,
+        )
+
+        # Return the fresh instance.
+        return fresh_entity
