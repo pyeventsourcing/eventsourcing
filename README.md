@@ -8,7 +8,7 @@ A library for event sourcing in Python.
 
 ## Features
 
-**Worked Examples** · A simple worked example application, with example
+**Worked Examples**. A simple worked example application, with example
 entity class, event sourced repository, and factory method (see below).
 Included in the library is a slightly more sophisticated version of the
 example application below. Also, in the 'eventsourcing.contrib' package,
