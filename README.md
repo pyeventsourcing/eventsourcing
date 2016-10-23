@@ -6,6 +6,33 @@
 A library for event sourcing in Python.
 
 
+## Features
+
+* Examples - an event sourcing application, with an event-sourced repository 
+  containing entity instances, and an entity factory method for creating
+  example entities.
+
+* Base classes for application objects, repositories, entities and domain events.
+
+* Generic event store, with adapters for different database systems (e.g. Cassandra, MySQL).
+
+* Robust optimistic concurrency control, implemented using atomic optimistic concurrency
+  control features of the database - for instance, with Cassandra this
+  accomplishes linearly-scalable distributed optimistic concurrency control.
+
+* Snapshots - avoids replaying an entire event stream to obtain the current state of an entity.
+
+* Fast forwarding of entities to latest published event - used with snapshots and also
+  when optimistic currency control exceptions are encountered.
+
+* Symmetric encryption of stored events, provides application level encryption.
+
+* Collections, for modelling multiplicities.
+
+* Time-bucketed logs, logged messages, and log readers - for writing and reading
+  an indefinitely long stream of events in a scalable manner.
+
+
 ## Install
 
 Use pip to install the [latest distribution](https://pypi.python.org/pypi/eventsourcing) from
@@ -18,11 +45,11 @@ optional extra called 'test'.
 
     pip install eventsourcing[test]
 
-After installation, the test suite should pass.
+After installing with the 'test' optional extra, the test suite should pass.
 
     python -m unittest discover eventsourcing.tests -v
 
-Please register an issue if you find a bug.
+Please register any issues you find.
 
 * https://github.com/johnbywater/eventsourcing/issues
 
@@ -30,91 +57,6 @@ Please register an issue if you find a bug.
 There is also a mailing list.
 
 * https://groups.google.com/forum/#!forum/eventsourcing-users
-
-
-## Development
-
-The project is hosted on GitHub.
-
-* https://github.com/johnbywater/eventsourcing
-
-
-The project uses Travis CI.
-
-* https://travis-ci.org/johnbywater/eventsourcing
-
-
-Issues and requests can be registered on GitHub:
-
-* https://github.com/johnbywater/eventsourcing/issues
-
-
-## Background
-
-Although the event sourcing patterns are each quite simple, and they can be reproduced in code for each project,
-they do suggest cohesive mechanisms, for example applying and publishing the events generated within domain
-entities, storing and retrieving selections of the events in a highly scalable manner, replaying the stored
-events for a particular entity to obtain the current state, and projecting views of the event stream that are
-persisted in other models. Quoting from the "Cohesive Mechanism" pages in Eric Evan's Domain Driven Design book:
-
-_"Therefore: Partition a conceptually COHESIVE MECHANISM into a separate lightweight framework. Particularly watch
-for formalisms for well-documented categories of of algorithms. Expose the capabilities of the framework
-with an INTENTION-REVEALING INTERFACE. Now the other elements of the domain can focus on expressing the problem
-("what"), delegating the intricacies of the solution ("how") to the framework."_
-
-The list of features above, and the example of usage below, present the 'interface' and hopefully the 'intentions'. 
-The 'intricacies' of the library mechanisms can be found in the source code.
-
-Inspiration:
-
-* Martin Fowler's article on event sourcing
-    * http://martinfowler.com/eaaDev/EventSourcing.html
-
-* Greg Young's discussions about event sourcing, and EventStore system
-    * https://www.youtube.com/watch?v=JHGkaShoyNs
-    * https://www.youtube.com/watch?v=LDW0QWie21s
-    * https://dl.dropboxusercontent.com/u/9162958/CQRS/Events%20as%20a%20Storage%20Mechanism%20CQRS.pdf
-    * https://geteventstore.com/
-
-* Robert Smallshire's brilliant example code on Bitbucket
-    * https://bitbucket.org/sixty-north/d5-kanban-python/src
-    
-* Various professional projects that called for this approach, across which I didn't want to rewrite
-  the same things each time
-
-
-See also:
-
-* 'Evaluation of using NoSQL databases in an event sourcing system' by Johan Rothsberg
-    * http://www.diva-portal.se/smash/get/diva2:877307/FULLTEXT01.pdf
-
-* Wikipedia page on Object-relational impedance mismatch
-    * https://en.wikipedia.org/wiki/Object-relational_impedance_mismatch
-
-
-## Features
-
-* Examples - an example event sourcing application, with an example event-sourced repository 
-  containing event-sourced entity instances, and an example entity factory method for creating
-  example entities.
-
-* Various base classes for domain events, domain entities, domain repositories, and application objects.
-
-* Generic event store, with adapters for different database systems (e.g. Cassandra, MySQL).
-
-* Optimistic concurrency control, implemented using the database system features where possible.
-
-* Snapshots, avoids replaying an entire event stream to obtain the current state.
-
-* Symmetric encryption of stored events, provides application level encryption.
-
-* Collections, used for modelling multiplicities.
-
-* Logs, message logged events, time-bucketed logs, and log readers generator, used for modelling
-  an indefinitely long stream of events in an accessible way, for example it is easy to read
-  from the end or start from a particular time. Writes can be done without needing any concurrency
-  control. This can be used for example to create a log of all other application domain events, so
-  that it is easy to go over the whole application event stream.
 
 
 ## Usage
@@ -346,6 +288,49 @@ Also, for Cassandra users, the table name for stored events has changed to 'stor
 have changed to be single characters, for storage efficiency. Production data will need to be migrated.
 
 
+## Background
+
+Although the event sourcing patterns are each quite simple, and they can be reproduced in code for each project,
+they do suggest cohesive mechanisms, for example applying and publishing the events generated within domain
+entities, storing and retrieving selections of the events in a highly scalable manner, replaying the stored
+events for a particular entity to obtain the current state, and projecting views of the event stream that are
+persisted in other models. Quoting from the "Cohesive Mechanism" pages in Eric Evan's Domain Driven Design book:
+
+_"Therefore: Partition a conceptually COHESIVE MECHANISM into a separate lightweight framework. Particularly watch
+for formalisms for well-documented categories of of algorithms. Expose the capabilities of the framework
+with an INTENTION-REVEALING INTERFACE. Now the other elements of the domain can focus on expressing the problem
+("what"), delegating the intricacies of the solution ("how") to the framework."_
+
+The list of features above, and the example of usage below, present the 'interface' and hopefully the 'intentions'. 
+The 'intricacies' of the library mechanisms can be found in the source code.
+
+Inspiration:
+
+* Martin Fowler's article on event sourcing
+    * http://martinfowler.com/eaaDev/EventSourcing.html
+
+* Greg Young's discussions about event sourcing, and EventStore system
+    * https://www.youtube.com/watch?v=JHGkaShoyNs
+    * https://www.youtube.com/watch?v=LDW0QWie21s
+    * https://dl.dropboxusercontent.com/u/9162958/CQRS/Events%20as%20a%20Storage%20Mechanism%20CQRS.pdf
+    * https://geteventstore.com/
+
+* Robert Smallshire's brilliant example code on Bitbucket
+    * https://bitbucket.org/sixty-north/d5-kanban-python/src
+    
+* Various professional projects that called for this approach, across which I didn't want to rewrite
+  the same things each time
+
+
+See also:
+
+* 'Evaluation of using NoSQL databases in an event sourcing system' by Johan Rothsberg
+    * http://www.diva-portal.se/smash/get/diva2:877307/FULLTEXT01.pdf
+
+* Wikipedia page on Object-relational impedance mismatch
+    * https://en.wikipedia.org/wiki/Object-relational_impedance_mismatch
+
+
 ## More Details About the Features
 
 * Example application of event sourcing, with an example event sourced entity and example domain events, and with
@@ -442,6 +427,8 @@ have changed to be single characters, for storage efficiency. Production data wi
 
 * Generalized suffix trees
 
+Todo: Develop above list into an API reference.
+
 
 ## Forthcoming Features
 
@@ -509,13 +496,7 @@ attribute values inhibiting performance and stability - different sizes could be
 * Optionally decouple topics from actual code, so classes can be moved.
 
 
-## Possible Backwards-Incompatible Changes
-
-* Move base event classes off from abstract entity classes, so developers
-  can't get confused with events defined on super classes that can't be
-  retrieved from the event store, because they don't know which concrete
-  class they pertain to. This would be a code change rather
-  than a data migration thing. 
+## Possible Future Backwards-Incompatible Changes
 
 * Remove id_prefixes in stored entity ID, because it makes the code a
   bit complicated, since each domain event needs to know which entity
@@ -524,6 +505,26 @@ attribute values inhibiting performance and stability - different sizes could be
   using this package, however it would impact existing data. This
   change might not even be a good idea.
 
+* Move base event classes off from abstract entity classes, so developers
+  can't get confused with events defined on super classes that can't be
+  retrieved from the event store, because they don't know which concrete
+  class they pertain to, so can't be written with correct id prefixes.
+  This would be a code change rather than a data migration thing. This
+  wouldn't be an issue if we didn't use ID prefixes.
+
 * Stored event repositories that primarily use version numbers instead
   of UUIDs to key and order stored events. This wouldn't be a backwards
-  incompatible change, but an option.
+  incompatible change, but an alternative transcoder and stored
+  event repo.
+
+
+## Project
+
+This project is hosted on GitHub.
+
+* https://github.com/johnbywater/eventsourcing
+
+
+Questions, requests and any other issues can be registered here:
+
+* https://github.com/johnbywater/eventsourcing/issues
