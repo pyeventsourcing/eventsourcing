@@ -366,7 +366,7 @@ be encrypted at rest and in transit, which can help prevent data loss.
 ```python
 from eventsourcing.domain.services.cipher import AESCipher
 
-cipher = AESStoredEventCipher(aes_key='0123456789abcdef')
+cipher = AESCipher(aes_key='0123456789abcdef')
 
 with ExampleApplication(db_uri=db_uri, enable_occ=True, cipher=cipher,
                         always_encrypt_stored_events=True):
