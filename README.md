@@ -9,11 +9,10 @@ A library for event sourcing in Python.
 ## Features
 
 **Worked Examples**
-Simple application, with example entity class, event sourced
-entity repository, and factory method for creating new entities (see
-below). There is a more sophisticated version of the example application
-below. Also in the 'contrib' folder, there is a persistent generalized
-suffix tree, implemented using this library.
+Simple application, with example entity, event sourced repository, and
+factory method (see below). There is a more sophisticated version of
+the example application below. Also in the 'contrib' folder, there is a
+persistent generalized suffix tree, implemented using this library.
 
 **Abstract Base Classes and Test Cases**
 Simple to develop new applications, with custom entities, repositories,
