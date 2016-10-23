@@ -8,18 +8,18 @@ A library for event sourcing in Python.
 
 ## Features
 
-**Worked Examples**. A simple worked example application, with example
+**Worked Examples** — A simple worked example application, with example
 entity class, event sourced repository, and factory method (see below).
 Included in the library is a slightly more sophisticated version of the
 example application below. Also, in the 'eventsourcing.contrib' package,
 there is a persistent "generalized suffix tree" which shows how a more
 complex model could be written.
 
-**Abstract Base Classes and Test Cases**. Make it simple to develop new
+**Abstract Base Classes and Test Cases** — Make it simple to develop new
 applications, with custom entities and repositories, custom domain
 events, and custom subscribers (see example below, and test suite cases).
 
-**Optimistic Concurrency Control**. Implemented using optimistic
+**Optimistic Concurrency Control** — Implemented using optimistic
 concurrency controls in the adapted database. For example, with
 Cassandra this accomplishes linearly-scalable distributed optimistic
 concurrency control, guaranteeing application-level consistency of each
@@ -28,7 +28,7 @@ serialize the execution of commands on an aggregate, but that is out
 of the scope of this package. If you wish to do that, perhaps something
 like [Zookeeper](https://zookeeper.apache.org/) might help.
 
-**Application Level Encryption**. Symmetric encryption of all stored
+**Application Level Encryption** — Symmetric encryption of all stored
 events, including snapshots and logged messages, using a customizable
 cipher. Can optionally be applied to particular events, or all stored
 events, or not applied at all (the default). Included is an AES cipher,
@@ -38,7 +38,7 @@ initialization vector for each encryption. Data is compressed before it
 is encrypted, which can mean application performance is improved when
 encryption is enabled.
 
-**Generic Event Store**. With an extendable set of adapters (called
+**Generic Event Store** — With an extendable set of adapters (called
 "stored event repositories" in the code) for popular ORMs and databases
 systems (e.g. Cassandra, SQLAlchemy). Also supports using Python objects
 in memory, for rapid application development. If your database system
@@ -48,20 +48,20 @@ an abstract base class in case you want to use a custom event store in
 your application. There are test cases you can use that make it easy to
 check your implementation.
 
-**Snapshots**. Avoids replaying an entire event stream to obtain the current state of
+**Snapshots** — Avoids replaying an entire event stream to obtain the current state of
 an entity, hence entity access time complexity becomes *O(1)* with
 respect to the total number of events *N* in the stream, rather than *O(N)*.
 
-**Fast Forwarding**. Of entities to latest published event - used with snapshots and also
+**Fast Forwarding** — Of entities to latest published event - used with snapshots and also
 when optimistic currency control exceptions are encountered.
 
-**Customizable Transcoding**. Between domain events and stored events - allows customization of
+**Customizable Transcoding** — Between domain events and stored events - allows customization of
 database schemas when developing a custom stored event repositoriy.
 
-**Collections**. An object-oriented alternative to "joins" - used for modelling
+**Collections** — An object-oriented alternative to "joins" - used for modelling
 multiplicities of different kinds.
 
-**Time-Bucketed Logs**. Logged messages, and log readers - for writing and reading an
+**Time-Bucketed Logs** — Logged messages, and log readers - for writing and reading an
 indefinitely long stream of events in a scalable manner.
 
 
