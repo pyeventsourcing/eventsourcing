@@ -14,7 +14,7 @@ from eventsourcing.infrastructure.stored_events.cassandra_stored_events import c
     drop_cassandra_keyspace
 from eventsourcing.infrastructure.stored_events.transcoders import make_stored_entity_id
 from eventsourcing.utils.time import utc_now
-from eventsourcing.tests.test_application_with_encryption import AESStoredEventCipher
+from eventsourcing.domain.services.cipher import AESCipher
 from eventsourcing.tests.test_stored_events import AbstractTestCase
 
 
@@ -232,7 +232,7 @@ class TestCassandraPerformance(PerformanceTestCase):
 class TestEncryptionPerformance(TestCassandraPerformance):
 
     def create_app(self):
-        cipher = AESStoredEventCipher(aes_key='0123456789abcdef')
+        cipher = AESCipher(aes_key='0123456789abcdef')
         return ExampleApplicationWithCassandra(cipher=cipher, always_encrypt_stored_events=True)
 
 
