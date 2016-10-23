@@ -13,7 +13,8 @@ from eventsourcing.domain.services.transcoding import make_stored_entity_id
 from eventsourcing.infrastructure.log_reader import get_log_reader, LogReader
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import create_cassandra_keyspace_and_tables, \
     drop_cassandra_keyspace
-from eventsourcing.tests.test_application_with_encryption import AESStoredEventCipher
+from eventsourcing.infrastructure.stored_events.transcoders import make_stored_entity_id
+from eventsourcing.domain.services.cipher import AESCipher
 from eventsourcing.tests.unit_test_cases import AbstractTestCase
 from eventsourcing.tests.test_utils import utc_now
 
@@ -232,7 +233,7 @@ class TestCassandraPerformance(PerformanceTestCase):
 class TestEncryptionPerformance(TestCassandraPerformance):
 
     def create_app(self):
-        cipher = AESStoredEventCipher(aes_key='0123456789abcdef')
+        cipher = AESCipher(aes_key='0123456789abcdef')
         return ExampleApplicationWithCassandra(cipher=cipher, always_encrypt_stored_events=True)
 
 

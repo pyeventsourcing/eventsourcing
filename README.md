@@ -25,9 +25,9 @@ an abstract base class in case you want to use a custom event store in
 your application. There are test cases you can use that make it easy to
 check your implementation.
 
-**Abstract Base Classes and Test Cases** — Make it simple to develop new
+**Abstract Base Classes and Test Cases** — Makes it easy to develop new
 applications, with custom entities and repositories, custom domain
-events, and custom subscribers (see example below, and test suite cases).
+events and custom subscribers (see example below, and the test cases).
 
 **Snapshots** — Avoids replaying an entire event stream to obtain the
 current state of an entity, hence entity access time complexity becomes
@@ -43,17 +43,21 @@ modelling multiplicities of different kinds.
 
 **Time-Bucketed Logs** — Logged messages and log readers, for writing
 and reading an indefinitely long stream of events in a scalable manner.
+An example could be a domain event log, that allows all stored events
+in an application to be logged in a linearly scalable manner, and then 
+retrieved quickly in order, limited by number, from any point in time
+until another point in time, in reverse or ascending order.
 
 **Optimistic Concurrency Control** — Implemented using optimistic
 concurrency controls in the adapted database. For example, with
 Cassandra this accomplishes linearly-scalable distributed optimistic
-concurrency control, guaranteeing application-level consistency of each
+concurrency control, guaranteeing sequential consistency of each
 event stream, across a distributed application. It is also possible to
 serialize the execution of commands on an aggregate, but that is out 
 of the scope of this package. If you wish to do that, perhaps something
 like [Zookeeper](https://zookeeper.apache.org/) might help.
 
-**Application Level Encryption** — Symmetric encryption of all stored
+**Application-Level Encryption** — Symmetric encryption of all stored
 events, including snapshots and logged messages, using a customizable
 cipher. Can optionally be applied to particular events, or all stored
 events, or not applied at all (the default). Included is an AES cipher,
@@ -67,6 +71,11 @@ encryption is enabled.
 allows support to be added for serialization and deserialization of
 custom value object types, and also makes it possible to use different
 database schemas when developing a custom stored event repository.
+
+**Synchronous Publish-Subscribe Mechanism** — Entirely deterministic,
+with handlers called in the order they are registered, and with which
+calls to publish events do not return until all event subscribers have
+returned.
 
 
 ## Install
@@ -97,25 +106,102 @@ There is also a mailing list.
 
 ## Usage
 
-Start by defining a domain entity as a subclass of class 'EventSourcedEntity' (in module
-'eventsourcing.domain.model.entity'). The domain events can be defined on the domain entity
-class. The entity's constructor will accept the values needed to initialize
-its variables.
+Start by opening a new Python file in your favourite editor, or start a
+new project in your favourite IDE (I've been using PyCharm for this code).
 
-In the example below, an 'Example' entity inherits 'Created', 'AttributeChanged', and 'Discarded'
-events from its super class 'EventSourcedEntity'. It also inherits a mutator method that handles
-those events. The Example entity has a constructor which takes two positional arguments ('a' and 'b')
-and keyword arguments ('kwargs') which it passes directly to the base class constructor.
-The 'mutableproperty' decorator is used to define mutable event sourced properties for entity attributes 'a'
-and 'b'. The decorator introduces a setter that generates 'AttributeChanged' events when values are assigned
-to the attributes. The entity inherits a discard() method, which generates the 'Discarded' event when called.
-The 'Created' event is generated in a factory method (see below) and carries values used to initialise an entity.
+Start writing yourself a new event sourced entity class, by making a
+subclass of 'EventSourcedEntity' (from module
+'eventsourcing.domain.model.entity').
 
 ```python
 from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
 
 
 class Example(EventSourcedEntity):
+    """An example of an event sourced entity class."""
+    
+```
+
+The entity class domain events must be defined on the domain entity
+class. In the example below, an 'Example' entity defines 'Created',
+'AttributeChanged', and 'Discarded' events. Add these events to your 
+entity class.
+
+```python
+from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
+
+
+class Example(EventSourcedEntity):
+    """An example of an event sourced entity class."""
+
+    class Created(EventSourcedEntity.Created):
+        pass
+
+    class AttributeChanged(EventSourcedEntity.AttributeChanged):
+        pass
+
+    class Discarded(EventSourcedEntity.Discarded):
+        pass
+
+```
+
+When are these events published? The 'Created' event is published by a
+factory method (see below), its values are used to initialise an
+entity. The 'Discarded' event is published by the discard() method,
+which is defined on class 'EventSourcedEntity'.
+
+The 'mutableproperty' decorator is used to define mutable properties
+'a' and 'b'. The decorator introduces a setter that generates
+'AttributeChanged' events when values are assigned to the properties.
+
+Add the two mutable properties 'a' and 'b' to your entity class.
+
+```python
+from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
+
+
+class Example(EventSourcedEntity):
+    """An example of an event sourced entity class."""
+
+    class Created(EventSourcedEntity.Created):
+        pass
+
+    class AttributeChanged(EventSourcedEntity.AttributeChanged):
+        pass
+
+    class Discarded(EventSourcedEntity.Discarded):
+        pass
+
+    @mutableproperty
+    def a(self):
+        return self._a
+
+    @mutableproperty
+    def b(self):
+        return self._b
+```
+
+That's everything you need to publish domain events. How are they
+applied?
+
+The entity class inherits a mutator method that is capable of handling
+those events. For example, when a 'Created' event is handled by the
+mutator, the attribute values of the Created event object are passed
+into the entity class constructor. A factory method will instantiate a
+Created event with the attribute values expected by the entity class
+constructor.
+
+Add a constructor to your entity class which takes two positional
+arguments ('a' and 'b') and keyword arguments ('kwargs') which it
+passes through to the base class constructor.
+
+
+```python
+from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
+
+
+class Example(EventSourcedEntity):
+    """An example of an event sourced entity class."""
 
     class Created(EventSourcedEntity.Created):
         pass
@@ -138,20 +224,16 @@ class Example(EventSourcedEntity):
     @mutableproperty
     def b(self):
         return self._b
+
 ```
 
-Next, define a factory method that returns new entity instances. Rather than directly constructing the entity object
-instance, it should firstly instantiate a "created" domain event, and then call the mutator to obtain
-an entity object instance. The factory method then publishes the event (for example, so that it might be
-saved into the event store by the persistence subscriber) and returns the entity to the caller.
 
-In the example below, the factory method is a module level function which firstly instantiates the
-'Created' domain event. The Example's mutator is invoked with the Created event, which returns an
-Example entity instance. The Example class inherits a mutator that can handle the Created, AttributeChanged,
-and Discarded events. (The mutator could have been extended to handle other events, but for simplicity there
-aren't any events defined in this example that the default mutator can't handle.) Once the
-Example entity has been instantiated by the mutator, the Created event is published, and the new domain entity
-is returned to the caller of the factory method.
+Next, define a factory method that returns new entity instances. Rather
+than directly constructing the entity object instance, it should firstly
+instantiate a 'Created' domain event, and then call the mutator to
+obtain an entity object. The factory method then publishes the event
+(for example, so that it might be saved into the event store by the
+persistence subscriber). Finally it returns the entity to the caller.
 
 ```python
 from eventsourcing.domain.model.events import publish
@@ -165,12 +247,14 @@ def register_new_example(a, b):
     return entity
 ```
 
+That's everything needed to create new entities. How can existing
+entities be obtained?
 
-Now, define an event sourced repository class for your entity. Inherit from
-eventsourcing.infrastructure.event_sourced_repo.EventSourcedRepository and set the
-'domain_class' attribute on the subclass.
-
-In the example below, the ExampleRepository sets the Example class as its domain entity class.
+Entities are retrieved from repositories.
+ 
+Define an event sourced repository class for your entity. Inherit from
+eventsourcing.infrastructure.event_sourced_repo.EventSourcedRepository
+and set the 'domain_class' attribute on the subclass.
 
 ```python
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
@@ -180,54 +264,66 @@ class ExampleRepository(EventSourcedRepository):
     domain_class = Example
 ```
 
+Application objects are used to bind domain and infrastructure. This
+normally involves having some kind of stored event repository suitable
+for the database system you want to use. The stored event repository is
+used by the event store, which is used by both the persistence
+subscriber to make events durable, and by event players in repositories
+to get the events for an entity that has been requested.
 
-Finally, define an application to have an event sourced repo and a factory method. Inheriting from
-eventsourcing.application.main.EventSourcingApplication provides a persistence subscriber, an event store,
-and stored event persistence when the application is instantiated. For convenience when using SQLAlchemy and
-Cassandra to store events, two sub-classes are provided: EventSourcingWithSQLAlchemy and EventSourcingWithCassandra.
+Please note, for convenience when using SQLAlchemy or Cassandra to
+store events, two application sub-classes are provided:
+'EventSourcingWithSQLAlchemy' and 'EventSourcingWithCassandra'.
 
-In the example below, the ExampleApplication has an ExampleRepository, and for convenience the
-'register_new_example' factory method described above (a module level function) is used to implement a
-synonymous method on the application class. It extends EventSourcingWithSQLAlchemy. It passes a 'db_uri'
-argument, which is used to make the database connection.
+Add an application class, inheriting from 'EventSourcingWithSQLAlchemy',
+that has an event sourced repo. This inheritance provides a
+persistence subscriber, an event store, and a stored event repository
+that works with SQLAlchemy.
 
-It also passes a True value for 'enable_occ' so that optimistic concurrency control 
-is enabled. If you aren't developing a distributed (or otherwise multi-threaded) application, you
-don't need to use the optimistic concurrency control feature.
 
 ```python
 from eventsourcing.application.with_sqlalchemy import EventSourcingWithSQLAlchemy
 
 class ExampleApplication(EventSourcingWithSQLAlchemy):
 
-    def __init__(self, db_uri):
-        super(ExampleApplication, self).__init__(
-            db_uri=db_uri,
-            enable_occ=True,
-        )
+    def __init__(self, **kwargs):
+        super(ExampleApplication, self).__init__(**kwargs)
         self.example_repo = ExampleRepository(
             event_store=self.event_store,
         )
 
-    def register_new_example(self, a, b):
-        return register_new_example(a=a, b=b)
 ```
 
-For simplicity, this application has just one type of entity. A real application may involve several different
-types of entity, factory methods, entity repositories, and event sourced projections.
+For simplicity, this application has just one type of entity. A more
+realistic application may involve several different types of entity,
+several factory methods, several entity repositories, and different
+event sourced projections (mutator funtions).
 
-As shown below, an event sourced application object can be used as a context manager, which closes the application
-at the end of the block. With an instance of the example application, call the factory method register_new_entity()
-to register a new entity. Then, update an attribute value by assigning a value. Use the generated entity ID to subsequently
-retrieve the registered entity from the repository. Check the changed attribute value has been stored. Discard
-the entity and see that the repository gives a key error when an attempt is made to get the entity after it
-has been discarded:
+As shown below, an event sourced application object can be used as a
+context manager, which closes the application at the end of the block.
+
+The 'db_uri' arg is used in the application constructor to configure
+the database connection. And also a True value for arg 'enable_occ' is
+given, so that optimistic concurrency control  is enabled. If you
+aren't developing a distributed (or otherwise concurrent and
+potentially contentious) application, you don't need to
+enable optimistic concurrency control.
+
+With an instance of the example application, call the factory method
+register_new_entity() to register a new entity. Then, update an
+attribute value by assigning a value. Use the generated entity ID to
+subsequently retrieve the registered entity from the repository. Check
+the changed attribute value has been stored. Discard the entity and see
+that the repository gives a key error when an attempt is made to obtain
+the entity after it has been discarded:
+
 
 ```python
-with ExampleApplication(db_uri='sqlite:///:memory:') as app:
+db_uri = 'sqlite:///:memory:'
+with ExampleApplication(db_uri=db_uri, enable_occ=True) as app:
     
     # Register a new example.
-    example1 = app.register_new_example(a=1, b=2)
+    example1 = register_new_example(a=1, b=2)
     
     # Check the example is available in the repo.
     assert example1.id in app.example_repo
@@ -262,17 +358,36 @@ with ExampleApplication(db_uri='sqlite:///:memory:') as app:
 
 Congratulations! You have created a new event sourced application.
 
+If you wanted also to enable application level encryption, pass in a
+cipher, and a True value for 'always_encrypt_stored_events'.
+
+```
+from eventsourcing.domain.services.cipher import AESCipher
+
+cipher = AESStoredEventCipher(aes_key='0123456789abcdef')
+
+with ExampleApplication(db_uri=db_uri, enable_occ=True, cipher=cipher,
+                        always_encrypt_stored_events=True):
+
+    # Register a new example.
+    example1 = register_new_example(a=1, b=2)
+    
+
+```
+
 If you want to model other domain events, then simply declare them on
 the entity class like the events above, and implement methods on the
 entity which instantiate those domain events, apply them to the entity,
 publish to subscribers. Add mutator functions to apply the domain
 events to the entity objects, for example by directly changing the
-internal state of the entity.
+internal state of the entity. See the beat_heart() method on the
+extended example application included in this distribution.
 
-The example above uses an SQLite in memory relational database, but you could change 'db_uri' to another
-connection string if you have a real database. Here are some example connection strings - for
-an SQLite file, for a PostgreSQL database, and for a MySQL database. See SQLAlchemy's create_engine()
-documentation for details.
+The example above uses an SQLite in memory relational database, but you
+could change 'db_uri' to another connection string if you have a real
+database. Here are some example connection strings - for an SQLite file,
+for a PostgreSQL database, and for a MySQL database. See SQLAlchemy's
+create_engine() documentation for details.
 
 ```
 sqlite:////tmp/mydatabase
