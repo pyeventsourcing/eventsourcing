@@ -10,58 +10,65 @@ A library for event sourcing in Python.
 
 **Worked Examples**
 Simple application, with example entity, event sourced repository, and
-factory method (see below). There is a more sophisticated version of
-the example application below. Also in the 'contrib' folder, there is a
-persistent generalized suffix tree, implemented using this library.
+factory method (see below). Included in the distribute is a slightly
+more sophisticated version of the example application below. Also, in
+the 'eventsourcing.contrib' package, there is a persistent "generalized
+suffix tree" which shows how a more complex model could be written.
 
 **Abstract Base Classes and Test Cases**
 Simple to develop new applications, with custom entities, repositories,
-domain events, and subscribers (see example below).
+domain events, and subscribers (see example below, and test suite cases).
 
 **Optimistic Concurrency Control**
 Implemented using atomic database system features. For example, with
 Cassandra this accomplishes linearly-scalable distributed optimistic
 concurrency control, guaranteeing application-level consistency of each
-event stream, across a distributed application, without locking.
+event stream, across a distributed application, without locking. Of
+course, it is also possible to serialize the execution of commands
+on an aggregate, to implement pesimistic concurrency control, but that
+is out of the scope of this package. If you wish to do that, perhaps
+something like [Zookeeper](https://zookeeper.apache.org/) might help.
 
 **Snapshots**
 Avoid replaying an entire event stream to obtain the current state of
-an entity, hence entity access time complexity becomes O(1) with
-respect to the total number N of events in the stream, rather than O(N).
+an entity, hence entity access time complexity becomes *O(1)* with
+respect to the total number of events *N* in the stream, rather than *O(N)*.
 
 **Application Level Encryption**
 Symmetric encryption of all stored events, including snapshots and
 logged messages, using a customizable cipher. Can optionally be applied
 only to a selection of events, or to all the events of and application,
-or not applied at all (the default).
+or not applied at all (the default). Included is an AES cipher in CBC
+mode with 16 byte blocksize (128 bit) that uses a unique initialization
+vector for each encryption and an 16 byte-long encryption key passed in
+at run time.
 
 **Generic Event Store**
-With an extendable set of adapters called "stored
-  event repositories" for popular ORMs and databases systems (e.g.
-  Cassandra, SQLAlchemy). If your database system isn't supported, it
-  will be easy to adapt by writing a custom stored event repository. The
-  event store is also derived from an abstract base class in case you
-  want to substitute your own event store. There are test cases you
-  can use to make sure your implementation has the required capabilities.
-
-**Customizable Transcoding**
-Between domain events and stored events,
-  which allows customization of database schemas when developing a custom
-  stored event repositoriy.
+With an extendable set of adapters called "stored event repositories"
+for popular ORMs and databases systems (e.g. Cassandra, SQLAlchemy).
+Also supports using Python objects in memory, for rapid application
+development. If your database system isn't supported, it will be easy
+to adapt by writing a custom stored event repository. The event store
+is also derived from an abstract base class in case you want to
+use a custom event store in your application. There are test cases you
+can use to make sure your implementations have the capabilities required
+by the other parts of the application.
 
 **Fast Forwarding**
-Of entities to latest published event - used with
-  snapshots and also when optimistic currency control exceptions are
-  encountered.
+Of entities to latest published event - used with snapshots and also
+when optimistic currency control exceptions are encountered.
+
+**Customizable Transcoding**
+Between domain events and stored events - allows customization of
+database schemas when developing a custom stored event repositoriy.
 
 **Collections**
-An object-oriented alternative to "joins" - used for
-  modelling multiplicities of different kinds.
+An object-oriented alternative to "joins" - used for modelling
+multiplicities of different kinds.
 
 **Time-Bucketed Logs**
-Logged messages, and log readers - for writing
-  and reading an indefinitely long stream of events in a scalable
-  manner.
+Logged messages, and log readers - for writing and reading an
+indefinitely long stream of events in a scalable manner.
 
 
 ## Install
