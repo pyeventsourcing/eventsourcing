@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import datetime
 import importlib
 import json
-import uuid
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 
@@ -34,51 +33,48 @@ class AbstractTranscoder(six.with_metaclass(ABCMeta)):
         """Returns a domain event, for the given stored event."""
 
 
-class Transcoder(AbstractTranscoder):
+class JSONTranscoder(AbstractTranscoder):
+    """
+    Converts domain event objects into stored event objects.
 
-    def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False,
-                 serialize_without_json=False, serialize_with_uuid1=True):
+    Also converts stored event objects into domain event objects.
+    """
+
+    def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False):
         self.json_encoder_cls = json_encoder_cls or ObjectJSONEncoder
         self.json_decoder_cls = json_decoder_cls or ObjectJSONDecoder
         self.cipher = cipher
         self.always_encrypt = always_encrypt
-        self.serialize_without_json = serialize_without_json
-        self.serialize_with_uuid1 = serialize_with_uuid1
 
     def serialize(self, domain_event):
         """
-        Serializes a domain event into a stored event.
+        Serializes a domain event into a stored event. Used in stored
+        event repositories to represent an instance of any type of
+        domain event with a common format that can easily be written
+        into its particular database management system.
         """
-
         assert isinstance(domain_event, DomainEvent)
 
         # Copy the state of the domain event.
         event_attrs = domain_event.__dict__.copy()
 
-        # Get, or make, the domain event ID.
-        if self.serialize_with_uuid1:
-            event_id = event_attrs.pop('domain_event_id')
-        else:
-            event_id = uuid.uuid4().hex
+        # Get the domain event ID.
+        event_id = event_attrs.pop('domain_event_id')
 
         # Make stored entity ID and topic.
         stored_entity_id = make_stored_entity_id(id_prefix_from_event(domain_event), domain_event.entity_id)
         event_topic = topic_from_domain_class(type(domain_event))
 
-        # Serialise event attributes to JSON, optionally encrypted with cipher.
-        if not self.serialize_without_json:
+        # Serialise event attributes to JSON.
+        event_attrs = json.dumps(event_attrs, separators=(',', ':'), sort_keys=True, cls=self.json_encoder_cls)
 
-            if self.json_encoder_cls is None:
-                json_encoder_cls = ObjectJSONEncoder
+        # Encrypt (optional).
+        if self.always_encrypt or domain_event.__class__.always_encrypt:
+            if self.cipher is None:
+                raise ValueError("Can't encrypt without a cipher")
+            event_attrs = self.cipher.encrypt(event_attrs)
 
-            event_attrs = json.dumps(event_attrs, separators=(',', ':'), sort_keys=True, cls=self.json_encoder_cls)
-
-            if self.always_encrypt or domain_event.__class__.always_encrypt:
-                if self.cipher is None:
-                    raise ValueError("Can't encrypt without a cipher")
-                event_attrs = self.cipher.encrypt(event_attrs)
-
-        # Return a named tuple.
+        # Return a stored event object (a named tuple).
         return StoredEvent(
             event_id=event_id,
             stored_entity_id=stored_entity_id,
@@ -88,7 +84,8 @@ class Transcoder(AbstractTranscoder):
 
     def deserialize(self, stored_event):
         """
-        Recreates original domain event from stored event topic and event attrs.
+        Recreates original domain event from stored event topic and
+        event attrs. Used in the event store when getting domain events.
         """
         assert isinstance(stored_event, StoredEvent)
 
@@ -100,21 +97,17 @@ class Transcoder(AbstractTranscoder):
 
         # Deserialize event attributes from JSON, optionally decrypted with cipher.
         event_attrs = stored_event.event_attrs
-        if not self.serialize_without_json:
 
-            if self.json_decoder_cls is None:
-                json_decoder_cls = ObjectJSONDecoder
+        # Decrypt (optional).
+        if self.always_encrypt or event_class.always_encrypt:
+            if self.cipher is None:
+                raise ValueError("Can't decrypt stored event without a cipher")
+            event_attrs = self.cipher.decrypt(event_attrs)
 
-            if self.always_encrypt or event_class.always_encrypt:
-                if self.cipher is None:
-                    raise ValueError("Can't decrypt stored event without a cipher")
-                event_attrs = self.cipher.decrypt(event_attrs)
-
-            event_attrs = json.loads(event_attrs, cls=self.json_decoder_cls)
+        event_attrs = json.loads(event_attrs, cls=self.json_decoder_cls)
 
         # Set the domain event ID.
-        if self.serialize_with_uuid1:
-            event_attrs['domain_event_id'] = stored_event.event_id
+        event_attrs['domain_event_id'] = stored_event.event_id
 
         # Reinstantiate and return the domain event object.
         try:

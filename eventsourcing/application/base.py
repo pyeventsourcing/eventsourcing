@@ -4,14 +4,14 @@ from six import with_metaclass
 
 from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.services.eventstore import EventStore
-from eventsourcing.domain.services.transcoding import Transcoder
+from eventsourcing.domain.services.transcoding import JSONTranscoder
 
 
 class EventSourcingApplication(with_metaclass(ABCMeta)):
     persist_events = True
 
-    def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt_stored_events=False,
-                 enable_occ=False, always_write_entity_version=False):
+    def __init__(self, cipher=None, always_encrypt_stored_events=False, enable_occ=False,
+                 always_write_entity_version=False):
         """
         Initialises event sourcing application attributes. Constructs a stored event repo using a
         concrete method that must be provided by a subclass, an event store using the stored
@@ -32,25 +32,21 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
         deploying version 1.1.x into production.
 
 
-        :param json_encoder_cls:  JSON encoder class.
+        :param always_encrypt_stored_events:  Apply encryption to all stored events (needs cipher).
 
-        :param json_decoder_cls:  JSON decoder class.
+        :param always_write_entity_version: Enables writing of entity versions, which is
+                                            required for optimistic concurrency control.
+                                            On its own, this option doesn't enable optimistic
+                                            concurrency control, but may help to achieve a
+                                            zero-downtime migration for an application
+                                            developed with a previous version of this package.
 
         :param cipher:  Encryption cypher for encryption of event attributes when stored.
-
-        :param always_encrypt_stored_events:  Apply encryption to all stored events.
 
         :param enable_occ:  Enables optimistic concurrency control, so that an exception
                             is raised when writing versions that would be out of order. This
                             also enabled writing of entity versions, which is required for
                             optimistic concurrency control.
-
-        :param always_write_entity_version: Enables writing of entity versions, which is
-                                            required for optimistic concurrency control.
-                                            In itself, this option doesn't enable optimistic
-                                            concurrency control, but may help to achieve a
-                                            zero-downtime migration for an application
-                                            developed with a previous version of this package.
 
         Suggested steps for migration from one-table schema (v1.0.x) to the new two table schema (v1.1.x):
 
@@ -81,12 +77,11 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
         """
         self.stored_event_repo = self.create_stored_event_repo(
             always_check_expected_version=enable_occ,
-            always_write_entity_version=enable_occ or always_write_entity_version,
+            always_write_entity_version=enable_occ or always_write_entity_version
         )
         self.event_store = self.create_event_store(
-            json_encoder_cls=json_encoder_cls, json_decoder_cls=json_decoder_cls,
-            cipher=cipher, always_encrypt=always_encrypt_stored_events,
-
+            cipher=cipher,
+            always_encrypt=always_encrypt_stored_events
         )
         self.persistence_subscriber = self.create_persistence_subscriber()
 
@@ -97,17 +92,15 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
         :rtype: AbstractStoredEventRepository
         """
 
-    def create_event_store(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False):
-        transcoder = self.create_transcoder(always_encrypt, cipher, json_decoder_cls, json_encoder_cls)
+    def create_event_store(self, cipher=None, always_encrypt=False):
+        transcoder = self.create_transcoder(always_encrypt, cipher)
         return EventStore(
             stored_event_repo=self.stored_event_repo,
             transcoder=transcoder,
         )
 
-    def create_transcoder(self, always_encrypt, cipher, json_decoder_cls, json_encoder_cls):
-        return Transcoder(
-            json_encoder_cls=json_encoder_cls,
-            json_decoder_cls=json_decoder_cls,
+    def create_transcoder(self, always_encrypt, cipher):
+        return JSONTranscoder(
             cipher=cipher,
             always_encrypt=always_encrypt,
         )
