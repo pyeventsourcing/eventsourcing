@@ -14,6 +14,18 @@ class MessageLogged(DomainEvent):
     def __init__(self, message, entity_id, level):
         super(MessageLogged, self).__init__(entity_id=entity_id, entity_version=None, message=message, level=level)
 
+    @property
+    def message(self):
+        return self.__dict__['message']
+
+    @property
+    def entity_id(self):
+        return self.__dict__['entity_id']
+
+    @property
+    def level(self):
+        return self.__dict__['level']
+
 
 def make_bucket_id(log_name, timestamp, bucket_size):
     d = datetime.datetime.utcfromtimestamp(timestamp)
@@ -136,10 +148,6 @@ class Log(EventSourcedEntity):
 
     class BucketSizeChanged(EventSourcedEntity.AttributeChanged):
         pass
-
-        @property
-        def message(self):
-            return self.__dict__['message']
 
     def __init__(self, name, bucket_size=None, **kwargs):
         super(Log, self).__init__(**kwargs)
