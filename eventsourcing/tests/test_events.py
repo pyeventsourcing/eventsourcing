@@ -11,6 +11,7 @@ except ImportError:
 
 from eventsourcing.domain.model.events import subscribe, publish, unsubscribe, assert_event_handlers_empty, \
     EventHandlersNotEmptyError
+from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.example import Example
 
 
@@ -93,3 +94,21 @@ class TestEvents(unittest.TestCase):
     def test_repr(self):
         event1 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)
         self.assertEqual("Example.Created(a=1, b=2, domain_event_id=3, entity_id='entity1', entity_version=0)", repr(event1))
+
+    def test_subscribe_to_decorator(self):
+        event = Example.Created(entity_id='entity1', a=1, b=2)
+        handler = mock.Mock()
+
+        # Check we can assert there are no event handlers subscribed.
+        assert_event_handlers_empty()
+
+        @subscribe_to(Example.Created)
+        def test_handler(e):
+            handler(e)
+
+        # Check we can assert there are event handlers subscribed.
+        self.assertRaises(EventHandlersNotEmptyError, assert_event_handlers_empty)
+
+        # Check what happens when an event is published.
+        publish(event)
+        handler.assert_called_once_with(event)

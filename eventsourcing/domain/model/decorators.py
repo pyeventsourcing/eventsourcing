@@ -15,16 +15,11 @@ def subscribe_to(event_class):
             todo.save()
     """
 
-    def create_type_predicate():
-        def event_type_predicate(event):
-            return isinstance(event, event_class)
-        return event_type_predicate
+    def event_type_predicate(event):
+        return isinstance(event, event_class)
 
     def wrap(handler_func):
-        subscribe(create_type_predicate(), handler_func)
+        subscribe(event_type_predicate, handler_func)
+        return handler_func
 
-        @wraps(handler_func)
-        def handler_func_wrapper(*args, **kwargs):
-            handler_func(*args, **kwargs)
-        return handler_func_wrapper
     return wrap
