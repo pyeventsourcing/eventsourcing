@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.domain.services.transcoding import AbstractTranscoder, Transcoder, StoredEvent
+from eventsourcing.domain.services.transcoding import AbstractTranscoder, Transcoder
 from eventsourcing.exceptions import ProgrammingError, EntityVersionDoesNotExist, ConcurrencyError
 from eventsourcing.utils.time import time_from_uuid
 
@@ -32,7 +32,6 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
 
 
 class EventStore(AbstractEventStore):
-
     def __init__(self, stored_event_repo, transcoder=None):
         assert isinstance(stored_event_repo, AbstractStoredEventRepository), stored_event_repo
         if transcoder is None:
@@ -91,13 +90,14 @@ class EventStore(AbstractEventStore):
 
 
 class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
-
-    def __init__(self, always_check_expected_version=False, always_write_entity_version=False):
+    def __init__(self, always_check_expected_version=False, always_write_entity_version=False,
+                 stored_event_class=Transcoder.StoredEvent):
         """
         Base class for a persistent collection of stored events.
         """
         self.always_check_expected_version = always_check_expected_version
         self.always_write_entity_version = always_write_entity_version
+        self.stored_event_class = stored_event_class
         if self.always_check_expected_version and not self.always_write_entity_version:
             raise ProgrammingError("If versions are checked, they must also be written.")
 
@@ -106,7 +106,7 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         Saves given stored event in this repository.
         """
         # Check the new event is a stored event instance.
-        assert isinstance(new_stored_event, StoredEvent)
+        assert isinstance(new_stored_event, self.stored_event_class)
 
         # Validate the expected version.
         if self.always_check_expected_version:
@@ -128,7 +128,7 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         Raises a concurrency error if the expected version doesn't exist,
         or if the new event occurred before the expected version occurred.
         """
-        assert isinstance(new_stored_event, StoredEvent)
+        assert isinstance(new_stored_event, self.stored_event_class)
 
         stored_entity_id = new_stored_event.stored_entity_id
         expected_version_number = self.decide_expected_version_number(new_version_number)
@@ -279,7 +279,7 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
     def _update_position(self, stored_event):
         if stored_event is None:
             return
-        assert isinstance(stored_event, StoredEvent), type(stored_event)
+        assert isinstance(stored_event, self.repo.stored_event_class), type(stored_event)
         if self.is_ascending:
             self.after = stored_event.event_id
         else:

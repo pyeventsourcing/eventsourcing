@@ -11,7 +11,7 @@ from sqlalchemy.sql.schema import Column, Sequence
 from sqlalchemy.sql.sqltypes import Integer, String, BigInteger, Text
 
 from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository
-from eventsourcing.domain.services.transcoding import StoredEvent, EntityVersion
+from eventsourcing.domain.services.transcoding import EntityVersion
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.utils.time import timestamp_long_from_uuid
 
@@ -47,27 +47,6 @@ class SqlStoredEvent(Base):
     stored_entity_id = Column(String(255), index=True)
     event_topic = Column(String(255))
     event_attrs = Column(Text())
-
-
-def from_sql(sql_stored_event):
-    assert isinstance(sql_stored_event, SqlStoredEvent), sql_stored_event
-    return StoredEvent(
-        event_id=sql_stored_event.event_id,
-        stored_entity_id=sql_stored_event.stored_entity_id,
-        event_attrs=sql_stored_event.event_attrs,
-        event_topic=sql_stored_event.event_topic
-    )
-
-
-def to_sql(stored_event):
-    assert isinstance(stored_event, StoredEvent)
-    return SqlStoredEvent(
-        event_id=stored_event.event_id,
-        timestamp_long=timestamp_long_from_uuid(stored_event.event_id),
-        stored_entity_id=stored_event.stored_entity_id,
-        event_attrs=stored_event.event_attrs,
-        event_topic=stored_event.event_topic
-    )
 
 
 class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
@@ -110,7 +89,7 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
                     sleep(artificial_failure_rate)
 
             # Write stored event into the transaction.
-            self.db_session.add(to_sql(new_stored_event))
+            self.db_session.add(self.to_sql(new_stored_event))
 
             # Commit the transaction.
             self.db_session.commit()
@@ -130,13 +109,13 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
 
     def get_entity_version(self, stored_entity_id, version_number):
         entity_version_id = self.make_entity_version_id(stored_entity_id, version_number)
-        version_number = self.db_session.query(SqlEntityVersion).filter_by(entity_version_id=entity_version_id).first()
-        if version_number is None:
+        sql_entity_version = self.db_session.query(SqlEntityVersion).filter_by(entity_version_id=entity_version_id).first()
+        if sql_entity_version is None:
             raise EntityVersionDoesNotExist()
-        assert isinstance(version_number, SqlEntityVersion)
+        assert isinstance(sql_entity_version, SqlEntityVersion)
         return EntityVersion(
             entity_version_id=entity_version_id,
-            event_id=version_number.event_id,
+            event_id=sql_entity_version.event_id,
         )
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
@@ -163,10 +142,29 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
 
             if limit is not None:
                 query = query.limit(limit)
-            events = self.map(from_sql, query)
+            events = self.map(self.from_sql, query)
             events = list(events)
         finally:
             self.db_session.close()
         if results_ascending != query_ascending:
             events.reverse()
         return events
+
+    def from_sql(self, sql_stored_event):
+        assert isinstance(sql_stored_event, SqlStoredEvent), sql_stored_event
+        return self.stored_event_class(
+            event_id=sql_stored_event.event_id,
+            stored_entity_id=sql_stored_event.stored_entity_id,
+            event_attrs=sql_stored_event.event_attrs,
+            event_topic=sql_stored_event.event_topic
+        )
+
+    def to_sql(self, stored_event):
+        assert isinstance(stored_event, self.stored_event_class)
+        return SqlStoredEvent(
+            event_id=stored_event.event_id,
+            timestamp_long=timestamp_long_from_uuid(stored_event.event_id),
+            stored_entity_id=stored_event.stored_entity_id,
+            event_attrs=stored_event.event_attrs,
+            event_topic=stored_event.event_topic
+        )
