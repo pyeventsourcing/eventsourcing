@@ -109,13 +109,13 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
 
     def get_entity_version(self, stored_entity_id, version_number):
         entity_version_id = self.make_entity_version_id(stored_entity_id, version_number)
-        version_number = self.db_session.query(SqlEntityVersion).filter_by(entity_version_id=entity_version_id).first()
-        if version_number is None:
+        sql_entity_version = self.db_session.query(SqlEntityVersion).filter_by(entity_version_id=entity_version_id).first()
+        if sql_entity_version is None:
             raise EntityVersionDoesNotExist()
-        assert isinstance(version_number, SqlEntityVersion)
+        assert isinstance(sql_entity_version, SqlEntityVersion)
         return EntityVersion(
             entity_version_id=entity_version_id,
-            event_id=version_number.event_id,
+            event_id=sql_entity_version.event_id,
         )
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
