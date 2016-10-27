@@ -11,7 +11,7 @@ from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
 from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository
-from eventsourcing.domain.services.transcoding import StoredEvent, EntityVersion
+from eventsourcing.domain.services.transcoding import EntityVersion
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 
@@ -58,26 +58,6 @@ class CqlStoredEvent(Model):
     a = columns.Text(required=True)
 
 
-def to_cql(stored_event):
-    assert isinstance(stored_event, StoredEvent), stored_event
-    return CqlStoredEvent(
-        n=stored_event.stored_entity_id,
-        v=stored_event.event_id,
-        t=stored_event.event_topic,
-        a=stored_event.event_attrs
-    )
-
-
-def from_cql(cql_stored_event):
-    assert isinstance(cql_stored_event, CqlStoredEvent), cql_stored_event
-    return StoredEvent(
-        stored_entity_id=cql_stored_event.n,
-        event_id=cql_stored_event.v.hex,
-        event_topic=cql_stored_event.t,
-        event_attrs=cql_stored_event.a
-    )
-
-
 class CassandraStoredEventRepository(AbstractStoredEventRepository):
 
     @property
@@ -116,7 +96,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
             while True:
                 try:
                     # Instantiate a Cassandra CQL engine object.
-                    cql_stored_event = to_cql(new_stored_event)
+                    cql_stored_event = self.to_cql(new_stored_event)
 
                     # Optionally mimic an unreliable save() operation.
                     #  - used for testing retries
@@ -215,13 +195,31 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
         if limit is not None:
             query = query.limit(limit)
 
-        events = self.map(from_cql, query)
+        events = self.map(self.from_cql, query)
         events = list(events)
 
         if results_ascending != query_ascending:
             events.reverse()
 
         return events
+
+    def to_cql(self, stored_event):
+        assert isinstance(stored_event, self.stored_event_class), stored_event
+        return CqlStoredEvent(
+            n=stored_event.stored_entity_id,
+            v=stored_event.event_id,
+            t=stored_event.event_topic,
+            a=stored_event.event_attrs
+        )
+
+    def from_cql(self, cql_stored_event):
+        assert isinstance(cql_stored_event, CqlStoredEvent), cql_stored_event
+        return self.stored_event_class(
+            stored_entity_id=cql_stored_event.n,
+            event_id=cql_stored_event.v.hex,
+            event_topic=cql_stored_event.t,
+            event_attrs=cql_stored_event.a
+        )
 
 
 def get_cassandra_setup_params(hosts=DEFAULT_CASSANDRA_HOSTS, consistency=DEFAULT_CASSANDRA_CONSISTENCY_LEVEL,
