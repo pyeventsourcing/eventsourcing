@@ -10,12 +10,15 @@ except ImportError:
 
 
 from eventsourcing.domain.model.events import subscribe, publish, unsubscribe, assert_event_handlers_empty, \
-    EventHandlersNotEmptyError
+    EventHandlersNotEmptyError, _event_handlers
 from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.example import Example
 
 
 class TestEvents(unittest.TestCase):
+
+    def tearDown(self):
+        _event_handlers.clear()
 
     def test_event_attributes(self):
         event = Example.Created(entity_id='entity1', a=1, b=2)
