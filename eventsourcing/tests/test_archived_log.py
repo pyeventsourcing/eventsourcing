@@ -9,6 +9,16 @@ from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsTest
 from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyTestCase
 
 
+# Todo: Perhaps make an archiver that counts pages, and write messages into a log entity
+# Todo: that will fill up and then be snapshotted - so that there isn't a single entity
+# Todo: receiving all the events, which might fill up Cassandra's partition. Instead if
+# Todo: the archiver has one event per archived log, and the archived log has one event
+# Todo: per logged message, then the upper limit would be the square of the partition capacity.
+# Todo: How to manage contention when counting pages rather than events?
+# Todo: Alternatively, can the start of the archiver be deleted, since all items are in archived log?
+#
+
+
 class ArchivedLogTestCase(AbstractTestCase):
     @property
     def stored_event_repo(self):
