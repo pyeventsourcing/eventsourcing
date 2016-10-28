@@ -5,8 +5,7 @@ from six import with_metaclass
 
 from eventsourcing.domain.model.events import DomainEvent, topic_from_domain_class, QualnameABCMeta
 from eventsourcing.domain.model.example import Example
-from eventsourcing.domain.services.transcoding import resolve_domain_topic, StoredEvent, JSONTranscoder
-from eventsourcing.domain.services.transcoding import Transcoder, resolve_domain_topic, ObjectJSONDecoder, ObjectJSONEncoder
+from eventsourcing.domain.services.transcoding import JSONTranscoder, resolve_domain_topic, StoredEvent
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.utils.time import utc_timezone
 
@@ -60,7 +59,7 @@ class TestStoredEvent(TestCase):
             self.skipTest("Skipped test because numpy is not installed")
 
     def test_recreate_domain_event(self):
-        stored_event = Transcoder.StoredEvent(event_id='1',
+        stored_event = StoredEvent(event_id='1',
                                    stored_entity_id='entity1',
                                    event_topic='eventsourcing.domain.model.events#DomainEvent',
                                    event_attrs=('{"a":1,"b":2,"c":{"ISO8601_datetime":"2015-09-08T16:20:50.577429"},'
@@ -80,7 +79,7 @@ class TestStoredEvent(TestCase):
         self.assertEqual('1', domain_event.domain_event_id)
 
         # Check the TypeError is raised.
-        stored_event = Transcoder.StoredEvent(event_id='1',
+        stored_event = StoredEvent(event_id='1',
                                    stored_entity_id='entity1',
                                    event_topic=topic_from_domain_class(NotADomainEvent),
                                    event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":3}')

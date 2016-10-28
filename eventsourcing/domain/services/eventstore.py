@@ -92,7 +92,7 @@ class EventStore(AbstractEventStore):
 
 class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
     def __init__(self, always_check_expected_version=False, always_write_entity_version=False,
-                 stored_event_class=Transcoder.StoredEvent):
+                 stored_event_class=StoredEvent):
         """
         Base class for a persistent collection of stored events.
         """

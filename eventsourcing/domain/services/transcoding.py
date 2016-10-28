@@ -20,6 +20,9 @@ except ImportError:
 
 EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
 
+StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
+
+
 class AbstractTranscoder(six.with_metaclass(ABCMeta)):
 
     @abstractmethod
@@ -37,8 +40,7 @@ class JSONTranscoder(AbstractTranscoder):
 
     Also converts stored event objects into domain event objects.
     """
-
-    StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
+    stored_event_class = StoredEvent
 
     def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False):
         self.json_encoder_cls = json_encoder_cls or ObjectJSONEncoder
@@ -75,7 +77,7 @@ class JSONTranscoder(AbstractTranscoder):
             event_attrs = self.cipher.encrypt(event_attrs)
 
         # Return a stored event object (a named tuple).
-        return self.StoredEvent(
+        return self.stored_event_class(
             event_id=event_id,
             stored_entity_id=stored_entity_id,
             event_topic=event_topic,
@@ -87,7 +89,7 @@ class JSONTranscoder(AbstractTranscoder):
         Recreates original domain event from stored event topic and
         event attrs. Used in the event store when getting domain events.
         """
-        assert isinstance(stored_event, self.StoredEvent)
+        assert isinstance(stored_event, self.stored_event_class)
 
         # Get the domain event class from the topic.
         event_class = resolve_domain_topic(stored_event.event_topic)
