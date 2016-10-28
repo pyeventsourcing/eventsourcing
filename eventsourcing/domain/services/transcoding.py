@@ -15,10 +15,8 @@ from eventsourcing.domain.model.events import topic_from_domain_class, resolve_d
 try:
     import numpy
     from six import BytesIO
-except:
+except ImportError:
     numpy = None
-
-StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
 
 EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
 
@@ -39,6 +37,8 @@ class JSONTranscoder(AbstractTranscoder):
 
     Also converts stored event objects into domain event objects.
     """
+
+    StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
 
     def __init__(self, json_encoder_cls=None, json_decoder_cls=None, cipher=None, always_encrypt=False):
         self.json_encoder_cls = json_encoder_cls or ObjectJSONEncoder
@@ -75,7 +75,7 @@ class JSONTranscoder(AbstractTranscoder):
             event_attrs = self.cipher.encrypt(event_attrs)
 
         # Return a stored event object (a named tuple).
-        return StoredEvent(
+        return self.StoredEvent(
             event_id=event_id,
             stored_entity_id=stored_entity_id,
             event_topic=event_topic,
@@ -87,7 +87,7 @@ class JSONTranscoder(AbstractTranscoder):
         Recreates original domain event from stored event topic and
         event attrs. Used in the event store when getting domain events.
         """
-        assert isinstance(stored_event, StoredEvent)
+        assert isinstance(stored_event, self.StoredEvent)
 
         # Get the domain event class from the topic.
         event_class = resolve_domain_topic(stored_event.event_topic)
