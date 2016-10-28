@@ -164,9 +164,10 @@ def discarded_mutator(event, self):
 
 def mutableproperty(getter):
     """
-    When used as a class method decorator, returns a property object
-    with the method as the getter and a setter defined to call instance
-    method _change_attribute(), which publishes an AttributeChanged event.
+    When used as a method decorator, returns a property object
+    with the method as the getter and a setter defined to call
+    instance method _change_attribute(), which publishes an
+    AttributeChanged event.
     """
     if isfunction(getter):
         def setter(self, value):
