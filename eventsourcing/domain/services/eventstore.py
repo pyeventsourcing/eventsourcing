@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.domain.services.transcoding import AbstractTranscoder, Transcoder
+from eventsourcing.domain.services.transcoding import AbstractTranscoder, JSONTranscoder, StoredEvent
 from eventsourcing.exceptions import ProgrammingError, EntityVersionDoesNotExist, ConcurrencyError
 from eventsourcing.utils.time import time_from_uuid
 
@@ -32,10 +32,11 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
 
 
 class EventStore(AbstractEventStore):
+
     def __init__(self, stored_event_repo, transcoder=None):
         assert isinstance(stored_event_repo, AbstractStoredEventRepository), stored_event_repo
         if transcoder is None:
-            transcoder = Transcoder()
+            transcoder = JSONTranscoder()
         assert isinstance(transcoder, AbstractTranscoder), transcoder
         self.stored_event_repo = stored_event_repo
 
@@ -91,7 +92,7 @@ class EventStore(AbstractEventStore):
 
 class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
     def __init__(self, always_check_expected_version=False, always_write_entity_version=False,
-                 stored_event_class=Transcoder.StoredEvent):
+                 stored_event_class=StoredEvent):
         """
         Base class for a persistent collection of stored events.
         """
