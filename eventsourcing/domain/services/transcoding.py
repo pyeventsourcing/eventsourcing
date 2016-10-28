@@ -23,6 +23,7 @@ StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_
 
 EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
 
+
 class AbstractTranscoder(six.with_metaclass(ABCMeta)):
 
     @abstractmethod
