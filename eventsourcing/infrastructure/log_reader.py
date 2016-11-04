@@ -37,6 +37,7 @@ class LogReader(with_metaclass(QualnameABCMeta)):
     def get_events(self, after=None, until=None, limit=None, is_ascending=False, page_size=None):
         assert limit is None or limit > 0
 
+        # Calculate the initial bucket timestamp, used to identify the time bucket.
         if after is None:
             after_timestamp = None
         else:
