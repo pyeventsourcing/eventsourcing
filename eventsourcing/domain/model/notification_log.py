@@ -2,9 +2,10 @@ from singledispatch import singledispatch
 
 from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository, entity_mutator
 from eventsourcing.domain.model.events import DomainEvent, publish
+from eventsourcing.exceptions import LogFullError
 
 
-class ArchivedLog(EventSourcedEntity):
+class NotificationLog(EventSourcedEntity):
     # Add items, up to log size, then empty this, create a snapshot at that version, create an archived log page
     # with the data until that version.
     # Get pages of items using predictable keys (entity ID), starting from the current log.
@@ -26,7 +27,7 @@ class ArchivedLog(EventSourcedEntity):
             return self.__dict__['message']
 
     def __init__(self, name, size=None, **kwargs):
-        super(ArchivedLog, self).__init__(**kwargs)
+        super(NotificationLog, self).__init__(**kwargs)
         self._name = name
         self._size = size
         self._items = []
@@ -45,50 +46,44 @@ class ArchivedLog(EventSourcedEntity):
 
     def add_item(self, item):
         self._assert_not_discarded()
-        if len(self.items) < self._size - 1:
-            event = ArchivedLog.ItemAdded(entity_id=self.id, entity_version=self.version, item=item)
+        if len(self.items) < self._size:
+            event = NotificationLog.ItemAdded(entity_id=self.id, entity_version=self.version, item=item)
         else:
-            event = ArchivedLog.Closed(entity_id=self.id, entity_version=self.version, items=self.items + [item])
+            raise LogFullError()
         self._apply(event)
         publish(event)
 
     @staticmethod
     def _mutator(event, initial):
-        return archived_log_mutator(event, initial)
+        return notification_log_mutator(event, initial)
 
 
 @singledispatch
-def archived_log_mutator(event, initial):
+def notification_log_mutator(event, initial):
     return entity_mutator(event, initial)
 
 
-@archived_log_mutator.register(ArchivedLog.ItemAdded)
+@notification_log_mutator.register(NotificationLog.ItemAdded)
 def item_added_mutator(event, self):
-    assert isinstance(event, ArchivedLog.ItemAdded), event
-    assert isinstance(self, ArchivedLog)
+    assert isinstance(event, NotificationLog.ItemAdded), event
+    assert isinstance(self, NotificationLog)
     self.items.append(event.item)
     return self
 
 
-@archived_log_mutator.register(ArchivedLog.Closed)
+@notification_log_mutator.register(NotificationLog.Closed)
 def item_added_mutator(event, self):
-    assert isinstance(event, ArchivedLog.Closed), event
-    assert isinstance(self, ArchivedLog)
-    self._items = []
+    assert isinstance(event, NotificationLog.Closed), event
+    assert isinstance(self, NotificationLog)
     return self
 
 
-class ArchivedLogRepository(EntityRepository):
+class NotificationLogRepository(EntityRepository):
     pass
 
 
-def create_archived_log(log_name, log_size):
-    entity_id = make_current_archived_log_id(log_name)
-    event = ArchivedLog.Created(entity_id=entity_id, name=log_name, size=log_size)
-    entity = ArchivedLog.mutate(event=event)
+def create_notification_log(log_name, size=100000):
+    event = NotificationLog.Created(entity_id=log_name, name=log_name, size=size)
+    entity = NotificationLog.mutate(event=event)
     publish(event)
     return entity
-
-
-def make_current_archived_log_id(log_name):
-    return "{}::current".format(log_name, 'current')
