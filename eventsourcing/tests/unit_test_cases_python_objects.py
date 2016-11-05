@@ -3,7 +3,7 @@ import unittest
 from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 
 
-class PythonObjectsTestCase(unittest.TestCase):
+class PythonObjectsRepoTestCase(unittest.TestCase):
 
     @property
     def stored_event_repo(self):

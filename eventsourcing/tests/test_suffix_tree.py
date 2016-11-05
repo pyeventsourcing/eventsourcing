@@ -6,6 +6,7 @@ import unittest
 
 from eventsourcing.contrib.suffixtrees.domain.model.suffixtree import register_new_suffix_tree, SuffixTree,\
     SuffixTreeApplication
+from eventsourcing.tests.unit_test_cases import notquick
 from eventsourcing.tests.unit_test_fixtures_suffix_tree_text import LONG_TEXT
 
 LONG_TEXT_FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'test_suffix_tree.txt')
@@ -50,6 +51,7 @@ class SuffixTreeTest(unittest.TestCase):
         self.assertEqual(self.app.find_substring('m', st.id), 0)
         self.assertEqual(self.app.find_substring('i', st.id), 1)
 
+    @notquick()
     def test_long_string(self):
         st = register_new_suffix_tree()
         st.add_string(LONG_TEXT)
@@ -57,6 +59,7 @@ class SuffixTreeTest(unittest.TestCase):
         self.assertEqual(self.app.find_substring('Optimal', st.id), 11074)
         self.assertFalse(self.app.has_substring('ukkonen', st.id))
 
+    @notquick()
     def test_case_insensitivity(self):
         st = register_new_suffix_tree(case_insensitive=True)
         st.add_string(LONG_TEXT)

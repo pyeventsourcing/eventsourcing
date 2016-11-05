@@ -13,6 +13,7 @@ from eventsourcing.contrib.suffixtrees.application import SuffixTreeApplicationW
     SuffixTreeApplicationWithCassandra, AbstractSuffixTreeApplication
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import GeneralizedSuffixTree, \
     SuffixTreeEdge, SuffixTreeNode, STRING_ID_END
+from eventsourcing.tests.unit_test_cases import notquick
 from eventsourcing.tests.unit_test_fixtures_suffix_tree_text import LONG_TEXT, LONG_TEXT_CONT
 from eventsourcing.tests.unit_test_cases_cassandra import CassandraTestCase
 
@@ -34,7 +35,7 @@ class GeneralizedSuffixTreeTestCase(TestCase):
         print(" - added string in: {}".format(datetime.datetime.now() - started))
 
 
-
+@notquick()
 class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
 
     def test_empty_string(self):
@@ -673,6 +674,7 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
         self.assertEqual(2, len(strings_ids))
 
 
+@notquick()
 class TestGeneralizedSuffixTreeSlow(GeneralizedSuffixTreeTestCase):
 
     def test_long_string(self):
@@ -727,7 +729,7 @@ class TestGeneralizedSuffixTreeSlow(GeneralizedSuffixTreeTestCase):
         self.assertEqual(self.app.find_string_ids('Optimal', st.id), {'1'})
         self.assertEqual(self.app.find_string_ids('burrows-wheeler', st.id), {'2'})
 
-
+@notquick
 class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
 
     def setUp(self):
@@ -739,6 +741,7 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
         if self.app is not None:
             self.app.close()
 
+    @notquick()
     def test_words_in_sorted_order(self):
         self.check_words(is_sorted=True)
 

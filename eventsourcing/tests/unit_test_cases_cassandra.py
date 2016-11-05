@@ -16,11 +16,11 @@ class CassandraTestCase(AbstractTestCase):
         super(CassandraTestCase, self).tearDown()
 
 
-class CassandraStoredEventRepoTestCase(CassandraTestCase):
+class CassandraRepoTestCase(CassandraTestCase):
 
     def setUp(self):
         setup_cassandra_connection(*get_cassandra_setup_params())
-        super(CassandraStoredEventRepoTestCase, self).setUp()
+        super(CassandraRepoTestCase, self).setUp()
 
     @property
     def stored_event_repo(self):

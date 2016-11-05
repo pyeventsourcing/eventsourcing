@@ -14,10 +14,10 @@ from eventsourcing.infrastructure.log_reader import get_log_reader, LogReader
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import create_cassandra_keyspace_and_tables, \
     drop_cassandra_keyspace
 from eventsourcing.domain.services.cipher import AESCipher
-from eventsourcing.tests.unit_test_cases import AbstractTestCase
+from eventsourcing.tests.unit_test_cases import AbstractTestCase, notquick
 from eventsourcing.tests.test_utils import utc_now
 
-
+@notquick()
 class PerformanceTestCase(AbstractTestCase):
 
     def setUp(self):
@@ -114,7 +114,7 @@ class PerformanceTestCase(AbstractTestCase):
             beats_per_second = num_beats / time_replaying
             print("Time to replay snapshot with {} extra beats: {:.6f}s ({:.0f} events/s, {:.0f} beats/s)"
                   "".format(extra_beats, time_replaying, events_per_second, beats_per_second))
-            
+
             print("")
 
     def test_log_performance(self):
@@ -207,7 +207,7 @@ class PerformanceTestCase(AbstractTestCase):
             next_position = None
         return events, next_position
 
-
+@notquick()
 class TestCassandraPerformance(PerformanceTestCase):
 
     def create_app(self):
@@ -229,6 +229,7 @@ class TestCassandraPerformance(PerformanceTestCase):
         super(TestCassandraPerformance, self).tearDown()
 
 
+@notquick()
 class TestEncryptionPerformance(TestCassandraPerformance):
 
     def create_app(self):
@@ -236,6 +237,7 @@ class TestEncryptionPerformance(TestCassandraPerformance):
         return ExampleApplicationWithCassandra(cipher=cipher, always_encrypt_stored_events=True)
 
 
+@notquick()
 class TestSQLAlchemyPerformance(PerformanceTestCase):
 
     def create_app(self):

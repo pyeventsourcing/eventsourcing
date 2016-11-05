@@ -1,19 +1,19 @@
 from eventsourcing.tests.unit_test_cases import BasicStoredEventRepositoryTestCase, \
     ConcurrentStoredEventRepositoryTestCase, SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase
-from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyTestCase
+from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCase
 
 
-class TestSQLAlchemyStoredEventRepository(SQLAlchemyTestCase, BasicStoredEventRepositoryTestCase):
+class TestSQLAlchemyStoredEventRepository(SQLAlchemyRepoTestCase, BasicStoredEventRepositoryTestCase):
     pass
 
 
-class TestSimpleStoredEventIteratorWithSQLAlchemy(SQLAlchemyTestCase, SimpleStoredEventIteratorTestCase):
+class TestSimpleStoredEventIteratorWithSQLAlchemy(SQLAlchemyRepoTestCase, SimpleStoredEventIteratorTestCase):
     pass
 
 
-class TestThreadedStoredEventIteratorWithSQLAlchemy(SQLAlchemyTestCase, ThreadedStoredEventIteratorTestCase):
+class TestThreadedStoredEventIteratorWithSQLAlchemy(SQLAlchemyRepoTestCase, ThreadedStoredEventIteratorTestCase):
     pass
 
 
-class TestConcurrentStoredEventRepositoryWithSQLAlchemy(SQLAlchemyTestCase, ConcurrentStoredEventRepositoryTestCase):
+class TestConcurrentStoredEventRepositoryWithSQLAlchemy(SQLAlchemyRepoTestCase, ConcurrentStoredEventRepositoryTestCase):
     pass

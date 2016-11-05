@@ -4,9 +4,9 @@ from eventsourcing.domain.model.notification_log import NotificationLog, create_
 from eventsourcing.domain.services.eventstore import EventStore
 from eventsourcing.exceptions import LogFullError
 from eventsourcing.tests.unit_test_cases import AbstractTestCase
-from eventsourcing.tests.unit_test_cases_cassandra import CassandraStoredEventRepoTestCase
-from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsTestCase
-from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyTestCase
+from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
+from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
+from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCase
 
 # Todo: An indefinitely long persistent contiguous sequence, indexed by integer sequence number,
 # from which a slice (pair of integer indices) can efficiently be taken.
@@ -102,13 +102,13 @@ class NotificationLogTestCase(AbstractTestCase):
 
 
 
-class TestNotificationLogWithCassandra(CassandraStoredEventRepoTestCase, NotificationLogTestCase):
+class TestNotificationLogWithCassandra(CassandraRepoTestCase, NotificationLogTestCase):
     pass
 
 
-class TestNotificationLogWithPythonObjects(PythonObjectsTestCase, NotificationLogTestCase):
+class TestNotificationLogWithPythonObjects(PythonObjectsRepoTestCase, NotificationLogTestCase):
     pass
 
 
-class TestNotificationLogWithSQLAlchemy(SQLAlchemyTestCase, NotificationLogTestCase):
+class TestNotificationLogWithSQLAlchemy(SQLAlchemyRepoTestCase, NotificationLogTestCase):
     pass

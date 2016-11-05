@@ -5,7 +5,7 @@ from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import get_
     SQLAlchemyStoredEventRepository
 
 
-class SQLAlchemyTestCase(TestCase):
+class SQLAlchemyRepoTestCase(TestCase):
 
     @property
     def stored_event_repo(self):
@@ -23,4 +23,4 @@ class SQLAlchemyTestCase(TestCase):
         # Unlink temporary file.
         if self.temp_file:
             self.temp_file.close()
-        super(SQLAlchemyTestCase, self).tearDown()
+        super(SQLAlchemyRepoTestCase, self).tearDown()
