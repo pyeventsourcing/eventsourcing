@@ -1,9 +1,6 @@
-from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
-from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.domain.model.notification_log import NotificationLog, create_notification_log
-from eventsourcing.domain.services.eventstore import EventStore
 from eventsourcing.exceptions import LogFullError
-from eventsourcing.tests.unit_test_cases import AbstractTestCase
+from eventsourcing.tests.unit_test_cases import AppishTestCase
 from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
 from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
 from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCase
@@ -40,35 +37,7 @@ from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCas
 # entity version table?
 
 
-class NotificationLogTestCase(AbstractTestCase):
-    @property
-    def stored_event_repo(self):
-        """
-        Returns a stored event repository.
-
-        Concrete log test cases will provide this method.
-        """
-        raise NotImplementedError
-
-    def setUp(self):
-        super(NotificationLogTestCase, self).setUp()
-
-        # Check we're starting clean, event handler-wise.
-        assert_event_handlers_empty()
-
-        # Setup the persistence subscriber.
-        self.event_store = EventStore(self.stored_event_repo)
-        self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
-
-    def tearDown(self):
-
-        # Close the persistence subscriber.
-        self.persistence_subscriber.close()
-
-        super(NotificationLogTestCase, self).tearDown()
-
-        # Check we finished clean, event handler-wise.
-        assert_event_handlers_empty()
+class NotificationLogTestCase(AppishTestCase):
 
     def test_entity_lifecycle(self):
 

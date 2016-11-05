@@ -34,13 +34,13 @@ class AbstractTestCase(TestCase):
         Returns None if test case class ends with 'TestCase', which means the test case isn't included in the suite.
         """
         if type(self).__name__.endswith('TestCase'):
-            self.skipTest('Skipped abstract test')
+            self.skipTest('Ignored abstract test.')
         else:
             super(AbstractTestCase, self).setUp()
 
 
 def notquick(*args, **kwargs):
-    return unittest.skipIf(os.getenv("QUICK_TESTS_ONLY"), "Not a quick test")
+    return unittest.skipIf(os.getenv("QUICK_TESTS_ONLY"), 'Ignored slow test.')
 
 
 class AbstractStoredEventRepositoryTestCase(AbstractTestCase):
