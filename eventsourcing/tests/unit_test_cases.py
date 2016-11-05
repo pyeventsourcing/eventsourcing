@@ -1,9 +1,5 @@
-import unittest
-
-import datetime
 import json
-import os
-import traceback
+import unittest
 import uuid
 from multiprocessing.pool import Pool
 from tempfile import NamedTemporaryFile
@@ -11,21 +7,23 @@ from time import sleep
 from unittest import TestCase
 from uuid import uuid4, uuid1
 
+import datetime
+import os
 import six
+import traceback
 
 from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.model.events import assert_event_handlers_empty
-
 from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository, SimpleStoredEventIterator, \
     EventStore
 from eventsourcing.domain.services.transcoding import StoredEvent
 from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
     setup_cassandra_connection, get_cassandra_setup_params
 from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository, \
     get_scoped_session_facade
-from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 
 
 class AbstractTestCase(TestCase):
