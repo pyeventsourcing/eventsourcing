@@ -176,6 +176,11 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):
+
+        # Todo: Extend unit test to make sure limit is effective when less than 1.
+        if limit is not None and limit < 1:
+            return []
+
         query = CqlStoredEvent.objects.filter(n=stored_entity_id)
 
         if query_ascending:

@@ -15,7 +15,10 @@ class SQLAlchemyRepoTestCase(TestCase):
             self.temp_file = NamedTemporaryFile('a')
             uri = 'sqlite:///' + self.temp_file.name
             scoped_session_facade = get_scoped_session_facade(uri)
-            stored_event_repo = SQLAlchemyStoredEventRepository(scoped_session_facade)
+            stored_event_repo = SQLAlchemyStoredEventRepository(scoped_session_facade,
+                always_write_entity_version=True,
+                always_check_expected_version=True,
+            )
             self._stored_event_repo = stored_event_repo
             return self._stored_event_repo
 

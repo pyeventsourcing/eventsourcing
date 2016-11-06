@@ -27,6 +27,9 @@ class CassandraRepoTestCase(CassandraTestCase):
         try:
             return self._stored_event_repo
         except AttributeError:
-            stored_event_repo = CassandraStoredEventRepository()
+            stored_event_repo = CassandraStoredEventRepository(
+                always_write_entity_version=True,
+                always_check_expected_version=True,
+            )
             self._stored_event_repo = stored_event_repo
             return stored_event_repo

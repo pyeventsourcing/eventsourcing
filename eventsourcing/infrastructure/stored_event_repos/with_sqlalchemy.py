@@ -120,6 +120,11 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):
+
+        # Todo: Extend unit test to make sure limit is effective when less than 1.
+        if limit is not None and limit < 1:
+            return []
+
         try:
             query = self.db_session.query(SqlStoredEvent)
             query = query.filter_by(stored_entity_id=stored_entity_id)

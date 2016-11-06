@@ -39,7 +39,7 @@ from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCas
 
 class NotificationLogTestCase(AppishTestCase):
 
-    def test_entity_lifecycle(self):
+    def _test_entity_lifecycle(self):
 
         # notification_log_repo = NotificationLogRepo(self.event_store)
 
