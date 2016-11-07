@@ -1,9 +1,6 @@
-from collections import Sequence
-
 from eventsourcing.domain.model.notification_log import NotificationLog, create_notification_log
-from eventsourcing.domain.services.sequence import append_item_to_sequence
+from eventsourcing.domain.services.notification_log import append_item_to_notification_log
 from eventsourcing.exceptions import LogFullError
-from eventsourcing.domain.model.sequence import Sequence, SequenceRepository
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.tests.unit_test_cases import AppishTestCase
 from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
@@ -32,30 +29,9 @@ from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCas
 # entity version table?
 
 
-def get_current_sequence(notification_log, sequence_repo):
-    """
-    Returns current sequence.
-
-    :rtype Sequence
-    """
-    assert isinstance(notification_log, NotificationLog), notification_log
-    assert isinstance(sequence_repo, SequenceRepository)
-    return sequence_repo[notification_log.id]
-
-
-def append_item_to_notification_log(notification_log, item, sequence_repo):
-    assert isinstance(notification_log, NotificationLog), notification_log
-    assert isinstance(sequence_repo, SequenceRepository)
-    current_sequence = get_current_sequence(notification_log, sequence_repo)
-    assert isinstance(current_sequence, Sequence), current_sequence
-    append_item_to_sequence(current_sequence.name, item, sequence_repo.event_player)
-
-
 class NotificationLogTestCase(AppishTestCase):
 
     def test_entity_lifecycle(self):
-
-        # notification_log_repo = NotificationLogRepo(self.event_store)
 
         notification_log = create_notification_log(log_name='log1', size=5)
 
@@ -65,7 +41,7 @@ class NotificationLogTestCase(AppishTestCase):
 
         sequence_repo = SequenceRepo(event_store=self.event_store)
 
-        append_item_to_notification_log(notification_log, item1, sequence_repo,)
+        append_item_to_notification_log(notification_log, item1, sequence_repo)
 
         notification_log.add_item(item1)
         self.assertEqual(len(notification_log.items), 1)
