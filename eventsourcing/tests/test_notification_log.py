@@ -1,5 +1,10 @@
+from collections import Sequence
+
 from eventsourcing.domain.model.notification_log import NotificationLog, create_notification_log
+from eventsourcing.domain.services.sequence import append_item_to_sequence
 from eventsourcing.exceptions import LogFullError
+from eventsourcing.domain.model.sequence import Sequence, SequenceRepository
+from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.tests.unit_test_cases import AppishTestCase
 from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
 from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
@@ -8,38 +13,47 @@ from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCas
 # Todo: An indefinitely long persistent contiguous sequence, indexed by integer sequence number,
 # from which a slice (pair of integer indices) can efficiently be taken.
 
-# 1. Contiguous sequence.
-
-# 1.1  For a single entity ID, directly publish event with successive version number, without
-# it being part of a factory, or part of an entity method. Avoid having to read all events
-# just to publish the next one, but generate a contiguous sequence under a single
-# stored entity ID, just like an entity would. Basically an event stream without an entity.
-
-# 1.2  For a single entity ID, select all events after one version number until another version
-# number without running them through an entity mutator.
-
-# 1.3  Interface object that can split an archived log ID of form "x,y" into two integers,
+# Todo: Interface object that can split an archived log ID of form "x,y" into two integers,
 # and query for the events between those versions, returning data that can be rendered.
 
-# 1.4  For extending across partitions, a tree with N archived logs (above sequence) as leaves.
+# Todo: Extended interface object that can work across partitions?
 
-# 1.5  Extended interface object that can work across partitions?
+# Todo: For extending across partitions, a tree with N sequences as leaves.
 
-# 1.6  Can navigate from start by getting first log, if full then also second log, etc. Client
+# Todo: Navigate from start by getting first log, if full then also second log, etc. Client
 # tracks where it is up to. Log entity version number gives offset in log, and log number
 # gives position in archived log. Archived log paging can be smaller sized than the log
 # size, with index numbers in page ID being used to identify and key into archived log.
 
-# 1.7 Can navigate from end by getting "current" log, if has "back link" then can follow it
+# Todo: Navigate from end by getting "current" log, if has "back link" then can follow it
 # until reach page with latest item.
 
-# 1.8  In timestamp ordered persistence model, get the entity ID from the version number in the
+# Todo: In timestamp ordered persistence model, get the entity ID from the version number in the
 # entity version table?
+
+
+def get_current_sequence(notification_log, sequence_repo):
+    """
+    Returns current sequence.
+
+    :rtype Sequence
+    """
+    assert isinstance(notification_log, NotificationLog), notification_log
+    assert isinstance(sequence_repo, SequenceRepository)
+    return sequence_repo[notification_log.id]
+
+
+def append_item_to_notification_log(notification_log, item, sequence_repo):
+    assert isinstance(notification_log, NotificationLog), notification_log
+    assert isinstance(sequence_repo, SequenceRepository)
+    current_sequence = get_current_sequence(notification_log, sequence_repo)
+    assert isinstance(current_sequence, Sequence), current_sequence
+    append_item_to_sequence(current_sequence.name, item, sequence_repo.event_player)
 
 
 class NotificationLogTestCase(AppishTestCase):
 
-    def _test_entity_lifecycle(self):
+    def test_entity_lifecycle(self):
 
         # notification_log_repo = NotificationLogRepo(self.event_store)
 
@@ -48,6 +62,11 @@ class NotificationLogTestCase(AppishTestCase):
         self.assertIsInstance(notification_log, NotificationLog)
 
         item1 = 'item1'
+
+        sequence_repo = SequenceRepo(event_store=self.event_store)
+
+        append_item_to_notification_log(notification_log, item1, sequence_repo,)
+
         notification_log.add_item(item1)
         self.assertEqual(len(notification_log.items), 1)
         self.assertEqual(notification_log.items[0], item1)
@@ -71,11 +90,11 @@ class NotificationLogTestCase(AppishTestCase):
 
 
 
-class TestNotificationLogWithCassandra(CassandraRepoTestCase, NotificationLogTestCase):
+class TestNotificationLogWithPythonObjects(PythonObjectsRepoTestCase, NotificationLogTestCase):
     pass
 
 
-class TestNotificationLogWithPythonObjects(PythonObjectsRepoTestCase, NotificationLogTestCase):
+class TestNotificationLogWithCassandra(CassandraRepoTestCase, NotificationLogTestCase):
     pass
 
 

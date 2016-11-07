@@ -2,6 +2,7 @@ from singledispatch import singledispatch
 
 from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository, entity_mutator
 from eventsourcing.domain.model.events import DomainEvent, publish
+from eventsourcing.domain.model.sequence import start_sequence
 from eventsourcing.exceptions import LogFullError
 
 
@@ -65,9 +66,12 @@ def notification_log_mutator(event, initial):
 
 @notification_log_mutator.register(NotificationLog.ItemAdded)
 def item_added_mutator(event, self):
+    assert isinstance(self, NotificationLog)
+    self._assert_not_discarded()
     assert isinstance(event, NotificationLog.ItemAdded), event
     assert isinstance(self, NotificationLog)
     self.items.append(event.item)
+    self._increment_version()
     return self
 
 
@@ -83,7 +87,11 @@ class NotificationLogRepository(EntityRepository):
 
 
 def create_notification_log(log_name, size=100000):
+    # Create a sequence for it.
+    start_sequence(log_name)
+
     event = NotificationLog.Created(entity_id=log_name, name=log_name, size=size)
     entity = NotificationLog.mutate(event=event)
     publish(event)
+
     return entity
