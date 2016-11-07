@@ -18,7 +18,6 @@ class LogTestCase(AppishTestCase):
         super(LogTestCase, self).setUp()
         self.log_repo = LogRepo(self.event_store)
 
-
     def test_entity_lifecycle(self):
         log = self.log_repo.get_or_create(log_name='log1', bucket_size='year')
         self.assertIsInstance(log, Log)
