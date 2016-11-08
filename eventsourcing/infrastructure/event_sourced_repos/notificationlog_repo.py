@@ -1,5 +1,5 @@
 from eventsourcing.domain.model.notification_log import NotificationLog, NotificationLogRepository,\
-    create_notification_log
+    start_notification_log
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository
 
@@ -10,7 +10,7 @@ class NotificationLogRepo(NotificationLogRepository, EventSourcedRepository):
     """
     domain_class = NotificationLog
 
-    def get_or_create(self, log_name):
+    def get_or_create(self, log_name, sequence_max_size):
         """
         Gets or creates a log.
 
@@ -19,4 +19,4 @@ class NotificationLogRepo(NotificationLogRepository, EventSourcedRepository):
         try:
             return self[log_name]
         except RepositoryKeyError:
-            return create_notification_log(log_name)
+            return start_notification_log(log_name, sequence_max_size)

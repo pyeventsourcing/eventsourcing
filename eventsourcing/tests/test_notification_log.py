@@ -1,6 +1,8 @@
-from eventsourcing.domain.model.notification_log import NotificationLog, create_notification_log
-from eventsourcing.domain.services.notification_log import append_item_to_notification_log
+from eventsourcing.domain.model.notification_log import NotificationLog
+from eventsourcing.domain.services.notification_log import append_item_to_notification_log, NotificationLogReader
 from eventsourcing.exceptions import LogFullError
+from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
+from eventsourcing.infrastructure.event_sourced_repos.notificationlog_repo import NotificationLogRepo
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.tests.unit_test_cases import AppishTestCase
 from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
@@ -32,8 +34,13 @@ from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCas
 class NotificationLogTestCase(AppishTestCase):
 
     def test_entity_lifecycle(self):
+        # log_repo = LogRepo(self.event_store)
+        notification_log_repo = NotificationLogRepo(self.event_store)
 
-        notification_log = create_notification_log(log_name='log1', size=5)
+        notification_log = notification_log_repo.get_or_create(
+            log_name='log1',
+            sequence_max_size=5,
+        )
 
         self.assertIsInstance(notification_log, NotificationLog)
 
@@ -43,26 +50,27 @@ class NotificationLogTestCase(AppishTestCase):
 
         append_item_to_notification_log(notification_log, item1, sequence_repo)
 
-        notification_log.add_item(item1)
-        self.assertEqual(len(notification_log.items), 1)
-        self.assertEqual(notification_log.items[0], item1)
+        # self.assertEqual(len(notification_log.items), 1)
+        reader = NotificationLogReader(notification_log, notification_log_repo.event_player, sequence_repo)
+        self.assertEqual(reader[0], item1)
 
         item2 = 'item2'
-        notification_log.add_item(item2)
-        self.assertEqual(len(notification_log.items), 2)
-        self.assertEqual(notification_log.items[1], item2)
+        append_item_to_notification_log(notification_log, item2, sequence_repo)
+
+        self.assertEqual(reader[1], item2)
+        # self.assertEqual(len(notification_log.items), 2)
 
         item3 = 'item3'
         item4 = 'item4'
         item5 = 'item5'
-        notification_log.add_item(item3)
-        notification_log.add_item(item4)
-        notification_log.add_item(item5)
+        append_item_to_notification_log(notification_log, item3, sequence_repo)
+        append_item_to_notification_log(notification_log, item4, sequence_repo)
+        append_item_to_notification_log(notification_log, item5, sequence_repo)
 
-        self.assertEqual(len(notification_log.items), 5, notification_log.items)
+        # self.assertEqual(len(notification_log.items), 5, notification_log.items)
 
-        with self.assertRaises(LogFullError):
-            notification_log.add_item(item5)
+        # with self.assertRaises(LogFullError):
+        #     notification_log.add_item(item5)
 
 
 

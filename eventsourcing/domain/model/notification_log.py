@@ -2,8 +2,12 @@ from singledispatch import singledispatch
 
 from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository, entity_mutator
 from eventsourcing.domain.model.events import DomainEvent, publish
-from eventsourcing.domain.model.sequence import start_sequence
-from eventsourcing.exceptions import LogFullError
+# from eventsourcing.domain.model.log import Log
+# from eventsourcing.domain.model.sequence import Sequence
+# from eventsourcing.exceptions import LogFullError
+
+# Todo: New idea, just make it be a mixture of an archived log to hold the current sequence and a sequence.
+# class NotificationLog(Log, Sequence):
 
 
 class NotificationLog(EventSourcedEntity):
@@ -13,46 +17,32 @@ class NotificationLog(EventSourcedEntity):
     # Get pages of items using predictable keys (entity ID), starting from item 0.
     # Entity ID = log name + id_start + , + id_end.
 
-    class Created(EventSourcedEntity.Created):
+    class Started(EventSourcedEntity.Created):
         pass
 
     class AttributeChanged(EventSourcedEntity.AttributeChanged):
         pass
 
-    class ItemAdded(DomainEvent):
-        pass
+    # class ItemAdded(DomainEvent):
+    #     pass
+    #
+    # class Closed(DomainEvent):
+    #     @property
+    #     def message(self):
+    #         return self.__dict__['message']
 
-    class Closed(DomainEvent):
-        @property
-        def message(self):
-            return self.__dict__['message']
-
-    def __init__(self, name, size=None, **kwargs):
+    def __init__(self, name, sequence_max_size=None, **kwargs):
         super(NotificationLog, self).__init__(**kwargs)
         self._name = name
-        self._size = size
-        self._items = []
-
-    @property
-    def log_size(self):
-        return self._size
+        self._sequence_max_size = sequence_max_size
 
     @property
     def name(self):
         return self._name
 
     @property
-    def items(self):
-        return self._items
-
-    def add_item(self, item):
-        self._assert_not_discarded()
-        if len(self.items) < self._size:
-            event = NotificationLog.ItemAdded(entity_id=self.id, entity_version=self.version, item=item)
-        else:
-            raise LogFullError()
-        self._apply(event)
-        publish(event)
+    def sequence_max_size(self):
+        return self._sequence_max_size
 
     @staticmethod
     def _mutator(event, initial):
@@ -64,34 +54,30 @@ def notification_log_mutator(event, initial):
     return entity_mutator(event, initial)
 
 
-@notification_log_mutator.register(NotificationLog.ItemAdded)
-def item_added_mutator(event, self):
-    assert isinstance(self, NotificationLog)
-    self._assert_not_discarded()
-    assert isinstance(event, NotificationLog.ItemAdded), event
-    assert isinstance(self, NotificationLog)
-    self.items.append(event.item)
-    self._increment_version()
-    return self
-
-
-@notification_log_mutator.register(NotificationLog.Closed)
-def item_added_mutator(event, self):
-    assert isinstance(event, NotificationLog.Closed), event
-    assert isinstance(self, NotificationLog)
-    return self
+# @notification_log_mutator.register(NotificationLog.ItemAdded)
+# def item_added_mutator(event, self):
+#     assert isinstance(self, NotificationLog)
+#     self._assert_not_discarded()
+#     assert isinstance(event, NotificationLog.ItemAdded), event
+#     assert isinstance(self, NotificationLog)
+#     self.items.append(event.item)
+#     self._increment_version()
+#     return self
+#
+#
+# @notification_log_mutator.register(NotificationLog.Closed)
+# def item_added_mutator(event, self):
+#     assert isinstance(event, NotificationLog.Closed), event
+#     assert isinstance(self, NotificationLog)
+#     return self
 
 
 class NotificationLogRepository(EntityRepository):
     pass
 
 
-def create_notification_log(log_name, size=100000):
-    # Create a sequence for it.
-    start_sequence(log_name)
-
-    event = NotificationLog.Created(entity_id=log_name, name=log_name, size=size)
+def start_notification_log(log_name, sequence_max_size=100000):
+    event = NotificationLog.Started(entity_id=log_name, name=log_name, sequence_max_size=sequence_max_size)
     entity = NotificationLog.mutate(event=event)
     publish(event)
-
     return entity
