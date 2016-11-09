@@ -79,10 +79,11 @@ class NotificationLogTestCase(AppishTestCase):
             append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, self.event_store)
 
             # Check the length.
-            self.assertEqual(len(notification_log_reader), 5 + i + 1)
+            notification_log_index = 5 + i
+            self.assertEqual(len(notification_log_reader), notification_log_index + 1)
 
             # Check the message.
-            self.assertEqual(notification_log_reader[5 + i], item)
+            self.assertEqual(notification_log_reader[notification_log_index], item)
 
 
 class TestNotificationLogWithPythonObjects(PythonObjectsRepoTestCase, NotificationLogTestCase):
