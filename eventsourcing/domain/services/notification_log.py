@@ -33,7 +33,7 @@ def append_item_to_notification_log(notification_log, item, sequence_repo, log_r
         # - write message into time-bucketed log
         log = log_repo.get_or_create(notification_log.name, notification_log.bucket_size)
         log.append_message(next_sequence_id)
-        next_sequence = sequence_repo.get_or_create(next_sequence_id, notification_log.sequence_size)
+        next_sequence = sequence_repo.get_or_create(next_sequence_id)
 
         append_item_to_sequence(next_sequence.name, item, sequence_repo.event_player, notification_log.sequence_size)
 
@@ -41,7 +41,7 @@ def append_item_to_notification_log(notification_log, item, sequence_repo, log_r
 def get_current_notification_log_sequence(notification_log, sequence_repo, log_repo, event_store):
     # Get time-bucketed log.
     sequence_id = get_current_notification_log_sequence_id(notification_log, sequence_repo, log_repo, event_store)
-    return sequence_repo.get_or_create(sequence_id, notification_log.sequence_size)
+    return sequence_repo.get_or_create(sequence_id)
 
 
 def get_current_notification_log_sequence_id(notification_log, sequence_repo, log_repo, event_store):
@@ -93,7 +93,7 @@ class NotificationLogReader(object):
             sequence_item = slice(sequence_slice_start, item.stop)
 
         sequence_id = make_notification_log_sequence_id(self.notification_log.name, sequence_number)
-        sequence = self.sequence_repo.get_or_create(sequence_id, self.notification_log.sequence_size)
+        sequence = self.sequence_repo.get_or_create(sequence_id)
 
         reader = SequenceReader(sequence, self.sequence_repo.event_player)
         try:

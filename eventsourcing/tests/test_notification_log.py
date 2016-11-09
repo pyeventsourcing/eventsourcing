@@ -26,7 +26,7 @@ class NotificationLogTestCase(AppishTestCase):
 
         notification_log = notification_log_repo.get_or_create(
             log_name='log1',
-            sequence_max_size=2,
+            sequence_size=2,
         )
 
         self.assertIsInstance(notification_log, NotificationLog)

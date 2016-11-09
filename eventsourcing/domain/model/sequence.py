@@ -5,10 +5,6 @@ from eventsourcing.exceptions import RepositoryKeyError
 
 class Sequence(EventSourcedEntity):
 
-    def __init__(self, max_size=None, **kwargs):
-        super(Sequence, self).__init__(**kwargs)
-        self._max_size = max_size
-
     class Started(EventSourcedEntity.Created):
         """Occurs when sequence is started."""
 
@@ -19,13 +15,9 @@ class Sequence(EventSourcedEntity):
     def name(self):
         return self.id
 
-    @property
-    def max_size(self):
-        return self._max_size
 
-
-def start_sequence(name, max_size=None):
-    event = Sequence.Started(entity_id=name, max_size=max_size)
+def start_sequence(name):
+    event = Sequence.Started(entity_id=name)
     entity = Sequence.mutate(event=event)
     publish(event)
     return entity
@@ -33,7 +25,7 @@ def start_sequence(name, max_size=None):
 
 class SequenceRepository(EntityRepository):
 
-    def get_or_create(self, sequence_name, sequence_max_size):
+    def get_or_create(self, sequence_name):
         """
         Gets or creates a log.
 
@@ -42,4 +34,4 @@ class SequenceRepository(EntityRepository):
         try:
             return self[sequence_name]
         except RepositoryKeyError:
-            return start_sequence(sequence_name, sequence_max_size)
+            return start_sequence(sequence_name)
