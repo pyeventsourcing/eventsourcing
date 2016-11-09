@@ -28,3 +28,7 @@ class RepositoryKeyError(KeyError, EventSourcingError):
 
 class LogFullError(EventSourcingError):
     "Raised when attempting to write a message to a log that is full."
+
+
+class SequenceFullError(EventSourcingError):
+    "Raised when attempting to append an item to a sequence that is already at its maximum size."

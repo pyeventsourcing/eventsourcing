@@ -7,6 +7,7 @@ from six import with_metaclass
 
 from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository
 from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta, create_domain_event_id
+from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.utils.time import timestamp_from_uuid, utc_timezone
 
 
@@ -180,12 +181,24 @@ class Log(EventSourcedEntity):
 
 
 class LogRepository(EntityRepository):
-    pass
+
+    def get_or_create(self, log_name, bucket_size):
+        """
+        Gets or creates a log.
+
+        :rtype: Log
+        """
+        try:
+            return self[log_name]
+        except RepositoryKeyError:
+            return start_new_log(log_name, bucket_size=bucket_size)
 
 
 def start_new_log(name, bucket_size):
+    if bucket_size is None:
+        bucket_size = 'year'
     if bucket_size not in BUCKET_SIZES:
-        raise ValueError("Bucket size not supported: {}. Must be one of: {}"
+        raise ValueError("Bucket size '{}' not supported, must be one of: {}"
                          "".format(bucket_size, BUCKET_SIZES.keys()))
     event = Log.Started(
         entity_id=name,

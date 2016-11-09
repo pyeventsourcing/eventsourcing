@@ -1,13 +1,11 @@
 from singledispatch import singledispatch
 
 from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository, entity_mutator
-from eventsourcing.domain.model.events import DomainEvent, publish
-# from eventsourcing.domain.model.log import Log
-# from eventsourcing.domain.model.sequence import Sequence
-# from eventsourcing.exceptions import LogFullError
+from eventsourcing.domain.model.events import publish
 
 # Todo: New idea, just make it be a mixture of an archived log to hold the current sequence and a sequence.
 # class NotificationLog(Log, Sequence):
+from eventsourcing.exceptions import RepositoryKeyError
 
 
 class NotificationLog(EventSourcedEntity):
@@ -20,29 +18,23 @@ class NotificationLog(EventSourcedEntity):
     class Started(EventSourcedEntity.Created):
         pass
 
-    class AttributeChanged(EventSourcedEntity.AttributeChanged):
-        pass
-
-    # class ItemAdded(DomainEvent):
-    #     pass
-    #
-    # class Closed(DomainEvent):
-    #     @property
-    #     def message(self):
-    #         return self.__dict__['message']
-
-    def __init__(self, name, sequence_max_size=None, **kwargs):
+    def __init__(self, name, bucket_size=None, sequence_max_size=None, **kwargs):
         super(NotificationLog, self).__init__(**kwargs)
         self._name = name
         self._sequence_max_size = sequence_max_size
+        self._bucket_size = bucket_size
 
     @property
     def name(self):
         return self._name
 
     @property
-    def sequence_max_size(self):
+    def sequence_size(self):
         return self._sequence_max_size
+
+    @property
+    def bucket_size(self):
+        return self._bucket_size
 
     @staticmethod
     def _mutator(event, initial):
@@ -54,30 +46,30 @@ def notification_log_mutator(event, initial):
     return entity_mutator(event, initial)
 
 
-# @notification_log_mutator.register(NotificationLog.ItemAdded)
-# def item_added_mutator(event, self):
-#     assert isinstance(self, NotificationLog)
-#     self._assert_not_discarded()
-#     assert isinstance(event, NotificationLog.ItemAdded), event
-#     assert isinstance(self, NotificationLog)
-#     self.items.append(event.item)
-#     self._increment_version()
-#     return self
-#
-#
-# @notification_log_mutator.register(NotificationLog.Closed)
-# def item_added_mutator(event, self):
-#     assert isinstance(event, NotificationLog.Closed), event
-#     assert isinstance(self, NotificationLog)
-#     return self
-
-
 class NotificationLogRepository(EntityRepository):
-    pass
+    def get_or_create(self, log_name, timebucket_size=None, sequence_max_size=None):
+        """
+        Gets or creates a log.
+
+        :rtype: NotificationLog
+        """
+        try:
+            return self[log_name]
+        except RepositoryKeyError:
+            return start_notification_log(
+                log_name=log_name,
+                timebucket_size=timebucket_size,
+                sequence_max_size=sequence_max_size,
+            )
 
 
-def start_notification_log(log_name, sequence_max_size=100000):
-    event = NotificationLog.Started(entity_id=log_name, name=log_name, sequence_max_size=sequence_max_size)
+def start_notification_log(log_name, timebucket_size=None, sequence_max_size=None):
+    event = NotificationLog.Started(
+        entity_id=log_name,
+        name=log_name,
+        bucket_size=timebucket_size,
+        sequence_max_size=sequence_max_size,
+    )
     entity = NotificationLog.mutate(event=event)
     publish(event)
     return entity

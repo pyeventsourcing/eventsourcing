@@ -22,7 +22,7 @@ class LogReader(with_metaclass(QualnameABCMeta)):
     def __init__(self, log, event_store, page_size=50):
         assert isinstance(log, Log)
         self.log = log
-        assert isinstance(event_store, AbstractEventStore)
+        assert isinstance(event_store, AbstractEventStore), event_store
         self.event_store = event_store
         assert isinstance(page_size, six.integer_types)
         self.page_size = page_size
