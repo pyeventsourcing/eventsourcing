@@ -8,13 +8,6 @@ A library for event sourcing in Python.
 
 ## Features
 
-**Worked Examples** — A simple worked example application, with example
-entity class, event sourced repository, and factory method (see below).
-Included in the library is a slightly more sophisticated version of the
-example application below. Also, in the 'eventsourcing.contrib' package,
-there is a persistent "generalized suffix tree" which shows how a more
-complex model could be written.
-
 **Generic Event Store** — With an extendable set of adapters (called
 "stored event repositories" in the code) for popular ORMs and databases
 systems (e.g. Cassandra, SQLAlchemy). Also supports using Python objects
@@ -25,14 +18,13 @@ an abstract base class in case you want to use a custom event store in
 your application. There are test cases you can use that make it easy to
 check your implementation.
 
-**Abstract Base Classes and Test Cases** — Makes it easy to develop new
+**Abstract Base Classes and Test Cases** — Make it easy to develop new
 applications, with custom entities and repositories, custom domain
 events and custom subscribers (see example below, and the test cases).
 
-**Collections** — An object-oriented alternative to "joins", used for
-modelling multiplicities of different kinds.
+**Collections** — Used for modelling collections of different kinds.
 
-**Snapshots** — Avoids replaying an entire event stream to obtain the
+**Snapshots** — Avoid replaying an entire event stream to obtain the
 current state of an entity, hence entity access in constant time,
 rather than proportional to the number of events. Snapshotting is
 implemented as a strategy object in the application class, making it
@@ -40,45 +32,58 @@ easy to use a custom snapshotting mechanism and storage. A snapshot
 strategy is included which reuses the capabilities of this library by
 implementing snapshots as domain events.
 
+**Fast Forwarding** — Of entities to latest published event, used with
+snapshots and also when optimistic currency control exceptions are
+encountered.
+
 **Optimistic Concurrency Control** — Implemented using optimistic
 concurrency controls in the adapted database. For example, with
 Cassandra this accomplishes linearly-scalable distributed optimistic
 concurrency control, guaranteeing sequential consistency of each
 event stream, across a distributed application. It is also possible to
-serialize the execution of commands on an aggregate, but that is out 
+serialize the execution of commands on an aggregate, but that is out
 of the scope of this package. If you wish to do that, perhaps something
 like [Zookeeper](https://zookeeper.apache.org/) might help.
 
-**Fast Forwarding** — Of entities to latest published event, used with
-snapshots and also when optimistic currency control exceptions are
-encountered.
-
 **Application-Level Encryption** — Symmetric encryption of all stored
 events, including snapshots and logged messages, using a customizable
-cipher. Can optionally be applied to particular events, or all stored
-events, or not applied at all (the default). Included is an AES cipher,
-in CBC mode with 128 bit blocksize, that uses a 16 byte encryption key
-passed in at run time, and which generates a unique 16 byte
-initialization vector for each encryption. Data is compressed before it
-is encrypted, which can mean application performance is improved when
-encryption is enabled.
+cipher. Can optionally be applied to encrypt particular events, or all
+stored events, or not applied at all (the default). Included is an AES
+cipher, by default in CBC mode with 128 bit blocksize, that uses a 16
+byte encryption key passed in at run time, and which generates a
+unique 16 byte initialization vector for each encryption. Data is
+compressed before it is encrypted, which can mean application
+performance is improved when encryption is enabled.
 
 **Synchronous Publish-Subscribe Mechanism** — Entirely deterministic,
 with handlers called in the order they are registered, and with which
 calls to publish events do not return until all event subscribers have
 returned.
 
-**Time-Bucketed Logs** — Logged messages and log readers, for writing
-and reading an indefinitely long stream of events in a scalable manner.
-An example could be a domain event log, that allows all stored events
-in an application to be logged in a linearly scalable manner, and then 
-retrieved quickly in order, limited by number, from any point in time
-until another point in time, in reverse or ascending order.
+**Time-Bucketed Logs** — Provide a way of writing an indefinitely long
+stream of events in a highly scalable manner. Includes log objects,
+logged message events and a log reader implemented as a generator that
+can span across many many buckets. For example, a domain event log
+that allows all stored events in an application to be logged in
+a linearly scalable manner, and then retrieved in order, limited by
+number, from any point in time until another point in time, in reverse
+or ascending order.
+
+**Notification Logs** - Provide a way of reading an indefinitely long
+sequence of events in a highly scalable manner. Includes a notification
+logger that writes an event sourced log that can be indexed with a
+contiguous integer sequence, and a log reader implemented as a generator
+that selects a part of a sequence using Python's list slice syntax.
 
 **Customizable Transcoding** — Between domain events and stored events,
 allows support to be added for serialization and deserialization of
 custom value object types, and also makes it possible to use different
 database schemas when developing a custom stored event repository.
+
+**Worked Examples** — A simple worked example application, with example
+entity class, event sourced repository, and factory method (see below).
+Also included is a slightly more sophisticated version of the
+example application below.
 
 
 ## Install
@@ -88,12 +93,13 @@ the Python Package Index.
 
     pip install eventsourcing
 
-If you want to run the test suite, or try the example below, then please install with the 
-optional extra called 'test'.
+If you want to run the test suite, or try the example below, then
+please install with the optional extra called 'test'.
 
     pip install eventsourcing[test]
 
-After installing with the 'test' optional extra, the test suite should pass.
+After installing with the 'test' optional extra, the test suite should
+pass.
 
     python -m unittest discover eventsourcing.tests -v
 
@@ -109,8 +115,9 @@ There is also a mailing list.
 
 ## Usage
 
-Start by opening a new Python file in your favourite editor, or start a
-new project in your favourite IDE (I've been using PyCharm for this code).
+Start by opening a new Python file in your favourite editor, or start
+a new project in your favourite IDE (I've been using PyCharm for this
+code).
 
 Start writing yourself a new event sourced entity class, by making a
 subclass of 'EventSourcedEntity' (from module
@@ -122,12 +129,12 @@ from eventsourcing.domain.model.entity import EventSourcedEntity, mutablepropert
 
 class Example(EventSourcedEntity):
     """An example of an event sourced entity class."""
-    
+
 ```
 
 The entity class domain events must be defined on the domain entity
 class. In the example below, an 'Example' entity defines 'Created',
-'AttributeChanged', and 'Discarded' events. Add these events to your 
+'AttributeChanged', and 'Discarded' events. Add these events to your
 entity class.
 
 ```python
@@ -232,9 +239,9 @@ class Example(EventSourcedEntity):
 
 
 Next, define a factory method that returns new entity instances. Rather
-than directly constructing the entity object instance, it should firstly
-instantiate a 'Created' domain event, and then call the mutator to
-obtain an entity object. The factory method then publishes the event
+than directly constructing the entity object instance, it should
+firstly instantiate a 'Created' domain event, and then call the mutator
+to obtain an entity object. The factory method then publishes the event
 (for example, so that it might be saved into the event store by the
 persistence subscriber). Finally it returns the entity to the caller.
 
@@ -251,16 +258,14 @@ def register_new_example(a, b):
 ```
 
 That's everything needed to create new entities. How can existing
-entities be obtained?
+entities be obtained? Entities are retrieved from repositories.
 
-Entities are retrieved from repositories.
- 
 Define an event sourced repository class for your entity. Inherit from
 eventsourcing.infrastructure.event_sourced_repo.EventSourcedRepository
 and set the 'domain_class' attribute on the subclass.
 
 ```python
-from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
+from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository
 
 class ExampleRepository(EventSourcedRepository):
 
@@ -324,32 +329,32 @@ the entity after it has been discarded:
 ```python
 db_uri = 'sqlite:///:memory:'
 with ExampleApplication(db_uri=db_uri, enable_occ=True) as app:
-    
+
     # Register a new example.
     example1 = register_new_example(a=1, b=2)
-    
+
     # Check the example is available in the repo.
     assert example1.id in app.example_repo
-    
+
     # Check the attribute values.
     entity1 = app.example_repo[example1.id]
     assert entity1.a == 1
     assert entity1.b == 2
-    
+
     # Change attribute values.
     entity1.a = 123
     entity1.b = 234
-    
+
     # Check the new values are available in the repo.
     entity1 = app.example_repo[example1.id]
     assert entity1.a == 123
     assert entity1.b == 234
-    
+
     # Discard the entity.
     entity1.discard()
 
     assert example1.id not in app.example_repo
-    
+
     # Getting a discarded entity from the repo causes a KeyError.
     try:
         app.example_repo[example1.id]
@@ -376,7 +381,7 @@ with ExampleApplication(db_uri=db_uri, enable_occ=True, cipher=cipher,
 
     # Register a new example.
     example1 = register_new_example(a='secret data', b='more secrets')
-    
+
 
 ```
 
@@ -413,12 +418,12 @@ and you will also need to add a record to that table for each stored event. See 
 string of EventSourcingApplication class for a zero-downtime migration approach.
 
 To enable optimistic concurrency control, set the application constructor argument named
-'enable_occ' to a True value. 
+'enable_occ' to a True value.
 
 
 ### Upgrading From 0.9.4 to 1.0.x
 
-If you are upgrading from version 0.9.4, or earlier, please note that version 0.9.4 is 
+If you are upgrading from version 0.9.4, or earlier, please note that version 0.9.4 is
 the last version with ascending as the declared ordering of 'event_id' in column family 'cql_stored_event'.
 Subsequent versions have the this ordering declared as descending. The change was made to support both paging
 through long histories of events and getting only recent events after a snapshot.
@@ -427,7 +432,7 @@ A few things have been renamed, for example '@mutableproperty' is the new name f
 This change was made to reflect the fact that immutable properties are also event sourced.
 
 The EventSourcedEntity class now has a property 'created_on', which replaces the attribute '_created_on'.
-This change follows from the fact that the domain events no longer have an floating point attribute 'timestamp' 
+This change follows from the fact that the domain events no longer have an floating point attribute 'timestamp'
 but instead a UUID attribute 'domain_event_id', which is set on an event sourced entity as '_initial_event_id'.
 That UUID value is used to generate the floating point timestamp value of the 'created_on' property.
 
@@ -438,12 +443,12 @@ order to have their own mutator function invoked when mutate() is called.
 There is a new method called _apply() on EventSourcedEntity, which makes operations that need to apply events
 have a suitably named method to call. The apply() method calls the mutate() class method, which is also used by the
 event source repository to replay events. The mutate() class method calls the static method _mutator() with the
-event and an initial state. So the static method _mutator is a good method to override in order to introduce 
+event and an initial state. So the static method _mutator is a good method to override in order to introduce
 a mutator for the class.
 
 Please see the Example class for details, and the documentation for singledispatch.
 
-Also, for Cassandra users, the table name for stored events has changed to 'stored_events'. The column names 
+Also, for Cassandra users, the table name for stored events has changed to 'stored_events'. The column names
 have changed to be single characters, for storage efficiency. Production data will need to be migrated.
 
 
@@ -475,7 +480,7 @@ Inspiration:
 
 * Robert Smallshire's brilliant example code on Bitbucket
     * https://bitbucket.org/sixty-north/d5-kanban-python/src
-    
+
 * Various professional projects that called for this approach, across which I didn't want to rewrite
   the same things each time
 
@@ -502,7 +507,7 @@ See also:
 
     * Base class for event sourced applications with simple Python objects (non-persistent)
 
-* Base class for event sourced applications, which provides an event store and a persistence subscriber, but 
+* Base class for event sourced applications, which provides an event store and a persistence subscriber, but
  which requires subclasses to implement a method that provides a stored event repository instance
 
 * Example event sourced entity
@@ -515,7 +520,7 @@ See also:
 
     * Event sourced property decorator, to help declare simple event sourced properties
 
-    * A "discard" method which publishes the discarded event, to call when an entity is no longer wanted, 
+    * A "discard" method which publishes the discarded event, to call when an entity is no longer wanted,
 
 * Domain event base class, to model events in a domain
 
@@ -532,7 +537,7 @@ See also:
 * Domain event store class
 
     * Method to append a new domain event
-    
+
     * Method to get all the domain events for an entity
 
 * Concrete stored event repository classes
@@ -569,7 +574,7 @@ See also:
 
 * Method to get domain events for given entity ID, until given time
 
-* Method to get a limited number of domain events 
+* Method to get a limited number of domain events
 
 * Generator that retrieves events in a succession of pages, emitting a
  continuous stream in ascending or descending order
@@ -615,7 +620,7 @@ Todo: Develop above to be an API reference.
 
 * Republisher that subscribers to Amazon SQS and publishes domain event locally (forthcoming)
 
-* Linked pages of domain events ("Archived Log"), to allow event sourced projections easily to make sure they have 
+* Linked pages of domain events ("Archived Log"), to allow event sourced projections easily to make sure they have
 all the events (forthcoming)
 
 * Base class for event sourced projections or views (forthcoming)
@@ -631,14 +636,14 @@ all the events (forthcoming)
 
 * Updating stored events, to support domain model migration (forthcoming)
 
-* Something to store serialized event attribute values separately from the other event information, to prevent large 
-attribute values inhibiting performance and stability - different sizes could be stored in different ways... 
+* Something to store serialized event attribute values separately from the other event information, to prevent large
+attribute values inhibiting performance and stability - different sizes could be stored in different ways...
 (forthcoming)
 
 * Different kinds of stored event
     * IDs generated from content, e.g. like Git (forthcoming)
     * cryptographically signed stored events (forthcoming)
-    
+
 * Branch and merge mechanism for domain events (forthcoming)
 
 * Support for asynchronous I/O, with an application that uses an event loop (forthcoming)
