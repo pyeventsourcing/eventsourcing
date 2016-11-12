@@ -18,10 +18,12 @@ from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCas
 # Navigate from end by getting "current" log, if has "back link" then can follow it
 # until reach page with latest item.
 
+# Todo: Read from subsequent sequences if slice.stop goes beyond the end of the sequence.
+
 
 class NotificationLogTestCase(AppishTestCase):
+
     def test_entity_lifecycle(self):
-        # log_repo = LogRepo(self.event_store)
         notification_log_repo = NotificationLogRepo(self.event_store)
 
         notification_log = notification_log_repo.get_or_create(
@@ -65,15 +67,43 @@ class NotificationLogTestCase(AppishTestCase):
         self.assertEqual(notification_log_reader[0:2], [item1, item2])
         self.assertEqual(notification_log_reader[2:4], [item3, item4])
 
+        # Check stop value is handled properly.
+        self.assertEqual(notification_log_reader[2:3], [item3])
+
+        # Index too large.
         with self.assertRaises(IndexError):
             notification_log_reader[5]
 
-        with self.assertRaises(IndexError):
-            notification_log_reader[-1:]
-
+        # Negative index.
         with self.assertRaises(IndexError):
             notification_log_reader[-1]
 
+        # Incomplete slice.
+        with self.assertRaises(IndexError):
+            notification_log_reader[1:]
+
+        # Incomplete slice.
+        with self.assertRaises(IndexError):
+            notification_log_reader[:1]
+
+        # Negative start.
+        with self.assertRaises(IndexError):
+            notification_log_reader[-1:0]
+
+        with self.assertRaises(IndexError):
+            # Slice has negative stop.
+            notification_log_reader[0:-1]
+
+        with self.assertRaises(IndexError):
+            # Slice crosses sequences.
+            notification_log_reader[0:4]
+
+        notification_log_reader[0:1:None]
+        with self.assertRaises(IndexError):
+            # Slice has a step value.
+            notification_log_reader[0:1:1]
+
+        # Add some more items.
         for i in range(10):
             item = 'boo{}'.format(i)
             append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, self.event_store)
