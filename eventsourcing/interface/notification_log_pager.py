@@ -1,5 +1,3 @@
-from operator import div
-
 from eventsourcing.domain.services.notification_log import NotificationLogReader
 
 
@@ -24,7 +22,7 @@ class NotificationLogPager(object):
         )
         if page_name == 'current':
             last_item = len(reader)
-            start = div(last_item, self.page_size) * self.page_size
+            start = (last_item // self.page_size) * self.page_size
             stop = start + self.page_size
         else:
             try:

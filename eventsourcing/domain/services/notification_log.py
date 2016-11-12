@@ -1,5 +1,3 @@
-from operator import div
-
 import six
 
 from eventsourcing.domain.model.log import LogRepository
@@ -7,7 +5,6 @@ from eventsourcing.domain.model.notification_log import NotificationLog
 from eventsourcing.domain.model.sequence import SequenceRepository, Sequence
 from eventsourcing.domain.services.eventstore import AbstractEventStore
 from eventsourcing.domain.services.sequence import append_item_to_sequence, SequenceReader
-
 from eventsourcing.exceptions import SequenceFullError
 from eventsourcing.infrastructure.log_reader import LogReader
 
@@ -17,10 +14,12 @@ def append_item_to_notification_log(notification_log, item, sequence_repo, log_r
     assert isinstance(sequence_repo, SequenceRepository)
     assert isinstance(log_repo, LogRepository)
     # Get the sequence.
-    current_sequence = get_current_notification_log_sequence(notification_log, sequence_repo, log_repo, sequence_event_player)
+    current_sequence = get_current_notification_log_sequence(notification_log, sequence_repo, log_repo,
+                                                             sequence_event_player)
     assert isinstance(current_sequence, Sequence)
     try:
-        append_item_to_sequence(current_sequence.name, item, sequence_repo.event_player, notification_log.sequence_size)
+        append_item_to_sequence(current_sequence.name, item, sequence_repo.event_player,
+                                notification_log.sequence_size)
     except SequenceFullError:
         # Roll over the sequence.
         # - construct next sequence ID
@@ -94,7 +93,7 @@ class NotificationLogReader(object):
 
             # Identify sequence and sequence index values from start and stop.
             start_sequence_number, slice_start = divmod(item.start, sequence_size)
-            stop_sequence_number = div(item.stop - 1, sequence_size)
+            stop_sequence_number = (item.stop - 1) // sequence_size
 
             # Check everything will come from a single sequence.
             if start_sequence_number != stop_sequence_number:
@@ -119,7 +118,8 @@ class NotificationLogReader(object):
         try:
             return reader[sequence_item]
         except IndexError:
-            msg = "Notification log item {} not found (item {} in sequence {})".format(item, sequence_item, sequence_number)
+            msg = "Notification log item {} not found (item {} in sequence {})".format(item, sequence_item,
+                                                                                       sequence_number)
             raise IndexError(msg)
 
     def __len__(self):
