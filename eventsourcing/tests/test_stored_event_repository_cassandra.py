@@ -1,5 +1,5 @@
 from eventsourcing.tests.unit_test_cases import BasicStoredEventRepositoryTestCase, \
-    ConcurrentStoredEventRepositoryTestCase, SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase, \
+    OptimisticConcurrencyControlTestCase, SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase, \
     notquick
 from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
 
@@ -16,5 +16,5 @@ class TestThreadedStoredEventIteratorWithCassandra(CassandraRepoTestCase, Thread
     pass
 
 @notquick()
-class TestConcurrentStoredEventRepositoryWithCassandra(CassandraRepoTestCase, ConcurrentStoredEventRepositoryTestCase):
+class TestOptimisticConcurrencyControlWithCassandra(CassandraRepoTestCase, OptimisticConcurrencyControlTestCase):
     pass

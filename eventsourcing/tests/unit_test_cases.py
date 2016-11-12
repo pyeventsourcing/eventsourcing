@@ -198,14 +198,14 @@ class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.assertEqual(stored_events[18].event_attrs, retrieved_events[0].event_attrs)
 
 
-class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
+class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase):
     def setUp(self):
-        super(ConcurrentStoredEventRepositoryTestCase, self).setUp()
+        super(OptimisticConcurrencyControlTestCase, self).setUp()
         self.app = None
         self.temp_file = NamedTemporaryFile('a')
 
     def tearDown(self):
-        super(ConcurrentStoredEventRepositoryTestCase, self).tearDown()
+        super(OptimisticConcurrencyControlTestCase, self).tearDown()
         if self.app is not None:
             self.app.close()
 
@@ -248,19 +248,17 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         # Check each event version was written exactly once.
         self.assertEqual(sorted([i[0] for i in total_successes]), list(range(number_of_events)))
 
-        # Check each child got to write at least one event.
+        # Check at least 90% of events written had contention that caused a concurrency error.
+        set_failures = set([i[0] for i in total_failures])
+        self.assertGreaterEqual(len(set_failures), number_of_events * 0.9)
+
+        # Check each child wrote at least one event.
         self.assertEqual(len(set([i[1] for i in total_successes])), pool_size)
 
-        # Check each event version at least once wasn't written due to a concurrency error.
-        self.assertEqual(sorted(set(sorted([i[0] for i in total_failures]))), list(range(number_of_events)))
-
-        # Check at least one event version wasn't written due to a concurrency error.
-        self.assertTrue(set([i[0] for i in total_failures]))
-
-        # Check each child failed to write at least one event.
+        # Check each child encountered at least one concurrency error.
         self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
 
-        # Check there's actually a contiguous version sequence through the sequence of stored events.
+        # Check the repo actually has a contiguous version sequence.
         events = self.stored_event_repo.get_entity_events(stored_entity_id)
         self.assertEqual(len(events), number_of_events)
         version_counter = 0
@@ -373,7 +371,7 @@ def create_repo_for_worker(stored_repo_class, temp_file_name):
 
 
 def append_lots_of_events_to_repo(args):
-    return ConcurrentStoredEventRepositoryTestCase.append_lots_of_events_to_repo(args)
+    return OptimisticConcurrencyControlTestCase.append_lots_of_events_to_repo(args)
 
 
 class IteratorTestCase(AbstractStoredEventRepositoryTestCase):

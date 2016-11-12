@@ -16,5 +16,5 @@ class TestThreadedStoredEventIteratorWithPythonObjects(PythonObjectsRepoTestCase
 
 
 # Todo: Revisit this, but with threading rather than multiprocessing because data is stored in process.
-# class TestConcurrentStoredEventRepositoryWithPythonObjects(PythonObjectsRepoTestCase, ConcurrentStoredEventRepositoryTestCase):
+# class TestConcurrentStoredEventRepositoryWithPythonObjects(PythonObjectsRepoTestCase, OptimisticConcurrencyControlTestCase):
 #     pass
