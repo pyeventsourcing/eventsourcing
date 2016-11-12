@@ -8,24 +8,28 @@ A library for event sourcing in Python.
 
 ## Features
 
-**Generic Event Store** — With an extendable set of adapters (called
-"stored event repositories" in the code) for popular ORMs and databases
-systems (e.g. Cassandra, SQLAlchemy). Also supports using Python objects
-in memory, for rapid application development. If your database system
-isn't already supported, it will be relatively easy to adapt by writing
-a custom stored event repository. The event store is also derived from
-an abstract base class in case you want to use a custom event store in
-your application. There are test cases you can use that make it easy to
-check your implementation.
+**Event Store** — With an extendable set of adapters (called
+"stored event repositories") for ORMs and databases systems
+(e.g. Cassandra, SQLAlchemy). Includes a simple Python object
+stored event repository which makes tests very fast. If your
+database system isn't already supported, it will be relatively
+easy to adapt by writing a custom stored event repository. The
+event store is derived from an abstract base class, in case you
+want to make and use a custom event store in your application.
+A base test case is included, to help check stored event
+repository implementations.
 
 **Abstract Base Classes and Test Cases** — Make it easy to develop new
-applications, with custom entities and repositories, custom domain
-events and custom subscribers (see example below, and the test cases).
+applications, with custom entities, custom repositories, custom domain
+events, custom subscribers, custom transcoders, custom stored
+event repositories, custom snapshotting mechanism (see example below,
+and the test cases).
 
-**Collections** — Used for modelling collections of different kinds.
+**Collections** — Event sourced collections, for modelling different
+kinds of multiplicity.
 
 **Snapshots** — Avoid replaying an entire event stream to obtain the
-current state of an entity, hence entity access in constant time,
+current state of an entity. Makes entity access constant time,
 rather than proportional to the number of events. Snapshotting is
 implemented as a strategy object in the application class, making it
 easy to use a custom snapshotting mechanism and storage. A snapshot
