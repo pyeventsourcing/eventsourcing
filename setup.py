@@ -30,6 +30,8 @@ setup(
             # 'numpy',
             'PyCrypto',
             'sqlalchemy',
+            'feedgen',
+            'feedparser',
         ],
         'sqlalchemy': [
             'sqlalchemy',
