@@ -340,21 +340,15 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
             return (successes, failures)
 
 
-def pool_initializer(stored_repo_class, temp_file_name):
-    global worker_repo
-
-    repo = create_repo(stored_repo_class, temp_file_name)
-    worker_repo = repo
-
-
-def append_lots_of_events_to_repo(args):
-    return ConcurrentStoredEventRepositoryTestCase.append_lots_of_events_to_repo(args)
-
-
 worker_repo = None
 
 
-def create_repo(stored_repo_class, temp_file_name):
+def pool_initializer(stored_repo_class, temp_file_name):
+    global worker_repo
+    worker_repo = create_repo_for_worker(stored_repo_class, temp_file_name)
+
+
+def create_repo_for_worker(stored_repo_class, temp_file_name):
     if stored_repo_class == CassandraStoredEventRepository:
         setup_cassandra_connection(*get_cassandra_setup_params())
         repo = CassandraStoredEventRepository(
@@ -376,6 +370,10 @@ def create_repo(stored_repo_class, temp_file_name):
     else:
         raise Exception("Stored repo class not yet supported in test: {}".format(stored_repo_class))
     return repo
+
+
+def append_lots_of_events_to_repo(args):
+    return ConcurrentStoredEventRepositoryTestCase.append_lots_of_events_to_repo(args)
 
 
 class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
