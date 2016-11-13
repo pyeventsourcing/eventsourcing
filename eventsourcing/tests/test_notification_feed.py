@@ -1,6 +1,7 @@
 import platform
 from itertools import chain
 from threading import Thread
+from time import sleep
 from unittest.case import skipIf
 
 import six
@@ -195,7 +196,7 @@ class NotificationFeedTestCase(AppishTestCase):
         self.assertEqual(len(list(feed_reader.get_items())), 21)
 
     # Todo: Change to use gdata distribution's atom package for .
-    @skipIf(six.PY3, "Doesn't work with lxml")
+    @skipIf(platform.python_implementation() == 'PyPy', "PyPy doesn't work with lxml")
     def test_atom_client_with_server(self):
         # Build a notification log.
         notification_log_repo = NotificationLogRepo(self.event_store)
@@ -257,7 +258,9 @@ class NotificationFeedTestCase(AppishTestCase):
             items = list(feed_reader.get_items(last_item_num=5))
         finally:
             httpd.shutdown()
+            sleep(1)
             thread.join()
+            sleep(1)
 
         # Check we got all the items after item 5.
         self.assertEqual(len(items), 8)
