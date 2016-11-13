@@ -32,6 +32,7 @@ setup(
             'sqlalchemy',
             'feedgen',
             'feedparser',
+            'requests',
         ],
         'sqlalchemy': [
             'sqlalchemy',

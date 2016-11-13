@@ -1,4 +1,5 @@
 import feedparser
+import requests
 import six
 
 from eventsourcing.domain.model.log import LogRepository
@@ -170,8 +171,11 @@ class AtomNotificationFeedReader(NotificationFeedReader):
     def get_doc(self, doc_id):
         doc_url = self.base_url + self.log_name + '/' + doc_id + '/'
 
+        doc_content = requests.get(doc_url).content
+
+        doc_content = doc_content.decode('utf8')
         # Get resource from URL.
-        doc_atom = feedparser.parse(doc_url)
+        doc_atom = feedparser.parse(doc_content)
         try:
             feed_id = doc_atom.feed.id
         except AttributeError as e:

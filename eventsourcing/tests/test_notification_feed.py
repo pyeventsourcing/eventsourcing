@@ -194,10 +194,6 @@ class NotificationFeedTestCase(AppishTestCase):
         feed_reader = NotificationFeedReader(feed)
         self.assertEqual(len(list(feed_reader.get_items())), 21)
 
-    # Todo: Rework the atom stuff to use the atom package from the gdata distribution.
-    @skipIf(six.PY3 or platform.python_implementation() == 'PyPy', (
-        "These atom libs don't seem work with python3 (need to replace)"
-    ))
     def test_atom_client_with_server(self):
         # Build a notification log.
         notification_log_repo = NotificationLogRepo(self.event_store)
@@ -225,7 +221,12 @@ class NotificationFeedTestCase(AppishTestCase):
             start_response(status, headers)
 
             # Extract log name and doc ID from path info.
-            log_name, doc_id = environ['PATH_INFO'].strip('/').split('/')[-2:]
+            path_info = environ['PATH_INFO']
+            try:
+                log_name, doc_id = path_info.strip('/').split('/')[-2:]
+            except ValueError as e:
+                msg = "Couldn't extract log name and doc ID from path info {}: {}".format(path_info, e)
+                raise ValueError(msg)
             notification_log = notification_log_repo[log_name]
 
             # Return the atom feed notification doc.
@@ -237,26 +238,28 @@ class NotificationFeedTestCase(AppishTestCase):
                 event_store=self.event_store,
                 doc_size=3,
             )
-            return atom_feed.get_doc(doc_id=doc_id)
+            atom_doc = atom_feed.get_doc(doc_id=doc_id)
+            atom_doc = atom_doc.decode('utf8')
+            atom_doc = atom_doc.split('\n')
+            atom_doc = ['{}\n'.format(line) for line in atom_doc]
+            return [l.encode('utf8') for l in atom_doc]
 
         httpd = make_server('', 8000, simple_app)
         print("Serving on port 8000...")
         thread = Thread(target=httpd.serve_forever)
-        thread.setDaemon(True)
-
+        # thread.setDaemon(True)
+        thread.start()
         try:
-            thread.start()
             # Use atom feed reader to read all items in the feed.
             feed_reader = AtomNotificationFeedReader(base_url, log_name)
             items = list(feed_reader.get_items(last_item_num=5))
-
-            # Check we got all the items after item 5.
-            self.assertEqual(len(items), 8)
-            self.assertEqual(items[0], 'item6')
-
         finally:
             httpd.shutdown()
             thread.join()
+
+        # Check we got all the items after item 5.
+        self.assertEqual(len(items), 8)
+        self.assertEqual(items[0], 'item6')
 
 
 class TestNotificationFeedWithPythonObjects(PythonObjectsRepoTestCase, NotificationFeedTestCase):

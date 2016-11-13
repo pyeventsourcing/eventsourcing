@@ -7,3 +7,4 @@ six==1.10.0
 SQLAlchemy==1.1.1
 feedgen==0.4.0
 feedparser==5.2.1
+requests
