@@ -195,8 +195,9 @@ class NotificationFeedTestCase(AppishTestCase):
         self.assertEqual(len(list(feed_reader.get_items())), 21)
 
     # Todo: Rework the atom stuff to use the atom package from the gdata distribution.
-    @skipIf(platform.python_implementation() == 'PyPy', "The FeedGenerator uses lxml which doesn't work with PyPI.")
-    @skipIf(six.PY3, "The HTTP libs don't work with Python3.")
+    @skipIf(six.PY3 or platform.python_implementation() == 'PyPy', (
+        "These atom libs don't seem work with python3 (need to replace)"
+    ))
     def test_atom_client_with_server(self):
         # Build a notification log.
         notification_log_repo = NotificationLogRepo(self.event_store)
