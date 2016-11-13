@@ -194,6 +194,8 @@ class NotificationFeedTestCase(AppishTestCase):
         feed_reader = NotificationFeedReader(feed)
         self.assertEqual(len(list(feed_reader.get_items())), 21)
 
+    # Todo: Change to use gdata distribution's atom package for .
+    @skipIf(six.PY3, "Doesn't work with lxml")
     def test_atom_client_with_server(self):
         # Build a notification log.
         notification_log_repo = NotificationLogRepo(self.event_store)
@@ -247,7 +249,7 @@ class NotificationFeedTestCase(AppishTestCase):
         httpd = make_server('', 8000, simple_app)
         print("Serving on port 8000...")
         thread = Thread(target=httpd.serve_forever)
-        # thread.setDaemon(True)
+        thread.setDaemon(True)
         thread.start()
         try:
             # Use atom feed reader to read all items in the feed.
