@@ -3,7 +3,7 @@ from itertools import chain
 from threading import Thread
 from unittest.case import skipIf
 
-from requests.packages.urllib3.packages import six
+import six
 
 from eventsourcing.domain.services.notification_log import append_item_to_notification_log
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
