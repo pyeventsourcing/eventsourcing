@@ -1,5 +1,7 @@
+import platform
 from itertools import chain
 from threading import Thread
+from unittest.case import skipIf
 
 from eventsourcing.domain.services.notification_log import append_item_to_notification_log
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
@@ -14,7 +16,6 @@ from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCas
 
 
 class NotificationFeedTestCase(AppishTestCase):
-
     def test_get_items(self):
         # Build a log.
         notification_log_repo = NotificationLogRepo(self.event_store)
@@ -25,7 +26,7 @@ class NotificationFeedTestCase(AppishTestCase):
             sequence_size=10,
         )
         for i in range(13):
-            item = 'item{}'.format(i+1)
+            item = 'item{}'.format(i + 1)
             append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, self.event_store)
 
         # Get pages.
@@ -48,7 +49,7 @@ class NotificationFeedTestCase(AppishTestCase):
 
         # Add some more items.
         for i in range(13, 24):
-            item = 'item{}'.format(i+1)
+            item = 'item{}'.format(i + 1)
             append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, self.event_store)
 
         items = feed.get_items('current')
@@ -93,7 +94,7 @@ class NotificationFeedTestCase(AppishTestCase):
         )
         # Add some items to the log.
         for i in range(13):
-            item = 'item{}'.format(i+1)
+            item = 'item{}'.format(i + 1)
             append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, self.event_store)
 
         # Create the feed object.
@@ -131,7 +132,7 @@ class NotificationFeedTestCase(AppishTestCase):
         all_items = list(chain(*[doc.get('items') for doc in all_docs]))
         self.assertEqual(len(all_items), 13, all_items)
         for i in range(13):
-            self.assertEqual(all_items[i], 'item{}'.format(i+1))
+            self.assertEqual(all_items[i], 'item{}'.format(i + 1))
 
     def test_notification_feed_reader(self):
         # Build a notification log.
@@ -145,7 +146,7 @@ class NotificationFeedTestCase(AppishTestCase):
         )
         # Add some items to the log.
         for i in range(13):
-            item = 'item{}'.format(i+1)
+            item = 'item{}'.format(i + 1)
             append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, self.event_store)
 
         # Construct a feed object.
@@ -163,7 +164,7 @@ class NotificationFeedTestCase(AppishTestCase):
 
         # Add some more items to the log.
         for i in range(13, 21):
-            item = 'item{}'.format(i+1)
+            item = 'item{}'.format(i + 1)
             append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, self.event_store)
 
         # Use a feed reader to read the feed.
@@ -191,6 +192,7 @@ class NotificationFeedTestCase(AppishTestCase):
         feed_reader = NotificationFeedReader(feed)
         self.assertEqual(len(list(feed_reader.get_items())), 21)
 
+    @skipIf(platform.python_implementation() == 'PyPy', "The FeedGenerator uses lxml which doesn't work with PyPI.")
     def test_atom_client_with_server(self):
         # Build a notification log.
         notification_log_repo = NotificationLogRepo(self.event_store)
@@ -203,7 +205,7 @@ class NotificationFeedTestCase(AppishTestCase):
         )
         # Add some items to the log.
         for i in range(13):
-            item = 'item{}'.format(i+1)
+            item = 'item{}'.format(i + 1)
             append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, self.event_store)
 
         # Start a simple server.
