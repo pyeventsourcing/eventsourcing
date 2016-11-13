@@ -87,8 +87,9 @@ class NotificationFeedReader(object):
 
     def get_items(self, last_item_num=None):
         # Validate the last item number.
-        if (last_item_num is not None) and (last_item_num < 1):
-            raise ValueError("Item number {} must be >= 1.".format(last_item_num))
+        if last_item_num is not None:
+            if last_item_num < 1:
+                raise ValueError("Item number {} must be >= 1.".format(last_item_num))
 
         # Create the feed object.
         doc_id = 'current'
@@ -96,8 +97,9 @@ class NotificationFeedReader(object):
         while 'previous' in doc:
 
             # Break if we can go forward from here.
-            if int(doc['id'].split(',')[0]) <= last_item_num:
-                break
+            if last_item_num is not None:
+                if int(doc['id'].split(',')[0]) <= last_item_num:
+                    break
 
             # Get the previous document.
             doc_id = doc['previous']
