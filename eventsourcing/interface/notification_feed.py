@@ -1,9 +1,8 @@
-from xml.etree.ElementTree import ParseError
+import json
+from abc import ABCMeta, abstractmethod
 
 import requests
 import six
-from atom.core import parse
-from atom.data import Feed, Entry, Link, Id, Title
 
 from eventsourcing.domain.model.log import LogRepository
 from eventsourcing.domain.model.notification_log import NotificationLog
@@ -12,7 +11,25 @@ from eventsourcing.domain.services.eventstore import AbstractEventStore
 from eventsourcing.domain.services.notification_log import NotificationLogReader
 
 
-class NotificationFeed(object):
+class AbstractNotificationFeed(six.with_metaclass(ABCMeta)):
+    @abstractmethod
+    def get_doc(self, doc_id):
+        """Returns feed doc, for given doc ID."""
+        return {}
+
+
+class AbstractNotificationFeedReader(six.with_metaclass(ABCMeta)):
+    def __init__(self, feed):
+        assert isinstance(feed, AbstractNotificationFeed)
+        self.feed = feed
+
+    @abstractmethod
+    def get_items(self, last_item_num=None):
+        """Returns all items in feed, optionally after given last item num."""
+        return []
+
+
+class NotificationFeed(AbstractNotificationFeed):
     """
     Provides linked sections from the log.
     """
@@ -36,7 +53,7 @@ class NotificationFeed(object):
         self.last_slice_stop = None
 
     def get_doc(self, doc_id):
-        items = self.get_items(doc_id=doc_id)
+        items = self._get_items(doc_id=doc_id)
         if doc_id == 'current':
             doc_id = '{},{}'.format(self.last_slice_start + 1, self.last_slice_stop)
         doc = {'id': doc_id, 'items': items}
@@ -50,7 +67,7 @@ class NotificationFeed(object):
             doc['next'] = '{},{}'.format(first_item_number, last_item_number)
         return doc
 
-    def get_items(self, doc_id):
+    def _get_items(self, doc_id):
         reader = NotificationLogReader(
             notification_log=self.notification_log,
             sequence_repo=self.sequence_repo,
@@ -83,53 +100,7 @@ class NotificationFeed(object):
         return reader[slice_start:slice_stop]
 
 
-class AtomNotificationFeed(NotificationFeed):
-
-    def __init__(self, base_url, *args, **kwargs):
-        super(AtomNotificationFeed, self).__init__(*args, **kwargs)
-        self.base_url = base_url
-
-    def get_doc(self, doc_id):
-        doc = super(AtomNotificationFeed, self).get_doc(doc_id)
-
-        # Start building an atom document.
-        feed_title = Title(text='Notification log {} {}'.format(self.notification_log.name, doc['id']))
-        feed_id = Id(text=self.make_doc_url(doc['id']))
-
-        # Add entries.
-        entries = []
-        for item in doc['items']:
-            entry = Entry(
-                title=Title(item),
-                # link=Link(href=feed_id),
-                id=Id(item)
-            )
-            entries.append(entry)
-
-        # Add previous and next links.
-        links = []
-        if 'previous' in doc:
-            href = self.make_doc_url(doc['previous'])
-            link = Link(href=href, rel='previous')
-            links.append(link)
-        if 'next' in doc:
-            href = self.make_doc_url(doc['next'])
-            link = Link(href=href, rel='next')
-            links.append(link)
-
-        # Return atom string.
-        atom_feed = Feed(entry=entries, link=links, title=feed_title, id=feed_id)
-        atom_xml = str(atom_feed)
-        return atom_xml
-
-    def make_doc_url(self, doc_id):
-        return self.base_url.strip('/') + '/' + doc_id
-
-
-class NotificationFeedReader(object):
-    def __init__(self, feed):
-        assert isinstance(feed, NotificationFeed)
-        self.feed = feed
+class NotificationFeedReader(AbstractNotificationFeedReader):
 
     def get_items(self, last_item_num=None):
         # Validate the last item number.
@@ -137,9 +108,11 @@ class NotificationFeedReader(object):
             if last_item_num < 1:
                 raise ValueError("Item number {} must be >= 1.".format(last_item_num))
 
-        # Create the feed object.
+        # Get current doc.
         doc_id = 'current'
-        doc = self.get_doc(doc_id)
+        doc = self.feed.get_doc(doc_id)
+
+        # Follow previous links.
         while 'previous' in doc:
 
             # Break if we can go forward from here.
@@ -149,58 +122,104 @@ class NotificationFeedReader(object):
 
             # Get the previous document.
             doc_id = doc['previous']
-            doc = self.get_doc(doc_id)
+            doc = self.feed.get_doc(doc_id)
 
-        # Yield items in doc, optionally after last item number.
+        # Yield items in first doc, optionally after last item number.
         items = doc['items']
         if last_item_num is not None:
             doc_first_item_number = int(doc['id'].split(',')[0])
             from_index = last_item_num - doc_first_item_number + 1
             items = items[from_index:]
+
         for item in items:
             yield item
 
-        # Yield all items in all subsequent docs.
+        # Follow next links.
         while 'next' in doc:
             doc_id = doc['next']
-            doc = self.get_doc(doc_id)
+            doc = self.feed.get_doc(doc_id)
+
+            # Yield all items in all subsequent docs.
             for item in doc['items']:
                 yield item
 
-    def get_doc(self, doc_id):
-        return self.feed.get_doc(doc_id)
 
-
-class AtomNotificationFeedReader(NotificationFeedReader):
-
+class NotificationFeedClient(AbstractNotificationFeed):
     def __init__(self, base_url, log_name):
         self.base_url = base_url
         self.log_name = log_name
 
     def get_doc(self, doc_id):
+        # Make doc url from doc_id
         doc_url = self.base_url + self.log_name + '/' + doc_id + '/'
 
-        doc_content = requests.get(doc_url).content
+        # Get feed resource representation.
+        feed_str = requests.get(doc_url).content
+        if isinstance(feed_str, type(b'')):
+            feed_str = feed_str.decode('utf8')
 
-        doc_content = doc_content.decode('utf8')
-        # Get resource from URL.
-        try:
-            doc_atom = parse(doc_content, Feed)
-        except ParseError as e:
-            raise ValueError("Couldn't parse doc: {}: {}".format(e, doc_content))
-        try:
-            feed_id = doc_atom.id.text
-        except AttributeError as e:
-            raise AttributeError("Atom doc has no ID, from: {}: {}".format(doc_url, e))
-        doc_id = self.split_href(feed_id)
-        items = [i.id.text for i in doc_atom.entry]
-        doc = {'id': doc_id, 'items': items}
-        for link in doc_atom.link:
-            if link.rel == 'previous':
-                doc['previous'] = self.split_href(link.href)
-            elif link.rel == 'next':
-                doc['next'] = self.split_href(link.href)
-        return doc
+        # Deserialize representation of feed resource.
+        return json.loads(feed_str)
 
-    def split_href(self, href):
-        return href.strip('/').split('/')[-1]
+
+# def atom_xml_from_feed_doc(doc, base_url, log_name):
+#     # Start building an atom document.
+#     feed_title = Title(text='Notification log {} {}'.format(log_name, doc['id']))
+#     feed_id = Id(text=make_doc_url(doc['id'], base_url))
+#
+#     # Add entries.
+#     entries = []
+#     for item in doc['items']:
+#         entry = Entry(
+#             title=Title(item),
+#             id=Id(item)
+#         )
+#         entries.append(entry)
+#
+#     # Add previous and next links.
+#     links = []
+#     if 'previous' in doc:
+#         href = make_doc_url(doc['previous'], base_url)
+#         link = Link(href=href, rel='previous')
+#         links.append(link)
+#     if 'next' in doc:
+#         href = make_doc_url(doc['next'], base_url)
+#         link = Link(href=href, rel='next')
+#         links.append(link)
+#
+#     # Return atom string.
+#     atom_feed = Feed(entry=entries, link=links, title=feed_title, id=feed_id)
+#     atom_xml = str(atom_feed)
+#     return atom_xml
+
+
+# def feed_doc_from_atom_xml(xml_str, doc_url):
+#     xml_str = xml_str.decode('utf8')
+#     try:
+#         atom_feed = parse(xml_str, Feed)
+#     except ParseError as e:
+#         raise ValueError("Couldn't parse doc: {}: {}".format(e, xml_str))
+#
+#     assert isinstance(atom_feed, Feed)
+#
+#     try:
+#         feed_id = atom_feed.id.text
+#     except AttributeError as e:
+#         raise AttributeError("Atom doc has no ID, from: {}: {}".format(doc_url, e))
+#     doc_id = split_href(feed_id)
+#     items = [i.id.text for i in atom_feed.entry]
+#     doc = {'id': doc_id, 'items': items}
+#     for link in atom_feed.link:
+#         if link.rel == 'previous':
+#             doc['previous'] = split_href(link.href)
+#         elif link.rel == 'next':
+#             doc['next'] = split_href(link.href)
+#     return doc
+
+
+# def make_doc_url(doc_id, base_url):
+#     return base_url.strip('/') + '/' + doc_id
+
+
+# def split_href(href):
+#     return href.strip('/').split('/')[-1]

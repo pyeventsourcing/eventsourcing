@@ -30,7 +30,6 @@ setup(
             'PyCrypto',
             'sqlalchemy',
             'requests',
-            'gdata',
         ],
         'sqlalchemy': [
             'sqlalchemy',

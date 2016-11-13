@@ -1,3 +1,4 @@
+import json
 from itertools import chain
 from threading import Thread
 from time import sleep
@@ -6,8 +7,8 @@ from eventsourcing.domain.services.notification_log import append_item_to_notifi
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.event_sourced_repos.notificationlog_repo import NotificationLogRepo
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
-from eventsourcing.interface.notification_feed import NotificationFeed, AtomNotificationFeed, NotificationFeedReader, \
-    AtomNotificationFeedReader
+from eventsourcing.interface.notification_feed import NotificationFeed, NotificationFeedReader, \
+    NotificationFeedClient
 from eventsourcing.tests.unit_test_cases import AppishTestCase
 from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
 from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
@@ -25,7 +26,7 @@ class NotificationFeedTestCase(AppishTestCase):
 
     port_number = port_number()
 
-    def test_get_items(self):
+    def test_get_feed_items(self):
         # Build a log.
         notification_log_repo = NotificationLogRepo(self.event_store)
         log_repo = LogRepo(self.event_store)
@@ -41,19 +42,19 @@ class NotificationFeedTestCase(AppishTestCase):
         # Get pages.
         feed = NotificationFeed(notification_log, sequence_repo, log_repo, self.event_store, doc_size=5)
 
-        items = feed.get_items('current')
+        items = feed._get_items('current')
         self.assertEqual(len(items), 3, items)
 
-        items = feed.get_items('1,5')
+        items = feed._get_items('1,5')
         self.assertEqual(len(items), 5, items)
 
-        items = feed.get_items('6,10')
+        items = feed._get_items('6,10')
         self.assertEqual(len(items), 5, items)
 
-        items = feed.get_items('11,15')
+        items = feed._get_items('11,15')
         self.assertEqual(len(items), 3, items)
 
-        items = feed.get_items('16,20')
+        items = feed._get_items('16,20')
         self.assertEqual(len(items), 0, items)
 
         # Add some more items.
@@ -61,19 +62,19 @@ class NotificationFeedTestCase(AppishTestCase):
             item = 'item{}'.format(i + 1)
             append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, self.event_store)
 
-        items = feed.get_items('current')
+        items = feed._get_items('current')
         self.assertEqual(len(items), 4, items)
 
-        items = feed.get_items('11,15')
+        items = feed._get_items('11,15')
         self.assertEqual(len(items), 5, items)
 
-        items = feed.get_items('16,20')
+        items = feed._get_items('16,20')
         self.assertEqual(len(items), 5, items)
 
-        items = feed.get_items('21,25')
+        items = feed._get_items('21,25')
         self.assertEqual(len(items), 4, items)
 
-        items = feed.get_items('26,30')
+        items = feed._get_items('26,30')
         self.assertEqual(len(items), 0, items)
 
         # Check sequence size must be divisible by doc size.
@@ -83,14 +84,14 @@ class NotificationFeedTestCase(AppishTestCase):
         # Check the doc ID must match the doc size.
         feed = NotificationFeed(notification_log, sequence_repo, log_repo, self.event_store, doc_size=5)
         with self.assertRaises(ValueError):
-            feed.get_items('1,2')
+            feed._get_items('1,2')
 
         # Check the doc ID must be aligned to the doc size.
         feed = NotificationFeed(notification_log, sequence_repo, log_repo, self.event_store, doc_size=5)
         with self.assertRaises(ValueError):
-            feed.get_items('2,6')
+            feed._get_items('2,6')
 
-    def test_get_doc(self):
+    def test_get_feed_doc(self):
         # Check can update from current, back to first, and forward to last.
 
         # Build a notification log.
@@ -143,7 +144,7 @@ class NotificationFeedTestCase(AppishTestCase):
         for i in range(13):
             self.assertEqual(all_items[i], 'item{}'.format(i + 1))
 
-    def test_notification_feed_reader(self):
+    def test_notification_feed_and_reader(self):
         # Build a notification log.
         notification_log_repo = NotificationLogRepo(self.event_store)
         log_repo = LogRepo(self.event_store)
@@ -201,7 +202,7 @@ class NotificationFeedTestCase(AppishTestCase):
         feed_reader = NotificationFeedReader(feed)
         self.assertEqual(len(list(feed_reader.get_items())), 21)
 
-    def test_atom_client_with_server(self):
+    def test_notification_feed_client(self):
         port = next(self.port_number)
 
         # Build a notification log.
@@ -239,19 +240,19 @@ class NotificationFeedTestCase(AppishTestCase):
             notification_log = notification_log_repo[log_name]
 
             # Return the atom feed notification doc.
-            atom_feed = AtomNotificationFeed(
-                base_url=base_url,
+            feed = NotificationFeed(
                 notification_log=notification_log,
                 sequence_repo=sequence_repo,
                 log_repo=log_repo,
                 event_store=self.event_store,
                 doc_size=3,
             )
-            atom_doc = atom_feed.get_doc(doc_id=doc_id)
-            atom_doc = atom_doc.decode('utf8')
-            atom_doc = atom_doc.split('\n')
-            atom_doc = ['{}\n'.format(line) for line in atom_doc]
-            return [l.encode('utf8') for l in atom_doc]
+
+            feed_doc = feed.get_doc(doc_id=doc_id)
+            feed_str = json.dumps(feed_doc, indent=4)
+            feed_str = feed_str.split('\n')
+            feed_str = ['{}\n'.format(line) for line in feed_str]
+            return [l.encode('utf8') for l in feed_str]
 
         httpd = make_server('', port, simple_app)
         print("Serving on port {}...".format(port))
@@ -259,9 +260,10 @@ class NotificationFeedTestCase(AppishTestCase):
         thread.setDaemon(True)
         thread.start()
         try:
-            # Use atom feed reader to read all items in the feed.
-            feed_reader = AtomNotificationFeedReader(base_url, log_name)
-            items = list(feed_reader.get_items(last_item_num=5))
+            # Use reader with client to read all items in remote feed after item 5.
+            feed_client = NotificationFeedClient(base_url, log_name)
+            remote_feed_reader = NotificationFeedReader(feed=feed_client)
+            items = list(remote_feed_reader.get_items(last_item_num=5))
         finally:
             httpd.shutdown()
             sleep(1)
