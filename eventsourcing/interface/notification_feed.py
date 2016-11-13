@@ -125,14 +125,14 @@ class NotificationFeedReader(object):
         return self.feed.get_doc(doc_id)
 
 
-class NotificationAtomFeed(NotificationFeed):
+class AtomNotificationFeed(NotificationFeed):
 
     def __init__(self, base_url, *args, **kwargs):
-        super(NotificationAtomFeed, self).__init__(*args, **kwargs)
+        super(AtomNotificationFeed, self).__init__(*args, **kwargs)
         self.base_url = base_url
 
     def get_doc(self, doc_id):
-        doc = super(NotificationAtomFeed, self).get_doc(doc_id)
+        doc = super(AtomNotificationFeed, self).get_doc(doc_id)
 
         # Start building an atom document.
         fg = FeedGenerator()
@@ -154,26 +154,28 @@ class NotificationAtomFeed(NotificationFeed):
         if 'next' in doc:
             fg.link(href=self.make_doc_url(doc['next']), rel='next')
 
-        # Render as XML.
+        # Return atom string.
         return fg.atom_str(pretty=True)
 
     def make_doc_url(self, doc_id):
         return self.base_url.strip('/') + '/' + doc_id
 
 
-class NotificationAtomFeedReader(NotificationFeedReader):
+class AtomNotificationFeedReader(NotificationFeedReader):
+
+    def __init__(self, base_url, log_name):
+        self.base_url = base_url
+        self.log_name = log_name
 
     def get_doc(self, doc_id):
-        atom_doc = super(NotificationAtomFeedReader, self).get_doc(doc_id)
-        # Extract doc from atom doc.
-        d = feedparser.parse(atom_doc)
-        try:
-            doc_id = self.split_href(d.feed.id)
-        except AttributeError:
-            pass
-        items = [i for i in d.entries]
+        doc_url = self.base_url + self.log_name + '/' + doc_id + '/'
+
+        # Get resource from URL.
+        doc_atom = feedparser.parse(doc_url)
+        doc_id = self.split_href(doc_atom.feed.id)
+        items = [self.split_href(i['id']) for i in doc_atom.entries]
         doc = {'id': doc_id, 'items': items}
-        for link in d.feed.links:
+        for link in doc_atom.feed.links if hasattr(doc_atom.feed, 'links') else []:
             if link.rel == 'previous':
                 doc['previous'] = self.split_href(link.href)
             elif link.rel == 'next':
@@ -182,4 +184,3 @@ class NotificationAtomFeedReader(NotificationFeedReader):
 
     def split_href(self, href):
         return href.strip('/').split('/')[-1]
-

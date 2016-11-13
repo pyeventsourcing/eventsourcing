@@ -1,11 +1,12 @@
 from itertools import chain
+from threading import Thread
 
 from eventsourcing.domain.services.notification_log import append_item_to_notification_log
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.event_sourced_repos.notificationlog_repo import NotificationLogRepo
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
-from eventsourcing.interface.notification_feed import NotificationFeed, NotificationAtomFeed, NotificationFeedReader, \
-    NotificationAtomFeedReader
+from eventsourcing.interface.notification_feed import NotificationFeed, AtomNotificationFeed, NotificationFeedReader, \
+    AtomNotificationFeedReader
 from eventsourcing.tests.unit_test_cases import AppishTestCase
 from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
 from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
@@ -190,20 +191,64 @@ class NotificationFeedTestCase(AppishTestCase):
         feed_reader = NotificationFeedReader(feed)
         self.assertEqual(len(list(feed_reader.get_items())), 21)
 
-        # Todo: Notification atom log server and notification client.
-
-        # Construct an atom feed object.
-        atom_feed = NotificationAtomFeed(
-            base_url='https://127.0.0.1/notification/{}/'.format(log_name),
-            notification_log=notification_log,
-            sequence_repo=sequence_repo,
-            log_repo=log_repo,
-            event_store=self.event_store,
-            doc_size=5,
+    def test_atom_client_with_server(self):
+        # Build a notification log.
+        notification_log_repo = NotificationLogRepo(self.event_store)
+        log_repo = LogRepo(self.event_store)
+        sequence_repo = SequenceRepo(event_store=self.event_store)
+        log_name = 'log1'
+        notification_log = notification_log_repo.get_or_create(
+            log_name=log_name,
+            sequence_size=30,
         )
-        feed_reader = NotificationAtomFeedReader(atom_feed)
-        items = list(feed_reader.get_items())
-        self.assertEqual(len(items), 21, items)
+        # Add some items to the log.
+        for i in range(13):
+            item = 'item{}'.format(i+1)
+            append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, self.event_store)
+
+        # Start a simple server.
+        from wsgiref.util import setup_testing_defaults
+        from wsgiref.simple_server import make_server
+        base_url = 'http://127.0.0.1:8000/notifications/'
+
+        def simple_app(environ, start_response):
+            setup_testing_defaults(environ)
+            status = '200 OK'
+            headers = [('Content-type', 'text/plain')]
+            start_response(status, headers)
+
+            # Extract log name and doc ID from path info.
+            log_name, doc_id = environ['PATH_INFO'].strip('/').split('/')[-2:]
+            notification_log = notification_log_repo[log_name]
+
+            # Return the atom feed notification doc.
+            atom_feed = AtomNotificationFeed(
+                base_url=base_url,
+                notification_log=notification_log,
+                sequence_repo=sequence_repo,
+                log_repo=log_repo,
+                event_store=self.event_store,
+                doc_size=3,
+            )
+            return atom_feed.get_doc(doc_id=doc_id)
+
+        httpd = make_server('', 8000, simple_app)
+        print("Serving on port 8000...")
+        thread = Thread(target=httpd.serve_forever)
+        thread.start()
+
+        try:
+            # Use atom feed reader to read all items in the feed.
+            feed_reader = AtomNotificationFeedReader(base_url, log_name)
+            items = list(feed_reader.get_items(last_item_num=5))
+
+            # Check we got all the items after item 5.
+            self.assertEqual(len(items), 8)
+            self.assertEqual(items[0], 'item6')
+
+        finally:
+            httpd.shutdown()
+            thread.join()
 
 
 class TestNotificationFeedWithPythonObjects(PythonObjectsRepoTestCase, NotificationFeedTestCase):
