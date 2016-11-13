@@ -1,13 +1,15 @@
-import feedparser
+from xml.etree.ElementTree import ParseError
+
 import requests
 import six
+from atom.core import parse
+from atom.data import Feed, Entry, Link, Id, Title
 
 from eventsourcing.domain.model.log import LogRepository
 from eventsourcing.domain.model.notification_log import NotificationLog
 from eventsourcing.domain.model.sequence import SequenceRepository
 from eventsourcing.domain.services.eventstore import AbstractEventStore
 from eventsourcing.domain.services.notification_log import NotificationLogReader
-from feedgen.feed import FeedGenerator
 
 
 class NotificationFeed(object):
@@ -91,27 +93,34 @@ class AtomNotificationFeed(NotificationFeed):
         doc = super(AtomNotificationFeed, self).get_doc(doc_id)
 
         # Start building an atom document.
-        fg = FeedGenerator()
-
-        # Add ID and title.
-        fg.id(self.make_doc_url(doc['id']))
-        fg.title('Notification log {} {}'.format(self.notification_log.name, doc['id']))
+        feed_title = Title(text='Notification log {} {}'.format(self.notification_log.name, doc['id']))
+        feed_id = Id(text=self.make_doc_url(doc['id']))
 
         # Add entries.
+        entries = []
         for item in doc['items']:
-            fe = fg.add_entry()
-            fe.id(item)
-            fe.title(item)
-            fe.content(item)
+            entry = Entry(
+                title=Title(item),
+                # link=Link(href=feed_id),
+                id=Id(item)
+            )
+            entries.append(entry)
 
         # Add previous and next links.
+        links = []
         if 'previous' in doc:
-            fg.link(href=self.make_doc_url(doc['previous']), rel='previous')
+            href = self.make_doc_url(doc['previous'])
+            link = Link(href=href, rel='previous')
+            links.append(link)
         if 'next' in doc:
-            fg.link(href=self.make_doc_url(doc['next']), rel='next')
+            href = self.make_doc_url(doc['next'])
+            link = Link(href=href, rel='next')
+            links.append(link)
 
         # Return atom string.
-        return fg.atom_str(pretty=True)
+        atom_feed = Feed(entry=entries, link=links, title=feed_title, id=feed_id)
+        atom_xml = str(atom_feed)
+        return atom_xml
 
     def make_doc_url(self, doc_id):
         return self.base_url.strip('/') + '/' + doc_id
@@ -175,15 +184,18 @@ class AtomNotificationFeedReader(NotificationFeedReader):
 
         doc_content = doc_content.decode('utf8')
         # Get resource from URL.
-        doc_atom = feedparser.parse(doc_content)
         try:
-            feed_id = doc_atom.feed.id
+            doc_atom = parse(doc_content, Feed)
+        except ParseError as e:
+            raise ValueError("Couldn't parse doc: {}: {}".format(e, doc_content))
+        try:
+            feed_id = doc_atom.id.text
         except AttributeError as e:
-            raise AttributeError("Atom doc has no ID, from: {}".format(doc_url))
+            raise AttributeError("Atom doc has no ID, from: {}: {}".format(doc_url, e))
         doc_id = self.split_href(feed_id)
-        items = [self.split_href(i['id']) for i in doc_atom.entries]
+        items = [i.id.text for i in doc_atom.entry]
         doc = {'id': doc_id, 'items': items}
-        for link in doc_atom.feed.links if hasattr(doc_atom.feed, 'links') else []:
+        for link in doc_atom.link:
             if link.rel == 'previous':
                 doc['previous'] = self.split_href(link.href)
             elif link.rel == 'next':

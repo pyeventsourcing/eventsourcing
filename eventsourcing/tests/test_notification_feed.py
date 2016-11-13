@@ -1,10 +1,6 @@
-import platform
 from itertools import chain
 from threading import Thread
 from time import sleep
-from unittest.case import skipIf
-
-import six
 
 from eventsourcing.domain.services.notification_log import append_item_to_notification_log
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
@@ -18,8 +14,18 @@ from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepo
 from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCase
 
 
+def port_number():
+    port = 8000
+    while True:
+        yield port
+        port += 1
+
+
 class NotificationFeedTestCase(AppishTestCase):
-    def _test_get_items(self):
+
+    port_number = port_number()
+
+    def test_get_items(self):
         # Build a log.
         notification_log_repo = NotificationLogRepo(self.event_store)
         log_repo = LogRepo(self.event_store)
@@ -84,7 +90,7 @@ class NotificationFeedTestCase(AppishTestCase):
         with self.assertRaises(ValueError):
             feed.get_items('2,6')
 
-    def _test_get_doc(self):
+    def test_get_doc(self):
         # Check can update from current, back to first, and forward to last.
 
         # Build a notification log.
@@ -137,7 +143,7 @@ class NotificationFeedTestCase(AppishTestCase):
         for i in range(13):
             self.assertEqual(all_items[i], 'item{}'.format(i + 1))
 
-    def _test_notification_feed_reader(self):
+    def test_notification_feed_reader(self):
         # Build a notification log.
         notification_log_repo = NotificationLogRepo(self.event_store)
         log_repo = LogRepo(self.event_store)
@@ -195,9 +201,9 @@ class NotificationFeedTestCase(AppishTestCase):
         feed_reader = NotificationFeedReader(feed)
         self.assertEqual(len(list(feed_reader.get_items())), 21)
 
-    # Todo: Change to use gdata distribution's atom package for .
-    @skipIf(platform.python_implementation() == 'PyPy', "PyPy doesn't work with lxml")
     def test_atom_client_with_server(self):
+        port = next(self.port_number)
+
         # Build a notification log.
         notification_log_repo = NotificationLogRepo(self.event_store)
         log_repo = LogRepo(self.event_store)
@@ -215,7 +221,7 @@ class NotificationFeedTestCase(AppishTestCase):
         # Start a simple server.
         from wsgiref.util import setup_testing_defaults
         from wsgiref.simple_server import make_server
-        base_url = 'http://127.0.0.1:8000/notifications/'
+        base_url = 'http://127.0.0.1:{}/notifications/'.format(port)
 
         def simple_app(environ, start_response):
             setup_testing_defaults(environ)
@@ -247,8 +253,8 @@ class NotificationFeedTestCase(AppishTestCase):
             atom_doc = ['{}\n'.format(line) for line in atom_doc]
             return [l.encode('utf8') for l in atom_doc]
 
-        httpd = make_server('', 8000, simple_app)
-        print("Serving on port 8000...")
+        httpd = make_server('', port, simple_app)
+        print("Serving on port {}...".format(port))
         thread = Thread(target=httpd.serve_forever)
         thread.setDaemon(True)
         thread.start()
@@ -260,6 +266,7 @@ class NotificationFeedTestCase(AppishTestCase):
             httpd.shutdown()
             sleep(1)
             thread.join()
+            del(httpd)
             sleep(1)
 
         # Check we got all the items after item 5.

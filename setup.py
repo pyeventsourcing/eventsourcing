@@ -27,12 +27,10 @@ setup(
         'test': [
             'cassandra-driver',
             'mock',
-            # 'numpy',
             'PyCrypto',
             'sqlalchemy',
-            'feedgen',
-            'feedparser',
             'requests',
+            'gdata',
         ],
         'sqlalchemy': [
             'sqlalchemy',
