@@ -80,6 +80,42 @@ class NotificationFeed(object):
         return reader[slice_start:slice_stop]
 
 
+class AtomNotificationFeed(NotificationFeed):
+
+    def __init__(self, base_url, *args, **kwargs):
+        super(AtomNotificationFeed, self).__init__(*args, **kwargs)
+        self.base_url = base_url
+
+    def get_doc(self, doc_id):
+        doc = super(AtomNotificationFeed, self).get_doc(doc_id)
+
+        # Start building an atom document.
+        fg = FeedGenerator()
+
+        # Add ID and title.
+        fg.id(self.make_doc_url(doc['id']))
+        fg.title('Notification log {} {}'.format(self.notification_log.name, doc['id']))
+
+        # Add entries.
+        for item in doc['items']:
+            fe = fg.add_entry()
+            fe.id(item)
+            fe.title(item)
+            fe.content(item)
+
+        # Add previous and next links.
+        if 'previous' in doc:
+            fg.link(href=self.make_doc_url(doc['previous']), rel='previous')
+        if 'next' in doc:
+            fg.link(href=self.make_doc_url(doc['next']), rel='next')
+
+        # Return atom string.
+        return fg.atom_str(pretty=True)
+
+    def make_doc_url(self, doc_id):
+        return self.base_url.strip('/') + '/' + doc_id
+
+
 class NotificationFeedReader(object):
     def __init__(self, feed):
         assert isinstance(feed, NotificationFeed)
@@ -125,42 +161,6 @@ class NotificationFeedReader(object):
         return self.feed.get_doc(doc_id)
 
 
-class AtomNotificationFeed(NotificationFeed):
-
-    def __init__(self, base_url, *args, **kwargs):
-        super(AtomNotificationFeed, self).__init__(*args, **kwargs)
-        self.base_url = base_url
-
-    def get_doc(self, doc_id):
-        doc = super(AtomNotificationFeed, self).get_doc(doc_id)
-
-        # Start building an atom document.
-        fg = FeedGenerator()
-
-        # Add ID and title.
-        fg.id(self.make_doc_url(doc['id']))
-        fg.title('Notification log {} {}'.format(self.notification_log.name, doc['id']))
-
-        # Add entries.
-        for item in doc['items']:
-            fe = fg.add_entry()
-            fe.id(item)
-            fe.title(item)
-            fe.content(item)
-
-        # Add previous and next links.
-        if 'previous' in doc:
-            fg.link(href=self.make_doc_url(doc['previous']), rel='previous')
-        if 'next' in doc:
-            fg.link(href=self.make_doc_url(doc['next']), rel='next')
-
-        # Return atom string.
-        return fg.atom_str(pretty=True)
-
-    def make_doc_url(self, doc_id):
-        return self.base_url.strip('/') + '/' + doc_id
-
-
 class AtomNotificationFeedReader(NotificationFeedReader):
 
     def __init__(self, base_url, log_name):
@@ -172,7 +172,11 @@ class AtomNotificationFeedReader(NotificationFeedReader):
 
         # Get resource from URL.
         doc_atom = feedparser.parse(doc_url)
-        doc_id = self.split_href(doc_atom.feed.id)
+        try:
+            feed_id = doc_atom.feed.id
+        except AttributeError as e:
+            raise AttributeError("Atom doc has no ID, from: {}".format(doc_url))
+        doc_id = self.split_href(feed_id)
         items = [self.split_href(i['id']) for i in doc_atom.entries]
         doc = {'id': doc_id, 'items': items}
         for link in doc_atom.feed.links if hasattr(doc_atom.feed, 'links') else []:
