@@ -8,7 +8,7 @@ A library for event sourcing in Python.
 
 ## Features
 
-**Domain Events,Entities, Repositories, Subscribers** — Base classes
+**Domain Events, Entities, Repositories, and Subscribers** — Base classes
 make it easy to develop new applications with custom entities, custom
 repositories, custom domain events, custom subscribers, custom
 transcoders, custom stored event repositories, custom snapshotting
