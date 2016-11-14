@@ -8,27 +8,20 @@ A library for event sourcing in Python.
 
 ## Features
 
-**Event Store** — With an extendable set of adapters (called
-"stored event repositories") for ORMs and databases systems
-(e.g. Cassandra, SQLAlchemy). Includes a simple Python object
-stored event repository which makes tests very fast. If your
-database system isn't already supported, it will be relatively
-easy to adapt by writing a custom stored event repository. The
-event store is derived from an abstract base class, in case you
-want to make and use a custom event store in your application.
-A base test case is included, to help check stored event
-repository implementations.
+**Domain Events,Entities, Repositories, Subscribers** — Base classes
+make it easy to develop new applications with custom entities, custom
+repositories, custom domain events, custom subscribers, custom
+transcoders, custom stored event repositories, custom snapshotting
+mechanism. See example below, and the package's test suite.
 
-**Abstract Base Classes and Test Cases** — Make it easy to develop new
-applications, with custom entities, custom repositories, custom domain
-events, custom subscribers, custom transcoders, custom stored
-event repositories, custom snapshotting mechanism (see example below,
-and the test cases).
+**Event Store** — With extendable set of stored event repositories
+for adapting different ORMs and databases systems (e.g. Cassandra,
+SQLAlchemy). Includes an in-memory stored event
+repository implemented with simple Python objects. If your
+database system isn't already supported, it will be easy to adapt
+with a custom stored event repository.
 
-**Collections** — Event sourced collections, for modelling different
-kinds of multiplicity.
-
-**Snapshots** — Avoid replaying an entire event stream to obtain the
+**Event Player with Snapshots** — Avoid replaying an entire event stream to obtain the
 current state of an entity. Makes entity access constant time,
 rather than proportional to the number of events. Snapshotting is
 implemented as a strategy object in the application class, making it
@@ -59,11 +52,6 @@ unique 16 byte initialization vector for each encryption. Data is
 compressed before it is encrypted, which can mean application
 performance is improved when encryption is enabled.
 
-**Synchronous Publish-Subscribe Mechanism** — Entirely deterministic,
-with handlers called in the order they are registered, and with which
-calls to publish events do not return until all event subscribers have
-returned.
-
 **Time-Bucketed Logs** — Provide a way of writing an indefinitely long
 stream of events in a highly scalable manner. Includes log objects,
 logged message events and a log reader implemented as a generator that
@@ -84,10 +72,18 @@ allows support to be added for serialization and deserialization of
 custom value object types, and also makes it possible to use different
 database schemas when developing a custom stored event repository.
 
+**Synchronous Publish-Subscribe Mechanism** — Entirely deterministic,
+with handlers called in the order they are registered, and with which
+calls to publish events do not return until all event subscribers have
+returned.
+
 **Worked Examples** — A simple worked example application, with example
 entity class, event sourced repository, and factory method (see below).
 Also included is a slightly more sophisticated version of the
 example application below.
+
+**Collections** — Event sourced collections, for modelling different
+kinds of multiplicity.
 
 
 ## Install
