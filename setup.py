@@ -27,9 +27,9 @@ setup(
         'test': [
             'cassandra-driver',
             'mock',
-            # 'numpy',
             'PyCrypto',
             'sqlalchemy',
+            'requests',
         ],
         'sqlalchemy': [
             'sqlalchemy',
@@ -58,5 +58,3 @@ An extensive
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
 )
-
-

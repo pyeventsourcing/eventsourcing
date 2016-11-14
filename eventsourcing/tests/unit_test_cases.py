@@ -1,7 +1,5 @@
-import datetime
 import json
-import os
-import traceback
+import unittest
 import uuid
 from multiprocessing.pool import Pool
 from tempfile import NamedTemporaryFile
@@ -9,33 +7,41 @@ from time import sleep
 from unittest import TestCase
 from uuid import uuid4, uuid1
 
+import datetime
+import os
 import six
+import traceback
 
-from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository, SimpleStoredEventIterator
+from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
+from eventsourcing.domain.model.events import assert_event_handlers_empty
+from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository, SimpleStoredEventIterator, \
+    EventStore
 from eventsourcing.domain.services.transcoding import StoredEvent
 from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
     setup_cassandra_connection, get_cassandra_setup_params
 from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository, \
     get_scoped_session_facade
-from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 
 
 class AbstractTestCase(TestCase):
-
     def setUp(self):
         """
         Returns None if test case class ends with 'TestCase', which means the test case isn't included in the suite.
         """
         if type(self).__name__.endswith('TestCase'):
-            self.skipTest('Skipped abstract test')
+            self.skipTest('Ignored abstract test.')
         else:
             super(AbstractTestCase, self).setUp()
 
 
-class AbstractStoredEventRepositoryTestCase(AbstractTestCase):
+def notquick(*args, **kwargs):
+    return unittest.skipIf(os.getenv("QUICK_TESTS_ONLY"), 'Ignored slow test.')
 
+
+class AbstractStoredEventRepositoryTestCase(AbstractTestCase):
     @property
     def stored_event_repo(self):
         """
@@ -45,7 +51,6 @@ class AbstractStoredEventRepositoryTestCase(AbstractTestCase):
 
 
 class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
-
     def test_stored_event_repo(self):
         stored_entity_id = 'Entity::entity1'
 
@@ -83,22 +88,26 @@ class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.assertEqual(stored_event2.event_attrs, retrieved_events[1].event_attrs)
 
         # Get with different combinations of query and result ascending or descending.
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=True, results_ascending=True)
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=True,
+                                                                    results_ascending=True)
         retrieved_events = list(retrieved_events)
         self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
         self.assertEqual(stored_event2.event_attrs, retrieved_events[1].event_attrs)
 
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=True, results_ascending=False)
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=True,
+                                                                    results_ascending=False)
         retrieved_events = list(retrieved_events)
         self.assertEqual(stored_event1.event_attrs, retrieved_events[1].event_attrs)
         self.assertEqual(stored_event2.event_attrs, retrieved_events[0].event_attrs)
 
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=False, results_ascending=True)
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=False,
+                                                                    results_ascending=True)
         retrieved_events = list(retrieved_events)
         self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
         self.assertEqual(stored_event2.event_attrs, retrieved_events[1].event_attrs)
 
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=False, results_ascending=False)
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=False,
+                                                                    results_ascending=False)
         retrieved_events = list(retrieved_events)
         self.assertEqual(stored_event1.event_attrs, retrieved_events[1].event_attrs)
         self.assertEqual(stored_event2.event_topic, retrieved_events[0].event_topic)
@@ -139,14 +148,16 @@ class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
             stored_event_i = StoredEvent(event_id=uuid.uuid1().hex,
                                          stored_entity_id=stored_entity_id,
                                          event_topic='eventsourcing.domain.model.example#Example.Created',
-                                         event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":%s}' % (page_count+10))
+                                         event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":%s}' % (
+                                         page_count + 10))
             stored_events.append(stored_event_i)
             self.stored_event_repo.append(stored_event_i)
 
         last_snapshot_event = stored_events[-20]
 
         # start_time = datetime.datetime.now()
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, after=last_snapshot_event.event_id)
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id,
+                                                                    after=last_snapshot_event.event_id)
         retrieved_events = list(retrieved_events)
         # page_duration = (datetime.datetime.now() - start_time).total_seconds()
         # self.assertLess(page_duration, 0.05)
@@ -173,8 +184,9 @@ class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
 
         # Check the next page of events can be retrieved easily.
         start_time = datetime.datetime.now()
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, after=retrieved_events[-1].event_id,
-                                                               limit=20, query_ascending=True)
+        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id,
+                                                                    after=retrieved_events[-1].event_id,
+                                                                    limit=20, query_ascending=True)
         retrieved_events = list(retrieved_events)
         page_duration = (datetime.datetime.now() - start_time).total_seconds()
         # self.assertLess(page_duration, 0.05)
@@ -186,18 +198,18 @@ class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.assertEqual(stored_events[18].event_attrs, retrieved_events[0].event_attrs)
 
 
-class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
-
+class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase):
     def setUp(self):
-        super(ConcurrentStoredEventRepositoryTestCase, self).setUp()
+        super(OptimisticConcurrencyControlTestCase, self).setUp()
         self.app = None
         self.temp_file = NamedTemporaryFile('a')
 
     def tearDown(self):
-        super(ConcurrentStoredEventRepositoryTestCase, self).tearDown()
+        super(OptimisticConcurrencyControlTestCase, self).tearDown()
         if self.app is not None:
             self.app.close()
 
+    @notquick()
     def test_optimistic_concurrency_control(self):
         """Appends lots of events, but with a pool of workers
         all trying to add the same sequence of events.
@@ -236,19 +248,17 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
         # Check each event version was written exactly once.
         self.assertEqual(sorted([i[0] for i in total_successes]), list(range(number_of_events)))
 
-        # Check each child got to write at least one event.
+        # Check at least 90% of events written had contention that caused a concurrency error.
+        set_failures = set([i[0] for i in total_failures])
+        self.assertGreaterEqual(len(set_failures), number_of_events * 0.9)
+
+        # Check each child wrote at least one event.
         self.assertEqual(len(set([i[1] for i in total_successes])), pool_size)
 
-        # Check each event version at least once wasn't written due to a concurrency error.
-        self.assertEqual(sorted(set(sorted([i[0] for i in total_failures]))), list(range(number_of_events)))
-
-        # Check at least one event version wasn't written due to a concurrency error.
-        self.assertTrue(set([i[0] for i in total_failures]))
-
-        # Check each child failed to write at least one event.
+        # Check each child encountered at least one concurrency error.
         self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
 
-        # Check there's actually a contiguous version sequence through the sequence of stored events.
+        # Check the repo actually has a contiguous version sequence.
         events = self.stored_event_repo.get_entity_events(stored_entity_id)
         self.assertEqual(len(events), number_of_events)
         version_counter = 0
@@ -328,21 +338,15 @@ class ConcurrentStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestC
             return (successes, failures)
 
 
-def pool_initializer(stored_repo_class, temp_file_name):
-    global worker_repo
-
-    repo = create_repo(stored_repo_class, temp_file_name)
-    worker_repo = repo
-
-
-def append_lots_of_events_to_repo(args):
-    return ConcurrentStoredEventRepositoryTestCase.append_lots_of_events_to_repo(args)
-
-
 worker_repo = None
 
 
-def create_repo(stored_repo_class, temp_file_name):
+def pool_initializer(stored_repo_class, temp_file_name):
+    global worker_repo
+    worker_repo = create_repo_for_worker(stored_repo_class, temp_file_name)
+
+
+def create_repo_for_worker(stored_repo_class, temp_file_name):
     if stored_repo_class == CassandraStoredEventRepository:
         setup_cassandra_connection(*get_cassandra_setup_params())
         repo = CassandraStoredEventRepository(
@@ -353,9 +357,9 @@ def create_repo(stored_repo_class, temp_file_name):
         uri = 'sqlite:///' + temp_file_name
         scoped_session_facade = get_scoped_session_facade(uri)
         repo = SQLAlchemyStoredEventRepository(scoped_session_facade,
-            always_check_expected_version=True,
-            always_write_entity_version=True,
-        )
+                                               always_check_expected_version=True,
+                                               always_write_entity_version=True,
+                                               )
     elif stored_repo_class == PythonObjectsStoredEventRepository:
         repo = PythonObjectsStoredEventRepository(
             always_check_expected_version=True,
@@ -366,8 +370,11 @@ def create_repo(stored_repo_class, temp_file_name):
     return repo
 
 
-class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
+def append_lots_of_events_to_repo(args):
+    return OptimisticConcurrencyControlTestCase.append_lots_of_events_to_repo(args)
 
+
+class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
     @property
     def stored_entity_id(self):
         return 'Entity::1'
@@ -441,14 +448,47 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
 
 
 class SimpleStoredEventIteratorTestCase(IteratorTestCase):
-
     @property
     def iterator_cls(self):
         return SimpleStoredEventIterator
 
 
 class ThreadedStoredEventIteratorTestCase(IteratorTestCase):
-
     @property
     def iterator_cls(self):
         return ThreadedStoredEventIterator
+
+
+class AppishTestCase(AbstractTestCase):
+    """
+    Test case that has a persistence subscriber
+    and event store, like an app.
+    """
+
+    @property
+    def stored_event_repo(self):
+        """
+        Returns a stored event repository.
+
+        Concrete log test cases will provide this method.
+        """
+        raise NotImplementedError
+
+    def setUp(self):
+        super(AppishTestCase, self).setUp()
+
+        # Check we're starting clean, event handler-wise.
+        assert_event_handlers_empty()
+
+        # Setup the persistence subscriber.
+        self.event_store = EventStore(self.stored_event_repo)
+        self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
+
+    def tearDown(self):
+        # Close the persistence subscriber.
+        self.persistence_subscriber.close()
+
+        super(AppishTestCase, self).tearDown()
+
+        # Check we finished clean, event handler-wise.
+        assert_event_handlers_empty()

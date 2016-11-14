@@ -22,7 +22,7 @@ class LogReader(with_metaclass(QualnameABCMeta)):
     def __init__(self, log, event_store, page_size=50):
         assert isinstance(log, Log)
         self.log = log
-        assert isinstance(event_store, AbstractEventStore)
+        assert isinstance(event_store, AbstractEventStore), event_store
         self.event_store = event_store
         assert isinstance(page_size, six.integer_types)
         self.page_size = page_size
@@ -37,6 +37,7 @@ class LogReader(with_metaclass(QualnameABCMeta)):
     def get_events(self, after=None, until=None, limit=None, is_ascending=False, page_size=None):
         assert limit is None or limit > 0
 
+        # Calculate the initial bucket timestamp, used to identify the time bucket.
         if after is None:
             after_timestamp = None
         else:

@@ -1,0 +1,75 @@
+from singledispatch import singledispatch
+
+from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository, entity_mutator
+from eventsourcing.domain.model.events import publish
+
+# Todo: New idea, just make it be a mixture of an archived log to hold the current sequence and a sequence.
+# class NotificationLog(Log, Sequence):
+from eventsourcing.exceptions import RepositoryKeyError
+
+
+class NotificationLog(EventSourcedEntity):
+    # Add items, up to log size, then empty this, create a snapshot at that version, create an archived log page
+    # with the data until that version.
+    # Get pages of items using predictable keys (entity ID), starting from the current log.
+    # Get pages of items using predictable keys (entity ID), starting from item 0.
+    # Entity ID = log name + id_start + , + id_end.
+
+    class Started(EventSourcedEntity.Created):
+        pass
+
+    def __init__(self, name, bucket_size=None, sequence_size=None, **kwargs):
+        super(NotificationLog, self).__init__(**kwargs)
+        self._name = name
+        self._sequence_size = sequence_size
+        self._bucket_size = bucket_size
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def sequence_size(self):
+        return self._sequence_size
+
+    @property
+    def bucket_size(self):
+        return self._bucket_size
+
+    @staticmethod
+    def _mutator(event, initial):
+        return notification_log_mutator(event, initial)
+
+
+@singledispatch
+def notification_log_mutator(event, initial):
+    return entity_mutator(event, initial)
+
+
+class NotificationLogRepository(EntityRepository):
+    def get_or_create(self, log_name, timebucket_size=None, sequence_size=None):
+        """
+        Gets or creates a log.
+
+        :rtype: NotificationLog
+        """
+        try:
+            return self[log_name]
+        except RepositoryKeyError:
+            return start_notification_log(
+                log_name=log_name,
+                timebucket_size=timebucket_size,
+                sequence_size=sequence_size,
+            )
+
+
+def start_notification_log(log_name, timebucket_size=None, sequence_size=None):
+    event = NotificationLog.Started(
+        entity_id=log_name,
+        name=log_name,
+        bucket_size=timebucket_size,
+        sequence_size=sequence_size,
+    )
+    entity = NotificationLog.mutate(event=event)
+    publish(event)
+    return entity

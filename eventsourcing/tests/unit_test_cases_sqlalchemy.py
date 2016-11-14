@@ -5,7 +5,7 @@ from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import get_
     SQLAlchemyStoredEventRepository
 
 
-class SQLAlchemyTestCase(TestCase):
+class SQLAlchemyRepoTestCase(TestCase):
 
     @property
     def stored_event_repo(self):
@@ -15,7 +15,10 @@ class SQLAlchemyTestCase(TestCase):
             self.temp_file = NamedTemporaryFile('a')
             uri = 'sqlite:///' + self.temp_file.name
             scoped_session_facade = get_scoped_session_facade(uri)
-            stored_event_repo = SQLAlchemyStoredEventRepository(scoped_session_facade)
+            stored_event_repo = SQLAlchemyStoredEventRepository(scoped_session_facade,
+                always_write_entity_version=True,
+                always_check_expected_version=True,
+            )
             self._stored_event_repo = stored_event_repo
             return self._stored_event_repo
 
@@ -23,4 +26,4 @@ class SQLAlchemyTestCase(TestCase):
         # Unlink temporary file.
         if self.temp_file:
             self.temp_file.close()
-        super(SQLAlchemyTestCase, self).tearDown()
+        super(SQLAlchemyRepoTestCase, self).tearDown()

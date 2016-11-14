@@ -7,7 +7,7 @@ from sqlalchemy.ext.declarative.api import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.scoping import ScopedSession
 from sqlalchemy.sql.expression import asc, desc
-from sqlalchemy.sql.schema import Column, Sequence
+from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import Integer, String, BigInteger, Text
 
 from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository
@@ -42,11 +42,16 @@ class SqlStoredEvent(Base):
     __tablename__ = 'stored_events'
 
     id = Column(Integer, Sequence('stored_event_id_seq'), primary_key=True)
+    stored_entity_id = Column(String(255), index=True)
     event_id = Column(String(255), index=True)
     timestamp_long = Column(BigInteger(), index=True)
-    stored_entity_id = Column(String(255), index=True)
     event_topic = Column(String(255))
     event_attrs = Column(Text())
+
+    # Unique contraint includes 'stored_entity_id' which is a good value
+    # to partition on, because all events for an entity will be in the same
+    # partition, which may help performance.
+    __table_args__ = UniqueConstraint('stored_entity_id', 'event_id', name='stored_event_uc'),
 
 
 class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
@@ -120,6 +125,11 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):
+
+        # Todo: Extend unit test to make sure limit is effective when less than 1.
+        if limit is not None and limit < 1:
+            return []
+
         try:
             query = self.db_session.query(SqlStoredEvent)
             query = query.filter_by(stored_entity_id=stored_entity_id)

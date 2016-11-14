@@ -44,7 +44,7 @@ class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):
     def get_entity_version(self, stored_entity_id, version_number):
         versions = self._entity_versions[stored_entity_id]
         if version_number not in versions:
-            raise EntityVersionDoesNotExist()
+            raise EntityVersionDoesNotExist(version_number)
         entity_version_id = self.make_entity_version_id(stored_entity_id, version_number)
         return EntityVersion(
             entity_version_id=entity_version_id,

@@ -1,49 +1,22 @@
-import datetime
 from time import sleep
 from uuid import uuid1
 
-from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
-from eventsourcing.domain.model.events import assert_event_handlers_empty
+import datetime
+
 from eventsourcing.domain.model.log import get_logger, Logger, start_new_log, Log
-from eventsourcing.domain.services.eventstore import EventStore
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.log_reader import get_log_reader
-from eventsourcing.tests.unit_test_cases import AbstractTestCase
-from eventsourcing.tests.unit_test_cases_cassandra import CassandraStoredEventRepoTestCase
-from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsTestCase
-from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyTestCase
+from eventsourcing.tests.unit_test_cases import AppishTestCase, notquick
+from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
+from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
+from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCase
 
 
-class LogTestCase(AbstractTestCase):
-    @property
-    def stored_event_repo(self):
-        """
-        Returns a stored event repository.
-
-        Concrete log test cases will provide this method.
-        """
-        raise NotImplementedError
+class LogTestCase(AppishTestCase):
 
     def setUp(self):
         super(LogTestCase, self).setUp()
-
-        # Check we're starting clean, event handler-wise.
-        assert_event_handlers_empty()
-
-        # Setup the persistence subscriber.
-        self.event_store = EventStore(self.stored_event_repo)
-        self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
-
         self.log_repo = LogRepo(self.event_store)
-
-    def tearDown(self):
-        # Close the persistence subscriber.
-        self.persistence_subscriber.close()
-
-        super(LogTestCase, self).tearDown()
-
-        # Check we finished clean, event handler-wise.
-        assert_event_handlers_empty()
 
     def test_entity_lifecycle(self):
         log = self.log_repo.get_or_create(log_name='log1', bucket_size='year')
@@ -159,6 +132,7 @@ class LogTestCase(AbstractTestCase):
         messages = list(log_reader.get_messages(after=halfway, until=halfway))
         self.assertEqual(len(messages), 0)
 
+    @notquick()
     def test_buckets(self):
         # Start new log.
         log = start_new_log(name='log1', bucket_size='second')
@@ -303,13 +277,13 @@ class LogTestCase(AbstractTestCase):
         self.assertEqual(messages, [str(i) for i in range(108 + limit * 2, 108 + limit, -1)])
 
 
-class TestLogWithCassandra(CassandraStoredEventRepoTestCase, LogTestCase):
+class TestLogWithCassandra(CassandraRepoTestCase, LogTestCase):
     pass
 
 
-class TestLogWithPythonObjects(PythonObjectsTestCase, LogTestCase):
+class TestLogWithPythonObjects(PythonObjectsRepoTestCase, LogTestCase):
     pass
 
 
-class TestLogWithSQLAlchemy(SQLAlchemyTestCase, LogTestCase):
+class TestLogWithSQLAlchemy(SQLAlchemyRepoTestCase, LogTestCase):
     pass

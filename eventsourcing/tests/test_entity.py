@@ -1,28 +1,16 @@
-import unittest
-
 import mock
 
-from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.model.entity import mutableproperty, EntityIDConsistencyError, EntityVersionConsistencyError, \
     EventSourcedEntity, created_mutator, CreatedMutatorRequiresTypeNotInstance
-from eventsourcing.domain.model.events import DomainEvent, subscribe, unsubscribe, assert_event_handlers_empty, publish
+from eventsourcing.domain.model.events import DomainEvent, subscribe, unsubscribe, publish
 from eventsourcing.domain.model.example import register_new_example, Example
-from eventsourcing.domain.services.eventstore import EventStore
 from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
-from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
+from eventsourcing.tests.unit_test_cases import AppishTestCase
+from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
 
 
-class TestExampleEntity(unittest.TestCase):
-
-    def setUp(self):
-        # Setup the persistence subscriber.
-        self.event_store = EventStore(PythonObjectsStoredEventRepository())
-        self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
-
-    def tearDown(self):
-        self.persistence_subscriber.close()
-        assert_event_handlers_empty()
+class TestExampleEntity(PythonObjectsRepoTestCase, AppishTestCase):
 
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.

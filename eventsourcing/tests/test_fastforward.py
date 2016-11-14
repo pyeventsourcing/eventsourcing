@@ -1,16 +1,14 @@
 from eventsourcing.application.example.base import ExampleApplication
-from eventsourcing.application.example.with_cassandra import ExampleApplicationWithCassandra
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
 from eventsourcing.domain.model.example import Example
 from eventsourcing.exceptions import ConcurrencyError
-from eventsourcing.tests.unit_test_cases_cassandra import CassandraTestCase
 from eventsourcing.tests.unit_test_cases_example_application import ExampleApplicationTestCase
 
 
-class TestFastForward(CassandraTestCase, ExampleApplicationTestCase):
+class TestFastForward(ExampleApplicationTestCase):
+
     def create_app(self):
-        return ExampleApplicationWithCassandra()
-        # return ExampleApplicationWithPythonObjects()
+        return ExampleApplicationWithPythonObjects()
 
     def test(self):
         assert isinstance(self.app, ExampleApplication)
@@ -31,6 +29,7 @@ class TestFastForward(CassandraTestCase, ExampleApplicationTestCase):
 
         # Try to evolve instance2 from the same version.
         # - check it raises a concurrency error
+        # Todo: This needs to be a deepcopy.
         preop_state = instance2.__dict__.copy()
         with self.assertRaises(ConcurrencyError):
             instance2.beat_heart()

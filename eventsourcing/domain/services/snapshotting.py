@@ -64,6 +64,7 @@ def take_snapshot(entity, at_event_id):
         entity_id=stored_entity_id,
         domain_event_id=at_event_id,
         topic=topic_from_domain_class(entity.__class__),
+        # Todo: This should be a deepcopy.
         attrs=entity.__dict__.copy(),
     )
     publish(snapshot)
