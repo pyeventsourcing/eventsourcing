@@ -1,14 +1,13 @@
 import json
 from itertools import chain
 from threading import Thread
-from time import sleep
 
 from eventsourcing.domain.services.notification_log import append_item_to_notification_log
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.event_sourced_repos.notificationlog_repo import NotificationLogRepo
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.interface.notification_feed import NotificationFeed, NotificationFeedReader, \
-    NotificationFeedClient
+    HTTPNotificationFeedClient
 from eventsourcing.tests.unit_test_cases import AppishTestCase
 from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
 from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
@@ -42,19 +41,16 @@ class NotificationFeedTestCase(AppishTestCase):
         # Get pages.
         feed = NotificationFeed(notification_log, sequence_repo, log_repo, self.event_store, doc_size=5)
 
-        items = feed._get_items('current')
-        self.assertEqual(len(items), 3, items)
-
-        items = feed._get_items('1,5')
+        items = feed._get_archived_log_items('1,5')
         self.assertEqual(len(items), 5, items)
 
-        items = feed._get_items('6,10')
+        items = feed._get_archived_log_items('6,10')
         self.assertEqual(len(items), 5, items)
 
-        items = feed._get_items('11,15')
+        items = feed._get_archived_log_items('11,15')
         self.assertEqual(len(items), 3, items)
 
-        items = feed._get_items('16,20')
+        items = feed._get_archived_log_items('16,20')
         self.assertEqual(len(items), 0, items)
 
         # Add some more items.
@@ -62,19 +58,16 @@ class NotificationFeedTestCase(AppishTestCase):
             item = 'item{}'.format(i + 1)
             append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, self.event_store)
 
-        items = feed._get_items('current')
-        self.assertEqual(len(items), 4, items)
-
-        items = feed._get_items('11,15')
+        items = feed._get_archived_log_items('11,15')
         self.assertEqual(len(items), 5, items)
 
-        items = feed._get_items('16,20')
+        items = feed._get_archived_log_items('16,20')
         self.assertEqual(len(items), 5, items)
 
-        items = feed._get_items('21,25')
+        items = feed._get_archived_log_items('21,25')
         self.assertEqual(len(items), 4, items)
 
-        items = feed._get_items('26,30')
+        items = feed._get_archived_log_items('26,30')
         self.assertEqual(len(items), 0, items)
 
         # Check sequence size must be divisible by doc size.
@@ -84,12 +77,12 @@ class NotificationFeedTestCase(AppishTestCase):
         # Check the doc ID must match the doc size.
         feed = NotificationFeed(notification_log, sequence_repo, log_repo, self.event_store, doc_size=5)
         with self.assertRaises(ValueError):
-            feed._get_items('1,2')
+            feed._get_archived_log_items('1,2')
 
         # Check the doc ID must be aligned to the doc size.
         feed = NotificationFeed(notification_log, sequence_repo, log_repo, self.event_store, doc_size=5)
         with self.assertRaises(ValueError):
-            feed._get_items('2,6')
+            feed._get_archived_log_items('2,6')
 
     def test_get_feed_doc(self):
         # Check can update from current, back to first, and forward to last.
@@ -117,14 +110,14 @@ class NotificationFeedTestCase(AppishTestCase):
             event_store=self.event_store,
             doc_size=doc_size,
         )
-        doc = feed.get_doc(doc_id)
+        doc = feed.__getitems__(doc_id)
         all_docs = []
         while 'previous' in doc:
             # Get the previous document.
             doc_id = doc['previous']
 
             # Create the feed object again.
-            doc = feed.get_doc(doc_id)
+            doc = feed.__getitems__(doc_id)
 
         # Assume we got the first document.
         all_docs.append(doc)
@@ -132,7 +125,7 @@ class NotificationFeedTestCase(AppishTestCase):
         # Get all the subsequent documents.
         while 'next' in doc:
             doc_id = doc['next']
-            doc = feed.get_doc(doc_id)
+            doc = feed.__getitems__(doc_id)
             all_docs.append(doc)
 
         # Check there are three docs.
@@ -203,7 +196,6 @@ class NotificationFeedTestCase(AppishTestCase):
         self.assertEqual(len(list(feed_reader.get_items())), 21)
 
     def test_notification_feed_client(self):
-        port = next(self.port_number)
 
         # Build a notification log.
         notification_log_repo = NotificationLogRepo(self.event_store)
@@ -222,6 +214,8 @@ class NotificationFeedTestCase(AppishTestCase):
         # Start a simple server.
         from wsgiref.util import setup_testing_defaults
         from wsgiref.simple_server import make_server
+        # This because somehow the port isn't released at the end of the test.
+        port = 8000  # next(self.port_number)
         base_url = 'http://127.0.0.1:{}/notifications/'.format(port)
 
         def simple_app(environ, start_response):
@@ -248,7 +242,7 @@ class NotificationFeedTestCase(AppishTestCase):
                 doc_size=3,
             )
 
-            feed_doc = feed.get_doc(doc_id=doc_id)
+            feed_doc = feed.__getitems__(archived_log_id=doc_id)
             feed_str = json.dumps(feed_doc, indent=4)
             feed_str = feed_str.split('\n')
             feed_str = ['{}\n'.format(line) for line in feed_str]
@@ -261,15 +255,13 @@ class NotificationFeedTestCase(AppishTestCase):
         thread.start()
         try:
             # Use reader with client to read all items in remote feed after item 5.
-            feed_client = NotificationFeedClient(base_url, log_name)
-            remote_feed_reader = NotificationFeedReader(feed=feed_client)
+            feed_client = HTTPNotificationFeedClient(base_url, log_name)
+            remote_feed_reader = NotificationFeedReader(archived_log_provider=feed_client)
             items = list(remote_feed_reader.get_items(last_item_num=5))
         finally:
             httpd.shutdown()
-            sleep(1)
             thread.join()
-            del(httpd)
-            sleep(1)
+            httpd.server_close()
 
         # Check we got all the items after item 5.
         self.assertEqual(len(items), 8)
