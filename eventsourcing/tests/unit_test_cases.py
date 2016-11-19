@@ -31,6 +31,7 @@ class AbstractTestCase(TestCase):
         """
         Returns None if test case class ends with 'TestCase', which means the test case isn't included in the suite.
         """
+        super(AbstractTestCase, self).setUp()
         if type(self).__name__.endswith('TestCase'):
             self.skipTest('Ignored abstract test.')
         else:

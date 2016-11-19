@@ -91,7 +91,7 @@ class NotificationLogReader(object):
             if item.step is not None:
                 raise IndexError('Slices with a step value are not supported')
 
-            # Identify sequence and sequence index values from start and stop.
+            # Identify sequence numbers and sequence index values from start and stop.
             start_sequence_number, slice_start = divmod(item.start, sequence_size)
             stop_sequence_number = (item.stop - 1) // sequence_size
 
@@ -112,7 +112,7 @@ class NotificationLogReader(object):
         # Make a sequence ID from the notification log name and the sequence number.
         sequence_id = make_notification_log_sequence_id(self.notification_log.name, sequence_number)
 
-        # Read the sequence.
+        # Read item(s) from the sequence.
         sequence = self.sequence_repo.get_or_create(sequence_id)
         reader = SequenceReader(sequence, self.sequence_repo.event_player)
         try:
