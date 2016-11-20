@@ -12,7 +12,6 @@ from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
 from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository
-from eventsourcing.domain.services.transcoding import EntityVersion
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 
@@ -62,7 +61,7 @@ class CqlStoredEvent(Model):
     a = columns.Text(required=True)
 
 
-class CassandraaStoredEventRepository(AbstractStoredEventRepository):
+class Cassandra2StoredEventRepository(AbstractStoredEventRepository):
 
     @property
     def iterator_class(self):
@@ -278,7 +277,7 @@ def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspa
     )
 
 
-def create_cassandra_keyspace_and_tables(keyspace=DEFAULT_CASSANDRA_KEYSPACE, replication_factor=1):
+def create_cassandra2_keyspace_and_tables(keyspace=DEFAULT_CASSANDRA_KEYSPACE, replication_factor=1):
     # Avoid warnings about this variable not being set.
     os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
     try:
@@ -290,7 +289,7 @@ def create_cassandra_keyspace_and_tables(keyspace=DEFAULT_CASSANDRA_KEYSPACE, re
         sync_table(CqlEntityVersion)
 
 
-def drop_cassandra_keyspace(keyspace=DEFAULT_CASSANDRA_KEYSPACE):
+def drop_cassandra2_keyspace(keyspace=DEFAULT_CASSANDRA_KEYSPACE):
     max_retries = 3
     tried = 0
     while True:
