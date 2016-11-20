@@ -9,11 +9,6 @@ from eventsourcing.exceptions import RepositoryKeyError
 
 
 class NotificationLog(EventSourcedEntity):
-    # Add items, up to log size, then empty this, create a snapshot at that version, create an archived log page
-    # with the data until that version.
-    # Get pages of items using predictable keys (entity ID), starting from the current log.
-    # Get pages of items using predictable keys (entity ID), starting from item 0.
-    # Entity ID = log name + id_start + , + id_end.
 
     class Started(EventSourcedEntity.Created):
         pass
