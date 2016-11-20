@@ -19,7 +19,7 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
 
         As well as providing a concrete method to construct a stored event repository, subclasses
         may use the event store to construct event sourced repositories, from which event sourced
-        entities can be retrieved. Subclasses may also construct other subscribers which excute
+        entities can be retrieved. Subclasses may also construct other subscribers which execute
         commands against the entities in response to the publication of domain events.
 
         To enable symmetric encryption of stored events, pass in a 'cipher' and

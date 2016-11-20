@@ -9,13 +9,16 @@ from eventsourcing.exceptions import SequenceFullError
 from eventsourcing.infrastructure.log_reader import LogReader
 
 
-def append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, sequence_event_player):
+def append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, event_store):
+    """Appends item to current sequence, unless the sequence is full.
+
+    If the sequence is full, the sequence number is incremented and
+    the item is added to the next sequence."""
     assert isinstance(notification_log, NotificationLog), notification_log
     assert isinstance(sequence_repo, SequenceRepository)
     assert isinstance(log_repo, LogRepository)
     # Get the sequence.
-    current_sequence = get_current_notification_log_sequence(notification_log, sequence_repo, log_repo,
-                                                             sequence_event_player)
+    current_sequence = get_current_notification_log_sequence(notification_log, sequence_repo, log_repo, event_store)
     assert isinstance(current_sequence, Sequence)
     try:
         append_item_to_sequence(current_sequence.name, item, sequence_repo.event_player,
@@ -91,7 +94,7 @@ class NotificationLogReader(object):
             if item.step is not None:
                 raise IndexError('Slices with a step value are not supported')
 
-            # Identify sequence and sequence index values from start and stop.
+            # Identify sequence numbers and sequence index values from start and stop.
             start_sequence_number, slice_start = divmod(item.start, sequence_size)
             stop_sequence_number = (item.stop - 1) // sequence_size
 
@@ -112,7 +115,7 @@ class NotificationLogReader(object):
         # Make a sequence ID from the notification log name and the sequence number.
         sequence_id = make_notification_log_sequence_id(self.notification_log.name, sequence_number)
 
-        # Read the sequence.
+        # Read item(s) from the sequence.
         sequence = self.sequence_repo.get_or_create(sequence_id)
         reader = SequenceReader(sequence, self.sequence_repo.event_player)
         try:
