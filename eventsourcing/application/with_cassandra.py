@@ -2,6 +2,7 @@ from eventsourcing.application.base import EventSourcingApplication
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import setup_cassandra_connection, \
     get_cassandra_setup_params, CassandraStoredEventRepository, DEFAULT_CASSANDRA_KEYSPACE, DEFAULT_CASSANDRA_HOSTS, \
     DEFAULT_CASSANDRA_CONSISTENCY_LEVEL, DEFAULT_CASSANDRA_PORT, DEFAULT_CASSANDRA_PROTOCOL_VERSION
+from eventsourcing.infrastructure.stored_event_repos.with_cassandraa import CassandraaStoredEventRepository
 
 
 class EventSourcingWithCassandra(EventSourcingApplication):
@@ -18,7 +19,7 @@ class EventSourcingWithCassandra(EventSourcingApplication):
         setup_cassandra_connection(*get_cassandra_setup_params(*args))
 
     def create_stored_event_repo(self, **kwargs):
-        return CassandraStoredEventRepository(**kwargs)
+        return CassandraaStoredEventRepository(**kwargs)
 
     def close(self):
         super(EventSourcingWithCassandra, self).close()

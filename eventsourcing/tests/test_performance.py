@@ -14,6 +14,7 @@ from eventsourcing.infrastructure.log_reader import get_log_reader, LogReader
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import create_cassandra_keyspace_and_tables, \
     drop_cassandra_keyspace
 from eventsourcing.domain.services.cipher import AESCipher
+from eventsourcing.infrastructure.stored_event_repos.with_cassandraa import create_cassandra_keyspace_and_tables
 from eventsourcing.tests.unit_test_cases import AbstractTestCase, notquick
 from eventsourcing.tests.test_utils import utc_now
 
@@ -217,6 +218,8 @@ class TestCassandraPerformance(PerformanceTestCase):
         super(TestCassandraPerformance, self).setUp()
 
         # Setup the keyspace and column family for stored events.
+        # create_cassandra_keyspace_and_tables()
+        drop_cassandra_keyspace()
         create_cassandra_keyspace_and_tables()
 
     def tearDown(self):
