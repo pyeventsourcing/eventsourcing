@@ -5,21 +5,24 @@ import six
 
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.application.example.with_cassandra import ExampleApplicationWithCassandra
+from eventsourcing.application.example.with_cassandra2 import ExampleApplicationWithCassandra2
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
 from eventsourcing.application.example.with_sqlalchemy import ExampleApplicationWithSQLAlchemy
 from eventsourcing.domain.model.example import register_new_example, Example
 from eventsourcing.domain.model.log import get_logger, start_new_log
+from eventsourcing.domain.services.cipher import AESCipher
 from eventsourcing.domain.services.transcoding import make_stored_entity_id
 from eventsourcing.infrastructure.log_reader import get_log_reader, LogReader
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import create_cassandra_keyspace_and_tables, \
     drop_cassandra_keyspace
-from eventsourcing.domain.services.cipher import AESCipher
-from eventsourcing.tests.unit_test_cases import AbstractTestCase, notquick
+from eventsourcing.infrastructure.stored_event_repos.with_cassandra2 import create_cassandra2_keyspace_and_tables, \
+    drop_cassandra2_keyspace
 from eventsourcing.tests.test_utils import utc_now
+from eventsourcing.tests.unit_test_cases import AbstractTestCase, notquick
+
 
 @notquick()
 class PerformanceTestCase(AbstractTestCase):
-
     def setUp(self):
         super(PerformanceTestCase, self).setUp()
         self.app = self.create_app()
@@ -78,11 +81,12 @@ class PerformanceTestCase(AbstractTestCase):
 
                 num_retrieved_events = len(list(last_n_stored_events))
                 events_per_second = num_retrieved_events / time_last_n
-                print(("Time to get last {:>"+str(i+1)+"} events after {} events: {:.6f}s ({:.0f} events/s)"
-                      "").format(n, num_beats + 1, time_last_n, events_per_second))
+                print(("Time to get last {:>" + str(i + 1) + "} events after {} events: {:.6f}s ({:.0f} events/s)"
+                                                             "").format(n, num_beats + 1, time_last_n,
+                                                                        events_per_second))
 
-            for j in range(0, i+1):
-                last_n(10**j)
+            for j in range(0, i + 1):
+                last_n(10 ** j)
 
             # Get the entity by replaying all events (which it must since there isn't a snapshot).
             start_replay = utc_now()
@@ -131,7 +135,7 @@ class PerformanceTestCase(AbstractTestCase):
             events.append(event)
         time_to_write = (utc_now() - start_write)
         print("Time to log {} messages: {:.2f}s ({:.0f} messages/s, {:.6f}s each)"
-              "".format(number_of_messages, time_to_write, number_of_messages/ time_to_write,
+              "".format(number_of_messages, time_to_write, number_of_messages / time_to_write,
                         time_to_write / number_of_messages))
 
         # Read pages of messages in descending order.
@@ -148,7 +152,8 @@ class PerformanceTestCase(AbstractTestCase):
         total_num_reads = 0
         while True:
             start_read = utc_now()
-            page_of_events, next_position = self.get_message_logged_events_and_next_position(log_reader, position, page_size)
+            page_of_events, next_position = self.get_message_logged_events_and_next_position(log_reader, position,
+                                                                                             page_size)
             time_to_read = (utc_now() - start_read)
             total_time_to_read += time_to_read
             total_num_reads += 1
@@ -168,7 +173,9 @@ class PerformanceTestCase(AbstractTestCase):
         position = None
         while True:
             start_read = utc_now()
-            page_of_events, next_position = self.get_message_logged_events_and_next_position(log_reader, position, page_size, is_ascending=True)
+            page_of_events, next_position = self.get_message_logged_events_and_next_position(log_reader, position,
+                                                                                             page_size,
+                                                                                             is_ascending=True)
             time_to_read = (utc_now() - start_read)
             total_time_to_read += time_to_read
             total_num_reads += 1
@@ -207,9 +214,9 @@ class PerformanceTestCase(AbstractTestCase):
             next_position = None
         return events, next_position
 
+
 @notquick()
 class TestCassandraPerformance(PerformanceTestCase):
-
     def create_app(self):
         return ExampleApplicationWithCassandra()
 
@@ -217,6 +224,8 @@ class TestCassandraPerformance(PerformanceTestCase):
         super(TestCassandraPerformance, self).setUp()
 
         # Setup the keyspace and column family for stored events.
+        # create_cassandra_keyspace_and_tables()
+        drop_cassandra_keyspace()
         create_cassandra_keyspace_and_tables()
 
     def tearDown(self):
@@ -230,8 +239,30 @@ class TestCassandraPerformance(PerformanceTestCase):
 
 
 @notquick()
-class TestEncryptionPerformance(TestCassandraPerformance):
+class TestCassandra2Performance(PerformanceTestCase):
+    def create_app(self):
+        return ExampleApplicationWithCassandra2()
 
+    def setUp(self):
+        super(TestCassandra2Performance, self).setUp()
+
+        # Setup the keyspace and column family for stored events.
+        # create_cassandra2_keyspace_and_tables()
+        drop_cassandra2_keyspace()
+        create_cassandra2_keyspace_and_tables()
+
+    def tearDown(self):
+        # Drop the keyspace.
+        drop_cassandra2_keyspace()
+
+        # Close the application.
+        self.app.close()
+
+        super(TestCassandra2Performance, self).tearDown()
+
+
+@notquick()
+class TestEncryptionPerformance(TestCassandraPerformance):
     def create_app(self):
         cipher = AESCipher(aes_key='0123456789abcdef')
         return ExampleApplicationWithCassandra(cipher=cipher, always_encrypt_stored_events=True)
@@ -239,7 +270,6 @@ class TestEncryptionPerformance(TestCassandraPerformance):
 
 @notquick()
 class TestSQLAlchemyPerformance(PerformanceTestCase):
-
     def create_app(self):
         return ExampleApplicationWithSQLAlchemy(db_uri='sqlite:///:memory:')
 
@@ -249,7 +279,6 @@ class TestSQLAlchemyPerformance(PerformanceTestCase):
 
 
 class TestPythonObjectsPerformance(PerformanceTestCase):
-
     def create_app(self):
         # Setup the example application.
         return ExampleApplicationWithPythonObjects()

@@ -136,17 +136,17 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         if expected_version_number is not None:
             assert isinstance(expected_version_number, six.integer_types)
             try:
-                entity_version = self.get_entity_version(
+                self.get_entity_version(
                     stored_entity_id=stored_entity_id,
                     version_number=expected_version_number
                 )
             except EntityVersionDoesNotExist:
                 raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
                                        "".format(expected_version_number, stored_entity_id))
-            else:
-                if not time_from_uuid(new_stored_event.event_id) > time_from_uuid(entity_version.event_id):
-                    raise ConcurrencyError("New event ID '{}' occurs before last version event ID '{}' for entity {}"
-                                           "".format(new_stored_event.event_id, entity_version.event_id, stored_entity_id))
+            # else:
+            #     if not time_from_uuid(new_stored_event.event_id) > time_from_uuid(entity_version.event_id):
+            #         raise ConcurrencyError("New event ID '{}' occurs before last version event ID '{}' for entity {}"
+            #                                "".format(new_stored_event.event_id, entity_version.event_id, stored_entity_id))
 
     def decide_expected_version_number(self, new_version_number):
         return new_version_number - 1 if new_version_number else None
@@ -296,7 +296,7 @@ class SimpleStoredEventIterator(StoredEventIterator):
         """
         Yields pages of events until the last page.
 
-       """
+        """
         while True:
             # Get next page of events.
             if self.limit is not None:
