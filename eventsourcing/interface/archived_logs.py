@@ -152,28 +152,26 @@ class ArchivedLogReader(six.with_metaclass(ABCMeta)):
             from_index = last_item_num - doc_first_item_number + 1
             items = items[from_index:]
 
-        for item in items:
-            yield item
-        self.archived_log_count += 1
-
         # Yield all items in all subsequent archived logs.
-        while archived_log.next_id:
+        while True:
 
-            # Follow link to get next archived log.
-            next_archived_log_id = archived_log.next_id
-            archived_log = self.archived_log_repo[next_archived_log_id]
-
-            # Yield all items in the archived log.
-            for item in archived_log.items:
+            for item in items:
                 yield item
             self.archived_log_count += 1
 
+            if archived_log.next_id:
+                # Follow link to get next archived log.
+                archived_log = self.archived_log_repo[archived_log.next_id]
+                items = archived_log.items
+            else:
+                break
 
-def deserialise_archived_log(doc_content):
+
+def deserialise_archived_log(archived_log_json):
     try:
-        return ArchivedLog(**json.loads(doc_content))
+        return ArchivedLog(**json.loads(archived_log_json))
     except ValueError as e:
-        raise Exception("Couldn't deserialise archived log: {}: {}".format(e, doc_content))
+        raise Exception("Couldn't deserialise archived log: {}: {}".format(e, archived_log_json))
 
 
 def serialize_archived_log(archived_log):
@@ -187,19 +185,22 @@ class RemoteArchivedLogRepo(ArchivedLogRepository):
         self.feed_name = feed_name
 
     def __getitem__(self, archived_log_id):
-        # Make doc url from doc_id.
-        doc_url = self._format_doc_url(archived_log_id)
+        archived_log_json = self.get_archived_log_json(archived_log_id)
+        return deserialise_archived_log(archived_log_json)
 
-        # Get feed resource representation.
-        doc_content = self.get_resource(doc_url)  # Return deserialized JSON.
-
-        return deserialise_archived_log(doc_content)
+    def get_archived_log_json(self, archived_log_id):
+        archived_log_url = self.make_archived_log_url(archived_log_id)
+        return self.get_resource(archived_log_url)
 
     def get_resource(self, doc_url):
-        doc_content = requests.get(doc_url).content
-        if isinstance(doc_content, type(b'')):
-            doc_content = doc_content.decode('utf8')
-        return doc_content
+        representation = requests.get(doc_url).content
+        if isinstance(representation, type(b'')):
+            representation = representation.decode('utf8')
+        return representation
 
-    def _format_doc_url(self, doc_id):
-        return '{}/{}/{}/'.format(self.feeds_url.strip('/'), self.feed_name, doc_id)
+    def make_archived_log_url(self, archived_log_id):
+        return '{}/{}/{}/'.format(
+            self.feeds_url.strip('/'),
+            self.feed_name,
+            archived_log_id
+        )

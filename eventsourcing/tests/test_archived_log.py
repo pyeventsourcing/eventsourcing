@@ -12,21 +12,52 @@ from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepo
 from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCase
 
 
+class NotificationLogContext(object):
+
+    def __init__(self, event_store):
+        super(NotificationLogContext, self).__init__()
+        self.event_store = event_store
+        self.log_repo = LogRepo(event_store)
+        self.sequence_repo = SequenceRepo(event_store)
+        self.notification_log_repo = NotificationLogRepo(event_store)
+
+    def get_or_create_notification_log(self, log_name, sequence_size):
+        return self.notification_log_repo.get_or_create(
+            log_name=log_name,
+            sequence_size=sequence_size,
+        )
+
+    def append_notification(self, notification_log, item):
+        append_item_to_notification_log(
+            notification_log=notification_log,
+            item=item,
+            sequence_repo=self.sequence_repo,
+            log_repo=self.log_repo,
+            event_store=self.sequence_repo.event_store,
+        )
+
+    def create_archived_log_repo(self, notification_log, doc_size):
+        return ArchivedLogRepo(
+            notification_log=notification_log,
+            sequence_repo=self.sequence_repo,
+            log_repo=self.log_repo,
+            event_store=self.event_store,
+            doc_size=doc_size,
+        )
+
+
 class ArchivedLogTestCase(AppishTestCase):
 
     def setUp(self):
         super(ArchivedLogTestCase, self).setUp()
-        self.log_repo = LogRepo(self.event_store)
-        self.sequence_repo = SequenceRepo(event_store=self.event_store)
-        self.notification_log_repo = NotificationLogRepo(self.event_store)
-
-        # self.notification_log = self.get_or_create_notification_log('log1', sequence_size=10)
+        self.app = NotificationLogContext(self.event_store)
 
     def test_archived_log_repo(self):
-        self.notification_log = self.get_or_create_notification_log('log1', sequence_size=10)
+        notification_log = self.app.get_or_create_notification_log('log1', sequence_size=10)
+
         # Create an archived log repo.
         doc_size = 5
-        repo = self.create_archived_log_repo(doc_size)
+        repo = self.app.create_archived_log_repo(notification_log, doc_size)
 
         # Check the archived logs.
         archived_log = repo['current']
@@ -36,7 +67,7 @@ class ArchivedLogTestCase(AppishTestCase):
         self.assertIsNone(archived_log.previous_id)
 
         # Append items to notification log.
-        self.append_notifications(13)
+        self.append_notifications(notification_log, 13)
 
         # Check the archived logs.
         self.assert_archived_log(repo, 'current', '11,15', 3, '6,10', None)
@@ -47,7 +78,7 @@ class ArchivedLogTestCase(AppishTestCase):
         self.assert_archived_log(repo, '21,25', '21,25', 0, '16,20', None)
 
         # Add some more items.
-        self.append_notifications(13, 24)
+        self.append_notifications(notification_log, 13, 24)
 
         # Check the archived logs have been extended.
         self.assertEqual(len(repo['11,15'].items), doc_size)
@@ -57,33 +88,32 @@ class ArchivedLogTestCase(AppishTestCase):
 
         # Check sequence size must be divisible by doc size.
         with self.assertRaises(ValueError):
-            ArchivedLogRepo(self.notification_log, self.sequence_repo, self.log_repo, self.event_store, doc_size=6)
+            self.app.create_archived_log_repo(notification_log, doc_size=6)
 
         # Check the doc ID must match the doc size.
-        repo = self.create_archived_log_repo(doc_size)
+        repo = self.app.create_archived_log_repo(notification_log, doc_size)
         with self.assertRaises(ValueError):
             _ = repo['1,2']
 
         # Check the doc ID must be aligned to the doc size.
-        repo = self.create_archived_log_repo(doc_size)
-        repo = ArchivedLogRepo(self.notification_log, self.sequence_repo, self.log_repo, self.event_store, doc_size=doc_size)
+        repo = self.app.create_archived_log_repo(notification_log, doc_size)
         with self.assertRaises(ValueError):
             _ = repo['2,6']
 
     def test_archived_log_reader(self):
         # Build a notification log (fixture).
-        self.notification_log = self.get_or_create_notification_log('log1', sequence_size=10)
-        self.append_notifications(13)
+        notification_log = self.app.get_or_create_notification_log('log1', sequence_size=10)
+        self.append_notifications(notification_log, 13)
 
         # Construct a feed object.
-        archived_log_repo = self.create_archived_log_repo(5)
+        archived_log_repo = self.app.create_archived_log_repo(notification_log, 5)
 
         # Use a feed reader to read the feed.
         reader = ArchivedLogReader(archived_log_repo)
-        self.assertEqual(len(list(reader.get_items())), 13)
+        self.assertEqual(len(list(reader.get_items())), 13, list(reader.get_items()))
 
         # Add some more items to the log.
-        self.append_notifications(13, 21)
+        self.append_notifications(notification_log, 13, 21)
 
         # Use archived log reader to generate notifications from the archived log repo.
         reader = ArchivedLogReader(archived_log_repo)
@@ -115,10 +145,10 @@ class ArchivedLogTestCase(AppishTestCase):
         sequence_size = 100
         doc_size = 20
         num_notifications = 42
-        self.notification_log = self.get_or_create_notification_log(log_name, sequence_size)
+        notification_log = self.app.get_or_create_notification_log(log_name, sequence_size)
 
         # Build a notification log (fixture).
-        self.append_notifications(num_notifications)
+        self.append_notifications(notification_log, num_notifications)
 
         # Start a simple server.
         from wsgiref.util import setup_testing_defaults
@@ -143,14 +173,7 @@ class ArchivedLogTestCase(AppishTestCase):
                 raise ValueError(msg)
 
             # Get serialized archived log.
-            archived_log_repo = ArchivedLogRepo(
-                notification_log=self.notification_log,
-                sequence_repo=self.sequence_repo,
-                log_repo=self.log_repo,
-                event_store=self.event_store,
-                doc_size=doc_size,
-            )
-            archived_log = archived_log_repo[archived_log_id]
+            archived_log = self.app.create_archived_log_repo(notification_log, doc_size)[archived_log_id]
             archived_log_json = serialize_archived_log(archived_log)
 
             # Return a list of lines.
@@ -189,33 +212,18 @@ class ArchivedLogTestCase(AppishTestCase):
             thread.join()
             httpd.server_close()
 
-    def get_or_create_notification_log(self, log_name, sequence_size):
-        return self.notification_log_repo.get_or_create(
-            log_name=log_name,
-            sequence_size=sequence_size,
-        )
-
-    def assert_archived_log(self, repo, archived_log_id, expected_id, expected_len_items, expected_previous_id, expected_next_id):
+    def assert_archived_log(self, repo, archived_log_id, expected_id, expected_len_items, expected_previous_id,
+                            expected_next_id):
         archived_log = repo[archived_log_id]
         self.assertEqual(len(archived_log.items), expected_len_items)
         self.assertEqual(archived_log.id, expected_id)
         self.assertEqual(archived_log.previous_id, expected_previous_id)
         self.assertEqual(archived_log.next_id, expected_next_id)
 
-    def append_notifications(self, *range_args):
+    def append_notifications(self, notification_log, *range_args):
         for i in range(*range_args):
             item = 'item{}'.format(i + 1)
-            append_item_to_notification_log(self.notification_log, item, self.sequence_repo, self.log_repo,
-                                            self.event_store)
-
-    def create_archived_log_repo(self, doc_size):
-        return ArchivedLogRepo(
-            notification_log=self.notification_log,
-            sequence_repo=self.sequence_repo,
-            log_repo=self.log_repo,
-            event_store=self.event_store,
-            doc_size=doc_size,
-        )
+            self.app.append_notification(notification_log, item)
 
 
 class TestArchivedLogWithPythonObjects(PythonObjectsRepoTestCase, ArchivedLogTestCase):

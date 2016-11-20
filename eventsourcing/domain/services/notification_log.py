@@ -9,13 +9,16 @@ from eventsourcing.exceptions import SequenceFullError
 from eventsourcing.infrastructure.log_reader import LogReader
 
 
-def append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, sequence_event_player):
+def append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, event_store):
+    """Appends item to current sequence, unless the sequence is full.
+
+    If the sequence is full, the sequence number is incremented and
+    the item is added to the next sequence."""
     assert isinstance(notification_log, NotificationLog), notification_log
     assert isinstance(sequence_repo, SequenceRepository)
     assert isinstance(log_repo, LogRepository)
     # Get the sequence.
-    current_sequence = get_current_notification_log_sequence(notification_log, sequence_repo, log_repo,
-                                                             sequence_event_player)
+    current_sequence = get_current_notification_log_sequence(notification_log, sequence_repo, log_repo, event_store)
     assert isinstance(current_sequence, Sequence)
     try:
         append_item_to_sequence(current_sequence.name, item, sequence_repo.event_player,
