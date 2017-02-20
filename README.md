@@ -2,6 +2,7 @@
 
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png?branch=develop)]
 (https://travis-ci.org/johnbywater/eventsourcing)
+[![Gitter chat](https://badges.gitter.im/gitterHQ/services.png)](https://gitter.im/eventsourcing-in-python/eventsourcing)
 
 A library for event sourcing in Python.
 
