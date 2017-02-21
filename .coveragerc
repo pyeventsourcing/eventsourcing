@@ -3,3 +3,4 @@ source = eventsourcing
 omit =
     */python?.?/*
     */test_?.py
+    */tests/*
