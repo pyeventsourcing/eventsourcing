@@ -2,6 +2,7 @@
 
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png?branch=develop)]
 (https://travis-ci.org/johnbywater/eventsourcing)
+[![Coverage Status](https://coveralls.io/repos/github/johnbywater/quantdsl/badge.svg?branch=develop)](https://coveralls.io/github/johnbywater/quantdsl?branch=develop)
 [![Gitter chat](https://badges.gitter.im/gitterHQ/services.png)](https://gitter.im/eventsourcing-in-python/eventsourcing)
 
 A library for event sourcing in Python.
