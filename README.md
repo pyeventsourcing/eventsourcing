@@ -498,6 +498,10 @@ See also:
 
 ## More Details About the Features
 
+
+![UML Class Diagram](https://www.lucidchart.com/publicSegments/view/9919fa7f-2c6d-4aac-b189-5f2871a69aee/image.png)
+
+
 * Example application of event sourcing, with an example event sourced entity and example domain events, and with
  an example event sourced repository containing example entity instances, and an example entity factory method
 
