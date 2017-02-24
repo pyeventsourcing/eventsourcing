@@ -7,14 +7,7 @@
 
 A library for event sourcing in Python.
 
-
 ## Features
-
-**Domain Events, Entities, Repositories, and Subscribers** — Base classes
-make it easy to develop new applications with custom entities, custom
-repositories, custom domain events, custom subscribers, custom
-transcoders, custom stored event repositories, custom snapshotting
-mechanism. See example below, and the package's test suite.
 
 **Event Store** — With extendable set of stored event repositories
 for adapting different ORMs and databases systems (e.g. Cassandra,
@@ -54,6 +47,25 @@ unique 16 byte initialization vector for each encryption. Data is
 compressed before it is encrypted, which can mean application
 performance is improved when encryption is enabled.
 
+**Customizable Transcoding** — Between domain events and stored events,
+allows support to be added for serialization and deserialization of
+custom value object types, and also makes it possible to use different
+database schemas when developing a custom stored event repository.
+
+**Synchronous Publish-Subscribe Mechanism** — Entirely deterministic,
+with handlers called in the order they are registered, and with which
+calls to publish events do not return until all event subscribers have
+returned.
+
+**Abstract Base Classes** — For domain models, infrastructure, and
+applications that make use of those models and that infrastructure. For
+instance: the Application class helps by constructing an event store,
+and a persistence subscriber that uses the event store; the repository
+base class constructs the event player for a repository; and the domain
+event base class can provide itself with a unique domain event ID. There
+is a UML class diagram which which shows the core classes and their
+relationships in the Design section (see below).
+
 **Time-Bucketed Logs** — Provide a way of writing an indefinitely long
 stream of events in a highly scalable manner. Includes log objects,
 logged message events and a log reader implemented as a generator that
@@ -69,20 +81,10 @@ logger that writes an event sourced log that can be indexed with a
 contiguous integer sequence, and a log reader implemented as a generator
 that selects a part of a sequence using Python's list slice syntax.
 
-**Customizable Transcoding** — Between domain events and stored events,
-allows support to be added for serialization and deserialization of
-custom value object types, and also makes it possible to use different
-database schemas when developing a custom stored event repository.
-
-**Synchronous Publish-Subscribe Mechanism** — Entirely deterministic,
-with handlers called in the order they are registered, and with which
-calls to publish events do not return until all event subscribers have
-returned.
-
 **Worked Examples** — A simple worked example application, with example
 entity class, event sourced repository, and factory method (see below).
-Also included is a slightly more sophisticated version of the
-example application below.
+A slightly more sophisticated version of the example application below
+is included in the library code (see test suite).
 
 **Collections** — Event sourced collections, for modelling different
 kinds of multiplicity.
@@ -115,13 +117,39 @@ There is also a mailing list.
 * https://groups.google.com/forum/#!forum/eventsourcing-users
 
 
+
+## Design
+
+The design of the library follows the layered architecture: interfaces, application, domain, and infrastructure.
+
+The domain layer contains a model of the supported domain, and services that depend on that
+model. The infrastructure layer encapsulates the infrastructural services required by the application.
+
+The application is responsible for binding domain and infrastructure, and has policies
+such as the persistence subscriber, which stores domain events whenever they are published by the model.
+
+The example application has an example respository, from which example entities can be retrieved. It
+also has a factory method to register new example entities. Each repository has an event player, which share
+an event store with the persistence subscriber. The persistence subscriber uses the event store
+to store domain events, and the event players use the event store to retrieve the stored events. The event
+players also share with the model the mutator functions that are used to apply domain events to an initial state.
+
+Functionality such as transcoding and snapshotting is factored as strategy objects, injected into dependents
+by constructor parameter. Application level encryption is a transcoding option.
+
+The stored event repository adaption layer allows domain events to be stored in a range of database 
+services, and optional makes use of optimistic concurrency controls they may provide.
+
+
+![UML Class Diagram](https://www.lucidchart.com/publicSegments/view/9919fa7f-2c6d-4aac-b189-5f2871a69aee/image.png)
+
+
 ## Usage
 
 Start by opening a new Python file in your favourite editor, or start
-a new project in your favourite IDE (I've been using PyCharm for this
-code).
+a new project in your favourite IDE.
 
-Start writing yourself a new event sourced entity class, by making a
+Write yourself a new event sourced entity class, by making a
 subclass of 'EventSourcedEntity' (from module
 'eventsourcing.domain.model.entity').
 
@@ -412,48 +440,6 @@ mysql://scott:tiger@hostname/dbname
 Todo: Develop above to be a tutorial.
 
 
-### Upgrading From 1.0.x to 1.1.x
-
-You don't need to do anything. However before using the new optimistic concurrency controls
-you will need to migrate an existing database schema to have the new 'entity_versions' table,
-and you will also need to add a record to that table for each stored event. See notes in doc
-string of EventSourcingApplication class for a zero-downtime migration approach.
-
-To enable optimistic concurrency control, set the application constructor argument named
-'enable_occ' to a True value.
-
-
-### Upgrading From 0.9.4 to 1.0.x
-
-If you are upgrading from version 0.9.4, or earlier, please note that version 0.9.4 is
-the last version with ascending as the declared ordering of 'event_id' in column family 'cql_stored_event'.
-Subsequent versions have the this ordering declared as descending. The change was made to support both paging
-through long histories of events and getting only recent events after a snapshot.
-
-A few things have been renamed, for example '@mutableproperty' is the new name for '@eventsourcedproperty'.
-This change was made to reflect the fact that immutable properties are also event sourced.
-
-The EventSourcedEntity class now has a property 'created_on', which replaces the attribute '_created_on'.
-This change follows from the fact that the domain events no longer have an floating point attribute 'timestamp'
-but instead a UUID attribute 'domain_event_id', which is set on an event sourced entity as '_initial_event_id'.
-That UUID value is used to generate the floating point timestamp value of the 'created_on' property.
-
-Please note, the mutator style has changed to use the `singledispatch` package. Mutators were implemented as a
-big if-elif-else block. Subclasses of EventSourcedEntity must implement a static method called _mutator() in
-order to have their own mutator function invoked when mutate() is called.
-
-There is a new method called _apply() on EventSourcedEntity, which makes operations that need to apply events
-have a suitably named method to call. The apply() method calls the mutate() class method, which is also used by the
-event source repository to replay events. The mutate() class method calls the static method _mutator() with the
-event and an initial state. So the static method _mutator is a good method to override in order to introduce
-a mutator for the class.
-
-Please see the Example class for details, and the documentation for singledispatch.
-
-Also, for Cassandra users, the table name for stored events has changed to 'stored_events'. The column names
-have changed to be single characters, for storage efficiency. Production data will need to be migrated.
-
-
 ## Background
 
 Although the event sourcing patterns are each quite simple, and they can be reproduced in code for each project,
@@ -497,10 +483,6 @@ See also:
 
 
 ## More Details About the Features
-
-
-![UML Class Diagram](https://www.lucidchart.com/publicSegments/view/9919fa7f-2c6d-4aac-b189-5f2871a69aee/image.png)
-
 
 * Example application of event sourcing, with an example event sourced entity and example domain events, and with
  an example event sourced repository containing example entity instances, and an example entity factory method
@@ -687,6 +669,50 @@ Todo: Develop above to be a release plan.
   of UUIDs to key and order stored events. This wouldn't be a backwards
   incompatible change, but an alternative transcoder and stored
   event repo.
+
+
+## Upgrade Notes
+
+### Upgrading From 1.0.x to 1.1.x
+
+You don't need to do anything. However before using the new optimistic concurrency controls
+you will need to migrate an existing database schema to have the new 'entity_versions' table,
+and you will also need to add a record to that table for each stored event. See notes in doc
+string of EventSourcingApplication class for a zero-downtime migration approach.
+
+To enable optimistic concurrency control, set the application constructor argument named
+'enable_occ' to a True value.
+
+
+### Upgrading From 0.9.4 to 1.0.x
+
+If you are upgrading from version 0.9.4, or earlier, please note that version 0.9.4 is
+the last version with ascending as the declared ordering of 'event_id' in column family 'cql_stored_event'.
+Subsequent versions have the this ordering declared as descending. The change was made to support both paging
+through long histories of events and getting only recent events after a snapshot.
+
+A few things have been renamed, for example '@mutableproperty' is the new name for '@eventsourcedproperty'.
+This change was made to reflect the fact that immutable properties are also event sourced.
+
+The EventSourcedEntity class now has a property 'created_on', which replaces the attribute '_created_on'.
+This change follows from the fact that the domain events no longer have an floating point attribute 'timestamp'
+but instead a UUID attribute 'domain_event_id', which is set on an event sourced entity as '_initial_event_id'.
+That UUID value is used to generate the floating point timestamp value of the 'created_on' property.
+
+Please note, the mutator style has changed to use the `singledispatch` package. Mutators were implemented as a
+big if-elif-else block. Subclasses of EventSourcedEntity must implement a static method called _mutator() in
+order to have their own mutator function invoked when mutate() is called.
+
+There is a new method called _apply() on EventSourcedEntity, which makes operations that need to apply events
+have a suitably named method to call. The apply() method calls the mutate() class method, which is also used by the
+event source repository to replay events. The mutate() class method calls the static method _mutator() with the
+event and an initial state. So the static method _mutator is a good method to override in order to introduce
+a mutator for the class.
+
+Please see the Example class for details, and the documentation for singledispatch.
+
+Also, for Cassandra users, the table name for stored events has changed to 'stored_events'. The column names
+have changed to be single characters, for storage efficiency. Production data will need to be migrated.
 
 
 ## Project
