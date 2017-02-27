@@ -250,9 +250,9 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
         # Check each event version was written exactly once.
         self.assertEqual(sorted([i[0] for i in total_successes]), list(range(number_of_events)))
 
-        # Check at least 90% of events written had contention that caused a concurrency error.
+        # Check there was contention that caused at least one concurrency error.
         set_failures = set([i[0] for i in total_failures])
-        self.assertGreaterEqual(len(set_failures), number_of_events * 0.3)
+        self.assertTrue(len(set_failures))
 
         # Check each child wrote at least one event.
         self.assertEqual(len(set([i[1] for i in total_successes])), pool_size)
