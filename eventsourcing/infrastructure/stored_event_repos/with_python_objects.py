@@ -1,14 +1,13 @@
 import itertools
 from collections import defaultdict
 
-from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository
-from eventsourcing.domain.services.transcoding import EntityVersion
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
+from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
+from eventsourcing.infrastructure.transcoding import EntityVersion
 from eventsourcing.utils.time import timestamp_from_uuid
 
 
 class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):
-
     def __init__(self, *args, **kwargs):
         super(PythonObjectsStoredEventRepository, self).__init__(*args, **kwargs)
         self._by_id = {}
@@ -16,7 +15,8 @@ class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):
         self._entity_versions = defaultdict(lambda: defaultdict(lambda: itertools.chain([0], itertools.cycle([1]))))
         self._event_id_by_entity_version_id = {}
 
-    def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3, artificial_failure_rate=0):
+    def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3,
+                                artificial_failure_rate=0):
         # Put the event in the various dicts.
         stored_entity_id = new_stored_event.stored_entity_id
         if self.always_write_entity_version and new_version_number is not None:
@@ -54,9 +54,9 @@ class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):
     def remove_entity(self, stored_entity_id):
         if stored_entity_id in self._by_stored_entity_id:
             for stored_event in self._by_stored_entity_id.pop(stored_entity_id):
-                del(self._by_id[stored_event.event_id])
+                del (self._by_id[stored_event.event_id])
         if self.always_write_entity_version:
-            del(self._entity_versions[stored_entity_id])
+            del (self._entity_versions[stored_entity_id])
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True):

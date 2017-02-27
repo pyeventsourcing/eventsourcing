@@ -2,9 +2,9 @@ import six
 
 from eventsourcing.domain.model.events import publish
 from eventsourcing.domain.model.sequence import Sequence
-from eventsourcing.domain.services.eventplayer import EventPlayer
-from eventsourcing.domain.services.transcoding import EntityVersion
 from eventsourcing.exceptions import EntityVersionDoesNotExist, SequenceFullError
+from eventsourcing.infrastructure.eventplayer import EventPlayer
+from eventsourcing.infrastructure.transcoding import EntityVersion
 
 
 def append_item_to_sequence(name, item, event_player, max_size=None):

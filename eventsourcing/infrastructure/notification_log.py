@@ -2,11 +2,11 @@ import six
 
 from eventsourcing.domain.model.log import LogRepository
 from eventsourcing.domain.model.notification_log import NotificationLog
-from eventsourcing.domain.model.sequence import SequenceRepository, Sequence
-from eventsourcing.domain.services.eventstore import AbstractEventStore
-from eventsourcing.domain.services.sequence import append_item_to_sequence, SequenceReader
+from eventsourcing.domain.model.sequence import Sequence, SequenceRepository
 from eventsourcing.exceptions import SequenceFullError
+from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.infrastructure.log_reader import LogReader
+from eventsourcing.infrastructure.sequence import SequenceReader, append_item_to_sequence
 
 
 def append_item_to_notification_log(notification_log, item, sequence_repo, log_repo, event_store):

@@ -1,7 +1,7 @@
 import unittest
 
 from eventsourcing.domain.model.example import Example
-from eventsourcing.domain.services.eventstore import EventStore
+from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 
 

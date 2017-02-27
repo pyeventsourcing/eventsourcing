@@ -5,15 +5,14 @@ from eventsourcing.application.subscribers.persistence import PersistenceSubscri
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.domain.model.example import Example, register_new_example
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.domain.services.eventplayer import EventPlayer
-from eventsourcing.domain.services.eventstore import EventStore
-from eventsourcing.domain.services.snapshotting import EventSourcedSnapshotStrategy, entity_from_snapshot, \
+from eventsourcing.infrastructure.eventplayer import EventPlayer
+from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy, entity_from_snapshot, \
     take_snapshot
 from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 
 
 class TestEventPlayer(unittest.TestCase):
-
     def setUp(self):
         assert_event_handlers_empty()
         self.ps = None
@@ -115,7 +114,8 @@ class TestEventPlayer(unittest.TestCase):
         # Check we can replay from this snapshot.
         initial_state2 = entity_from_snapshot(snapshot2)
         after2 = snapshot2.domain_event_id
-        retrieved_example = event_player.replay_events(registered_example.id, initial_state=initial_state2, after=after2)
+        retrieved_example = event_player.replay_events(registered_example.id, initial_state=initial_state2,
+                                                       after=after2)
         # Check the attributes are correct.
         self.assertEqual(retrieved_example.a, 9999)
 
@@ -132,7 +132,8 @@ class TestEventPlayer(unittest.TestCase):
         self.assertEqual(retrieved_example.a, 9999)
 
         # Similarly, check we can get historical state using a snapshot
-        retrieved_example = event_player.replay_events(registered_example.id, initial_state=initial_state, after=after, until=timecheck2)
+        retrieved_example = event_player.replay_events(registered_example.id, initial_state=initial_state, after=after,
+                                                       until=timecheck2)
         self.assertEqual(retrieved_example.a, 999)
 
     def test_with_snapshots(self):

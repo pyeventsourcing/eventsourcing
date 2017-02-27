@@ -1,7 +1,7 @@
 # coding=utf-8
 from threading import Thread
 
-from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository, StoredEventIterator
+from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, StoredEventIterator
 
 
 class ThreadedStoredEventIterator(StoredEventIterator):

@@ -7,7 +7,7 @@ try:
 except:
     import mock
 from eventsourcing.domain.model.events import publish, DomainEvent
-from eventsourcing.domain.services.eventstore import AbstractEventStore
+from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 
 class TestPersistenceSubscriber(unittest.TestCase):
@@ -22,6 +22,7 @@ class TestPersistenceSubscriber(unittest.TestCase):
         self.persistence_subscriber = PersistenceSubscriber(event_store=event_store)
 
         # Check the event store's append method has NOT been called.
+        assert isinstance(event_store, AbstractEventStore)
         self.assertEqual(0, event_store.append.call_count)
 
         # Publish a (mock) domain event.

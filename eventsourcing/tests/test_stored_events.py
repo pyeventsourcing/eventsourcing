@@ -1,12 +1,12 @@
-import datetime
 from unittest.case import TestCase
 
+import datetime
 from six import with_metaclass
 
-from eventsourcing.domain.model.events import DomainEvent, topic_from_domain_class, QualnameABCMeta
+from eventsourcing.domain.model.events import DomainEvent, QualnameABCMeta, topic_from_domain_class
 from eventsourcing.domain.model.example import Example
-from eventsourcing.domain.services.transcoding import JSONTranscoder, resolve_domain_topic, StoredEvent
 from eventsourcing.exceptions import TopicResolutionError
+from eventsourcing.infrastructure.transcoding import JSONTranscoder, StoredEvent, resolve_domain_topic
 from eventsourcing.utils.time import utc_timezone
 
 
