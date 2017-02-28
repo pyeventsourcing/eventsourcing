@@ -1,6 +1,6 @@
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
-    setup_cassandra_connection, get_cassandra_setup_params, create_cassandra_keyspace_and_tables, \
-    drop_cassandra_keyspace
+    setup_cassandra_connection, get_cassandra_connection_params, create_cassandra_keyspace_and_tables, \
+    drop_cassandra_keyspace, CassandraConnectionSettings
 from eventsourcing.tests.unit_test_cases import AbstractTestCase
 
 
@@ -19,7 +19,7 @@ class CassandraTestCase(AbstractTestCase):
 class CassandraRepoTestCase(CassandraTestCase):
 
     def setUp(self):
-        setup_cassandra_connection(*get_cassandra_setup_params())
+        setup_cassandra_connection(*get_cassandra_connection_params(CassandraConnectionSettings()))
         super(CassandraRepoTestCase, self).setUp()
 
     @property

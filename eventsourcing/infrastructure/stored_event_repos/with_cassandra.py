@@ -227,23 +227,49 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
         )
 
 
-def get_cassandra_setup_params(hosts=DEFAULT_CASSANDRA_HOSTS, consistency=DEFAULT_CASSANDRA_CONSISTENCY_LEVEL,
-                               default_keyspace=DEFAULT_CASSANDRA_KEYSPACE, port=DEFAULT_CASSANDRA_PORT,
-                               protocol_version=DEFAULT_CASSANDRA_PROTOCOL_VERSION, username=None, password=None):
+class DatabaseConnectionSettings(object):
+    """Base class for settings for database connection used by a stored event repository."""
+
+
+class CassandraConnectionSettings(DatabaseConnectionSettings):
+    def __init__(self, hosts=DEFAULT_CASSANDRA_HOSTS, consistency=DEFAULT_CASSANDRA_CONSISTENCY_LEVEL,
+                 default_keyspace=DEFAULT_CASSANDRA_KEYSPACE, port=DEFAULT_CASSANDRA_PORT,
+                 protocol_version=DEFAULT_CASSANDRA_PROTOCOL_VERSION, username=None, password=None):
+        self.hosts = hosts
+        self.consistency = consistency
+        self.default_keyspace = default_keyspace
+        self.port = port
+        self.protocol_version = protocol_version
+        self.username = username
+        self.password = password
+
+
+def get_cassandra_connection_params(settings):
+    assert isinstance(settings, CassandraConnectionSettings), settings
+
     # Construct an "auth provider" object.
-    if username and password:
-        auth_provider = PlainTextAuthProvider(username, password)
+    if settings.username and settings.password:
+        auth_provider = PlainTextAuthProvider(settings.username, settings.password)
     else:
         auth_provider = None
 
     # Resolve the consistency level to an object, if it's a string.
-    if isinstance(consistency, six.string_types):
+    if isinstance(settings.consistency, six.string_types):
         try:
-            consistency = getattr(ConsistencyLevel, consistency.upper())
+            consistency = getattr(ConsistencyLevel, settings.consistency.upper())
         except AttributeError:
-            msg = "Cassandra consistency level '{}' not found.".format(consistency)
+            msg = "Cassandra consistency level '{}' not found.".format(settings.consistency)
             raise Exception(msg)
+    else:
+        consistency = settings.consistency
 
+    # Use the other settings directly.
+    hosts = settings.hosts
+    default_keyspace = settings.default_keyspace
+    port = settings.port
+    protocol_version = settings.protocol_version
+
+    # Return a tuple of the args required by setup_cassandra_connection().
     return auth_provider, hosts, consistency, default_keyspace, port, protocol_version
 
 
@@ -254,7 +280,7 @@ def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspa
         default_keyspace=default_keyspace,
         port=port,
         auth_provider=auth_provider,
-        # protocol_version=protocol_version,
+        protocol_version=protocol_version,
         lazy_connect=True,
         retry_connect=True,
     )
