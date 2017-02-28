@@ -1,7 +1,7 @@
 from eventsourcing.application.base import EventSourcingApplication
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra import setup_cassandra_connection, \
-    get_cassandra_connection_params
+from eventsourcing.infrastructure.stored_event_repos.with_cassandra import setup_cassandra_connection
+from eventsourcing.infrastructure.cassandra import get_cassandra_connection_params, setup_cassandra_connection
 
 
 class EventSourcingWithCassandra(EventSourcingApplication):

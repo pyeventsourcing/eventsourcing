@@ -1,12 +1,8 @@
-import os
 from random import random
 from time import sleep
 
-import cassandra.cqlengine.connection
 import six
-from cassandra import AlreadyExists, ConsistencyLevel, DriverException, InvalidRequest, OperationTimedOut
-from cassandra.auth import PlainTextAuthProvider
-from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
+from cassandra import DriverException
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
@@ -14,12 +10,6 @@ from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 from eventsourcing.infrastructure.transcoding import EntityVersion
-
-DEFAULT_CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
-DEFAULT_CASSANDRA_CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', 'LOCAL_QUORUM')
-DEFAULT_CASSANDRA_HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', 'localhost').split(',')]
-DEFAULT_CASSANDRA_PORT = int(os.getenv('CASSANDRA_PORT', 9042))
-DEFAULT_CASSANDRA_PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', 3))
 
 
 class CqlEntityVersion(Model):
@@ -58,6 +48,11 @@ class CqlStoredEvent(Model):
 
 
 class CassandraStoredEventRepository(AbstractStoredEventRepository):
+
+    def __init__(self, stored_event_table, **kwargs):
+        super(CassandraStoredEventRepository, self).__init__(**kwargs)
+        self.stored_event_table = stored_event_table
+
     @property
     def iterator_class(self):
         return ThreadedStoredEventIterator
@@ -181,7 +176,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
         if limit is not None and limit < 1:
             return []
 
-        query = CqlStoredEvent.objects.filter(n=stored_entity_id)
+        query = self.stored_event_table.objects.filter(n=stored_entity_id)
 
         if query_ascending:
             query = query.order_by('v')
@@ -210,7 +205,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
 
     def to_cql(self, stored_event):
         assert isinstance(stored_event, self.stored_event_class), stored_event
-        return CqlStoredEvent(
+        return self.stored_event_table(
             n=stored_event.stored_entity_id,
             v=stored_event.event_id,
             t=stored_event.event_topic,
@@ -225,99 +220,3 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
             event_topic=cql_stored_event.t,
             event_attrs=cql_stored_event.a
         )
-
-
-class DatabaseConnectionSettings(object):
-    """Base class for settings for database connection used by a stored event repository."""
-
-
-class CassandraConnectionSettings(DatabaseConnectionSettings):
-    def __init__(self, hosts=DEFAULT_CASSANDRA_HOSTS, consistency=DEFAULT_CASSANDRA_CONSISTENCY_LEVEL,
-                 default_keyspace=DEFAULT_CASSANDRA_KEYSPACE, port=DEFAULT_CASSANDRA_PORT,
-                 protocol_version=DEFAULT_CASSANDRA_PROTOCOL_VERSION, username=None, password=None):
-        self.hosts = hosts
-        self.consistency = consistency
-        self.default_keyspace = default_keyspace
-        self.port = port
-        self.protocol_version = protocol_version
-        self.username = username
-        self.password = password
-
-
-def get_cassandra_connection_params(settings):
-    assert isinstance(settings, CassandraConnectionSettings), settings
-
-    # Construct an "auth provider" object.
-    if settings.username and settings.password:
-        auth_provider = PlainTextAuthProvider(settings.username, settings.password)
-    else:
-        auth_provider = None
-
-    # Resolve the consistency level to an object, if it's a string.
-    if isinstance(settings.consistency, six.string_types):
-        try:
-            consistency = getattr(ConsistencyLevel, settings.consistency.upper())
-        except AttributeError:
-            msg = "Cassandra consistency level '{}' not found.".format(settings.consistency)
-            raise Exception(msg)
-    else:
-        consistency = settings.consistency
-
-    # Use the other settings directly.
-    hosts = settings.hosts
-    default_keyspace = settings.default_keyspace
-    port = settings.port
-    protocol_version = settings.protocol_version
-
-    # Return a tuple of the args required by setup_cassandra_connection().
-    return auth_provider, hosts, consistency, default_keyspace, port, protocol_version
-
-
-def setup_cassandra_connection(auth_provider, hosts, consistency, default_keyspace, port, protocol_version):
-    cassandra.cqlengine.connection.setup(
-        hosts=hosts,
-        consistency=consistency,
-        default_keyspace=default_keyspace,
-        port=port,
-        auth_provider=auth_provider,
-        protocol_version=protocol_version,
-        lazy_connect=True,
-        retry_connect=True,
-    )
-
-
-def create_cassandra_keyspace_and_tables(keyspace=DEFAULT_CASSANDRA_KEYSPACE, replication_factor=1):
-    # Avoid warnings about this variable not being set.
-    os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
-    try:
-        create_keyspace_simple(keyspace, replication_factor=replication_factor)
-    except AlreadyExists:
-        pass
-    else:
-        sync_table(CqlStoredEvent)
-        sync_table(CqlEntityVersion)
-
-
-def drop_cassandra_keyspace(keyspace=DEFAULT_CASSANDRA_KEYSPACE):
-    max_retries = 3
-    tried = 0
-    while True:
-        try:
-            drop_keyspace(keyspace)
-            break
-        except InvalidRequest:
-            break
-        except OperationTimedOut:
-            tried += 1
-            if tried <= max_retries:
-                sleep(0.5)
-                continue
-            else:
-                raise
-
-
-def shutdown_cassandra_connection():
-    if cassandra.cqlengine.connection.session:
-        cassandra.cqlengine.connection.session.shutdown()
-    if cassandra.cqlengine.connection.cluster:
-        cassandra.cqlengine.connection.cluster.shutdown()

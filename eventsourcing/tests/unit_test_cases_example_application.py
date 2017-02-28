@@ -30,33 +30,35 @@ class ExampleApplicationTestCase(ApplicationTestCase):
         # Check we're dealing with an example application.
         assert isinstance(self.app, ExampleApplication)
 
-        # Check there's a stored event repo.
-        self.assertIsInstance(self.app.stored_event_repo, AbstractStoredEventRepository)
+        with self.app as app:
 
-        # Check there's an event store.
-        self.assertIsInstance(self.app.event_store, AbstractEventStore)
-        self.assertEqual(self.app.event_store.stored_event_repo, self.app.stored_event_repo)
+            # Check there's a stored event repo.
+            self.assertIsInstance(self.app.stored_event_repository, AbstractStoredEventRepository)
 
-        # Check there's a persistence subscriber.
-        self.assertIsInstance(self.app.persistence_subscriber, PersistenceSubscriber)
-        self.assertEqual(self.app.persistence_subscriber.event_store, self.app.event_store)
+            # Check there's an event store.
+            self.assertIsInstance(self.app.event_store, AbstractEventStore)
+            self.assertEqual(self.app.event_store.stored_event_repo, self.app.stored_event_repository)
 
-        # Check there's an example repository.
-        self.assertIsInstance(self.app.example_repo, ExampleRepo)
+            # Check there's a persistence subscriber.
+            self.assertIsInstance(self.app.persistence_subscriber, PersistenceSubscriber)
+            self.assertEqual(self.app.persistence_subscriber.event_store, self.app.event_store)
 
-        # Register a new example.
-        example1 = self.app.register_new_example(a=10, b=20)
-        self.assertIsInstance(example1, Example)
+            # Check there's an example repository.
+            self.assertIsInstance(self.app.example_repo, ExampleRepo)
 
-        # Check the example is available in the repo.
-        entity1 = self.app.example_repo[example1.id]
-        self.assertEqual(10, entity1.a)
-        self.assertEqual(20, entity1.b)
-        self.assertEqual(example1, entity1)
+            # Register a new example.
+            example1 = self.app.register_new_example(a=10, b=20)
+            self.assertIsInstance(example1, Example)
 
-        # Change attribute values.
-        entity1.a = 100
+            # Check the example is available in the repo.
+            entity1 = self.app.example_repo[example1.id]
+            self.assertEqual(10, entity1.a)
+            self.assertEqual(20, entity1.b)
+            self.assertEqual(example1, entity1)
 
-        # Check the new value is available in the repo.
-        entity1 = self.app.example_repo[example1.id]
-        self.assertEqual(100, entity1.a)
+            # Change attribute values.
+            entity1.a = 100
+
+            # Check the new value is available in the repo.
+            entity1 = self.app.example_repo[example1.id]
+            self.assertEqual(100, entity1.a)

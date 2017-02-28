@@ -7,8 +7,7 @@ from cassandra import AlreadyExists, ConsistencyLevel, InvalidRequest, Operation
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
 
-from eventsourcing.infrastructure.datastore import DatastoreStrategy
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra import DatastoreSettings
+from eventsourcing.infrastructure.datastore import DatastoreStrategy, DatastoreSettings
 
 CASSANDRA_HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', 'localhost').split(',')]
 CASSANDRA_PORT = int(os.getenv('CASSANDRA_PORT', 9042))
