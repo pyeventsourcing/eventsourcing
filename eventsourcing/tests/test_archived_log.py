@@ -1,11 +1,11 @@
 from threading import Thread
 
-from eventsourcing.domain.services.notification_log import append_item_to_notification_log
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.event_sourced_repos.notificationlog_repo import NotificationLogRepo
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
-from eventsourcing.interface.archived_logs import ArchivedLogRepo, ArchivedLogReader, \
-    RemoteArchivedLogRepo, serialize_archived_log
+from eventsourcing.infrastructure.notification_log import append_item_to_notification_log
+from eventsourcing.interface.archived_logs import ArchivedLogReader, ArchivedLogRepo, RemoteArchivedLogRepo, \
+    serialize_archived_log
 from eventsourcing.tests.unit_test_cases import AppishTestCase
 from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
 from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase

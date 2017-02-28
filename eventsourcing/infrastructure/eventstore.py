@@ -4,13 +4,11 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.domain.services.transcoding import AbstractTranscoder, JSONTranscoder, StoredEvent
-from eventsourcing.exceptions import ProgrammingError, EntityVersionDoesNotExist, ConcurrencyError
-from eventsourcing.utils.time import time_from_uuid
+from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist, ProgrammingError
+from eventsourcing.infrastructure.transcoding import AbstractTranscoder, JSONTranscoder, StoredEvent
 
 
 class AbstractEventStore(six.with_metaclass(ABCMeta)):
-
     @abstractmethod
     def append(self, domain_event):
         """
@@ -32,7 +30,6 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
 
 
 class EventStore(AbstractEventStore):
-
     def __init__(self, stored_event_repo, transcoder=None):
         assert isinstance(stored_event_repo, AbstractStoredEventRepository), stored_event_repo
         if transcoder is None:
@@ -143,10 +140,12 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
             except EntityVersionDoesNotExist:
                 raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
                                        "".format(expected_version_number, stored_entity_id))
-            # else:
-            #     if not time_from_uuid(new_stored_event.event_id) > time_from_uuid(entity_version.event_id):
-            #         raise ConcurrencyError("New event ID '{}' occurs before last version event ID '{}' for entity {}"
-            #                                "".format(new_stored_event.event_id, entity_version.event_id, stored_entity_id))
+                # else:
+                #     if not time_from_uuid(new_stored_event.event_id) > time_from_uuid(entity_version.event_id):
+                #         raise ConcurrencyError("New event ID '{}' occurs before last version event ID '{}' for
+                # entity {}"
+                #                                "".format(new_stored_event.event_id, entity_version.event_id,
+                # stored_entity_id))
 
     def decide_expected_version_number(self, new_version_number):
         return new_version_number - 1 if new_version_number else None
@@ -161,7 +160,8 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def write_version_and_event(self, new_stored_event, new_entity_version=None, max_retries=3, artificial_failure_rate=0):
+    def write_version_and_event(self, new_stored_event, new_entity_version=None, max_retries=3,
+                                artificial_failure_rate=0):
         """
         Writes entity version and stored event into a database.
         """

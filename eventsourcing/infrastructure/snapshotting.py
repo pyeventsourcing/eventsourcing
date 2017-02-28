@@ -2,11 +2,11 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.domain.model.events import topic_from_domain_class, publish
-from eventsourcing.domain.model.snapshot import Snapshot, AbstractSnapshop
-from eventsourcing.domain.services.eventstore import AbstractEventStore
-from eventsourcing.domain.services.transcoding import make_stored_entity_id, id_prefix_from_event_class, \
-    deserialize_domain_entity, id_prefix_from_entity
+from eventsourcing.domain.model.events import publish, topic_from_domain_class
+from eventsourcing.domain.model.snapshot import AbstractSnapshop, Snapshot
+from eventsourcing.infrastructure.eventstore import AbstractEventStore
+from eventsourcing.infrastructure.transcoding import deserialize_domain_entity, id_prefix_from_entity, \
+    id_prefix_from_event_class, make_stored_entity_id
 
 
 class AbstractSnapshotStrategy(six.with_metaclass(ABCMeta)):

@@ -4,15 +4,15 @@ from time import sleep
 
 import cassandra.cqlengine.connection
 import six
-from cassandra import ConsistencyLevel, AlreadyExists, DriverException, OperationTimedOut, InvalidRequest
+from cassandra import AlreadyExists, ConsistencyLevel, DriverException, InvalidRequest, OperationTimedOut
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine import ValidationError
-from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_keyspace
+from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
-from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
+from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 
 DEFAULT_CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
@@ -38,7 +38,6 @@ class CqlEntityVersion(Model):
 
 
 class CqlStoredEvent(Model):
-
     __table_name__ = 'stored_events'
 
     # Makes sure we can't write the same version twice,
@@ -62,12 +61,12 @@ class CqlStoredEvent(Model):
 
 
 class Cassandra2StoredEventRepository(AbstractStoredEventRepository):
-
     @property
     def iterator_class(self):
         return ThreadedStoredEventIterator
 
-    def write_version_and_event(self, new_stored_event, new_version_number=0, max_retries=3, artificial_failure_rate=0):
+    def write_version_and_event(self, new_stored_event, new_version_number=0, max_retries=3,
+                                artificial_failure_rate=0):
         """
         Writes the stored event with version number.
         """
@@ -193,7 +192,8 @@ class Cassandra2StoredEventRepository(AbstractStoredEventRepository):
         if after is not None:
             if query_ascending:
                 try:
-                    after_version = CqlEntityVersion.objects.order_by('i').limit(1).get(n=stored_entity_id, i__gte=after).v
+                    after_version = CqlEntityVersion.objects.order_by('i').limit(1).get(n=stored_entity_id,
+                                                                                        i__gte=after).v
                 except CqlEntityVersion.DoesNotExist:
                     pass
                 else:
@@ -246,7 +246,6 @@ class Cassandra2StoredEventRepository(AbstractStoredEventRepository):
 def get_cassandra_setup_params(hosts=DEFAULT_CASSANDRA_HOSTS, consistency=DEFAULT_CASSANDRA_CONSISTENCY_LEVEL,
                                default_keyspace=DEFAULT_CASSANDRA_KEYSPACE, port=DEFAULT_CASSANDRA_PORT,
                                protocol_version=DEFAULT_CASSANDRA_PROTOCOL_VERSION, username=None, password=None):
-
     # Construct an "auth provider" object.
     if username and password:
         auth_provider = PlainTextAuthProvider(username, password)

@@ -1,10 +1,10 @@
-from abc import abstractmethod, ABCMeta
+from abc import ABCMeta, abstractmethod
 
 from six import with_metaclass
 
 from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
-from eventsourcing.domain.services.eventstore import EventStore
-from eventsourcing.domain.services.transcoding import JSONTranscoder
+from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.transcoding import JSONTranscoder
 
 
 class EventSourcingApplication(with_metaclass(ABCMeta)):

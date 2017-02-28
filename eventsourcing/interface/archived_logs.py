@@ -7,8 +7,8 @@ import six
 from eventsourcing.domain.model.log import LogRepository
 from eventsourcing.domain.model.notification_log import NotificationLog
 from eventsourcing.domain.model.sequence import SequenceRepository
-from eventsourcing.domain.services.eventstore import AbstractEventStore
-from eventsourcing.domain.services.notification_log import NotificationLogReader
+from eventsourcing.infrastructure.eventstore import AbstractEventStore
+from eventsourcing.infrastructure.notification_log import NotificationLogReader
 
 
 class ArchivedLogRepository(six.with_metaclass(ABCMeta)):

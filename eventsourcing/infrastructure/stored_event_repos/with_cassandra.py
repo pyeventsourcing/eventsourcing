@@ -4,16 +4,16 @@ from time import sleep
 
 import cassandra.cqlengine.connection
 import six
-from cassandra import ConsistencyLevel, AlreadyExists, DriverException, OperationTimedOut, InvalidRequest
+from cassandra import AlreadyExists, ConsistencyLevel, DriverException, InvalidRequest, OperationTimedOut
 from cassandra.auth import PlainTextAuthProvider
-from cassandra.cqlengine.management import sync_table, create_keyspace_simple, drop_keyspace
+from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
-from eventsourcing.domain.services.eventstore import AbstractStoredEventRepository
-from eventsourcing.domain.services.transcoding import EntityVersion
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
+from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
+from eventsourcing.infrastructure.transcoding import EntityVersion
 
 DEFAULT_CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
 DEFAULT_CASSANDRA_CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', 'LOCAL_QUORUM')
@@ -42,7 +42,6 @@ class CqlEntityVersion(Model):
 
 
 class CqlStoredEvent(Model):
-
     __table_name__ = 'stored_events'
 
     # Stored entity ID (normally a string, with the entity type name at the start)
@@ -59,12 +58,12 @@ class CqlStoredEvent(Model):
 
 
 class CassandraStoredEventRepository(AbstractStoredEventRepository):
-
     @property
     def iterator_class(self):
         return ThreadedStoredEventIterator
 
-    def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3, artificial_failure_rate=0):
+    def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3,
+                                artificial_failure_rate=0):
         """
         Writes entity version if not exists, and then writes the stored event.
         """
@@ -83,7 +82,8 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
             try:
                 new_entity_version.save()
             except LWTException as e:
-                raise ConcurrencyError("Version {} of entity {} already exists: {}".format(new_entity_version, stored_entity_id, e))
+                raise ConcurrencyError(
+                    "Version {} of entity {} already exists: {}".format(new_entity_version, stored_entity_id, e))
 
         # Increased latency here causes increased contention.
         #  - used for testing concurrency exceptions
@@ -230,7 +230,6 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
 def get_cassandra_setup_params(hosts=DEFAULT_CASSANDRA_HOSTS, consistency=DEFAULT_CASSANDRA_CONSISTENCY_LEVEL,
                                default_keyspace=DEFAULT_CASSANDRA_KEYSPACE, port=DEFAULT_CASSANDRA_PORT,
                                protocol_version=DEFAULT_CASSANDRA_PROTOCOL_VERSION, username=None, password=None):
-
     # Construct an "auth provider" object.
     if username and password:
         auth_provider = PlainTextAuthProvider(username, password)

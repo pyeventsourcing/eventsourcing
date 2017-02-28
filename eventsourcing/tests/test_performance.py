@@ -8,15 +8,15 @@ from eventsourcing.application.example.with_cassandra import ExampleApplicationW
 from eventsourcing.application.example.with_cassandra2 import ExampleApplicationWithCassandra2
 from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
 from eventsourcing.application.example.with_sqlalchemy import ExampleApplicationWithSQLAlchemy
-from eventsourcing.domain.model.example import register_new_example, Example
+from eventsourcing.domain.model.example import Example, register_new_example
 from eventsourcing.domain.model.log import get_logger, start_new_log
 from eventsourcing.domain.services.cipher import AESCipher
-from eventsourcing.domain.services.transcoding import make_stored_entity_id
-from eventsourcing.infrastructure.log_reader import get_log_reader, LogReader
+from eventsourcing.infrastructure.log_reader import LogReader, get_log_reader
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import create_cassandra_keyspace_and_tables, \
     drop_cassandra_keyspace
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra2 import create_cassandra2_keyspace_and_tables, \
     drop_cassandra2_keyspace
+from eventsourcing.infrastructure.transcoding import make_stored_entity_id
 from eventsourcing.tests.test_utils import utc_now
 from eventsourcing.tests.unit_test_cases import AbstractTestCase, notquick
 

@@ -1,20 +1,20 @@
 from __future__ import unicode_literals
 
-import datetime
 import importlib
 import json
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 
+import datetime
 import dateutil.parser
 import six
+from six import BytesIO
 
 from eventsourcing.domain.model.entity import EventSourcedEntity
-from eventsourcing.domain.model.events import topic_from_domain_class, resolve_domain_topic, resolve_attr, DomainEvent
+from eventsourcing.domain.model.events import DomainEvent, resolve_attr, resolve_domain_topic, topic_from_domain_class
 
 try:
     import numpy
-    from six import BytesIO
 except ImportError:
     numpy = None
 
@@ -24,7 +24,6 @@ StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_
 
 
 class AbstractTranscoder(six.with_metaclass(ABCMeta)):
-
     @abstractmethod
     def serialize(self, domain_event):
         """Returns a stored event, for the given domain event."""
@@ -35,7 +34,6 @@ class AbstractTranscoder(six.with_metaclass(ABCMeta)):
 
 
 class ObjectJSONEncoder(json.JSONEncoder):
-
     def default(self, obj):
         try:
             return super(ObjectJSONEncoder, self).default(obj)
@@ -64,7 +62,6 @@ class ObjectJSONEncoder(json.JSONEncoder):
 
 
 class ObjectJSONDecoder(json.JSONDecoder):
-
     def __init__(self, **kwargs):
         super(ObjectJSONDecoder, self).__init__(object_hook=ObjectJSONDecoder.from_jsonable, **kwargs)
 
@@ -119,6 +116,7 @@ class JSONTranscoder(AbstractTranscoder):
 
     Also converts stored event objects into domain event objects.
     """
+
     def __init__(self, json_encoder_cls=ObjectJSONEncoder, json_decoder_cls=ObjectJSONDecoder,
                  cipher=None, always_encrypt=False, stored_event_cls=StoredEvent):
 
