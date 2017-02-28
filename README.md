@@ -9,24 +9,20 @@ A library for event sourcing in Python.
 
 ## Features
 
-**Event Store** — With extendable set of stored event repositories
-for adapting different ORMs and databases systems (e.g. Cassandra,
-SQLAlchemy). Includes an in-memory stored event
-repository implemented with simple Python objects. If your
+**Event Store** — With stored event repositories for adapting
+ORMs and databases systems (e.g. SQLAlchemy, Cassandra). If your
 database system isn't already supported, it will be easy to adapt
 with a custom stored event repository.
 
-**Event Player with Snapshots** — Avoid replaying an entire event stream to obtain the
-current state of an entity. Makes entity access constant time,
-rather than proportional to the number of events. Snapshotting is
-implemented as a strategy object in the application class, making it
-easy to use a custom snapshotting mechanism and storage. A snapshot
+**Persistence Subscriber** - Listens for domain events, and
+writes stored events to the event store whenever a domain event is published.
+
+**Event Player** — Reconstitutes domain entities from their domain
+events, optionally with snapshotting. Snapshotting avoids replaying
+an entire event stream to obtain the current state of an entity. It
+easy to use a custom snapshotting strategy. A snapshot
 strategy is included which reuses the capabilities of this library by
 implementing snapshots as domain events.
-
-**Fast Forwarding** — Of entities to latest published event, used with
-snapshots and also when optimistic currency control exceptions are
-encountered.
 
 **Optimistic Concurrency Control** — Implemented using optimistic
 concurrency controls in the adapted database. For example, with
@@ -57,16 +53,20 @@ with handlers called in the order they are registered, and with which
 calls to publish events do not return until all event subscribers have
 returned.
 
-**Abstract Base Classes** — For domain models, infrastructure, and
-applications that make use of those models and that infrastructure. For
-instance: the Application class helps by constructing an event store,
-and a persistence subscriber that uses the event store; the repository
-base class constructs the event player for a repository; and the domain
-event base class can provide itself with a unique domain event ID. There
-is a UML class diagram which which shows the core classes and their
-relationships in the Design section (see below).
+**Worked Examples** — A simple worked example application, with example
+entity class, event sourced repository, and factory method.
 
-**Time-Bucketed Logs** — Provide a way of writing an indefinitely long
+**Abstract Base Classes** — For domain events, domain entities, entity
+repositories, strategies, stored event repositories infrastructure, and
+applications.
+
+**Archived Logs, Notification Logs** - Provides a way of reading a long
+sequence of events in a highly scalable manner. Includes a notification
+logger that writes an event sourced log that can be indexed with a
+contiguous integer sequence, and a log reader implemented as a generator
+that selects a part of a sequence using Python's list slice syntax.
+
+**Time-Bucketed Logs** — Provides a way of writing a long
 stream of events in a highly scalable manner. Includes log objects,
 logged message events and a log reader implemented as a generator that
 can span across many many buckets. For example, a domain event log
@@ -75,19 +75,12 @@ a linearly scalable manner, and then retrieved in order, limited by
 number, from any point in time until another point in time, in reverse
 or ascending order.
 
-**Notification Logs** - Provide a way of reading an indefinitely long
-sequence of events in a highly scalable manner. Includes a notification
-logger that writes an event sourced log that can be indexed with a
-contiguous integer sequence, and a log reader implemented as a generator
-that selects a part of a sequence using Python's list slice syntax.
-
-**Worked Examples** — A simple worked example application, with example
-entity class, event sourced repository, and factory method (see below).
-A slightly more sophisticated version of the example application below
-is included in the library code (see test suite).
-
 **Collections** — Event sourced collections, for modelling different
 kinds of multiplicity.
+
+**Fast Forwarding** — Of entities to latest published event, used with
+snapshots and also when optimistic currency control exceptions are
+encountered.
 
 
 ## Install
