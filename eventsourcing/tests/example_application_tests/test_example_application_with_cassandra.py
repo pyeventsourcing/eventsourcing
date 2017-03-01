@@ -2,19 +2,19 @@ from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastoreStrategy, CassandraSettings
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
     CqlStoredEvent
-from eventsourcing.tests.unit_test_cases_example_application import ExampleApplicationTestCase
+from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
 
 
 class TestExampleApplicationWithCassandra(ExampleApplicationTestCase):
+
+    def create_app(self):
+        return create_example_application_with_cassandra()
 
     def setUp(self):
         self.datastore_strategy = create_cassandra_datastore_strategy()
         self.datastore_strategy.setup_connection()
         self.datastore_strategy.setup_tables()
         super(TestExampleApplicationWithCassandra, self).setUp()
-
-    def create_app(self):
-        return create_example_application_with_cassandra()
 
     def tearDown(self):
         super(TestExampleApplicationWithCassandra, self).tearDown()
@@ -29,6 +29,7 @@ def create_example_application_with_cassandra(cipher=None):
             stored_event_table=CqlStoredEvent
         ),
         cipher=cipher,
+        always_encrypt=cipher is not None,
     )
 
 

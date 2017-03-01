@@ -29,6 +29,8 @@ from eventsourcing.infrastructure.transcoding import StoredEvent
 
 
 class AbstractTestCase(TestCase):
+    """Base class for test cases with abstract test_* methods."""
+
     def setUp(self):
         """
         Returns None if test case class ends with 'TestCase', which means the test case isn't included in the suite.

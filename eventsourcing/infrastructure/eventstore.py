@@ -5,7 +5,7 @@ import six
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist, ProgrammingError
-from eventsourcing.infrastructure.transcoding import AbstractTranscoder, JSONTranscoder, StoredEvent
+from eventsourcing.infrastructure.transcoding import StoredEventTranscoder, JSONStoredEventTranscoder, StoredEvent
 
 
 class AbstractEventStore(six.with_metaclass(ABCMeta)):
@@ -33,8 +33,8 @@ class EventStore(AbstractEventStore):
     def __init__(self, stored_event_repo, transcoder=None):
         assert isinstance(stored_event_repo, AbstractStoredEventRepository), stored_event_repo
         if transcoder is None:
-            transcoder = JSONTranscoder()
-        assert isinstance(transcoder, AbstractTranscoder), transcoder
+            transcoder = JSONStoredEventTranscoder()
+        assert isinstance(transcoder, StoredEventTranscoder), transcoder
         self.stored_event_repo = stored_event_repo
 
         self.transcoder = transcoder

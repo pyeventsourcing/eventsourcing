@@ -1,3 +1,5 @@
+from abc import abstractmethod
+
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.model.example import Example
@@ -6,31 +8,21 @@ from eventsourcing.infrastructure.eventstore import AbstractEventStore, Abstract
 from eventsourcing.tests.unit_test_cases import AbstractTestCase
 
 
-class ApplicationTestCase(AbstractTestCase):
+class ExampleApplicationTestCase(AbstractTestCase):
 
+    @abstractmethod
     def create_app(self):
-        raise NotImplementedError
-
-    def setUp(self):
-        super(ApplicationTestCase, self).setUp()
-        self.app = self.create_app()
-
-    def tearDown(self):
-        self.app.close()
-        super(ApplicationTestCase, self).tearDown()
-
-
-class ExampleApplicationTestCase(ApplicationTestCase):
+        """
+        :rtype: ExampleApplication
+        """
 
     def test(self):
         """
         Checks the example application works in the way an example application should.
         """
 
-        # Check we're dealing with an example application.
-        assert isinstance(self.app, ExampleApplication)
+        with self.create_app() as app:
 
-        with self.app as app:
 
             # Check there's a stored event repo.
             self.assertIsInstance(app.stored_event_repository, AbstractStoredEventRepository)

@@ -1,32 +1,22 @@
-# from eventsourcing.application.example.with_sqlalchemy import ExampleApplicationWithSQLAlchemy
-# from eventsourcing.tests.unit_test_cases_example_application import ExampleApplicationTestCase
-#
-#
-# class TestApplicationWithSQLAlchemy(ExampleApplicationTestCase):
-#
-#     def create_app(self):
-#         return ExampleApplicationWithSQLAlchemy(db_uri='sqlite:///:memory:')
-
-
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.infrastructure.datastore.sqlalchemy import SQLAlchemyDatastoreStrategy, SQLAlchemySettings
-from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SqlStoredEvent, \
-    SQLAlchemyStoredEventRepository
-from eventsourcing.tests.unit_test_cases_example_application import ExampleApplicationTestCase
+from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository, \
+    SqlStoredEvent
+from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
 
 
 class TestExampleApplicationWithSQLAlchemy(ExampleApplicationTestCase):
+
+    def create_app(self):
+        return create_example_application_with_sqlalchemy(
+            db_session=self.datastore_strategy.db_session
+        )
 
     def setUp(self):
         self.datastore_strategy = create_sqlalchemy_datastore_strategy()
         self.datastore_strategy.setup_connection()
         self.datastore_strategy.setup_tables()
         super(TestExampleApplicationWithSQLAlchemy, self).setUp()
-
-    def create_app(self):
-        return create_example_application_with_sqlalchemy(
-            db_session=self.datastore_strategy.db_session
-        )
 
     def tearDown(self):
         super(TestExampleApplicationWithSQLAlchemy, self).tearDown()

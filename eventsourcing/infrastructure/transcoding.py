@@ -23,7 +23,7 @@ EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
 StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
 
 
-class AbstractTranscoder(six.with_metaclass(ABCMeta)):
+class StoredEventTranscoder(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def serialize(self, domain_event):
         """Returns a stored event, for the given domain event."""
@@ -110,15 +110,14 @@ class ObjectJSONDecoder(json.JSONDecoder):
         return dateutil.parser.parse(d['ISO8601_datetime'])
 
 
-class JSONTranscoder(AbstractTranscoder):
+class JSONStoredEventTranscoder(StoredEventTranscoder):
     """
-    Converts domain event objects into stored event objects.
-
-    Also converts stored event objects into domain event objects.
+    Encodes domain events as stored events, and decodes stored
+    events as domain events.
     """
 
     def __init__(self, json_encoder_cls=ObjectJSONEncoder, json_decoder_cls=ObjectJSONDecoder,
-                 cipher=None, always_encrypt=False, stored_event_cls=StoredEvent):
+                 always_encrypt=False, cipher=None, stored_event_cls=StoredEvent):
 
         self.json_encoder_cls = json_encoder_cls
         self.json_decoder_cls = json_decoder_cls
