@@ -29,3 +29,15 @@ class DatastoreStrategy(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def drop_tables(self):
         """Drops tables used to store events."""
+
+
+class DatastoreError(Exception):
+    pass
+
+
+class DatastoreConnectionError(DatastoreError):
+    pass
+
+
+class DatastoreTableError(DatastoreError):
+    pass

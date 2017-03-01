@@ -27,7 +27,7 @@ class EventSourcingApplication(with_metaclass(ABCMeta)):
         :param always_encrypt_stored_events:  Apply encryption to all domain events (requires cipher).
 
         """
-        assert isinstance(stored_event_repository, AbstractStoredEventRepository)
+        assert isinstance(stored_event_repository, AbstractStoredEventRepository), stored_event_repository
         self.stored_event_repository = stored_event_repository
         self.event_store = self.create_event_store(
             cipher=cipher, always_encrypt=always_encrypt_stored_events

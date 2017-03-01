@@ -7,7 +7,7 @@ from cassandra import AlreadyExists, ConsistencyLevel, InvalidRequest, Operation
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
 
-from eventsourcing.infrastructure.datastore import DatastoreSettings, DatastoreStrategy
+from eventsourcing.infrastructure.datastore.base import DatastoreSettings, DatastoreStrategy
 
 
 class CassandraSettings(DatastoreSettings):
@@ -31,9 +31,6 @@ class CassandraSettings(DatastoreSettings):
 
 
 class CassandraDatastoreStrategy(DatastoreStrategy):
-    def __init__(self, settings, tables):
-        super(CassandraDatastoreStrategy, self).__init__(settings=settings, tables=tables)
-
     def setup_connection(self):
         assert isinstance(self.settings, CassandraSettings), self.settings
 

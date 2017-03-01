@@ -11,13 +11,14 @@ from eventsourcing.application.example.with_sqlalchemy import ExampleApplication
 from eventsourcing.domain.model.example import Example, register_new_example
 from eventsourcing.domain.model.log import get_logger, start_new_log
 from eventsourcing.domain.services.cipher import AESCipher
+from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastoreStrategy, CassandraSettings
 from eventsourcing.infrastructure.log_reader import LogReader, get_log_reader
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CqlStoredEvent
-from eventsourcing.infrastructure.cassandra import CassandraDatastoreStrategy, CassandraSettings
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra2 import create_cassandra2_keyspace_and_tables, \
     drop_cassandra2_keyspace
 from eventsourcing.infrastructure.transcoding import make_stored_entity_id
-from eventsourcing.tests.test_example_application_with_cassandra import create_example_application_with_cassandra
+from eventsourcing.tests.example_application_tests.test_example_application_with_cassandra import \
+    create_example_application_with_cassandra
 from eventsourcing.tests.test_utils import utc_now
 from eventsourcing.tests.unit_test_cases import AbstractTestCase, notquick
 

@@ -1,11 +1,11 @@
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
     CqlStoredEvent
-from eventsourcing.tests.test_example_application_with_cassandra import create_cassandra_datastore_strategy
+from eventsourcing.tests.example_application_tests.test_example_application_with_cassandra import \
+    create_cassandra_datastore_strategy
 from eventsourcing.tests.unit_test_cases import AbstractTestCase
 
 
 class CassandraTestCase(AbstractTestCase):
-
     def setUp(self):
         super(CassandraTestCase, self).setUp()
         # Setup the keyspace and column family for stored events.
@@ -22,7 +22,6 @@ class CassandraTestCase(AbstractTestCase):
 
 
 class CassandraRepoTestCase(CassandraTestCase):
-
     @property
     def stored_event_repo(self):
         try:

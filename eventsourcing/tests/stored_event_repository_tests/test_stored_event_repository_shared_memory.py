@@ -1,12 +1,11 @@
 from unittest import TestCase
 
 from eventsourcing.infrastructure.stored_event_repos.with_shared_memory import SharedMemoryStoredEventRepository
-from eventsourcing.tests.unit_test_cases import BasicStoredEventRepositoryTestCase, SimpleStoredEventIteratorTestCase, \
-    ThreadedStoredEventIteratorTestCase
+from eventsourcing.tests.unit_test_cases import BasicStoredEventRepositoryTestCase, \
+    SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase
 
 
 class SharedMemoryTestCase(TestCase):
-
     @property
     def stored_event_repo(self):
         try:

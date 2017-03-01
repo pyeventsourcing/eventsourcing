@@ -1,7 +1,7 @@
 from eventsourcing.application.base import EventSourcingApplication
+from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastoreStrategy, CassandraSettings
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
     CqlStoredEvent
-from eventsourcing.infrastructure.cassandra import CassandraDatastoreStrategy, CassandraSettings
 
 
 class EventSourcingWithCassandra(EventSourcingApplication):

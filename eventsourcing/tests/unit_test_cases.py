@@ -1,4 +1,7 @@
+import datetime
 import json
+import os
+import traceback
 import unittest
 import uuid
 from multiprocessing.pool import Pool
@@ -7,24 +10,21 @@ from time import sleep
 from unittest import TestCase
 from uuid import uuid1, uuid4
 
-import datetime
-import os
 import six
-import traceback
 
 from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastoreStrategy, CassandraSettings
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, EventStore, \
     SimpleStoredEventIterator
 from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
     CqlStoredEvent
-from eventsourcing.infrastructure.cassandra import CassandraSettings, CassandraDatastoreStrategy
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra2 import Cassandra2StoredEventRepository
 from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository, \
-    get_scoped_session_facade
+    get_scoped_session_facade, SqlStoredEvent
 from eventsourcing.infrastructure.transcoding import StoredEvent
 
 
@@ -364,6 +364,7 @@ def create_repo_for_worker(stored_repo_class, temp_file_name):
         uri = 'sqlite:///' + temp_file_name
         scoped_session_facade = get_scoped_session_facade(uri)
         repo = SQLAlchemyStoredEventRepository(scoped_session_facade,
+                                               stored_event_table=SqlStoredEvent,
                                                always_check_expected_version=True,
                                                always_write_entity_version=True,
                                                )

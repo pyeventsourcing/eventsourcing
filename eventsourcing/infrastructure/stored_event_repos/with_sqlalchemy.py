@@ -3,7 +3,6 @@ from time import sleep
 import six
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.declarative.api import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm.scoping import ScopedSession
 from sqlalchemy.sql.expression import asc, desc
@@ -11,6 +10,7 @@ from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
+from eventsourcing.infrastructure.datastore.sqlalchemy import Base
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.transcoding import EntityVersion
 from eventsourcing.utils.time import timestamp_long_from_uuid
@@ -24,9 +24,6 @@ def get_scoped_session_facade(uri):
     session_factory = sessionmaker(bind=engine)
     scoped_session_facade = scoped_session(session_factory)
     return scoped_session_facade
-
-
-Base = declarative_base()
 
 
 class SqlEntityVersion(Base):
@@ -53,10 +50,11 @@ class SqlStoredEvent(Base):
 
 
 class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
-    def __init__(self, db_session, **kwargs):
+    def __init__(self, db_session, stored_event_table, **kwargs):
         super(SQLAlchemyStoredEventRepository, self).__init__(**kwargs)
-        assert isinstance(db_session, ScopedSession)
+        assert isinstance(db_session, ScopedSession), db_session
         self.db_session = db_session
+        self.stored_event_table = stored_event_table
 
     def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3,
                                 artificial_failure_rate=0):
@@ -130,24 +128,24 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
             return []
 
         try:
-            query = self.db_session.query(SqlStoredEvent)
+            query = self.db_session.query(self.stored_event_table)
             query = query.filter_by(stored_entity_id=stored_entity_id)
             if query_ascending:
-                query = query.order_by(asc(SqlStoredEvent.timestamp_long))
+                query = query.order_by(asc(self.stored_event_table.timestamp_long))
             else:
-                query = query.order_by(desc(SqlStoredEvent.timestamp_long))
+                query = query.order_by(desc(self.stored_event_table.timestamp_long))
 
             if after is not None:
                 if query_ascending:
-                    query = query.filter(SqlStoredEvent.timestamp_long > timestamp_long_from_uuid(after))
+                    query = query.filter(self.stored_event_table.timestamp_long > timestamp_long_from_uuid(after))
                 else:
-                    query = query.filter(SqlStoredEvent.timestamp_long >= timestamp_long_from_uuid(after))
+                    query = query.filter(self.stored_event_table.timestamp_long >= timestamp_long_from_uuid(after))
 
             if until is not None:
                 if query_ascending:
-                    query = query.filter(SqlStoredEvent.timestamp_long <= timestamp_long_from_uuid(until))
+                    query = query.filter(self.stored_event_table.timestamp_long <= timestamp_long_from_uuid(until))
                 else:
-                    query = query.filter(SqlStoredEvent.timestamp_long < timestamp_long_from_uuid(until))
+                    query = query.filter(self.stored_event_table.timestamp_long < timestamp_long_from_uuid(until))
 
             if limit is not None:
                 query = query.limit(limit)
@@ -160,7 +158,7 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
         return events
 
     def from_sql(self, sql_stored_event):
-        assert isinstance(sql_stored_event, SqlStoredEvent), sql_stored_event
+        assert isinstance(sql_stored_event, self.stored_event_table), sql_stored_event
         return self.stored_event_class(
             event_id=sql_stored_event.event_id,
             stored_entity_id=sql_stored_event.stored_entity_id,
@@ -170,7 +168,7 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
 
     def to_sql(self, stored_event):
         assert isinstance(stored_event, self.stored_event_class)
-        return SqlStoredEvent(
+        return self.stored_event_table(
             event_id=stored_event.event_id,
             timestamp_long=timestamp_long_from_uuid(stored_event.event_id),
             stored_entity_id=stored_event.stored_entity_id,

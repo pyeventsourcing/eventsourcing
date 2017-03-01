@@ -1,7 +1,7 @@
 from eventsourcing.application.example.base import ExampleApplication
-from eventsourcing.infrastructure.cassandra import CassandraDatastoreStrategy, CassandraSettings
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CqlStoredEvent, \
-    CassandraStoredEventRepository
+from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastoreStrategy, CassandraSettings
+from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
+    CqlStoredEvent
 from eventsourcing.tests.unit_test_cases_example_application import ExampleApplicationTestCase
 
 
@@ -23,6 +23,7 @@ class TestExampleApplicationWithCassandra(ExampleApplicationTestCase):
 
 
 def create_example_application_with_cassandra(cipher=None):
+    """Factory """
     return ExampleApplication(
         stored_event_repository=CassandraStoredEventRepository(
             stored_event_table=CqlStoredEvent
