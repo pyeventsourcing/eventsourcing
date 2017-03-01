@@ -9,17 +9,17 @@ from unittest.case import TestCase
 
 import six
 
-from eventsourcing.contrib.suffixtrees.application import SuffixTreeApplicationWithPythonObjects, \
-    SuffixTreeApplicationWithCassandra, AbstractSuffixTreeApplication
+from eventsourcing.contrib.suffixtrees.application import AbstractSuffixTreeApplication, \
+    SuffixTreeApplicationWithCassandra, SuffixTreeApplicationWithPythonObjects
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import GeneralizedSuffixTree, \
-    SuffixTreeEdge, SuffixTreeNode, STRING_ID_END
+    STRING_ID_END, \
+    SuffixTreeEdge, SuffixTreeNode
+from eventsourcing.tests.stored_event_repository_tests.base_cassandra import CassandraTestCase
 from eventsourcing.tests.unit_test_cases import notquick
 from eventsourcing.tests.unit_test_fixtures_suffix_tree_text import LONG_TEXT, LONG_TEXT_CONT
-from eventsourcing.tests.unit_test_cases_cassandra import CassandraTestCase
 
 
 class GeneralizedSuffixTreeTestCase(TestCase):
-
     def setUp(self):
         super(GeneralizedSuffixTreeTestCase, self).setUp()
         self.app = SuffixTreeApplicationWithPythonObjects()
@@ -37,7 +37,6 @@ class GeneralizedSuffixTreeTestCase(TestCase):
 
 @notquick()
 class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
-
     def test_empty_string(self):
         st = self.app.register_new_suffix_tree()
         assert isinstance(st, GeneralizedSuffixTree)
@@ -242,7 +241,6 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
         # Check the string1 ID is returned.
         result_ids = self.app.find_string_ids(string1, st.id)
         self.assertEqual(result_ids, {string1_id})
-
 
         # Check substrings of string2 are in the tree.
         edge, ln = self.app.find_substring_edge(string2, st.id)
@@ -457,7 +455,7 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
         edge, ln = self.app.find_substring_edge('i', st.id)
         self.assertEqual(edge.label, 'i')
 
-       # Check 'ippi'.
+        # Check 'ippi'.
         edge, ln = self.app.find_substring_edge('ippi', st.id)
         self.assertEqual(edge.label, 'ppi' + STRING_ID_END)
 
@@ -474,8 +472,8 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
         self.assertEqual(self.app.find_string_ids('si', st.id), {'$'})
         self.assertEqual(self.app.find_string_ids('pp', st.id), {'$'})
         self.assertEqual(self.app.find_string_ids('mu', st.id), {'#'})
-        self.assertEqual(self.app.find_string_ids('m', st.id), {'$','#'})
-        self.assertEqual(self.app.find_string_ids('b', st.id), {'%','&'})
+        self.assertEqual(self.app.find_string_ids('m', st.id), {'$', '#'})
+        self.assertEqual(self.app.find_string_ids('b', st.id), {'%', '&'})
 
     def test_colours(self):
         st = self.app.register_new_suffix_tree()
@@ -676,7 +674,6 @@ class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
 
 @notquick()
 class TestGeneralizedSuffixTreeSlow(GeneralizedSuffixTreeTestCase):
-
     def test_long_string(self):
         st = self.app.register_new_suffix_tree()
         self.add_string_to_suffix_tree(LONG_TEXT[:12000], '1', st)
@@ -729,9 +726,9 @@ class TestGeneralizedSuffixTreeSlow(GeneralizedSuffixTreeTestCase):
         self.assertEqual(self.app.find_string_ids('Optimal', st.id), {'1'})
         self.assertEqual(self.app.find_string_ids('burrows-wheeler', st.id), {'2'})
 
+
 @notquick
 class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
-
     def setUp(self):
         super(TestMultiprocessingWithGeneralizedSuffixTree, self).setUp()
         self.app = None
@@ -745,11 +742,15 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
     def test_words_in_sorted_order(self):
         self.check_words(is_sorted=True)
 
-    # Todo: Fix this - adding strings in a random order sometimes breaks (perhaps a dict is causing indeterminate order).
+    # Todo: Fix this - adding strings in a random order sometimes breaks (perhaps a dict is causing indeterminate
+    # order).
     # def test_words_in_unsorted_order(self):
     #     self.check_words()
 
-    # Todo: Fix this - adding strings in a reversed sorted order always fails. Not sure why all substrings of 'ree' fail. The suffix is obviously not moving along in the same way as it does when the nodes are added. Perhaps it needs to add the IDs when explicit match is made, and then move the first char along by one? Not sure so trace it out?
+    # Todo: Fix this - adding strings in a reversed sorted order always fails. Not sure why all substrings of 'ree'
+    # fail. The suffix is obviously not moving along in the same way as it does when the nodes are added. Perhaps it
+    #  needs to add the IDs when explicit match is made, and then move the first char along by one? Not sure so
+    # trace it out?
     # def test_words_in_reverse_sorted_order(self):
     #     self.check_words(is_reversed=True)
     #
@@ -815,7 +816,8 @@ class TestMultiprocessingWithGeneralizedSuffixTree(CassandraTestCase):
             # Check all prefixes and suffixes.
             substrings = sorted(list(get_all_substrings(string)))
             print("")
-            print("Checking for all substrings of string '{}': {}".format(repr(string), " ".join([repr(s) for s in substrings])))
+            print("Checking for all substrings of string '{}': {}".format(repr(string),
+                                                                          " ".join([repr(s) for s in substrings])))
             for substring in substrings:
                 results = self.app.find_string_ids(substring, st.id)
                 if string_id not in results:

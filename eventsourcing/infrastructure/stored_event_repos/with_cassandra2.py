@@ -12,7 +12,7 @@ from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
-from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
+from eventsourcing.infrastructure.eventstore import StoredEventRepository
 from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 
 DEFAULT_CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
@@ -60,7 +60,7 @@ class CqlStoredEvent(Model):
     a = columns.Text(required=True)
 
 
-class Cassandra2StoredEventRepository(AbstractStoredEventRepository):
+class Cassandra2StoredEventRepository(StoredEventRepository):
     @property
     def iterator_class(self):
         return ThreadedStoredEventIterator

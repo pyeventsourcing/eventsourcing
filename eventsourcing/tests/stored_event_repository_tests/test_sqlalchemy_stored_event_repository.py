@@ -1,6 +1,6 @@
+from eventsourcing.tests.stored_event_repository_tests.base_sqlalchemy import SQLAlchemyRepoTestCase
 from eventsourcing.tests.unit_test_cases import BasicStoredEventRepositoryTestCase, \
     OptimisticConcurrencyControlTestCase, SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase
-from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCase
 
 
 class TestSQLAlchemyStoredEventRepository(SQLAlchemyRepoTestCase, BasicStoredEventRepositoryTestCase):

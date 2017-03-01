@@ -85,6 +85,9 @@ class CassandraDatastoreStrategy(DatastoreStrategy):
                 sync_table(table)
 
     def drop_tables(self):
+        # Avoid warnings about this variable not being set.
+        os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
+
         max_retries = 3
         tried = 0
         while True:

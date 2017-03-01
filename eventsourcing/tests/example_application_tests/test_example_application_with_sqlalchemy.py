@@ -3,14 +3,10 @@ from eventsourcing.infrastructure.datastore.sqlalchemy import SQLAlchemyDatastor
 from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository, \
     SqlStoredEvent
 from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
+from eventsourcing.tests.stored_event_repository_tests.base_sqlalchemy import SQLAlchemyRepoTestCase
 
 
-class TestExampleApplicationWithSQLAlchemy(ExampleApplicationTestCase):
-
-    def create_app(self):
-        return create_example_application_with_sqlalchemy(
-            db_session=self.datastore_strategy.db_session
-        )
+class TestExampleApplicationWithSQLAlchemy(SQLAlchemyRepoTestCase, ExampleApplicationTestCase):
 
     def setUp(self):
         self.datastore_strategy = create_sqlalchemy_datastore_strategy()

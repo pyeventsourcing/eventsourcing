@@ -11,7 +11,7 @@ from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.infrastructure.datastore.sqlalchemy import Base
-from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
+from eventsourcing.infrastructure.eventstore import StoredEventRepository
 from eventsourcing.infrastructure.transcoding import EntityVersion
 from eventsourcing.utils.time import timestamp_long_from_uuid
 
@@ -49,7 +49,7 @@ class SqlStoredEvent(Base):
     __table_args__ = UniqueConstraint('stored_entity_id', 'event_id', name='stored_event_uc'),
 
 
-class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
+class SQLAlchemyStoredEventRepository(StoredEventRepository):
     def __init__(self, db_session, stored_event_table, **kwargs):
         super(SQLAlchemyStoredEventRepository, self).__init__(**kwargs)
         assert isinstance(db_session, ScopedSession), db_session

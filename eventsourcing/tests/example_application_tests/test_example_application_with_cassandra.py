@@ -1,7 +1,7 @@
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastoreStrategy, CassandraSettings
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
-    CqlStoredEvent
+    CqlStoredEvent, CqlEntityVersion
 from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
 
 
@@ -36,5 +36,5 @@ def create_example_application_with_cassandra(cipher=None):
 def create_cassandra_datastore_strategy():
     return CassandraDatastoreStrategy(
         settings=CassandraSettings(),
-        tables=(CqlStoredEvent,),
+        tables=(CqlStoredEvent, CqlEntityVersion),
     )

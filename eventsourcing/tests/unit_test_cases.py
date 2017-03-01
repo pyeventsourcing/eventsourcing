@@ -16,7 +16,8 @@ from eventsourcing.application.subscribers.persistence import PersistenceSubscri
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.exceptions import ConcurrencyError
 from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastoreStrategy, CassandraSettings
-from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, EventStore, \
+from eventsourcing.infrastructure.datastore.sqlalchemy import SQLAlchemyDatastoreStrategy, SQLAlchemySettings
+from eventsourcing.infrastructure.eventstore import StoredEventRepository, EventStore, \
     SimpleStoredEventIterator
 from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
@@ -24,7 +25,7 @@ from eventsourcing.infrastructure.stored_event_repos.with_cassandra import Cassa
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra2 import Cassandra2StoredEventRepository
 from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository, \
-    get_scoped_session_facade, SqlStoredEvent
+    SqlStoredEvent
 from eventsourcing.infrastructure.transcoding import StoredEvent
 
 
@@ -46,16 +47,16 @@ def notquick(*args, **kwargs):
     return unittest.skipIf(os.getenv("QUICK_TESTS_ONLY"), 'Ignored slow test.')
 
 
-class AbstractStoredEventRepositoryTestCase(AbstractTestCase):
+class StoredEventRepositoryTestCase(AbstractTestCase):
     @property
     def stored_event_repo(self):
         """
-        :rtype: AbstractStoredEventRepository
+        :rtype: StoredEventRepository
         """
         raise NotImplementedError
 
 
-class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
+class BasicStoredEventRepositoryTestCase(StoredEventRepositoryTestCase):
     def test_stored_event_repo(self):
         stored_entity_id = 'Entity::entity1'
 
@@ -203,7 +204,7 @@ class BasicStoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.assertEqual(stored_events[18].event_attrs, retrieved_events[0].event_attrs)
 
 
-class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase):
+class OptimisticConcurrencyControlTestCase(StoredEventRepositoryTestCase):
     def setUp(self):
         super(OptimisticConcurrencyControlTestCase, self).setUp()
         self.app = None
@@ -282,7 +283,7 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
         num_events_to_create, stored_entity_id = args
 
         success_count = 0
-        assert isinstance(worker_repo, AbstractStoredEventRepository)
+        assert isinstance(worker_repo, StoredEventRepository)
         assert isinstance(num_events_to_create, six.integer_types)
 
         successes = []
@@ -353,23 +354,30 @@ def pool_initializer(stored_repo_class, temp_file_name):
 
 def create_repo_for_worker(stored_repo_class, temp_file_name):
     if stored_repo_class in (CassandraStoredEventRepository, Cassandra2StoredEventRepository):
-        # Drop the keyspace.
-        datastore = CassandraDatastoreStrategy(CassandraSettings(), (CqlStoredEvent,))
+        datastore = CassandraDatastoreStrategy(
+            settings=CassandraSettings(),
+            tables=(CqlStoredEvent,)
+        )
         datastore.drop_connection()
         datastore.setup_connection()
-
         repo = stored_repo_class(
+            stored_event_table=CqlStoredEvent,
             always_check_expected_version=True,
             always_write_entity_version=True,
         )
     elif stored_repo_class == SQLAlchemyStoredEventRepository:
         uri = 'sqlite:///' + temp_file_name
-        scoped_session_facade = get_scoped_session_facade(uri)
-        repo = SQLAlchemyStoredEventRepository(scoped_session_facade,
-                                               stored_event_table=SqlStoredEvent,
-                                               always_check_expected_version=True,
-                                               always_write_entity_version=True,
-                                               )
+        datastore = SQLAlchemyDatastoreStrategy(
+            settings=SQLAlchemySettings(uri=uri),
+            tables=(SqlStoredEvent,),
+        )
+        datastore.setup_connection()
+        repo = SQLAlchemyStoredEventRepository(
+            db_session=datastore.db_session,
+            stored_event_table=SqlStoredEvent,
+            always_check_expected_version=True,
+            always_write_entity_version=True,
+        )
     elif stored_repo_class == PythonObjectsStoredEventRepository:
         repo = PythonObjectsStoredEventRepository(
             always_check_expected_version=True,
@@ -384,7 +392,7 @@ def append_lots_of_events_to_repo(args):
     return OptimisticConcurrencyControlTestCase.append_lots_of_events_to_repo(args)
 
 
-class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
+class IteratorTestCase(StoredEventRepositoryTestCase):
     @property
     def stored_entity_id(self):
         return 'Entity::1'
@@ -426,7 +434,7 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
     def test(self):
         self.setup_stored_events()
 
-        assert isinstance(self.stored_event_repo, AbstractStoredEventRepository)
+        assert isinstance(self.stored_event_repo, StoredEventRepository)
         stored_events = self.stored_event_repo.get_entity_events(stored_entity_id=self.stored_entity_id)
         stored_events = list(stored_events)
         self.assertEqual(len(stored_events), self.num_events)

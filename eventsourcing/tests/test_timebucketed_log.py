@@ -1,15 +1,14 @@
+import datetime
 from time import sleep
 from uuid import uuid1
 
-import datetime
-
-from eventsourcing.domain.model.log import get_logger, Logger, start_new_log, Log
+from eventsourcing.domain.model.log import Log, Logger, get_logger, start_new_log
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.log_reader import get_log_reader
+from eventsourcing.tests.stored_event_repository_tests.base_cassandra import CassandraRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.base_sqlalchemy import SQLAlchemyRepoTestCase
 from eventsourcing.tests.unit_test_cases import AppishTestCase, notquick
-from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
 from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
-from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCase
 
 
 class LogTestCase(AppishTestCase):

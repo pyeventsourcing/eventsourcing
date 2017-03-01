@@ -2,12 +2,12 @@ import itertools
 from collections import defaultdict
 
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
-from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
+from eventsourcing.infrastructure.eventstore import StoredEventRepository
 from eventsourcing.infrastructure.transcoding import EntityVersion
 from eventsourcing.utils.time import timestamp_from_uuid
 
 
-class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):
+class PythonObjectsStoredEventRepository(StoredEventRepository):
     def __init__(self, *args, **kwargs):
         super(PythonObjectsStoredEventRepository, self).__init__(*args, **kwargs)
         self._by_id = {}

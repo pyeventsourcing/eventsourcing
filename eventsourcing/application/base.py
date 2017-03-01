@@ -3,7 +3,7 @@ from abc import ABCMeta
 from six import with_metaclass
 
 from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
-from eventsourcing.infrastructure.eventstore import EventStore, AbstractStoredEventRepository
+from eventsourcing.infrastructure.eventstore import EventStore, StoredEventRepository
 from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder
 
 
@@ -20,7 +20,7 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         :param cipher:  Used to decrypt (and possibly encrypt) stored events.
 
         """
-        assert isinstance(stored_event_repository, AbstractStoredEventRepository)
+        assert isinstance(stored_event_repository, StoredEventRepository)
         self.stored_event_repository = stored_event_repository
         self.event_store = self.create_event_store(always_encrypt, cipher)
 
