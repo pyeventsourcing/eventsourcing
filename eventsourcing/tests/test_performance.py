@@ -12,11 +12,12 @@ from eventsourcing.domain.model.example import Example, register_new_example
 from eventsourcing.domain.model.log import get_logger, start_new_log
 from eventsourcing.domain.services.cipher import AESCipher
 from eventsourcing.infrastructure.log_reader import LogReader, get_log_reader
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra import drop_cassandra_keyspace
-from eventsourcing.infrastructure.cassandra import create_cassandra_keyspace_and_tables, drop_cassandra_keyspace
+from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CqlStoredEvent
+from eventsourcing.infrastructure.cassandra import CassandraDatastoreStrategy, CassandraSettings
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra2 import create_cassandra2_keyspace_and_tables, \
     drop_cassandra2_keyspace
 from eventsourcing.infrastructure.transcoding import make_stored_entity_id
+from eventsourcing.tests.test_example_application_with_cassandra import create_example_application_with_cassandra
 from eventsourcing.tests.test_utils import utc_now
 from eventsourcing.tests.unit_test_cases import AbstractTestCase, notquick
 
@@ -218,19 +219,24 @@ class PerformanceTestCase(AbstractTestCase):
 @notquick()
 class TestCassandraPerformance(PerformanceTestCase):
     def create_app(self):
-        return ExampleApplicationWithCassandra()
+        return create_example_application_with_cassandra()
 
     def setUp(self):
         super(TestCassandraPerformance, self).setUp()
 
         # Setup the keyspace and column family for stored events.
-        # create_cassandra_keyspace_and_tables()
-        drop_cassandra_keyspace()
-        create_cassandra_keyspace_and_tables()
+        self.datastore = CassandraDatastoreStrategy(
+            settings=CassandraSettings(),
+            tables=(CqlStoredEvent,)
+        )
+        self.datastore.setup_connection()
+        self.datastore.drop_tables()
+        self.datastore.setup_tables()
 
     def tearDown(self):
         # Drop the keyspace.
-        drop_cassandra_keyspace()
+        self.datastore.drop_tables()
+        self.datastore.drop_connection()
 
         # Close the application.
         self.app.close()

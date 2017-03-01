@@ -18,9 +18,9 @@ from eventsourcing.exceptions import ConcurrencyError
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, EventStore, \
     SimpleStoredEventIterator
 from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository
-from eventsourcing.infrastructure.cassandra import CassandraSettings, get_cassandra_connection_params, \
-    setup_cassandra_connection
+from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
+    CqlStoredEvent
+from eventsourcing.infrastructure.cassandra import CassandraSettings, CassandraDatastoreStrategy
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra2 import Cassandra2StoredEventRepository
 from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository, \
@@ -351,7 +351,11 @@ def pool_initializer(stored_repo_class, temp_file_name):
 
 def create_repo_for_worker(stored_repo_class, temp_file_name):
     if stored_repo_class in (CassandraStoredEventRepository, Cassandra2StoredEventRepository):
-        setup_cassandra_connection(*get_cassandra_connection_params(CassandraSettings()))
+        # Drop the keyspace.
+        datastore = CassandraDatastoreStrategy(CassandraSettings(), (CqlStoredEvent,))
+        datastore.drop_connection()
+        datastore.setup_connection()
+
         repo = stored_repo_class(
             always_check_expected_version=True,
             always_write_entity_version=True,

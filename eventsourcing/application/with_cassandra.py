@@ -1,17 +1,17 @@
 from eventsourcing.application.base import EventSourcingApplication
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra import setup_cassandra_connection
-from eventsourcing.infrastructure.cassandra import get_cassandra_connection_params, setup_cassandra_connection
+from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
+    CqlStoredEvent
+from eventsourcing.infrastructure.cassandra import CassandraDatastoreStrategy, CassandraSettings
 
 
 class EventSourcingWithCassandra(EventSourcingApplication):
-    def __init__(self, connection_settings, **kwargs):
-        self.setup_cassandra_connection(connection_settings)
+    def __init__(self, settings=None, **kwargs):
+        self.datastore = CassandraDatastoreStrategy(
+            settings=settings or CassandraSettings(),
+            tables=(CqlStoredEvent,)
+        )
+        self.datastore.setup_connection()
         super(EventSourcingWithCassandra, self).__init__(**kwargs)
-
-    @staticmethod
-    def setup_cassandra_connection(settings):
-        setup_cassandra_connection(*get_cassandra_connection_params(settings))
 
     def create_stored_event_repo(self, **kwargs):
         return CassandraStoredEventRepository(**kwargs)

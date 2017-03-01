@@ -1,6 +1,6 @@
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository
-from eventsourcing.infrastructure.cassandra import CassandraSettings, get_cassandra_connection_params, \
-    setup_cassandra_connection, create_cassandra_keyspace_and_tables, drop_cassandra_keyspace
+from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
+    CqlStoredEvent
+from eventsourcing.tests.test_example_application_with_cassandra import create_cassandra_datastore_strategy
 from eventsourcing.tests.unit_test_cases import AbstractTestCase
 
 
@@ -8,19 +8,20 @@ class CassandraTestCase(AbstractTestCase):
 
     def setUp(self):
         super(CassandraTestCase, self).setUp()
-        create_cassandra_keyspace_and_tables()
+        # Setup the keyspace and column family for stored events.
+        self.datastore = create_cassandra_datastore_strategy()
+        self.datastore.setup_connection()
+        self.datastore.drop_tables()
+        self.datastore.setup_tables()
 
     def tearDown(self):
-        drop_cassandra_keyspace()
-        # shutdown_cassandra_connection()
+        # Drop the keyspace.
+        self.datastore.drop_tables()
+        self.datastore.drop_connection()
         super(CassandraTestCase, self).tearDown()
 
 
 class CassandraRepoTestCase(CassandraTestCase):
-
-    def setUp(self):
-        setup_cassandra_connection(*get_cassandra_connection_params(CassandraSettings()))
-        super(CassandraRepoTestCase, self).setUp()
 
     @property
     def stored_event_repo(self):
@@ -28,6 +29,7 @@ class CassandraRepoTestCase(CassandraTestCase):
             return self._stored_event_repo
         except AttributeError:
             stored_event_repo = CassandraStoredEventRepository(
+                stored_event_table=CqlStoredEvent,
                 always_write_entity_version=True,
                 always_check_expected_version=True,
             )
