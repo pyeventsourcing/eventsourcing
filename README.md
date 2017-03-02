@@ -72,10 +72,6 @@ or ascending order.
 **Collections** — Event sourced collections, for modelling different
 kinds of multiplicity.
 
-**Fast Forwarding** — Of entities to latest published event, used with
-snapshots and also when optimistic currency control exceptions are
-encountered.
-
 **Optimistic Concurrency Control** — Makes sure a distributed application
 doesn't become inconsistent due to concurrency. Implemented using optimistic
 concurrency controls in the adapted database. With Cassandra, this accomplishes
