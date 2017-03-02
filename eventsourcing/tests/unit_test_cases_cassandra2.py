@@ -1,7 +1,7 @@
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra2 import Cassandra2StoredEventRepository, \
     setup_cassandra_connection, get_cassandra_setup_params, create_cassandra2_keyspace_and_tables, \
     drop_cassandra2_keyspace
-from eventsourcing.tests.unit_test_cases import AbstractTestCase
+from eventsourcing.tests.base import AbstractTestCase
 
 
 class Cassandra2TestCase(AbstractTestCase):

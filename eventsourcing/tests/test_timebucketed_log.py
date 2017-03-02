@@ -7,11 +7,12 @@ from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.log_reader import get_log_reader
 from eventsourcing.tests.stored_event_repository_tests.base_cassandra import CassandraRepoTestCase
 from eventsourcing.tests.stored_event_repository_tests.base_sqlalchemy import SQLAlchemyRepoTestCase
-from eventsourcing.tests.unit_test_cases import AppishTestCase, notquick
+from eventsourcing.tests.base import notquick
+from eventsourcing.tests.stored_event_repository_tests.base import PersistenceSubscribingTestCase
 from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
 
 
-class LogTestCase(AppishTestCase):
+class LogTestCase(PersistenceSubscribingTestCase):
 
     def setUp(self):
         super(LogTestCase, self).setUp()

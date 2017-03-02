@@ -2,23 +2,20 @@ import datetime
 import json
 import os
 import traceback
-import unittest
 import uuid
+from abc import abstractproperty
 from multiprocessing.pool import Pool
 from tempfile import NamedTemporaryFile
 from time import sleep
-from unittest import TestCase
-from uuid import uuid1, uuid4
+from uuid import uuid4, uuid1
 
 import six
 
 from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
-from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.exceptions import ConcurrencyError
 from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastoreStrategy, CassandraSettings
 from eventsourcing.infrastructure.datastore.sqlalchemy import SQLAlchemyDatastoreStrategy, SQLAlchemySettings
-from eventsourcing.infrastructure.eventstore import StoredEventRepository, EventStore, \
-    SimpleStoredEventIterator
+from eventsourcing.infrastructure.eventstore import StoredEventRepository, SimpleStoredEventIterator, EventStore
 from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
     CqlStoredEvent
@@ -28,35 +25,19 @@ from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLA
     SqlStoredEvent
 from eventsourcing.infrastructure.transcoding import StoredEvent
 
-
-class AbstractTestCase(TestCase):
-    """Base class for test cases with abstract test_* methods."""
-
-    def setUp(self):
-        """
-        Returns None if test case class ends with 'TestCase', which means the test case isn't included in the suite.
-        """
-        super(AbstractTestCase, self).setUp()
-        if type(self).__name__.endswith('TestCase'):
-            self.skipTest('Ignored abstract test.')
-        else:
-            super(AbstractTestCase, self).setUp()
+from eventsourcing.tests.base import AbstractTestCase, notquick
 
 
-def notquick(*args, **kwargs):
-    return unittest.skipIf(os.getenv("QUICK_TESTS_ONLY"), 'Ignored slow test.')
+class AbstractStoredEventRepositoryTestCase(AbstractTestCase):
 
-
-class StoredEventRepositoryTestCase(AbstractTestCase):
-    @property
+    @abstractproperty
     def stored_event_repo(self):
         """
-        :rtype: StoredEventRepository
+        :rtype: eventsourcing.infrastructure.eventstore.StoredEventRepository
         """
-        raise NotImplementedError
 
 
-class BasicStoredEventRepositoryTestCase(StoredEventRepositoryTestCase):
+class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
     def test_stored_event_repo(self):
         stored_entity_id = 'Entity::entity1'
 
@@ -204,7 +185,7 @@ class BasicStoredEventRepositoryTestCase(StoredEventRepositoryTestCase):
         self.assertEqual(stored_events[18].event_attrs, retrieved_events[0].event_attrs)
 
 
-class OptimisticConcurrencyControlTestCase(StoredEventRepositoryTestCase):
+class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase):
     def setUp(self):
         super(OptimisticConcurrencyControlTestCase, self).setUp()
         self.app = None
@@ -392,7 +373,7 @@ def append_lots_of_events_to_repo(args):
     return OptimisticConcurrencyControlTestCase.append_lots_of_events_to_repo(args)
 
 
-class IteratorTestCase(StoredEventRepositoryTestCase):
+class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
     @property
     def stored_entity_id(self):
         return 'Entity::1'
@@ -477,27 +458,13 @@ class ThreadedStoredEventIteratorTestCase(IteratorTestCase):
         return ThreadedStoredEventIterator
 
 
-class AppishTestCase(AbstractTestCase):
+class PersistenceSubscribingTestCase(AbstractStoredEventRepositoryTestCase):
     """
-    Test case that has a persistence subscriber
-    and event store, like an app.
+    Base class for test cases that required a persistence subscriber.
     """
-
-    @property
-    def stored_event_repo(self):
-        """
-        Returns a stored event repository.
-
-        Concrete log test cases will provide this method.
-        """
-        raise NotImplementedError
 
     def setUp(self):
-        super(AppishTestCase, self).setUp()
-
-        # Check we're starting clean, event handler-wise.
-        assert_event_handlers_empty()
-
+        super(PersistenceSubscribingTestCase, self).setUp()
         # Setup the persistence subscriber.
         self.event_store = EventStore(self.stored_event_repo)
         self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
@@ -505,8 +472,4 @@ class AppishTestCase(AbstractTestCase):
     def tearDown(self):
         # Close the persistence subscriber.
         self.persistence_subscriber.close()
-
-        super(AppishTestCase, self).tearDown()
-
-        # Check we finished clean, event handler-wise.
-        assert_event_handlers_empty()
+        super(PersistenceSubscribingTestCase, self).tearDown()

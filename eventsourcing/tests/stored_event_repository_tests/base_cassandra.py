@@ -1,11 +1,14 @@
+from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastoreStrategy, CassandraSettings
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
-    CqlStoredEvent
-from eventsourcing.tests.example_application_tests.test_example_application_with_cassandra import \
-    create_cassandra_datastore_strategy
-from eventsourcing.tests.unit_test_cases import AbstractTestCase
+    CqlStoredEvent, CqlEntityVersion
+from eventsourcing.tests.stored_event_repository_tests.base import AbstractStoredEventRepositoryTestCase
+from eventsourcing.tests.base import AbstractTestCase
 
 
 class CassandraTestCase(AbstractTestCase):
+    """
+    Uses the datastore object to set up connection to and tables in Cassandra.
+    """
     def setUp(self):
         super(CassandraTestCase, self).setUp()
         # Setup the keyspace and column family for stored events.
@@ -21,7 +24,11 @@ class CassandraTestCase(AbstractTestCase):
         super(CassandraTestCase, self).tearDown()
 
 
-class CassandraRepoTestCase(CassandraTestCase):
+class CassandraRepoTestCase(CassandraTestCase, AbstractStoredEventRepositoryTestCase):
+    """
+    Implements the stored_event_repo property, by
+    providing a Cassandra stored event repository.
+    """
     @property
     def stored_event_repo(self):
         try:
@@ -34,3 +41,10 @@ class CassandraRepoTestCase(CassandraTestCase):
             )
             self._stored_event_repo = stored_event_repo
             return stored_event_repo
+
+
+def create_cassandra_datastore_strategy():
+    return CassandraDatastoreStrategy(
+        settings=CassandraSettings(),
+        tables=(CqlStoredEvent, CqlEntityVersion),
+    )

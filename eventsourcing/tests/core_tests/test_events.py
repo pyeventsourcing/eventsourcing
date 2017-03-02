@@ -96,7 +96,10 @@ class TestEvents(unittest.TestCase):
 
     def test_repr(self):
         event1 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)
-        self.assertEqual("Example.Created(a=1, b=2, domain_event_id=3, entity_id='entity1', entity_version=0)", repr(event1))
+        self.assertEqual(
+            "Example.Created(a=1, b=2, domain_event_id=3, entity_id='entity1', entity_version=0)",
+            repr(event1)
+        )
 
     def test_subscribe_to_decorator(self):
         event = Example.Created(entity_id='entity1', a=1, b=2)

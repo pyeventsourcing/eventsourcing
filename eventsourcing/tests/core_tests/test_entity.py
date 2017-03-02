@@ -1,17 +1,16 @@
 import mock
 
-from eventsourcing.domain.model.entity import mutableproperty, EntityIDConsistencyError, EntityVersionConsistencyError, \
-    EventSourcedEntity, created_mutator, CreatedMutatorRequiresTypeNotInstance
-from eventsourcing.domain.model.events import DomainEvent, subscribe, unsubscribe, publish
-from eventsourcing.domain.model.example import register_new_example, Example
+from eventsourcing.domain.model.entity import CreatedMutatorRequiresTypeNotInstance, EntityIDConsistencyError, \
+    EntityVersionConsistencyError, EventSourcedEntity, created_mutator, mutableproperty
+from eventsourcing.domain.model.events import DomainEvent, publish, subscribe, unsubscribe
+from eventsourcing.domain.model.example import Example, register_new_example
 from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
-from eventsourcing.tests.unit_test_cases import AppishTestCase
+from eventsourcing.tests.stored_event_repository_tests.base import PersistenceSubscribingTestCase
 from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
 
 
-class TestExampleEntity(PythonObjectsRepoTestCase, AppishTestCase):
-
+class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCase):
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
         example1 = register_new_example(a=1, b=2)
@@ -69,7 +68,7 @@ class TestExampleEntity(PythonObjectsRepoTestCase, AppishTestCase):
         # Should fail to validate event with wrong entity ID.
         self.assertRaises(EntityIDConsistencyError,
                           entity2._validate_originator,
-                          DomainEvent(entity_id=entity2.id+'wrong', entity_version=0)
+                          DomainEvent(entity_id=entity2.id + 'wrong', entity_version=0)
                           )
         # Should fail to validate event with wrong entity version.
         self.assertRaises(EntityVersionConsistencyError,
@@ -174,4 +173,5 @@ class TestExampleEntity(PythonObjectsRepoTestCase, AppishTestCase):
         self.assertRaises(NotImplementedError, EventSourcedEntity._mutator, 1, 2)
 
     def test_created_mutator_error(self):
-        self.assertRaises(CreatedMutatorRequiresTypeNotInstance, created_mutator, mock.Mock(spec=DomainEvent), 'not a class')
+        with self.assertRaises(CreatedMutatorRequiresTypeNotInstance):
+            created_mutator(mock.Mock(spec=DomainEvent), 'not a class')

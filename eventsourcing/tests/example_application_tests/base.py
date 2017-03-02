@@ -1,14 +1,12 @@
-from abc import abstractproperty
-
 from eventsourcing.application.example.base import ExampleApplication
 from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
 from eventsourcing.domain.model.example import Example
 from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.infrastructure.eventstore import AbstractEventStore, StoredEventRepository
-from eventsourcing.tests.unit_test_cases import AbstractTestCase
+from eventsourcing.tests.stored_event_repository_tests.base import AbstractStoredEventRepositoryTestCase
 
 
-class ExampleApplicationTestCase(AbstractTestCase):
+class ExampleApplicationTestCase(AbstractStoredEventRepositoryTestCase):
 
     def test(self):
         """
@@ -16,7 +14,6 @@ class ExampleApplicationTestCase(AbstractTestCase):
         """
 
         with self.create_app() as app:
-
             # Check there's a stored event repo.
             self.assertIsInstance(app.stored_event_repository, StoredEventRepository)
 
@@ -54,12 +51,6 @@ class ExampleApplicationTestCase(AbstractTestCase):
             cipher=self.cipher,
         )
         return app
-
-    @abstractproperty
-    def stored_event_repo(self):
-        """
-        :rtype: StoredEventRepository
-        """
 
     @property
     def cipher(self):

@@ -1,7 +1,7 @@
 from abc import abstractmethod
 
 from eventsourcing.infrastructure.datastore.base import DatastoreConnectionError, DatastoreTableError
-from eventsourcing.tests.unit_test_cases import AbstractTestCase
+from eventsourcing.tests.base import AbstractTestCase
 
 
 class DatastoreStrategyTestCase(AbstractTestCase):

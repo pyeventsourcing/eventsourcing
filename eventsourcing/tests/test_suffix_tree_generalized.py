@@ -15,7 +15,7 @@ from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import
     STRING_ID_END, \
     SuffixTreeEdge, SuffixTreeNode
 from eventsourcing.tests.stored_event_repository_tests.base_cassandra import CassandraTestCase
-from eventsourcing.tests.unit_test_cases import notquick
+from eventsourcing.tests.base import notquick
 from eventsourcing.tests.unit_test_fixtures_suffix_tree_text import LONG_TEXT, LONG_TEXT_CONT
 
 

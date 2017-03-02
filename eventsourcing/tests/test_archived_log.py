@@ -8,7 +8,7 @@ from eventsourcing.interface.archived_logs import ArchivedLogReader, ArchivedLog
     serialize_archived_log
 from eventsourcing.tests.stored_event_repository_tests.base_cassandra import CassandraRepoTestCase
 from eventsourcing.tests.stored_event_repository_tests.base_sqlalchemy import SQLAlchemyRepoTestCase
-from eventsourcing.tests.unit_test_cases import AppishTestCase
+from eventsourcing.tests.stored_event_repository_tests.base import PersistenceSubscribingTestCase
 from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
 
 
@@ -46,7 +46,7 @@ class NotificationLogContext(object):
         )
 
 
-class ArchivedLogTestCase(AppishTestCase):
+class ArchivedLogTestCase(PersistenceSubscribingTestCase):
 
     def setUp(self):
         super(ArchivedLogTestCase, self).setUp()

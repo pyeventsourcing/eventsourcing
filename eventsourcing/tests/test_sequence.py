@@ -4,11 +4,11 @@ from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRe
 from eventsourcing.infrastructure.sequence import SequenceReader, append_item_to_sequence
 from eventsourcing.tests.stored_event_repository_tests.base_cassandra import CassandraRepoTestCase
 from eventsourcing.tests.stored_event_repository_tests.base_sqlalchemy import SQLAlchemyRepoTestCase
-from eventsourcing.tests.unit_test_cases import AppishTestCase
+from eventsourcing.tests.stored_event_repository_tests.base import PersistenceSubscribingTestCase
 from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
 
 
-class SequenceTestCase(AppishTestCase):
+class SequenceTestCase(PersistenceSubscribingTestCase):
     def test(self):
         repo = SequenceRepo(self.event_store)
 

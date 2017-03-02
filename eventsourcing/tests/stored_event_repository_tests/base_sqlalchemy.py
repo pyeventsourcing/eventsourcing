@@ -1,28 +1,49 @@
 from tempfile import NamedTemporaryFile
-from unittest import TestCase
 
 from eventsourcing.infrastructure.datastore.sqlalchemy import SQLAlchemyDatastoreStrategy, SQLAlchemySettings
 from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository, \
     SqlStoredEvent
+from eventsourcing.tests.base import AbstractTestCase
+from eventsourcing.tests.stored_event_repository_tests.base import AbstractStoredEventRepositoryTestCase
 
 
-class SQLAlchemyRepoTestCase(TestCase):
+class SQLAlchemyTestCase(AbstractTestCase):
+    """
+    Uses the datastore object to set up connection and tables with SQLAlchemy.
+
+    """
+    def setUp(self):
+        super(SQLAlchemyTestCase, self).setUp()
+        # Setup the keyspace and column family for stored events.
+        self.temp_file = NamedTemporaryFile('a')
+        uri = 'sqlite:///' + self.temp_file.name
+        self.datastore = SQLAlchemyDatastoreStrategy(
+            settings=SQLAlchemySettings(uri=uri),
+            tables=(SqlStoredEvent,),
+        )
+        self.datastore.setup_connection()
+        self.datastore.setup_tables()
+
+    def tearDown(self):
+        # Drop the keyspace.
+        self.datastore.drop_tables()
+        self.datastore.drop_connection()
+        super(SQLAlchemyTestCase, self).tearDown()
+
+
+class SQLAlchemyRepoTestCase(SQLAlchemyTestCase, AbstractStoredEventRepositoryTestCase):
     @property
     def stored_event_repo(self):
+        """
+        Implements the stored_event_repo property, by
+        providing a SQLAlchemy stored event repository.
+        """
         try:
             return self._stored_event_repo
         except AttributeError:
-            self.temp_file = NamedTemporaryFile('a')
-            uri = 'sqlite:///' + self.temp_file.name
-            datastore = SQLAlchemyDatastoreStrategy(
-                settings=SQLAlchemySettings(uri=uri),
-                tables=(SqlStoredEvent,),
-            )
-            datastore.setup_connection()
-            datastore.setup_tables()
 
             stored_event_repo = SQLAlchemyStoredEventRepository(
-                db_session=datastore.db_session,
+                db_session=self.datastore.db_session,
                 stored_event_table=SqlStoredEvent,
                 always_check_expected_version=True,
                 always_write_entity_version=True,
