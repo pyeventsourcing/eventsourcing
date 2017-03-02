@@ -9,31 +9,30 @@ A library for event sourcing in Python.
 
 ## Features
 
-**Event Store** — With stored event repositories for adapting
+**Event Player** — Reconstitutes domain entities from their domain
+events, optionally with snapshotting. Snapshotting avoids replaying
+an entire event stream to obtain the current state of an entity. A snapshot
+strategy is included which reuses the capabilities of this library by
+implementing snapshots as domain events.
+
+**Event Store** — Appends and retrieves domain events. The event store
+has a transcoder to serialise and deserialise domain events. The
+event store also has a stored event repository which it uses to store events.
+The library has stored event repositories for adapting a variety of
 ORMs and databases systems (e.g. SQLAlchemy, Cassandra). If your
 database system isn't already supported, it will be easy to adapt
 with a custom stored event repository.
 
-**Persistence Subscriber** - Listens for domain events, and
-writes stored events to the event store whenever a domain event is published.
-
-**Event Player** — Reconstitutes domain entities from their domain
-events, optionally with snapshotting. Snapshotting avoids replaying
-an entire event stream to obtain the current state of an entity. It
-easy to use a custom snapshotting strategy. A snapshot
-strategy is included which reuses the capabilities of this library by
-implementing snapshots as domain events.
-
-**Optimistic Concurrency Control** — Implemented using optimistic
-concurrency controls in the adapted database. For example, with
-Cassandra this accomplishes linearly-scalable distributed optimistic
-concurrency control, guaranteeing sequential consistency of each
-event stream, across a distributed application. It is also possible to
-serialize the execution of commands on an aggregate, but that is out
-of the scope of this package. If you wish to do that, perhaps something
+**Optimistic Concurrency Control** — Makes sure a distributed application
+doesn't become inconsistent due to concurrency. Implemented using optimistic
+concurrency controls in the adapted database. With Cassandra, this accomplishes
+linearly-scalable distributed optimistic concurrency control, guaranteeing
+sequential consistency of each event stream, across a distributed application.
+It is also possible to serialize the execution of commands on an aggregate, but
+that is out of the scope of this package. If you wish to do that, perhaps something
 like [Zookeeper](https://zookeeper.apache.org/) might help.
 
-**Application-Level Encryption** — Symmetric encryption of all stored
+**Application-Level Encryption** — Symmetric encryption when transcoding
 events, including snapshots and logged messages, using a customizable
 cipher. Can optionally be applied to encrypt particular events, or all
 stored events, or not applied at all (the default). Included is an AES
@@ -53,20 +52,21 @@ with handlers called in the order they are registered, and with which
 calls to publish events do not return until all event subscribers have
 returned.
 
-**Worked Examples** — A simple worked example application, with example
-entity class, event sourced repository, and factory method.
+**Persistence Subscriber** - Listens for published domain events, and
+writes appends domain events to the event store whenever a domain event is
+published. Domain events are published by the entity methods.
 
-**Abstract Base Classes** — For domain events, domain entities, entity
-repositories, strategies, stored event repositories infrastructure, and
-applications.
+**Abstract Base Classes** — For domain events, event soured domain
+entities, repositories, transcoding and snapshotting strategies,
+stored event repositories infrastructure, application objects, and tests.
 
-**Archived Logs, Notification Logs** - Provides a way of reading a long
+**Archived Logs, Notification Logs** - Provide a way of reading a long
 sequence of events in a highly scalable manner. Includes a notification
 logger that writes an event sourced log that can be indexed with a
 contiguous integer sequence, and a log reader implemented as a generator
 that selects a part of a sequence using Python's list slice syntax.
 
-**Time-Bucketed Logs** — Provides a way of writing a long
+**Time-Bucketed Logs** — Provide a way of writing a long
 stream of events in a highly scalable manner. Includes log objects,
 logged message events and a log reader implemented as a generator that
 can span across many many buckets. For example, a domain event log
@@ -81,6 +81,9 @@ kinds of multiplicity.
 **Fast Forwarding** — Of entities to latest published event, used with
 snapshots and also when optimistic currency control exceptions are
 encountered.
+
+**Worked Examples** — A simple worked example application, with example
+entity class, example event sourced repository, and example factory method.
 
 
 ## Install
