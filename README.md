@@ -16,21 +16,17 @@ strategy is included which reuses the capabilities of this library by
 implementing snapshots as domain events.
 
 **Event Store** — Appends and retrieves domain events. The event store
-has a transcoder to serialise and deserialise domain events. The
-event store also has a stored event repository which it uses to store events.
-The library has stored event repositories for adapting a variety of
-ORMs and databases systems (e.g. SQLAlchemy, Cassandra). If your
-database system isn't already supported, it will be easy to adapt
+uses a transcoder to serialise and deserialise domain events. It also
+uses a stored event repository to append and retrieve stored events.
+The library has a variety of stored event repositories that adapt a
+variety of ORMs and databases systems (e.g. SQLAlchemy, Cassandra). If
+your database system isn't already supported, it may be easy to adapt
 with a custom stored event repository.
 
-**Optimistic Concurrency Control** — Makes sure a distributed application
-doesn't become inconsistent due to concurrency. Implemented using optimistic
-concurrency controls in the adapted database. With Cassandra, this accomplishes
-linearly-scalable distributed optimistic concurrency control, guaranteeing
-sequential consistency of each event stream, across a distributed application.
-It is also possible to serialize the execution of commands on an aggregate, but
-that is out of the scope of this package. If you wish to do that, perhaps something
-like [Zookeeper](https://zookeeper.apache.org/) might help.
+**Customizable Transcoding** — Between domain events and stored events,
+allows support to be added for serialization and deserialization of
+custom value object types, and also makes it possible to use different
+database schemas when developing a custom stored event repository.
 
 **Application-Level Encryption** — Symmetric encryption when transcoding
 events, including snapshots and logged messages, using a customizable
@@ -42,11 +38,6 @@ unique 16 byte initialization vector for each encryption. Data is
 compressed before it is encrypted, which can mean application
 performance is improved when encryption is enabled.
 
-**Customizable Transcoding** — Between domain events and stored events,
-allows support to be added for serialization and deserialization of
-custom value object types, and also makes it possible to use different
-database schemas when developing a custom stored event repository.
-
 **Synchronous Publish-Subscribe Mechanism** — Entirely deterministic,
 with handlers called in the order they are registered, and with which
 calls to publish events do not return until all event subscribers have
@@ -55,6 +46,9 @@ returned.
 **Persistence Subscriber** - Listens for published domain events, and
 writes appends domain events to the event store whenever a domain event is
 published. Domain events are published by the entity methods.
+
+**Worked Examples** — A simple worked example application, with example
+entity class, example event sourced repository, and example factory method.
 
 **Abstract Base Classes** — For domain events, event soured domain
 entities, repositories, transcoding and snapshotting strategies,
@@ -82,8 +76,14 @@ kinds of multiplicity.
 snapshots and also when optimistic currency control exceptions are
 encountered.
 
-**Worked Examples** — A simple worked example application, with example
-entity class, example event sourced repository, and example factory method.
+**Optimistic Concurrency Control** — Makes sure a distributed application
+doesn't become inconsistent due to concurrency. Implemented using optimistic
+concurrency controls in the adapted database. With Cassandra, this accomplishes
+linearly-scalable distributed optimistic concurrency control, guaranteeing
+sequential consistency of each event stream, across a distributed application.
+It is also possible to serialize the execution of commands on an aggregate, but
+that is out of the scope of this package. If you wish to do that, perhaps something
+like [Zookeeper](https://zookeeper.apache.org/) might help.
 
 
 ## Install
