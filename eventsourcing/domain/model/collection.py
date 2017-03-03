@@ -2,9 +2,8 @@ from __future__ import absolute_import, unicode_literals, division, print_functi
 
 from uuid import uuid4
 
-from eventsourcing.domain.model.entity import entity_mutator, singledispatch, EntityRepository
+from eventsourcing.domain.model.entity import EntityRepository
 from eventsourcing.domain.model.events import DomainEvent, publish
-
 from eventsourcing.domain.model.entity import EventSourcedEntity
 
 
@@ -13,9 +12,20 @@ class Collection(EventSourcedEntity):
         def __init__(self, **kwargs):
             super(Collection.Created, self).__init__(**kwargs)
 
+        def mutate_collection(self, event, entity):
+            entity._items.add(event.item)
+            entity._increment_version()
+            return entity
+
     class Discarded(EventSourcedEntity.Discarded):
         def __init__(self, **kwargs):
             super(Collection.Discarded, self).__init__(**kwargs)
+
+        def mutate_collection(self, event, entity):
+            entity._items.remove(event.item)
+            entity._increment_version()
+            return entity
+
 
     class ItemAdded(DomainEvent):
         @property
@@ -59,36 +69,21 @@ class Collection(EventSourcedEntity):
         self._apply(event)
         publish(event)
 
-    @staticmethod
-    def _mutator(event, initial):
-        return collection_mutator(event, initial)
+    @classmethod
+    def mutate(cls, entity=None, event=None):
+        if not hasattr(event, 'mutate_collection'):
+            msg = "{} does not provide a mutate_collection() method.".format(event.__class__)
+            raise NotImplementedError(msg)
 
+        entity = event.mutate_collection(event, entity or cls)
+        entity._increment_version()
+        return entity
 
 def register_new_collection(collection_id=None):
     collection_id = uuid4().hex if collection_id is None else collection_id
     event = Collection.Created(entity_id=collection_id)
     entity = Collection.mutate(event=event)
     publish(event)
-    return entity
-
-
-@singledispatch
-def collection_mutator(event, initial):
-    return entity_mutator(event, initial)
-
-
-@collection_mutator.register(Collection.ItemAdded)
-def collection_item_added_mutator(event, entity):
-    assert isinstance(entity, Collection)
-    entity._items.add(event.item)
-    entity._increment_version()
-    return entity
-
-
-@collection_mutator.register(Collection.ItemRemoved)
-def collection_item_removed_mutator(event, entity):
-    entity._items.remove(event.item)
-    entity._increment_version()
     return entity
 
 

@@ -53,11 +53,17 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         def __init__(self, entity_version=0, **kwargs):
             super(EventSourcedEntity.Created, self).__init__(entity_version=entity_version, **kwargs)
 
+        def mutate_event(self, event, klass):
+            return klass(**event.__dict__)
+
     class AttributeChanged(DomainEvent):
-        pass
+        def mutate_event(self, event, entity):
+            setattr(entity, event.name, event.value)
+            return entity
 
     class Discarded(DomainEvent):
-        pass
+        def mutate_event(self, event, entity):
+            entity._is_discarded = True
 
     def __init__(self, entity_id, entity_version, domain_event_id):
         self._id = entity_id
@@ -117,50 +123,21 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
     @classmethod
     def mutate(cls, entity=None, event=None):
-        initial = entity if entity is not None else cls
-        return cls._mutator(event, initial)
+        if entity:
+            entity._validate_originator(event)
 
-    @staticmethod
-    def _mutator(event, initial):
-        return entity_mutator(event, initial)
+        if not hasattr(event, 'mutate_event'):
+            msg = "{} does not provide a mutate_event() method.".format(event.__class__)
+            raise NotImplementedError(msg)
+
+        entity = event.mutate_event(event, entity or cls)
+        entity._increment_version()
+        return entity
 
 
 @singledispatch
 def entity_mutator(event, _):
     raise NotImplementedError("Event type not supported: {}".format(type(event)))
-
-
-@entity_mutator.register(EventSourcedEntity.Created)
-def created_mutator(event, cls):
-    assert isinstance(event, DomainEvent), event
-    if not isinstance(cls, type):
-        msg = ("Mutator for Created event requires entity type not instance: {} "
-               "(event entity id: {}, event type: {})"
-               "".format(type(cls), event.entity_id, type(event)))
-        raise CreatedMutatorRequiresTypeNotInstance(msg)
-    assert issubclass(cls, EventSourcedEntity), cls
-    self = cls(**event.__dict__)
-    self._increment_version()
-    return self
-
-
-@entity_mutator.register(EventSourcedEntity.AttributeChanged)
-def attribute_changed_mutator(event, self):
-    assert isinstance(self, EventSourcedEntity), self
-    self._validate_originator(event)
-    setattr(self, event.name, event.value)
-    self._increment_version()
-    return self
-
-
-@entity_mutator.register(EventSourcedEntity.Discarded)
-def discarded_mutator(event, self):
-    assert isinstance(self, EventSourcedEntity), self
-    self._validate_originator(event)
-    self._is_discarded = True
-    self._increment_version()
-    return None
-
 
 def mutableproperty(getter):
     """
