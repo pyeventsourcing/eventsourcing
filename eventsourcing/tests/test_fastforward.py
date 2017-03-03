@@ -11,55 +11,57 @@ class TestFastForward(ExampleApplicationTestCase):
         return ExampleApplicationWithPythonObjects()
 
     def test(self):
-        assert isinstance(self.app, ExampleApplication)
-        example = self.app.register_new_example(1, 2)
-        instance1 = self.app.example_repo[example.id]
-        instance2 = self.app.example_repo[example.id]
 
-        assert isinstance(instance1, Example)
-        assert isinstance(instance2, Example)
+        with self.create_app() as app:
+            assert isinstance(app, ExampleApplication)
+            example = app.register_new_example(1, 2)
+            instance1 = app.example_repo[example.id]
+            instance2 = app.example_repo[example.id]
 
-        self.assertEqual(instance1.version, 1)
-        self.assertEqual(instance2.version, 1)
+            assert isinstance(instance1, Example)
+            assert isinstance(instance2, Example)
 
-        # Evolve instance1 by two versions.
-        instance1.beat_heart()
-        # instance1.beat_heart()
-        self.assertEqual(instance1.version, 2)
+            self.assertEqual(instance1.version, 1)
+            self.assertEqual(instance2.version, 1)
 
-        # Try to evolve instance2 from the same version.
-        # - check it raises a concurrency error
-        # Todo: This needs to be a deepcopy.
-        preop_state = instance2.__dict__.copy()
-        with self.assertRaises(ConcurrencyError):
-            instance2.beat_heart()
-
-        # Reset instance2 to its pre-op state.
-        instance2.__dict__.update(preop_state)
-        self.assertEqual(instance2.version, 1)
-
-        # Fast forward instance2 from pre-op state.
-        instance3 = self.app.example_repo.fastforward(instance2)
-        self.assertEqual(instance2.version, 1)
-        self.assertEqual(instance3.version, 2)
-
-        # Try again to beat heart.
-        instance3.beat_heart()
-        self.assertEqual(instance3.version, 3)
-
-        # Try to evolve instance1 from its stale version.
-        preop_state = instance1.__dict__.copy()
-        with self.assertRaises(ConcurrencyError):
+            # Evolve instance1 by two versions.
             instance1.beat_heart()
+            # instance1.beat_heart()
+            self.assertEqual(instance1.version, 2)
 
-        # Reset instance1 to pre-op state.
-        instance1.__dict__.update(preop_state)
+            # Try to evolve instance2 from the same version.
+            # - check it raises a concurrency error
+            # Todo: This needs to be a deepcopy.
+            preop_state = instance2.__dict__.copy()
+            with self.assertRaises(ConcurrencyError):
+                instance2.beat_heart()
 
-        # Fast forward instance1 from pre-op state.
-        instance4 = self.app.example_repo.fastforward(instance1)
-        self.assertEqual(instance1.version, 2)
-        self.assertEqual(instance4.version, 3)
+            # Reset instance2 to its pre-op state.
+            instance2.__dict__.update(preop_state)
+            self.assertEqual(instance2.version, 1)
 
-        # Try again to beat heart.
-        instance4.beat_heart()
-        self.assertEqual(instance4.version, 4)
+            # Fast forward instance2 from pre-op state.
+            instance3 = app.example_repo.fastforward(instance2)
+            self.assertEqual(instance2.version, 1)
+            self.assertEqual(instance3.version, 2)
+
+            # Try again to beat heart.
+            instance3.beat_heart()
+            self.assertEqual(instance3.version, 3)
+
+            # Try to evolve instance1 from its stale version.
+            preop_state = instance1.__dict__.copy()
+            with self.assertRaises(ConcurrencyError):
+                instance1.beat_heart()
+
+            # Reset instance1 to pre-op state.
+            instance1.__dict__.update(preop_state)
+
+            # Fast forward instance1 from pre-op state.
+            instance4 = app.example_repo.fastforward(instance1)
+            self.assertEqual(instance1.version, 2)
+            self.assertEqual(instance4.version, 3)
+
+            # Try again to beat heart.
+            instance4.beat_heart()
+            self.assertEqual(instance4.version, 4)

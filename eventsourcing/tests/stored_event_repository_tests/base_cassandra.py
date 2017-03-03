@@ -40,7 +40,7 @@ class CassandraRepoTestCase(CassandraTestCase, AbstractStoredEventRepositoryTest
                 always_check_expected_version=True,
             )
             self._stored_event_repo = stored_event_repo
-            return stored_event_repo
+        return self._stored_event_repo
 
 
 def create_cassandra_datastore_strategy():

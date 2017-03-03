@@ -15,20 +15,28 @@ class SQLAlchemyTestCase(AbstractTestCase):
     def setUp(self):
         super(SQLAlchemyTestCase, self).setUp()
         # Setup the keyspace and column family for stored events.
-        self.temp_file = NamedTemporaryFile('a')
-        uri = 'sqlite:///' + self.temp_file.name
-        self.datastore = SQLAlchemyDatastoreStrategy(
-            settings=SQLAlchemySettings(uri=uri),
-            tables=(SqlStoredEvent,),
-        )
-        self.datastore.setup_connection()
         self.datastore.setup_tables()
 
     def tearDown(self):
         # Drop the keyspace.
         self.datastore.drop_tables()
         self.datastore.drop_connection()
+        del(self._datastore)  # Todo: Refactor this...
         super(SQLAlchemyTestCase, self).tearDown()
+
+    @property
+    def datastore(self):
+        try:
+            return self._datastore
+        except AttributeError:
+            self.temp_file = NamedTemporaryFile('a')
+            uri = 'sqlite:///' + self.temp_file.name
+            self._datastore = SQLAlchemyDatastoreStrategy(
+                settings=SQLAlchemySettings(uri=uri),
+                tables=(SqlStoredEvent,),
+            )
+            self._datastore.setup_connection()
+        return self._datastore
 
 
 class SQLAlchemyRepoTestCase(SQLAlchemyTestCase, AbstractStoredEventRepositoryTestCase):
@@ -41,7 +49,6 @@ class SQLAlchemyRepoTestCase(SQLAlchemyTestCase, AbstractStoredEventRepositoryTe
         try:
             return self._stored_event_repo
         except AttributeError:
-
             stored_event_repo = SQLAlchemyStoredEventRepository(
                 db_session=self.datastore.db_session,
                 stored_event_table=SqlStoredEvent,
@@ -49,7 +56,7 @@ class SQLAlchemyRepoTestCase(SQLAlchemyTestCase, AbstractStoredEventRepositoryTe
                 always_write_entity_version=True,
             )
             self._stored_event_repo = stored_event_repo
-            return self._stored_event_repo
+        return self._stored_event_repo
 
     def tearDown(self):
         # Unlink temporary file.
