@@ -42,7 +42,10 @@ class CassandraDatastore(Datastore):
 
         # Optionally construct an "auth provider" object.
         if self.settings.username and self.settings.password:
-            auth_provider = PlainTextAuthProvider(self.settings.username, self.settings.password)
+            auth_provider = PlainTextAuthProvider(
+                username=self.settings.username,
+                password=self.settings.password
+            )
         else:
             auth_provider = None
 
@@ -51,7 +54,8 @@ class CassandraDatastore(Datastore):
             consistency_level_name = self.settings.consistency.upper()
             consistency_level = ConsistencyLevel.name_to_value[consistency_level_name]
         except KeyError:
-            msg = "Cassandra consistency level name '{}' not found.".format(self.settings.consistency)
+            msg = ("Cassandra consistency level name '{}' not found."
+                   "".format(self.settings.consistency))
             raise DatasourceSettingsError(msg)
 
         # Use the other self.settings directly.
