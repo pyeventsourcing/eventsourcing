@@ -49,9 +49,11 @@ class SqlStoredEvent(Base):
 
 
 class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
-    def __init__(self, stored_event_table, **kwargs):
+    def __init__(self, datastore, stored_event_table, **kwargs):
         super(SQLAlchemyStoredEventRepository, self).__init__(**kwargs)
         self.stored_event_table = stored_event_table
+        assert isinstance(datastore, SQLAlchemyDatastore), datastore
+        self.datastore = datastore
         self._db_session = None
 
     @property

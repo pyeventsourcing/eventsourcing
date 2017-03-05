@@ -5,7 +5,6 @@ import six
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist, ProgrammingError
-from eventsourcing.infrastructure.datastore.base import Datastore
 from eventsourcing.infrastructure.transcoding import StoredEventTranscoder, JSONStoredEventTranscoder, StoredEvent
 
 
@@ -89,13 +88,11 @@ class EventStore(AbstractEventStore):
 
 
 class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
-    def __init__(self, datastore, always_check_expected_version=False, always_write_entity_version=False,
+    def __init__(self, always_check_expected_version=False, always_write_entity_version=False,
                  stored_event_class=StoredEvent):
         """
         Abstract base class for a persistent collection of stored events.
         """
-        assert isinstance(datastore, Datastore), datastore
-        self.datastore = datastore
         self.always_check_expected_version = always_check_expected_version
         self.always_write_entity_version = always_write_entity_version
         self.stored_event_class = stored_event_class

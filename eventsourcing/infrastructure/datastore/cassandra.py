@@ -1,12 +1,11 @@
 import os
-from time import sleep
 
 import cassandra.cqlengine
-import six
-from cassandra import AlreadyExists, ConsistencyLevel, InvalidRequest, OperationTimedOut
+from cassandra import ConsistencyLevel
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
 
+from eventsourcing.exceptions import DatasourceSettingsError
 from eventsourcing.infrastructure.datastore.base import DatastoreSettings, Datastore
 
 
@@ -41,19 +40,17 @@ class CassandraDatastore(Datastore):
             auth_provider = None
 
         # Resolve the consistency level to a driver object.
-        if isinstance(self.settings.consistency, six.string_types):
-            try:
-                consistency = getattr(ConsistencyLevel, self.settings.consistency.upper())
-            except AttributeError:
-                msg = "Cassandra consistency level '{}' not found.".format(self.settings.consistency)
-                raise Exception(msg)
-        else:
-            consistency = self.settings.consistency
+        try:
+            consistency_level_name = self.settings.consistency.upper()
+            consistency_level = ConsistencyLevel.name_to_value[consistency_level_name]
+        except KeyError:
+            msg = "Cassandra consistency level name '{}' not found.".format(self.settings.consistency)
+            raise DatasourceSettingsError(msg)
 
         # Use the other self.settings directly.
         cassandra.cqlengine.connection.setup(
             hosts=self.settings.hosts,
-            consistency=consistency,
+            consistency=consistency_level,
             default_keyspace=self.settings.default_keyspace,
             port=self.settings.port,
             auth_provider=auth_provider,
@@ -73,33 +70,14 @@ class CassandraDatastore(Datastore):
         os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
 
         # Attempt to create the keyspace.
-        try:
-            create_keyspace_simple(
-                name=self.settings.default_keyspace,
-                replication_factor=self.settings.replication_factor,
-            )
-        except AlreadyExists:
-            pass
-        else:
-            for table in self.tables:
-                sync_table(table)
+        create_keyspace_simple(
+            name=self.settings.default_keyspace,
+            replication_factor=self.settings.replication_factor,
+        )
+        for table in self.tables:
+            sync_table(table)
 
     def drop_tables(self):
         # Avoid warnings about this variable not being set.
         os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
-
-        max_retries = 3
-        tried = 0
-        while True:
-            try:
-                drop_keyspace(name=self.settings.default_keyspace)
-                break
-            except InvalidRequest:
-                break
-            except OperationTimedOut:
-                tried += 1
-                if tried <= max_retries:
-                    sleep(0.5)
-                    continue
-                else:
-                    raise
+        drop_keyspace(name=self.settings.default_keyspace)

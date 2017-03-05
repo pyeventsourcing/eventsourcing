@@ -15,7 +15,6 @@ class CassandraRepoTestCase(CassandraDatastoreTestCase, AbstractStoredEventRepos
 
     def construct_stored_event_repo(self):
         return CassandraStoredEventRepository(
-            datastore=self.datastore,
             stored_event_table=CqlStoredEvent,
             always_write_entity_version=True,
             always_check_expected_version=True,

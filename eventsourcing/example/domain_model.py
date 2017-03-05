@@ -38,11 +38,11 @@ class Example(EventSourcedEntity):
 
     @mutableproperty
     def a(self):
-        return self._a
+        """The 'a' attribute."""
 
     @mutableproperty
     def b(self):
-        return self._b
+        """The 'b' attribute."""
 
     def beat_heart(self):
         self._assert_not_discarded()

@@ -3,7 +3,7 @@ import json
 import os
 import traceback
 import uuid
-from abc import abstractmethod
+from abc import abstractmethod, abstractproperty
 from multiprocessing.pool import Pool
 from time import sleep
 from uuid import uuid1, uuid4
@@ -36,13 +36,15 @@ class AbstractStoredEventRepositoryTestCase(AbstractDatastoreTestCase):
 
     def setUp(self):
         super(AbstractStoredEventRepositoryTestCase, self).setUp()
-        self.datastore.setup_connection()
-        self.datastore.setup_tables()
+        if self.datastore is not None:
+            self.datastore.setup_connection()
+            self.datastore.setup_tables()
 
     def tearDown(self):
         self._stored_event_repo = None
-        self.datastore.drop_tables()
-        self.datastore.drop_connection()
+        if self.datastore is not None:
+            self.datastore.drop_tables()
+            self.datastore.drop_connection()
         super(AbstractStoredEventRepositoryTestCase, self).tearDown()
 
     @property
@@ -406,12 +408,11 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
     def num_events(self):
         return 12
 
-    @property
+    @abstractproperty
     def iterator_cls(self):
         """
         Returns iterator class.
         """
-        raise NotImplementedError
 
     def construct_iterator(self, is_ascending, page_size):
         return self.iterator_cls(

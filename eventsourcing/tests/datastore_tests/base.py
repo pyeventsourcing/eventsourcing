@@ -43,6 +43,9 @@ class DatastoreTestCase(AbstractDatastoreTestCase):
         # Setup the connection.
         self.datastore.setup_connection()
 
+        # Check it doesn't matter if setup_connection() is called twice.
+        self.datastore.setup_connection()
+
         # Check the stored event class doesn't function before the tables are setup.
         with self.assertRaises(DatastoreTableError):
             self.list_records()
@@ -50,6 +53,9 @@ class DatastoreTestCase(AbstractDatastoreTestCase):
             self.create_record()
 
         # Setup the tables.
+        self.datastore.setup_tables()
+
+        # Check it doesn't matter if setup_tables() is called twice.
         self.datastore.setup_tables()
 
         # Check the stored event class does function after the tables have been setup.

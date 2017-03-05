@@ -1,4 +1,3 @@
-from eventsourcing.infrastructure.datastore.dummy import DummyDatastore
 from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 from eventsourcing.tests.stored_event_repository_tests.base import AbstractStoredEventRepositoryTestCase, \
@@ -7,7 +6,7 @@ from eventsourcing.tests.stored_event_repository_tests.base import AbstractStore
 
 class PythonObjectsDatastoreTestCase(AbstractDatastoreTestCase):
     def construct_datastore(self):
-        return DummyDatastore()
+        return None
 
 
 class PythonObjectsRepoTestCase(PythonObjectsDatastoreTestCase, AbstractStoredEventRepositoryTestCase):

@@ -28,8 +28,6 @@ class SQLAlchemyDatastore(Datastore):
 
     def setup_connection(self):
         assert isinstance(self.settings, SQLAlchemySettings), self.settings
-        if self.settings.uri is None:
-            raise ValueError
         self._engine = create_engine(self.settings.uri, strategy='threadlocal')
 
     def setup_tables(self):
