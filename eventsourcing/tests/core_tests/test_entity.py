@@ -177,3 +177,8 @@ class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCas
     def test_created_mutator_error(self):
         with self.assertRaises(CreatedMutatorRequiresTypeNotInstance):
             created_mutator(mock.Mock(spec=DomainEvent), 'not a class')
+
+
+class CustomValueObject(object):
+    def __init__(self, value):
+        self.value = value

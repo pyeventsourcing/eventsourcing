@@ -1,22 +1,16 @@
 from __future__ import unicode_literals
 
-import importlib
+import datetime
 import json
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 
-import datetime
 import dateutil.parser
 import six
-from six import BytesIO
 
 from eventsourcing.domain.model.entity import EventSourcedEntity
-from eventsourcing.domain.model.events import DomainEvent, resolve_attr, resolve_domain_topic, topic_from_domain_class
-
-try:
-    import numpy
-except ImportError:
-    numpy = None
+from eventsourcing.domain.model.events import DomainEvent, resolve_domain_topic, topic_from_domain_class
+from eventsourcing.domain.services.cipher import Cipher
 
 EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
 
@@ -40,27 +34,11 @@ class ObjectJSONEncoder(json.JSONEncoder):
         except TypeError as e:
             if "not JSON serializable" not in str(e):
                 raise
-            if isinstance(obj, datetime.datetime):
+            elif isinstance(obj, datetime.datetime):
                 return {'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z')}
-            if isinstance(obj, datetime.date):
+            elif isinstance(obj, datetime.date):
                 return {'ISO8601_date': obj.isoformat()}
-            # Todo: Remove all mention of numpy in this library.
-            # Todo: Move this to the quant-dsl package, where it is used.
-            if numpy is not None and isinstance(obj, numpy.ndarray) and obj.ndim == 1:
-                memfile = BytesIO()
-                numpy.save(memfile, obj)
-                memfile.seek(0)
-                serialized = json.dumps(memfile.read().decode('latin-1'))
-                d = {
-                    '__ndarray__': serialized,
-                }
-                return d
-            else:
-                d = {
-                    '__class__': obj.__class__.__qualname__,
-                    '__module__': obj.__module__,
-                }
-                return d
+
 
 
 class ObjectJSONDecoder(json.JSONDecoder):
@@ -69,39 +47,11 @@ class ObjectJSONDecoder(json.JSONDecoder):
 
     @staticmethod
     def from_jsonable(d):
-        if '__ndarray__' in d:
-            return ObjectJSONDecoder._decode_ndarray(d)
-        elif '__class__' in d and '__module__' in d:
-            return ObjectJSONDecoder._decode_class(d)
-        elif 'ISO8601_datetime' in d:
+        if 'ISO8601_datetime' in d:
             return ObjectJSONDecoder._decode_datetime(d)
         elif 'ISO8601_date' in d:
             return ObjectJSONDecoder._decode_date(d)
         return d
-
-    @staticmethod
-    def _decode_ndarray(d):
-        serialized = d['__ndarray__']
-        memfile = BytesIO()
-        memfile.write(json.loads(serialized).encode('latin-1'))
-        memfile.seek(0)
-        return numpy.load(memfile)
-
-        # return numpy.array(obj_data, d['dtype']).reshape(d['shape'])
-
-    @staticmethod
-    def _decode_class(d):
-        class_name = d.pop('__class__')
-        module_name = d.pop('__module__')
-        module = importlib.import_module(module_name)
-        cls = resolve_attr(module, class_name)
-        try:
-            obj = cls(**d)
-        except Exception:
-            obj = cls()
-            for attr, value in d.items():
-                obj.__dict__[attr] = ObjectJSONDecoder.from_jsonable(value)
-        return obj
 
     @staticmethod
     def _decode_date(d):
@@ -147,20 +97,20 @@ class JSONStoredEventTranscoder(StoredEventTranscoder):
         event_topic = topic_from_domain_class(type(domain_event))
 
         # Serialise event attributes to JSON.
-        event_attrs = json.dumps(event_attrs, separators=(',', ':'), sort_keys=True, cls=self.json_encoder_cls)
+        serialized_event_attrs = json.dumps(event_attrs, separators=(',', ':'), sort_keys=True,
+                                            cls=self.json_encoder_cls)
 
         # Encrypt (optional).
         if self.always_encrypt or domain_event.__class__.always_encrypt:
-            if self.cipher is None:
-                raise ValueError("Can't encrypt without a cipher")
-            event_attrs = self.cipher.encrypt(event_attrs)
+            assert isinstance(self.cipher, Cipher)
+            serialized_event_attrs = self.cipher.encrypt(serialized_event_attrs)
 
         # Return a stored event object (a named tuple, by default).
         return self.stored_event_cls(
             event_id=event_id,
             stored_entity_id=stored_entity_id,
             event_topic=event_topic,
-            event_attrs=event_attrs,
+            event_attrs=serialized_event_attrs,
         )
 
     def deserialize(self, stored_event):
