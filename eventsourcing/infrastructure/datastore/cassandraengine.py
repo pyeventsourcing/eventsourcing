@@ -10,7 +10,7 @@ from eventsourcing.infrastructure.datastore.base import DatastoreSettings, Datas
 
 
 class CassandraSettings(DatastoreSettings):
-    CASSANDRA_HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', 'localhost').split(',')]
+    CASSANDRA_HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', '127.0.0.1').split(',')]
     CASSANDRA_PORT = int(os.getenv('CASSANDRA_PORT', 9042))
     CASSANDRA_PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', 3))
     CASSANDRA_DEFAULT_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
