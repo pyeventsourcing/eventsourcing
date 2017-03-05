@@ -282,9 +282,17 @@ class LogTestCase(PersistenceSubscribingTestCase):
         # Expect the order of the messages is the reverse of the created order.
         self.assertEqual(messages, [str(i) for i in range(108 + limit * 2, 108 + limit, -1)])
 
-    def test_buckets_of_other_sizes(self):
+    def test_buckets_of_all_sizes(self):
+        # Start new second sized log.
+        log = start_new_log(name='log2', bucket_size='second')
+        log.append_message('message')
+
+        # Get the messages.
+        reader = get_log_reader(log, self.event_store)
+        self.assertTrue(len(list(reader.get_messages())))
+
         # Start new minute sized log.
-        log = start_new_log(name='log2', bucket_size='minute')
+        log = start_new_log(name='log3', bucket_size='minute')
         log.append_message('message')
 
         # Get the messages.
@@ -292,7 +300,7 @@ class LogTestCase(PersistenceSubscribingTestCase):
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new hour sized log.
-        log = start_new_log(name='log3', bucket_size='hour')
+        log = start_new_log(name='log4', bucket_size='hour')
         log.append_message('message')
 
         # Get the messages.
@@ -300,7 +308,7 @@ class LogTestCase(PersistenceSubscribingTestCase):
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new day sized log.
-        log = start_new_log(name='log4', bucket_size='day')
+        log = start_new_log(name='log5', bucket_size='day')
         log.append_message('message')
 
         # Get the messages.
@@ -308,7 +316,7 @@ class LogTestCase(PersistenceSubscribingTestCase):
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new month sized log.
-        log = start_new_log(name='log5', bucket_size='month')
+        log = start_new_log(name='log6', bucket_size='month')
         log.append_message('message')
 
         # Get the messages.
@@ -316,7 +324,7 @@ class LogTestCase(PersistenceSubscribingTestCase):
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new year sized log.
-        log = start_new_log(name='log6', bucket_size='year')
+        log = start_new_log(name='log7', bucket_size='year')
         log.append_message('message')
 
         # Get the messages.
@@ -324,7 +332,7 @@ class LogTestCase(PersistenceSubscribingTestCase):
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new default sized log.
-        log = start_new_log(name='log7')
+        log = start_new_log(name='log8')
         log.append_message('message')
 
         # Get the messages.
@@ -333,11 +341,11 @@ class LogTestCase(PersistenceSubscribingTestCase):
 
         # Start new invalid sized log.
         with self.assertRaises(ValueError):
-            log = start_new_log(name='log8', bucket_size='invalid')
+            log = start_new_log(name='log9', bucket_size='invalid')
 
         # Check the helper methods are protected against invalid bucket sizes.
         with self.assertRaises(ValueError):
-            make_bucket_id('log9', time.time(), bucket_size='invalid')
+            make_bucket_id('log10', time.time(), bucket_size='invalid')
 
         with self.assertRaises(ValueError):
             bucket_starts(time.time(), bucket_size='invalid')
