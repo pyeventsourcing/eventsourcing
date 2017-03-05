@@ -9,7 +9,7 @@ from eventsourcing.tests.stored_event_repository_tests.test_python_objects_store
 class TestFastForward(PythonObjectsRepoTestCase, ExampleApplicationTestCase):
 
     def test(self):
-        with self.create_app() as app:
+        with self.construct_application() as app:
             assert isinstance(app, ExampleApplication)
             example = app.register_new_example(1, 2)
             instance1 = app.example_repo[example.id]

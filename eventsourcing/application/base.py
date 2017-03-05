@@ -22,17 +22,17 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         """
         assert isinstance(stored_event_repository, AbstractStoredEventRepository), stored_event_repository
         self.stored_event_repository = stored_event_repository
-        self.event_store = self.create_event_store(always_encrypt, cipher)
+        self.event_store = self.construct_event_store(always_encrypt, cipher)
 
-    def create_event_store(self, always_encrypt=False, cipher=None):
-        transcoder = self.create_transcoder(always_encrypt, cipher)
+    def construct_event_store(self, always_encrypt=False, cipher=None):
+        transcoder = self.construct_transcoder(always_encrypt, cipher)
         event_store = EventStore(
             stored_event_repo=self.stored_event_repository,
             transcoder=transcoder,
         )
         return event_store
 
-    def create_transcoder(self, always_encrypt=False, cipher=None):
+    def construct_transcoder(self, always_encrypt=False, cipher=None):
         return JSONStoredEventTranscoder(always_encrypt=always_encrypt, cipher=cipher)
 
     def close(self):
@@ -50,9 +50,9 @@ class EventSourcingApplication(ReadOnlyEventSourcingApplication):
 
     def __init__(self, **kwargs):
         super(EventSourcingApplication, self).__init__(**kwargs)
-        self.persistence_subscriber = self.create_persistence_subscriber()
+        self.persistence_subscriber = self.construct_persistence_subscriber()
 
-    def create_persistence_subscriber(self):
+    def construct_persistence_subscriber(self):
         return PersistenceSubscriber(
             event_store=self.event_store
         )

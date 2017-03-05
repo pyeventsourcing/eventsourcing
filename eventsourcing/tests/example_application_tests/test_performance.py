@@ -27,7 +27,7 @@ class PerformanceTestCase(ExampleApplicationTestCase):
         NB: This test doesn't actually check anything, so it isn't really a test.
         """
 
-        with self.create_app() as app:
+        with self.construct_application() as app:
 
             # Initialise dict of entities.
             self.entities = {}
@@ -110,7 +110,7 @@ class PerformanceTestCase(ExampleApplicationTestCase):
 
     def test_log_performance(self):
 
-        with self.create_app() as app:
+        with self.construct_application() as app:
             log = start_new_log('example', bucket_size='year')
             logger = get_logger(log)
             log_reader = get_log_reader(log, app.event_store)

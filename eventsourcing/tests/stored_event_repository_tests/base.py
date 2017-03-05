@@ -353,10 +353,10 @@ worker_repo = None
 
 def pool_initializer(stored_repo_class, temp_file_name):
     global worker_repo
-    worker_repo = create_repo_for_worker(stored_repo_class, temp_file_name)
+    worker_repo = construct_repo_for_worker(stored_repo_class, temp_file_name)
 
 
-def create_repo_for_worker(stored_repo_class, temp_file_name):
+def construct_repo_for_worker(stored_repo_class, temp_file_name):
     if stored_repo_class in (CassandraStoredEventRepository, Cassandra2StoredEventRepository):
         datastore = CassandraDatastore(
             settings=CassandraSettings(default_keyspace=DEFAULT_KEYSPACE_FOR_TESTING),
@@ -413,7 +413,7 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
         """
         raise NotImplementedError
 
-    def create_iterator(self, is_ascending, page_size):
+    def construct_iterator(self, is_ascending, page_size):
         return self.iterator_cls(
             repo=self.stored_event_repo,
             stored_entity_id=self.stored_entity_id,
@@ -460,7 +460,7 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
         self.assert_iterator_yields_events(is_ascending, expect_at_start, expect_at_end, page_size)
 
     def assert_iterator_yields_events(self, is_ascending, expect_at_start, expect_at_end, page_size):
-        iterator = self.create_iterator(is_ascending, page_size)
+        iterator = self.construct_iterator(is_ascending, page_size)
         retrieved_events = list(iterator)
         self.assertEqual(len(retrieved_events), len(self.stored_events), retrieved_events)
         self.assertGreater(len(retrieved_events), page_size)

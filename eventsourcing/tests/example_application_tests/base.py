@@ -13,7 +13,7 @@ class ExampleApplicationTestCase(AbstractStoredEventRepositoryTestCase):
         Checks the example application works in the way an example application should.
         """
 
-        with self.create_app() as app:
+        with self.construct_application() as app:
             # Check there's a stored event repo.
             self.assertIsInstance(app.stored_event_repository, AbstractStoredEventRepository)
 
@@ -45,13 +45,12 @@ class ExampleApplicationTestCase(AbstractStoredEventRepositoryTestCase):
             entity1 = app.example_repo[example1.id]
             self.assertEqual(100, entity1.a)
 
-    def create_app(self):
+    def construct_application(self):
         app = ExampleApplication(
             stored_event_repository=self.stored_event_repo,
-            cipher=self.cipher,
+            cipher=self.construct_cipher(),
         )
         return app
 
-    @property
-    def cipher(self):
+    def construct_cipher(self):
         return None
