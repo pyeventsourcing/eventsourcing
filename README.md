@@ -12,25 +12,28 @@ A library for event sourcing in Python.
 ## Overview
 
 The general aim of this library is to make it easier to
-write event sourced applications in Python. With event
-sourcing, the state of the application is determined by
-a sequence of events.
+write event sourced applications in Python. The common definition
+of event sourcing proposes that the state of an event sourced application
+is determined entirely by a sequence of events. In practice, it is
+common for an application to be partitioned into an arrangement of
+domain entities, with the application state being distributed
+across the state of its entities.
 
 Therefore, this library provides mechanisms required by such
-applications: a style for coding behaviours that mutate the
-state of an application by instantiating, applying and then
+applications: a style for coding entity behaviours that mutate
+their state by instantiating and applying and then
 publishing domain events of different kinds; and a way for
 those events to be stored and replayed to obtain the state
-of the application on demand.
+of the entities of the application on demand.
 
 This document highlights the main features of the library,
-provides instructions for installing the packages, describes the
+provides instructions for installing the package, describes the
 design of the software, includes a detailed example of usage, and
 has some background information about the project.
 
 With the major features complete, the current focus of development
 work is towards: refactoring the code for greater clarity and greater
-flexibility; test suite with 100% line coverage; a much better
+flexibility; a test suite with 100% line coverage; a much better
 distinction between time-sequenced and integer-sequenced event streams;
 and support for storing events in a broader range database management
 systems and services.
@@ -190,9 +193,9 @@ your virtualenv is activated before running your program.
 
 #### Step 1: define a class of event sourced entity
 
-Write yourself a new event sourced entity class, by making a
-subclass of 'EventSourcedEntity' (from module
-'eventsourcing.domain.model.entity').
+Write yourself a new event sourced entity class. The entity is responsible
+for publishing domain events. As a rule, the state of the entity will be
+determinted by the events that have been published by its methods.
 
 ```python
 from eventsourcing.domain.model.entity import EventSourcedEntity
