@@ -18,6 +18,10 @@ install:
 - pip install -r requirements.txt
 - pip install python-coveralls
 
+env:
+- CASSANDRA_PROTOCOL_VERSION=2
+- CASSANDRA_HOSTS=127.0.0.1
+
 script:
 - coverage run -m unittest discover eventsourcing.tests -v
 

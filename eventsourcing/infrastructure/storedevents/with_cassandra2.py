@@ -17,9 +17,9 @@ from eventsourcing.infrastructure.storedevents.threaded_iterator import Threaded
 
 DEFAULT_CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
 DEFAULT_CASSANDRA_CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', 'LOCAL_QUORUM')
-DEFAULT_CASSANDRA_HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', '127.0.0.1').split(',')]
+DEFAULT_CASSANDRA_HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', 'localhost').split(',')]
 DEFAULT_CASSANDRA_PORT = int(os.getenv('CASSANDRA_PORT', 9042))
-DEFAULT_CASSANDRA_PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', 3))
+DEFAULT_CASSANDRA_PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', 4))
 
 
 class CqlEntityVersion(Model):

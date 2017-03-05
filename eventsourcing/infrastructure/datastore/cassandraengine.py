@@ -10,9 +10,9 @@ from eventsourcing.infrastructure.datastore.base import DatastoreSettings, Datas
 
 
 class CassandraSettings(DatastoreSettings):
-    CASSANDRA_HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', '127.0.0.1').split(',')]
+    CASSANDRA_HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', 'localhost').split(',')]
     CASSANDRA_PORT = int(os.getenv('CASSANDRA_PORT', 9042))
-    CASSANDRA_PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', 3))
+    CASSANDRA_PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', 4))
     CASSANDRA_DEFAULT_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
     CASSANDRA_CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', 'LOCAL_QUORUM')
     CASSANDRA_REPLICATION_FACTOR = os.getenv('CASSANDRA_REPLICATION_FACTOR', 1)
@@ -54,7 +54,7 @@ class CassandraDatastore(Datastore):
             default_keyspace=self.settings.default_keyspace,
             port=self.settings.port,
             auth_provider=auth_provider,
-            # protocol_version=self.settings.protocol_version,
+            protocol_version=self.settings.protocol_version,
             lazy_connect=True,
             retry_connect=True,
         )
