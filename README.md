@@ -484,9 +484,9 @@ stored_event_repository = SQLAlchemyStoredEventRepository(
 
 Take care in locating the calls to setup the tables and connect
 to the database. The appropriate solution in your context will
-depend on your model of execution: normally you want to setup
-the connection once per process and setup the tables once only,
-but in a test suite and sometimes in migration scripts (especially
+depend on your model of execution. Normally you want to setup
+the connection once per process, and setup the tables once only.
+But in a test suite (and sometimes in migration scripts, especially
 if your migration scripts somehow unfortunately interact with your
 test suite) you may need to do such things more than once.
 
@@ -517,11 +517,6 @@ easily be substituted for others you may craft, and perhaps should be.
 As shown below, an event sourced application object can be used as a
 context manager, which closes the application at the end of the block,
 closing the persistence subscriber and unsubscribing its event handlers.
-
-Take care in locating calls to open and close your application. Normally,
-you only want one instance of the application running in any
-given process. Otherwise, duplicate persistence subscribers will attempt
-to store duplicate events - you don't want that.
 
 With an instance of the example application, call the factory method
 register_new_entity() to register a new entity. You can update an attribute
@@ -573,6 +568,11 @@ with ExampleApplication(stored_event_repository=stored_event_repository) as app:
 ```
 
 Congratulations! You have created yourself an event sourced application.
+
+Take care in locating calls to open and close your application. Normally,
+you only want one instance of the application running in any
+given process. Otherwise, duplicate persistence subscribers will attempt
+to store duplicate events.
 
 
 ##### Step 7 (optional): enable application-level encryption
