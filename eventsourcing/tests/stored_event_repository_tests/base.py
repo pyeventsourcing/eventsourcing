@@ -367,7 +367,6 @@ def construct_repo_for_worker(stored_repo_class, temp_file_name):
         datastore.drop_connection()
         datastore.setup_connection()
         repo = stored_repo_class(
-            datastore=datastore,
             stored_event_table=CqlStoredEvent,
             always_check_expected_version=True,
             always_write_entity_version=True,
