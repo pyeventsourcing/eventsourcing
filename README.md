@@ -617,7 +617,7 @@ Todo: Something code that presents the generated events that are now in
 the stored event repository created in step 5.
 
 
-##### Step 7 (optional): enable application-level encryption
+#### Step 7 (optional): enable application-level encryption
 
 To enable application-level encryption, you can set the application keyword
 argument 'always_encrypt' to a True value, and also pass in a cipher. With
