@@ -12,10 +12,10 @@ A library for event sourcing in Python.
 ## Overview
 
 The general aim of this library is to make it easier to
-write event sourced applications in Python. The common definition
+write event sourced applications in Python. A common definition
 of event sourcing proposes that the state of an event sourced application
-is determined entirely by a sequence of events. In practice, it is
-common for an application to be partitioned into an arrangement of
+is determined entirely by a sequence of events. In practice,
+it is common for an application to be partitioned into an arrangement of
 domain entities, with the application state being distributed
 across the state of its entities.
 
@@ -333,13 +333,14 @@ class Example(EventSourcedEntity):
 Please note, this Example class can be instantiated without
 any infrastructure - it isn't already coupled to a database.
 It can function entirely as a standalone class, for example
-its attribute values can be changed. Because it is a domain
-entity, we just need to give it an entity ID.
+its attribute values can be changed. If it had methods, you
+could call them.
 
-The attribute values can be changed by assigning values, but the entity ID
-cannot be changed. Unfortunately, since there isn't a database, the attribute
+The attribute values can be changed by assigning values. Unfortunately, since there isn't a database, the attribute
 values will not somehow persist once the instance has gone out of scope.
 
+Because it is an entity, it does need an ID. The entity ID is not
+mutable attribute and cannot be changed e.g. by assignment.
 
 ```python
 example = Example(a=1, b=2, entity_id='entity1')
@@ -370,6 +371,7 @@ events to the entity objects, for example by directly changing the
 internal state of the entity. See the beat_heart() method on the
 extended version of this example application, included in this library.
 
+Todo: Include the beat_heart() method in this section.
 
 #### Step 2: define an entity factory method
 
@@ -387,10 +389,19 @@ from eventsourcing.domain.model.events import publish
 import uuid
 
 def register_new_example(a, b):
+    # Create an entity ID.
     entity_id = uuid.uuid4().hex
+    
+    # Instantiate a domain event.
     event = Example.Created(entity_id=entity_id, a=a, b=b)
+    
+    # Mutate with the created event to construct the entity.
     entity = Example.mutate(event=event)
+    
+    # Publish the domain event.
     publish(event=event)
+    
+    # Return the new entity.
     return entity
 ```
 
@@ -407,6 +418,8 @@ example.b = 23
 
 assert example.a == 12
 assert example.b == 23
+
+assert example.id
 ```
 
 How can entities created this way become persistent? And how will existing
@@ -598,6 +611,9 @@ Take care in locating calls to open and close your application. Normally
 you want only one instance of the application running in any
 given process, otherwise duplicate persistence subscribers will attempt
 to store duplicate events, resulting in sad faces.
+
+Todo: Something code that presents the generated events that are now in
+the stored event repository created in step 5.
 
 
 ##### Step 7 (optional): enable application-level encryption
