@@ -571,10 +571,10 @@ with ExampleApplication(stored_event_repository=stored_event_repository) as app:
 
 Congratulations! You have created yourself an event sourced application.
 
-Take care in locating calls to open and close your application. Normally,
-you only want one instance of the application running in any
-given process otherwise duplicate persistence subscribers will attempt
-to store duplicate events, resulting in sad faces :(.
+Take care in locating calls to open and close your application. Normally
+you want only one instance of the application running in any
+given process, otherwise duplicate persistence subscribers will attempt
+to store duplicate events, resulting in sad faces.
 
 
 ##### Step 7 (optional): enable application-level encryption
