@@ -227,18 +227,19 @@ class Example(EventSourcedEntity):
 ```
 
 That's everything you need to publish domain events. How are they
-applied?
+applied to the entity?
 
-The entity class inherits a mutator method that is capable of handling
+The entity class inherits a mutator method that will handle
 those events. For example, when a 'Created' event is handled by the
-mutator, the attribute values of the Created event object are passed
-into the entity class constructor. A factory method will instantiate a
-Created event with the attribute values expected by the entity class
-constructor.
+mutator, the attribute values of the Created event object are used to
+call the entity class constructor. And when an 'AttributeChanged' event
+is handled by the mutator, the new value is assigned to a private
+attribute exposed by the mutable property.
 
-Add a constructor to your entity class which takes two positional
-arguments ('a' and 'b') and keyword arguments ('kwargs') which it
-passes through to the base class constructor.
+Now add a constructor to your entity class which takes two positional
+arguments 'a' and 'b', and '**kwargs' so other keyword arguments
+will be passed through (to the base class constructor), so that an
+entity object can be constructed with its attribute values.
 
 
 ```python
@@ -272,13 +273,13 @@ class Example(EventSourcedEntity):
 
 ```
 
-
 Next, define a factory method that returns new entity instances. Rather
-than directly constructing the entity object instance, it should
-firstly instantiate a 'Created' domain event, and then call the mutator
+than directly constructing the entity object instance, the factory method
+firstly instantiates a 'Created' domain event, and then calls the mutator
 to obtain an entity object. The factory method then publishes the event
-(for example, so that it might be saved into the event store by the
-persistence subscriber). Finally it returns the entity to the caller.
+so that, for example, it might be saved into the event store by the
+persistence subscriber. Finally the factory method returns the entity it
+has created to its caller.
 
 ```python
 from eventsourcing.domain.model.events import publish
