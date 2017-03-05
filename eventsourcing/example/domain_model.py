@@ -1,6 +1,6 @@
 import uuid
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableattribute, EntityRepository, entity_mutator, \
+from eventsourcing.domain.model.entity import EventSourcedEntity, attribute, EntityRepository, entity_mutator, \
     singledispatch
 from eventsourcing.domain.model.events import publish, DomainEvent
 
@@ -36,11 +36,11 @@ class Example(EventSourcedEntity):
         self._b = b
         self._count_heartbeats = 0
 
-    @mutableattribute
+    @attribute
     def a(self):
         """The 'a' attribute."""
 
-    @mutableattribute
+    @attribute
     def b(self):
         """The 'b' attribute."""
 

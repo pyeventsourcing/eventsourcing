@@ -166,7 +166,7 @@ def discarded_mutator(event, self):
     return None
 
 
-def mutableattribute(getter):
+def attribute(getter):
     """
     When used as a method decorator, returns a property object
     with the method as the getter and a setter defined to call

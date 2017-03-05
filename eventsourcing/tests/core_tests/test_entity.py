@@ -1,7 +1,7 @@
 import mock
 
 from eventsourcing.domain.model.entity import CreatedMutatorRequiresTypeNotInstance, EntityIDConsistencyError, \
-    EntityVersionConsistencyError, EventSourcedEntity, created_mutator, mutableattribute
+    EntityVersionConsistencyError, EventSourcedEntity, created_mutator, attribute
 from eventsourcing.domain.model.events import DomainEvent, publish, subscribe, unsubscribe
 from eventsourcing.example.domain_model import Example, register_new_example
 from eventsourcing.example.infrastructure import ExampleRepo
@@ -100,15 +100,15 @@ class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCas
         # Check we get an error when attempting to mutate on the event.
         self.assertRaises(NotImplementedError, Example.mutate, Example, UnsupportedEvent('1', '0'))
 
-    def test_mutableattribute(self):
+    def test_attribute(self):
         # Check we get an error when called with something other than a function.
-        self.assertRaises(ProgrammingError, mutableattribute, 'not a getter')
-        self.assertRaises(ProgrammingError, mutableattribute, 123)
-        self.assertRaises(ProgrammingError, mutableattribute, None)
+        self.assertRaises(ProgrammingError, attribute, 'not a getter')
+        self.assertRaises(ProgrammingError, attribute, 123)
+        self.assertRaises(ProgrammingError, attribute, None)
 
         # Call the decorator with a function.
         getter = lambda: None
-        p = mutableattribute(getter)
+        p = attribute(getter)
 
         # Check we got a property object.
         self.assertIsInstance(p, property)
@@ -143,7 +143,7 @@ class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCas
                 super(Aaa, self).__init__(*args, **kwargs)
                 self._a = a
 
-            @mutableattribute
+            @attribute
             def a(self):
                 "A mutable event sourced property."
 

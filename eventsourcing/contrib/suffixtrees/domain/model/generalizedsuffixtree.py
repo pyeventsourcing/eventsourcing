@@ -9,7 +9,7 @@ import six
 from singledispatch import singledispatch
 
 from eventsourcing.domain.model.collection import Collection
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableattribute, EntityRepository, entity_mutator
+from eventsourcing.domain.model.entity import EventSourcedEntity, attribute, EntityRepository, entity_mutator
 from eventsourcing.domain.model.events import publish, DomainEvent
 from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 
@@ -47,7 +47,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         self._edge_repo = None
         self._stringid_collection_repo = None
 
-    @mutableattribute
+    @attribute
     def string(self):
         return self._string
 
@@ -443,12 +443,12 @@ class SuffixTreeNode(EventSourcedEntity):
         self._is_leaf = is_leaf
         self._is_root = is_root
 
-    @mutableattribute
+    @attribute
     def string_id(self):
         """The id of a string being added to the generalised suffix tree when this node was created.
         """
 
-    @mutableattribute
+    @attribute
     def suffix_node_id(self):
         """The ID of the node representing the suffix of the suffix represented by this node.
         """
@@ -580,19 +580,19 @@ class SuffixTreeEdge(EventSourcedEntity):
         self._source_node_id = source_node_id
         self._dest_node_id = dest_node_id
 
-    @mutableattribute
+    @attribute
     def label(self):
         """Index of start of string part represented by this edge.
         """
         return self._label
 
-    @mutableattribute
+    @attribute
     def source_node_id(self):
         """Id of source node of edge.
         """
         return self._source_node_id
 
-    @mutableattribute
+    @attribute
     def dest_node_id(self):
         """Id of destination node of edge.
         """
