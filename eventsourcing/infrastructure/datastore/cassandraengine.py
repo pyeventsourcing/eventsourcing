@@ -8,23 +8,30 @@ from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace
 from eventsourcing.exceptions import DatasourceSettingsError
 from eventsourcing.infrastructure.datastore.base import DatastoreSettings, Datastore
 
+DEFAULT_CASSANDRA_HOSTS = 'localhost'
+DEFAULT_CASSANDRA_PORT = 9042
+DEFAULT_PROTOCOL_VERSION = 2
+DEFAULT_DEFAULT_KEYSPACE = 'eventsourcing'
+DEFAULT_CONSISTENCY_LEVEL = 'LOCAL_QUORUM'
+DEFAULT_REPLICATION_FACTOR = 1
+
 
 class CassandraSettings(DatastoreSettings):
-    CASSANDRA_HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', 'localhost').split(',')]
-    CASSANDRA_PORT = int(os.getenv('CASSANDRA_PORT', 9042))
-    CASSANDRA_PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', 2))
-    CASSANDRA_DEFAULT_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
-    CASSANDRA_CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', 'LOCAL_QUORUM')
-    CASSANDRA_REPLICATION_FACTOR = os.getenv('CASSANDRA_REPLICATION_FACTOR', 1)
+    HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', DEFAULT_CASSANDRA_HOSTS).split(',')]
+    PORT = int(os.getenv('CASSANDRA_PORT', DEFAULT_CASSANDRA_PORT))
+    PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', DEFAULT_PROTOCOL_VERSION))
+    DEFAULT_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', DEFAULT_DEFAULT_KEYSPACE)
+    CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', DEFAULT_CONSISTENCY_LEVEL)
+    REPLICATION_FACTOR = os.getenv('CASSANDRA_REPLICATION_FACTOR', DEFAULT_REPLICATION_FACTOR)
 
     def __init__(self, hosts=None, port=None, protocol_version=None, default_keyspace=None,
                  consistency=None, replication_factor=None, username=None, password=None):
-        self.hosts = hosts or self.CASSANDRA_HOSTS
-        self.port = port or self.CASSANDRA_PORT
-        self.protocol_version = protocol_version or self.CASSANDRA_PROTOCOL_VERSION
-        self.default_keyspace = default_keyspace or self.CASSANDRA_DEFAULT_KEYSPACE
-        self.consistency = consistency or self.CASSANDRA_CONSISTENCY_LEVEL
-        self.replication_factor = replication_factor or self.CASSANDRA_REPLICATION_FACTOR
+        self.hosts = hosts or self.HOSTS
+        self.port = port or self.PORT
+        self.protocol_version = protocol_version or self.PROTOCOL_VERSION
+        self.default_keyspace = default_keyspace or self.DEFAULT_KEYSPACE
+        self.consistency = consistency or self.CONSISTENCY_LEVEL
+        self.replication_factor = replication_factor or self.REPLICATION_FACTOR
         self.username = username
         self.password = password
 
