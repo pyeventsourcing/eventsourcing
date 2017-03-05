@@ -1,10 +1,10 @@
+import datetime
 from unittest.case import TestCase
 
-import datetime
 from six import with_metaclass
 
 from eventsourcing.domain.model.events import DomainEvent, QualnameABCMeta, topic_from_domain_class
-from eventsourcing.domain.model.example import Example
+from eventsourcing.example.domain_model import Example
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder, StoredEvent, resolve_domain_topic
 from eventsourcing.utils.time import utc_timezone
@@ -87,12 +87,12 @@ class TestStoredEvent(TestCase):
             JSONStoredEventTranscoder().deserialize(stored_event)
 
     def test_resolve_event_topic(self):
-        example_topic = 'eventsourcing.domain.model.example#Example.Created'
+        example_topic = 'eventsourcing.example.domain_model#Example.Created'
         actual = resolve_domain_topic(example_topic)
         self.assertEqual(Example.Created, actual)
         example_topic = 'xxxxxxxxxxxxx#Example.Event'
         self.assertRaises(TopicResolutionError, resolve_domain_topic, example_topic)
-        example_topic = 'eventsourcing.domain.model.example#Xxxxxxxx.Xxxxxxxx'
+        example_topic = 'eventsourcing.example.domain_model#Xxxxxxxx.Xxxxxxxx'
         self.assertRaises(TopicResolutionError, resolve_domain_topic, example_topic)
 
 

@@ -1,8 +1,8 @@
-from eventsourcing.application.example.base import ExampleApplication
-from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
-from eventsourcing.domain.model.example import Example
-from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
-from eventsourcing.infrastructure.eventstore import AbstractEventStore, StoredEventRepository
+from eventsourcing.application.policies import PersistenceSubscriber
+from eventsourcing.example.application import ExampleApplication
+from eventsourcing.example.domain_model import Example
+from eventsourcing.example.infrastructure import ExampleRepo
+from eventsourcing.infrastructure.eventstore import AbstractEventStore, AbstractStoredEventRepository
 from eventsourcing.tests.stored_event_repository_tests.base import AbstractStoredEventRepositoryTestCase
 
 
@@ -15,7 +15,7 @@ class ExampleApplicationTestCase(AbstractStoredEventRepositoryTestCase):
 
         with self.create_app() as app:
             # Check there's a stored event repo.
-            self.assertIsInstance(app.stored_event_repository, StoredEventRepository)
+            self.assertIsInstance(app.stored_event_repository, AbstractStoredEventRepository)
 
             # Check there's an event store.
             self.assertIsInstance(app.event_store, AbstractEventStore)

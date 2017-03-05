@@ -4,25 +4,25 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative.api import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-from eventsourcing.infrastructure.datastore.base import DatastoreSettings, DatastoreStrategy, DatastoreConnectionError
+from eventsourcing.infrastructure.datastore.base import DatastoreSettings, Datastore, DatastoreConnectionError
 
 Base = declarative_base()
 
 
-DEFAULT_DB_URI = 'sqlite:///:memory:'
+DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///:memory:'
 
 
 class SQLAlchemySettings(DatastoreSettings):
-    DB_URI = os.getenv('DB_URI', DEFAULT_DB_URI)
+    DB_URI = os.getenv('DB_URI', DEFAULT_SQLALCHEMY_DB_URI)
 
-    def __init__(self, uri=DEFAULT_DB_URI):
+    def __init__(self, uri=DEFAULT_SQLALCHEMY_DB_URI):
         self.uri = uri or self.DB_URI
 
 
-class SQLAlchemyDatastoreStrategy(DatastoreStrategy):
+class SQLAlchemyDatastore(Datastore):
 
     def __init__(self, **kwargs):
-        super(SQLAlchemyDatastoreStrategy, self).__init__(**kwargs)
+        super(SQLAlchemyDatastore, self).__init__(**kwargs)
         self._db_session = None
         self._engine = None
 

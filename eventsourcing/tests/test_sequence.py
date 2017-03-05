@@ -2,10 +2,13 @@ from eventsourcing.domain.model.sequence import Sequence, start_sequence
 from eventsourcing.exceptions import SequenceFullError
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.infrastructure.sequence import SequenceReader, append_item_to_sequence
-from eventsourcing.tests.stored_event_repository_tests.base_cassandra import CassandraRepoTestCase
-from eventsourcing.tests.stored_event_repository_tests.base_sqlalchemy import SQLAlchemyRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_cassandra_stored_event_repository import \
+    CassandraRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_sqlalchemy_stored_event_repository import \
+    SQLAlchemyRepoTestCase
 from eventsourcing.tests.stored_event_repository_tests.base import PersistenceSubscribingTestCase
-from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_python_objects_stored_event_repository import \
+    PythonObjectsRepoTestCase
 
 
 class SequenceTestCase(PersistenceSubscribingTestCase):

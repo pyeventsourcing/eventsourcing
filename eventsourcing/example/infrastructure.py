@@ -1,4 +1,4 @@
-from eventsourcing.domain.model.example import ExampleRepository, Example
+from eventsourcing.example.domain_model import Example, ExampleRepository
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository
 
 

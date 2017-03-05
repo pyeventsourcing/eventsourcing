@@ -1,6 +1,6 @@
 from eventsourcing.application.base import EventSourcingApplication
-from eventsourcing.domain.model.example import register_new_example
-from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
+from eventsourcing.example.domain_model import register_new_example
+from eventsourcing.example.infrastructure import ExampleRepo
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
 

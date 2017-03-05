@@ -2,10 +2,31 @@
 
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png?branch=develop)]
 (https://travis-ci.org/johnbywater/eventsourcing)
-[![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=develop)](https://coveralls.io/github/johnbywater/eventsourcing?branch=develop)
-[![Gitter chat](https://badges.gitter.im/gitterHQ/services.png)](https://gitter.im/eventsourcing-in-python/eventsourcing)
+[![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=develop)]
+(https://coveralls.io/github/johnbywater/eventsourcing?branch=develop)
+[![Gitter chat](https://badges.gitter.im/gitterHQ/services.png)]
+(https://gitter.im/eventsourcing-in-python/eventsourcing)
 
 A library for event sourcing in Python.
+
+## Overview
+
+The general aim of this library is to make it easier to
+write event sourced applications in Python. With event
+sourcing, the state of the application is determined by
+a sequence of events.
+
+Therefore, this library provides mechanisms required by such
+applications: behaviours that mutate the state of the application
+by applying and then publishing domain events;
+and a way for those events to be stored and replayed
+to obtain the state of the application on demand.
+
+This document highlights the main features, shows how
+to install the library, describes the software design,
+gives a detailed example of usage, and includes some
+background information about the project.
+
 
 ## Features
 
@@ -146,22 +167,14 @@ Write yourself a new event sourced entity class, by making a
 subclass of 'EventSourcedEntity' (from module
 'eventsourcing.domain.model.entity').
 
-```python
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
-
-
-class Example(EventSourcedEntity):
-    """An example of an event sourced entity class."""
-
-```
-
 The entity class domain events must be defined on the domain entity
 class. In the example below, an 'Example' entity defines 'Created',
 'AttributeChanged', and 'Discarded' events. Add these events to your
 entity class.
 
+
 ```python
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
+from eventsourcing.domain.model.entity import EventSourcedEntity
 
 
 class Example(EventSourcedEntity):
@@ -207,11 +220,11 @@ class Example(EventSourcedEntity):
 
     @mutableproperty
     def a(self):
-        return self._a
+        """This is attribute 'a'."""
 
     @mutableproperty
     def b(self):
-        return self._b
+        """This is attribute 'b'."""
 ```
 
 That's everything you need to publish domain events. How are they
@@ -252,11 +265,11 @@ class Example(EventSourcedEntity):
 
     @mutableproperty
     def a(self):
-        return self._a
+        """This is attribute 'a'."""
 
     @mutableproperty
     def b(self):
-        return self._b
+        """This is attribute 'b'."""
 
 ```
 
@@ -302,20 +315,15 @@ used by the event store, which is used by both the persistence
 subscriber to make events durable, and by event players in repositories
 to get the events for an entity that has been requested.
 
-Please note, for convenience when using SQLAlchemy or Cassandra to
-store events, two application sub-classes are provided:
-'EventSourcingWithSQLAlchemy' and 'EventSourcingWithCassandra'.
-
-Add an application class, inheriting from 'EventSourcingWithSQLAlchemy',
-that has an event sourced repo. This inheritance provides a
-persistence subscriber, an event store, and a stored event repository
-that works with SQLAlchemy.
+Add an application class, inheriting from 'EventSourcingApplication',
+that has an example event sourced repo. This inheritance provides a
+persistence subscriber, an event store.
 
 
 ```python
-from eventsourcing.application.with_sqlalchemy import EventSourcingWithSQLAlchemy
+from eventsourcing.application.base import EventSourcingApplication
 
-class ExampleApplication(EventSourcingWithSQLAlchemy):
+class ExampleApplication(EventSourcingApplication):
 
     def __init__(self, **kwargs):
         super(ExampleApplication, self).__init__(**kwargs)
@@ -325,20 +333,44 @@ class ExampleApplication(EventSourcingWithSQLAlchemy):
 
 ```
 
-For simplicity, this application has just one type of entity. A more
+For simplicity, the example application has just one type of entity. A more
 realistic application may involve several different types of entity,
 several factory methods, several entity repositories, and different
 event sourced projections (mutator funtions).
 
+When constructing the application object, you will need to pass
+a stored event repository. Many variations of datastores and schemas
+are possible for the stored event repository. Here we will just
+use an in memory SQLite database.
+
+
+```python
+from eventsourcing.infrastructure.datastore.sqlalchemy import SQLAlchemySettings, SQLAlchemyDatastore
+from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository
+from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SqlStoredEvent
+
+settings = SQLAlchemySettings(
+    uri='sqlite:///:memory:',
+)
+        
+datastore = SQLAlchemyDatastore(
+        settings=settings,
+        tables=(SqlStoredEvent,),
+)
+
+datastore.setup_connection()
+datastore.setup_tables()
+
+stored_event_repository = SQLAlchemyStoredEventRepository(
+    datastore=datastore,
+    stored_event_table=SqlStoredEvent,
+    always_check_expected_version=True,
+    always_write_entity_version=True,
+)
+```
+
 As shown below, an event sourced application object can be used as a
 context manager, which closes the application at the end of the block.
-
-The 'db_uri' arg is used in the application constructor to configure
-the database connection. And also a True value for arg 'enable_occ' is
-given, so that optimistic concurrency control  is enabled. If you
-aren't developing a distributed (or otherwise concurrent and
-potentially contentious) application, you don't need to
-enable optimistic concurrency control.
 
 With an instance of the example application, call the factory method
 register_new_entity() to register a new entity. Then, update an
@@ -350,8 +382,7 @@ the entity after it has been discarded:
 
 
 ```python
-db_uri = 'sqlite:///:memory:'
-with ExampleApplication(db_uri=db_uri, enable_occ=True) as app:
+with ExampleApplication(stored_event_repository=stored_event_repository) as app:
 
     # Register a new example.
     example1 = register_new_example(a=1, b=2)
@@ -389,22 +420,23 @@ with ExampleApplication(db_uri=db_uri, enable_occ=True) as app:
 
 Congratulations! You have created a new event sourced application.
 
-If you wanted also to enable application-level encryption, pass in a
-cipher, and a True value for 'always_encrypt_stored_events'. With
-application level encryption, your data below the application will
-be encrypted at rest and in transit, which can help prevent data loss.
+If you wanted also to enable application-level encryption, set 'always_encrypt' to a True value, and pass in a 
+cipher. With application level encryption, application data will be encrypted at rest and in transit, which can help
+ prevent data loss. It's possible to be more selective about which events are encrypted, but that's outside the scope
+ of this section.
 
 ```python
 from eventsourcing.domain.services.cipher import AESCipher
 
 cipher = AESCipher(aes_key='0123456789abcdef')
 
-with ExampleApplication(db_uri=db_uri, enable_occ=True, cipher=cipher,
-                        always_encrypt_stored_events=True):
+with ExampleApplication(
+        stored_event_repository=stored_event_repository,
+        cipher=cipher,
+    ) as app:
 
     # Register a new example.
     example1 = register_new_example(a='secret data', b='more secrets')
-
 
 ```
 

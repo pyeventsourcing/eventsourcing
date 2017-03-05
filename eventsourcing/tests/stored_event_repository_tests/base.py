@@ -3,19 +3,19 @@ import json
 import os
 import traceback
 import uuid
-from abc import abstractproperty
+from abc import abstractmethod
 from multiprocessing.pool import Pool
-from tempfile import NamedTemporaryFile
 from time import sleep
-from uuid import uuid4, uuid1
+from uuid import uuid1, uuid4
 
 import six
 
-from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
+from eventsourcing.application.policies import PersistenceSubscriber
 from eventsourcing.exceptions import ConcurrencyError
-from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastoreStrategy, CassandraSettings
-from eventsourcing.infrastructure.datastore.sqlalchemy import SQLAlchemyDatastoreStrategy, SQLAlchemySettings
-from eventsourcing.infrastructure.eventstore import StoredEventRepository, SimpleStoredEventIterator, EventStore
+from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastore, CassandraSettings
+from eventsourcing.infrastructure.datastore.sqlalchemy import SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, EventStore, \
+    SimpleStoredEventIterator
 from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
 from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
     CqlStoredEvent
@@ -24,16 +24,40 @@ from eventsourcing.infrastructure.stored_event_repos.with_python_objects import 
 from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository, \
     SqlStoredEvent
 from eventsourcing.infrastructure.transcoding import StoredEvent
+from eventsourcing.tests.base import notquick
+from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
+from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
 
-from eventsourcing.tests.base import AbstractTestCase, notquick
 
+class AbstractStoredEventRepositoryTestCase(AbstractDatastoreTestCase):
+    def __init__(self, *args, **kwargs):
+        super(AbstractStoredEventRepositoryTestCase, self).__init__(*args, **kwargs)
+        self._stored_event_repo = None
 
-class AbstractStoredEventRepositoryTestCase(AbstractTestCase):
+    def setUp(self):
+        super(AbstractStoredEventRepositoryTestCase, self).setUp()
+        self.datastore.setup_connection()
+        self.datastore.setup_tables()
 
-    @abstractproperty
+    def tearDown(self):
+        self._stored_event_repo = None
+        self.datastore.drop_tables()
+        self.datastore.drop_connection()
+        super(AbstractStoredEventRepositoryTestCase, self).tearDown()
+
+    @property
     def stored_event_repo(self):
         """
-        :rtype: eventsourcing.infrastructure.eventstore.StoredEventRepository
+        :rtype: eventsourcing.infrastructure.eventstore.AbstractStoredEventRepository
+        """
+        if self._stored_event_repo is None:
+            self._stored_event_repo = self.construct_stored_event_repo()
+        return self._stored_event_repo
+
+    @abstractmethod
+    def construct_stored_event_repo(self):
+        """
+        :rtype: eventsourcing.infrastructure.eventstore.AbstractStoredEventRepository
         """
 
 
@@ -47,14 +71,14 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         # Store an event for 'entity1'.
         stored_event1 = StoredEvent(event_id=uuid.uuid1().hex,
                                     stored_entity_id=stored_entity_id,
-                                    event_topic='eventsourcing.domain.model.example#Example.Created',
+                                    event_topic='eventsourcing.example.domain_model#Example.Created',
                                     event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":3}')
         self.stored_event_repo.append(stored_event1, 0)
 
         # Store another event for 'entity1'.
         stored_event2 = StoredEvent(event_id=uuid.uuid1().hex,
                                     stored_entity_id=stored_entity_id,
-                                    event_topic='eventsourcing.domain.model.example#Example.Created',
+                                    event_topic='eventsourcing.example.domain_model#Example.Created',
                                     event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":4}')
         self.stored_event_repo.append(stored_event2, 1)
 
@@ -134,9 +158,9 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         for page_count in six.moves.range(num_extra_events):
             stored_event_i = StoredEvent(event_id=uuid.uuid1().hex,
                                          stored_entity_id=stored_entity_id,
-                                         event_topic='eventsourcing.domain.model.example#Example.Created',
+                                         event_topic='eventsourcing.example.domain_model#Example.Created',
                                          event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":%s}' % (
-                                         page_count + 10))
+                                             page_count + 10))
             stored_events.append(stored_event_i)
             self.stored_event_repo.append(stored_event_i)
 
@@ -186,16 +210,6 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
 
 
 class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase):
-    def setUp(self):
-        super(OptimisticConcurrencyControlTestCase, self).setUp()
-        self.app = None
-        self.temp_file = NamedTemporaryFile('a')
-
-    def tearDown(self):
-        super(OptimisticConcurrencyControlTestCase, self).tearDown()
-        if self.app is not None:
-            self.app.close()
-
     @notquick()
     def test_optimistic_concurrency_control(self):
         """Appends lots of events, but with a pool of workers
@@ -204,10 +218,19 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
         # Start a pool.
         pool_size = 3
         print("Pool size: {}".format(pool_size))
+
+        # Erm, this is only needed for SQLite database file.
+        # Todo: Maybe factor out a 'get_initargs()' method on this class,
+        # so this detail is localised to the test cases that need it.
+        if hasattr(self, 'temp_file'):
+            temp_file_name = getattr(self, 'temp_file').name
+        else:
+            temp_file_name = None
+
         pool = Pool(
             initializer=pool_initializer,
             processes=pool_size,
-            initargs=(type(self.stored_event_repo), self.temp_file.name),
+            initargs=(type(self.stored_event_repo), temp_file_name),
         )
 
         # Append duplicate events to the repo, or at least try...
@@ -264,7 +287,7 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
         num_events_to_create, stored_entity_id = args
 
         success_count = 0
-        assert isinstance(worker_repo, StoredEventRepository)
+        assert isinstance(worker_repo, AbstractStoredEventRepository)
         assert isinstance(num_events_to_create, six.integer_types)
 
         successes = []
@@ -335,26 +358,27 @@ def pool_initializer(stored_repo_class, temp_file_name):
 
 def create_repo_for_worker(stored_repo_class, temp_file_name):
     if stored_repo_class in (CassandraStoredEventRepository, Cassandra2StoredEventRepository):
-        datastore = CassandraDatastoreStrategy(
-            settings=CassandraSettings(),
+        datastore = CassandraDatastore(
+            settings=CassandraSettings(default_keyspace=DEFAULT_KEYSPACE_FOR_TESTING),
             tables=(CqlStoredEvent,)
         )
         datastore.drop_connection()
         datastore.setup_connection()
         repo = stored_repo_class(
+            datastore=datastore,
             stored_event_table=CqlStoredEvent,
             always_check_expected_version=True,
             always_write_entity_version=True,
         )
     elif stored_repo_class == SQLAlchemyStoredEventRepository:
         uri = 'sqlite:///' + temp_file_name
-        datastore = SQLAlchemyDatastoreStrategy(
+        datastore = SQLAlchemyDatastore(
             settings=SQLAlchemySettings(uri=uri),
             tables=(SqlStoredEvent,),
         )
         datastore.setup_connection()
         repo = SQLAlchemyStoredEventRepository(
-            db_session=datastore.db_session,
+            datastore=datastore,
             stored_event_table=SqlStoredEvent,
             always_check_expected_version=True,
             always_write_entity_version=True,
@@ -404,7 +428,7 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
             stored_event = StoredEvent(
                 event_id=uuid.uuid1().hex,
                 stored_entity_id=self.stored_entity_id,
-                event_topic='eventsourcing.domain.model.example#Example.Created',
+                event_topic='eventsourcing.example.domain_model#Example.Created',
                 event_attrs='{"a":%s,"b":2,"stored_entity_id":"%s","timestamp":%s}' % (
                     page_number, self.stored_entity_id, uuid1().hex
                 )
@@ -415,7 +439,7 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
     def test(self):
         self.setup_stored_events()
 
-        assert isinstance(self.stored_event_repo, StoredEventRepository)
+        assert isinstance(self.stored_event_repo, AbstractStoredEventRepository)
         stored_events = self.stored_event_repo.get_entity_events(stored_entity_id=self.stored_entity_id)
         stored_events = list(stored_events)
         self.assertEqual(len(stored_events), self.num_events)

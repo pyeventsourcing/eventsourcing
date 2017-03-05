@@ -1,10 +1,10 @@
 import unittest
 from uuid import uuid1
 
-from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
+from eventsourcing.application.policies import PersistenceSubscriber
 from eventsourcing.domain.model.events import assert_event_handlers_empty
-from eventsourcing.domain.model.example import Example, register_new_example
 from eventsourcing.domain.model.snapshot import Snapshot
+from eventsourcing.example.domain_model import Example, register_new_example
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy, entity_from_snapshot, \

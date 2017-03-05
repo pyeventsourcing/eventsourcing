@@ -7,7 +7,7 @@ class DatastoreSettings(object):
     """Base class for settings for database connection used by a stored event repository."""
 
 
-class DatastoreStrategy(six.with_metaclass(ABCMeta)):
+class Datastore(six.with_metaclass(ABCMeta)):
     def __init__(self, settings, tables):
         assert isinstance(settings, DatastoreSettings), settings
         assert isinstance(tables, tuple), tables

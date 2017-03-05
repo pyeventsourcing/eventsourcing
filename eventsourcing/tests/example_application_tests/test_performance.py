@@ -3,16 +3,18 @@ from uuid import uuid1
 
 import six
 
-from eventsourcing.domain.model.example import Example, register_new_example
 from eventsourcing.domain.model.log import get_logger, start_new_log
+from eventsourcing.example.domain_model import Example, register_new_example
 from eventsourcing.infrastructure.log_reader import LogReader, get_log_reader
 from eventsourcing.infrastructure.transcoding import make_stored_entity_id
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.core_tests.test_utils import utc_now
 from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
 from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import CipheringTestCase
-from eventsourcing.tests.stored_event_repository_tests.base_cassandra import CassandraRepoTestCase
-from eventsourcing.tests.stored_event_repository_tests.base_sqlalchemy import SQLAlchemyRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_cassandra_stored_event_repository import \
+    CassandraRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_sqlalchemy_stored_event_repository import \
+    SQLAlchemyRepoTestCase
 
 
 @notquick()

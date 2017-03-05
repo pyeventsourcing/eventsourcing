@@ -1,7 +1,7 @@
 # coding=utf-8
 from threading import Thread
 
-from eventsourcing.infrastructure.eventstore import StoredEventRepository, StoredEventIterator
+from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, StoredEventIterator
 
 
 class ThreadedStoredEventIterator(StoredEventIterator):
@@ -68,7 +68,7 @@ class GetEntityEventsThread(Thread):
     def __init__(self, repo, stored_entity_id, after=None, until=None, page_size=None, is_ascending=True, *args,
                  **kwargs):
         super(GetEntityEventsThread, self).__init__(*args, **kwargs)
-        assert isinstance(repo, StoredEventRepository)
+        assert isinstance(repo, AbstractStoredEventRepository)
         self.repo = repo
         self.stored_entity_id = stored_entity_id
         self.after = after

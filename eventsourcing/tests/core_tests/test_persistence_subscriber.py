@@ -1,6 +1,6 @@
 import unittest
 
-from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
+from eventsourcing.application.policies import PersistenceSubscriber
 
 try:
     from unittest import mock

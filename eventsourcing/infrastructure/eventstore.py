@@ -5,6 +5,7 @@ import six
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist, ProgrammingError
+from eventsourcing.infrastructure.datastore.base import Datastore
 from eventsourcing.infrastructure.transcoding import StoredEventTranscoder, JSONStoredEventTranscoder, StoredEvent
 
 
@@ -31,7 +32,7 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
 
 class EventStore(AbstractEventStore):
     def __init__(self, stored_event_repo, transcoder=None):
-        assert isinstance(stored_event_repo, StoredEventRepository), stored_event_repo
+        assert isinstance(stored_event_repo, AbstractStoredEventRepository), stored_event_repo
         if transcoder is None:
             transcoder = JSONStoredEventTranscoder()
         assert isinstance(transcoder, StoredEventTranscoder), transcoder
@@ -87,12 +88,14 @@ class EventStore(AbstractEventStore):
         return self.stored_event_repo.get_entity_version(stored_entity_id=stored_entity_id, version_number=version)
 
 
-class StoredEventRepository(six.with_metaclass(ABCMeta)):
-    def __init__(self, always_check_expected_version=False, always_write_entity_version=False,
+class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
+    def __init__(self, datastore, always_check_expected_version=False, always_write_entity_version=False,
                  stored_event_class=StoredEvent):
         """
         Abstract base class for a persistent collection of stored events.
         """
+        assert isinstance(datastore, Datastore), datastore
+        self.datastore = datastore
         self.always_check_expected_version = always_check_expected_version
         self.always_write_entity_version = always_write_entity_version
         self.stored_event_class = stored_event_class
@@ -249,7 +252,7 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
     DEFAULT_PAGE_SIZE = 1000
 
     def __init__(self, repo, stored_entity_id, page_size=None, after=None, until=None, limit=None, is_ascending=True):
-        assert isinstance(repo, StoredEventRepository), type(repo)
+        assert isinstance(repo, AbstractStoredEventRepository), type(repo)
         assert isinstance(stored_entity_id, six.string_types)
         assert isinstance(page_size, (six.integer_types, type(None)))
         assert isinstance(limit, (six.integer_types, type(None)))

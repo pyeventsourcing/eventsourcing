@@ -3,14 +3,16 @@ import mock
 from eventsourcing.domain.model.entity import CreatedMutatorRequiresTypeNotInstance, EntityIDConsistencyError, \
     EntityVersionConsistencyError, EventSourcedEntity, created_mutator, mutableproperty
 from eventsourcing.domain.model.events import DomainEvent, publish, subscribe, unsubscribe
-from eventsourcing.domain.model.example import Example, register_new_example
+from eventsourcing.example.domain_model import Example, register_new_example
+from eventsourcing.example.infrastructure import ExampleRepo
 from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError
-from eventsourcing.infrastructure.event_sourced_repos.example_repo import ExampleRepo
 from eventsourcing.tests.stored_event_repository_tests.base import PersistenceSubscribingTestCase
-from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_python_objects_stored_event_repository import \
+    PythonObjectsRepoTestCase
 
 
 class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCase):
+# class TestExampleEntity(SQLAlchemyRepoTestCase, PersistenceSubscribingTestCase):
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
         example1 = register_new_example(a=1, b=2)

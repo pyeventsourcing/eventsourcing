@@ -6,8 +6,9 @@ from uuid import uuid4
 
 import six
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository
+from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity, mutableproperty
 from eventsourcing.domain.model.events import publish
+from eventsourcing.example.application import ExampleApplication
 from eventsourcing.exceptions import RepositoryKeyError
 
 
@@ -415,12 +416,11 @@ def has_substring(substring, suffix_tree, edge_repo):
 
 
 # Application
-from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
-from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.suffixtree_repo import SuffixTreeRepo, NodeRepo, EdgeRepo
+from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.suffixtree_repo import SuffixTreeRepo, \
+    NodeRepo, EdgeRepo
 
 
-class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
-
+class SuffixTreeApplication(ExampleApplication):
     def __init__(self, **kwargs):
         super(SuffixTreeApplication, self).__init__(**kwargs)
         self.suffix_tree_repo = SuffixTreeRepo(self.event_store)

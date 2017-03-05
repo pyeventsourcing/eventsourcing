@@ -1,21 +1,17 @@
 import datetime
 
 from eventsourcing.application.base import EventSourcingApplication
-from eventsourcing.application.with_cassandra import EventSourcingWithCassandra
-from eventsourcing.application.with_pythonobjects import EventSourcingWithPythonObjects
-from eventsourcing.application.with_sqlalchemy import EventSourcingWithSQLAlchemy
-from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import register_new_suffix_tree, \
-    GeneralizedSuffixTree
-from eventsourcing.contrib.suffixtrees.domain.services.generalizedsuffixtree import get_string_ids, find_substring_edge, \
-    has_substring
-from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.generalizedsuffixtree_repo import \
-    GeneralizedSuffixTreeRepo, NodeRepo, EdgeRepo, NodeChildCollectionRepo, StringidCollectionRepo
+from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import GeneralizedSuffixTree, \
+    register_new_suffix_tree
+from eventsourcing.contrib.suffixtrees.domain.services.generalizedsuffixtree import find_substring_edge, \
+    get_string_ids, has_substring
+from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.generalizedsuffixtree_repo import EdgeRepo, \
+    GeneralizedSuffixTreeRepo, NodeChildCollectionRepo, NodeRepo, StringidCollectionRepo
 
 
-class AbstractSuffixTreeApplication(EventSourcingApplication):
-
+class SuffixTreeApplication(EventSourcingApplication):
     def __init__(self, **kwargs):
-        super(AbstractSuffixTreeApplication, self).__init__(**kwargs)
+        super(SuffixTreeApplication, self).__init__(**kwargs)
         self.suffix_tree_repo = GeneralizedSuffixTreeRepo(self.event_store)
         self.node_repo = NodeRepo(self.event_store)
         self.node_child_collection_repo = NodeChildCollectionRepo(self.event_store)
@@ -23,7 +19,7 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
         self.stringid_collection_repo = StringidCollectionRepo(self.event_store)
 
     def close(self):
-        super(AbstractSuffixTreeApplication, self).close()
+        super(SuffixTreeApplication, self).close()
         self.suffix_tree_repo = None
         self.node_repo = None
         self.node_child_collection_repo = None
@@ -95,15 +91,3 @@ class AbstractSuffixTreeApplication(EventSourcingApplication):
             suffix_tree=suffix_tree,
             edge_repo=self.edge_repo,
         )
-
-
-class SuffixTreeApplicationWithCassandra(EventSourcingWithCassandra, AbstractSuffixTreeApplication):
-    pass
-
-
-class SuffixTreeApplicationWithPythonObjects(EventSourcingWithPythonObjects, AbstractSuffixTreeApplication):
-    pass
-
-
-class SuffixTreeApplicationWithSQLAlchemy(EventSourcingWithSQLAlchemy, AbstractSuffixTreeApplication):
-    pass

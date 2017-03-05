@@ -1,6 +1,23 @@
+from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository, \
+    SqlStoredEvent
+from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 from eventsourcing.tests.stored_event_repository_tests.base import OptimisticConcurrencyControlTestCase, \
-    SimpleStoredEventIteratorTestCase, StoredEventRepositoryTestCase, ThreadedStoredEventIteratorTestCase
-from eventsourcing.tests.stored_event_repository_tests.base_sqlalchemy import SQLAlchemyRepoTestCase
+    SimpleStoredEventIteratorTestCase, StoredEventRepositoryTestCase, ThreadedStoredEventIteratorTestCase, \
+    AbstractStoredEventRepositoryTestCase
+
+
+class SQLAlchemyRepoTestCase(SQLAlchemyDatastoreTestCase, AbstractStoredEventRepositoryTestCase):
+
+    def construct_stored_event_repo(self):
+        """
+        Constructs a SQLAlchemy stored event repository.
+        """
+        return SQLAlchemyStoredEventRepository(
+            datastore=self.datastore,
+            stored_event_table=SqlStoredEvent,
+            always_check_expected_version=True,
+            always_write_entity_version=True,
+        )
 
 
 class TestSQLAlchemyStoredEventRepository(SQLAlchemyRepoTestCase, StoredEventRepositoryTestCase):
@@ -12,8 +29,8 @@ class TestSimpleStoredEventIteratorWithSQLAlchemy(SQLAlchemyRepoTestCase, Simple
 
 
 class TestThreadedStoredEventIteratorWithSQLAlchemy(SQLAlchemyRepoTestCase, ThreadedStoredEventIteratorTestCase):
-    pass
+    use_named_temporary_file = True
 
 
 class TestOptimisticConcurrencyControlWithSQLAlchemy(SQLAlchemyRepoTestCase, OptimisticConcurrencyControlTestCase):
-    pass
+    use_named_temporary_file = True

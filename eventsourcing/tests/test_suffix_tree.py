@@ -6,6 +6,7 @@ import unittest
 
 from eventsourcing.contrib.suffixtrees.domain.model.suffixtree import register_new_suffix_tree, SuffixTree,\
     SuffixTreeApplication
+from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.unit_test_fixtures_suffix_tree_text import LONG_TEXT
 
@@ -15,7 +16,7 @@ LONG_TEXT_FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'test_suffix_tr
 class SuffixTreeTest(unittest.TestCase):
 
     def setUp(self):
-        self.app = SuffixTreeApplication()
+        self.app = SuffixTreeApplication(stored_event_repository=PythonObjectsStoredEventRepository())
 
     def tearDown(self):
         self.app.close()

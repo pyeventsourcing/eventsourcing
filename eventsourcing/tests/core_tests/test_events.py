@@ -8,15 +8,13 @@ try:
 except ImportError:
     import mock
 
-
 from eventsourcing.domain.model.events import subscribe, publish, unsubscribe, assert_event_handlers_empty, \
     EventHandlersNotEmptyError, _event_handlers
 from eventsourcing.domain.model.decorators import subscribe_to
-from eventsourcing.domain.model.example import Example
+from eventsourcing.example.domain_model import Example
 
 
 class TestEvents(unittest.TestCase):
-
     def tearDown(self):
         _event_handlers.clear()
 
@@ -35,7 +33,8 @@ class TestEvents(unittest.TestCase):
         # Check timestamp value can be given to domain events.
         self.assertEqual(3, Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3).domain_event_id)
         domain_event_id = uuid1().hex
-        self.assertEqual(timestamp_from_uuid(domain_event_id), Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=domain_event_id).timestamp)
+        self.assertEqual(timestamp_from_uuid(domain_event_id),
+                         Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=domain_event_id).timestamp)
 
     def test_publish_subscribe_unsubscribe(self):
         # Check subscribing event handlers with predicates.

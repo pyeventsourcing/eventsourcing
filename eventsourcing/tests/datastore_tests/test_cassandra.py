@@ -5,19 +5,28 @@ from cassandra.cluster import NoHostAvailable
 from cassandra.cqlengine import CQLEngineException
 
 from eventsourcing.infrastructure.datastore.base import DatastoreConnectionError, DatastoreTableError
-from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastoreStrategy, CassandraSettings
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CqlStoredEvent
-from eventsourcing.tests.datastore_tests.base import DatastoreStrategyTestCase
+from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastore, CassandraSettings
+from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CqlStoredEvent, CqlEntityVersion
+from eventsourcing.tests.datastore_tests.base import DatastoreTestCase, AbstractDatastoreTestCase
 
 
-class TestCassandraDatastoreStrategy(DatastoreStrategyTestCase):
-    def setup_datastore_strategy(self):
-        self.strategy = CassandraDatastoreStrategy(
-            settings=CassandraSettings(
-                default_keyspace='eventsourcing_testing'
-            ),
-            tables=(CqlStoredEvent,),
+DEFAULT_KEYSPACE_FOR_TESTING = 'eventsourcing_tests'
+
+
+class CassandraDatastoreTestCase(AbstractDatastoreTestCase):
+    """
+    Uses the datastore object to set up connection to and tables in Cassandra.
+    """
+
+
+    def construct_datastore(self):
+        return CassandraDatastore(
+            settings=CassandraSettings(default_keyspace=DEFAULT_KEYSPACE_FOR_TESTING),
+            tables=(CqlStoredEvent, CqlEntityVersion),
         )
+
+
+class TestCassandraDatastore(CassandraDatastoreTestCase, DatastoreTestCase):
 
     def list_records(self):
         try:

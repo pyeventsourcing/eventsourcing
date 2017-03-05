@@ -4,14 +4,13 @@ import six
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.orm.scoping import ScopedSession
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
-from eventsourcing.infrastructure.datastore.sqlalchemy import Base
-from eventsourcing.infrastructure.eventstore import StoredEventRepository
+from eventsourcing.infrastructure.datastore.sqlalchemy import Base, SQLAlchemyDatastore
+from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.transcoding import EntityVersion
 from eventsourcing.utils.time import timestamp_long_from_uuid
 
@@ -49,12 +48,18 @@ class SqlStoredEvent(Base):
     __table_args__ = UniqueConstraint('stored_entity_id', 'event_id', name='stored_event_uc'),
 
 
-class SQLAlchemyStoredEventRepository(StoredEventRepository):
-    def __init__(self, db_session, stored_event_table, **kwargs):
+class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
+    def __init__(self, stored_event_table, **kwargs):
         super(SQLAlchemyStoredEventRepository, self).__init__(**kwargs)
-        assert isinstance(db_session, ScopedSession), db_session
-        self.db_session = db_session
         self.stored_event_table = stored_event_table
+        self._db_session = None
+
+    @property
+    def db_session(self):
+        if self._db_session is None:
+            assert isinstance(self.datastore, SQLAlchemyDatastore), self.datastore
+            self._db_session = self.datastore.db_session
+        return self._db_session
 
     def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3,
                                 artificial_failure_rate=0):

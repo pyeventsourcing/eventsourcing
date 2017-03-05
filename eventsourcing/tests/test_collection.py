@@ -2,7 +2,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from unittest.case import TestCase
 
-from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
+from eventsourcing.application.policies import PersistenceSubscriber
 from eventsourcing.domain.model.collection import Collection, register_new_collection
 from eventsourcing.domain.model.entity import EntityIsDiscarded
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe

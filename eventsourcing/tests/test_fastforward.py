@@ -1,17 +1,14 @@
-from eventsourcing.application.example.base import ExampleApplication
-from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
-from eventsourcing.domain.model.example import Example
+from eventsourcing.example.application import ExampleApplication
+from eventsourcing.example.domain_model import Example
 from eventsourcing.exceptions import ConcurrencyError
 from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_python_objects_stored_event_repository import \
+    PythonObjectsRepoTestCase
 
 
-class TestFastForward(ExampleApplicationTestCase):
-
-    def create_app(self):
-        return ExampleApplicationWithPythonObjects()
+class TestFastForward(PythonObjectsRepoTestCase, ExampleApplicationTestCase):
 
     def test(self):
-
         with self.create_app() as app:
             assert isinstance(app, ExampleApplication)
             example = app.register_new_example(1, 2)

@@ -4,11 +4,33 @@ from eventsourcing.infrastructure.datastore.base import DatastoreConnectionError
 from eventsourcing.tests.base import AbstractTestCase
 
 
-class DatastoreStrategyTestCase(AbstractTestCase):
+class AbstractDatastoreTestCase(AbstractTestCase):
 
-    def setUp(self):
-        super(DatastoreStrategyTestCase, self).setUp()
-        self.setup_datastore_strategy()
+    def __init__(self, *args, **kwargs):
+        super(AbstractDatastoreTestCase, self).__init__(*args, **kwargs)
+        self._datastore = None
+
+    def tearDown(self):
+        self._datastore = None
+        super(AbstractDatastoreTestCase, self).tearDown()
+
+    @property
+    def datastore(self):
+        """
+        :rtype: eventsourcing.infrastructure.datastore.base.Datastore
+        """
+        if self._datastore is None:
+            self._datastore = self.construct_datastore()
+        return self._datastore
+
+    @abstractmethod
+    def construct_datastore(self):
+        """
+        :rtype: eventsourcing.infrastructure.datastore.base.Datastore
+        """
+
+
+class DatastoreTestCase(AbstractDatastoreTestCase):
 
     def test(self):
 
@@ -19,7 +41,7 @@ class DatastoreStrategyTestCase(AbstractTestCase):
             self.create_record()
 
         # Setup the connection.
-        self.strategy.setup_connection()
+        self.datastore.setup_connection()
 
         # Check the stored event class doesn't function before the tables are setup.
         with self.assertRaises(DatastoreTableError):
@@ -28,7 +50,7 @@ class DatastoreStrategyTestCase(AbstractTestCase):
             self.create_record()
 
         # Setup the tables.
-        self.strategy.setup_tables()
+        self.datastore.setup_tables()
 
         # Check the stored event class does function after the tables have been setup.
         self.assertEqual(len(self.list_records()), 0)
@@ -36,7 +58,7 @@ class DatastoreStrategyTestCase(AbstractTestCase):
         self.assertEqual(len(self.list_records()), 1)
 
         # Drop the tables.
-        self.strategy.drop_tables()
+        self.datastore.drop_tables()
 
         # Check the stored event class doesn't function after the tables have been dropped.
         with self.assertRaises(DatastoreTableError):
@@ -45,17 +67,13 @@ class DatastoreStrategyTestCase(AbstractTestCase):
             self.create_record()
 
         # Drop the tables.
-        self.strategy.drop_connection()
+        self.datastore.drop_connection()
 
         # Check the stored event class doesn't function after the connection has been dropped.
         with self.assertRaises(DatastoreConnectionError):
             self.list_records()
         with self.assertRaises(DatastoreConnectionError):
             self.create_record()
-
-    @abstractmethod
-    def setup_datastore_strategy(self):
-        self.strategy = None
 
     @abstractmethod
     def list_records(self):
