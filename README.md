@@ -135,7 +135,7 @@ process boundaries. As Eric Evans has suggested, harder social boundaries is per
 condition to ensure a domain driven design can be a socially successful design, due to the rough
 and tumble of day-to-day software development, and the fact that software developers double in
 number every five years, so that on average half the programmers have less than five years
-experience, which might not be enough adequately to understand design approaches such as DDD.
+experience, which might not be enough adequately to practise design approaches such as DDD.
 
 
 ## Install
