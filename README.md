@@ -519,11 +519,13 @@ context manager, which closes the application at the end of the block,
 closing the persistence subscriber and unsubscribing its event handlers.
 
 With an instance of the example application, call the factory method
-register_new_entity() to register a new entity. You can update an attribute
-of the entity by assigning a new value. This time, the application's persistence
-subscriber will store the attribute changed event. You can now use the
-entity ID to retrieve the registered entity from the repository. You can see
-the new attribute value is persisting across instantiations of the entity.
+register_new_entity() to register a new entity.
+
+You can update an attribute of the entity by assigning a new value. This
+time, the application's persistence subscriber will store the attribute
+changed event. You can now use the entity ID to retrieve the registered
+entity from the repository. You will see the new attribute value persists
+across instantiations of the entity.
 
 Finally, discard the entity. Observe that the repository's dictionary like
 interface raises a Python key error whenever an attempt is made to get an entity
@@ -572,7 +574,7 @@ Congratulations! You have created yourself an event sourced application.
 Take care in locating calls to open and close your application. Normally,
 you only want one instance of the application running in any
 given process. Otherwise, duplicate persistence subscribers will attempt
-to store duplicate events.
+to store duplicate events, resulting in sad faces :(.
 
 
 ##### Step 7 (optional): enable application-level encryption
