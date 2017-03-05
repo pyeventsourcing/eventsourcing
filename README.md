@@ -349,7 +349,7 @@ stored entities be obtained? Entities are retrieved from repositories.
 
 The next step is to define an event sourced repository class for your entity. Inherit from
 eventsourcing.infrastructure.event_sourced_repo.EventSourcedRepository
-and set the 'domain_class' attribute on the subclass, so it knows what it's
+and set its 'domain_class' attribute so it knows what it's
 dealing with.
 
 ```python
