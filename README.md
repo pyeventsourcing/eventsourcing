@@ -437,7 +437,7 @@ the resulting stored event repository is injected into the application
 by constructor parameter.
 
 
-#### Step 5: define and setup a datastore
+#### Step 5: setup datastore and stored event repository
 
 In this example, we use an in memory SQLite database, and a stored
 event repository that works with SQLAlchemy. Neither database connection
@@ -469,22 +469,26 @@ stored_event_repository = SQLAlchemyStoredEventRepository(
 )
 ```
 
+#### Step 6: run the application
+
 As shown below, an event sourced application object can be used as a
 context manager, which closes the application at the end of the block,
 closing the persistence subscriber and unsubscribing its event handlers.
 
+Normally, you only want one instance of the application running in any
+given process. Otherwise, duplicate persistence subscribers will attempt
+to store duplicate events - you don't want that.
 
-#### Step 6: run the application
-
-With an instance of the example application, again call the factory method
-register_new_entity() to register a new entity. Then, update an
-attribute by assigning a value. This time, the application's persistence
+With an instance of the example application, call the factory method
+register_new_entity() to register a new entity. Update an attribute
+of the entity by assigning a value. This time, the application's persistence
 subscriber will store the attribute changed event. You can now use the
 entity ID to retrieve the registered entity from the repository. You can see
 the new attribute value is persisting across instantiations of the entity.
 
-Finally, discard the entity. Observe that the repository raises a key error
-exception when an attempt is made to get an entity that has been discarded.
+Finally, discard the entity. Observe that the repository's dictionary like
+interface raises a Python key error when an attempt is made to get an entity
+that has been discarded.
 
 
 ```python
