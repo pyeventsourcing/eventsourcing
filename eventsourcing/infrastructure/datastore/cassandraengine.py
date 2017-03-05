@@ -6,7 +6,7 @@ from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
 
 from eventsourcing.exceptions import DatasourceSettingsError
-from eventsourcing.infrastructure.datastore.base import DatastoreSettings, Datastore
+from eventsourcing.infrastructure.datastore.base import Datastore, DatastoreSettings
 
 DEFAULT_HOSTS = 'localhost'
 DEFAULT_PORT = 9042
