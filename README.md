@@ -119,10 +119,23 @@ that selects a part of a sequence using Python's list slice syntax.
 Support is included in the library for presenting notification logs
 as RESTful HTTP services with an HTTP client reading the logs, in the
 dynamic manner described by Vaughn Vernon in his book *Implementing Domain Driven Design*.
-The notification log pattern enables a flow of events between different
-bounded contexts, and suggests an effective way of developing a suite of
-collaborating event sourced applications that can maintain integrity despite
-premature application termination and occasional network partitioning.
+
+**Boxes (forthcoming, experimental)**
+The notification log pattern enables a flow of events between applications
+in different bounded contexts, and suggests an effective way of avoiding a monolithic
+application by developing a suite of smaller, collaborating, event driven
+and event sourced applications that can maintain integrity despite premature
+application termination and occasional network partitioning. "Box" is this project's working
+name for the archetypal event sourced application that is dedicated to a bounded context,
+whilst also being capable of collaborating (using notifications) with other such application
+in other bounded contexts. The well factored monolith amounts to having all boxes running in
+one container, with notifications being made synchronously in process. Microservices arise
+simply from moving a box to a new container, with notifications then propagated across the
+process boundaries. As Eric Evans has suggested, harder social boundaries is perhaps a necessary
+condition to ensure a domain driven design can be a socially successful design, due to the rough
+and tumble of day-to-day software development, and the fact that software developers double in
+number every five years, so that on average half the programmers have less than five years
+experience, which might not be enough adequately to understand design approaches such as DDD.
 
 
 ## Install
