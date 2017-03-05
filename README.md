@@ -160,7 +160,7 @@ Functionality such as transcoding and snapshotting is factored as strategy objec
 by constructor parameter. Application level encryption is a transcoding option.
 
 The stored event repository layer allows domain events to be stored in a range of database 
-services, and can optionally makes use of any optimistic concurrency controls the database
+services, and can optionally make use of any optimistic concurrency controls the database
 system may provide.
 
 
