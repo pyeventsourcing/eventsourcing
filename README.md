@@ -30,50 +30,62 @@ background information about the project.
 
 ## Features
 
-**Event Player** — Reconstitutes domain entities from their domain
-events, optionally with snapshotting. Snapshotting avoids replaying
-an entire event stream to obtain the current state of an entity. A snapshot
-strategy is included which reuses the capabilities of this library by
-implementing snapshots as domain events.
+**Event Store** — Appends and retrieves domain events. The event store uses
+a stored event repository to append and retrieve stored events. The event store uses a
+transcoder to serialise and deserialise domain events as store events. The library has a
+number of different stored event repositories that adapt a variety of ORMs and
+databases systems (e.g. SQLAlchemy, Cassandra). If your database system isn't
+already supported, it will be easy to adapt with a custom stored event repository.
 
-**Event Store** — Appends and retrieves domain events. The event store
-uses a transcoder to serialise and deserialise domain events. It also
-uses a stored event repository to append and retrieve stored events.
-The library has a variety of stored event repositories that adapt a
-variety of ORMs and databases systems (e.g. SQLAlchemy, Cassandra). If
-your database system isn't already supported, it may be easy to adapt
-with a custom stored event repository.
+**Event Players** — Use the event store to retrieve domain events. An event player
+reconstitutes entities of a particular type from their domain events, optionally with
+snapshotting. Snapshotting avoids replaying an entire event stream to obtain
+the current state of an entity. A snapshot strategy is included which reuses
+the capabilities of this library by implementing snapshots as domain events. It can
+easily be substituted with a strategy that, for example, uses a dedicated table for snapshots.
+
+**Persistence Subscriber** - Listens for published domain events, and
+appends the domain events to the event store whenever a domain event is
+published. Domain events are typically published by the methods of an entity.
+The persistence subscriber is an example of an application policy ("do Y whenever X happens").
+
+**Abstract Base Classes** — For application objects, event soured domain entities,
+domain entity repositories, domain events, transcoding strategies, snapshotting strategies,
+stored event repositories, notification log views and readers, test cases, etc.
+
+**Optimistic Concurrency Control** — Applicable to integer sequenced events only.
+Can be used to ensure a distributed application doesn't become inconsistent due
+to concurrency of method execution. Leverages any optimistic concurrency controls
+in the database adapted by the stored event repository. With Cassandra, this can
+accomplish linearly-scalable distributed optimistic concurrency control, guaranteeing
+sequential consistency of an event stream, across a distributed application.
+It is also possible to serialize calls to the methods of an entity, but
+that is currently out of the scope of this package - if you wish to do that,
+perhaps something like [Zookeeper](https://zookeeper.apache.org/) might help.
+
+**Application-Level Encryption** — Symmetric encryption of stored
+events, including snapshots and logged messages, using a customizable
+cipher. Can be used to encrypt some events, or all events, or not applied at
+all (the default). Included is an AES cipher strategy, by default in CBC mode
+with 128 bit blocksize, that uses a 16 byte encryption key passed in at run time,
+and which generates a unique 16 byte initialization vector for each encryption.
+In this cipher, data is compressed before it is encrypted, which can mean application
+performance is surprisingly improved when encryption is enabled.
 
 **Customizable Transcoding** — Between domain events and stored events,
 allows support to be added for serialization and deserialization of
 custom value object types, and also makes it possible to use different
 database schemas when developing a custom stored event repository.
 
-**Application-Level Encryption** — Symmetric encryption when transcoding
-events, including snapshots and logged messages, using a customizable
-cipher. Can optionally be applied to encrypt particular events, or all
-stored events, or not applied at all (the default). Included is an AES
-cipher, by default in CBC mode with 128 bit blocksize, that uses a 16
-byte encryption key passed in at run time, and which generates a
-unique 16 byte initialization vector for each encryption. Data is
-compressed before it is encrypted, which can mean application
-performance is improved when encryption is enabled.
-
-**Synchronous Publish-Subscribe Mechanism** — Entirely deterministic,
+**Synchronous Publish-Subscribe Mechanism** — Stable and deterministic,
 with handlers called in the order they are registered, and with which
 calls to publish events do not return until all event subscribers have
-returned.
+returned. In general, subscribers are policies of the application, which may 
+execute further commands whenever an particular kind of event is received.
+Publishers of domain events are typically the methods of an entity.
 
-**Persistence Subscriber** - Listens for published domain events, and
-writes appends domain events to the event store whenever a domain event is
-published. Domain events are published by the entity methods.
-
-**Worked Examples** — A simple worked example application, with example
+**Worked Examples** — A simple worked example application (see below), with example
 entity class, example event sourced repository, and example factory method.
-
-**Abstract Base Classes** — For domain events, event soured domain
-entities, repositories, transcoding and snapshotting strategies,
-stored event repositories infrastructure, application objects, and tests.
 
 **Archived Logs, Notification Logs** - Provide a way of reading a long
 sequence of events in a highly scalable manner. Includes a notification
@@ -92,16 +104,6 @@ or ascending order.
 
 **Collections** — Event sourced collections, for modelling different
 kinds of multiplicity.
-
-**Optimistic Concurrency Control** — Makes sure a distributed application
-doesn't become inconsistent due to concurrency. Implemented using optimistic
-concurrency controls in the adapted database. With Cassandra, this accomplishes
-linearly-scalable distributed optimistic concurrency control, guaranteeing
-sequential consistency of each event stream, across a distributed application.
-It is also possible to serialize the execution of commands on an aggregate, but
-that is out of the scope of this package. If you wish to do that, perhaps something
-like [Zookeeper](https://zookeeper.apache.org/) might help.
-
 
 ## Install
 
