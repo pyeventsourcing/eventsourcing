@@ -159,8 +159,9 @@ players also share with the model the mutator functions that are used to apply d
 Functionality such as transcoding and snapshotting is factored as strategy objects, injected into dependents
 by constructor parameter. Application level encryption is a transcoding option.
 
-The stored event repository adaption layer allows domain events to be stored in a range of database 
-services, and optional makes use of optimistic concurrency controls they may provide.
+The stored event repository layer allows domain events to be stored in a range of database 
+services, and can optionally makes use of any optimistic concurrency controls the database
+system may provide.
 
 
 ![UML Class Diagram](https://www.lucidchart.com/publicSegments/view/9919fa7f-2c6d-4aac-b189-5f2871a69aee/image.png)
