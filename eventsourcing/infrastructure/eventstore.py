@@ -18,15 +18,15 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
                           page_size=None):
-        pass
+        """Returns events for given stored entity ID."""
 
     @abstractmethod
     def get_entity_version(self, stored_entity_id, version):
-        pass
+        """Returns entity version for given stored entity ID."""
 
     @abstractmethod
     def get_most_recent_event(self, stored_entity_id, until=None):
-        pass
+        """Returns most recent event for given stored entity ID."""
 
 
 class EventStore(AbstractEventStore):
@@ -94,10 +94,8 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         Abstract base class for a persistent collection of stored events.
         """
         self.always_check_expected_version = always_check_expected_version
-        self.always_write_entity_version = always_write_entity_version
+        self.always_write_entity_version = always_write_entity_version or always_check_expected_version
         self.stored_event_class = stored_event_class
-        if self.always_check_expected_version and not self.always_write_entity_version:
-            raise ProgrammingError("If versions are checked, they must also be written.")
 
     def append(self, new_stored_event, new_version_number=None, max_retries=3, artificial_failure_rate=0):
         """

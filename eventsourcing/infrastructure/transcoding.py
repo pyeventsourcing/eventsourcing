@@ -44,6 +44,8 @@ class ObjectJSONEncoder(json.JSONEncoder):
                 return {'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z')}
             if isinstance(obj, datetime.date):
                 return {'ISO8601_date': obj.isoformat()}
+            # Todo: Remove all mention of numpy in this library.
+            # Todo: Move this to the quant-dsl package, where it is used.
             if numpy is not None and isinstance(obj, numpy.ndarray) and obj.ndim == 1:
                 memfile = BytesIO()
                 numpy.save(memfile, obj)
