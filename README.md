@@ -491,7 +491,7 @@ if your migration scripts somehow unfortunately interact with your
 test suite) you may need to do such things more than once.
 
 The example above uses an SQLite in memory relational database, but you
-could change 'uri' to another valid connection string. Here are some example
+could change 'uri' to any valid connection string. Here are some example
 connection strings: for an SQLite file; for a PostgreSQL database; and
 for a MySQL database. See SQLAlchemy's create_engine() documentation for details.
 
@@ -503,9 +503,9 @@ postgresql://scott:tiger@localhost:5432/mydatabase
 mysql://scott:tiger@hostname/dbname
 ```
 
-Similarly to the support for adapting SQLAlchemy for storing event,
-there are object classes in the library for Cassandra. Support
-for other databases is forthcoming.
+Similarly to the support for storing events in SQLAlchemy, there
+are object classes in the library for Cassandra. Support for other
+databases is forthcoming.
 
 Please note, neither database connection nor schema setup is the
 responsibility of the application object. All these components can
