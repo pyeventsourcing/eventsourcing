@@ -8,8 +8,8 @@ from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace
 from eventsourcing.exceptions import DatasourceSettingsError
 from eventsourcing.infrastructure.datastore.base import DatastoreSettings, Datastore
 
-DEFAULT_CASSANDRA_HOSTS = 'localhost'
-DEFAULT_CASSANDRA_PORT = 9042
+DEFAULT_HOSTS = 'localhost'
+DEFAULT_PORT = 9042
 DEFAULT_PROTOCOL_VERSION = 2
 DEFAULT_DEFAULT_KEYSPACE = 'eventsourcing'
 DEFAULT_CONSISTENCY_LEVEL = 'LOCAL_QUORUM'
@@ -17,8 +17,8 @@ DEFAULT_REPLICATION_FACTOR = 1
 
 
 class CassandraSettings(DatastoreSettings):
-    HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', DEFAULT_CASSANDRA_HOSTS).split(',')]
-    PORT = int(os.getenv('CASSANDRA_PORT', DEFAULT_CASSANDRA_PORT))
+    HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', DEFAULT_HOSTS).split(',')]
+    PORT = int(os.getenv('CASSANDRA_PORT', DEFAULT_PORT))
     PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', DEFAULT_PROTOCOL_VERSION))
     DEFAULT_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', DEFAULT_DEFAULT_KEYSPACE)
     CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', DEFAULT_CONSISTENCY_LEVEL)
