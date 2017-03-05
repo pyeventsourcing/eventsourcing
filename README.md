@@ -24,9 +24,9 @@ those events to be stored and replayed to obtain the state
 of the application on demand.
 
 This document highlights the main features of the library,
-shows how to install the library, describes the design of
-the software, gives a detailed example of usage, and includes
-some background information about the project.
+provides instructions for installing the packages, describes the
+design of the software, includes a detailed example of usage, and
+has some background information about the project.
 
 With the major features complete, the current focus of development
 work is towards: refactoring the code for greater clarity and greater
