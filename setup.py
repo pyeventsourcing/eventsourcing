@@ -22,10 +22,10 @@ setup(
     ] + install_requires_singledispatch,
     extras_require={
         'cassandra': [
-            'cassandra-driver',
+            'cassandra-driver==3.7.1',
         ],
         'test': [
-            'cassandra-driver',
+            'cassandra-driver==3.7.1',
             'mock',
             'PyCrypto',
             'sqlalchemy',
