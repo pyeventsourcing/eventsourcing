@@ -54,7 +54,7 @@ class CassandraDatastore(Datastore):
             default_keyspace=self.settings.default_keyspace,
             port=self.settings.port,
             auth_provider=auth_provider,
-            protocol_version=self.settings.protocol_version,
+            # protocol_version=self.settings.protocol_version,
             lazy_connect=True,
             retry_connect=True,
         )
