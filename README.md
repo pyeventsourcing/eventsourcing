@@ -344,11 +344,12 @@ else:
 
 Next, define a factory method that can be used to create new entities. Rather
 than directly constructing the entity object instance and "saving" it, the
-factory method firstly instantiates a 'Created' domain event, and then calls
-the mutator to obtain an entity object. The factory method then publishes the
-event so that, for example, it might be saved into an event store by a
+factory method firstly creates a unique entity ID, it instantiates a 'Created'
+domain event with the initial entity attribute values, and then calls the entity
+class mutator to obtain an entity object. The factory method then publishes the
+domain event so that, for example, it might be saved into an event store by a
 persistence subscriber (see below). The factory method finishes by returning
-the the entity it has created to its caller.
+the new entity it has created to its caller.
 
 ```python
 from eventsourcing.domain.model.events import publish
@@ -377,15 +378,15 @@ assert example.a == 12
 assert example.b == 23
 ```
 
-#### Step 3: define an event sourced repository
-
 How can entities created this way become persistent? And how will existing
 stored entities be obtained? Entities are retrieved from repositories.
 
-The next step is to define an event sourced repository class for your entity. Inherit from
-eventsourcing.infrastructure.event_sourced_repo.EventSourcedRepository
-and set its 'domain_class' attribute so it knows what it's
-dealing with.
+
+#### Step 3: define an event sourced repository
+
+The next step is to define an event sourced repository class for your
+entity. Inherit from 'EventSourcedRepository'. Set the 'domain_class'
+attribute to be your Example entity class.
 
 ```python
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository
@@ -393,7 +394,15 @@ from eventsourcing.infrastructure.event_sourced_repo import EventSourcedReposito
 class ExampleRepository(EventSourcedRepository):
 
     domain_class = Example
+
 ```
+
+When the repository is instantiated, it will construct an event
+player. The entity class mutator is passed to the event player
+as a constructor parameter, so that the event player can know
+how to replay domain events when reconstituting an entity for
+the repository.
+
 
 #### Step 4: define an event sourced application
 
@@ -424,20 +433,18 @@ class ExampleApplication(EventSourcedApplication):
         )
 ```
 
-For simplicity, the example application has just one type of entity. A more
-realistic application may involve several different types of entity,
-several factory methods, several entity repositories, different
-event sourced projections (mutator functions), and other policies
-in addition to the persistence subscriber.
-
-When constructing the application object, you will need to pass in
-a stored event repository. Because many variations of datastores and
-schemas are possible, the dependencies have been made fully explicit, and
-the resulting stored event repository is injected into the application
-by constructor parameter.
+For simplicity, this example application has just one entity repository.
+A more fully developed application may have many repositories, several
+factory methods, other application services, various event sourced
+projections, and a range of policies in addition to the persistence
+subscriber.
 
 
 #### Step 5: setup datastore and stored event repository
+
+When constructing the application object, you will need to pass in
+a stored event repository. Because many variations of datastores and
+schemas are possible, the dependencies have been made fully explicit.
 
 In this example, we use an in-memory SQLite database, a stored event repository
 that works with SQLAlchemy, and an SQLAlchemy model for stored events.
@@ -469,7 +476,15 @@ stored_event_repository = SQLAlchemyStoredEventRepository(
 
 Please note, neither database connection nor schema setup is the
 responsibility of the application object. These components can easily
-be substituted for others.
+be substituted for others, and should be.
+
+Take care in locating the calls to setup the tables and connect
+to the database. The appropriate solution in your context will
+depend on your model of execution: normally you want to setup
+the connection once per process and setup the tables once only,
+but in a test suite and sometimes in migration scripts (especially
+the migration scripts somehow interact with your test suite) you
+may need to do such things more than once.
 
 
 #### Step 6: run the application
@@ -478,19 +493,20 @@ As shown below, an event sourced application object can be used as a
 context manager, which closes the application at the end of the block,
 closing the persistence subscriber and unsubscribing its event handlers.
 
-Normally, you only want one instance of the application running in any
+Take care in locating calls to open and close your application. Normally,
+you only want one instance of the application running in any
 given process. Otherwise, duplicate persistence subscribers will attempt
 to store duplicate events - you don't want that.
 
 With an instance of the example application, call the factory method
-register_new_entity() to register a new entity. Update an attribute
-of the entity by assigning a value. This time, the application's persistence
+register_new_entity() to register a new entity. You can update an attribute
+of the entity by assigning a new value. This time, the application's persistence
 subscriber will store the attribute changed event. You can now use the
 entity ID to retrieve the registered entity from the repository. You can see
 the new attribute value is persisting across instantiations of the entity.
 
 Finally, discard the entity. Observe that the repository's dictionary like
-interface raises a Python key error when an attempt is made to get an entity
+interface raises a Python key error whenever an attempt is made to get an entity
 that has been discarded.
 
 
