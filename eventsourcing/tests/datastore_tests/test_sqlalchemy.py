@@ -3,9 +3,9 @@ from tempfile import NamedTemporaryFile
 from sqlalchemy.exc import OperationalError
 
 from eventsourcing.infrastructure.datastore.base import DatastoreTableError
-from eventsourcing.infrastructure.datastore.sqlalchemy import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
+from eventsourcing.infrastructure.datastore.sqlalchemyorm import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
     SQLAlchemySettings
-from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SqlStoredEvent
+from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SqlStoredEvent
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
 
 

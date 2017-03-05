@@ -13,7 +13,7 @@ from cassandra.cqlengine.query import LWTException
 
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
-from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
+from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
 
 DEFAULT_CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
 DEFAULT_CASSANDRA_CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', 'LOCAL_QUORUM')
@@ -38,7 +38,7 @@ class CqlEntityVersion(Model):
 
 
 class CqlStoredEvent(Model):
-    __table_name__ = 'stored_events'
+    __table_name__ = 'storedevents'
 
     # Makes sure we can't write the same version twice,
     # helps to implement optimistic concurrency control.

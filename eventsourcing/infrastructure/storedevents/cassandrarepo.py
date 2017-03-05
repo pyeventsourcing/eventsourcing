@@ -8,7 +8,7 @@ from cassandra.cqlengine.query import LWTException
 
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
-from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
+from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
 from eventsourcing.infrastructure.transcoding import EntityVersion
 
 
@@ -32,7 +32,7 @@ class CqlEntityVersion(Model):
 
 
 class CqlStoredEvent(Model):
-    __table_name__ = 'stored_events'
+    __table_name__ = 'storedevents'
 
     # Stored entity ID (normally a string, with the entity type name at the start)
     n = columns.Text(partition_key=True)

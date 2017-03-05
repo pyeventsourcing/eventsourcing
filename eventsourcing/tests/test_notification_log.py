@@ -1,4 +1,4 @@
-from eventsourcing.domain.model.notification_log import NotificationLog
+from eventsourcing.domain.model.notificationlog import NotificationLog
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.event_sourced_repos.notificationlog_repo import NotificationLogRepo
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo

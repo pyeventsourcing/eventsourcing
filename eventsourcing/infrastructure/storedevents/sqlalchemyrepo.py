@@ -9,7 +9,7 @@ from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 
 from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
-from eventsourcing.infrastructure.datastore.sqlalchemy import Base, SQLAlchemyDatastore
+from eventsourcing.infrastructure.datastore.sqlalchemyorm import Base, SQLAlchemyDatastore
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.transcoding import EntityVersion
 from eventsourcing.utils.time import timestamp_long_from_uuid
@@ -33,7 +33,7 @@ class SqlEntityVersion(Base):
 
 
 class SqlStoredEvent(Base):
-    __tablename__ = 'stored_events'
+    __tablename__ = 'storedevents'
 
     id = Column(Integer, Sequence('stored_event_id_seq'), primary_key=True)
     stored_entity_id = Column(String(255), index=True)

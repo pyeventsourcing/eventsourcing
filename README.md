@@ -345,9 +345,9 @@ use an in memory SQLite database.
 
 
 ```python
-from eventsourcing.infrastructure.datastore.sqlalchemy import SQLAlchemySettings, SQLAlchemyDatastore
-from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository
-from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SqlStoredEvent
+from eventsourcing.infrastructure.datastore.sqlalchemyorm import SQLAlchemySettings, SQLAlchemyDatastore
+from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemyStoredEventRepository
+from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SqlStoredEvent
 
 settings = SQLAlchemySettings(
     uri='sqlite:///:memory:',

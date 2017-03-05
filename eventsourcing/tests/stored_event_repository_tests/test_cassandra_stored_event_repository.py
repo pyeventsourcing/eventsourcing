@@ -1,10 +1,10 @@
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
+from eventsourcing.infrastructure.storedevents.cassandrarepo import CassandraStoredEventRepository, \
     CqlStoredEvent
-from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
-from eventsourcing.tests.stored_event_repository_tests.base import StoredEventRepositoryTestCase, \
-    OptimisticConcurrencyControlTestCase, SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase, \
-    AbstractStoredEventRepositoryTestCase
 from eventsourcing.tests.base import notquick
+from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
+from eventsourcing.tests.stored_event_repository_tests.base import AbstractStoredEventRepositoryTestCase, \
+    OptimisticConcurrencyControlTestCase, SimpleStoredEventIteratorTestCase, StoredEventRepositoryTestCase, \
+    ThreadedStoredEventIteratorTestCase
 
 
 class CassandraRepoTestCase(CassandraDatastoreTestCase, AbstractStoredEventRepositoryTestCase):

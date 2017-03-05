@@ -1,6 +1,6 @@
 # from unittest import TestCase
 #
-# from eventsourcing.infrastructure.stored_event_repos.with_shared_memory import SharedMemoryStoredEventRepository
+# from eventsourcing.infrastructure.storedevents.with_shared_memory import SharedMemoryStoredEventRepository
 # from eventsourcing.tests.unit_test_cases import SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase
 # from eventsourcing.tests.stored_event_repository_tests.base import StoredEventRepositoryTestCase, \
 #     SimpleStoredEventIteratorTestCase, ThreadedStoredEventIteratorTestCase

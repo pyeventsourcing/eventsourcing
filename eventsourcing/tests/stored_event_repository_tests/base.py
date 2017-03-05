@@ -12,17 +12,17 @@ import six
 
 from eventsourcing.application.policies import PersistenceSubscriber
 from eventsourcing.exceptions import ConcurrencyError
-from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastore, CassandraSettings
-from eventsourcing.infrastructure.datastore.sqlalchemy import SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.datastore.cassandraengine import CassandraDatastore, CassandraSettings
+from eventsourcing.infrastructure.datastore.sqlalchemyorm import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, EventStore, \
     SimpleStoredEventIterator
-from eventsourcing.infrastructure.stored_event_repos.threaded_iterator import ThreadedStoredEventIterator
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CassandraStoredEventRepository, \
+from eventsourcing.infrastructure.storedevents.cassandrarepo import CassandraStoredEventRepository, \
     CqlStoredEvent
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra2 import Cassandra2StoredEventRepository
-from eventsourcing.infrastructure.stored_event_repos.with_python_objects import PythonObjectsStoredEventRepository
-from eventsourcing.infrastructure.stored_event_repos.with_sqlalchemy import SQLAlchemyStoredEventRepository, \
+from eventsourcing.infrastructure.storedevents.pythonobjectsrepo import PythonObjectsStoredEventRepository
+from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemyStoredEventRepository, \
     SqlStoredEvent
+from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
+from eventsourcing.infrastructure.storedevents.with_cassandra2 import Cassandra2StoredEventRepository
 from eventsourcing.infrastructure.transcoding import StoredEvent
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase

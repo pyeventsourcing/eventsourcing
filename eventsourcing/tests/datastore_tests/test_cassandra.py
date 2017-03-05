@@ -7,10 +7,9 @@ from cassandra.cqlengine import CQLEngineException
 
 from eventsourcing.exceptions import DatasourceSettingsError
 from eventsourcing.infrastructure.datastore.base import DatastoreConnectionError, DatastoreTableError
-from eventsourcing.infrastructure.datastore.cassandra import CassandraDatastore, CassandraSettings
-from eventsourcing.infrastructure.stored_event_repos.with_cassandra import CqlStoredEvent, CqlEntityVersion
-from eventsourcing.tests.datastore_tests.base import DatastoreTestCase, AbstractDatastoreTestCase
-
+from eventsourcing.infrastructure.datastore.cassandraengine import CassandraDatastore, CassandraSettings
+from eventsourcing.infrastructure.storedevents.cassandrarepo import CqlEntityVersion, CqlStoredEvent
+from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
 
 DEFAULT_KEYSPACE_FOR_TESTING = 'eventsourcing_tests'
 
