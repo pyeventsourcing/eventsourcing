@@ -439,10 +439,8 @@ by constructor parameter.
 
 #### Step 5: setup datastore and stored event repository
 
-In this example, we use an in memory SQLite database, and a stored
-event repository that works with SQLAlchemy. Neither database connection
-nor schema setup is the responsibility of the application object.
-
+In this example, we use an in-memory SQLite database, a stored event repository
+that works with SQLAlchemy, and an SQLAlchemy model for stored events.
 
 ```python
 from eventsourcing.infrastructure.datastore.sqlalchemyorm import SQLAlchemySettings, SQLAlchemyDatastore
@@ -468,6 +466,11 @@ stored_event_repository = SQLAlchemyStoredEventRepository(
     always_write_entity_version=True,
 )
 ```
+
+Please note, neither database connection nor schema setup is the
+responsibility of the application object. These components can easily
+be substituted for others.
+
 
 #### Step 6: run the application
 
