@@ -131,7 +131,7 @@ whilst also being capable of collaborating (using notifications) with other such
 in other bounded contexts. The well factored monolith amounts to having all boxes running in
 one container, with notifications being made synchronously in process. Microservices arise
 simply from moving a box to a new container, with notifications then propagated across the
-process boundaries. As Eric Evans has suggested, harder social boundaries is perhaps a necessary
+process boundaries. As Eric Evans has suggested, harder social boundaries are perhaps a necessary
 condition to ensure a domain driven design can be a socially successful design, due to the rough
 and tumble of day-to-day software development, and the fact that software developers double in
 number every five years, so that on average half the programmers have less than five years
