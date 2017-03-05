@@ -59,19 +59,17 @@ appends the domain events to the event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
 The persistence subscriber is an example of an application policy ("do Y whenever X happens").
 
-**Abstract Base Classes** — For application objects, event soured domain entities,
-domain entity repositories, domain events, transcoding strategies, snapshotting strategies,
-stored event repositories, notification log views and readers, test cases, etc.
+**Synchronous Publish-Subscribe Mechanism** — Stable and deterministic,
+with handlers called in the order they are registered, and with which
+calls to publish events do not return until all event subscribers have
+returned. In general, subscribers are policies of the application, which may 
+execute further commands whenever an particular kind of event is received.
+Publishers of domain events are typically the methods of an entity.
 
-**Optimistic Concurrency Control** — Applicable to integer sequenced events only.
-Can be used to ensure a distributed application doesn't become inconsistent due
-to concurrency of method execution. Leverages any optimistic concurrency controls
-in the database adapted by the stored event repository. With Cassandra, this can
-accomplish linearly-scalable distributed optimistic concurrency control, guaranteeing
-sequential consistency of an event stream, across a distributed application.
-It is also possible to serialize calls to the methods of an entity, but
-that is currently out of the scope of this package - if you wish to do that,
-perhaps something like [Zookeeper](https://zookeeper.apache.org/) might help.
+**Customizable Transcoding** — Between domain events and stored events,
+allows support to be added for serialization and deserialization of
+custom value object types, and also makes it possible to use different
+database schemas when developing a custom stored event repository.
 
 **Application-Level Encryption** — Symmetric encryption of stored
 events, including snapshots and logged messages, using a customizable
@@ -82,26 +80,27 @@ and which generates a unique 16 byte initialization vector for each encryption.
 In this cipher, data is compressed before it is encrypted, which can mean application
 performance is surprisingly improved when encryption is enabled.
 
-**Customizable Transcoding** — Between domain events and stored events,
-allows support to be added for serialization and deserialization of
-custom value object types, and also makes it possible to use different
-database schemas when developing a custom stored event repository.
-
-**Synchronous Publish-Subscribe Mechanism** — Stable and deterministic,
-with handlers called in the order they are registered, and with which
-calls to publish events do not return until all event subscribers have
-returned. In general, subscribers are policies of the application, which may 
-execute further commands whenever an particular kind of event is received.
-Publishers of domain events are typically the methods of an entity.
+**Optimistic Concurrency Control** — Applicable to integer sequenced events only.
+Can be used to ensure a distributed or horizontally scaled application doesn't
+become inconsistent due to concurrent method execution. Leverages any optimistic
+concurrency controls in the database adapted by the stored event repository. With
+Cassandra, this can accomplish linearly-scalable distributed optimistic concurrency
+control, guaranteeing sequential consistency of an event stream, across a distributed
+application. It is also possible to serialize calls to the methods of an entity, but
+that is currently out of the scope of this package - if you wish to do that, perhaps
+something like [Zookeeper](https://zookeeper.apache.org/) might help.
 
 **Worked Examples** — A simple worked example application (see below), with example
 entity class, example event sourced repository, and example factory method.
 
-**Archived Logs, Notification Logs** - Provide a way of reading a long
-sequence of events in a highly scalable manner. Includes a notification
-logger that writes an event sourced log that can be indexed with a
-contiguous integer sequence, and a log reader implemented as a generator
-that selects a part of a sequence using Python's list slice syntax.
+**Abstract Base Classes** — For application objects, event soured domain entities,
+domain entity repositories, domain events, transcoding strategies, snapshotting strategies,
+stored event repositories, notification log views and readers, test cases, etc. These
+classes are at least suggestive of how to structure an event sourced application, and
+can be used directly to extend this library for your own purposes.
+
+**Collections** — Event sourced collections, for modelling different
+kinds of multiplicity.
 
 **Time-Bucketed Logs** — Provide a way of writing a long
 stream of events in a highly scalable manner. Includes log objects,
@@ -112,8 +111,19 @@ a linearly scalable manner, and then retrieved in order, limited by
 number, from any point in time until another point in time, in reverse
 or ascending order.
 
-**Collections** — Event sourced collections, for modelling different
-kinds of multiplicity.
+**Notification Logs** - Provide a way of reading a long
+sequence of events in a highly scalable manner. Includes a notification
+logger that writes an event sourced log that can be indexed with a
+contiguous integer sequence, and a log reader implemented as a generator
+that selects a part of a sequence using Python's list slice syntax.
+Support is included in the library for presenting notification logs
+as RESTful HTTP services with an HTTP client reading the logs, in the
+dynamic manner described by Vaughn Vernon in his book *Implementing Domain Driven Design*.
+The notification log pattern enables a flow of events between different
+bounded contexts, and suggests an effective way of developing a suite of
+collaborating event sourced applications that can maintain integrity despite
+premature application termination and occasional network partitioning.
+
 
 ## Install
 
