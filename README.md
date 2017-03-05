@@ -162,6 +162,8 @@ services, and optional makes use of optimistic concurrency controls they may pro
 Start by opening a new Python file in your favourite editor, or start
 a new project in your favourite IDE.
 
+#### Define an event sourced domain entity
+
 Write yourself a new event sourced entity class, by making a
 subclass of 'EventSourcedEntity' (from module
 'eventsourcing.domain.model.entity').
@@ -178,7 +180,7 @@ The entity class domain events can be defined on the domain entity
 class. In the example below, an 'Example' entity defines 'Created',
 'AttributeChanged', and 'Discarded' events.
 
-Add these events to your entity class.
+Add those events to your entity class.
 
 
 ```python
@@ -195,15 +197,14 @@ class Example(EventSourcedEntity):
         pass
 ```
 
-When are these events published?
+When are these events published? The 'Created' event can be published by
+a factory method (see below). The 'Created' event attribute values are used
+to construct an entity. The 'AttributeChanged' event can by published by a
+method of the entity. The 'Discarded' event is published by the discard()
+method.
 
-The 'Created' event can be published by a factory method (see below).
-The 'Created' event attribute values are used to construct an entity.
-The 'AttributeChanged' event can by published by a method of the
-entity. The 'Discarded' event is published by the discard() method.
-
-For convenience, the 'attribute' decorator can be used to define
-two Python properties as mutable event sourced attributes 'a' and 'b'.
+For convenience, the '@attribute' decorator can be used with
+ Python properties to define mutable event sourced, event publishing attributes.
 (The decorator introduces a "setter" that generates an 'AttributeChanged'
 event when a value is assigned, and a "getter" that presents the current
 attribute value.)
@@ -309,6 +310,9 @@ else:
     raise AssertionError
 ```
 
+
+#### Define an entity factory method
+
 Next, define a factory method that can be used to create new entities. Rather
 than directly constructing the entity object instance and "saving" it, the
 factory method firstly instantiates a 'Created' domain event, and then calls
@@ -344,6 +348,8 @@ assert example.a == 12
 assert example.b == 23
 ```
 
+#### Define an event sourced repository (infrastructure)
+
 How can entities created this way become persistent? And how will existing
 stored entities be obtained? Entities are retrieved from repositories.
 
@@ -359,6 +365,8 @@ class ExampleRepository(EventSourcedRepository):
 
     domain_class = Example
 ```
+
+#### Define application object
 
 The final step is to make yourself an application object. Application objects
 are used to bind domain and infrastructure. This involves having a stored event
@@ -399,6 +407,9 @@ schemas are possible, the dependencies have been made fully explicit, and
 the resulting stored event repository is injected into the application
 by constructor parameter.
 
+
+#### Define and setup a datastore
+
 In this example, we use an in memory SQLite database, and a stored
 event repository that works with SQLAlchemy. Neither database connection
 nor schema setup is the responsibility of the application object.
@@ -432,6 +443,9 @@ stored_event_repository = SQLAlchemyStoredEventRepository(
 As shown below, an event sourced application object can be used as a
 context manager, which closes the application at the end of the block,
 closing the persistence subscriber.
+
+
+#### Run the application
 
 With an instance of the example application, again call the factory method
 register_new_entity() to register a new entity. Then, update an
@@ -481,6 +495,9 @@ with ExampleApplication(stored_event_repository=stored_event_repository) as app:
 ```
 
 Congratulations! You have created yourself an event sourced application.
+
+
+#### Enable application-level encryption (optional)
 
 To enable application-level encryption, you can set the application keyword
 argument 'always_encrypt' to a True value, and also pass in a cipher. With
