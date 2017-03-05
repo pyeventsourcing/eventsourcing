@@ -120,7 +120,7 @@ class PerformanceTestCase(ExampleApplicationTestCase):
             number_of_messages = 111
             events = []
             for i in range(number_of_messages):
-                event = logger.info('Logger message number {}'.format(i))
+                event = logger.log('Logger message number {}'.format(i))
                 events.append(event)
             time_to_write = (utc_now() - start_write)
             print("Time to log {} messages: {:.2f}s ({:.0f} messages/s, {:.6f}s each)"
