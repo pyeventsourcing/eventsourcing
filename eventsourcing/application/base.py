@@ -46,10 +46,10 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         self.close()
 
 
-class EventSourcingApplication(ReadOnlyEventSourcingApplication):
+class EventSourcedApplication(ReadOnlyEventSourcingApplication):
 
     def __init__(self, **kwargs):
-        super(EventSourcingApplication, self).__init__(**kwargs)
+        super(EventSourcedApplication, self).__init__(**kwargs)
         self.persistence_subscriber = self.construct_persistence_subscriber()
 
     def construct_persistence_subscriber(self):
@@ -61,4 +61,4 @@ class EventSourcingApplication(ReadOnlyEventSourcingApplication):
         if self.persistence_subscriber is not None:
             self.persistence_subscriber.close()
             self.persistence_subscriber = None
-        super(EventSourcingApplication, self).close()
+        super(EventSourcedApplication, self).close()

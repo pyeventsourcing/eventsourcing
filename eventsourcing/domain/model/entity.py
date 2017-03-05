@@ -46,7 +46,7 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     # This should be enabled for models that have their consistency
     # protected against concurrency errors, with e.g. optimistic
     # concurrency control. See 'always_write_entity_version' constructor
-    # argument in EventSourcingApplication and StoredEventRepo classes.
+    # argument in EventSourcedApplication and StoredEventRepo classes.
     __always_validate_originator_version__ = False
 
     class Created(DomainEvent):

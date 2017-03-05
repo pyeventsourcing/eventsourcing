@@ -119,7 +119,15 @@ the Python Package Index.
 
     pip install eventsourcing
 
-If you want to run the test suite, or try the example below, then
+If you want to use SQLAlchemy, then please install with the optional extra called 'sqlalchemy'.
+
+    pip install eventsourcing[sqlalchemy]
+
+Similarly, if you want to use Cassandra, then please install with the optional extra called 'cassandra'.
+
+    pip install eventsourcing[cassandra]
+
+If you want to run the test suite, or try the example below with different backends, then
 please install with the optional extra called 'test'.
 
     pip install eventsourcing[test]
@@ -138,6 +146,10 @@ There is also a mailing list.
 
 * https://groups.google.com/forum/#!forum/eventsourcing-users
 
+
+And a room on Gitter.
+
+* https://gitter.im/eventsourcing-in-python/eventsourcing
 
 
 ## Design
@@ -170,9 +182,13 @@ system may provide.
 ## Usage
 
 Start by opening a new Python file in your favourite editor, or start
-a new project in your favourite IDE.
+a new project in your favourite IDE. To create a working program, you
+can either type or copy and paste the following code snippets into a
+single Python file. Feel free to experiment by making variations. If
+you installed the library into a Python virtualenv, please check that
+your virtualenv is activated before running your program.
 
-#### Define an event sourced domain entity
+#### Step 1: define a class of event sourced entity
 
 Write yourself a new event sourced entity class, by making a
 subclass of 'EventSourcedEntity' (from module
@@ -321,7 +337,7 @@ else:
 ```
 
 
-#### Define an entity factory method
+#### Step 2: define an entity factory method
 
 Next, define a factory method that can be used to create new entities. Rather
 than directly constructing the entity object instance and "saving" it, the
@@ -358,7 +374,7 @@ assert example.a == 12
 assert example.b == 23
 ```
 
-#### Define an event sourced repository (infrastructure)
+#### Step 3: define an event sourced repository
 
 How can entities created this way become persistent? And how will existing
 stored entities be obtained? Entities are retrieved from repositories.
@@ -376,7 +392,7 @@ class ExampleRepository(EventSourcedRepository):
     domain_class = Example
 ```
 
-#### Define application object
+#### Step 4: define an event sourced application
 
 The final step is to make yourself an application object. Application objects
 are used to bind domain and infrastructure. This involves having a stored event
@@ -386,15 +402,15 @@ The stored event repository is used by the event store. The event store is
 also used by the persistence subscriber to store domain events, and by
 domain entity repositories to retrieve the events of a requested entity.
 
-Add an application class, inheriting from 'EventSourcingApplication',
+Add an application class, inheriting from 'EventSourcedApplication',
 that has an example event sourced repo. The super class constructs a
 persistence subscriber and an event store, but the methods can be overridden
 if you wish to supply your own variations of those objects.
 
 ```python
-from eventsourcing.application.base import EventSourcingApplication
+from eventsourcing.application.base import EventSourcedApplication
 
-class ExampleApplication(EventSourcingApplication):
+class ExampleApplication(EventSourcedApplication):
 
     def __init__(self, **kwargs):
         super(ExampleApplication, self).__init__(**kwargs)
@@ -418,7 +434,7 @@ the resulting stored event repository is injected into the application
 by constructor parameter.
 
 
-#### Define and setup a datastore
+#### Step 5: define and setup a datastore
 
 In this example, we use an in memory SQLite database, and a stored
 event repository that works with SQLAlchemy. Neither database connection
@@ -452,19 +468,20 @@ stored_event_repository = SQLAlchemyStoredEventRepository(
 
 As shown below, an event sourced application object can be used as a
 context manager, which closes the application at the end of the block,
-closing the persistence subscriber.
+closing the persistence subscriber and unsubscribing its event handlers.
 
 
-#### Run the application
+#### Step 6: run the application
 
 With an instance of the example application, again call the factory method
 register_new_entity() to register a new entity. Then, update an
 attribute by assigning a value. This time, the application's persistence
-subscriber will store the attribute changed event. You can use the new
+subscriber will store the attribute changed event. You can now use the
 entity ID to retrieve the registered entity from the repository. You can see
 the new attribute value is persisting across instantiations of the entity.
-Finally, discard the entity and see the repository raises a key error
-when an attempt is made to obtain the discarded entity.
+
+Finally, discard the entity. Observe that the repository raises a key error
+exception when an attempt is made to get an entity that has been discarded.
 
 
 ```python
@@ -506,8 +523,29 @@ with ExampleApplication(stored_event_repository=stored_event_repository) as app:
 
 Congratulations! You have created yourself an event sourced application.
 
+If you want to model other domain events, then simply declare them on
+the entity class like the events above, and implement methods on the
+entity which instantiate those domain events, apply them to the entity,
+publish to subscribers. Add mutator functions to apply the domain
+events to the entity objects, for example by directly changing the
+internal state of the entity. See the beat_heart() method on the
+extended example application included in this distribution.
 
-#### Enable application-level encryption (optional)
+The example above uses an SQLite in memory relational database, but you
+could change 'uri' to another connection string. Here are some example
+connection strings - for an SQLite file, for a PostgreSQL database, and
+for a MySQL database. See SQLAlchemy's create_engine() documentation for details.
+
+```
+sqlite:////tmp/mydatabase
+
+postgresql://scott:tiger@localhost:5432/mydatabase
+
+mysql://scott:tiger@hostname/dbname
+```
+
+
+##### Step 7 (optional): enable application-level encryption
 
 To enable application-level encryption, you can set the application keyword
 argument 'always_encrypt' to a True value, and also pass in a cipher. With
@@ -526,28 +564,6 @@ def construct_application():
 with construct_application() as app:
     # Register a new example.
     example1 = register_new_example(a='secret data', b='more secrets')
-```
-
-If you want to model other domain events, then simply declare them on
-the entity class like the events above, and implement methods on the
-entity which instantiate those domain events, apply them to the entity,
-publish to subscribers. Add mutator functions to apply the domain
-events to the entity objects, for example by directly changing the
-internal state of the entity. See the beat_heart() method on the
-extended example application included in this distribution.
-
-The example above uses an SQLite in memory relational database, but you
-could change 'db_uri' to another connection string if you have a real
-database. Here are some example connection strings - for an SQLite file,
-for a PostgreSQL database, and for a MySQL database. See SQLAlchemy's
-create_engine() documentation for details.
-
-```
-sqlite:////tmp/mydatabase
-
-postgresql://scott:tiger@localhost:5432/mydatabase
-
-mysql://scott:tiger@hostname/dbname
 ```
 
 Todo: Develop above to be a tutorial.
@@ -791,7 +807,7 @@ Todo: Develop above to be a release plan.
 You don't need to do anything. However before using the new optimistic concurrency controls
 you will need to migrate an existing database schema to have the new 'entity_versions' table,
 and you will also need to add a record to that table for each stored event. See notes in doc
-string of EventSourcingApplication class for a zero-downtime migration approach.
+string of EventSourcedApplication class for a zero-downtime migration approach.
 
 To enable optimistic concurrency control, set the application constructor argument named
 'enable_occ' to a True value.
