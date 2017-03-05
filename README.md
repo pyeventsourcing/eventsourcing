@@ -17,16 +17,23 @@ sourcing, the state of the application is determined by
 a sequence of events.
 
 Therefore, this library provides mechanisms required by such
-applications: behaviours that mutate the state of the application
-by applying and then publishing domain events;
-and a way for those events to be stored and replayed
-to obtain the state of the application on demand.
+applications: a style for coding behaviours that mutate the
+state of an application by instantiating, applying and then
+publishing domain events of different kinds; and a way for
+those events to be stored and replayed to obtain the state
+of the application on demand.
 
-This document highlights the main features, shows how
-to install the library, describes the software design,
-gives a detailed example of usage, and includes some
-background information about the project.
+This document highlights the main features of the library,
+shows how to install the library, describes the design of
+the software, gives a detailed example of usage, and includes
+some background information about the project.
 
+With the major features complete, the current focus of development
+work is towards: refactoring the code for greater clarity and greater
+flexibility; test suite with 100% line coverage; a much better
+distinction between time-sequenced and integer-sequenced event streams;
+and support for storing events in a broader range database management
+systems and services.
 
 ## Features
 
