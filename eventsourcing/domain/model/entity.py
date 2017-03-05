@@ -59,7 +59,7 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     class Discarded(DomainEvent):
         pass
 
-    def __init__(self, entity_id, entity_version, domain_event_id):
+    def __init__(self, entity_id, entity_version=0, domain_event_id=None):
         self._id = entity_id
         self._version = entity_version
         self._is_discarded = False
@@ -94,8 +94,12 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
         # Check event's entity version matches this entity's version.
         if self.__always_validate_originator_version__ and self._version != event.entity_version:
             raise EntityVersionConsistencyError(
-                "Event version '{}' not equal to entity version '{}', event type: '{}', entity type: '{}', entity ID: '{}'"
-                "".format(event.entity_version, self._version, type(event).__name__, type(self).__name__, self._id))
+                ("Event version '{}' not equal to entity version '{}', "
+                 "event type: '{}', entity type: '{}', entity ID: '{}'"
+                 "".format(event.entity_version, self._version,
+                           type(event).__name__, type(self).__name__, self._id)
+                )
+            )
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
@@ -162,7 +166,7 @@ def discarded_mutator(event, self):
     return None
 
 
-def mutableproperty(getter):
+def mutableattribute(getter):
     """
     When used as a method decorator, returns a property object
     with the method as the getter and a setter defined to call

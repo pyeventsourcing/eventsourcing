@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import six
 
-from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity, mutableproperty
+from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity, mutableattribute
 from eventsourcing.domain.model.events import publish
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.exceptions import RepositoryKeyError
@@ -39,7 +39,7 @@ class SuffixTree(EventSourcedEntity):
         self._N = None
         self._string = None
 
-    @mutableproperty
+    @mutableattribute
     def string(self):
         return self._string
 
@@ -194,7 +194,7 @@ class Node(EventSourcedEntity):
         super(Node, self).__init__(*args, **kwargs)
         self._suffix_node_id = suffix_node_id
 
-    @mutableproperty
+    @mutableattribute
     def suffix_node_id(self):
         """The id of a node with a matching suffix, representing a suffix link.
 
@@ -223,25 +223,25 @@ class Edge(EventSourcedEntity):
         self._source_node_id = source_node_id
         self._dest_node_id = dest_node_id
 
-    @mutableproperty
+    @mutableattribute
     def first_char_index(self):
         """Index of start of string part represented by this edge.
         """
         return self._first_char_index
 
-    @mutableproperty
+    @mutableattribute
     def last_char_index(self):
         """Index of end of string part represented by this edge.
         """
         return self._last_char_index
 
-    @mutableproperty
+    @mutableattribute
     def source_node_id(self):
         """Id of source node of edge.
         """
         return self._source_node_id
 
-    @mutableproperty
+    @mutableattribute
     def dest_node_id(self):
         """Id of destination node of edge.
         """
