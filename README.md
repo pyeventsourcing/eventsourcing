@@ -339,6 +339,14 @@ else:
     raise AssertionError
 ```
 
+If you want to model other domain events, then simply declare them on
+the entity class like the events above, and implement methods on the
+entity which instantiate those domain events, apply them to the entity,
+publish to subscribers. Add mutator functions to apply the domain
+events to the entity objects, for example by directly changing the
+internal state of the entity. See the beat_heart() method on the
+extended version of this example application, included in this library.
+
 
 #### Step 2: define an entity factory method
 
@@ -474,17 +482,34 @@ stored_event_repository = SQLAlchemyStoredEventRepository(
 )
 ```
 
-Please note, neither database connection nor schema setup is the
-responsibility of the application object. These components can easily
-be substituted for others, and should be.
-
 Take care in locating the calls to setup the tables and connect
 to the database. The appropriate solution in your context will
 depend on your model of execution: normally you want to setup
 the connection once per process and setup the tables once only,
 but in a test suite and sometimes in migration scripts (especially
-the migration scripts somehow interact with your test suite) you
-may need to do such things more than once.
+if your migration scripts somehow unfortunately interact with your
+test suite) you may need to do such things more than once.
+
+The example above uses an SQLite in memory relational database, but you
+could change 'uri' to another valid connection string. Here are some example
+connection strings: for an SQLite file; for a PostgreSQL database; and
+for a MySQL database. See SQLAlchemy's create_engine() documentation for details.
+
+```
+sqlite:////tmp/mydatabase
+
+postgresql://scott:tiger@localhost:5432/mydatabase
+
+mysql://scott:tiger@hostname/dbname
+```
+
+Similarly to the support for adapting SQLAlchemy for storing event,
+there are object classes in the library for Cassandra. Support
+for other databases is forthcoming.
+
+Please note, neither database connection nor schema setup is the
+responsibility of the application object. All these components can
+easily be substituted for others you may craft, and perhaps should be.
 
 
 #### Step 6: run the application
@@ -549,27 +574,6 @@ with ExampleApplication(stored_event_repository=stored_event_repository) as app:
 
 Congratulations! You have created yourself an event sourced application.
 
-If you want to model other domain events, then simply declare them on
-the entity class like the events above, and implement methods on the
-entity which instantiate those domain events, apply them to the entity,
-publish to subscribers. Add mutator functions to apply the domain
-events to the entity objects, for example by directly changing the
-internal state of the entity. See the beat_heart() method on the
-extended example application included in this distribution.
-
-The example above uses an SQLite in memory relational database, but you
-could change 'uri' to another connection string. Here are some example
-connection strings - for an SQLite file, for a PostgreSQL database, and
-for a MySQL database. See SQLAlchemy's create_engine() documentation for details.
-
-```
-sqlite:////tmp/mydatabase
-
-postgresql://scott:tiger@localhost:5432/mydatabase
-
-mysql://scott:tiger@hostname/dbname
-```
-
 
 ##### Step 7 (optional): enable application-level encryption
 
@@ -592,7 +596,7 @@ with construct_application() as app:
     example1 = register_new_example(a='secret data', b='more secrets')
 ```
 
-Todo: Develop above to be a tutorial.
+Todo: Step 8 (optional): enable optimistic concurrency control
 
 
 ## Background
