@@ -573,7 +573,7 @@ Congratulations! You have created yourself an event sourced application.
 
 Take care in locating calls to open and close your application. Normally,
 you only want one instance of the application running in any
-given process. Otherwise, duplicate persistence subscribers will attempt
+given process otherwise duplicate persistence subscribers will attempt
 to store duplicate events, resulting in sad faces :(.
 
 
