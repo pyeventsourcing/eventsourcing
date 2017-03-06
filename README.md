@@ -2,7 +2,7 @@
 
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png?branch=develop)]
 (https://travis-ci.org/johnbywater/eventsourcing)
-[![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=develop)]
+[![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=develop#123)]
 (https://coveralls.io/github/johnbywater/eventsourcing?branch=develop)
 [![Gitter chat](https://badges.gitter.im/gitterHQ/services.png)]
 (https://gitter.im/eventsourcing-in-python/eventsourcing)
