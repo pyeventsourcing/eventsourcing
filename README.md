@@ -32,8 +32,8 @@ With the major features complete, the current focus of development
 work is towards: refactoring the code for greater clarity and greater
 flexibility; a test suite with 100% line coverage; a much better
 distinction between time-sequenced and integer-sequenced event streams;
-support for storing events in a broader range database management
-systems and services, and something called "boxes" (applications for bounded
+support for storing events in a broader range of database management
+systems and services; and something called "boxes" (applications for bounded
 contexts).
 
 ## Features
@@ -323,7 +323,8 @@ It can function entirely as a standalone class, for example
 its attribute values can be changed. If it had methods, you
 could call them.
 
-The attribute values can be changed by assigning values. Unfortunately, since there isn't a database, the attribute
+The attribute values can be changed by assigning values. Unfortunately,
+since there isn't a database, the attribute
 values will not somehow persist once the instance has gone out of scope.
 
 Because it is an entity, it does need an ID. The entity ID is not
@@ -363,13 +364,13 @@ Todo: Include the beat_heart() method in this section.
 #### Step 2: define an entity factory method
 
 Next, define a factory method that can be used to create new entities. Rather
-than directly constructing the entity object instance and "saving" it, the
-factory method firstly creates a unique entity ID, it instantiates a 'Created'
+than directly constructing and "saving" the entity object, the
+factory method firstly creates a unique entity ID, instantiates a 'Created'
 domain event with the initial entity attribute values, and then calls the entity
-class mutator to obtain an entity object. The factory method then publishes the
+class mutator to obtain an entity object. The factory method publishes the
 domain event so that, for example, it might be saved into an event store by a
 persistence subscriber (see below). The factory method finishes by returning
-the new entity it has created to its caller.
+the new entity object to its caller.
 
 ```python
 from eventsourcing.domain.model.events import publish
