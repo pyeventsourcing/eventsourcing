@@ -28,14 +28,14 @@ class StoredEventTranscoder(six.with_metaclass(ABCMeta)):
     def deserialize(self, stored_event):
         """Returns a domain event, for the given stored event."""
 
-
+# Todo: Reimplement the object encoding and decoding, this time under test.
 class ObjectJSONEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime.datetime):
             return {'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z')}
         elif isinstance(obj, datetime.date):
             return {'ISO8601_date': obj.isoformat()}
-        # Let the base class default method raise the TypeError
+        # Let the base class default method raise the TypeError.
         return JSONEncoder.default(self, obj)
 
 
