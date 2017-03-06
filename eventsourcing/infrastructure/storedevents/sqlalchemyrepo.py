@@ -6,7 +6,7 @@ from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 
-from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
+from eventsourcing.exceptions import ConcurrencyError
 from eventsourcing.infrastructure.datastore.sqlalchemyorm import Base, SQLAlchemyDatastore
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.transcoding import EntityVersion
@@ -108,7 +108,7 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
         sql_entity_version = self.db_session.query(SqlEntityVersion).filter_by(
             entity_version_id=entity_version_id).first()
         if sql_entity_version is None:
-            raise EntityVersionDoesNotExist()
+            self.raise_entity_version_not_found(stored_entity_id, version_number)
         assert isinstance(sql_entity_version, SqlEntityVersion)
         return EntityVersion(
             entity_version_id=entity_version_id,

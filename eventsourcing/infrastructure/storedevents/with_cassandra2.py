@@ -11,7 +11,7 @@
 # from cassandra.cqlengine.models import Model, columns
 # from cassandra.cqlengine.query import LWTException
 #
-# from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
+# from eventsourcing.exceptions import ConcurrencyError, EntityVersionNotFound
 # from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 # from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
 #
@@ -176,7 +176,7 @@
 #         try:
 #             CqlStoredEvent.get(n=stored_entity_id, v=version_number)
 #         except CqlEntityVersion.DoesNotExist:
-#             raise EntityVersionDoesNotExist()
+#             raise EntityVersionNotFound()
 #
 #     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
 #                           results_ascending=True):

@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
+from eventsourcing.exceptions import EntityVersionNotFound
 from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder, StoredEvent, StoredEventTranscoder
 
 
@@ -134,14 +134,10 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         expected_version_number = self.decide_expected_version_number(new_version_number)
         if expected_version_number is not None:
             assert isinstance(expected_version_number, six.integer_types)
-            try:
-                self.get_entity_version(
-                    stored_entity_id=stored_entity_id,
-                    version_number=expected_version_number
-                )
-            except EntityVersionDoesNotExist:
-                raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
-                                       "".format(expected_version_number, stored_entity_id))
+            self.get_entity_version(
+                stored_entity_id=stored_entity_id,
+                version_number=expected_version_number
+            )
                 # else:
                 #     if not time_from_uuid(new_stored_event.event_id) > time_from_uuid(entity_version.event_id):
                 #         raise ConcurrencyError("New event ID '{}' occurs before last version event ID '{}' for
@@ -243,6 +239,12 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
         """
         return u"{}::version::{}".format(stored_entity_id, version)
+
+    def raise_entity_version_not_found(self, stored_entity_id, version_number):
+        raise EntityVersionNotFound(
+            "Entity version '{}' for of stored entity '{}' not found."
+            "".format(version_number, stored_entity_id)
+        )
 
 
 class StoredEventIterator(six.with_metaclass(ABCMeta)):

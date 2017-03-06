@@ -6,7 +6,7 @@ class TopicResolutionError(EventSourcingError):
     """Raised when unable to resolve a topic to a Python class."""
 
 
-class EntityVersionDoesNotExist(EventSourcingError):
+class EntityVersionNotFound(EventSourcingError):
     """Raise when accessing an entity version that does not exist."""
 
 

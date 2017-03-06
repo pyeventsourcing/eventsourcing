@@ -2,7 +2,7 @@ import six
 
 from eventsourcing.domain.model.events import publish
 from eventsourcing.domain.model.sequence import Sequence
-from eventsourcing.exceptions import EntityVersionDoesNotExist, SequenceFullError
+from eventsourcing.exceptions import EntityVersionNotFound, SequenceFullError
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.transcoding import EntityVersion
 
@@ -42,7 +42,7 @@ class SequenceReader(object):
                 index = item
             try:
                 entity_version = self.event_player.event_store.get_entity_version(stored_entity_id, index)
-            except EntityVersionDoesNotExist:
+            except EntityVersionNotFound:
                 raise IndexError(
                     "Entity version not found for index {} in sequence '{}'".format(item, self.sequence.name))
             assert isinstance(entity_version, EntityVersion)
@@ -81,7 +81,7 @@ class SequenceReader(object):
                 else:
                     version = 0
                 start_version = self.event_player.event_store.get_entity_version(stored_entity_id, version)
-            except EntityVersionDoesNotExist:
+            except EntityVersionNotFound:
                 return []
             else:
 
