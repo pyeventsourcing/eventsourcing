@@ -1,6 +1,7 @@
 import datetime
 from unittest.case import TestCase
 
+from decimal import Decimal
 from six import with_metaclass
 
 from eventsourcing.domain.model.events import DomainEvent, QualnameABCMeta, topic_from_domain_class
@@ -39,6 +40,28 @@ class TestStoredEvent(TestCase):
                          '"2015-09-08T16:20:50.577429+0000"},"e":{"ISO8601_date":"2015-09-08"},"entity_id":"entity1",'
                          '"entity_version":0}',
                          stored_event.event_attrs)
+
+    def test_errors(self):
+        # Decimals aren't supported by the default transcoder (atm)...
+        event1 = DomainEvent(
+            a=Decimal('1.1'),
+            entity_version=0,
+            entity_id='entity1',
+            domain_event_id=3,
+        )
+        # ...so a TypeError should be raised.
+        with self.assertRaises(TypeError):
+            JSONStoredEventTranscoder().serialize(event1)
+
+        # Expect a ValueError if topic doesn't resolve to an object class.
+        stored_event = StoredEvent(
+            event_id='1',
+            stored_entity_id='entity1',
+            event_topic='eventsourcing.tests.core_tests.test_stored_events#BrokenDomainEvent',
+            event_attrs=('{"a":1,"entity_id":"entity1"}'))
+        # with self.assertRaises(ValueError):
+        domain_event = JSONStoredEventTranscoder().deserialize(stored_event)
+
 
     # Todo: Move this to the quantdsl package.
     # def test_serialize_domain_event_with_numpy_array(self):
@@ -95,6 +118,12 @@ class TestStoredEvent(TestCase):
         self.assertRaises(TopicResolutionError, resolve_domain_topic, example_topic)
         example_topic = 'eventsourcing.example.domain_model#Xxxxxxxx.Xxxxxxxx'
         self.assertRaises(TopicResolutionError, resolve_domain_topic, example_topic)
+
+
+class BrokenDomainEvent(DomainEvent):
+
+    __slots__ = ('x',)
+
 
 
 class NotADomainEvent(with_metaclass(QualnameABCMeta)):

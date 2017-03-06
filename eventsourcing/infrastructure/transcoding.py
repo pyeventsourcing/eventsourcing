@@ -138,13 +138,8 @@ class JSONStoredEventTranscoder(StoredEventTranscoder):
         event_attrs['domain_event_id'] = stored_event.event_id
 
         # Reinstantiate and return the domain event object.
-        try:
-            domain_event = object.__new__(event_class)
-            domain_event.__dict__.update(event_attrs)
-        except TypeError:
-            raise ValueError("Unable to instantiate class '{}' with data '{}'"
-                             "".format(stored_event.event_topic, event_attrs))
-
+        domain_event = object.__new__(event_class)
+        domain_event.__dict__.update(event_attrs)
         return domain_event
 
 
