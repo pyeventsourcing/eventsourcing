@@ -61,6 +61,9 @@ class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True, include_after_when_ascending=False,
                           include_until_when_descending=False):
+
+        assert limit is None or limit >= 1, limit
+
         if stored_entity_id not in self._by_stored_entity_id:
             return []
         else:

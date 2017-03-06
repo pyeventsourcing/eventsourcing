@@ -1,9 +1,7 @@
 from time import sleep
 
 import six
-from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
@@ -13,16 +11,6 @@ from eventsourcing.infrastructure.datastore.sqlalchemyorm import Base, SQLAlchem
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.transcoding import EntityVersion
 from eventsourcing.utils.time import timestamp_long_from_uuid
-
-
-def get_scoped_session_facade(uri):
-    if uri is None:
-        raise ValueError
-    engine = create_engine(uri, strategy='threadlocal')
-    Base.metadata.create_all(engine)
-    session_factory = sessionmaker(bind=engine)
-    scoped_session_facade = scoped_session(session_factory)
-    return scoped_session_facade
 
 
 class SqlEntityVersion(Base):
@@ -131,9 +119,7 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
                           results_ascending=True, include_after_when_ascending=False,
                           include_until_when_descending=False):
 
-        # Todo: Extend unit test to make sure limit is effective when less than 1.
-        if limit is not None and limit < 1:
-            return []
+        assert limit is None or limit >= 1, limit
 
         try:
             query = self.db_session.query(self.stored_event_table)

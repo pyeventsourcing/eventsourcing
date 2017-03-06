@@ -172,10 +172,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
                           results_ascending=True, include_after_when_ascending=False,
                           include_until_when_descending=False):
 
-        # Todo: Extend unit test to make sure limit is effective when less than 1.
         assert limit is None or limit >= 1, limit
-        # if limit is not None and limit < 1:
-        #     return []
 
         query = self.stored_event_table.objects.filter(n=stored_entity_id)
 
