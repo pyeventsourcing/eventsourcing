@@ -171,7 +171,7 @@ def deserialise_archived_log(archived_log_json):
     try:
         return ArchivedLog(**json.loads(archived_log_json))
     except ValueError as e:
-        raise Exception("Couldn't deserialise archived log: {}: {}".format(e, archived_log_json))
+        raise ValueError("Couldn't deserialise archived log: {}: {}".format(e, archived_log_json))
 
 
 def serialize_archived_log(archived_log):

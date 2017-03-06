@@ -1,11 +1,12 @@
 from threading import Thread
+from unittest.case import TestCase
 
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.event_sourced_repos.notificationlog_repo import NotificationLogRepo
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.infrastructure.notification_log import append_item_to_notification_log
 from eventsourcing.interface.archived_logs import ArchivedLogReader, ArchivedLogRepo, RemoteArchivedLogRepo, \
-    serialize_archived_log
+    serialize_archived_log, deserialise_archived_log
 from eventsourcing.tests.stored_event_repository_tests.test_cassandra_stored_event_repository import \
     CassandraRepoTestCase
 from eventsourcing.tests.stored_event_repository_tests.test_sqlalchemy_stored_event_repository import \
@@ -244,3 +245,9 @@ class TestArchivedLogWithCassandra(CassandraRepoTestCase, ArchivedLogTestCase):
 class TestArchivedLogWithSQLAlchemy(SQLAlchemyRepoTestCase, ArchivedLogTestCase):
     use_named_temporary_file = True
     # pass
+
+
+class TestErrors(TestCase):
+    def test_errors(self):
+        with self.assertRaises(ValueError):
+            deserialise_archived_log('invalid json')
