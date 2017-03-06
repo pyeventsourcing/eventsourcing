@@ -206,14 +206,10 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
         """
         events = self.get_most_recent_events(stored_entity_id, until=until, limit=1, include_until=include_until)
-        events = list(events)
-        if len(events) == 1:
+        try:
             return events[0]
-        elif len(events) == 0:
+        except IndexError:
             return None
-        else:
-            raise Exception("Shouldn't have more than one event object: {}"
-                            "".format(events))
 
     def get_most_recent_events(self, stored_entity_id, until=None, limit=None, include_until=False):
         """
