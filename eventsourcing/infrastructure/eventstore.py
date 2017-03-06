@@ -16,9 +16,9 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
+    def get_domain_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
                           page_size=None):
-        """Returns events for given stored entity ID."""
+        """Returns domain events for given stored entity ID."""
 
     @abstractmethod
     def get_entity_version(self, stored_entity_id, version):
@@ -50,11 +50,11 @@ class EventStore(AbstractEventStore):
             new_version_number=domain_event.entity_version,
         )
 
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
+    def get_domain_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
                           page_size=None):
         # Get the events that have been stored for the entity.
         if page_size:
-            stored_events = self.stored_event_repo.iterate_entity_events(
+            stored_events = self.stored_event_repo.iterate_stored_events(
                 stored_entity_id=stored_entity_id,
                 after=after,
                 until=until,
@@ -63,7 +63,7 @@ class EventStore(AbstractEventStore):
                 page_size=page_size
             )
         else:
-            stored_events = self.stored_event_repo.get_entity_events(
+            stored_events = self.stored_event_repo.get_stored_events(
                 stored_entity_id=stored_entity_id,
                 after=after,
                 until=until,
@@ -165,20 +165,20 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
+    def get_stored_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True, include_after_when_ascending=False,
                           include_until_when_descending=False):
         """
-        Returns all events for given entity ID in chronological order. Limit is max 10000.
+        Returns all stored events for given entity ID in chronological order. Limit is max 10000.
 
         :rtype: list
 
         """
 
-    def iterate_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
+    def iterate_stored_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
                               page_size=None):
         """
-        Returns all events for given entity ID by paging through the stored events.
+        Returns all stored events for given entity ID by paging through the stored events.
 
         :rtype: list
 
@@ -199,7 +199,7 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
     def get_most_recent_event(self, stored_entity_id, until=None, include_until=False):
         """
-        Returns last event for given entity ID.
+        Returns the most recent stored event for given entity ID.
 
         :rtype: DomainEvent, NoneType
 
@@ -212,12 +212,12 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
     def get_most_recent_events(self, stored_entity_id, until=None, limit=None, include_until=False):
         """
-        Returns a stored event from a domain event.
+        Returns an optionally limited number of the most recent stored events for a given entity ID.
 
         :rtype: list
 
         """
-        return self.get_entity_events(
+        return self.get_stored_events(
             stored_entity_id=stored_entity_id,
             until=until,
             limit=limit,
@@ -225,10 +225,6 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
             results_ascending=False,
             include_until_when_descending=include_until,
         )
-
-    @staticmethod
-    def map(func, iterable):
-        return six.moves.map(func, iterable)
 
     @staticmethod
     def make_entity_version_id(stored_entity_id, version):
@@ -239,6 +235,10 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
         """
         return u"{}::version::{}".format(stored_entity_id, version)
+
+    @staticmethod
+    def map(func, iterable):
+        return six.moves.map(func, iterable)
 
     def raise_entity_version_not_found(self, stored_entity_id, version_number):
         raise EntityVersionNotFound(
@@ -322,7 +322,7 @@ class SimpleStoredEventIterator(StoredEventIterator):
                 raise StopIteration
 
             # Get the events.
-            stored_events = self.repo.get_entity_events(
+            stored_events = self.repo.get_stored_events(
                 stored_entity_id=self.stored_entity_id,
                 after=self.after,
                 until=self.until,

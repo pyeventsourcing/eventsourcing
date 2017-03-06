@@ -62,7 +62,7 @@ class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):
         if self.always_write_entity_version:
             del (self._entity_versions[stored_entity_id])
 
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
+    def get_stored_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True, include_after_when_ascending=False,
                           include_until_when_descending=False):
 

@@ -8,7 +8,8 @@ from eventsourcing.infrastructure.transcoding import make_stored_entity_id
 
 
 class EventPlayer(object):
-    """Reconstitutes domain entities from domain events
+    """
+    Reconstitutes domain entities from domain events
     retrieved from the event store, optionally with snapshots.
     """
 
@@ -23,25 +24,57 @@ class EventPlayer(object):
         self.is_short = is_short
         self.snapshot_strategy = snapshot_strategy
 
-    def replay_events(self, entity_id, after=None, until=None, limit=None, initial_state=None, query_descending=False):
-        """Reconstitutes a domain entity from stored events.
+    def replay_entity(self, entity_id, after=None, until=None, limit=None, initial_state=None, query_descending=False):
         """
-
-        # Make the stored entity ID.
-        stored_entity_id = self.make_stored_entity_id(entity_id)
-
+        Reconstitutes requested domain entity from domain events found in event store.
+        """
+        # Decide if query is in ascending order.
+        #  - A "speed up" for when events are stored in descending order (e.g.
+        #  in Cassandra) and it is faster to get them in that order.
+        #  - This isn't useful when 'until' or 'after' or 'limit' are set,
+        #    because the inclusiveness or exclusiveness of until and after
+        #    and the end of the stream that is truncated by limit both depend on
+        #    the direction of the query. Also paging backwards isn't useful, because
+        #    all the events are needed eventually, so it would probably slow things
+        #    down. Paging is intended to support replaying longer event streams, and
+        #    only makes sense to work in ascending order.
         if self.is_short and after is None and until is None and self.page_size is None:
-            # Speed up for events are stored in descending order (e.g. in Cassandra).
-            # - the inclusiveness or exclusiveness of until and after,
-            #   and the end of the stream that is limited depends on
-            #   query_ascending, so we can't use this method with them
-            # - also if there's a page size, it probably isn't short
-            is_ascending=False
+            is_ascending = False
         else:
             is_ascending = not query_descending
 
+        # Get the domain events that are to be replayed.
+        domain_events = self.get_domain_events(entity_id, after, until, limit, is_ascending)
+
+        # Reverse the events if not already in ascending order.
+        if not is_ascending:
+            domain_events = reversed(list(domain_events))
+
+        # Clone the initial state, to avoid side effects for the caller.
+        if initial_state is None:
+            initial_state_copy = None
+        else:
+            initial_state_copy = object.__new__(type(initial_state))
+            initial_state_copy.__dict__.update(initial_state.__dict__)
+
+        # Replay the domain events, starting with the initial state.
+        return self.replay_events(initial_state_copy, domain_events)
+
+    def replay_events(self, initial_state, domain_events):
+        """
+        Mutates initial state using the sequence of domain events.
+        """
+        return reduce(self.mutate_func, domain_events, initial_state)
+
+    def get_domain_events(self, entity_id, after=None, until=None, limit=None, is_ascending=True):
+        """
+        Returns domain events for given entity ID.
+        """
+        # Make the stored entity ID.
+        stored_entity_id = self.make_stored_entity_id(entity_id)
+
         # Get entity's domain events from the event store.
-        domain_events = self.event_store.get_entity_events(
+        domain_events = self.event_store.get_domain_events(
             stored_entity_id=stored_entity_id,
             after=after,
             until=until,
@@ -49,24 +82,11 @@ class EventPlayer(object):
             page_size=self.page_size,
             is_ascending=is_ascending,
         )
-
-        if not is_ascending:
-            domain_events = reversed(list(domain_events))
-
-        # Copy initial state, to preserve state of given object.
-        if initial_state is not None:
-            initial_state_copy = object.__new__(type(initial_state))
-            initial_state_copy.__dict__.update(initial_state.__dict__)
-            initial_state = initial_state_copy
-
-        # Mutate initial state using the sequence of domain events.
-        domain_entity = reduce(self.mutate_func, domain_events, initial_state)
-
-        # Return the resulting domain entity.
-        return domain_entity
+        return domain_events
 
     def take_snapshot(self, entity_id, until=None):
-        """Takes a snapshot of the entity as it existed after
+        """
+        Takes a snapshot of the entity as it existed after
         the most recent event, optionally until a given time.
         """
         assert isinstance(self.snapshot_strategy, AbstractSnapshotStrategy)
@@ -104,7 +124,7 @@ class EventPlayer(object):
             initial_state = None
 
         # Get entity in the state after this event was applied.
-        entity = self.replay_events(entity_id, after=after_event_id, until=last_event_id, initial_state=initial_state)
+        entity = self.replay_entity(entity_id, after=after_event_id, until=last_event_id, initial_state=initial_state)
 
         # Take a snapshot of the entity.
         return self.snapshot_strategy.take_snapshot(entity, at_event_id=last_event_id)
@@ -147,7 +167,7 @@ class EventPlayer(object):
         last_applied_event_id = last_applied_entity_version.event_id
 
         # Replay the events since the entity version.
-        fresh_entity = self.replay_events(
+        fresh_entity = self.replay_entity(
             entity_id=stale_entity.id,
             after=last_applied_event_id,
             until=until,

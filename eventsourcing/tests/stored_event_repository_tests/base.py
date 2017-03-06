@@ -84,7 +84,7 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.stored_event_repo.append(stored_event2, new_version_number=1)
 
         # Get all events for 'entity1'.
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id)
+        retrieved_events = self.stored_event_repo.get_stored_events(stored_entity_id)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
 
         num_fixture_events = 2
@@ -100,39 +100,39 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.assertEqual(stored_event2.event_attrs, retrieved_events[1].event_attrs)
 
         # Get with different combinations of query and result ascending or descending.
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=True,
+        retrieved_events = self.stored_event_repo.get_stored_events(stored_entity_id, query_ascending=True,
                                                                     results_ascending=True)
         retrieved_events = list(retrieved_events)
         self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
         self.assertEqual(stored_event2.event_attrs, retrieved_events[1].event_attrs)
 
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=True,
+        retrieved_events = self.stored_event_repo.get_stored_events(stored_entity_id, query_ascending=True,
                                                                     results_ascending=False)
         retrieved_events = list(retrieved_events)
         self.assertEqual(stored_event1.event_attrs, retrieved_events[1].event_attrs)
         self.assertEqual(stored_event2.event_attrs, retrieved_events[0].event_attrs)
 
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=False,
+        retrieved_events = self.stored_event_repo.get_stored_events(stored_entity_id, query_ascending=False,
                                                                     results_ascending=True)
         retrieved_events = list(retrieved_events)
         self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
         self.assertEqual(stored_event2.event_attrs, retrieved_events[1].event_attrs)
 
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, query_ascending=False,
+        retrieved_events = self.stored_event_repo.get_stored_events(stored_entity_id, query_ascending=False,
                                                                     results_ascending=False)
         retrieved_events = list(retrieved_events)
         self.assertEqual(stored_event1.event_attrs, retrieved_events[1].event_attrs)
         self.assertEqual(stored_event2.event_topic, retrieved_events[0].event_topic)
 
         # Get with limit (depends on query order).
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=True)
+        retrieved_events = self.stored_event_repo.get_stored_events(stored_entity_id, limit=1, query_ascending=True)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
         # - check the first retrieved event is the first event that was stored
         self.assertIsInstance(retrieved_events[0], StoredEvent)
         self.assertEqual(stored_event1.event_topic, retrieved_events[0].event_topic)
         self.assertEqual(stored_event1.event_attrs, retrieved_events[0].event_attrs)
 
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=False)
+        retrieved_events = self.stored_event_repo.get_stored_events(stored_entity_id, limit=1, query_ascending=False)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
         # - check the first retrieved event is the last event that was stored
         self.assertIsInstance(retrieved_events[0], StoredEvent)
@@ -145,7 +145,7 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.assertEqual(most_recent_event.event_id, stored_event2.event_id)
 
         # Get all events for 'entity1' since the first event's timestamp.
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, after=stored_event1.event_id)
+        retrieved_events = self.stored_event_repo.get_stored_events(stored_entity_id, after=stored_event1.event_id)
         retrieved_events = list(retrieved_events)  # Make sequence from the iterator.
         self.assertEqual(1, len(list(retrieved_events)))
         # - check the last event is first
@@ -169,7 +169,7 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         last_snapshot_event = stored_events[-20]
 
         # start_time = datetime.datetime.now()
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id,
+        retrieved_events = self.stored_event_repo.get_stored_events(stored_entity_id,
                                                                     after=last_snapshot_event.event_id)
         retrieved_events = list(retrieved_events)
         # page_duration = (datetime.datetime.now() - start_time).total_seconds()
@@ -185,7 +185,7 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
 
         # Check the first events can be retrieved easily.
         start_time = datetime.datetime.now()
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id, limit=20, query_ascending=True)
+        retrieved_events = self.stored_event_repo.get_stored_events(stored_entity_id, limit=20, query_ascending=True)
         retrieved_events = list(retrieved_events)
         page_duration = (datetime.datetime.now() - start_time).total_seconds()
         # print("Duration: {}".format(page_duration))
@@ -197,7 +197,7 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
 
         # Check the next page of events can be retrieved easily.
         start_time = datetime.datetime.now()
-        retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id,
+        retrieved_events = self.stored_event_repo.get_stored_events(stored_entity_id,
                                                                     after=retrieved_events[-1].event_id,
                                                                     limit=20, query_ascending=True)
         retrieved_events = list(retrieved_events)
@@ -291,7 +291,7 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
         self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
 
         # Check the repo actually has a contiguous version sequence.
-        events = self.stored_event_repo.get_entity_events(stored_entity_id)
+        events = self.stored_event_repo.get_stored_events(stored_entity_id)
         self.assertEqual(len(events), number_of_events)
         version_counter = 0
         for event in events:
@@ -468,7 +468,7 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
         self.setup_stored_events()
 
         assert isinstance(self.stored_event_repo, AbstractStoredEventRepository)
-        stored_events = self.stored_event_repo.get_entity_events(stored_entity_id=self.stored_entity_id)
+        stored_events = self.stored_event_repo.get_stored_events(stored_entity_id=self.stored_entity_id)
         stored_events = list(stored_events)
         self.assertEqual(len(stored_events), self.num_events)
 

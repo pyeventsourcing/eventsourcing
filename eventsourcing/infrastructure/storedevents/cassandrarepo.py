@@ -174,7 +174,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
                 event_id=cql_entity_version.v,
             )
 
-    def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
+    def get_stored_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True, include_after_when_ascending=False,
                           include_until_when_descending=False):
 
