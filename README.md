@@ -14,7 +14,7 @@ A library for event sourcing in Python.
 The aim of this library is to make it easier to write event sourced applications
 in Python. One definition of event sourcing suggests the state of an event sourced
 application is determined by a sequence of events. Another suggests event sourcing
-is a persitence mechanism for domain driven design.
+is a persistence mechanism for domain driven design.
 
 In any case, it is common for a software application to be implemented using domain
 entities, with the application state distributed across the entities. Therefore, this library
@@ -33,8 +33,7 @@ work is towards: refactoring the code for greater clarity and greater
 flexibility; a test suite with 100% line coverage; a much better
 distinction between time-sequenced and integer-sequenced event streams;
 support for storing events in a broader range database management
-systems and services, and something called "boxes" (applications for bounded
-contexts).
+systems and services.
 
 ## Features
 
