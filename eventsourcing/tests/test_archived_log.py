@@ -103,6 +103,10 @@ class ArchivedLogTestCase(PersistenceSubscribingTestCase):
         with self.assertRaises(ValueError):
             _ = repo['2,6']
 
+        # Check an archived log ID that can't be split by ',' results in a ValueError.
+        with self.assertRaises(ValueError):
+            _ = repo['invalid']
+
     def test_archived_log_reader(self):
         # Build a notification log (fixture).
         notification_log = self.app.get_or_create_notification_log('log1', sequence_size=10)
