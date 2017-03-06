@@ -1,5 +1,4 @@
-from eventsourcing.infrastructure.storedevents.cassandrarepo import CassandraStoredEventRepository, \
-    CqlStoredEvent
+from eventsourcing.infrastructure.storedevents.cassandrarepo import CassandraStoredEventRepository, CqlStoredEvent
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
 from eventsourcing.tests.stored_event_repository_tests.base import AbstractStoredEventRepositoryTestCase, \
