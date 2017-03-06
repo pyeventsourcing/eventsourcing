@@ -13,15 +13,15 @@ A library for event sourcing in Python.
 
 The aim of this library is to make it easier to write event sourced applications
 in Python. One definition of event sourcing suggests the state of an event sourced
-application is determined by a sequence of events. It is common for an application
-to be implemented using domain entities, with the application state distributed across
-the entities.
+application is determined by a sequence of events. Another suggests event sourcing
+is a persitence mechanism for domain driven design.
 
-Therefore, this library provides mechanisms useful in such an application: a style
-for coding entity behaviours that mutate the state of the entity by instantiating
-and applying and then publishing domain events of different kinds; and a way for
-those events to be stored and replayed to obtain the state of an entity in the
-application on demand.
+In any case, it is common for a software application to be implemented using domain
+entities, with the application state distributed across the entities. Therefore, this library
+provides mechanisms useful in such an application: a style for coding entity behaviours
+that mutate the state of the entity by instantiating and applying and then publishing
+domain events of different kinds; and a way for those events to be stored and replayed
+to obtain on demand the state of an entity in the application.
 
 This document highlights the main features of the library,
 provides instructions for installing the package, describes the
@@ -37,6 +37,8 @@ systems and services, and something called "boxes" (applications for bounded
 contexts).
 
 ## Features
+
+**CORE**
 
 **Event Store** — Appends and retrieves domain events. The event store uses
 a stored event repository to append and retrieve stored events. The event store uses a
@@ -88,14 +90,16 @@ application. It is also possible to serialize calls to the methods of an entity,
 that is currently out of the scope of this package - if you wish to do that, perhaps
 something like [Zookeeper](https://zookeeper.apache.org/) might help.
 
-**Worked Examples** — A simple worked example application (see below), with example
-entity class, example event sourced repository, and example factory method.
-
 **Abstract Base Classes** — For application objects, event soured domain entities,
 domain entity repositories, domain events, transcoding strategies, snapshotting strategies,
 stored event repositories, notification log views and readers, test cases, etc. These
 classes are at least suggestive of how to structure an event sourced application, and
 can be used directly to extend this library for your own purposes.
+
+**Worked Examples** — A simple worked example application (see below), with example
+entity class, example event sourced repository, and example factory method.
+
+**EXTENSIONS**
 
 **Collections** — Event sourced collections, for modelling different
 kinds of multiplicity.
@@ -117,6 +121,8 @@ that selects a part of a sequence using Python's list slice syntax.
 Support is included in the library for presenting notification logs
 as RESTful HTTP services with an HTTP client reading the logs, in the
 dynamic manner described by Vaughn Vernon in his book *Implementing Domain Driven Design*.
+
+**Suffix Trees** - This was just for fun.
 
 
 ## Install
@@ -520,7 +526,7 @@ postgresql://scott:tiger@localhost:5432/mydatabase
 mysql://scott:tiger@hostname/dbname
 ```
 
-Similarly to the support for storing events in SQLAlchemy, there
+Similar to the support for storing events in SQLAlchemy, there
 are object classes in the library for Cassandra. Support for other
 databases is forthcoming.
 
@@ -535,14 +541,15 @@ As shown below, an event sourced application object can be used as a
 context manager, which closes the application at the end of the block,
 closing the persistence subscriber and unsubscribing its event handlers.
 
-With an instance of the example application, call the factory method
-register_new_entity() to register a new entity.
+With an instance of the example application, call again the factory method
+register_new_entity() to register a new entity. This time, the application's
+persistence subscriber will store the 'Created' event published by the factory.
 
-You can update an attribute of the entity by assigning a new value. This
-time, the application's persistence subscriber will store the attribute
-changed event. You can now use the entity ID to retrieve the registered
-entity from the repository. You will see the new attribute value persists
-across instantiations of the entity.
+You can update an attribute of the entity by assigning a new value. The
+persistence subscriber will store the attribute changed event published by the
+@attribute decorator. You can now use the ID of the entity returned by the factory
+method to retrieve the registered entity from the repository. The
+attribute values are now persistent.
 
 Finally, discard the entity. Observe that the repository's dictionary like
 interface raises a Python key error whenever an attempt is made to get an entity
