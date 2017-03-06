@@ -11,7 +11,7 @@ from uuid import uuid1, uuid4
 import six
 
 from eventsourcing.application.policies import PersistenceSubscriber
-from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError
 from eventsourcing.infrastructure.datastore.cassandraengine import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.datastore.sqlalchemyorm import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, EventStore, \
@@ -74,14 +74,14 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
                                     stored_entity_id=stored_entity_id,
                                     event_topic='eventsourcing.example.domain_model#Example.Created',
                                     event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":3}')
-        self.stored_event_repo.append(stored_event1, 0)
+        self.stored_event_repo.append(stored_event1, new_version_number=0)
 
         # Store another event for 'entity1'.
         stored_event2 = StoredEvent(event_id=uuid.uuid1().hex,
                                     stored_entity_id=stored_entity_id,
                                     event_topic='eventsourcing.example.domain_model#Example.Created',
                                     event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":4}')
-        self.stored_event_repo.append(stored_event2, 1)
+        self.stored_event_repo.append(stored_event2, new_version_number=1)
 
         # Get all events for 'entity1'.
         retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id)
@@ -209,6 +209,20 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.assertIsInstance(retrieved_events[0], StoredEvent)
         self.assertEqual(stored_events[18].event_topic, retrieved_events[0].event_topic)
         self.assertEqual(stored_events[18].event_attrs, retrieved_events[0].event_attrs)
+
+        # Check exception is raised when new version number already exists.
+        stored_event3 = StoredEvent(event_id=uuid.uuid1().hex,
+                                    stored_entity_id=stored_entity_id,
+                                    event_topic='eventsourcing.example.domain_model#Example.Created',
+                                    event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":5}')
+
+        with self.assertRaises(ConcurrencyError):
+            self.stored_event_repo.append(stored_event3, new_version_number=0)
+
+        # Check the 'artificial_failure_rate' argument is effective.
+        with self.assertRaises(DatasourceOperationError):
+            self.stored_event_repo.append(stored_event3, new_version_number=2, artificial_failure_rate=1)
+        self.stored_event_repo.append(stored_event3, new_version_number=2, artificial_failure_rate=0)
 
 
 class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase):

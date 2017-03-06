@@ -1,12 +1,13 @@
+from random import random
 from time import sleep
 
 import six
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, DBAPIError
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 
-from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError
 from eventsourcing.infrastructure.datastore.sqlalchemyorm import Base, SQLAlchemyDatastore
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.transcoding import EntityVersion
@@ -57,6 +58,7 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
         Writes new entity version and stored event into the database in a single transaction.
         """
         stored_entity_id = new_stored_event.stored_entity_id
+        new_entity_version = None
         try:
             # Write entity version into the transaction.
             if self.always_write_entity_version and new_version_number is not None:
@@ -71,18 +73,19 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
 
                 if artificial_failure_rate:
 
-                    # Todo: Add some retries and raise some artificial exceptions?
-                    # if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
-                    #     raise Exception("Artificial failure")
-
                     # Commit the version number now to generate some contention.
                     #  - used to generate contention in tests
                     self.db_session.commit()
                     self.db_session.close()
 
                     # Increased latency here causes increased contention.
-                    #  - used to generate contention in tests
+                    #  - used to generate contention in concurrency control tests
                     sleep(artificial_failure_rate)
+
+                    # Optionally mimic an unreliable commit() operation.
+                    #  - used for testing retries
+                    if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
+                        raise DBAPIError("Artificial failure", (), '')
 
             # Write stored event into the transaction.
             self.db_session.add(self.to_sql(new_stored_event))
@@ -95,10 +98,15 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
             self.db_session.rollback()
             raise ConcurrencyError("Version {} of entity {} already exists: {}"
                                    "".format(new_version_number, stored_entity_id, e))
-        except:
-            # Rollback and reraise.
+        except DBAPIError as e:
+            # Rollback and raise.
             self.db_session.rollback()
-            raise
+            try:
+                if new_entity_version is not None:
+                    self.db_session.delete(new_entity_version)
+                    self.db_session.commit()
+            finally:
+                raise DatasourceOperationError(e)
         finally:
             # Begin new transaction.
             self.db_session.close()

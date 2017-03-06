@@ -37,3 +37,5 @@ class SequenceFullError(EventSourcingError):
 class DatasourceSettingsError(EventSourcingError):
     "Raised when an error is detected in settings for a datasource."
 
+class DatasourceOperationError(EventSourcingError):
+    "Raised when a database operation error is encountered."

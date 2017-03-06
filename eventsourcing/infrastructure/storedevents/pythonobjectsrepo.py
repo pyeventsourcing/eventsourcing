@@ -1,7 +1,7 @@
 import itertools
 from collections import defaultdict
 
-from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.transcoding import EntityVersion
 from eventsourcing.utils.time import timestamp_from_uuid
@@ -17,6 +17,10 @@ class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):
 
     def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3,
                                 artificial_failure_rate=0):
+
+        if artificial_failure_rate:
+            raise DatasourceOperationError('Artificial failure')
+
         # Put the event in the various dicts.
         stored_entity_id = new_stored_event.stored_entity_id
         if self.always_write_entity_version and new_version_number is not None:
