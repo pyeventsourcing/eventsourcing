@@ -11,7 +11,7 @@ from uuid import uuid1, uuid4
 import six
 
 from eventsourcing.application.policies import PersistenceSubscriber
-from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, EntityVersionNotFound
 from eventsourcing.infrastructure.datastore.cassandraengine import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.datastore.sqlalchemyorm import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, EventStore, \
@@ -74,14 +74,14 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
                                     stored_entity_id=stored_entity_id,
                                     event_topic='eventsourcing.example.domain_model#Example.Created',
                                     event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":3}')
-        self.stored_event_repo.append(stored_event1, 0)
+        self.stored_event_repo.append(stored_event1, new_version_number=0)
 
         # Store another event for 'entity1'.
         stored_event2 = StoredEvent(event_id=uuid.uuid1().hex,
                                     stored_entity_id=stored_entity_id,
                                     event_topic='eventsourcing.example.domain_model#Example.Created',
                                     event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":4}')
-        self.stored_event_repo.append(stored_event2, 1)
+        self.stored_event_repo.append(stored_event2, new_version_number=1)
 
         # Get all events for 'entity1'.
         retrieved_events = self.stored_event_repo.get_entity_events(stored_entity_id)
@@ -210,6 +210,26 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.assertEqual(stored_events[18].event_topic, retrieved_events[0].event_topic)
         self.assertEqual(stored_events[18].event_attrs, retrieved_events[0].event_attrs)
 
+        # Check errors.
+        stored_event3 = StoredEvent(event_id=uuid.uuid1().hex,
+                                    stored_entity_id=stored_entity_id,
+                                    event_topic='eventsourcing.example.domain_model#Example.Created',
+                                    event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":5}')
+
+        # Check the 'version not found error' is raised is the new version number is too hight.
+        with self.assertRaises(EntityVersionNotFound):
+            self.stored_event_repo.append(stored_event3, new_version_number=100)
+
+        # Check 'concurrency error' is raised when new version number already exists.
+        with self.assertRaises(ConcurrencyError):
+            self.stored_event_repo.append(stored_event3, new_version_number=0)
+
+        # Check the 'artificial_failure_rate' argument is effective.
+        with self.assertRaises(DatasourceOperationError):
+            self.stored_event_repo.append(stored_event3, new_version_number=2, artificial_failure_rate=1)
+        self.stored_event_repo.append(stored_event3, new_version_number=2, artificial_failure_rate=0)
+
+
 
 class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase):
     @notquick()
@@ -333,6 +353,11 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
                     #     pid, new_version, started, datetime.datetime.now() - started))
                     failures.append((new_version, pid))
                     sleep(0.01)
+                except DatasourceOperationError:
+                    # print("PID {} got concurrent exception writing event at version {} at {}".format(
+                    #     pid, new_version, started, datetime.datetime.now() - started))
+                    # failures.append((new_version, pid))
+                    sleep(0.01)
                 else:
                     print("PID {} success writing event at version {} at {} in {}".format(
                         pid, new_version, started, datetime.datetime.now() - started))
@@ -447,37 +472,71 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
         stored_events = list(stored_events)
         self.assertEqual(len(stored_events), self.num_events)
 
-        # Check can get all events.
-        page_size = 5
+        # # Check can get all events in ascending order.
+        self.assert_iterator_yields_events(
+            is_ascending=True,
+            expect_at_start=self.stored_events[0].event_attrs,
+            expect_at_end=self.stored_events[-1].event_attrs,
+            expect_event_count=12,
+            expect_page_count=3,
+            expect_query_count=3,
+            page_size=5,
+        )
 
-        # Iterate ascending.
-        is_ascending = True
-        expect_at_start = self.stored_events[0].event_attrs
-        expect_at_end = self.stored_events[-1].event_attrs
-        expect_count = 12
-        self.assert_iterator_yields_events(is_ascending, expect_at_start, expect_at_end, expect_count, page_size)
-
-        # Iterate descending.
-        is_ascending = False
-        expect_at_start = self.stored_events[-1].event_attrs
-        expect_at_end = self.stored_events[0].event_attrs
-        self.assert_iterator_yields_events(is_ascending, expect_at_start, expect_at_end, expect_count, page_size)
+        # In descending order.
+        self.assert_iterator_yields_events(
+            is_ascending=False,
+            expect_at_start=self.stored_events[-1].event_attrs,
+            expect_at_end=self.stored_events[0].event_attrs,
+            expect_event_count=12,
+            expect_page_count=3,
+            expect_query_count=3,
+            page_size=5,
+        )
 
         # Limit number of items.
-        expect_at_start = self.stored_events[-1].event_attrs
-        expect_at_end = self.stored_events[-2].event_attrs
-        expect_count = 2
-        self.assert_iterator_yields_events(is_ascending, expect_at_start, expect_at_end, expect_count, page_size,
-                                           limit=2)
+        self.assert_iterator_yields_events(
+            is_ascending=False,
+            expect_at_start=self.stored_events[-1].event_attrs,
+            expect_at_end=self.stored_events[-2].event_attrs,
+            expect_event_count=2,
+            expect_page_count=1,
+            expect_query_count=1,
+            page_size=5,
+            limit=2,
+        )
 
+        # Match the page size to the number of events.
+        self.assert_iterator_yields_events(
+            is_ascending=True,
+            expect_at_start=self.stored_events[0].event_attrs,
+            expect_at_end=self.stored_events[-1].event_attrs,
+            expect_event_count=12,
+            expect_page_count=1,
+            expect_query_count=2,
+            page_size=self.num_events,
+        )
 
-    def assert_iterator_yields_events(self, is_ascending, expect_at_start, expect_at_end, expect_count, page_size,
-                                      limit=None):
+        # Queries are minimised if we set a limit.
+        self.assert_iterator_yields_events(
+            is_ascending=True,
+            expect_at_start=self.stored_events[0].event_attrs,
+            expect_at_end=self.stored_events[-1].event_attrs,
+            expect_event_count=12,
+            expect_page_count=1,
+            expect_query_count=1,
+            page_size=self.num_events,
+            limit=12,
+        )
+
+    def assert_iterator_yields_events(self, is_ascending, expect_at_start, expect_at_end, expect_event_count=1,
+                                      expect_page_count=0, expect_query_count=0, page_size=1, limit=None):
         iterator = self.construct_iterator(is_ascending, page_size, limit=limit)
         retrieved_events = list(iterator)
-        self.assertEqual(len(retrieved_events), expect_count, retrieved_events)
-        self.assertEqual(iterator.page_counter, expect_count // page_size + 1 if expect_count % page_size else 0)
-        self.assertEqual(iterator.all_event_counter, expect_count)
+        self.assertEqual(len(retrieved_events), expect_event_count, retrieved_events)
+        self.assertEqual(iterator.page_counter, expect_page_count)
+        self.assertEqual(iterator.query_counter, expect_query_count)
+        self.assertEqual(iterator.all_event_counter, expect_event_count)
         self.assertEqual(expect_at_start, retrieved_events[0].event_attrs)
         self.assertEqual(expect_at_end, retrieved_events[-1].event_attrs)
 

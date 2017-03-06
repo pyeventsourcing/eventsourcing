@@ -6,7 +6,7 @@ from cassandra import DriverException
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
-from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
+from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
 from eventsourcing.infrastructure.transcoding import EntityVersion
@@ -61,6 +61,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
         """
         Writes entity version if not exists, and then writes the stored event.
         """
+
         # Write the next version.
         stored_entity_id = new_stored_event.stored_entity_id
         new_entity_version = None
@@ -100,11 +101,15 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
                 # Save the event.
                 cql_stored_event.save()
 
-            except DriverException:
+            except DriverException as e:
 
                 if retries <= 0:
+                    if new_entity_version is not None:
+                        # Delete the new entity version.
+                        new_entity_version.delete()
+
                     # Raise the error after retries exhausted.
-                    raise
+                    raise DatasourceOperationError(e)
                 else:
                     # Otherwise retry.
                     retries -= 1
@@ -161,12 +166,13 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
         try:
             cql_entity_version = CqlEntityVersion.get(r=entity_version_id)
         except CqlEntityVersion.DoesNotExist:
-            raise EntityVersionDoesNotExist()
-        assert isinstance(cql_entity_version, CqlEntityVersion)
-        return EntityVersion(
-            entity_version_id=entity_version_id,
-            event_id=cql_entity_version.v,
-        )
+            self.raise_entity_version_not_found(stored_entity_id, version_number)
+        else:
+            assert isinstance(cql_entity_version, CqlEntityVersion)
+            return EntityVersion(
+                entity_version_id=entity_version_id,
+                event_id=cql_entity_version.v,
+            )
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
                           results_ascending=True, include_after_when_ascending=False,

@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
+from eventsourcing.exceptions import EntityVersionNotFound
 from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder, StoredEvent, StoredEventTranscoder
 
 
@@ -89,6 +89,9 @@ class EventStore(AbstractEventStore):
 
 
 class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
+
+    # Todo: Change stored_event_class to be a class attribute, rather than constructor argument.
+    # - does that support the use case of substituting a customer stored event class? write a test first
     def __init__(self, always_check_expected_version=False, always_write_entity_version=False,
                  stored_event_class=StoredEvent):
         """
@@ -131,14 +134,10 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         expected_version_number = self.decide_expected_version_number(new_version_number)
         if expected_version_number is not None:
             assert isinstance(expected_version_number, six.integer_types)
-            try:
-                self.get_entity_version(
-                    stored_entity_id=stored_entity_id,
-                    version_number=expected_version_number
-                )
-            except EntityVersionDoesNotExist:
-                raise ConcurrencyError("Expected version '{}' of stored entity '{}' not found."
-                                       "".format(expected_version_number, stored_entity_id))
+            self.get_entity_version(
+                stored_entity_id=stored_entity_id,
+                version_number=expected_version_number
+            )
                 # else:
                 #     if not time_from_uuid(new_stored_event.event_id) > time_from_uuid(entity_version.event_id):
                 #         raise ConcurrencyError("New event ID '{}' occurs before last version event ID '{}' for
@@ -206,14 +205,10 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
         """
         events = self.get_most_recent_events(stored_entity_id, until=until, limit=1, include_until=include_until)
-        events = list(events)
-        if len(events) == 1:
+        try:
             return events[0]
-        elif len(events) == 0:
+        except IndexError:
             return None
-        else:
-            raise Exception("Shouldn't have more than one event object: {}"
-                            "".format(events))
 
     def get_most_recent_events(self, stored_entity_id, until=None, limit=None, include_until=False):
         """
@@ -245,6 +240,12 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         """
         return u"{}::version::{}".format(stored_entity_id, version)
 
+    def raise_entity_version_not_found(self, stored_entity_id, version_number):
+        raise EntityVersionNotFound(
+            "Entity version '{}' for of stored entity '{}' not found."
+            "".format(version_number, stored_entity_id)
+        )
+
 
 class StoredEventIterator(six.with_metaclass(ABCMeta)):
     DEFAULT_PAGE_SIZE = 1000
@@ -260,6 +261,7 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
         self.after = after
         self.until = until
         self.limit = limit
+        self.query_counter = 0
         self.page_counter = 0
         self.all_event_counter = 0
         self.is_ascending = is_ascending
@@ -275,12 +277,16 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
         """
         self.page_counter += 1
 
+    def _inc_query_counter(self):
+        """
+        Increments the query counter.
+        """
+        self.query_counter += 1
+
     def _inc_all_event_counter(self):
         self.all_event_counter += 1
 
     def _update_position(self, stored_event):
-        if stored_event is None:
-            return
         assert isinstance(stored_event, self.repo.stored_event_class), type(stored_event)
         if self.is_ascending:
             self.after = stored_event.event_id
@@ -289,7 +295,11 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
 
     @abstractmethod
     def __iter__(self):
-        pass
+        """
+        Returns an Python iterable, probably a Python generator, that
+        can be used to iterate over the stored events, according to
+        the implement in a subclass.
+        """
 
 
 class SimpleStoredEventIterator(StoredEventIterator):
@@ -297,6 +307,9 @@ class SimpleStoredEventIterator(StoredEventIterator):
         """
         Yields pages of events until the last page.
 
+        Implements the iterator as a Python generator, that can be
+        used to iterate over the stored events, by retrieving
+        pages of stored events from the stored event repository.
         """
         while True:
             # Get next page of events.
@@ -318,18 +331,13 @@ class SimpleStoredEventIterator(StoredEventIterator):
                 results_ascending=self.is_ascending,
             )
 
-            # Count the page.
-            self._inc_page_counter()
+            self._inc_query_counter()
 
             # Start counting events in this page.
             in_page_event_counter = 0
 
-            # Yield each stored event, so long as we aren't over the limit.
+            # Yield each stored event.
             for stored_event in stored_events:
-
-                # Stop if we're over the limit.
-                if self.limit and self.all_event_counter >= self.limit:
-                    raise StopIteration
 
                 # Count each event.
                 self._inc_all_event_counter()
@@ -341,9 +349,10 @@ class SimpleStoredEventIterator(StoredEventIterator):
                 # Remember the position as the last event.
                 self._update_position(stored_event)
 
-            # Decide if this is the last page.
-            is_last_page = in_page_event_counter != self.page_size
+            # If that wasn't an empty page, count the page.
+            if in_page_event_counter:
+                self._inc_page_counter()
 
-            # If that was the last page, then stop iterating.
-            if is_last_page:
+            # If that wasn't a full page, stop iterating (there can be no more items).
+            if in_page_event_counter != self.page_size:
                 raise StopIteration
