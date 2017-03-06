@@ -40,23 +40,24 @@ class TestStoredEvent(TestCase):
                          '"entity_version":0}',
                          stored_event.event_attrs)
 
-    def test_serialize_domain_event_with_numpy_array(self):
-        try:
-            import numpy
-        except ImportError:
-            numpy = None
-
-        if numpy is not None:
-            event1 = DomainEvent(a=numpy.array([10.123456]), entity_version=0, entity_id='entity1', domain_event_id=3)
-
-            stored_event = JSONStoredEventTranscoder().serialize(event1)
-            self.assertEqual('eventsourcing.domain.model.events#DomainEvent', stored_event.event_topic)
-            self.assertEqual('{"a":{"__ndarray__":"\\"\\\\u0093NUMPY\\\\u0001\\\\u0000F\\\\u0000{\'descr\': \'<f8\', '
-                             '\'fortran_order\': False, \'shape\': (1,), }            \\\\nm\\\\u00fd\\\\u00f4\\\\u00'
-                             '9f5?$@\\""},"entity_id":"entity1","entity_version":0}',
-                             stored_event.event_attrs)
-        else:
-            self.skipTest("Skipped test because numpy is not installed")
+    # Todo: Move this to the quantdsl package.
+    # def test_serialize_domain_event_with_numpy_array(self):
+    #     try:
+    #         import numpy
+    #     except ImportError:
+    #         numpy = None
+    #
+    #     if numpy is not None:
+    #         event1 = DomainEvent(a=numpy.array([10.123456]), entity_version=0, entity_id='entity1', domain_event_id=3)
+    #
+    #         stored_event = JSONStoredEventTranscoder().serialize(event1)
+    #         self.assertEqual('eventsourcing.domain.model.events#DomainEvent', stored_event.event_topic)
+    #         self.assertEqual('{"a":{"__ndarray__":"\\"\\\\u0093NUMPY\\\\u0001\\\\u0000F\\\\u0000{\'descr\': \'<f8\', '
+    #                          '\'fortran_order\': False, \'shape\': (1,), }            \\\\nm\\\\u00fd\\\\u00f4\\\\u00'
+    #                          '9f5?$@\\""},"entity_id":"entity1","entity_version":0}',
+    #                          stored_event.event_attrs)
+    #     else:
+    #         self.skipTest("Skipped test because numpy is not installed")
 
     def test_recreate_domain_event(self):
         stored_event = StoredEvent(event_id='1',
