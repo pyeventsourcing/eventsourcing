@@ -14,17 +14,24 @@ class ThreadedStoredEventIterator(StoredEventIterator):
             # Wait for the next page of events.
             thread.join(timeout=30)
 
-            # Count the page.
-            self._inc_page_counter()
+            # Count the query.
+            self._inc_query_counter()
 
             # Get the stored events from the thread.
             stored_events = thread.stored_events
 
-            # Count the number of stored events in this page.
+            # Count the number of stored events that were retrieved.
             num_stored_events = len(stored_events)
 
+            if num_stored_events:
+                self._inc_page_counter()
+
             # Decide if this is the last page.
-            is_last_page = num_stored_events != self.page_size
+            is_last_page = (
+                num_stored_events != self.page_size
+            ) or (
+                self.all_event_counter + num_stored_events == self.limit
+            )
 
             if not is_last_page:
                 # Update loop variables.
