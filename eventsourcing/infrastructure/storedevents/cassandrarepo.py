@@ -85,76 +85,76 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
             sleep(artificial_failure_rate)
 
         # Write the stored event into the database.
-        try:
-            retries = max_retries
-            while True:
-                try:
-                    # Instantiate a Cassandra CQL engine object.
-                    cql_stored_event = self.to_cql(new_stored_event)
-
-                    # Optionally mimic an unreliable save() operation.
-                    #  - used for testing retries
-                    if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
-                        raise DriverException("Artificial failure")
-
-                    # Save the event.
-                    cql_stored_event.save()
-
-                except DriverException:
-
-                    if retries <= 0:
-                        # Raise the error after retries exhausted.
-                        raise
-                    else:
-                        # Otherwise retry.
-                        retries -= 1
-                        sleep(0.05 + 0.1 * random())
-                else:
-                    break
-
-        except DriverException as event_write_error:
-            # If we get here, we're in trouble because the version has been
-            # written, but perhaps not the event, so the entity may be broken
-            # because it might not be possible to get the entity with version
-            # number high enough to pass the optimistic concurrency check
-            # when storing subsequent events.
-
-            # Back off for a little bit.
-            sleep(0.1)
+        # try:
+        retries = max_retries
+        while True:
             try:
-                # If the event actually exists, despite the exception, all is well.
-                CqlStoredEvent.get(n=new_stored_event.stored_entity_id, v=new_stored_event.event_id)
+                # Instantiate a Cassandra CQL engine object.
+                cql_stored_event = self.to_cql(new_stored_event)
 
-            except CqlStoredEvent.DoesNotExist:
-                # Otherwise, try harder to recover by removing the new version.
-                if new_entity_version is not None:
-                    retries = max_retries * 3
-                    while True:
-                        try:
-                            # Optionally mimic an unreliable delete() operation.
-                            #  - used for testing retries
-                            if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
-                                raise DriverException("Artificial failure")
+                # Optionally mimic an unreliable save() operation.
+                #  - used for testing retries
+                if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
+                    raise DriverException("Artificial failure")
 
-                            # Delete the new entity version.
-                            new_entity_version.delete()
+                # Save the event.
+                cql_stored_event.save()
 
-                        except DriverException as version_delete_error:
-                            # It's not going very well, so maybe retry.
-                            if retries <= 0:
-                                # Raise when retries are exhausted.
-                                raise Exception("Unable to delete version {} of entity {} after failing to write"
-                                                "event: event write error {}: version delete error {}"
-                                                .format(new_entity_version, stored_entity_id,
-                                                        event_write_error, version_delete_error))
-                            else:
-                                # Otherwise retry.
-                                retries -= 1
-                                sleep(0.05 + 0.1 * random())
-                        else:
-                            # The entity version was deleted, all is well.
-                            break
-                raise event_write_error
+            except DriverException:
+
+                if retries <= 0:
+                    # Raise the error after retries exhausted.
+                    raise
+                else:
+                    # Otherwise retry.
+                    retries -= 1
+                    sleep(0.05 + 0.1 * random())
+            else:
+                break
+
+        # except DriverException as event_write_error:
+        #     # If we get here, we're in trouble because the version has been
+        #     # written, but perhaps not the event, so the entity may be broken
+        #     # because it might not be possible to get the entity with version
+        #     # number high enough to pass the optimistic concurrency check
+        #     # when storing subsequent events.
+        #
+        #     # Back off for a little bit.
+        #     sleep(0.1)
+        #     try:
+        #         # If the event actually exists, despite the exception, all is well.
+        #         CqlStoredEvent.get(n=new_stored_event.stored_entity_id, v=new_stored_event.event_id)
+        #
+        #     except CqlStoredEvent.DoesNotExist:
+        #         # Otherwise, try harder to recover by removing the new version.
+        #         if new_entity_version is not None:
+        #             retries = max_retries * 3
+        #             while True:
+        #                 try:
+        #                     # Optionally mimic an unreliable delete() operation.
+        #                     #  - used for testing retries
+        #                     if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
+        #                         raise DriverException("Artificial failure")
+        #
+        #                     # Delete the new entity version.
+        #                     new_entity_version.delete()
+        #
+        #                 except DriverException as version_delete_error:
+        #                     # It's not going very well, so maybe retry.
+        #                     if retries <= 0:
+        #                         # Raise when retries are exhausted.
+        #                         raise Exception("Unable to delete version {} of entity {} after failing to write"
+        #                                         "event: event write error {}: version delete error {}"
+        #                                         .format(new_entity_version, stored_entity_id,
+        #                                                 event_write_error, version_delete_error))
+        #                     else:
+        #                         # Otherwise retry.
+        #                         retries -= 1
+        #                         sleep(0.05 + 0.1 * random())
+        #                 else:
+        #                     # The entity version was deleted, all is well.
+        #                     break
+        #         raise event_write_error
 
     def get_entity_version(self, stored_entity_id, version_number):
         entity_version_id = self.make_entity_version_id(stored_entity_id, version_number)
@@ -173,8 +173,9 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
                           include_until_when_descending=False):
 
         # Todo: Extend unit test to make sure limit is effective when less than 1.
-        if limit is not None and limit < 1:
-            return []
+        assert limit is None or limit >= 1, limit
+        # if limit is not None and limit < 1:
+        #     return []
 
         query = self.stored_event_table.objects.filter(n=stored_entity_id)
 

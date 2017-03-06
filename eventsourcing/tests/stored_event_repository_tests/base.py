@@ -22,7 +22,6 @@ from eventsourcing.infrastructure.storedevents.pythonobjectsrepo import PythonOb
 from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemyStoredEventRepository, \
     SqlStoredEvent
 from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
-from eventsourcing.infrastructure.storedevents.with_cassandra2 import Cassandra2StoredEventRepository
 from eventsourcing.infrastructure.transcoding import StoredEvent
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
@@ -360,19 +359,19 @@ def pool_initializer(stored_repo_class, temp_file_name):
 
 
 def construct_repo_for_worker(stored_repo_class, temp_file_name):
-    if stored_repo_class in (CassandraStoredEventRepository, Cassandra2StoredEventRepository):
+    if stored_repo_class is CassandraStoredEventRepository:
         datastore = CassandraDatastore(
             settings=CassandraSettings(default_keyspace=DEFAULT_KEYSPACE_FOR_TESTING),
             tables=(CqlStoredEvent,)
         )
         datastore.drop_connection()
         datastore.setup_connection()
-        repo = stored_repo_class(
+        repo = CassandraStoredEventRepository(
             stored_event_table=CqlStoredEvent,
             always_check_expected_version=True,
             always_write_entity_version=True,
         )
-    elif stored_repo_class == SQLAlchemyStoredEventRepository:
+    elif stored_repo_class is SQLAlchemyStoredEventRepository:
         uri = 'sqlite:///' + temp_file_name
         datastore = SQLAlchemyDatastore(
             settings=SQLAlchemySettings(uri=uri),
@@ -385,7 +384,7 @@ def construct_repo_for_worker(stored_repo_class, temp_file_name):
             always_check_expected_version=True,
             always_write_entity_version=True,
         )
-    elif stored_repo_class == PythonObjectsStoredEventRepository:
+    elif stored_repo_class is PythonObjectsStoredEventRepository:
         repo = PythonObjectsStoredEventRepository(
             always_check_expected_version=True,
             always_write_entity_version=True,
