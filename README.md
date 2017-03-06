@@ -11,24 +11,21 @@ A library for event sourcing in Python.
 
 ## Overview
 
-The general aim of this library is to make it easier to
-write event sourced applications in Python. A common definition
-of event sourcing proposes that the state of an event sourced application
-is determined entirely by a sequence of events. Similarly, it is said that
-event sourcing is merely a persistence mechanism for Domain Driven Design.
+The aim of this library is to make it easier to write event sourced applications
+in Python. One definition of event sourcing suggests the state of an event sourced
+application is determined by a sequence of events. It is common for an application
+to be implemented using domain entities, with the application state distributed across
+the entities.
 
-In practice, it is common for the state of application to be partitioned into an
-arrangement of domain entities (alebit grouped into aggregates, with a root entity
-controlling other entities in the aggregate), with the application state distributed
-across its entities. Therefore, this library provides mechanisms called for
-by such applications: a style for coding entity behaviours that mutate
-the state of the entity by instantiating and applying and then publishing domain events of
-different kinds; and a way for those events to be stored and replayed to obtain
-the state of an entity in the application on demand.
+Therefore, this library provides mechanisms useful in such an application: a style
+for coding entity behaviours that mutate the state of the entity by instantiating
+and applying and then publishing domain events of different kinds; and a way for
+those events to be stored and replayed to obtain the state of an entity in the
+application on demand.
 
 This document highlights the main features of the library,
 provides instructions for installing the package, describes the
-design of the software, includes a detailed example of usage, and
+design of the software, includes a detailed example of usage and
 has some background information about the project.
 
 With the major features complete, the current focus of development
