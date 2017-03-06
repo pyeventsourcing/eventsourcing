@@ -309,7 +309,6 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
         num_events_to_create, stored_entity_id = args
 
         success_count = 0
-        assert isinstance(worker_repo, AbstractStoredEventRepository)
         assert isinstance(num_events_to_create, six.integer_types)
 
         successes = []
@@ -319,7 +318,8 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
 
             while True:
                 # Imitate an entity getting refreshed, by getting the version of the last event.
-                events = worker_repo.get_entity_events(stored_entity_id, limit=1, query_ascending=False)
+                assert isinstance(worker_repo, AbstractStoredEventRepository)
+                events = worker_repo.get_stored_events(stored_entity_id, limit=1, query_ascending=False)
                 if len(events):
                     current_version = json.loads(events[0].event_attrs)['entity_version']
                     new_version = current_version + 1

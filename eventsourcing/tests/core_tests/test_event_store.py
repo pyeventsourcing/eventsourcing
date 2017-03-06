@@ -7,7 +7,7 @@ from eventsourcing.infrastructure.storedevents.pythonobjectsrepo import PythonOb
 
 class TestEventStore(unittest.TestCase):
 
-    def test_get_entity_events(self):
+    def test_get_domain_events(self):
         repo = PythonObjectsStoredEventRepository()
         event_store = EventStore(stored_event_repo=repo)
 
