@@ -29,16 +29,12 @@ class StoredEventTranscoder(six.with_metaclass(ABCMeta)):
 
 class ObjectJSONEncoder(json.JSONEncoder):
     def default(self, obj):
-        try:
-            return super(ObjectJSONEncoder, self).default(obj)
-        except TypeError as e:
-            if "not JSON serializable" not in str(e):
-                raise
-            elif isinstance(obj, datetime.datetime):
-                return {'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z')}
-            elif isinstance(obj, datetime.date):
-                return {'ISO8601_date': obj.isoformat()}
-
+        if isinstance(obj, datetime.datetime):
+            return {'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z')}
+        elif isinstance(obj, datetime.date):
+            return {'ISO8601_date': obj.isoformat()}
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)
 
 
 class ObjectJSONDecoder(json.JSONDecoder):
