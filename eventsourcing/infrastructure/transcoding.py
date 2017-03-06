@@ -4,6 +4,8 @@ import datetime
 import json
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
+from json.decoder import JSONDecoder
+from json.encoder import JSONEncoder
 
 import dateutil.parser
 import six
@@ -27,17 +29,17 @@ class StoredEventTranscoder(six.with_metaclass(ABCMeta)):
         """Returns a domain event, for the given stored event."""
 
 
-class ObjectJSONEncoder(json.JSONEncoder):
+class ObjectJSONEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime.datetime):
             return {'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z')}
         elif isinstance(obj, datetime.date):
             return {'ISO8601_date': obj.isoformat()}
         # Let the base class default method raise the TypeError
-        return json.JSONEncoder.default(self, obj)
+        return JSONEncoder.default(self, obj)
 
 
-class ObjectJSONDecoder(json.JSONDecoder):
+class ObjectJSONDecoder(JSONDecoder):
     def __init__(self, **kwargs):
         super(ObjectJSONDecoder, self).__init__(object_hook=ObjectJSONDecoder.from_jsonable, **kwargs)
 
