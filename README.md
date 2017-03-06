@@ -32,7 +32,7 @@ With the major features complete, the current focus of development
 work is towards: refactoring the code for greater clarity and greater
 flexibility; a test suite with 100% line coverage; a much better
 distinction between time-sequenced and integer-sequenced event streams;
-support for storing events in a broader range database management
+and support for storing events in a broader range database management
 systems and services.
 
 ## Features
