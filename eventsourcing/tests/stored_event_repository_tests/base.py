@@ -353,6 +353,11 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
                     #     pid, new_version, started, datetime.datetime.now() - started))
                     failures.append((new_version, pid))
                     sleep(0.01)
+                except DatasourceOperationError:
+                    # print("PID {} got concurrent exception writing event at version {} at {}".format(
+                    #     pid, new_version, started, datetime.datetime.now() - started))
+                    # failures.append((new_version, pid))
+                    sleep(0.01)
                 else:
                     print("PID {} success writing event at version {} at {} in {}".format(
                         pid, new_version, started, datetime.datetime.now() - started))
