@@ -89,6 +89,9 @@ class EventStore(AbstractEventStore):
 
 
 class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
+
+    # Todo: Change stored_event_class to be a class attribute, rather than constructor argument.
+    # - does that support the use case of substituting a customer stored event class? write a test first
     def __init__(self, always_check_expected_version=False, always_write_entity_version=False,
                  stored_event_class=StoredEvent):
         """
@@ -275,8 +278,6 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
         self.all_event_counter += 1
 
     def _update_position(self, stored_event):
-        if stored_event is None:
-            return
         assert isinstance(stored_event, self.repo.stored_event_class), type(stored_event)
         if self.is_ascending:
             self.after = stored_event.event_id
