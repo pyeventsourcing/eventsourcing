@@ -12,7 +12,7 @@ import six
 
 from eventsourcing.domain.model.entity import EventSourcedEntity
 from eventsourcing.domain.model.events import DomainEvent, resolve_domain_topic, topic_from_domain_class
-from eventsourcing.domain.services.cipher import Cipher
+from eventsourcing.domain.services.cipher import AbstractCipher
 
 EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
 
@@ -100,7 +100,7 @@ class JSONStoredEventTranscoder(StoredEventTranscoder):
 
         # Encrypt (optional).
         if self.always_encrypt or domain_event.__class__.always_encrypt:
-            assert isinstance(self.cipher, Cipher)
+            assert isinstance(self.cipher, AbstractCipher)
             serialized_event_attrs = self.cipher.encrypt(serialized_event_attrs)
 
         # Return a stored event object (a named tuple, by default).
@@ -124,15 +124,14 @@ class JSONStoredEventTranscoder(StoredEventTranscoder):
         if not issubclass(event_class, DomainEvent):
             raise ValueError("Event class is not a DomainEvent: {}".format(event_class))
 
-        # Deserialize event attributes from JSON, optionally decrypted with cipher.
         event_attrs = stored_event.event_attrs
 
         # Decrypt (optional).
         if self.always_encrypt or event_class.always_encrypt:
-            if self.cipher is None:
-                raise ValueError("Can't decrypt stored event without a cipher")
+            assert isinstance(self.cipher, AbstractCipher), self.cipher
             event_attrs = self.cipher.decrypt(event_attrs)
 
+        # Deserialize event attributes from JSON, optionally decrypted with cipher.
         event_attrs = json.loads(event_attrs, cls=self.json_decoder_cls)
 
         # Set the domain event ID.

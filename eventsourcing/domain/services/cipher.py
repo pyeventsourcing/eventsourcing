@@ -7,18 +7,18 @@ from Crypto import Random
 from Crypto.Cipher import AES
 
 
-class Cipher(six.with_metaclass(ABCMeta)):
+class AbstractCipher(six.with_metaclass(ABCMeta)):
 
     @abstractmethod
     def encrypt(self, plaintext):
         """Return ciphertext for given plaintext."""
 
     @abstractmethod
-    def encrypt(self, ciphertext):
+    def decrypt(self, ciphertext):
         """Return plaintext for given ciphertext."""
 
 
-class AESCipher(Cipher):
+class AESCipher(AbstractCipher):
 
     BLOCK_SIZE = 16
 
