@@ -6,6 +6,7 @@ from eventsourcing.tests.stored_event_repository_tests.test_python_objects_store
 class TestExampleApplicationWithPythonObjects(PythonObjectsRepoTestCase, ExampleApplicationTestCase):
     pass
 
+
 class TestExampleApplicationWithPythonObjectsUseCache(PythonObjectsRepoTestCase, ExampleApplicationTestCase):
     def construct_application(self):
         app = super(TestExampleApplicationWithPythonObjectsUseCache, self).construct_application()

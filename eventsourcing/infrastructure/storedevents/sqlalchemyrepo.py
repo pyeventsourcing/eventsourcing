@@ -128,7 +128,8 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
         )
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
-                          results_ascending=True):
+                          results_ascending=True, include_after_when_ascending=False,
+                          include_until_when_descending=False):
 
         # Todo: Extend unit test to make sure limit is effective when less than 1.
         if limit is not None and limit < 1:
@@ -143,13 +144,13 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
                 query = query.order_by(desc(self.stored_event_table.timestamp_long))
 
             if after is not None:
-                if query_ascending:
+                if query_ascending and not include_after_when_ascending:
                     query = query.filter(self.stored_event_table.timestamp_long > timestamp_long_from_uuid(after))
                 else:
                     query = query.filter(self.stored_event_table.timestamp_long >= timestamp_long_from_uuid(after))
 
             if until is not None:
-                if query_ascending:
+                if query_ascending or include_until_when_descending:
                     query = query.filter(self.stored_event_table.timestamp_long <= timestamp_long_from_uuid(until))
                 else:
                     query = query.filter(self.stored_event_table.timestamp_long < timestamp_long_from_uuid(until))

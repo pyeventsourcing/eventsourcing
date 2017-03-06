@@ -48,7 +48,6 @@ class CqlStoredEvent(Model):
 
 
 class CassandraStoredEventRepository(AbstractStoredEventRepository):
-
     def __init__(self, stored_event_table, **kwargs):
         super(CassandraStoredEventRepository, self).__init__(**kwargs)
         self.stored_event_table = stored_event_table
@@ -170,7 +169,8 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
         )
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
-                          results_ascending=True):
+                          results_ascending=True, include_after_when_ascending=False,
+                          include_until_when_descending=False):
 
         # Todo: Extend unit test to make sure limit is effective when less than 1.
         if limit is not None and limit < 1:
@@ -182,12 +182,12 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
             query = query.order_by('v')
 
         if after is not None:
-            if query_ascending:
+            if query_ascending and not include_after_when_ascending:
                 query = query.filter(v__gt=after)
             else:
                 query = query.filter(v__gte=after)
         if until is not None:
-            if query_ascending:
+            if query_ascending or include_until_when_descending:
                 query = query.filter(v__lte=until)
             else:
                 query = query.filter(v__lt=until)

@@ -84,7 +84,6 @@ class EventSourcedRepository(EntityRepository):
         """
         Returns the type of entity held by this repository.
         """
-        return EventSourcedEntity
 
     def get_entity(self, entity_id, until=None):
         """

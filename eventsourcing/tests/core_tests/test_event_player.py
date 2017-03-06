@@ -162,6 +162,7 @@ class TestEventPlayer(unittest.TestCase):
         # Take another snapshot with the entity.
         snapshot2 = event_player.take_snapshot(example.id)
         # - should return the previous snapshot
+
         self.assertIsInstance(snapshot2, Snapshot)
         self.assertEqual(snapshot2.at_event_id, snapshot1.at_event_id)
 

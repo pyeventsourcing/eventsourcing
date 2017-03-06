@@ -59,7 +59,8 @@ class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):
             del (self._entity_versions[stored_entity_id])
 
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
-                          results_ascending=True):
+                          results_ascending=True, include_after_when_ascending=False,
+                          include_until_when_descending=False):
         if stored_entity_id not in self._by_stored_entity_id:
             return []
         else:
@@ -95,7 +96,7 @@ class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):
 
                 # Exclude if earlier than the 'after' time.
                 if after_timestamp:
-                    if query_ascending:
+                    if query_ascending and not include_after_when_ascending:
                         if event_timestamp <= after_timestamp:
                             continue
                     else:
@@ -104,7 +105,7 @@ class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):
 
                 # Exclude if later than the 'until' time.
                 if until_timestamp:
-                    if query_ascending:
+                    if query_ascending or include_until_when_descending:
                         if event_timestamp > until_timestamp:
                             continue
                     else:

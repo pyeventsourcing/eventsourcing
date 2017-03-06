@@ -166,6 +166,7 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
             stored_events.append(stored_event_i)
             self.stored_event_repo.append(stored_event_i)
 
+        # Check we can get events after a particular event.
         last_snapshot_event = stored_events[-20]
 
         # start_time = datetime.datetime.now()

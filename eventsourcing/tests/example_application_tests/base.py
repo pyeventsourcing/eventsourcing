@@ -1,4 +1,5 @@
 from eventsourcing.application.policies import PersistenceSubscriber
+from eventsourcing.domain.model.events import create_domain_event_id
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.example.domain_model import Example
 from eventsourcing.example.infrastructure import ExampleRepo
@@ -40,6 +41,13 @@ class ExampleApplicationTestCase(AbstractStoredEventRepositoryTestCase):
 
             # Change attribute values.
             entity1.a = 100
+
+            # Check the new value is available in the repo.
+            entity1 = app.example_repo[example1.id]
+            self.assertEqual(100, entity1.a)
+
+            # Take a snapshot of the entity.
+            app.example_repo.event_player.snapshot_strategy.take_snapshot(entity1, create_domain_event_id())
 
             # Check the new value is available in the repo.
             entity1 = app.example_repo[example1.id]
