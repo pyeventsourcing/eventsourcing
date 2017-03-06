@@ -11,7 +11,7 @@ from uuid import uuid1, uuid4
 import six
 
 from eventsourcing.application.policies import PersistenceSubscriber
-from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError
+from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, EntityVersionNotFound
 from eventsourcing.infrastructure.datastore.cassandraengine import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.datastore.sqlalchemyorm import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, EventStore, \
@@ -210,12 +210,17 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         self.assertEqual(stored_events[18].event_topic, retrieved_events[0].event_topic)
         self.assertEqual(stored_events[18].event_attrs, retrieved_events[0].event_attrs)
 
-        # Check exception is raised when new version number already exists.
+        # Check errors.
         stored_event3 = StoredEvent(event_id=uuid.uuid1().hex,
                                     stored_entity_id=stored_entity_id,
                                     event_topic='eventsourcing.example.domain_model#Example.Created',
                                     event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":5}')
 
+        # Check the 'version not found error' is raised is the new version number is too hight.
+        with self.assertRaises(EntityVersionNotFound):
+            self.stored_event_repo.append(stored_event3, new_version_number=100)
+
+        # Check 'concurrency error' is raised when new version number already exists.
         with self.assertRaises(ConcurrencyError):
             self.stored_event_repo.append(stored_event3, new_version_number=0)
 
@@ -223,6 +228,7 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         with self.assertRaises(DatasourceOperationError):
             self.stored_event_repo.append(stored_event3, new_version_number=2, artificial_failure_rate=1)
         self.stored_event_repo.append(stored_event3, new_version_number=2, artificial_failure_rate=0)
+
 
 
 class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase):
