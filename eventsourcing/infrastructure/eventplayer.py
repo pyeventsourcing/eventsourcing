@@ -69,8 +69,7 @@ class EventPlayer(object):
         """Takes a snapshot of the entity as it existed after
         the most recent event, optionally until a given time.
         """
-        if self.snapshot_strategy is None:
-            raise ValueError("Can't take snapshots without a snapshot strategy.")
+        assert isinstance(self.snapshot_strategy, AbstractSnapshotStrategy)
 
         # Get the last event (optionally until a particular time).
         last_event = self.get_most_recent_event(entity_id, until=until)

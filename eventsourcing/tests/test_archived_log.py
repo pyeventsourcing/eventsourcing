@@ -6,10 +6,13 @@ from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRe
 from eventsourcing.infrastructure.notification_log import append_item_to_notification_log
 from eventsourcing.interface.archived_logs import ArchivedLogReader, ArchivedLogRepo, RemoteArchivedLogRepo, \
     serialize_archived_log
-from eventsourcing.tests.unit_test_cases import AppishTestCase
-from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
-from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
-from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_cassandra_stored_event_repository import \
+    CassandraRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_sqlalchemy_stored_event_repository import \
+    SQLAlchemyRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.base import PersistenceSubscribingTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_python_objects_stored_event_repository import \
+    PythonObjectsRepoTestCase
 
 
 class NotificationLogContext(object):
@@ -46,7 +49,7 @@ class NotificationLogContext(object):
         )
 
 
-class ArchivedLogTestCase(AppishTestCase):
+class ArchivedLogTestCase(PersistenceSubscribingTestCase):
 
     def setUp(self):
         super(ArchivedLogTestCase, self).setUp()
@@ -235,4 +238,5 @@ class TestArchivedLogWithCassandra(CassandraRepoTestCase, ArchivedLogTestCase):
 
 
 class TestArchivedLogWithSQLAlchemy(SQLAlchemyRepoTestCase, ArchivedLogTestCase):
-    pass
+    use_named_temporary_file = True
+    # pass

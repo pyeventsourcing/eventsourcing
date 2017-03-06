@@ -1,4 +1,4 @@
-cassandra-driver==3.7.1
+cassandra-driver==3.8.0
 mock==2.0.0
 pycrypto==2.6.1
 python-dateutil==2.5.3

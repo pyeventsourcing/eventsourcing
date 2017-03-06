@@ -6,8 +6,9 @@ from uuid import uuid4
 
 import six
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty, EntityRepository
+from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity, attribute
 from eventsourcing.domain.model.events import publish
+from eventsourcing.example.application import ExampleApplication
 from eventsourcing.exceptions import RepositoryKeyError
 
 
@@ -38,7 +39,7 @@ class SuffixTree(EventSourcedEntity):
         self._N = None
         self._string = None
 
-    @mutableproperty
+    @attribute
     def string(self):
         return self._string
 
@@ -193,7 +194,7 @@ class Node(EventSourcedEntity):
         super(Node, self).__init__(*args, **kwargs)
         self._suffix_node_id = suffix_node_id
 
-    @mutableproperty
+    @attribute
     def suffix_node_id(self):
         """The id of a node with a matching suffix, representing a suffix link.
 
@@ -222,25 +223,25 @@ class Edge(EventSourcedEntity):
         self._source_node_id = source_node_id
         self._dest_node_id = dest_node_id
 
-    @mutableproperty
+    @attribute
     def first_char_index(self):
         """Index of start of string part represented by this edge.
         """
         return self._first_char_index
 
-    @mutableproperty
+    @attribute
     def last_char_index(self):
         """Index of end of string part represented by this edge.
         """
         return self._last_char_index
 
-    @mutableproperty
+    @attribute
     def source_node_id(self):
         """Id of source node of edge.
         """
         return self._source_node_id
 
-    @mutableproperty
+    @attribute
     def dest_node_id(self):
         """Id of destination node of edge.
         """
@@ -415,12 +416,11 @@ def has_substring(substring, suffix_tree, edge_repo):
 
 
 # Application
-from eventsourcing.application.example.with_pythonobjects import ExampleApplicationWithPythonObjects
-from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.suffixtree_repo import SuffixTreeRepo, NodeRepo, EdgeRepo
+from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.suffixtree_repo import SuffixTreeRepo, \
+    NodeRepo, EdgeRepo
 
 
-class SuffixTreeApplication(ExampleApplicationWithPythonObjects):
-
+class SuffixTreeApplication(ExampleApplication):
     def __init__(self, **kwargs):
         super(SuffixTreeApplication, self).__init__(**kwargs)
         self.suffix_tree_repo = SuffixTreeRepo(self.event_store)

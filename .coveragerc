@@ -4,3 +4,5 @@ omit =
     */python?.?/*
     */test_?.py
     */tests/*
+    */contrib/*
+

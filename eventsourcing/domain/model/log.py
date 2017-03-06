@@ -12,8 +12,8 @@ from eventsourcing.utils.time import timestamp_from_uuid, utc_timezone
 
 
 class MessageLogged(DomainEvent):
-    def __init__(self, message, entity_id, level):
-        super(MessageLogged, self).__init__(entity_id=entity_id, entity_version=None, message=message, level=level)
+    def __init__(self, message, entity_id):
+        super(MessageLogged, self).__init__(entity_id=entity_id, entity_version=None, message=message)
 
     @property
     def message(self):
@@ -22,10 +22,6 @@ class MessageLogged(DomainEvent):
     @property
     def entity_id(self):
         return self.__dict__['entity_id']
-
-    @property
-    def level(self):
-        return self.__dict__['level']
 
 
 def make_bucket_id(log_name, timestamp, bucket_size):
@@ -167,14 +163,13 @@ class Log(EventSourcedEntity):
     def bucket_size(self):
         return self._bucket_size
 
-    def append_message(self, message, level='INFO'):
+    def append_message(self, message):
         assert isinstance(message, six.string_types)
         domain_event_id = create_domain_event_id()
         entity_bucket_id = make_bucket_id(self.name, timestamp_from_uuid(domain_event_id), self.bucket_size)
         event = MessageLogged(
             entity_id=entity_bucket_id,
             message=message,
-            level=level,
         )
         publish(event)
         return event
@@ -194,7 +189,7 @@ class LogRepository(EntityRepository):
             return start_new_log(log_name, bucket_size=bucket_size)
 
 
-def start_new_log(name, bucket_size):
+def start_new_log(name, bucket_size=None):
     if bucket_size is None:
         bucket_size = 'year'
     if bucket_size not in BUCKET_SIZES:
@@ -221,19 +216,7 @@ class Logger(with_metaclass(QualnameABCMeta)):
 
     def __init__(self, log):
         assert isinstance(log, Log), type(log)
-        self.log = log
+        self._log = log
 
-    def debug(self, message):
-        return self.log.append_message(message, level='DEBUG')
-
-    def info(self, message):
-        return self.log.append_message(message, level='INFO')
-
-    def warning(self, message):
-        return self.log.append_message(message, level='WARNING')
-
-    def error(self, message):
-        return self.log.append_message(message, level='ERROR')
-
-    def critical(self, message):
-        return self.log.append_message(message, level='CRITICAL')
+    def log(self, message):
+        return self._log.append_message(message)

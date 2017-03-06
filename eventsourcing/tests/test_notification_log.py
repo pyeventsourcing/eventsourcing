@@ -1,12 +1,15 @@
-from eventsourcing.domain.model.notification_log import NotificationLog
+from eventsourcing.domain.model.notificationlog import NotificationLog
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.event_sourced_repos.notificationlog_repo import NotificationLogRepo
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.infrastructure.notification_log import NotificationLogReader, append_item_to_notification_log
-from eventsourcing.tests.unit_test_cases import AppishTestCase
-from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
-from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
-from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_cassandra_stored_event_repository import \
+    CassandraRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_sqlalchemy_stored_event_repository import \
+    SQLAlchemyRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.base import PersistenceSubscribingTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_python_objects_stored_event_repository import \
+    PythonObjectsRepoTestCase
 
 
 # Todo: Interface object that can split an archived log ID of form "x,y" into two integers,
@@ -21,7 +24,7 @@ from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCas
 # Todo: Read from subsequent sequences if slice.stop goes beyond the end of the sequence.
 
 
-class NotificationLogTestCase(AppishTestCase):
+class NotificationLogTestCase(PersistenceSubscribingTestCase):
 
     def test_entity_lifecycle(self):
         notification_log_repo = NotificationLogRepo(self.event_store)

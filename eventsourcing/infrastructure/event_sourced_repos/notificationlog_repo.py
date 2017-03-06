@@ -1,4 +1,4 @@
-from eventsourcing.domain.model.notification_log import NotificationLog, NotificationLogRepository
+from eventsourcing.domain.model.notificationlog import NotificationLog, NotificationLogRepository
 from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository
 
 

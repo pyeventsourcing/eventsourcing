@@ -1,18 +1,24 @@
+import datetime
 from time import sleep
 from uuid import uuid1
 
-import datetime
+import time
 
-from eventsourcing.domain.model.log import get_logger, Logger, start_new_log, Log
+from eventsourcing.domain.model.log import Log, Logger, get_logger, start_new_log, make_bucket_id, bucket_duration, \
+    bucket_starts
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.log_reader import get_log_reader
-from eventsourcing.tests.unit_test_cases import AppishTestCase, notquick
-from eventsourcing.tests.unit_test_cases_cassandra import CassandraRepoTestCase
-from eventsourcing.tests.unit_test_cases_python_objects import PythonObjectsRepoTestCase
-from eventsourcing.tests.unit_test_cases_sqlalchemy import SQLAlchemyRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_cassandra_stored_event_repository import \
+    CassandraRepoTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_sqlalchemy_stored_event_repository import \
+    SQLAlchemyRepoTestCase
+from eventsourcing.tests.base import notquick
+from eventsourcing.tests.stored_event_repository_tests.base import PersistenceSubscribingTestCase
+from eventsourcing.tests.stored_event_repository_tests.test_python_objects_stored_event_repository import \
+    PythonObjectsRepoTestCase
 
 
-class LogTestCase(AppishTestCase):
+class LogTestCase(PersistenceSubscribingTestCase):
 
     def setUp(self):
         super(LogTestCase, self).setUp()
@@ -33,13 +39,13 @@ class LogTestCase(AppishTestCase):
         message4 = 'This is message 4'
         message5 = 'This is message 5'
         message6 = 'This is message 6'
-        event1 = logger.info(message1)
-        event2 = logger.info(message2)
-        event3 = logger.info(message3)
+        event1 = logger.log(message1)
+        event2 = logger.log(message2)
+        event3 = logger.log(message3)
         halfway = uuid1().hex
-        event4 = logger.info(message4)
-        event5 = logger.info(message5)
-        event6 = logger.info(message6)
+        event4 = logger.log(message4)
+        event5 = logger.log(message5)
+        event6 = logger.log(message6)
 
         # Check we can get all the messages (query running in descending order).
         log_reader = get_log_reader(log, event_store=self.event_store)
@@ -133,7 +139,7 @@ class LogTestCase(AppishTestCase):
         self.assertEqual(len(messages), 0)
 
     @notquick()
-    def test_buckets(self):
+    def test_buckets_size_second(self):
         # Start new log.
         log = start_new_log(name='log1', bucket_size='second')
 
@@ -143,7 +149,7 @@ class LogTestCase(AppishTestCase):
         number_of_messages = 300
         events = []
         for i in range(number_of_messages):
-            message_logged = logger.info(str(i))
+            message_logged = logger.log(str(i))
             events.append(message_logged)
             sleep(0.01)
         self.assertGreater(datetime.datetime.now() - start, datetime.timedelta(seconds=1))
@@ -275,6 +281,77 @@ class LogTestCase(AppishTestCase):
 
         # Expect the order of the messages is the reverse of the created order.
         self.assertEqual(messages, [str(i) for i in range(108 + limit * 2, 108 + limit, -1)])
+
+    def test_buckets_of_all_sizes(self):
+        # Start new second sized log.
+        log = start_new_log(name='log2', bucket_size='second')
+        log.append_message('message')
+
+        # Get the messages.
+        reader = get_log_reader(log, self.event_store)
+        self.assertTrue(len(list(reader.get_messages())))
+
+        # Start new minute sized log.
+        log = start_new_log(name='log3', bucket_size='minute')
+        log.append_message('message')
+
+        # Get the messages.
+        reader = get_log_reader(log, self.event_store)
+        self.assertTrue(len(list(reader.get_messages())))
+
+        # Start new hour sized log.
+        log = start_new_log(name='log4', bucket_size='hour')
+        log.append_message('message')
+
+        # Get the messages.
+        reader = get_log_reader(log, self.event_store)
+        self.assertTrue(len(list(reader.get_messages())))
+
+        # Start new day sized log.
+        log = start_new_log(name='log5', bucket_size='day')
+        log.append_message('message')
+
+        # Get the messages.
+        reader = get_log_reader(log, self.event_store)
+        self.assertTrue(len(list(reader.get_messages())))
+
+        # Start new month sized log.
+        log = start_new_log(name='log6', bucket_size='month')
+        log.append_message('message')
+
+        # Get the messages.
+        reader = get_log_reader(log, self.event_store)
+        self.assertTrue(len(list(reader.get_messages())))
+
+        # Start new year sized log.
+        log = start_new_log(name='log7', bucket_size='year')
+        log.append_message('message')
+
+        # Get the messages.
+        reader = get_log_reader(log, self.event_store)
+        self.assertTrue(len(list(reader.get_messages())))
+
+        # Start new default sized log.
+        log = start_new_log(name='log8')
+        log.append_message('message')
+
+        # Get the messages.
+        reader = get_log_reader(log, self.event_store)
+        self.assertTrue(len(list(reader.get_messages())))
+
+        # Start new invalid sized log.
+        with self.assertRaises(ValueError):
+            log = start_new_log(name='log9', bucket_size='invalid')
+
+        # Check the helper methods are protected against invalid bucket sizes.
+        with self.assertRaises(ValueError):
+            make_bucket_id('log10', time.time(), bucket_size='invalid')
+
+        with self.assertRaises(ValueError):
+            bucket_starts(time.time(), bucket_size='invalid')
+
+        with self.assertRaises(ValueError):
+            bucket_duration(bucket_size='invalid')
 
 
 class TestLogWithCassandra(CassandraRepoTestCase, LogTestCase):

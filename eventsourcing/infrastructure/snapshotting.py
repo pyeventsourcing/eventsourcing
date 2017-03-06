@@ -44,7 +44,7 @@ def get_snapshot(stored_entity_id, event_store, until=None):
     """
     assert isinstance(event_store, AbstractEventStore)
     snapshot_entity_id = make_stored_entity_id(id_prefix_from_event_class(Snapshot), stored_entity_id)
-    return event_store.get_most_recent_event(snapshot_entity_id, until=until)
+    return event_store.get_most_recent_event(snapshot_entity_id, until=until, include_until=True)
 
 
 def entity_from_snapshot(snapshot):

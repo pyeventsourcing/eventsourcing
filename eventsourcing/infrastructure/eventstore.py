@@ -4,8 +4,8 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist, ProgrammingError
-from eventsourcing.infrastructure.transcoding import AbstractTranscoder, JSONTranscoder, StoredEvent
+from eventsourcing.exceptions import ConcurrencyError, EntityVersionDoesNotExist
+from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder, StoredEvent, StoredEventTranscoder
 
 
 class AbstractEventStore(six.with_metaclass(ABCMeta)):
@@ -18,23 +18,23 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
                           page_size=None):
-        pass
+        """Returns events for given stored entity ID."""
 
     @abstractmethod
     def get_entity_version(self, stored_entity_id, version):
-        pass
+        """Returns entity version for given stored entity ID."""
 
     @abstractmethod
-    def get_most_recent_event(self, stored_entity_id, until=None):
-        pass
+    def get_most_recent_event(self, stored_entity_id, until=None, include_until=False):
+        """Returns most recent event for given stored entity ID."""
 
 
 class EventStore(AbstractEventStore):
     def __init__(self, stored_event_repo, transcoder=None):
         assert isinstance(stored_event_repo, AbstractStoredEventRepository), stored_event_repo
         if transcoder is None:
-            transcoder = JSONTranscoder()
-        assert isinstance(transcoder, AbstractTranscoder), transcoder
+            transcoder = JSONStoredEventTranscoder()
+        assert isinstance(transcoder, StoredEventTranscoder), transcoder
         self.stored_event_repo = stored_event_repo
 
         self.transcoder = transcoder
@@ -75,12 +75,13 @@ class EventStore(AbstractEventStore):
         # Deserialize all the stored event objects into domain event objects.
         return six.moves.map(self.transcoder.deserialize, stored_events)
 
-    def get_most_recent_event(self, stored_entity_id, until=None):
+    def get_most_recent_event(self, stored_entity_id, until=None, include_until=False):
         """Returns last event for given stored entity ID.
 
         :rtype: DomainEvent, NoneType
         """
-        stored_event = self.stored_event_repo.get_most_recent_event(stored_entity_id, until=until)
+        stored_event = self.stored_event_repo.get_most_recent_event(stored_entity_id, until=until,
+                                                                    include_until=include_until)
         return None if stored_event is None else self.transcoder.deserialize(stored_event)
 
     def get_entity_version(self, stored_entity_id, version):
@@ -91,13 +92,11 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
     def __init__(self, always_check_expected_version=False, always_write_entity_version=False,
                  stored_event_class=StoredEvent):
         """
-        Base class for a persistent collection of stored events.
+        Abstract base class for a persistent collection of stored events.
         """
         self.always_check_expected_version = always_check_expected_version
-        self.always_write_entity_version = always_write_entity_version
+        self.always_write_entity_version = always_write_entity_version or always_check_expected_version
         self.stored_event_class = stored_event_class
-        if self.always_check_expected_version and not self.always_write_entity_version:
-            raise ProgrammingError("If versions are checked, they must also be written.")
 
     def append(self, new_stored_event, new_version_number=None, max_retries=3, artificial_failure_rate=0):
         """
@@ -168,7 +167,8 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
     @abstractmethod
     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
-                          results_ascending=True):
+                          results_ascending=True, include_after_when_ascending=False,
+                          include_until_when_descending=False):
         """
         Returns all events for given entity ID in chronological order. Limit is max 10000.
 
@@ -198,14 +198,14 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
     def iterator_class(self):
         return SimpleStoredEventIterator
 
-    def get_most_recent_event(self, stored_entity_id, until=None):
+    def get_most_recent_event(self, stored_entity_id, until=None, include_until=False):
         """
         Returns last event for given entity ID.
 
         :rtype: DomainEvent, NoneType
 
         """
-        events = self.get_most_recent_events(stored_entity_id, until=until, limit=1)
+        events = self.get_most_recent_events(stored_entity_id, until=until, limit=1, include_until=include_until)
         events = list(events)
         if len(events) == 1:
             return events[0]
@@ -215,7 +215,7 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
             raise Exception("Shouldn't have more than one event object: {}"
                             "".format(events))
 
-    def get_most_recent_events(self, stored_entity_id, until=None, limit=None):
+    def get_most_recent_events(self, stored_entity_id, until=None, limit=None, include_until=False):
         """
         Returns a stored event from a domain event.
 
@@ -228,6 +228,7 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
             limit=limit,
             query_ascending=False,
             results_ascending=False,
+            include_until_when_descending=include_until,
         )
 
     @staticmethod

@@ -38,7 +38,7 @@ class QualnameABCMeta(ABCMeta):
 def create_domain_event_id():
     return uuid1().hex
 
-
+# Todo: Somehow support TimeSequencedDomainEvent and IntegerSequencedDomainEvent.
 class DomainEvent(with_metaclass(QualnameABCMeta)):
 
     always_encrypt = False

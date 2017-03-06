@@ -1,11 +1,24 @@
 import base64
 import zlib
+from abc import ABCMeta, abstractmethod
 
+import six
 from Crypto import Random
 from Crypto.Cipher import AES
 
 
-class AESCipher(object):
+class AbstractCipher(six.with_metaclass(ABCMeta)):
+
+    @abstractmethod
+    def encrypt(self, plaintext):
+        """Return ciphertext for given plaintext."""
+
+    @abstractmethod
+    def decrypt(self, ciphertext):
+        """Return plaintext for given ciphertext."""
+
+
+class AESCipher(AbstractCipher):
 
     BLOCK_SIZE = 16
 

@@ -1,125 +1,64 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 
 from six import with_metaclass
 
-from eventsourcing.application.subscribers.persistence import PersistenceSubscriber
-from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.transcoding import JSONTranscoder
+from eventsourcing.application.policies import PersistenceSubscriber
+from eventsourcing.infrastructure.eventstore import EventStore, AbstractStoredEventRepository
+from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder
 
 
-class EventSourcingApplication(with_metaclass(ABCMeta)):
-    persist_events = True
+class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
 
-    def __init__(self, cipher=None, always_encrypt_stored_events=False, enable_occ=False,
-                 always_write_entity_version=False):
+    def __init__(self, stored_event_repository=None, always_encrypt=False, cipher=None):
         """
-        Initialises event sourcing application attributes. Constructs a stored event repo using a
-        concrete method that must be provided by a subclass, an event store using the stored
-        event repository, and optionally a persistence subscriber that uses the event store.
+        Constructs an event store using the given stored event repository.
 
-        As well as providing a concrete method to construct a stored event repository, subclasses
-        may use the event store to construct event sourced repositories, from which event sourced
-        entities can be retrieved. Subclasses may also construct other subscribers which execute
-        commands against the entities in response to the publication of domain events.
+        :param: stored_event_repository:  Repository containing stored events.
 
-        To enable symmetric encryption of stored events, pass in a 'cipher' and
-        provide a True value for 'always_encrypt_stored_events'.
+        :param always_encrypt:  Optional encryption of all stored events.
 
-        To enable optimistic concurrency control (new in 1.1.0), pass a True value for argument
-        'always_check_expected_version'. This feature depends on your having a table
-        'entity_versions' is your schema, so if you are upgrading from v1.0.x of this package,
-        then please check your schema and write a migration script for your application before
-        deploying version 1.1.x into production.
+        :param cipher:  Used to decrypt (and possibly encrypt) stored events.
 
-
-        :param always_encrypt_stored_events:  Apply encryption to all stored events (needs cipher).
-
-        :param always_write_entity_version: Enables writing of entity versions, which is
-                                            required for optimistic concurrency control.
-                                            On its own, this option doesn't enable optimistic
-                                            concurrency control, but may help to achieve a
-                                            zero-downtime migration for an application
-                                            developed with a previous version of this package.
-
-        :param cipher:  Encryption cypher for encryption of event attributes when stored.
-
-        :param enable_occ:  Enables optimistic concurrency control, so that an exception
-                            is raised when writing versions that would be out of order. This
-                            also enabled writing of entity versions, which is required for
-                            optimistic concurrency control.
-
-        Suggested steps for migration from one-table schema (v1.0.x) to the new two table schema (v1.1.x):
-
-        - upgrade the application to use the new version of this package
-          but don't enable any of the optiions
-
-        - after testing, deploy with the new version of this package, and then migrate
-          the database to add the new 'entity_versions' table
-
-        - change the application to enable writing entity versions
-
-        - after testing, deploy the new version
-
-        - write a script to add to the entity versions table: at one event for each
-          stored entity which corresponds to the very last event for that entity; or
-          for each stored event as it would be if this feature had existed all along
-
-        - change the application to enable optimistic concurrency control - you
-          will also need to change commands that are contentious in your application
-          to retry the command, to get a fresh version of the entity repeat the
-          operation
-
-        - after testing, deploy the new version - your versioned event streams are
-          now protected by optimistic concurrency control, so that they will not
-          become inconsistent, please note that events that are not versioned do not
-          have optimistic concurrency controls applied to them, since there is nothing
-          to control
         """
-        self.stored_event_repo = self.create_stored_event_repo(
-            always_check_expected_version=enable_occ,
-            always_write_entity_version=enable_occ or always_write_entity_version
-        )
-        self.event_store = self.create_event_store(
-            cipher=cipher,
-            always_encrypt=always_encrypt_stored_events
-        )
-        self.persistence_subscriber = self.create_persistence_subscriber()
+        assert isinstance(stored_event_repository, AbstractStoredEventRepository), stored_event_repository
+        self.stored_event_repository = stored_event_repository
+        self.event_store = self.construct_event_store(always_encrypt, cipher)
 
-    @abstractmethod
-    def create_stored_event_repo(self, **kwargs):
-        """Returns an instance of a subclass of AbstractStoredEventRepository.
-
-        :rtype: AbstractStoredEventRepository
-        """
-
-    def create_event_store(self, cipher=None, always_encrypt=False):
-        transcoder = self.create_transcoder(always_encrypt, cipher)
-        return EventStore(
-            stored_event_repo=self.stored_event_repo,
+    def construct_event_store(self, always_encrypt=False, cipher=None):
+        transcoder = self.construct_transcoder(always_encrypt, cipher)
+        event_store = EventStore(
+            stored_event_repo=self.stored_event_repository,
             transcoder=transcoder,
         )
+        return event_store
 
-    def create_transcoder(self, always_encrypt, cipher):
-        return JSONTranscoder(
-            cipher=cipher,
-            always_encrypt=always_encrypt,
-        )
-
-    def create_persistence_subscriber(self):
-        if self.persist_events and self.event_store:
-            return PersistenceSubscriber(
-                event_store=self.event_store
-            )
+    def construct_transcoder(self, always_encrypt=False, cipher=None):
+        return JSONStoredEventTranscoder(always_encrypt=always_encrypt, cipher=cipher)
 
     def close(self):
-        if self.persistence_subscriber is not None:
-            self.persistence_subscriber.close()
-            self.persistence_subscriber = None
         self.event_store = None
-        self.stored_event_repo = None
+        self.stored_event_repository = None
 
     def __enter__(self):
         return self
 
     def __exit__(self, *_):
         self.close()
+
+
+class EventSourcedApplication(ReadOnlyEventSourcingApplication):
+
+    def __init__(self, **kwargs):
+        super(EventSourcedApplication, self).__init__(**kwargs)
+        self.persistence_subscriber = self.construct_persistence_subscriber()
+
+    def construct_persistence_subscriber(self):
+        return PersistenceSubscriber(
+            event_store=self.event_store
+        )
+
+    def close(self):
+        if self.persistence_subscriber is not None:
+            self.persistence_subscriber.close()
+            self.persistence_subscriber = None
+        super(EventSourcedApplication, self).close()
