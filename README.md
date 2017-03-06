@@ -118,23 +118,6 @@ Support is included in the library for presenting notification logs
 as RESTful HTTP services with an HTTP client reading the logs, in the
 dynamic manner described by Vaughn Vernon in his book *Implementing Domain Driven Design*.
 
-**Boxes (forthcoming, experimental)**
-The notification log pattern enables a flow of events between applications
-in different bounded contexts, and suggests an effective way of avoiding a monolithic
-application by developing a suite of smaller, collaborating, event driven
-and event sourced applications that can maintain integrity despite premature
-application termination and occasional network partitioning. "Box" is this project's working
-name for the archetypal event sourced application that is dedicated to a bounded context,
-whilst also being capable of collaborating (using notifications) with other such application
-in other bounded contexts. The well factored monolith amounts to having all boxes running in
-one container, with notifications being made synchronously in process. Microservices arise
-simply from moving a box to a new container, with notifications then propagated across the
-process boundaries. As Eric Evans has suggested, harder social boundaries are perhaps a necessary
-condition to ensure a domain driven design can be a socially successful design, due to the rough
-and tumble of day-to-day software development, and the fact that software developers double in
-number every five years, so that on average half the programmers have less than five years
-experience, which might not be enough adequately to practise design approaches such as DDD.
-
 
 ## Install
 
@@ -212,7 +195,7 @@ single Python file. Feel free to experiment by making variations. If
 you installed the library into a Python virtualenv, please check that
 your virtualenv is activated before running your program.
 
-#### Step 1: define a class of event sourced entity
+#### Step 1: define an event sourced entity
 
 Write yourself a new event sourced entity class. The entity is responsible
 for publishing domain events. As a rule, the state of the entity will be
@@ -223,11 +206,11 @@ from eventsourcing.domain.model.entity import EventSourcedEntity
 
 
 class Example(EventSourcedEntity):
-    """An example of an event sourced entity class."""
+    """An example event sourced entity."""
 ```
 
-The entity class domain events can be defined on the domain entity
-class. In the example below, an 'Example' entity defines 'Created',
+The entity's domain events can be defined on the domain entity class, as
+inner classes. In the example below, the 'Example' entity has 'Created',
 'AttributeChanged', and 'Discarded' events.
 
 Add those events to your entity class.
@@ -780,6 +763,23 @@ Todo: Develop above to be an API reference.
 
 
 ## Forthcoming Features
+
+**Boxes (forthcoming, experimental)**
+The notification log pattern enables a flow of events between applications
+in different bounded contexts, and suggests an effective way of avoiding a monolithic
+application by developing a suite of smaller, collaborating, event driven
+and event sourced applications that can maintain integrity despite premature
+application termination and occasional network partitioning. "Box" is this project's working
+name for the archetypal event sourced application that is dedicated to a bounded context,
+whilst also being capable of collaborating (using notifications) with other such application
+in other bounded contexts. The well factored monolith amounts to having all boxes running in
+one container, with notifications being made synchronously in process. Microservices arise
+simply from moving a box to a new container, with notifications then propagated across the
+process boundaries. As Eric Evans has suggested, harder social boundaries are perhaps a necessary
+condition to ensure a domain driven design can be a socially successful design, due to the rough
+and tumble of day-to-day software development, and the fact that software developers double in
+number every five years, so that on average half the programmers have less than five years
+experience, which might not be enough adequately to practise design approaches such as DDD.
 
 * List-based collections (forthcoming)
 
