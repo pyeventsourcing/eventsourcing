@@ -259,6 +259,7 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
         self.after = after
         self.until = until
         self.limit = limit
+        self.query_counter = 0
         self.page_counter = 0
         self.all_event_counter = 0
         self.is_ascending = is_ascending
@@ -274,6 +275,12 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
         """
         self.page_counter += 1
 
+    def _inc_query_counter(self):
+        """
+        Increments the query counter.
+        """
+        self.query_counter += 1
+
     def _inc_all_event_counter(self):
         self.all_event_counter += 1
 
@@ -286,7 +293,11 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
 
     @abstractmethod
     def __iter__(self):
-        pass
+        """
+        Returns an Python iterable, probably a Python generator, that
+        can be used to iterate over the stored events, according to
+        the implement in a subclass.
+        """
 
 
 class SimpleStoredEventIterator(StoredEventIterator):
@@ -294,6 +305,9 @@ class SimpleStoredEventIterator(StoredEventIterator):
         """
         Yields pages of events until the last page.
 
+        Implements the iterator as a Python generator, that can be
+        used to iterate over the stored events, by retrieving
+        pages of stored events from the stored event repository.
         """
         while True:
             # Get next page of events.
@@ -315,18 +329,13 @@ class SimpleStoredEventIterator(StoredEventIterator):
                 results_ascending=self.is_ascending,
             )
 
-            # Count the page.
-            self._inc_page_counter()
+            self._inc_query_counter()
 
             # Start counting events in this page.
             in_page_event_counter = 0
 
-            # Yield each stored event, so long as we aren't over the limit.
+            # Yield each stored event.
             for stored_event in stored_events:
-
-                # Stop if we're over the limit.
-                if self.limit and self.all_event_counter >= self.limit:
-                    raise StopIteration
 
                 # Count each event.
                 self._inc_all_event_counter()
@@ -338,9 +347,10 @@ class SimpleStoredEventIterator(StoredEventIterator):
                 # Remember the position as the last event.
                 self._update_position(stored_event)
 
-            # Decide if this is the last page.
-            is_last_page = in_page_event_counter != self.page_size
+            # If that wasn't an empty page, count the page.
+            if in_page_event_counter:
+                self._inc_page_counter()
 
-            # If that was the last page, then stop iterating.
-            if is_last_page:
+            # If that wasn't a full page, stop iterating (there can be no more items).
+            if in_page_event_counter != self.page_size:
                 raise StopIteration

@@ -447,37 +447,71 @@ class IteratorTestCase(AbstractStoredEventRepositoryTestCase):
         stored_events = list(stored_events)
         self.assertEqual(len(stored_events), self.num_events)
 
-        # Check can get all events.
-        page_size = 5
+        # # Check can get all events in ascending order.
+        self.assert_iterator_yields_events(
+            is_ascending=True,
+            expect_at_start=self.stored_events[0].event_attrs,
+            expect_at_end=self.stored_events[-1].event_attrs,
+            expect_event_count=12,
+            expect_page_count=3,
+            expect_query_count=3,
+            page_size=5,
+        )
 
-        # Iterate ascending.
-        is_ascending = True
-        expect_at_start = self.stored_events[0].event_attrs
-        expect_at_end = self.stored_events[-1].event_attrs
-        expect_count = 12
-        self.assert_iterator_yields_events(is_ascending, expect_at_start, expect_at_end, expect_count, page_size)
-
-        # Iterate descending.
-        is_ascending = False
-        expect_at_start = self.stored_events[-1].event_attrs
-        expect_at_end = self.stored_events[0].event_attrs
-        self.assert_iterator_yields_events(is_ascending, expect_at_start, expect_at_end, expect_count, page_size)
+        # In descending order.
+        self.assert_iterator_yields_events(
+            is_ascending=False,
+            expect_at_start=self.stored_events[-1].event_attrs,
+            expect_at_end=self.stored_events[0].event_attrs,
+            expect_event_count=12,
+            expect_page_count=3,
+            expect_query_count=3,
+            page_size=5,
+        )
 
         # Limit number of items.
-        expect_at_start = self.stored_events[-1].event_attrs
-        expect_at_end = self.stored_events[-2].event_attrs
-        expect_count = 2
-        self.assert_iterator_yields_events(is_ascending, expect_at_start, expect_at_end, expect_count, page_size,
-                                           limit=2)
+        self.assert_iterator_yields_events(
+            is_ascending=False,
+            expect_at_start=self.stored_events[-1].event_attrs,
+            expect_at_end=self.stored_events[-2].event_attrs,
+            expect_event_count=2,
+            expect_page_count=1,
+            expect_query_count=1,
+            page_size=5,
+            limit=2,
+        )
 
+        # Match the page size to the number of events.
+        self.assert_iterator_yields_events(
+            is_ascending=True,
+            expect_at_start=self.stored_events[0].event_attrs,
+            expect_at_end=self.stored_events[-1].event_attrs,
+            expect_event_count=12,
+            expect_page_count=1,
+            expect_query_count=2,
+            page_size=self.num_events,
+        )
 
-    def assert_iterator_yields_events(self, is_ascending, expect_at_start, expect_at_end, expect_count, page_size,
-                                      limit=None):
+        # Queries are minimised if we set a limit.
+        self.assert_iterator_yields_events(
+            is_ascending=True,
+            expect_at_start=self.stored_events[0].event_attrs,
+            expect_at_end=self.stored_events[-1].event_attrs,
+            expect_event_count=12,
+            expect_page_count=1,
+            expect_query_count=1,
+            page_size=self.num_events,
+            limit=12,
+        )
+
+    def assert_iterator_yields_events(self, is_ascending, expect_at_start, expect_at_end, expect_event_count=1,
+                                      expect_page_count=0, expect_query_count=0, page_size=1, limit=None):
         iterator = self.construct_iterator(is_ascending, page_size, limit=limit)
         retrieved_events = list(iterator)
-        self.assertEqual(len(retrieved_events), expect_count, retrieved_events)
-        self.assertEqual(iterator.page_counter, expect_count // page_size + 1 if expect_count % page_size else 0)
-        self.assertEqual(iterator.all_event_counter, expect_count)
+        self.assertEqual(len(retrieved_events), expect_event_count, retrieved_events)
+        self.assertEqual(iterator.page_counter, expect_page_count)
+        self.assertEqual(iterator.query_counter, expect_query_count)
+        self.assertEqual(iterator.all_event_counter, expect_event_count)
         self.assertEqual(expect_at_start, retrieved_events[0].event_attrs)
         self.assertEqual(expect_at_end, retrieved_events[-1].event_attrs)
 
