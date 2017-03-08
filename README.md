@@ -11,29 +11,29 @@ A library for event sourcing in Python.
 
 ## Overview
 
-This library supports developing event sourced applications in Python. One definition
-of event sourcing suggests the state of an event sourced application is determined by
-a sequence of events. Another suggests event sourcing is a persistence mechanism for
-applications of domain driven design.
+This library can help you develop event sourced applications in Python.
 
-It is common for software applications to be implemented using domain entities, with
+One definition of event sourcing suggests the state of an event sourced application
+is determined by a sequence of events. Another suggests event sourcing is a persistence
+mechanism for applications of domain driven design.
+
+At any rate, it is common for software applications to be implemented using entities, with
 the application state distributed across the entities. Therefore, this library provides
-mechanisms useful in such an application: a style for coding entity behaviours that
-mutate the state of the entity by instantiating and applying and then publishing domain
-events of different kinds; and a way for those events to be stored and replayed
-to obtain on demand the state of an entity in the application.
+mechanisms useful in such an application: a style for coding entity behaviours, that
+mutate the state of the entity by instantiating and applying and publishing domain
+events of different kinds; and a way for those events to be stored and replayed,
+to obtain on demand the state of an entity of the application.
 
 This document highlights the main features of the library,
 provides instructions for installing the package, describes the
 design of the software, includes a detailed example of usage and
 has some background information about the project.
 
-With the major features complete, the current focus of development
+With the major features nearly complete, the current focus of development
 work is towards: refactoring the code for greater clarity and greater
-flexibility; a test suite with 100% line coverage; a much better
-distinction between time-sequenced and integer-sequenced event streams;
-and support for storing events in a broader range database management
-systems and services.
+flexibility; a much better distinction between time-sequenced and
+integer-sequenced events; and support for storing events in a broader
+range database management systems and services.
 
 ## Features
 
