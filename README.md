@@ -11,16 +11,16 @@ A library for event sourcing in Python.
 
 ## Overview
 
-The aim of this library is support for developing event sourced applications
-in Python. One definition of event sourcing suggests the state of an event sourced
-application is determined by a sequence of events. Another suggests event sourcing
-is a persistence mechanism for applications of domain driven design.
+This library supports developing event sourced applications in Python. One definition
+of event sourcing suggests the state of an event sourced application is determined by
+a sequence of events. Another suggests event sourcing is a persistence mechanism for
+applications of domain driven design.
 
-It is common for software applications to be implemented using domain
-entities, with the application state distributed across the entities. Therefore, this library
-provides mechanisms useful in such an application: a style for coding entity behaviours
-that mutate the state of the entity by instantiating and applying and then publishing
-domain events of different kinds; and a way for those events to be stored and replayed
+It is common for software applications to be implemented using domain entities, with
+the application state distributed across the entities. Therefore, this library provides
+mechanisms useful in such an application: a style for coding entity behaviours that
+mutate the state of the entity by instantiating and applying and then publishing domain
+events of different kinds; and a way for those events to be stored and replayed
 to obtain on demand the state of an entity in the application.
 
 This document highlights the main features of the library,
