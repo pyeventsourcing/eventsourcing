@@ -11,7 +11,7 @@ A library for event sourcing in Python.
 
 ## Overview
 
-The aim of this library is to make it easier to write event sourced applications
+The aim is to make it a bit easier to write event sourced applications
 in Python. One definition of event sourcing suggests the state of an event sourced
 application is determined by a sequence of events. Another suggests event sourcing
 is a persistence mechanism for applications of domain driven design.
