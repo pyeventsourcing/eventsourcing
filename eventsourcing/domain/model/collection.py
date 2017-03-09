@@ -2,18 +2,18 @@ from __future__ import absolute_import, unicode_literals, division, print_functi
 
 from uuid import uuid4
 
-from eventsourcing.domain.model.entity import entity_mutator, singledispatch, EntityRepository
+from eventsourcing.domain.model.entity import entity_mutator, singledispatch, EntityRepository, Created, Discarded
 from eventsourcing.domain.model.events import DomainEvent, publish
 
 from eventsourcing.domain.model.entity import EventSourcedEntity
 
 
 class Collection(EventSourcedEntity):
-    class Created(EventSourcedEntity.Created):
+    class Created(Created):
         def __init__(self, **kwargs):
             super(Collection.Created, self).__init__(**kwargs)
 
-    class Discarded(EventSourcedEntity.Discarded):
+    class Discarded(Discarded):
         def __init__(self, **kwargs):
             super(Collection.Discarded, self).__init__(**kwargs)
 

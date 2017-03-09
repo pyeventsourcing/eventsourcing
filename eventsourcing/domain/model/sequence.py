@@ -1,11 +1,11 @@
-from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository
+from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository, Created
 from eventsourcing.domain.model.events import DomainEvent, publish
 from eventsourcing.exceptions import RepositoryKeyError
 
 
 class Sequence(EventSourcedEntity):
 
-    class Started(EventSourcedEntity.Created):
+    class Started(Created):
         """Occurs when sequence is started."""
 
     class Appended(DomainEvent):

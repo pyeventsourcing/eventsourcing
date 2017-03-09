@@ -1,7 +1,7 @@
 import mock
 
 from eventsourcing.domain.model.entity import CreatedMutatorRequiresTypeNotInstance, EntityIDConsistencyError, \
-    EntityVersionConsistencyError, EventSourcedEntity, created_mutator, attribute
+    EntityVersionConsistencyError, EventSourcedEntity, created_mutator, attribute, AttributeChanged, Created
 from eventsourcing.domain.model.events import DomainEvent, publish, subscribe, unsubscribe
 from eventsourcing.example.domain_model import Example, register_new_example
 from eventsourcing.example.infrastructure import ExampleRepo
@@ -165,7 +165,7 @@ class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCas
 
         # Check the published event was an AttributeChanged event, with the expected attribute values.
         published_event = published_events[0]
-        self.assertIsInstance(published_event, Aaa.AttributeChanged)
+        self.assertIsInstance(published_event, AttributeChanged)
         self.assertEqual(published_event.name, '_a')
         self.assertEqual(published_event.value, 'value1')
         self.assertTrue(published_event.domain_event_id)
@@ -176,7 +176,7 @@ class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCas
 
     def test_created_mutator_error(self):
         with self.assertRaises(CreatedMutatorRequiresTypeNotInstance):
-            created_mutator(mock.Mock(spec=DomainEvent), 'not a class')
+            created_mutator(mock.Mock(spec=Created), 'not a class')
 
 
 class CustomValueObject(object):

@@ -222,16 +222,18 @@ Add those events to your entity class.
 
 
 ```python
+from eventsourcing.domain.model.entity import Created, AttributeChanged, Discarded
+
 class Example(EventSourcedEntity):
     """An example of an event sourced entity class."""
 
-    class Created(EventSourcedEntity.Created):
+    class Created(Created):
         pass
 
-    class AttributeChanged(EventSourcedEntity.AttributeChanged):
+    class AttributeChanged(AttributeChanged):
         pass
 
-    class Discarded(EventSourcedEntity.Discarded):
+    class Discarded(Discarded):
         pass
 ```
 
@@ -251,18 +253,18 @@ Add the two mutable attributes 'a' and 'b' to your entity class,
 and adjust the import statement to import 'attribute'.
 
 ```python
-from eventsourcing.domain.model.entity import EventSourcedEntity, attribute
+from eventsourcing.domain.model.entity import attribute
 
 class Example(EventSourcedEntity):
     """An example of an event sourced entity class."""
 
-    class Created(EventSourcedEntity.Created):
+    class Created(Created):
         pass
 
-    class AttributeChanged(EventSourcedEntity.AttributeChanged):
+    class AttributeChanged(AttributeChanged):
         pass
 
-    class Discarded(EventSourcedEntity.Discarded):
+    class Discarded(Discarded):
         pass
 
     @attribute
@@ -293,13 +295,13 @@ will be passed through to the base class constructor.
 class Example(EventSourcedEntity):
     """An example of an event sourced entity class."""
 
-    class Created(EventSourcedEntity.Created):
+    class Created(Created):
         pass
 
-    class AttributeChanged(EventSourcedEntity.AttributeChanged):
+    class AttributeChanged(AttributeChanged):
         pass
 
-    class Discarded(EventSourcedEntity.Discarded):
+    class Discarded(Discarded):
         pass
 
     def __init__(self, a, b, **kwargs):

@@ -9,8 +9,9 @@ import six
 from singledispatch import singledispatch
 
 from eventsourcing.domain.model.collection import Collection
-from eventsourcing.domain.model.entity import EventSourcedEntity, attribute, EntityRepository, entity_mutator
-from eventsourcing.domain.model.events import publish, DomainEvent
+from eventsourcing.domain.model.entity import AttributeChanged, Created, Discarded, EntityRepository, \
+    EventSourcedEntity, attribute, entity_mutator
+from eventsourcing.domain.model.events import DomainEvent, publish
 from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 
 # Use a private code point to terminate the strings.
@@ -26,13 +27,13 @@ class GeneralizedSuffixTree(EventSourcedEntity):
     distributed application.
     """
 
-    class Created(EventSourcedEntity.Created):
+    class Created(Created):
         pass
 
-    class AttributeChanged(EventSourcedEntity.AttributeChanged):
+    class AttributeChanged(AttributeChanged):
         pass
 
-    class Discarded(EventSourcedEntity.Discarded):
+    class Discarded(Discarded):
         pass
 
     def __init__(self, root_node_id, case_insensitive=False, **kwargs):
@@ -72,7 +73,8 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         Lists edges in the suffix tree
         """
         # Todo: Something that shows the actual tree.
-        return 'GeneralizedSuffixTree(id={0.id}, root_node_id={0.root_node_id}, case_insensitive={0.case_insensitive})'.format(self)
+        return ('GeneralizedSuffixTree(id={0.id}, root_node_id={0.root_node_id}, case_insensitive={'
+               '0.case_insensitive})'.format(self))
 
     def add_string(self, string, string_id):
         assert isinstance(string, six.string_types)
@@ -140,15 +142,18 @@ class GeneralizedSuffixTree(EventSourcedEntity):
                 edge = self.get_edge(make_edge_id(self.suffix.source_node_id, prefix))
                 suffix_label_offset = self.suffix.length + 1
                 if suffix_label_offset > len(edge.label) - 1:
-                    raise ValueError("Suffix offset too large for label: %s: %s" % (suffix_label_offset, edge.label[:100]))
+                    raise ValueError(
+                        "Suffix offset too large for label: %s: %s" % (suffix_label_offset, edge.label[:100]))
                 # print("Implicit edge dest node: {}".format(edge.dest_node_id))
                 if edge.label[suffix_label_offset] == string[i]:
-                    # print("Matched edge label til end of suffix: {} {}".format(edge.label[:100], suffix_label_offset))
+                    # print("Matched edge label til end of suffix: {} {}".format(edge.label[:100],
+                    # suffix_label_offset))
                     # The suffix was found in this edge, so exit the loop.
 
                     # Add the string ID to the node collection.
                     self.add_string_id(edge.dest_node_id, string_id)
-                    # print("Added string ID '{}' to implicit exact match: {}".format(string_id, self.get_node(edge.dest_node_id)))
+                    # print("Added string ID '{}' to implicit exact match: {}".format(string_id, self.get_node(
+                    # edge.dest_node_id)))
 
                     break
 
@@ -161,7 +166,6 @@ class GeneralizedSuffixTree(EventSourcedEntity):
 
             # Remeber this node was created in this call.
             added_node_ids.add(new_leaf_node.id)
-
 
             # Make a new edge from the parent node to the
             # new leaf node. Make a label for the edge to
@@ -417,7 +421,8 @@ class GeneralizedSuffixTree(EventSourcedEntity):
         """
         if not suffix.explicit():
             if len(string) < suffix.first_char_index + 1:
-                raise AssertionError("String length is {} and suffix first char index is {}".format(len(string), suffix.first_char_index))
+                raise AssertionError("String length is {} and suffix first char index is {}"
+                                     "".format(len(string), suffix.first_char_index))
             edge_id = make_edge_id(suffix.source_node_id, string[suffix.first_char_index])
             e = self.get_edge(edge_id)
             if e.length <= suffix.length:
@@ -430,11 +435,11 @@ class SuffixTreeNode(EventSourcedEntity):
     """A node in the suffix tree.
     """
 
-    class Created(EventSourcedEntity.Created): pass
+    class Created(Created): pass
 
-    class AttributeChanged(EventSourcedEntity.AttributeChanged): pass
+    class AttributeChanged(AttributeChanged): pass
 
-    class Discarded(EventSourcedEntity.Discarded): pass
+    class Discarded(Discarded): pass
 
     def __init__(self, suffix_node_id=None, string_id=None, is_leaf=False, is_root=False, *args, **kwargs):
         super(SuffixTreeNode, self).__init__(*args, **kwargs)
@@ -466,7 +471,6 @@ class SuffixTreeNode(EventSourcedEntity):
 
 
 class StringidCollection(Collection):
-
     class Created(Collection.Created):
         pass
 
@@ -481,11 +485,11 @@ class SuffixTreeNodeChildCollection(EventSourcedEntity):
     """A collecton of child nodes in the suffix tree.
     """
 
-    class Created(EventSourcedEntity.Created): pass
+    class Created(Created): pass
 
-    class AttributeChanged(EventSourcedEntity.AttributeChanged): pass
+    class AttributeChanged(AttributeChanged): pass
 
-    class Discarded(EventSourcedEntity.Discarded): pass
+    class Discarded(Discarded): pass
 
     class ChildNodeAdded(DomainEvent): pass
 
@@ -544,7 +548,7 @@ def child_node_child_collection_added_mutator(event, self):
 def child_node_child_collection_switched_mutator(event, self):
     assert isinstance(self, SuffixTreeNodeChildCollection), self
     try:
-        del(self._child_node_ids[event.old_node_id])
+        del (self._child_node_ids[event.old_node_id])
     except KeyError:
         pass
     self._child_node_ids[event.new_node_id] = event.new_edge_len
@@ -556,10 +560,10 @@ class SuffixTreeEdge(EventSourcedEntity):
     """An edge in the suffix tree.
     """
 
-    class Created(EventSourcedEntity.Created):
+    class Created(Created):
         pass
 
-    class AttributeChanged(EventSourcedEntity.AttributeChanged):
+    class AttributeChanged(AttributeChanged):
         pass
 
     class Shortened(DomainEvent):
@@ -571,7 +575,7 @@ class SuffixTreeEdge(EventSourcedEntity):
         def dest_node_id(self):
             return self.__dict__['dest_node_id']
 
-    class Discarded(EventSourcedEntity.Discarded):
+    class Discarded(Discarded):
         pass
 
     def __init__(self, label, source_node_id, dest_node_id, **kwargs):
@@ -605,7 +609,8 @@ class SuffixTreeEdge(EventSourcedEntity):
         return len(self.label) - 1
 
     def __repr__(self):
-        return "Edge(id='{}' source='{}' dest='{}', label='{}')".format(self.id, self.source_node_id, self.dest_node_id, self.label[:30])
+        return ("Edge(id='{}' source='{}' dest='{}', label='{}')"
+                "".format(self.id, self.source_node_id, self.dest_node_id, self.label[:30]))
 
     def shorten(self, label, dest_node_id):
         self._assert_not_discarded()
@@ -678,7 +683,8 @@ class Suffix(object):
         return self.last_char_index >= self.first_char_index
 
     def __repr__(self):
-        return "Suffix(implicit={} first={}, last={}, node={})".format(self.implicit(), self.first_char_index, self.last_char_index, self.source_node_id)
+        return "Suffix(implicit={} first={}, last={}, node={})".format(self.implicit(), self.first_char_index,
+                                                                       self.last_char_index, self.source_node_id)
 
 
 # Factory methods.

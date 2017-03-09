@@ -30,6 +30,19 @@ class EntityIsDiscarded(AssertionError):
     pass
 
 
+class Created(DomainEvent):
+    def __init__(self, entity_version=0, **kwargs):
+        super(Created, self).__init__(entity_version=entity_version, **kwargs)
+
+
+class AttributeChanged(DomainEvent):
+    pass
+
+
+class Discarded(DomainEvent):
+    pass
+
+
 class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
     # The page size by which events are retrieved. If this
@@ -48,16 +61,6 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     # concurrency control. See 'always_write_entity_version' constructor
     # argument in EventSourcedApplication and StoredEventRepo classes.
     __always_validate_originator_version__ = False
-
-    class Created(DomainEvent):
-        def __init__(self, entity_version=0, **kwargs):
-            super(EventSourcedEntity.Created, self).__init__(entity_version=entity_version, **kwargs)
-
-    class AttributeChanged(DomainEvent):
-        pass
-
-    class Discarded(DomainEvent):
-        pass
 
     def __init__(self, entity_id, entity_version=0, domain_event_id=None):
         self._id = entity_id
@@ -106,13 +109,15 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
     def _change_attribute(self, name, value):
         self._assert_not_discarded()
-        event = self.AttributeChanged(name=name, value=value, entity_id=self._id, entity_version=self._version)
+        event_class = getattr(self, 'AttributeChanged', AttributeChanged)
+        event = event_class(name=name, value=value, entity_id=self._id, entity_version=self._version)
         self._apply(event)
         publish(event)
 
     def discard(self):
         self._assert_not_discarded()
-        event = self.Discarded(entity_id=self._id, entity_version=self._version)
+        event_class = getattr(self, 'Discarded', Discarded)
+        event = event_class(entity_id=self._id, entity_version=self._version)
         self._apply(event)
         publish(event)
 
@@ -134,9 +139,9 @@ def entity_mutator(event, _):
     raise NotImplementedError("Event type not supported: {}".format(type(event)))
 
 
-@entity_mutator.register(EventSourcedEntity.Created)
+@entity_mutator.register(Created)
 def created_mutator(event, cls):
-    assert isinstance(event, DomainEvent), event
+    assert isinstance(event, Created), event
     if not isinstance(cls, type):
         msg = ("Mutator for Created event requires entity type not instance: {} "
                "(event entity id: {}, event type: {})"
@@ -148,7 +153,7 @@ def created_mutator(event, cls):
     return self
 
 
-@entity_mutator.register(EventSourcedEntity.AttributeChanged)
+@entity_mutator.register(AttributeChanged)
 def attribute_changed_mutator(event, self):
     assert isinstance(self, EventSourcedEntity), self
     self._validate_originator(event)
@@ -157,7 +162,7 @@ def attribute_changed_mutator(event, self):
     return self
 
 
-@entity_mutator.register(EventSourcedEntity.Discarded)
+@entity_mutator.register(Discarded)
 def discarded_mutator(event, self):
     assert isinstance(self, EventSourcedEntity), self
     self._validate_originator(event)

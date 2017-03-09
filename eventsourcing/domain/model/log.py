@@ -5,7 +5,7 @@ import six
 from dateutil.relativedelta import relativedelta
 from six import with_metaclass
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository
+from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository, Created, AttributeChanged
 from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta, create_timesequenced_event_id
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.utils.time import timestamp_from_uuid, utc_timezone
@@ -140,10 +140,10 @@ def bucket_duration(bucket_size):
 
 class Log(EventSourcedEntity):
 
-    class Started(EventSourcedEntity.Created):
+    class Started(Created):
         pass
 
-    class BucketSizeChanged(EventSourcedEntity.AttributeChanged):
+    class BucketSizeChanged(AttributeChanged):
         pass
 
     def __init__(self, name, bucket_size=None, **kwargs):

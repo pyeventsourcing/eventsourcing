@@ -1,7 +1,7 @@
 import uuid
 
 from eventsourcing.domain.model.entity import EventSourcedEntity, attribute, EntityRepository, entity_mutator, \
-    singledispatch
+    singledispatch, Created, AttributeChanged, Discarded
 from eventsourcing.domain.model.events import publish, DomainEvent
 
 
@@ -18,13 +18,13 @@ class Example(EventSourcedEntity):
     #  - this assumes _validate_originator() is called in mutators.
     __always_validate_originator_version__ = True
 
-    class Created(EventSourcedEntity.Created):
+    class Created(Created):
         pass
 
-    class AttributeChanged(EventSourcedEntity.AttributeChanged):
+    class AttributeChanged(AttributeChanged):
         pass
 
-    class Discarded(EventSourcedEntity.Discarded):
+    class Discarded(Discarded):
         pass
 
     class Heartbeat(DomainEvent):

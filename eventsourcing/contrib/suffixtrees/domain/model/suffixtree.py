@@ -6,7 +6,8 @@ from uuid import uuid4
 
 import six
 
-from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity, attribute
+from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity, attribute, Created, \
+    AttributeChanged, Discarded
 from eventsourcing.domain.model.events import publish
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.exceptions import RepositoryKeyError
@@ -17,13 +18,13 @@ class SuffixTree(EventSourcedEntity):
     for construction.
     """
 
-    class Created(EventSourcedEntity.Created):
+    class Created(Created):
         pass
 
-    class AttributeChanged(EventSourcedEntity.AttributeChanged):
+    class AttributeChanged(AttributeChanged):
         pass
 
-    class Discarded(EventSourcedEntity.Discarded):
+    class Discarded(Discarded):
         pass
 
     def __init__(self, root_node_id, case_insensitive=False, **kwargs):
@@ -184,11 +185,11 @@ class Node(EventSourcedEntity):
     """A node in the suffix tree.
     """
 
-    class Created(EventSourcedEntity.Created): pass
+    class Created(Created): pass
 
-    class AttributeChanged(EventSourcedEntity.AttributeChanged): pass
+    class AttributeChanged(AttributeChanged): pass
 
-    class Discarded(EventSourcedEntity.Discarded): pass
+    class Discarded(Discarded): pass
 
     def __init__(self, suffix_node_id=None, *args, **kwargs):
         super(Node, self).__init__(*args, **kwargs)
@@ -210,11 +211,11 @@ class Edge(EventSourcedEntity):
     """An edge in the suffix tree.
     """
 
-    class Created(EventSourcedEntity.Created): pass
+    class Created(Created): pass
 
-    class AttributeChanged(EventSourcedEntity.AttributeChanged): pass
+    class AttributeChanged(AttributeChanged): pass
 
-    class Discarded(EventSourcedEntity.Discarded): pass
+    class Discarded(Discarded): pass
 
     def __init__(self, first_char_index, last_char_index, source_node_id, dest_node_id, **kwargs):
         super(Edge, self).__init__(**kwargs)
@@ -433,8 +434,8 @@ class SuffixTreeApplication(ExampleApplication):
         self.node_repo = None
         self.edge_repo = None
 
-    def register_new_suffixtree(self, string, case_insensitive=False):
-        return register_new_suffix_tree(string, case_insensitive)
+    def register_new_suffixtree(self, case_insensitive=False):
+        return register_new_suffix_tree(case_insensitive)
 
     def find_substring(self, substring, suffix_tree_id):
         suffix_tree = self.suffix_tree_repo[suffix_tree_id]

@@ -1,6 +1,6 @@
 from singledispatch import singledispatch
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository, entity_mutator
+from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository, entity_mutator, Created
 from eventsourcing.domain.model.events import publish
 
 # Todo: New idea, just make it be a mixture of an archived log to hold the current sequence and a sequence.
@@ -10,7 +10,7 @@ from eventsourcing.exceptions import RepositoryKeyError
 
 class NotificationLog(EventSourcedEntity):
 
-    class Started(EventSourcedEntity.Created):
+    class Started(Created):
         pass
 
     def __init__(self, name, bucket_size=None, sequence_size=None, **kwargs):
