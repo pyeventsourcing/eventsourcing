@@ -6,7 +6,7 @@ from dateutil.relativedelta import relativedelta
 from six import with_metaclass
 
 from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository
-from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta, create_domain_event_id
+from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta, create_timesequenced_event_id
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.utils.time import timestamp_from_uuid, utc_timezone
 
@@ -165,7 +165,7 @@ class Log(EventSourcedEntity):
 
     def append_message(self, message):
         assert isinstance(message, six.string_types)
-        domain_event_id = create_domain_event_id()
+        domain_event_id = create_timesequenced_event_id()
         entity_bucket_id = make_bucket_id(self.name, timestamp_from_uuid(domain_event_id), self.bucket_size)
         event = MessageLogged(
             entity_id=entity_bucket_id,

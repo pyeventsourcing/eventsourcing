@@ -9,9 +9,182 @@ except ImportError:
     import mock
 
 from eventsourcing.domain.model.events import subscribe, publish, unsubscribe, assert_event_handlers_empty, \
-    EventHandlersNotEmptyError, _event_handlers
+    EventHandlersNotEmptyError, _event_handlers, IntegerSequencedEvent, TimeSequencedEvent, \
+    create_timesequenced_event_id
 from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.example.domain_model import Example
+
+
+class TestIntegerSequencedEvent(unittest.TestCase):
+
+    def test(self):
+        # Check base class can be sub-classed.
+        class Event(IntegerSequencedEvent):
+            pass
+
+        # Check subclass can be instantiated with 'entity_id'
+        # and 'entity_version' parameters.
+        VERSION_0 = 0
+        VERSION1 = 1
+        ID1 = 'entity1'
+        ID2 = 'entity2'
+        VALUE1 = 'a string'
+        VALUE2 = 'another string'
+        instance1 = Event(
+            entity_id=ID1,
+            entity_version=VERSION_0,
+        )
+        self.assertEqual(instance1.entity_id, ID1)
+        self.assertEqual(instance1.entity_version, VERSION_0)
+
+        # Check subclass can be instantiated with other parameters.
+        instance2 = Event(
+            entity_id=ID1,
+            entity_version=VERSION_0,
+            an_attribute=VALUE1,
+        )
+
+        # Check the attribute value is available.
+        self.assertEqual(instance2.an_attribute, VALUE1)
+
+        # Check the attribute value cannot be changed
+        with self.assertRaises(AttributeError):
+            instance2.an_attribute = VALUE2
+        self.assertEqual(instance2.an_attribute, VALUE1)
+
+        # Check the version is required to be an integer.
+        with self.assertRaises(TypeError):
+            ID_INVALID = 'invalid'
+            Event(
+                entity_id=ID1,
+                entity_version=ID_INVALID,
+            )
+
+        # Check it's equal to itself.
+        self.assertEqual(instance2, instance2)
+        self.assertEqual(instance2, Event(
+            entity_id=ID1,
+            entity_version=VERSION_0,
+            an_attribute=VALUE1,
+        ))
+
+        # Check it's not equal to same type but different values.
+        self.assertNotEqual(instance2, Event(
+            entity_id=ID1,
+            entity_version=VERSION1,
+            an_attribute=VALUE1,
+        ))
+        self.assertNotEqual(instance2, Event(
+            entity_id=ID2,
+            entity_version=VERSION_0,
+            an_attribute=VALUE1,
+        ))
+
+        # Check it's not equal to instance of different type, with same values.
+        class Event2(IntegerSequencedEvent):
+            pass
+
+        self.assertNotEqual(instance2, Event2(
+            entity_id=ID1,
+            entity_version=VERSION_0,
+            an_attribute=VALUE1,
+        ))
+
+
+class TestTimeSequencedEvent(unittest.TestCase):
+
+    def test(self):
+        # Check base class can be sub-classed.
+        class Event(TimeSequencedEvent):
+            pass
+
+        class Event2(TimeSequencedEvent):
+            pass
+
+        # Check subclass can be instantiated with 'entity_id' parameter.
+        ID1 = 'entity1'
+        ID2 = 'entity2'
+        VALUE1 = 'a string'
+        VALUE2 = 'another string'
+        event1 = Event(
+            entity_id=ID1,
+        )
+        self.assertEqual(event1.entity_id, ID1)
+
+        # Check event has a domain event ID, and a timestamp.
+        self.assertTrue(event1.domain_event_id)
+        self.assertIsInstance(event1.timestamp, float)
+
+        # Check subclass can be instantiated with 'domain_event_id' parameter.
+        DOMAIN_EVENT_ID1 = create_timesequenced_event_id()
+        event2 = Event(
+            entity_id=ID1,
+            domain_event_id=DOMAIN_EVENT_ID1,
+        )
+        self.assertEqual(event2.domain_event_id, DOMAIN_EVENT_ID1)
+
+        # Check subclass can be instantiated with other parameters.
+        event3 = Event(
+            entity_id=ID1,
+            an_attribute=VALUE1,
+        )
+        self.assertEqual(event3.an_attribute, VALUE1)
+
+        # Check the attribute value cannot be changed.
+        with self.assertRaises(AttributeError):
+            event3.an_attribute = VALUE2
+        self.assertEqual(event3.an_attribute, VALUE1)
+
+        # Check an event is equal to itself.
+        self.assertTrue(event3 == event3)
+        self.assertFalse(event3 != event3)
+        event4 = Event(
+            entity_id=ID1,
+            domain_event_id=event3.domain_event_id,
+            an_attribute=VALUE1,
+        )
+        self.assertEqual(event3, event4)
+
+        # Check domain events with same domain event ID have the same timestamp.
+        event5 = Event(
+            entity_id=event1.entity_id,
+            domain_event_id=event1.domain_event_id,
+            an_attribute=VALUE1,
+        )
+        self.assertEqual(event1.timestamp, event5.timestamp)
+
+
+        # Check it's not equal to different type with same values.
+        self.assertFalse(event3 == Event2(
+            entity_id=event3.entity_id,
+            an_attribute=event3.an_attribute,
+        ))
+        self.assertTrue(event3 != Event2(
+            entity_id=ID1,
+            an_attribute=VALUE1,
+        ))
+
+        # Check it's not equal to same type with different values.
+        # - different entity_id
+        self.assertNotEqual(event3.entity_id, ID2)
+        self.assertEqual(event3.an_attribute, VALUE1)
+        self.assertFalse(event2 == Event(
+            entity_id=ID2,
+            an_attribute=VALUE1,
+        ))
+        # - different attribute value
+        self.assertTrue(event2 != Event(
+            entity_id=ID1,
+            an_attribute=VALUE2,
+        ))
+
+        # Check domain events with different domain event IDs have different timestamps.
+        event4 = Event(
+            entity_id=ID1,
+            an_attribute=VALUE1,
+        )
+        self.assertNotEqual(event2.domain_event_id, event4.domain_event_id)
+        self.assertNotEqual(event2.timestamp, event4.timestamp)
 
 
 class TestEvents(unittest.TestCase):

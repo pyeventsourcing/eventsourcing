@@ -4,6 +4,7 @@ from abc import ABCMeta
 from collections import OrderedDict
 from uuid import uuid1
 
+import six
 from six import with_metaclass
 
 from eventsourcing.exceptions import TopicResolutionError
@@ -35,22 +36,147 @@ class QualnameABCMeta(ABCMeta):
                 return "%s.%s" % (c.__qualname__, cls.__name__)
 
 
-def create_domain_event_id():
+def create_timesequenced_event_id():
     return uuid1().hex
 
-# Todo: Somehow support TimeSequencedDomainEvent and IntegerSequencedDomainEvent.
-class DomainEvent(with_metaclass(QualnameABCMeta)):
+
+class AbstractDomainEvent(with_metaclass(QualnameABCMeta)):
+    """
+    Abstract base class for domain events.
+
+    Implements methods to make instances read-only, comparable
+    for equality, have recognisable representations, and hashable.
+    """
+    def __init__(self, **kwargs):
+        """
+        Initialises event attribute values directly from constructor kwargs.
+        """
+        self.__dict__.update(kwargs)
+
+    def __setattr__(self, key, value):
+        """
+        Inhibits event attributes from being updated by assignment.
+        """
+        raise AttributeError("DomainEvent attributes are read-only")
+
+    def __eq__(self, rhs):
+        """
+        Tests for equality of type and attribute values.
+        """
+        if type(self) is not type(rhs):
+            return NotImplemented
+        return self.__dict__ == rhs.__dict__
+
+    def __ne__(self, rhs):
+        """
+        Negates the equality test.
+        """
+        return not (self == rhs)
+
+    def __hash__(self):
+        """
+        Computes a unique hash for an event, using its type and attribute values.
+        """
+        return hash(tuple(itertools.chain(sorted(self.__dict__.items()), [type(self)])))
+
+    def __repr__(self):
+        """
+        Returns string representing the type and attribute values of the event.
+        """
+        return self.__class__.__qualname__ + "(" + ', '.join(
+            "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
+
+
+class IntegerSequencedEvent(AbstractDomainEvent):
+    """
+    Base class for integer-sequenced domain events.
+
+    Defines two properties: 'entity_id' and 'entity_version'.
+
+    Requires 'entity_id' and 'entity_version'
+    to be passed as constructor parameters.
+
+    The value of 'entity_version' must be an integer.
+    """
+
+    def __init__(self, entity_id, entity_version, **kwargs):
+        if not isinstance(entity_version, six.integer_types):
+            raise TypeError("Entity ID must be an integer: {}".format(entity_version))
+        super(IntegerSequencedEvent, self).__init__(**kwargs)
+        self.__dict__['entity_id'] = entity_id
+        self.__dict__['entity_version'] = entity_version
+
+    @property
+    def entity_id(self):
+        return self.__dict__['entity_id']
+
+    @property
+    def entity_version(self):
+        return self.__dict__['entity_version']
+
+
+class TimeSequencedEvent(AbstractDomainEvent):
+    """
+    Base class for time-sequenced domain events.
+
+    Defines one property: 'entity_id'.
+
+    Requires 'entity_id' to be passed as constructor parameter.
+    """
+
+    def __init__(self, entity_id, domain_event_id=None, **kwargs):
+        super(TimeSequencedEvent, self).__init__(**kwargs)
+        self.__dict__['entity_id'] = entity_id
+        self.__dict__['domain_event_id'] = domain_event_id or create_timesequenced_event_id()
+
+    @property
+    def entity_id(self):
+        return self.__dict__['entity_id']
+
+    @property
+    def domain_event_id(self):
+        return self.__dict__['domain_event_id']
+
+    @property
+    def timestamp(self):
+        return timestamp_from_uuid(self.__dict__['domain_event_id'])
+
+
+class DomainEvent(AbstractDomainEvent):
+    """
+    Original domain event.
+
+    Due to the origins of the project, this design ended
+    up as a confusion of time-sequenced and integer-sequenced
+    events. It was used for both time-sequenced streams, such
+    as time-bucketed logs and snapshots, where the entity
+    version number appeared as the code smell known as "refused
+    bequest". It was also used for integer sequenced streams,
+    such as versioned domain entities, where the timestamp-based
+    implementation threatened inconsistency due to network issues.
+    The "solution" to the timestamp-based integer sequencing was
+    to have a second table controlling consistency of integer
+    sequenced. But working across two tables without cross-table
+    transaction support (e.g. in Cassandra) is a dead-end. Now,
+    integer sequenced domain events don't essentially require
+    to know what time they happened.
+
+    Therefore it must be much better to have two separate types
+    of domain event: time-sequenced events, and integer-sequenced
+    events. Domain entities and notification logs can have integer-
+    sequenced events, and snapshots and time-bucketed logs can
+    have time-sequenced events.
+
+    That's why this class has been deprecated :-).
+    """
 
     always_encrypt = False
 
     def __init__(self, entity_id, entity_version, domain_event_id=None, **kwargs):
+        super(DomainEvent, self).__init__(**kwargs)
         self.__dict__['entity_id'] = entity_id
         self.__dict__['entity_version'] = entity_version
-        self.__dict__['domain_event_id'] = domain_event_id or create_domain_event_id()
-        self.__dict__.update(kwargs)
-
-    def __setattr__(self, key, value):
-        raise AttributeError("DomainEvent attributes are read-only")
+        self.__dict__['domain_event_id'] = domain_event_id or create_timesequenced_event_id()
 
     @property
     def entity_id(self):
@@ -67,21 +193,6 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
     @property
     def timestamp(self):
         return timestamp_from_uuid(self.__dict__['domain_event_id'])
-
-    def __eq__(self, rhs):
-        if type(self) is not type(rhs):
-            return NotImplemented
-        return self.__dict__ == rhs.__dict__
-
-    def __ne__(self, rhs):
-        return not (self == rhs)
-
-    def __hash__(self):
-        return hash(tuple(itertools.chain(sorted(self.__dict__.items()), [type(self)])))
-
-    def __repr__(self):
-        return self.__class__.__qualname__ + "(" + ', '.join(
-            "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
 
 
 _event_handlers = OrderedDict()
@@ -127,12 +238,11 @@ def topic_from_domain_class(domain_class):
     """Returns a string describing a domain event class.
 
     Args:
-        domain_event: A domain event object.
+        domain_class: A domain entity or event class.
 
     Returns:
-        A string describing the domain event object's class.
+        A string describing the class.
     """
-    # assert isinstance(domain_event, DomainEvent)
     return domain_class.__module__ + '#' + domain_class.__qualname__
 
 
