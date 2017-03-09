@@ -61,7 +61,7 @@ class LogReader(with_metaclass(QualnameABCMeta)):
         while True:
             entity_id = make_bucket_id(self.log.name, timestamp, self.log.bucket_size)
             stored_entity_id = make_stored_entity_id('MessageLogged', entity_id)
-            for message_logged_event in self.event_store.get_entity_events(
+            for message_logged_event in self.event_store.get_domain_events(
                     stored_entity_id=stored_entity_id,
                     after=after,
                     until=until,

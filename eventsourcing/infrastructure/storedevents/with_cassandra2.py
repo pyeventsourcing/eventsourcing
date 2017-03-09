@@ -178,7 +178,7 @@
 #         except CqlEntityVersion.DoesNotExist:
 #             raise EntityVersionNotFound()
 #
-#     def get_entity_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
+#     def get_domain_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
 #                           results_ascending=True):
 #
 #         if limit is not None and limit < 1:

@@ -102,7 +102,7 @@ class EventSourcedRepository(EntityRepository):
             initial_state = entity_from_snapshot(snapshot)
 
         # Replay domain events.
-        return self.event_player.replay_events(entity_id, after=after, until=until, initial_state=initial_state)
+        return self.event_player.replay_entity(entity_id, after=after, until=until, initial_state=initial_state)
 
     def fastforward(self, stale_entity, until=None):
         """
