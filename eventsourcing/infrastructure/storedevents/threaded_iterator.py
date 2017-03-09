@@ -85,7 +85,7 @@ class GetEntityEventsThread(Thread):
         self.stored_events = None
 
     def run(self):
-        self.stored_events = list(self.repo.get_entity_events(
+        self.stored_events = list(self.repo.get_stored_events(
             stored_entity_id=self.stored_entity_id,
             after=self.after,
             until=self.until,

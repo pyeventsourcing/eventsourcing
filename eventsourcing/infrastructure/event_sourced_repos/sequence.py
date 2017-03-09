@@ -9,4 +9,4 @@ class SequenceRepo(EventSourcedRepository, SequenceRepository):
         """
         Replays entity using only the 'Started' event.
         """
-        return self.event_player.replay_events(entity_id, limit=1)
+        return self.event_player.replay_entity(entity_id, limit=1)

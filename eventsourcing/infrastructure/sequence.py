@@ -47,7 +47,7 @@ class SequenceReader(object):
                     "Entity version not found for index {} in sequence '{}'".format(item, self.sequence.name))
             assert isinstance(entity_version, EntityVersion)
             event_id = entity_version.event_id
-            events = self.event_player.event_store.get_entity_events(stored_entity_id, after=event_id, limit=1)
+            events = self.event_player.event_store.get_domain_events(stored_entity_id, after=event_id, limit=1)
             events = list(events)
             if len(events) == 0:
                 raise IndexError("Entity version not found for index: {}".format(item))
@@ -87,7 +87,7 @@ class SequenceReader(object):
 
                 start_event_id = start_version.event_id
 
-                events = self.event_player.event_store.get_entity_events(stored_entity_id,
+                events = self.event_player.event_store.get_domain_events(stored_entity_id,
                                                                          after=start_event_id,
                                                                          limit=limit)
                 items = [e.item for e in events]
