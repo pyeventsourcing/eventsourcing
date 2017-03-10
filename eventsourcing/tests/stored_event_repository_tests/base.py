@@ -63,6 +63,7 @@ class AbstractStoredEventRepositoryTestCase(AbstractDatastoreTestCase):
 
 
 class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
+
     def test_stored_event_repo(self):
         stored_entity_id = 'Entity::entity1'
 
