@@ -18,6 +18,10 @@ EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
 
 StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
 
+StoredIntegerSequencedEvent = namedtuple( 'StoredIntegerSequencedEvent',
+    ['sequence_id', 'position', 'topic', 'state'],
+)
+
 
 class StoredEventTranscoder(six.with_metaclass(ABCMeta)):
     @abstractmethod
@@ -27,6 +31,7 @@ class StoredEventTranscoder(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def deserialize(self, stored_event):
         """Returns a domain event, for the given stored event."""
+
 
 # Todo: Reimplement the object encoding and decoding, this time under test.
 class ObjectJSONEncoder(JSONEncoder):

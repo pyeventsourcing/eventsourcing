@@ -1,9 +1,9 @@
-from eventsourcing.infrastructure.storedevents.cassandrarepo import CassandraStoredEventRepository, CqlStoredEvent
-from eventsourcing.tests.base import notquick
+from eventsourcing.infrastructure.storedevents.cassandrarepo import CassandraStoredEventRepository, CqlStoredEvent, \
+    CqlIntegerSequencedEvent
 from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
 from eventsourcing.tests.stored_event_repository_tests.base import AbstractStoredEventRepositoryTestCase, \
-    OptimisticConcurrencyControlTestCase, SimpleStoredEventIteratorTestCase, StoredEventRepositoryTestCase, \
-    ThreadedStoredEventIteratorTestCase
+    SimpleStoredEventIteratorTestCase, StoredEventRepositoryTestCase, \
+    ThreadedStoredEventIteratorTestCase, IntegerSequencedEventRepositoryTestCase
 
 
 class CassandraRepoTestCase(CassandraDatastoreTestCase, AbstractStoredEventRepositoryTestCase):
@@ -20,6 +20,14 @@ class CassandraRepoTestCase(CassandraDatastoreTestCase, AbstractStoredEventRepos
         )
 
 
+class TestCassandraIntegerSequencedEventRepository(CassandraRepoTestCase, IntegerSequencedEventRepositoryTestCase):
+
+    def construct_stored_event_repo(self):
+        return CassandraStoredEventRepository(
+            integer_sequenced_event_table=CqlIntegerSequencedEvent,
+        )
+
+
 class TestCassandraStoredEventRepository(CassandraRepoTestCase, StoredEventRepositoryTestCase):
     pass
 
@@ -29,9 +37,4 @@ class TestSimpleStoredEventIteratorWithCassandra(CassandraRepoTestCase, SimpleSt
 
 
 class TestThreadedStoredEventIteratorWithCassandra(CassandraRepoTestCase, ThreadedStoredEventIteratorTestCase):
-    pass
-
-
-@notquick()
-class TestOptimisticConcurrencyControlWithCassandra(CassandraRepoTestCase, OptimisticConcurrencyControlTestCase):
     pass

@@ -1,31 +1,20 @@
 import datetime
 import json
-import os
-import traceback
 import uuid
 from abc import abstractmethod, abstractproperty
-from multiprocessing.pool import Pool
-from time import sleep
-from uuid import uuid1, uuid4
+from uuid import uuid1
 
 import six
 
 from eventsourcing.application.policies import PersistenceSubscriber
-from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, EntityVersionNotFound
-from eventsourcing.infrastructure.datastore.cassandraengine import CassandraDatastore, CassandraSettings
-from eventsourcing.infrastructure.datastore.sqlalchemyorm import SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.domain.model.events import IntegerSequencedEvent, topic_from_domain_class
+from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, EntityVersionNotFound, \
+    IntegerSequenceError
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, EventStore, \
     SimpleStoredEventIterator
-from eventsourcing.infrastructure.storedevents.cassandrarepo import CassandraStoredEventRepository, \
-    CqlStoredEvent
-from eventsourcing.infrastructure.storedevents.pythonobjectsrepo import PythonObjectsStoredEventRepository
-from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemyStoredEventRepository, \
-    SqlStoredEvent
 from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
-from eventsourcing.infrastructure.transcoding import StoredEvent
-from eventsourcing.tests.base import notquick
+from eventsourcing.infrastructure.transcoding import StoredEvent, StoredIntegerSequencedEvent
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
-from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
 
 
 class AbstractStoredEventRepositoryTestCase(AbstractDatastoreTestCase):
@@ -60,6 +49,199 @@ class AbstractStoredEventRepositoryTestCase(AbstractDatastoreTestCase):
         """
         :rtype: eventsourcing.infrastructure.eventstore.AbstractStoredEventRepository
         """
+
+class ExampleIntegerSequencedEvent1(IntegerSequencedEvent):
+    pass
+
+
+class ExampleIntegerSequencedEvent2(IntegerSequencedEvent):
+    pass
+
+
+EXAMPLE_EVENT_TOPIC1 = topic_from_domain_class(ExampleIntegerSequencedEvent1)
+EXAMPLE_EVENT_TOPIC2 = topic_from_domain_class(ExampleIntegerSequencedEvent2)
+
+
+class IntegerSequencedEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
+
+    def test_event_repo(self):
+        sequence_id = uuid.uuid1().hex
+
+        # Check repo returns None when there aren't any events.
+        self.assertEqual(self.stored_event_repo.get_integer_sequenced_events(sequence_id), [])
+
+        # Append an event.
+        state1 = json.dumps({'name': 'value1'})
+        stored_event1 = StoredIntegerSequencedEvent(
+            sequence_id=sequence_id,
+            position=0,
+            topic=EXAMPLE_EVENT_TOPIC1,
+            state=state1,
+        )
+        self.stored_event_repo.append_integer_sequenced_event(stored_event1)
+
+        # Check repo returns the event.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id)
+        self.assertIsInstance(retrieved_events[0], StoredIntegerSequencedEvent)
+        self.assertEqual(retrieved_events[0].sequence_id, stored_event1.sequence_id)
+        self.assertEqual(retrieved_events[0].position, stored_event1.position)
+        self.assertEqual(retrieved_events[0].topic, stored_event1.topic)
+        self.assertEqual(retrieved_events[0].state, stored_event1.state)
+
+        # Check appending a different event at the same position in the same sequence causes an error.
+        state2 = json.dumps({'name': 'value2'})
+        stored_event2 = StoredIntegerSequencedEvent(
+            sequence_id=stored_event1.sequence_id,
+            position=stored_event1.position,
+            topic=EXAMPLE_EVENT_TOPIC2,
+            state=state2,
+        )
+        self.assertEqual(stored_event1.sequence_id, stored_event2.sequence_id)
+        self.assertEqual(stored_event1.position, stored_event2.position)
+        self.assertNotEqual(stored_event1.topic, stored_event2.topic)
+        self.assertNotEqual(stored_event1.state, stored_event2.state)
+        with self.assertRaises(IntegerSequenceError):
+            self.stored_event_repo.append_integer_sequenced_event(stored_event2)
+
+        # Check appending a different event at the same position in the same sequence causes an error.
+        state2 = json.dumps({'name': 'value2'})
+        stored_event2 = StoredIntegerSequencedEvent(
+            sequence_id=stored_event1.sequence_id,
+            position=stored_event1.position,
+            topic=EXAMPLE_EVENT_TOPIC2,
+            state=state2,
+        )
+        self.assertEqual(stored_event1.sequence_id, stored_event2.sequence_id)
+        self.assertEqual(stored_event1.position, stored_event2.position)
+        self.assertNotEqual(stored_event1.topic, stored_event2.topic)
+        self.assertNotEqual(stored_event1.state, stored_event2.state)
+        with self.assertRaises(IntegerSequenceError):
+            self.stored_event_repo.append_integer_sequenced_event(stored_event2)
+
+        # Append a second event.
+        stored_event2 = StoredIntegerSequencedEvent(
+            sequence_id=stored_event1.sequence_id,
+            position=stored_event1.position + 1,
+            topic=EXAMPLE_EVENT_TOPIC2,
+            state=state2,
+        )
+        self.stored_event_repo.append_integer_sequenced_event(stored_event2)
+
+        # Append a third event.
+        stored_event3 = StoredIntegerSequencedEvent(
+            sequence_id=stored_event1.sequence_id,
+            position=stored_event2.position + 1,
+            topic=EXAMPLE_EVENT_TOPIC2,
+            state=state2,
+        )
+        self.stored_event_repo.append_integer_sequenced_event(stored_event3)
+
+        # Get all the events.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id)
+        self.assertEqual(len(retrieved_events), 3)
+
+        # Expect a list of stored events, in sequential order.
+        self.assertIsInstance(retrieved_events[0], StoredIntegerSequencedEvent)
+        self.assertEqual(retrieved_events[0].sequence_id, stored_event1.sequence_id)
+        self.assertEqual(retrieved_events[0].position, stored_event1.position)
+        self.assertEqual(retrieved_events[0].topic, stored_event1.topic)
+        self.assertEqual(retrieved_events[0].state, stored_event1.state)
+
+        self.assertIsInstance(retrieved_events[1], StoredIntegerSequencedEvent)
+        self.assertEqual(retrieved_events[1].sequence_id, stored_event2.sequence_id)
+        self.assertEqual(retrieved_events[1].position, stored_event2.position)
+        self.assertEqual(retrieved_events[1].topic, stored_event2.topic)
+        self.assertEqual(retrieved_events[1].state, stored_event2.state)
+
+        self.assertIsInstance(retrieved_events[2], StoredIntegerSequencedEvent)
+        self.assertEqual(retrieved_events[2].sequence_id, stored_event3.sequence_id)
+        self.assertEqual(retrieved_events[2].position, stored_event3.position)
+        self.assertEqual(retrieved_events[2].topic, stored_event3.topic)
+        self.assertEqual(retrieved_events[2].state, stored_event3.state)
+
+        # Get all events greater than a position.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id, gt=0)
+        self.assertEqual(len(retrieved_events), 2)
+        self.assertEqual(retrieved_events[0].position, 1)
+        self.assertEqual(retrieved_events[1].position, 2)
+
+        # Get all events greater then or equal to a position.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id, gte=1)
+        self.assertEqual(len(retrieved_events), 2)
+        self.assertEqual(retrieved_events[0].position, 1)
+        self.assertEqual(retrieved_events[1].position, 2)
+
+        # Get all events less than a position.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id, lt=2)
+        self.assertEqual(len(retrieved_events), 2)
+        self.assertEqual(retrieved_events[0].position, 0)
+        self.assertEqual(retrieved_events[1].position, 1)
+
+        # Get all events less then or equal to a position.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id, lte=1)
+        self.assertEqual(len(retrieved_events), 2)
+        self.assertEqual(retrieved_events[0].position, 0)
+        self.assertEqual(retrieved_events[1].position, 1)
+
+        # Get all events greater then or equal to a position and less then or equal to a position.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id, gte=1, lte=1)
+        self.assertEqual(len(retrieved_events), 1)
+        self.assertEqual(retrieved_events[0].position, 1)
+
+        # Get all events greater then or equal to a position and less then a position.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id, gte=1, lt=2)
+        self.assertEqual(len(retrieved_events), 1)
+        self.assertEqual(retrieved_events[0].position, 1)
+
+        # Get all events greater then a position and less then or equal to a position.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id, gt=0, lte=1)
+        self.assertEqual(len(retrieved_events), 1)
+        self.assertEqual(retrieved_events[0].position, 1)
+
+        # Get all events greater a position and less a position.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id, gt=0, lt=2)
+        self.assertEqual(len(retrieved_events), 1)
+        self.assertEqual(retrieved_events[0].position, 1)
+
+        # Get all events, with a limit.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id, limit=1)
+        self.assertEqual(len(retrieved_events), 1)
+        self.assertEqual(retrieved_events[0].position, 0)
+
+        # Get all events, with a limit, and with descending query (so that we get the last ones).
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id, limit=2,
+                                                                               query_ascending=False)
+        self.assertEqual(len(retrieved_events), 2)
+        self.assertEqual(retrieved_events[0].position, 1)
+        self.assertEqual(retrieved_events[1].position, 2)
+
+        # Get all events, with a limit and descending query, greater than a position.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id, limit=2, gt=1,
+                                                                               query_ascending=False)
+        self.assertEqual(len(retrieved_events), 1)
+        self.assertEqual(retrieved_events[0].position, 2)
+
+        # Get all events, with a limit and descending query, less than a position.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id, limit=2, lt=2,
+                                                                               query_ascending=False)
+        self.assertEqual(len(retrieved_events), 2)
+        self.assertEqual(retrieved_events[0].position, 0)
+        self.assertEqual(retrieved_events[1].position, 1)
+
+        # Get all events in descending order, queried in ascending order.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id,
+                                                                               results_ascending=False)
+        self.assertEqual(len(retrieved_events), 3)
+        self.assertEqual(retrieved_events[0].position, 2)
+        self.assertEqual(retrieved_events[2].position, 0)
+
+        # Get all events in descending order, queried in descending order.
+        retrieved_events = self.stored_event_repo.get_integer_sequenced_events(sequence_id,
+                                                                               query_ascending=False,
+                                                                               results_ascending=False)
+        self.assertEqual(len(retrieved_events), 3)
+        self.assertEqual(retrieved_events[0].position, 2)
+        self.assertEqual(retrieved_events[2].position, 0)
 
 
 class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
@@ -229,199 +411,6 @@ class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
         with self.assertRaises(DatasourceOperationError):
             self.stored_event_repo.append(stored_event3, new_version_number=2, artificial_failure_rate=1)
         self.stored_event_repo.append(stored_event3, new_version_number=2, artificial_failure_rate=0)
-
-
-
-class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase):
-    @notquick()
-    def test_optimistic_concurrency_control(self):
-        """Appends lots of events, but with a pool of workers
-        all trying to add the same sequence of events.
-        """
-        # Start a pool.
-        pool_size = 3
-        print("Pool size: {}".format(pool_size))
-
-        # Erm, this is only needed for SQLite database file.
-        # Todo: Maybe factor out a 'get_initargs()' method on this class,
-        # so this detail is localised to the test cases that need it.
-        if hasattr(self, 'temp_file'):
-            temp_file_name = getattr(self, 'temp_file').name
-        else:
-            temp_file_name = None
-
-        pool = Pool(
-            initializer=pool_initializer,
-            processes=pool_size,
-            initargs=(type(self.stored_event_repo), temp_file_name),
-        )
-
-        # Append duplicate events to the repo, or at least try...
-        number_of_events = 40
-        self.assertGreater(number_of_events, pool_size)
-        stored_entity_id = uuid4().hex
-        sequence_of_args = [(number_of_events, stored_entity_id)] * pool_size
-        results = pool.map(append_lots_of_events_to_repo, sequence_of_args)
-        total_successes = []
-        total_failures = []
-        for result in results:
-            if isinstance(result, Exception):
-                print(result.args[0][1])
-                raise result
-            else:
-                successes, failures = result
-                assert isinstance(successes, list), result
-                assert isinstance(failures, list), result
-                total_successes.extend(successes)
-                total_failures.extend(failures)
-
-        # Close the pool.
-        pool.close()
-
-        # Check each event version was written exactly once.
-        self.assertEqual(sorted([i[0] for i in total_successes]), list(range(number_of_events)))
-
-        # Check there was contention that caused at least one concurrency error.
-        set_failures = set([i[0] for i in total_failures])
-        self.assertTrue(len(set_failures))
-
-        # Check each child wrote at least one event.
-        self.assertEqual(len(set([i[1] for i in total_successes])), pool_size)
-
-        # Check each child encountered at least one concurrency error.
-        self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
-
-        # Check the repo actually has a contiguous version sequence.
-        events = self.stored_event_repo.get_stored_events(stored_entity_id)
-        self.assertEqual(len(events), number_of_events)
-        version_counter = 0
-        for event in events:
-            assert isinstance(event, StoredEvent)
-            attr_values = json.loads(event.event_attrs)
-            self.assertEqual(attr_values['entity_version'], version_counter)
-            version_counter += 1
-
-        # Join the pool.
-        pool.join()
-
-    @staticmethod
-    def append_lots_of_events_to_repo(args):
-
-        num_events_to_create, stored_entity_id = args
-
-        success_count = 0
-        assert isinstance(num_events_to_create, six.integer_types)
-
-        successes = []
-        failures = []
-
-        try:
-
-            while True:
-                # Imitate an entity getting refreshed, by getting the version of the last event.
-                assert isinstance(worker_repo, AbstractStoredEventRepository)
-                events = worker_repo.get_stored_events(stored_entity_id, limit=1, query_ascending=False)
-                if len(events):
-                    current_version = json.loads(events[0].event_attrs)['entity_version']
-                    new_version = current_version + 1
-                else:
-                    current_version = None
-                    new_version = 0
-
-                # Stop before the version number gets too high.
-                if new_version >= num_events_to_create:
-                    break
-
-                pid = os.getpid()
-                try:
-
-                    # Append an event.
-                    stored_event = StoredEvent(
-                        event_id=uuid1().hex,
-                        stored_entity_id=stored_entity_id,
-                        event_topic='topic',
-                        event_attrs=json.dumps({'a': 1, 'b': 2, 'entity_version': new_version}),
-                    )
-                    started = datetime.datetime.now()
-                    worker_repo.append(
-                        new_stored_event=stored_event,
-                        new_version_number=new_version,
-                        max_retries=10,
-                        artificial_failure_rate=0.25,
-                    )
-                except ConcurrencyError:
-                    # print("PID {} got concurrent exception writing event at version {} at {}".format(
-                    #     pid, new_version, started, datetime.datetime.now() - started))
-                    failures.append((new_version, pid))
-                    sleep(0.01)
-                except DatasourceOperationError:
-                    # print("PID {} got concurrent exception writing event at version {} at {}".format(
-                    #     pid, new_version, started, datetime.datetime.now() - started))
-                    # failures.append((new_version, pid))
-                    sleep(0.01)
-                else:
-                    print("PID {} success writing event at version {} at {} in {}".format(
-                        pid, new_version, started, datetime.datetime.now() - started))
-                    success_count += 1
-                    successes.append((new_version, pid))
-                    # Delay a successful writer, to give other processes a chance to write the next event.
-                    sleep(0.03)
-
-        # Return to parent process the successes and failure, or an exception.
-        except Exception as e:
-            msg = traceback.format_exc()
-            print(" - failed to append event: {}".format(msg))
-            return Exception((e, msg))
-        else:
-            return (successes, failures)
-
-
-worker_repo = None
-
-
-def pool_initializer(stored_repo_class, temp_file_name):
-    global worker_repo
-    worker_repo = construct_repo_for_worker(stored_repo_class, temp_file_name)
-
-
-def construct_repo_for_worker(stored_repo_class, temp_file_name):
-    if stored_repo_class is CassandraStoredEventRepository:
-        datastore = CassandraDatastore(
-            settings=CassandraSettings(default_keyspace=DEFAULT_KEYSPACE_FOR_TESTING),
-            tables=(CqlStoredEvent,)
-        )
-        datastore.drop_connection()
-        datastore.setup_connection()
-        repo = CassandraStoredEventRepository(
-            stored_event_table=CqlStoredEvent,
-            always_check_expected_version=True,
-            always_write_entity_version=True,
-        )
-    elif stored_repo_class is SQLAlchemyStoredEventRepository:
-        uri = 'sqlite:///' + temp_file_name
-        datastore = SQLAlchemyDatastore(
-            settings=SQLAlchemySettings(uri=uri),
-            tables=(SqlStoredEvent,),
-        )
-        datastore.setup_connection()
-        repo = SQLAlchemyStoredEventRepository(
-            datastore=datastore,
-            stored_event_table=SqlStoredEvent,
-            always_check_expected_version=True,
-            always_write_entity_version=True,
-        )
-    elif stored_repo_class is PythonObjectsStoredEventRepository:
-        repo = PythonObjectsStoredEventRepository(
-            always_check_expected_version=True,
-            always_write_entity_version=True,
-        )
-    else:
-        raise Exception("Stored repo class not yet supported in test: {}".format(stored_repo_class))
-    return repo
-
-
-def append_lots_of_events_to_repo(args):
-    return OptimisticConcurrencyControlTestCase.append_lots_of_events_to_repo(args)
 
 
 class IteratorTestCase(AbstractStoredEventRepositoryTestCase):

@@ -6,7 +6,7 @@ from cassandra import DriverException
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
-from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError
+from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, IntegerSequenceError
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
 from eventsourcing.infrastructure.transcoding import EntityVersion
@@ -31,6 +31,25 @@ class CqlEntityVersion(Model):
     x = columns.Text(default='')
 
 
+class CqlIntegerSequencedEvent(Model):
+    """Stores integer-sequenced events in Cassandra."""
+
+    __table_name__ = 'integer_sequenced_events'
+    _if_not_exists = True
+
+    # Sequence ID (e.g. an entity or aggregate ID).
+    s = columns.Text(partition_key=True)
+
+    # Position (index) of event in sequence.
+    p = columns.BigInt(clustering_order='DESC', primary_key=True)
+
+    # Topic of the event (e.g. path to domain event class).
+    t = columns.Text()
+
+    # State of the event (serialized dict, possibly encrypted).
+    a = columns.Text(required=True)
+
+
 class CqlStoredEvent(Model):
     __table_name__ = 'storedevents'
 
@@ -48,13 +67,21 @@ class CqlStoredEvent(Model):
 
 
 class CassandraStoredEventRepository(AbstractStoredEventRepository):
-    def __init__(self, stored_event_table, **kwargs):
+    def __init__(self, stored_event_table=None, integer_sequenced_event_table=None, **kwargs):
         super(CassandraStoredEventRepository, self).__init__(**kwargs)
         self.stored_event_table = stored_event_table
+        self.integer_sequenced_event_table = integer_sequenced_event_table
 
     @property
     def iterator_class(self):
         return ThreadedStoredEventIterator
+
+    def append_integer_sequenced_event(self, event):
+        cql_object = self.to_cql_integer_sequenced(event)
+        try:
+            cql_object.save()
+        except LWTException as e:
+            raise IntegerSequenceError((cql_object.s, cql_object.p))
 
     def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3,
                                 artificial_failure_rate=0):
@@ -117,49 +144,50 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
             else:
                 break
 
-        # except DriverException as event_write_error:
-        #     # If we get here, we're in trouble because the version has been
-        #     # written, but perhaps not the event, so the entity may be broken
-        #     # because it might not be possible to get the entity with version
-        #     # number high enough to pass the optimistic concurrency check
-        #     # when storing subsequent events.
-        #
-        #     # Back off for a little bit.
-        #     sleep(0.1)
-        #     try:
-        #         # If the event actually exists, despite the exception, all is well.
-        #         CqlStoredEvent.get(n=new_stored_event.stored_entity_id, v=new_stored_event.event_id)
-        #
-        #     except CqlStoredEvent.DoesNotExist:
-        #         # Otherwise, try harder to recover by removing the new version.
-        #         if new_entity_version is not None:
-        #             retries = max_retries * 3
-        #             while True:
-        #                 try:
-        #                     # Optionally mimic an unreliable delete() operation.
-        #                     #  - used for testing retries
-        #                     if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
-        #                         raise DriverException("Artificial failure")
-        #
-        #                     # Delete the new entity version.
-        #                     new_entity_version.delete()
-        #
-        #                 except DriverException as version_delete_error:
-        #                     # It's not going very well, so maybe retry.
-        #                     if retries <= 0:
-        #                         # Raise when retries are exhausted.
-        #                         raise Exception("Unable to delete version {} of entity {} after failing to write"
-        #                                         "event: event write error {}: version delete error {}"
-        #                                         .format(new_entity_version, stored_entity_id,
-        #                                                 event_write_error, version_delete_error))
-        #                     else:
-        #                         # Otherwise retry.
-        #                         retries -= 1
-        #                         sleep(0.05 + 0.1 * random())
-        #                 else:
-        #                     # The entity version was deleted, all is well.
-        #                     break
-        #         raise event_write_error
+                # except DriverException as event_write_error:
+                #     # If we get here, we're in trouble because the version has been
+                #     # written, but perhaps not the event, so the entity may be broken
+                #     # because it might not be possible to get the entity with version
+                #     # number high enough to pass the optimistic concurrency check
+                #     # when storing subsequent events.
+                #
+                #     # Back off for a little bit.
+                #     sleep(0.1)
+                #     try:
+                #         # If the event actually exists, despite the exception, all is well.
+                #         CqlStoredEvent.get(n=new_stored_event.stored_entity_id, v=new_stored_event.event_id)
+                #
+                #     except CqlStoredEvent.DoesNotExist:
+                #         # Otherwise, try harder to recover by removing the new version.
+                #         if new_entity_version is not None:
+                #             retries = max_retries * 3
+                #             while True:
+                #                 try:
+                #                     # Optionally mimic an unreliable delete() operation.
+                #                     #  - used for testing retries
+                #                     if artificial_failure_rate and (random() > 1 - artificial_failure_rate):
+                #                         raise DriverException("Artificial failure")
+                #
+                #                     # Delete the new entity version.
+                #                     new_entity_version.delete()
+                #
+                #                 except DriverException as version_delete_error:
+                #                     # It's not going very well, so maybe retry.
+                #                     if retries <= 0:
+                #                         # Raise when retries are exhausted.
+                #                         raise Exception("Unable to delete version {} of entity {} after failing to
+                #  write"
+                #                                         "event: event write error {}: version delete error {}"
+                #                                         .format(new_entity_version, stored_entity_id,
+                #                                                 event_write_error, version_delete_error))
+                #                     else:
+                #                         # Otherwise retry.
+                #                         retries -= 1
+                #                         sleep(0.05 + 0.1 * random())
+                #                 else:
+                #                     # The entity version was deleted, all is well.
+                #                     break
+                #         raise event_write_error
 
     def get_entity_version(self, stored_entity_id, version_number):
         entity_version_id = self.make_entity_version_id(stored_entity_id, version_number)
@@ -207,6 +235,36 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
 
         return events
 
+    def get_integer_sequenced_events(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
+                                     query_ascending=True, results_ascending=True):
+
+        assert limit is None or limit >= 1, limit
+
+        query = self.integer_sequenced_event_table.objects.filter(s=sequence_id)
+
+        if query_ascending:
+            query = query.order_by('p')
+
+        if gt is not None:
+            query = query.filter(p__gt=gt)
+        if gte is not None:
+            query = query.filter(p__gte=gte)
+        if lt is not None:
+            query = query.filter(p__lt=lt)
+        if lte is not None:
+            query = query.filter(p__lte=lte)
+
+        if limit is not None:
+            query = query.limit(limit)
+
+        events = self.map(self.from_cql_integer_sequenced, query)
+        events = list(events)
+
+        if results_ascending != query_ascending:
+            events.reverse()
+
+        return events
+
     def to_cql(self, stored_event):
         assert isinstance(stored_event, self.stored_event_class), stored_event
         return self.stored_event_table(
@@ -223,4 +281,24 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
             event_id=cql_stored_event.v.hex,
             event_topic=cql_stored_event.t,
             event_attrs=cql_stored_event.a
+        )
+
+    def to_cql_integer_sequenced(self, integer_sequence_event):
+        assert isinstance(integer_sequence_event, self.stored_integer_sequenced_event_class), (
+        integer_sequence_event, self.stored_integer_sequenced_event_class)
+
+        return self.integer_sequenced_event_table(
+            s=integer_sequence_event.sequence_id,
+            p=integer_sequence_event.position,
+            t=integer_sequence_event.topic,
+            a=integer_sequence_event.state
+        )
+
+    def from_cql_integer_sequenced(self, cql_integer_sequenced_event):
+        assert isinstance(cql_integer_sequenced_event, CqlIntegerSequencedEvent), cql_integer_sequenced_event
+        return self.stored_integer_sequenced_event_class(
+            sequence_id=cql_integer_sequenced_event.s,
+            position=cql_integer_sequenced_event.p,
+            topic=cql_integer_sequenced_event.t,
+            state=cql_integer_sequenced_event.a,
         )

@@ -5,8 +5,9 @@ import six
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import EntityVersionNotFound
-from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder, StoredEvent, StoredEventTranscoder
 
+from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder, StoredEvent, StoredEventTranscoder, \
+    StoredIntegerSequencedEvent
 
 class AbstractEventStore(six.with_metaclass(ABCMeta)):
     @abstractmethod
@@ -93,20 +94,21 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
     # Todo: Change stored_event_class to be a class attribute, rather than constructor argument.
     # - does that support the use case of substituting a customer stored event class? write a test first
     def __init__(self, always_check_expected_version=False, always_write_entity_version=False,
-                 stored_event_class=StoredEvent):
+                 stored_event_class=StoredEvent, stored_integer_sequenced_event_class=StoredIntegerSequencedEvent):
         """
         Abstract base class for a persistent collection of stored events.
         """
         self.always_check_expected_version = always_check_expected_version
         self.always_write_entity_version = always_write_entity_version or always_check_expected_version
         self.stored_event_class = stored_event_class
+        self.stored_integer_sequenced_event_class = stored_integer_sequenced_event_class
 
     def append(self, new_stored_event, new_version_number=None, max_retries=3, artificial_failure_rate=0):
         """
         Saves given stored event in this repository.
         """
         # Check the new event is a stored event instance.
-        assert isinstance(new_stored_event, self.stored_event_class)
+        assert isinstance(new_stored_event, self.stored_event_class), (new_stored_event, self.stored_event_class)
 
         # Validate the expected version.
         if self.always_check_expected_version:
@@ -175,6 +177,27 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
         """
 
+    # Maybe reinstate this if decide to put this method on all classes. Keep it simple for now.
+    # @abstractmethod
+    # def append_integer_sequenced_event(self, event):
+    #     """
+    #     Saves given stored event in this repository.
+    #     """
+    #     # Check the new event is a stored event instance.
+    #     assert isinstance(event, self.stored_event_class), (event, self.stored_event_class)
+    #
+    # @abstractmethod
+    # def get_integer_sequenced_events(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
+    #                                  query_ascending=True, results_ascending=True):
+    #     """
+    #     Returns all integer sequenced events for given sequence ID, in sequential order.
+    #
+    #     :param gte:
+    #     :param lte:
+    #     :rtype: list
+    #
+    #     """
+
     def iterate_stored_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
                               page_size=None):
         """
@@ -210,6 +233,20 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         except IndexError:
             return None
 
+    def get_most_recent_integer_sequenced_event(self, sequence_id, until=None, include_until=False):
+        """
+        Returns the most recent integer sequenced event for given sequence ID.
+
+        :rtype: DomainEvent, NoneType
+
+        """
+        events = self.get_most_recent_integer_sequenced_events(sequence_id, until=until, limit=1,
+                                                               include_until=include_until)
+        try:
+            return events[0]
+        except IndexError:
+            return None
+
     def get_most_recent_events(self, stored_entity_id, until=None, limit=None, include_until=False):
         """
         Returns an optionally limited number of the most recent stored events for a given entity ID.
@@ -225,6 +262,16 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
             results_ascending=False,
             include_until_when_descending=include_until,
         )
+
+    def get_most_recent_integer_sequenced_events(self, sequence_id, until=None, limit=None, include_until=False):
+        """
+        Returns an optionally limited number of the most recent stored events for a given entity ID.
+
+        :rtype: list
+
+        """
+        return self.get_integer_sequenced_events(sequence_id=sequence_id, lt=until, limit=limit, query_ascending=False,
+                                                 results_ascending=False)
 
     @staticmethod
     def make_entity_version_id(stored_entity_id, version):
