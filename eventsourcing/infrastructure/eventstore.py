@@ -179,7 +179,7 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
         """
 
-    @abstractmethod
+    # @abstractmethod
     def append_integer_sequenced_item(self, event):
         """
         Appends given integer sequenced item to this repository.
@@ -187,7 +187,7 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         # Check the new event is a stored event instance.
         assert isinstance(event, self.stored_event_class), (event, self.stored_event_class)
 
-    @abstractmethod
+    # @abstractmethod
     def get_integer_sequenced_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                                     query_ascending=True, results_ascending=True):
         """
@@ -199,14 +199,14 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
         """
 
-    @abstractmethod
+    # @abstractmethod
     def append_time_sequenced_item(self, item):
         """
         Appends a time sequenced item to the sequence.
         """
         assert isinstance(item, self.time_sequenced_item_tuple), (item, self.time_sequenced_item_tuple)
 
-    @abstractmethod
+    # @abstractmethod
     def get_time_sequenced_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                                  query_ascending=True, results_ascending=True):
         """
