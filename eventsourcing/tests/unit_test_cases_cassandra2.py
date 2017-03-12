@@ -23,13 +23,13 @@
 #         super(Cassandra2Repo2TestCase, self).setUp()
 #
 #     @property
-#     def stored_event_repo(self):
+#     def sequenced_item_repo(self):
 #         try:
 #             return self._stored_event_repo
 #         except AttributeError:
-#             stored_event_repo = Cassandra2StoredEventRepository(
+#             sequenced_item_repo = Cassandra2StoredEventRepository(
 #                 always_write_entity_version=True,
 #                 always_check_expected_version=True,
 #             )
-#             self._stored_event_repo = stored_event_repo
-#             return stored_event_repo
+#             self._stored_event_repo = sequenced_item_repo
+#             return sequenced_item_repo

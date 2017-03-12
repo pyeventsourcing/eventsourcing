@@ -56,7 +56,7 @@ class ExampleApplicationTestCase(AbstractStoredEventRepositoryTestCase):
     def construct_application(self):
         cipher = self.construct_cipher()
         app = ExampleApplication(
-            stored_event_repository=self.stored_event_repo,
+            stored_event_repository=self.sequenced_item_repo,
             always_encrypt=bool(cipher),
             cipher=cipher,
         )

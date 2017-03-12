@@ -9,7 +9,7 @@ from eventsourcing.exceptions import DatasourceSettingsError
 from eventsourcing.infrastructure.datastore.base import DatastoreConnectionError, DatastoreTableError
 from eventsourcing.infrastructure.datastore.cassandraengine import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.storedevents.cassandrarepo import CqlEntityVersion, CqlStoredEvent, \
-    CqlIntegerSequencedEvent
+    CqlIntegerSequencedItem, CqlTimeSequencedItem
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
 
 DEFAULT_KEYSPACE_FOR_TESTING = 'eventsourcing_tests'
@@ -23,7 +23,7 @@ class CassandraDatastoreTestCase(AbstractDatastoreTestCase):
     def construct_datastore(self):
         return CassandraDatastore(
             settings=CassandraSettings(default_keyspace=DEFAULT_KEYSPACE_FOR_TESTING),
-            tables=(CqlStoredEvent, CqlEntityVersion, CqlIntegerSequencedEvent),
+            tables=(CqlStoredEvent, CqlEntityVersion, CqlIntegerSequencedItem, CqlTimeSequencedItem),
         )
 
 

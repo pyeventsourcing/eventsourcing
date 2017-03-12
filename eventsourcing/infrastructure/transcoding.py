@@ -18,8 +18,14 @@ EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
 
 StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
 
-StoredIntegerSequencedEvent = namedtuple( 'StoredIntegerSequencedEvent',
-    ['sequence_id', 'position', 'topic', 'state'],
+IntegerSequencedItem = namedtuple(
+    'IntegerSequencedItem',
+    ['sequence_id', 'position', 'topic', 'data'],
+)
+
+TimeSequencedItem = namedtuple(
+    'TimeSequencedItem',
+    ['sequence_id', 'position', 'topic', 'data'],
 )
 
 

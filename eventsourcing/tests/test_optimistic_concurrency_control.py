@@ -46,7 +46,7 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
         pool = Pool(
             initializer=pool_initializer,
             processes=pool_size,
-            initargs=(type(self.stored_event_repo), temp_file_name),
+            initargs=(type(self.sequenced_item_repo), temp_file_name),
         )
 
         # Append duplicate events to the repo, or at least try...
@@ -85,7 +85,7 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
         self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
 
         # Check the repo actually has a contiguous version sequence.
-        events = self.stored_event_repo.get_stored_events(stored_entity_id)
+        events = self.sequenced_item_repo.get_stored_events(stored_entity_id)
         self.assertEqual(len(events), number_of_events)
         version_counter = 0
         for event in events:

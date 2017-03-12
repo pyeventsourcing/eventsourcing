@@ -43,4 +43,8 @@ class DatasourceOperationError(EventSourcingError):
 
 
 class IntegerSequenceError(EventSourcingError):
-    "Raise when an integer sequence error occurs e.g. trying to save a version that already exists."
+    "Raised when an integer sequence error occurs e.g. trying to save a version that already exists."
+
+
+class TimeSequenceError(EventSourcingError):
+    "Raised when a time sequence error occurs e.g. trying to save a timestamp that already exists."
