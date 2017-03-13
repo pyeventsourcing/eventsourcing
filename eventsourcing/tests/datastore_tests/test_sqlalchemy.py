@@ -5,7 +5,8 @@ from sqlalchemy.exc import OperationalError
 from eventsourcing.infrastructure.datastore.base import DatastoreTableError
 from eventsourcing.infrastructure.datastore.sqlalchemyorm import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
     SQLAlchemySettings
-from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SqlStoredEvent
+from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SqlStoredEvent, SqlIntegerSequencedItem, \
+    SqlTimeSequencedItem
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
 
 
@@ -20,7 +21,7 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
             uri = DEFAULT_SQLALCHEMY_DB_URI
         return SQLAlchemyDatastore(
             settings=SQLAlchemySettings(uri=uri),
-            tables=(SqlStoredEvent,),
+            tables=(SqlStoredEvent,SqlIntegerSequencedItem, SqlTimeSequencedItem),
         )
 
 

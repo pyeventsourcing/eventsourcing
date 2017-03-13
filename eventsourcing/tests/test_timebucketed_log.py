@@ -8,9 +8,9 @@ from eventsourcing.domain.model.log import Log, Logger, get_logger, start_new_lo
     bucket_starts
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.log_reader import get_log_reader
-from eventsourcing.tests.sequenced_item_repository_tests.test_cassandra_stored_event_repository import \
+from eventsourcing.tests.sequenced_item_repository_tests.test_cassandra_sequence_repository import \
     CassandraRepoTestCase
-from eventsourcing.tests.sequenced_item_repository_tests.test_sqlalchemy_stored_event_repository import \
+from eventsourcing.tests.sequenced_item_repository_tests.test_sqlalchemy_sequence_repository import \
     SQLAlchemyRepoTestCase
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.sequenced_item_repository_tests.base import PersistenceSubscribingTestCase

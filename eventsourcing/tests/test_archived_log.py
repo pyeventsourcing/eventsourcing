@@ -7,9 +7,9 @@ from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRe
 from eventsourcing.infrastructure.notification_log import append_item_to_notification_log
 from eventsourcing.interface.archived_logs import ArchivedLogReader, ArchivedLogRepo, RemoteArchivedLogRepo, \
     serialize_archived_log, deserialise_archived_log
-from eventsourcing.tests.sequenced_item_repository_tests.test_cassandra_stored_event_repository import \
+from eventsourcing.tests.sequenced_item_repository_tests.test_cassandra_sequence_repository import \
     CassandraRepoTestCase
-from eventsourcing.tests.sequenced_item_repository_tests.test_sqlalchemy_stored_event_repository import \
+from eventsourcing.tests.sequenced_item_repository_tests.test_sqlalchemy_sequence_repository import \
     SQLAlchemyRepoTestCase
 from eventsourcing.tests.sequenced_item_repository_tests.base import PersistenceSubscribingTestCase
 from eventsourcing.tests.sequenced_item_repository_tests.test_python_objects_stored_event_repository import \

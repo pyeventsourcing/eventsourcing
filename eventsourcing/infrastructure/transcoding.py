@@ -18,15 +18,55 @@ EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
 
 StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
 
-IntegerSequencedItem = namedtuple(
-    'IntegerSequencedItem',
-    ['sequence_id', 'position', 'topic', 'data'],
-)
 
-TimeSequencedItem = namedtuple(
-    'TimeSequencedItem',
-    ['sequence_id', 'position', 'topic', 'data'],
-)
+class AbstractSequencedItem(tuple):
+    __slots__ = ()
+
+
+class IntegerSequencedItem(AbstractSequencedItem):
+    _fields = ('sequence_id', 'position', 'topic', 'data')
+
+    def __new__(cls, sequence_id, position, topic, data):
+        return tuple.__new__(cls, (sequence_id, position, topic, data))
+
+    @property
+    def sequence_id(self):
+        return self[0]
+
+    @property
+    def position(self):
+        return self[1]
+
+    @property
+    def topic(self):
+        return self[2]
+
+    @property
+    def data(self):
+        return self[3]
+
+
+class TimeSequencedItem(AbstractSequencedItem):
+    _fields = ('sequence_id', 'position', 'topic', 'data')
+
+    def __new__(cls, sequence_id, position, topic, data):
+        return tuple.__new__(cls, (sequence_id, position, topic, data))
+
+    @property
+    def sequence_id(self):
+        return self[0]
+
+    @property
+    def position(self):
+        return self[1]
+
+    @property
+    def topic(self):
+        return self[2]
+
+    @property
+    def data(self):
+        return self[3]
 
 
 class StoredEventTranscoder(six.with_metaclass(ABCMeta)):

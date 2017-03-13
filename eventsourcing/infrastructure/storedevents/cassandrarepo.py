@@ -8,10 +8,38 @@ from cassandra.cqlengine.query import LWTException
 
 from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, SequencedItemError, \
     TimeSequenceError
-from eventsourcing.infrastructure.eventstore import AbstractSequencedItemRepository, AbstractStoredEventRepository, \
-    IntegerSequencedItemRepository, TimeSequencedItemRepository
+from eventsourcing.infrastructure.eventstore import AbstractSequencedItemRepository, AbstractStoredEventRepository
+from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
 from eventsourcing.infrastructure.transcoding import EntityVersion
+
+
+class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
+    def to_active_record(self, sequenced_item):
+        """
+        Returns an active record instance, from given sequenced item.
+        """
+        assert isinstance(sequenced_item, self.sequenced_item_class), sequenced_item
+        return self.active_record_class(
+            s=sequenced_item.sequence_id,
+            p=sequenced_item.position,
+            t=sequenced_item.topic,
+            d=sequenced_item.data
+        )
+
+    def from_active_record(self, active_record):
+        """
+        Returns a sequenced item instance, from given active record.
+        """
+        return self.sequenced_item_class(
+            sequence_id=active_record.s,
+            position=active_record.p,
+            topic=active_record.t,
+            data=active_record.d,
+        )
+
+    def filter(self, *args, **kwargs):
+        return self.active_record_class.objects.filter(*args, **kwargs)
 
 
 class CqlEntityVersion(Model):
@@ -43,7 +71,7 @@ class CqlIntegerSequencedItem(Model):
     # Sequence ID (e.g. an entity or aggregate ID).
     s = columns.Text(partition_key=True)
 
-    # Position (index) of event in sequence.
+    # Position (index) of item in sequence.
     p = columns.BigInt(clustering_order='DESC', primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
@@ -63,8 +91,9 @@ class CqlTimeSequencedItem(Model):
     # Sequence ID (e.g. an entity or aggregate ID).
     s = columns.Text(partition_key=True)
 
-    # Position (in time) of event in sequence.
-    p = columns.TimeUUID(clustering_order='DESC', primary_key=True)
+    # Position (in time) of item in sequence.
+    # p = columns.TimeUUID(clustering_order='DESC', primary_key=True)
+    p = columns.BigInt(clustering_order='DESC', primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
     t = columns.Text(required=True)
@@ -90,13 +119,12 @@ class CqlStoredEvent(Model):
 
 
 class CassandraSequencedItemRepository(AbstractSequencedItemRepository):
-
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
 
         assert limit is None or limit >= 1, limit
 
-        query = self.item_table.objects.filter(s=sequence_id)
+        query = self.active_record_strategy.filter(s=sequence_id)
 
         if query_ascending:
             query = query.order_by('p')
@@ -113,49 +141,22 @@ class CassandraSequencedItemRepository(AbstractSequencedItemRepository):
         if limit is not None:
             query = query.limit(limit)
 
-        events = six.moves.map(self.from_active_record, query)
-        events = list(events)
+        items = six.moves.map(self.active_record_strategy.from_active_record, query)
+        items = list(items)
 
         if results_ascending != query_ascending:
-            events.reverse()
+            items.reverse()
 
-        return events
-
-    def to_active_record(self, item):
-        assert isinstance(item, self.item_type), (item, self.item_type)
-        return self.item_table(
-            s=item.sequence_id,
-            p=item.position,
-            t=item.topic,
-            d=item.data
-        )
+        return items
 
     def append_item(self, item):
-        cql_object = self.to_active_record(item)
+        active_record = self.active_record_strategy.to_active_record(item)
         try:
-            cql_object.save()
+            active_record.save()
         except LWTException as e:
-            raise SequencedItemError((cql_object.s, cql_object.p, e))
+            raise SequencedItemError((active_record.s, active_record.p, e))
         except DriverException as e:
             raise DatasourceOperationError(e)
-
-    def from_active_record(self, cql_item):
-        assert isinstance(cql_item, self.item_table), cql_item
-        return self.item_type(
-            sequence_id=cql_item.s,
-            position=cql_item.p,
-            topic=cql_item.t,
-            data=cql_item.d,
-        )
-
-
-class CassandraIntegerSequencedItemRepository(IntegerSequencedItemRepository, CassandraSequencedItemRepository):
-    pass
-
-
-
-class CassandraTimeSequencedItemRepository(TimeSequencedItemRepository, CassandraSequencedItemRepository):
-    pass
 
 
 class CassandraStoredEventRepository(AbstractStoredEventRepository):

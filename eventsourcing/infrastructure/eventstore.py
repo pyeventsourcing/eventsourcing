@@ -1,10 +1,11 @@
 # coding=utf-8
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 
 import six
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import EntityVersionNotFound
+from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.transcoding import IntegerSequencedItem, JSONStoredEventTranscoder, StoredEvent, \
     StoredEventTranscoder, TimeSequencedItem
 
@@ -91,12 +92,9 @@ class EventStore(AbstractEventStore):
 
 class AbstractSequencedItemRepository(six.with_metaclass(ABCMeta)):
 
-    def __init__(self, item_table=None):
-        self.item_table = item_table
-
-    @abstractproperty
-    def item_type(self):
-        """Type of sequenced item."""
+    def __init__(self, active_record_strategy):
+        assert isinstance(active_record_strategy, AbstractActiveRecordStrategy)
+        self.active_record_strategy = active_record_strategy
 
     @abstractmethod
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
@@ -106,18 +104,6 @@ class AbstractSequencedItemRepository(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def append_item(self, item):
         """Appends item to sequence."""
-
-
-class IntegerSequencedItemRepository(AbstractSequencedItemRepository):
-
-    item_type = IntegerSequencedItem
-
-
-
-class TimeSequencedItemRepository(AbstractSequencedItemRepository):
-
-    item_type = TimeSequencedItem
-
 
 
 class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):

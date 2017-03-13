@@ -2,6 +2,7 @@ import datetime
 import json
 import uuid
 from abc import abstractmethod, abstractproperty
+from time import time
 from uuid import uuid1
 
 import six
@@ -13,7 +14,7 @@ from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError,
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, EventStore, \
     SimpleStoredEventIterator
 from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
-from eventsourcing.infrastructure.transcoding import IntegerSequencedItem, StoredEvent
+from eventsourcing.infrastructure.transcoding import StoredEvent
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 
@@ -68,9 +69,13 @@ class AbstractSequencedItemRepositoryTestCase(AbstractDatastoreTestCase):
 
         position1, position2, position3 = self.construct_positions()
 
+        self.assertLess(position1, position2)
+        self.assertLess(position2, position3)
+
         # Append an item.
         data1 = json.dumps({'name': 'value1'})
-        item1 = self.sequenced_item_repo.item_type(
+        item_class = self.sequenced_item_repo.active_record_strategy.sequenced_item_class
+        item1 = item_class(
             sequence_id=sequence_id,
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC1,
@@ -80,15 +85,15 @@ class AbstractSequencedItemRepositoryTestCase(AbstractDatastoreTestCase):
 
         # Check repo returns the item.
         retrieved_items = self.sequenced_item_repo.get_items(sequence_id)
-        self.assertIsInstance(retrieved_items[0], self.sequenced_item_repo.item_type)
+        self.assertIsInstance(retrieved_items[0], item_class)
         self.assertEqual(retrieved_items[0].sequence_id, item1.sequence_id)
         self.assertEqual(retrieved_items[0].position, position1)
-        self.assertEqual(retrieved_items[0].topic, item1.topic)
         self.assertEqual(retrieved_items[0].data, item1.data)
+        self.assertEqual(retrieved_items[0].topic, item1.topic)
 
         # Check appending a different item at the same position in the same sequence causes an error.
         data2 = json.dumps({'name': 'value2'})
-        item2 = self.sequenced_item_repo.item_type(
+        item2 = item_class(
             sequence_id=item1.sequence_id,
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC2,
@@ -103,7 +108,7 @@ class AbstractSequencedItemRepositoryTestCase(AbstractDatastoreTestCase):
 
         # Check appending a different item at the same position in the same sequence causes an error.
         data2 = json.dumps({'name': 'value2'})
-        item3 = self.sequenced_item_repo.item_type(
+        item3 = item_class(
             sequence_id=item1.sequence_id,
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC2,
@@ -113,7 +118,7 @@ class AbstractSequencedItemRepositoryTestCase(AbstractDatastoreTestCase):
             self.sequenced_item_repo.append_item(item3)
 
         # Append a second item at the next position.
-        item4 = self.sequenced_item_repo.item_type(
+        item4 = item_class(
             sequence_id=item1.sequence_id,
             position=position2,
             topic=self.EXAMPLE_EVENT_TOPIC2,
@@ -122,7 +127,7 @@ class AbstractSequencedItemRepositoryTestCase(AbstractDatastoreTestCase):
         self.sequenced_item_repo.append_item(item4)
 
         # Append a third item.
-        item5 = self.sequenced_item_repo.item_type(
+        item5 = item_class(
             sequence_id=item1.sequence_id,
             position=position3,
             topic=self.EXAMPLE_EVENT_TOPIC2,
@@ -135,19 +140,19 @@ class AbstractSequencedItemRepositoryTestCase(AbstractDatastoreTestCase):
         self.assertEqual(len(retrieved_items), 3)
 
         # Expect a list of stored items, in sequential order.
-        self.assertIsInstance(retrieved_items[0], self.sequenced_item_repo.item_type)
+        self.assertIsInstance(retrieved_items[0], item_class)
         self.assertEqual(retrieved_items[0].sequence_id, item1.sequence_id)
         self.assertEqual(retrieved_items[0].position, position1)
         self.assertEqual(retrieved_items[0].topic, item1.topic)
         self.assertEqual(retrieved_items[0].data, item1.data)
 
-        self.assertIsInstance(retrieved_items[1], self.sequenced_item_repo.item_type)
+        self.assertIsInstance(retrieved_items[1], item_class)
         self.assertEqual(retrieved_items[1].sequence_id, item2.sequence_id)
         self.assertEqual(retrieved_items[1].position, position2)
         self.assertEqual(retrieved_items[1].topic, item2.topic)
         self.assertEqual(retrieved_items[1].data, item2.data)
 
-        self.assertIsInstance(retrieved_items[2], self.sequenced_item_repo.item_type)
+        self.assertIsInstance(retrieved_items[2], item_class)
         self.assertEqual(retrieved_items[2].sequence_id, item5.sequence_id)
         self.assertEqual(retrieved_items[2].position, position3)
         self.assertEqual(retrieved_items[2].topic, item5.topic)
@@ -295,190 +300,14 @@ class IntegerSequencedItemRepositoryTestCase(AbstractSequencedItemRepositoryTest
     def construct_positions(self):
         return 0, 1, 2
 
-    def _test(self):
-        sequence_id = uuid.uuid4().hex
-
-        # Check repo returns None when there aren't any items.
-        self.assertEqual(self.sequenced_item_repo.get_items(sequence_id), [])
-
-        # Append an item.
-        data1 = json.dumps({'name': 'value1'})
-        position1 = 0
-        position2 = 1
-        position3 = 2
-        item1 = IntegerSequencedItem(
-            sequence_id=sequence_id,
-            position=position1,
-            topic=self.EXAMPLE_EVENT_TOPIC1,
-            data=data1,
-        )
-        self.sequenced_item_repo.append_item(item1)
-
-        # Check repo returns the item.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id)
-        self.assertIsInstance(retrieved_items[0], IntegerSequencedItem)
-        self.assertEqual(retrieved_items[0].sequence_id, item1.sequence_id)
-        self.assertEqual(retrieved_items[0].position, position1)
-        self.assertEqual(retrieved_items[0].topic, item1.topic)
-        self.assertEqual(retrieved_items[0].data, item1.data)
-
-        # Check appending a different item at the same position in the same sequence causes an error.
-        data2 = json.dumps({'name': 'value2'})
-        stored_item2 = IntegerSequencedItem(
-            sequence_id=item1.sequence_id,
-            position=position1,
-            topic=self.EXAMPLE_EVENT_TOPIC2,
-            data=data2,
-        )
-        with self.assertRaises(SequencedItemError):
-            self.sequenced_item_repo.append_item(stored_item2)
-
-        # Check appending a different item at the same position in the same sequence causes an error.
-        data2 = json.dumps({'name': 'value2'})
-        item3 = IntegerSequencedItem(
-            sequence_id=item1.sequence_id,
-            position=position1,
-            topic=self.EXAMPLE_EVENT_TOPIC2,
-            data=data2,
-        )
-        with self.assertRaises(SequencedItemError):
-            self.sequenced_item_repo.append_item(item3)
-
-        # Append a second item at the next position.
-        item4 = IntegerSequencedItem(
-            sequence_id=item1.sequence_id,
-            position=position2,
-            topic=self.EXAMPLE_EVENT_TOPIC2,
-            data=data2,
-        )
-        self.sequenced_item_repo.append_item(item4)
-
-        # Append a third item.
-        stored_item5 = IntegerSequencedItem(
-            sequence_id=item1.sequence_id,
-            position=position3,
-            topic=self.EXAMPLE_EVENT_TOPIC2,
-            data=data2,
-        )
-        self.sequenced_item_repo.append_item(stored_item5)
-
-        # Get all the items.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id)
-        self.assertEqual(len(retrieved_items), 3)
-
-        # Expect a list of stored items, in sequential order.
-        self.assertIsInstance(retrieved_items[0], IntegerSequencedItem)
-        self.assertEqual(retrieved_items[0].sequence_id, item1.sequence_id)
-        self.assertEqual(retrieved_items[0].position, position1)
-        self.assertEqual(retrieved_items[0].topic, item1.topic)
-        self.assertEqual(retrieved_items[0].data, item1.data)
-
-        self.assertIsInstance(retrieved_items[1], IntegerSequencedItem)
-        self.assertEqual(retrieved_items[1].sequence_id, stored_item2.sequence_id)
-        self.assertEqual(retrieved_items[1].position, position2)
-        self.assertEqual(retrieved_items[1].topic, stored_item2.topic)
-        self.assertEqual(retrieved_items[1].data, stored_item2.data)
-
-        self.assertIsInstance(retrieved_items[2], IntegerSequencedItem)
-        self.assertEqual(retrieved_items[2].sequence_id, stored_item5.sequence_id)
-        self.assertEqual(retrieved_items[2].position, position3)
-        self.assertEqual(retrieved_items[2].topic, stored_item5.topic)
-        self.assertEqual(retrieved_items[2].data, stored_item5.data)
-
-        # Get all items greater than a position.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id, gt=position1)
-        self.assertEqual(len(retrieved_items), 2)
-        self.assertEqual(retrieved_items[0].position, position2)
-        self.assertEqual(retrieved_items[1].position, position3)
-
-        # Get all items greater then or equal to a position.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id, gte=position2)
-        self.assertEqual(len(retrieved_items), 2)
-        self.assertEqual(retrieved_items[0].position, position2)
-        self.assertEqual(retrieved_items[1].position, position3)
-
-        # Get all items less than a position.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id, lt=position3)
-        self.assertEqual(len(retrieved_items), 2)
-        self.assertEqual(retrieved_items[0].position, position1)
-        self.assertEqual(retrieved_items[1].position, position2)
-
-        # Get all items less then or equal to a position.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id, lte=position2)
-        self.assertEqual(len(retrieved_items), 2)
-        self.assertEqual(retrieved_items[0].position, position1)
-        self.assertEqual(retrieved_items[1].position, position2)
-
-        # Get all items greater then or equal to a position and less then or equal to a position.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id, gte=position2,
-                                                             lte=position2)
-        self.assertEqual(len(retrieved_items), 1)
-        self.assertEqual(retrieved_items[0].position, position2)
-
-        # Get all items greater then or equal to a position and less then a position.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id, gte=position2,
-                                                             lt=position3)
-        self.assertEqual(len(retrieved_items), 1)
-        self.assertEqual(retrieved_items[0].position, position2)
-
-        # Get all items greater then a position and less then or equal to a position.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id, gt=position1,
-                                                             lte=position2)
-        self.assertEqual(len(retrieved_items), 1)
-        self.assertEqual(retrieved_items[0].position, position2)
-
-        # Get all items greater a position and less a position.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id, gt=position1, lt=position3)
-        self.assertEqual(len(retrieved_items), 1)
-        self.assertEqual(retrieved_items[0].position, position2)
-
-        # Get all items, with a limit.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id, limit=1)
-        self.assertEqual(len(retrieved_items), 1)
-        self.assertEqual(retrieved_items[0].position, position1)
-
-        # Get all items, with a limit, and with descending query (so that we get the last ones).
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id, limit=2,
-                                                             query_ascending=False)
-        self.assertEqual(len(retrieved_items), 2)
-        self.assertEqual(retrieved_items[0].position, position2)
-        self.assertEqual(retrieved_items[1].position, position3)
-
-        # Get all items, with a limit and descending query, greater than a position.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id, limit=2, gt=position2,
-                                                             query_ascending=False)
-        self.assertEqual(len(retrieved_items), 1)
-        self.assertEqual(retrieved_items[0].position, position3)
-
-        # Get all items, with a limit and descending query, less than a position.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id, limit=2, lt=position3,
-                                                             query_ascending=False)
-        self.assertEqual(len(retrieved_items), 2)
-        self.assertEqual(retrieved_items[0].position, position1)
-        self.assertEqual(retrieved_items[1].position, position2)
-
-        # Get all items in descending order, queried in ascending order.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id,
-                                                             results_ascending=False)
-        self.assertEqual(len(retrieved_items), 3)
-        self.assertEqual(retrieved_items[0].position, position3)
-        self.assertEqual(retrieved_items[2].position, position1)
-
-        # Get all items in descending order, queried in descending order.
-        retrieved_items = self.sequenced_item_repo.get_items(sequence_id,
-                                                             query_ascending=False,
-                                                             results_ascending=False)
-        self.assertEqual(len(retrieved_items), 3)
-        self.assertEqual(retrieved_items[0].position, position3)
-        self.assertEqual(retrieved_items[2].position, position1)
-
 
 class TimeSequencedItemRepositoryTestCase(AbstractSequencedItemRepositoryTestCase):
     EXAMPLE_EVENT_TOPIC1 = topic_from_domain_class(ExampleTimeSequencedEvent1)
     EXAMPLE_EVENT_TOPIC2 = topic_from_domain_class(ExampleTimeSequencedEvent2)
 
     def construct_positions(self):
-        return uuid.uuid1(), uuid.uuid1(), uuid.uuid1()
+        t1 = time()
+        return t1, t1 + 0.00001, t1 + 0.00002
 
 
 class StoredEventRepositoryTestCase(AbstractStoredEventRepositoryTestCase):
