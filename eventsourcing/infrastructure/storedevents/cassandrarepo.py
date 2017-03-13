@@ -93,7 +93,7 @@ class CqlTimeSequencedItem(Model):
 
     # Position (in time) of item in sequence.
     # p = columns.TimeUUID(clustering_order='DESC', primary_key=True)
-    p = columns.BigInt(clustering_order='DESC', primary_key=True)
+    p = columns.Double(clustering_order='DESC', primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
     t = columns.Text(required=True)
