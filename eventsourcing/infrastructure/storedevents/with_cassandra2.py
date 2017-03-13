@@ -88,7 +88,7 @@
 #                             new_version_number = cql_stored_event.v + 1
 #
 #                     # Instantiate a Cassandra CQL engine object.
-#                     cql_stored_event = self.to_cql(new_stored_event, new_version_number)
+#                     cql_stored_event = self.to_active_record(new_stored_event, new_version_number)
 #
 #                     # Optionally mimic an unreliable save() operation.
 #                     #  - used for testing retries
@@ -215,7 +215,7 @@
 #         if limit is not None:
 #             query = query.limit(limit)
 #
-#         events = self.map(self.from_cql, query)
+#         events = self.map(self.from_active_record, query)
 #         events = list(events)
 #
 #         if results_ascending != query_ascending:
@@ -223,7 +223,7 @@
 #
 #         return events
 #
-#     def to_cql(self, stored_event, new_version_number):
+#     def to_active_record(self, stored_event, new_version_number):
 #         assert isinstance(stored_event, self.stored_event_class), stored_event
 #         return CqlStoredEvent(
 #             n=stored_event.stored_entity_id,
@@ -233,7 +233,7 @@
 #             a=stored_event.event_attrs
 #         )
 #
-#     def from_cql(self, cql_stored_event):
+#     def from_active_record(self, cql_stored_event):
 #         assert isinstance(cql_stored_event, CqlStoredEvent), cql_stored_event
 #         return self.stored_event_class(
 #             stored_entity_id=cql_stored_event.n,

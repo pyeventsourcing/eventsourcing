@@ -6,9 +6,10 @@ from cassandra import DriverException
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
-from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, IntegerSequenceError, \
+from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, SequencedItemError, \
     TimeSequenceError
-from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
+from eventsourcing.infrastructure.eventstore import AbstractSequencedItemRepository, AbstractStoredEventRepository, \
+    IntegerSequencedItemRepository, TimeSequencedItemRepository
 from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
 from eventsourcing.infrastructure.transcoding import EntityVersion
 
@@ -88,6 +89,75 @@ class CqlStoredEvent(Model):
     a = columns.Text(required=True)
 
 
+class CassandraSequencedItemRepository(AbstractSequencedItemRepository):
+
+    def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
+                  query_ascending=True, results_ascending=True):
+
+        assert limit is None or limit >= 1, limit
+
+        query = self.item_table.objects.filter(s=sequence_id)
+
+        if query_ascending:
+            query = query.order_by('p')
+
+        if gt is not None:
+            query = query.filter(p__gt=gt)
+        if gte is not None:
+            query = query.filter(p__gte=gte)
+        if lt is not None:
+            query = query.filter(p__lt=lt)
+        if lte is not None:
+            query = query.filter(p__lte=lte)
+
+        if limit is not None:
+            query = query.limit(limit)
+
+        events = six.moves.map(self.from_active_record, query)
+        events = list(events)
+
+        if results_ascending != query_ascending:
+            events.reverse()
+
+        return events
+
+    def to_active_record(self, item):
+        assert isinstance(item, self.item_type), (item, self.item_type)
+        return self.item_table(
+            s=item.sequence_id,
+            p=item.position,
+            t=item.topic,
+            d=item.data
+        )
+
+    def append_item(self, item):
+        cql_object = self.to_active_record(item)
+        try:
+            cql_object.save()
+        except LWTException as e:
+            raise SequencedItemError((cql_object.s, cql_object.p, e))
+        except DriverException as e:
+            raise DatasourceOperationError(e)
+
+    def from_active_record(self, cql_item):
+        assert isinstance(cql_item, self.item_table), cql_item
+        return self.item_type(
+            sequence_id=cql_item.s,
+            position=cql_item.p,
+            topic=cql_item.t,
+            data=cql_item.d,
+        )
+
+
+class CassandraIntegerSequencedItemRepository(IntegerSequencedItemRepository, CassandraSequencedItemRepository):
+    pass
+
+
+
+class CassandraTimeSequencedItemRepository(TimeSequencedItemRepository, CassandraSequencedItemRepository):
+    pass
+
+
 class CassandraStoredEventRepository(AbstractStoredEventRepository):
     def __init__(self, stored_event_table=None, integer_sequenced_item_table=None, time_sequenced_item_table=None,
                  **kwargs):
@@ -100,15 +170,6 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
     def iterator_class(self):
         return ThreadedStoredEventIterator
 
-    def append_integer_sequenced_item(self, item):
-        cql_object = self.to_cql_integer_sequenced_item(item)
-        try:
-            cql_object.save()
-        except LWTException:
-            raise IntegerSequenceError((cql_object.s, cql_object.p))
-        except DriverException as e:
-            raise DatasourceOperationError(e)
-
     def append_time_sequenced_item(self, item):
         cql_object = self.to_cql_time_sequenced_item(item)
         try:
@@ -117,7 +178,6 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
             raise TimeSequenceError((cql_object.s, cql_object.p))
         except DriverException as e:
             raise DatasourceOperationError(e)
-
 
     def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3,
                                 artificial_failure_rate=0):
@@ -271,7 +331,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
         return events
 
     def get_time_sequenced_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                                    query_ascending=True, results_ascending=True):
+                                 query_ascending=True, results_ascending=True):
 
         assert limit is None or limit >= 1, limit
 
@@ -293,36 +353,6 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
             query = query.limit(limit)
 
         events = self.map(self.from_cql_time_sequenced_item, query)
-        events = list(events)
-
-        if results_ascending != query_ascending:
-            events.reverse()
-
-        return events
-
-    def get_integer_sequenced_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                                    query_ascending=True, results_ascending=True):
-
-        assert limit is None or limit >= 1, limit
-
-        query = self.integer_sequenced_item_table.objects.filter(s=sequence_id)
-
-        if query_ascending:
-            query = query.order_by('p')
-
-        if gt is not None:
-            query = query.filter(p__gt=gt)
-        if gte is not None:
-            query = query.filter(p__gte=gte)
-        if lt is not None:
-            query = query.filter(p__lt=lt)
-        if lte is not None:
-            query = query.filter(p__lte=lte)
-
-        if limit is not None:
-            query = query.limit(limit)
-
-        events = self.map(self.from_cql_integer_sequenced_item, query)
         events = list(events)
 
         if results_ascending != query_ascending:
@@ -364,23 +394,4 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
             position=cql_item.p.hex,
             topic=cql_item.t,
             data=cql_item.d
-        )
-
-    def to_cql_integer_sequenced_item(self, item):
-        assert isinstance(item, self.integer_sequenced_item_type), (
-            item, self.integer_sequenced_item_type)
-        return self.integer_sequenced_item_table(
-            s=item.sequence_id,
-            p=item.position,
-            t=item.topic,
-            d=item.data
-        )
-
-    def from_cql_integer_sequenced_item(self, cql_item):
-        assert isinstance(cql_item, CqlIntegerSequencedItem), cql_item
-        return self.integer_sequenced_item_type(
-            sequence_id=cql_item.s,
-            position=cql_item.p,
-            topic=cql_item.t,
-            data=cql_item.d,
         )

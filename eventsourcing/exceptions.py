@@ -42,7 +42,7 @@ class DatasourceOperationError(EventSourcingError):
     "Raised when a database operation error is encountered."
 
 
-class IntegerSequenceError(EventSourcingError):
+class SequencedItemError(EventSourcingError):
     "Raised when an integer sequence error occurs e.g. trying to save a version that already exists."
 
 

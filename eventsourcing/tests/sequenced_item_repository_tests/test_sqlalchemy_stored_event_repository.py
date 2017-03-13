@@ -1,7 +1,7 @@
 from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemyStoredEventRepository, \
     SqlStoredEvent
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
-from eventsourcing.tests.stored_event_repository_tests.base import AbstractStoredEventRepositoryTestCase, \
+from eventsourcing.tests.sequenced_item_repository_tests.base import AbstractStoredEventRepositoryTestCase, \
     SimpleStoredEventIteratorTestCase, StoredEventRepositoryTestCase, ThreadedStoredEventIteratorTestCase
 
 

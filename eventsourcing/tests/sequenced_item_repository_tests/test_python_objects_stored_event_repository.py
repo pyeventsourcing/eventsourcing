@@ -1,6 +1,6 @@
 from eventsourcing.infrastructure.storedevents.pythonobjectsrepo import PythonObjectsStoredEventRepository
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
-from eventsourcing.tests.stored_event_repository_tests.base import AbstractStoredEventRepositoryTestCase, \
+from eventsourcing.tests.sequenced_item_repository_tests.base import AbstractStoredEventRepositoryTestCase, \
     SimpleStoredEventIteratorTestCase, StoredEventRepositoryTestCase, ThreadedStoredEventIteratorTestCase
 
 

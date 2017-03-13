@@ -11,9 +11,9 @@ from eventsourcing.tests.base import notquick
 from eventsourcing.tests.core_tests.test_utils import utc_now
 from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
 from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import CipheringTestCase
-from eventsourcing.tests.stored_event_repository_tests.test_cassandra_stored_event_repository import \
+from eventsourcing.tests.sequenced_item_repository_tests.test_cassandra_stored_event_repository import \
     CassandraRepoTestCase
-from eventsourcing.tests.stored_event_repository_tests.test_sqlalchemy_stored_event_repository import \
+from eventsourcing.tests.sequenced_item_repository_tests.test_sqlalchemy_stored_event_repository import \
     SQLAlchemyRepoTestCase
 
 

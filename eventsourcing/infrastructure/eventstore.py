@@ -1,13 +1,12 @@
 # coding=utf-8
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod, abstractproperty
 
 import six
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import EntityVersionNotFound
-
-from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder, StoredEvent, StoredEventTranscoder, \
-    IntegerSequencedItem, TimeSequencedItem
+from eventsourcing.infrastructure.transcoding import IntegerSequencedItem, JSONStoredEventTranscoder, StoredEvent, \
+    StoredEventTranscoder, TimeSequencedItem
 
 
 class AbstractEventStore(six.with_metaclass(ABCMeta)):
@@ -90,8 +89,38 @@ class EventStore(AbstractEventStore):
         return self.stored_event_repo.get_entity_version(stored_entity_id=stored_entity_id, version_number=version)
 
 
-class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
+class AbstractSequencedItemRepository(six.with_metaclass(ABCMeta)):
 
+    def __init__(self, item_table=None):
+        self.item_table = item_table
+
+    @abstractproperty
+    def item_type(self):
+        """Type of sequenced item."""
+
+    @abstractmethod
+    def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
+                  query_ascending=True, results_ascending=True):
+        """Returns items in sequence."""
+
+    @abstractmethod
+    def append_item(self, item):
+        """Appends item to sequence."""
+
+
+class IntegerSequencedItemRepository(AbstractSequencedItemRepository):
+
+    item_type = IntegerSequencedItem
+
+
+
+class TimeSequencedItemRepository(AbstractSequencedItemRepository):
+
+    item_type = TimeSequencedItem
+
+
+
+class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
     stored_event_class = StoredEvent
     integer_sequenced_item_type = IntegerSequencedItem
     time_sequenced_item_tuple = TimeSequencedItem
@@ -142,12 +171,12 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
                 stored_entity_id=stored_entity_id,
                 version_number=expected_version_number
             )
-                # else:
-                #     if not time_from_uuid(new_stored_event.event_id) > time_from_uuid(entity_version.event_id):
-                #         raise ConcurrencyError("New event ID '{}' occurs before last version event ID '{}' for
-                # entity {}"
-                #                                "".format(new_stored_event.event_id, entity_version.event_id,
-                # stored_entity_id))
+            # else:
+            #     if not time_from_uuid(new_stored_event.event_id) > time_from_uuid(entity_version.event_id):
+            #         raise ConcurrencyError("New event ID '{}' occurs before last version event ID '{}' for
+            # entity {}"
+            #                                "".format(new_stored_event.event_id, entity_version.event_id,
+            # stored_entity_id))
 
     def decide_expected_version_number(self, new_version_number):
         return new_version_number - 1 if new_version_number else None

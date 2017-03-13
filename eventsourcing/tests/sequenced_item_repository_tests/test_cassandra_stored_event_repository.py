@@ -1,10 +1,11 @@
 from eventsourcing.infrastructure.storedevents.cassandrarepo import CassandraStoredEventRepository, CqlStoredEvent, \
-    CqlIntegerSequencedItem, CqlTimeSequencedItem
+    CqlIntegerSequencedItem, CqlTimeSequencedItem, CassandraIntegerSequencedItemRepository, \
+    CassandraTimeSequencedItemRepository
 from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
-from eventsourcing.tests.stored_event_repository_tests.base import AbstractStoredEventRepositoryTestCase, \
+from eventsourcing.tests.sequenced_item_repository_tests.base import AbstractStoredEventRepositoryTestCase, \
     SimpleStoredEventIteratorTestCase, StoredEventRepositoryTestCase, \
-    ThreadedStoredEventIteratorTestCase, IntegerSequencedEventRepositoryTestCase, \
-    TimeSequencedEventRepositoryTestCase
+    ThreadedStoredEventIteratorTestCase, IntegerSequencedItemRepositoryTestCase, \
+    TimeSequencedItemRepositoryTestCase
 
 
 class CassandraRepoTestCase(CassandraDatastoreTestCase, AbstractStoredEventRepositoryTestCase):
@@ -21,19 +22,19 @@ class CassandraRepoTestCase(CassandraDatastoreTestCase, AbstractStoredEventRepos
         )
 
 
-class TestCassandraIntegerSequencedEventRepository(CassandraRepoTestCase, IntegerSequencedEventRepositoryTestCase):
+class TestCassandraIntegerSequencedItemRepository(CassandraDatastoreTestCase, IntegerSequencedItemRepositoryTestCase):
 
-    def construct_stored_event_repo(self):
-        return CassandraStoredEventRepository(
-            integer_sequenced_item_table=CqlIntegerSequencedItem,
+    def construct_repo(self):
+        return CassandraIntegerSequencedItemRepository(
+            item_table=CqlIntegerSequencedItem,
         )
 
 
-class TestCassandraTimeSequencedEventRepository(CassandraRepoTestCase, TimeSequencedEventRepositoryTestCase):
+class TestCassandraTimeSequencedItemRepository(CassandraDatastoreTestCase, TimeSequencedItemRepositoryTestCase):
 
-    def construct_stored_event_repo(self):
-        return CassandraStoredEventRepository(
-            time_sequenced_item_table=CqlTimeSequencedItem,
+    def construct_repo(self):
+        return CassandraTimeSequencedItemRepository(
+            item_table=CqlTimeSequencedItem,
         )
 
 
