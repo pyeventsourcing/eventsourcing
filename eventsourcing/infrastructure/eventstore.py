@@ -3,11 +3,11 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.domain.model.events import DomainEvent, AbstractDomainEvent
 from eventsourcing.exceptions import EntityVersionNotFound
 from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.transcoding import IntegerSequencedItem, JSONStoredEventTranscoder, StoredEvent, \
-    StoredEventTranscoder, TimeSequencedItem
+    StoredEventTranscoder, TimeSequencedItem, AbstractDomainEventTranscoder
 
 
 class AbstractEventStore(six.with_metaclass(ABCMeta)):
@@ -22,11 +22,11 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
                           page_size=None):
         """Returns domain events for given stored entity ID."""
 
-    @abstractmethod
+    # @abstractmethod
     def get_entity_version(self, stored_entity_id, version):
         """Returns entity version for given stored entity ID."""
 
-    @abstractmethod
+    # @abstractmethod
     def get_most_recent_event(self, stored_entity_id, until=None, include_until=False):
         """Returns most recent event for given stored entity ID."""
 
@@ -42,7 +42,7 @@ class EventStore(AbstractEventStore):
         self.transcoder = transcoder
 
     def append(self, domain_event):
-        assert isinstance(domain_event, DomainEvent)
+        assert isinstance(domain_event, DomainEvent), domain_event
         # Serialize the domain event.
         stored_event = self.transcoder.serialize(domain_event)
 
@@ -88,6 +88,54 @@ class EventStore(AbstractEventStore):
 
     def get_entity_version(self, stored_entity_id, version):
         return self.stored_event_repo.get_entity_version(stored_entity_id=stored_entity_id, version_number=version)
+
+
+class NewEventStore(AbstractEventStore):
+    def __init__(self, sequenced_item_repository, transcoder=None):
+        assert isinstance(sequenced_item_repository, AbstractSequencedItemRepository), sequenced_item_repository
+        if transcoder is None:
+            transcoder = JSONStoredEventTranscoder()
+        assert isinstance(transcoder, AbstractDomainEventTranscoder), transcoder
+        self.sequenced_item_repository = sequenced_item_repository
+
+        self.transcoder = transcoder
+
+    def append(self, domain_event):
+        assert isinstance(domain_event, AbstractDomainEvent)
+        # Serialize the domain event as a sequenced item.
+        sequenced_item = self.transcoder.serialize(domain_event)
+
+        # Append to the sequenced item to the repository.
+        self.sequenced_item_repository.append_item(sequenced_item)
+
+    def get_domain_events(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
+                          page_size=None):
+        # Get all the sequenced items for the entity.
+        if page_size:
+            sequenced_items = self.sequenced_item_repository.iterate_stored_events(
+                sequence_id=entity_id,
+                gt=gt,
+                gte=gte,
+                lt=lt,
+                lte=lte,
+                limit=limit,
+                query_ascending=is_ascending,
+                page_size=page_size
+            )
+        else:
+            sequenced_items = self.sequenced_item_repository.get_items(
+                sequence_id=entity_id,
+                gt=gt,
+                gte=gt,
+                lt=lt,
+                lte=lte,
+                limit=limit,
+                query_ascending=is_ascending,
+                results_ascending=is_ascending,
+            )
+
+        # Deserialize to domain events.
+        return six.moves.map(self.transcoder.deserialize, sequenced_items)
 
 
 class AbstractSequencedItemRepository(six.with_metaclass(ABCMeta)):

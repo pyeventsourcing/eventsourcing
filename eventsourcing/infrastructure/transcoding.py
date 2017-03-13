@@ -11,7 +11,8 @@ import dateutil.parser
 import six
 
 from eventsourcing.domain.model.entity import EventSourcedEntity
-from eventsourcing.domain.model.events import DomainEvent, resolve_domain_topic, topic_from_domain_class
+from eventsourcing.domain.model.events import DomainEvent, resolve_domain_topic, topic_from_domain_class, \
+    IntegerSequencedDomainEvent, AbstractDomainEvent
 from eventsourcing.domain.services.cipher import AbstractCipher
 
 EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
@@ -77,6 +78,16 @@ class StoredEventTranscoder(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def deserialize(self, stored_event):
         """Returns a domain event, for the given stored event."""
+
+
+class AbstractDomainEventTranscoder(six.with_metaclass(ABCMeta)):
+    @abstractmethod
+    def serialize(self, domain_event):
+        """Serializes a domain event."""
+
+    @abstractmethod
+    def deserialize(self, serialized_event):
+        """Deserializes domain events."""
 
 
 # Todo: Reimplement the object encoding and decoding, this time under test.
@@ -187,6 +198,91 @@ class JSONStoredEventTranscoder(StoredEventTranscoder):
 
         # Set the domain event ID.
         event_attrs['domain_event_id'] = stored_event.event_id
+
+        # Reinstantiate and return the domain event object.
+        domain_event = object.__new__(event_class)
+        domain_event.__dict__.update(event_attrs)
+        return domain_event
+
+
+class JSONDomainEventTranscoder(AbstractDomainEventTranscoder):
+    """
+    Uses JSON to transcode domain events.
+    """
+
+    def __init__(self, json_encoder_class=ObjectJSONEncoder, json_decoder_class=ObjectJSONDecoder,
+                 always_encrypt=False, cipher=None, sequenced_item_class=IntegerSequencedItem):
+
+        self.json_encoder_class = json_encoder_class
+        self.json_decoder_class = json_decoder_class
+        self.cipher = cipher
+        self.always_encrypt = always_encrypt
+        self.sequenced_item_class = sequenced_item_class
+
+    def serialize(self, domain_event):
+        """
+        Serializes a domain event into a stored event. Used in stored
+        event repositories to represent an instance of any type of
+        domain event with a common format that can easily be written
+        into its particular database management system.
+        """
+        assert isinstance(domain_event, IntegerSequencedDomainEvent), type(domain_event)
+
+        # Copy the state of the domain event.
+        event_attrs = domain_event.__dict__.copy()
+
+        sequence_id = event_attrs['entity_id']
+        # position = event_attrs['timestamp']
+        position = event_attrs['entity_version']
+        topic = topic_from_domain_class(type(domain_event))
+
+        # Serialise event attributes to JSON.
+        serialized_event_attrs = json.dumps(
+            event_attrs,
+            separators=(',', ':'),
+            sort_keys=True,
+            cls=self.json_encoder_class
+        )
+
+        # Encrypt (optional).
+        if self.always_encrypt or domain_event.__class__.always_encrypt:
+            assert isinstance(self.cipher, AbstractCipher)
+            serialized_event_attrs = self.cipher.encrypt(serialized_event_attrs)
+
+        # Return a stored event object (a named tuple, by default).
+        sequenced_item = self.sequenced_item_class(
+            sequence_id=sequence_id,
+            position=position,
+            topic=topic,
+            data=serialized_event_attrs,
+        )
+        return sequenced_item
+
+    def deserialize(self, sequenced_item):
+        """
+        Recreates original domain event from stored event topic and
+        event attrs. Used in the event store when getting domain events.
+        """
+        assert isinstance(sequenced_item, self.sequenced_item_class)
+
+        # Get the domain event class from the topic.
+        event_class = resolve_domain_topic(sequenced_item.topic)
+
+        if not issubclass(event_class, AbstractDomainEvent):
+            raise ValueError("Event class is not a DomainEvent: {}".format(event_class))
+
+        event_attrs = sequenced_item.data
+
+        # Decrypt (optional).
+        if self.always_encrypt or event_class.always_encrypt:
+            assert isinstance(self.cipher, AbstractCipher), self.cipher
+            event_attrs = self.cipher.decrypt(event_attrs)
+
+        # Deserialize event attributes from JSON, optionally decrypted with cipher.
+        event_attrs = json.loads(event_attrs, cls=self.json_decoder_class)
+
+        # Set the domain event ID.
+        event_attrs['entity_version'] = sequenced_item.position
 
         # Reinstantiate and return the domain event object.
         domain_event = object.__new__(event_class)

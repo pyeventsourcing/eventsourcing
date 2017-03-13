@@ -9,7 +9,7 @@ except ImportError:
     import mock
 
 from eventsourcing.domain.model.events import subscribe, publish, unsubscribe, assert_event_handlers_empty, \
-    EventHandlersNotEmptyError, _event_handlers, IntegerSequencedEvent, TimeSequencedEvent, \
+    EventHandlersNotEmptyError, _event_handlers, IntegerSequencedDomainEvent, TimeSequencedDomainEvent, \
     create_timesequenced_event_id
 from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.example.domain_model import Example
@@ -19,7 +19,7 @@ class TestIntegerSequencedEvent(unittest.TestCase):
 
     def test(self):
         # Check base class can be sub-classed.
-        class Event(IntegerSequencedEvent):
+        class Event(IntegerSequencedDomainEvent):
             pass
 
         # Check subclass can be instantiated with 'entity_id'
@@ -81,7 +81,7 @@ class TestIntegerSequencedEvent(unittest.TestCase):
         ))
 
         # Check it's not equal to instance of different type, with same values.
-        class Event2(IntegerSequencedEvent):
+        class Event2(IntegerSequencedDomainEvent):
             pass
 
         self.assertNotEqual(instance2, Event2(
@@ -95,10 +95,10 @@ class TestTimeSequencedEvent(unittest.TestCase):
 
     def test(self):
         # Check base class can be sub-classed.
-        class Event(TimeSequencedEvent):
+        class Event(TimeSequencedDomainEvent):
             pass
 
-        class Event2(TimeSequencedEvent):
+        class Event2(TimeSequencedDomainEvent):
             pass
 
         # Check subclass can be instantiated with 'entity_id' parameter.

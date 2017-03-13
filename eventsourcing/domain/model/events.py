@@ -5,6 +5,7 @@ from collections import OrderedDict
 from uuid import uuid1
 
 import six
+import time
 from six import with_metaclass
 
 from eventsourcing.exceptions import TopicResolutionError
@@ -47,6 +48,8 @@ class AbstractDomainEvent(with_metaclass(QualnameABCMeta)):
     Implements methods to make instances read-only, comparable
     for equality, have recognisable representations, and hashable.
     """
+    always_encrypt = False
+
     def __init__(self, **kwargs):
         """
         Initialises event attribute values directly from constructor kwargs.
@@ -87,7 +90,7 @@ class AbstractDomainEvent(with_metaclass(QualnameABCMeta)):
             "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
 
 
-class IntegerSequencedEvent(AbstractDomainEvent):
+class IntegerSequencedDomainEvent(AbstractDomainEvent):
     """
     Base class for integer-sequenced domain events.
 
@@ -102,7 +105,7 @@ class IntegerSequencedEvent(AbstractDomainEvent):
     def __init__(self, entity_id, entity_version, **kwargs):
         if not isinstance(entity_version, six.integer_types):
             raise TypeError("Entity ID must be an integer: {}".format(entity_version))
-        super(IntegerSequencedEvent, self).__init__(**kwargs)
+        super(IntegerSequencedDomainEvent, self).__init__(**kwargs)
         self.__dict__['entity_id'] = entity_id
         self.__dict__['entity_version'] = entity_version
 
@@ -115,7 +118,7 @@ class IntegerSequencedEvent(AbstractDomainEvent):
         return self.__dict__['entity_version']
 
 
-class TimeSequencedEvent(AbstractDomainEvent):
+class TimeSequencedDomainEvent(AbstractDomainEvent):
     """
     Base class for time-sequenced domain events.
 
@@ -124,22 +127,18 @@ class TimeSequencedEvent(AbstractDomainEvent):
     Requires 'entity_id' to be passed as constructor parameter.
     """
 
-    def __init__(self, entity_id, domain_event_id=None, **kwargs):
-        super(TimeSequencedEvent, self).__init__(**kwargs)
+    def __init__(self, entity_id, timestamp=None, **kwargs):
+        super(TimeSequencedDomainEvent, self).__init__(**kwargs)
         self.__dict__['entity_id'] = entity_id
-        self.__dict__['domain_event_id'] = domain_event_id or create_timesequenced_event_id()
+        self.__dict__['timestamp'] = timestamp or time.time()
 
     @property
     def entity_id(self):
         return self.__dict__['entity_id']
 
     @property
-    def domain_event_id(self):
-        return self.__dict__['domain_event_id']
-
-    @property
     def timestamp(self):
-        return timestamp_from_uuid(self.__dict__['domain_event_id'])
+        return self.__dict__['timestamp']
 
 
 class DomainEvent(AbstractDomainEvent):
@@ -169,8 +168,6 @@ class DomainEvent(AbstractDomainEvent):
 
     That's why this class has been deprecated :-).
     """
-
-    always_encrypt = False
 
     def __init__(self, entity_id, entity_version, domain_event_id=None, **kwargs):
         super(DomainEvent, self).__init__(**kwargs)

@@ -1,4 +1,4 @@
-from eventsourcing.domain.model.events import DomainEvent, subscribe, unsubscribe
+from eventsourcing.domain.model.events import subscribe, unsubscribe, AbstractDomainEvent
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 
@@ -11,7 +11,7 @@ class PersistenceSubscriber(object):
 
     @staticmethod
     def is_domain_event(event):
-        return isinstance(event, DomainEvent)
+        return isinstance(event, AbstractDomainEvent)
 
     def store_domain_event(self, event):
         self.event_store.append(event)

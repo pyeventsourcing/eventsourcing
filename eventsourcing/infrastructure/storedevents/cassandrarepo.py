@@ -19,7 +19,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Returns an active record instance, from given sequenced item.
         """
-        assert isinstance(sequenced_item, self.sequenced_item_class), sequenced_item
+        assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
         return self.active_record_class(
             s=sequenced_item.sequence_id,
             p=sequenced_item.position,
@@ -81,8 +81,8 @@ class CqlIntegerSequencedItem(Model):
     d = columns.Text(required=True)
 
 
-class CqlTimeSequencedItem(Model):
-    """Stores time-sequenced items in Cassandra."""
+class CqlTimestampSequencedItem(Model):
+    """Stores timestamp-sequenced items in Cassandra."""
 
     _if_not_exists = True
 
@@ -94,6 +94,26 @@ class CqlTimeSequencedItem(Model):
     # Position (in time) of item in sequence.
     # p = columns.TimeUUID(clustering_order='DESC', primary_key=True)
     p = columns.Double(clustering_order='DESC', primary_key=True)
+
+    # Topic of the item (e.g. path to domain event class).
+    t = columns.Text(required=True)
+
+    # State of the item (serialized dict, possibly encrypted).
+    d = columns.Text(required=True)
+
+
+class CqlTimeuuidSequencedItem(Model):
+    """Stores timeuuid-sequenced items in Cassandra."""
+
+    _if_not_exists = True
+
+    __table_name__ = 'time_sequenced_items'
+
+    # Sequence ID (e.g. an entity or aggregate ID).
+    s = columns.Text(partition_key=True)
+
+    # Position (in time) of item in sequence.
+    p = columns.TimeUUID(clustering_order='DESC', primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
     t = columns.Text(required=True)

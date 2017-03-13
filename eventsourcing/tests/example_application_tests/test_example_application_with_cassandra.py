@@ -1,6 +1,12 @@
-from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
+from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase, \
+    NewExampleApplicationTestCase
 from eventsourcing.tests.sequenced_item_repository_tests.test_cassandra_sequence_repository import \
-    CassandraRepoTestCase
+    CassandraIntegerSequencedRepoTestCase, CassandraRepoTestCase
+
+
+class TestNewExampleApplicationWithCassandra(CassandraIntegerSequencedRepoTestCase,
+                                             NewExampleApplicationTestCase):
+    pass
 
 
 class TestExampleApplicationWithCassandra(CassandraRepoTestCase, ExampleApplicationTestCase):

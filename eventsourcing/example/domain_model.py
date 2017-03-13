@@ -10,9 +10,6 @@ class Example(EventSourcedEntity):
     An example event sourced domain model entity.
     """
 
-    # Needed to get an event history longer than 10000 in Cassandra.
-    __page_size__ = 1000
-
     # Make sure events that are applied to the entity have originated
     # from the entity at the version the instance it is current at.
     #  - this assumes _validate_originator() is called in mutators.

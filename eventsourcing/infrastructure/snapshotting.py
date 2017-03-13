@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.domain.model.events import publish, topic_from_domain_class
-from eventsourcing.domain.model.snapshot import AbstractSnapshop, Snapshot
+from eventsourcing.domain.model.snapshot import AbstractSnapshop, Snapshot, NewSnapshot
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.infrastructure.transcoding import deserialize_domain_entity, id_prefix_from_entity, \
     id_prefix_from_event_class, make_stored_entity_id
@@ -36,6 +36,19 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
         return take_snapshot(entity=entity, at_event_id=at_event_id)
 
 
+class NewEventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
+    """Snapshot strategy that uses an event sourced snapshot.
+    """
+    def __init__(self, event_store):
+        self.event_store = event_store
+
+    def get_snapshot(self, entity_id, lte=None):
+        return new_get_snapshot(entity_id, self.event_store, lte=lte)
+
+    def take_snapshot(self, entity, timestamp):
+        return new_take_snapshot(entity, timestamp)
+
+
 def get_snapshot(stored_entity_id, event_store, until=None):
     """
     Get the last snapshot for entity.
@@ -45,6 +58,20 @@ def get_snapshot(stored_entity_id, event_store, until=None):
     assert isinstance(event_store, AbstractEventStore)
     snapshot_entity_id = make_stored_entity_id(id_prefix_from_event_class(Snapshot), stored_entity_id)
     return event_store.get_most_recent_event(snapshot_entity_id, until=until, include_until=True)
+
+
+def new_get_snapshot(stored_entity_id, event_store, lte=None):
+    """
+    Get the last snapshot for entity.
+
+    :rtype: Snapshot
+    """
+    assert isinstance(event_store, AbstractEventStore)
+    snapshot_entity_id = make_stored_entity_id(id_prefix_from_event_class(Snapshot), stored_entity_id)
+    snapshots = event_store.get_domain_events(snapshot_entity_id, lte=lte)
+    snapshots = list(snapshots)
+    if len(snapshots) == 1:
+        return snapshots[0]
 
 
 def entity_from_snapshot(snapshot):
@@ -66,6 +93,23 @@ def take_snapshot(entity, at_event_id):
         topic=topic_from_domain_class(entity.__class__),
         # Todo: This should be a deepcopy.
         attrs=entity.__dict__.copy(),
+    )
+    publish(snapshot)
+
+    # Return the event.
+    return snapshot
+
+
+def new_take_snapshot(entity, timestamp):
+    # Make the 'stored entity ID' for the entity, it is used as the Snapshot 'entity ID'.
+
+    # Create the snapshot event.
+    snapshot = NewSnapshot(
+        entity_id=entity.id,
+        timestamp=timestamp,
+        topic=topic_from_domain_class(entity.__class__),
+        # Todo: This should be a deepcopy.
+        state=entity.__dict__.copy(),
     )
     publish(snapshot)
 

@@ -8,7 +8,8 @@ from uuid import uuid1
 import six
 
 from eventsourcing.application.policies import PersistenceSubscriber
-from eventsourcing.domain.model.events import IntegerSequencedEvent, TimeSequencedEvent, topic_from_domain_class
+from eventsourcing.domain.model.events import IntegerSequencedDomainEvent, TimeSequencedDomainEvent, \
+    topic_from_domain_class
 from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, EntityVersionNotFound, \
     SequencedItemError
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, EventStore, \
@@ -85,6 +86,7 @@ class AbstractSequencedItemRepositoryTestCase(AbstractDatastoreTestCase):
 
         # Check repo returns the item.
         retrieved_items = self.sequenced_item_repo.get_items(sequence_id)
+        self.assertEqual(len(retrieved_items), 1)
         self.assertIsInstance(retrieved_items[0], item_class)
         self.assertEqual(retrieved_items[0].sequence_id, item1.sequence_id)
         self.assertEqual(retrieved_items[0].position, position1)
@@ -126,6 +128,10 @@ class AbstractSequencedItemRepositoryTestCase(AbstractDatastoreTestCase):
         )
         self.sequenced_item_repo.append_item(item4)
 
+        # Check there are two items.
+        retrieved_items = self.sequenced_item_repo.get_items(sequence_id)
+        self.assertEqual(len(retrieved_items), 2)
+
         # Append a third item.
         item5 = item_class(
             sequence_id=item1.sequence_id,
@@ -135,11 +141,11 @@ class AbstractSequencedItemRepositoryTestCase(AbstractDatastoreTestCase):
         )
         self.sequenced_item_repo.append_item(item5)
 
-        # Get all the items.
+        # Check there are three items.
         retrieved_items = self.sequenced_item_repo.get_items(sequence_id)
         self.assertEqual(len(retrieved_items), 3)
 
-        # Expect a list of stored items, in sequential order.
+        # Check the items are in sequential order.
         self.assertIsInstance(retrieved_items[0], item_class)
         self.assertEqual(retrieved_items[0].sequence_id, item1.sequence_id)
         self.assertEqual(retrieved_items[0].position, position1)
@@ -209,35 +215,35 @@ class AbstractSequencedItemRepositoryTestCase(AbstractDatastoreTestCase):
 
         # Get all items, with a limit, and with descending query (so that we get the last ones).
         retrieved_items = self.sequenced_item_repo.get_items(sequence_id, limit=2,
-                                                                            query_ascending=False)
+                                                             query_ascending=False)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position2)
         self.assertEqual(retrieved_items[1].position, position3)
 
         # Get all items, with a limit and descending query, greater than a position.
         retrieved_items = self.sequenced_item_repo.get_items(sequence_id, limit=2, gt=position2,
-                                                                            query_ascending=False)
+                                                             query_ascending=False)
         self.assertEqual(len(retrieved_items), 1)
         self.assertEqual(retrieved_items[0].position, position3)
 
         # Get all items, with a limit and descending query, less than a position.
         retrieved_items = self.sequenced_item_repo.get_items(sequence_id, limit=2, lt=position3,
-                                                                            query_ascending=False)
+                                                             query_ascending=False)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position1)
         self.assertEqual(retrieved_items[1].position, position2)
 
         # Get all items in descending order, queried in ascending order.
         retrieved_items = self.sequenced_item_repo.get_items(sequence_id,
-                                                                            results_ascending=False)
+                                                             results_ascending=False)
         self.assertEqual(len(retrieved_items), 3)
         self.assertEqual(retrieved_items[0].position, position3)
         self.assertEqual(retrieved_items[2].position, position1)
 
         # Get all items in descending order, queried in descending order.
         retrieved_items = self.sequenced_item_repo.get_items(sequence_id,
-                                                                            query_ascending=False,
-                                                                            results_ascending=False)
+                                                             query_ascending=False,
+                                                             results_ascending=False)
         self.assertEqual(len(retrieved_items), 3)
         self.assertEqual(retrieved_items[0].position, position3)
         self.assertEqual(retrieved_items[2].position, position1)
@@ -277,19 +283,19 @@ class AbstractStoredEventRepositoryTestCase(AbstractDatastoreTestCase):
         """
 
 
-class ExampleIntegerSequencedEvent1(IntegerSequencedEvent):
+class ExampleIntegerSequencedEvent1(IntegerSequencedDomainEvent):
     pass
 
 
-class ExampleIntegerSequencedEvent2(IntegerSequencedEvent):
+class ExampleIntegerSequencedEvent2(IntegerSequencedDomainEvent):
     pass
 
 
-class ExampleTimeSequencedEvent1(TimeSequencedEvent):
+class ExampleTimeSequencedEvent1(TimeSequencedDomainEvent):
     pass
 
 
-class ExampleTimeSequencedEvent2(TimeSequencedEvent):
+class ExampleTimeSequencedEvent2(TimeSequencedDomainEvent):
     pass
 
 
