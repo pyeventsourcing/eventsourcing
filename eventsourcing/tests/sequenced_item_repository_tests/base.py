@@ -8,7 +8,7 @@ from uuid import uuid1
 import six
 
 from eventsourcing.application.policies import PersistenceSubscriber
-from eventsourcing.domain.model.events import IntegerSequencedDomainEvent, TimeSequencedDomainEvent, \
+from eventsourcing.domain.model.events import IntegerSequencedDomainEvent, TimestampEntityEvent, \
     topic_from_domain_class
 from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, EntityVersionNotFound, \
     SequencedItemError
@@ -291,11 +291,11 @@ class ExampleIntegerSequencedEvent2(IntegerSequencedDomainEvent):
     pass
 
 
-class ExampleTimeSequencedEvent1(TimeSequencedDomainEvent):
+class ExampleTimeSequencedEvent1(TimestampEntityEvent):
     pass
 
 
-class ExampleTimeSequencedEvent2(TimeSequencedDomainEvent):
+class ExampleTimeSequencedEvent2(TimestampEntityEvent):
     pass
 
 

@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.domain.model.events import DomainEvent, AbstractDomainEvent
+from eventsourcing.domain.model.events import DomainEvent, NewDomainEvent
 from eventsourcing.exceptions import EntityVersionNotFound
 from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.transcoding import IntegerSequencedItem, JSONStoredEventTranscoder, StoredEvent, \
@@ -101,7 +101,7 @@ class NewEventStore(AbstractEventStore):
         self.transcoder = transcoder
 
     def append(self, domain_event):
-        assert isinstance(domain_event, AbstractDomainEvent)
+        assert isinstance(domain_event, NewDomainEvent)
         # Serialize the domain event as a sequenced item.
         sequenced_item = self.transcoder.serialize(domain_event)
 

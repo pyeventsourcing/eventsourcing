@@ -41,14 +41,14 @@ def create_timesequenced_event_id():
     return uuid1().hex
 
 
-class AbstractDomainEvent(with_metaclass(QualnameABCMeta)):
+class NewDomainEvent(with_metaclass(QualnameABCMeta)):
     """
-    Abstract base class for domain events.
+    Base class for domain events.
 
     Implements methods to make instances read-only, comparable
     for equality, have recognisable representations, and hashable.
     """
-    always_encrypt = False
+    __always_encrypt__ = False
 
     def __init__(self, **kwargs):
         """
@@ -90,58 +90,54 @@ class AbstractDomainEvent(with_metaclass(QualnameABCMeta)):
             "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
 
 
-class IntegerSequencedDomainEvent(AbstractDomainEvent):
-    """
-    Base class for integer-sequenced domain events.
+class EntityEvent(NewDomainEvent):
 
-    Defines two properties: 'entity_id' and 'entity_version'.
-
-    Requires 'entity_id' and 'entity_version'
-    to be passed as constructor parameters.
-
-    The value of 'entity_version' must be an integer.
-    """
-
-    def __init__(self, entity_id, entity_version, **kwargs):
-        if not isinstance(entity_version, six.integer_types):
-            raise TypeError("Entity ID must be an integer: {}".format(entity_version))
-        super(IntegerSequencedDomainEvent, self).__init__(**kwargs)
+    def __init__(self, entity_id, **kwargs):
+        super(EntityEvent, self).__init__(**kwargs)
         self.__dict__['entity_id'] = entity_id
-        self.__dict__['entity_version'] = entity_version
 
     @property
     def entity_id(self):
         return self.__dict__['entity_id']
 
-    @property
-    def entity_version(self):
-        return self.__dict__['entity_version']
 
+class TimestampEvent(NewDomainEvent):
 
-class TimeSequencedDomainEvent(AbstractDomainEvent):
-    """
-    Base class for time-sequenced domain events.
-
-    Defines one property: 'entity_id'.
-
-    Requires 'entity_id' to be passed as constructor parameter.
-    """
-
-    def __init__(self, entity_id, timestamp=None, **kwargs):
-        super(TimeSequencedDomainEvent, self).__init__(**kwargs)
-        self.__dict__['entity_id'] = entity_id
+    def __init__(self, timestamp=None, **kwargs):
+        super(TimestampEvent, self).__init__(**kwargs)
         self.__dict__['timestamp'] = timestamp or time.time()
-
-    @property
-    def entity_id(self):
-        return self.__dict__['entity_id']
 
     @property
     def timestamp(self):
         return self.__dict__['timestamp']
 
 
-class DomainEvent(AbstractDomainEvent):
+class VersionEvent(NewDomainEvent):
+
+    def __init__(self, entity_version, **kwargs):
+        if not isinstance(entity_version, six.integer_types):
+            raise TypeError("Version must be an integer: {}".format(entity_version))
+        super(VersionEvent, self).__init__(**kwargs)
+        self.__dict__['entity_version'] = entity_version
+
+    @property
+    def entity_version(self):
+        return self.__dict__['entity_version']
+
+
+class VersionEntityEvent(VersionEvent, EntityEvent):
+    """
+    Base class for events of version-based entities.
+    """
+
+
+class TimestampEntityEvent(TimestampEvent, EntityEvent):
+    """
+    Base class for events of non-versioned entities.
+    """
+
+
+class DomainEvent(NewDomainEvent):
     """
     Original domain event.
 

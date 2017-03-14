@@ -10,7 +10,7 @@ from abc import ABCMeta, abstractmethod
 from inspect import isfunction
 from six import with_metaclass
 
-from eventsourcing.domain.model.events import publish, QualnameABCMeta, IntegerSequencedDomainEvent
+from eventsourcing.domain.model.events import publish, QualnameABCMeta, VersionEntityEvent, TimestampEvent
 
 
 class EntityIDConsistencyError(ConsistencyError):
@@ -29,16 +29,16 @@ class EntityIsDiscarded(AssertionError):
     pass
 
 
-class Created(IntegerSequencedDomainEvent):
+class Created(TimestampEvent, VersionEntityEvent):
     def __init__(self, entity_version=0, **kwargs):
         super(Created, self).__init__(entity_version=entity_version, **kwargs)
 
 
-class AttributeChanged(IntegerSequencedDomainEvent):
+class AttributeChanged(TimestampEvent, VersionEntityEvent):
     pass
 
 
-class Discarded(IntegerSequencedDomainEvent):
+class Discarded(TimestampEvent, VersionEntityEvent):
     pass
 
 

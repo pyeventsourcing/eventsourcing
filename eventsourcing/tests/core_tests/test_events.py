@@ -1,6 +1,12 @@
 import unittest
-from uuid import uuid1
+from time import time
+from uuid import UUID, uuid1, uuid4
 
+from eventsourcing.domain.model.decorators import subscribe_to
+from eventsourcing.domain.model.events import EntityEvent, EventHandlersNotEmptyError, \
+    VersionEntityEvent, TimestampEntityEvent, _event_handlers, assert_event_handlers_empty, \
+    create_timesequenced_event_id, publish, subscribe, unsubscribe, TimestampEvent, VersionEvent, NewDomainEvent
+from eventsourcing.example.domain_model import Example
 from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
@@ -8,97 +14,182 @@ try:
 except ImportError:
     import mock
 
-from eventsourcing.domain.model.events import subscribe, publish, unsubscribe, assert_event_handlers_empty, \
-    EventHandlersNotEmptyError, _event_handlers, IntegerSequencedDomainEvent, TimeSequencedDomainEvent, \
-    create_timesequenced_event_id
-from eventsourcing.domain.model.decorators import subscribe_to
-from eventsourcing.example.domain_model import Example
 
-
-class TestIntegerSequencedEvent(unittest.TestCase):
-
+class TestAbstractDomainEvent(unittest.TestCase):
     def test(self):
         # Check base class can be sub-classed.
-        class Event(IntegerSequencedDomainEvent):
+        class Event(NewDomainEvent):
             pass
 
-        # Check subclass can be instantiated with 'entity_id'
-        # and 'entity_version' parameters.
-        VERSION_0 = 0
-        VERSION1 = 1
-        ID1 = 'entity1'
-        ID2 = 'entity2'
-        VALUE1 = 'a string'
-        VALUE2 = 'another string'
-        instance1 = Event(
-            entity_id=ID1,
-            entity_version=VERSION_0,
-        )
-        self.assertEqual(instance1.entity_id, ID1)
-        self.assertEqual(instance1.entity_version, VERSION_0)
+        # Check subclass can be instantiated.
+        event1 = Event()
+        self.assertEqual(event1.__always_encrypt__, False)
 
         # Check subclass can be instantiated with other parameters.
-        instance2 = Event(
-            entity_id=ID1,
-            entity_version=VERSION_0,
-            an_attribute=VALUE1,
-        )
+        event2 = Event(name='value')
 
         # Check the attribute value is available.
-        self.assertEqual(instance2.an_attribute, VALUE1)
+        self.assertEqual(event2.name, 'value')
 
         # Check the attribute value cannot be changed
         with self.assertRaises(AttributeError):
-            instance2.an_attribute = VALUE2
-        self.assertEqual(instance2.an_attribute, VALUE1)
+            event2.name = 'another value'
+        self.assertEqual(event2.name, 'value')
 
-        # Check the version is required to be an integer.
-        with self.assertRaises(TypeError):
-            ID_INVALID = 'invalid'
-            Event(
-                entity_id=ID1,
-                entity_version=ID_INVALID,
-            )
+        # Check it's equal to itself, by value.
+        self.assertEqual(event2, event2)
+        self.assertEqual(event2, Event(name='value'))
 
-        # Check it's equal to itself.
-        self.assertEqual(instance2, instance2)
-        self.assertEqual(instance2, Event(
-            entity_id=ID1,
-            entity_version=VERSION_0,
-            an_attribute=VALUE1,
-        ))
+        # Check not equal to same event type with different values.
+        self.assertNotEqual(event2, Event(name='another value'))
 
-        # Check it's not equal to same type but different values.
-        self.assertNotEqual(instance2, Event(
-            entity_id=ID1,
-            entity_version=VERSION1,
-            an_attribute=VALUE1,
-        ))
-        self.assertNotEqual(instance2, Event(
-            entity_id=ID2,
-            entity_version=VERSION_0,
-            an_attribute=VALUE1,
-        ))
+        # Check not equal to different type with same values.
+        class SubclassEvent(Event):
+            pass
+        self.assertNotEqual(event2, SubclassEvent(name='value'))
 
-        # Check it's not equal to instance of different type, with same values.
-        class Event2(IntegerSequencedDomainEvent):
+
+class TestEntityEvent(unittest.TestCase):
+    def test(self):
+        # Check base class can be sub-classed.
+        class Event(EntityEvent):
             pass
 
-        self.assertNotEqual(instance2, Event2(
-            entity_id=ID1,
-            entity_version=VERSION_0,
-            an_attribute=VALUE1,
-        ))
+        # Check can't instantiate without an ID.
+        with self.assertRaises(TypeError):
+            Event()
+
+        # Check any kind of ID is acceptable.
+        event = Event(entity_id='1')
+        self.assertEqual(event.entity_id, '1')
+
+        event = Event(entity_id=1)
+        self.assertEqual(event.entity_id, 1)
+
+        event = Event(entity_id=uuid4())
+        self.assertIsInstance(event.entity_id, UUID)
+
+        # Check the ID value can't be reassigned.
+        with self.assertRaises(AttributeError):
+            event.entity_id = '2'
+
+
+class TestTimestampEvent(unittest.TestCase):
+    def test(self):
+        # Check base class can be sub-classed.
+        class Event(TimestampEvent):
+            pass
+
+        # Check event can be instantiated with a timestamp.
+        time1 = time()
+        event = Event(timestamp=time1)
+        self.assertEqual(event.timestamp, time1)
+
+        # Check event can be instantiated without a timestamp.
+        event = Event()
+        self.assertGreater(event.timestamp, time1)
+        self.assertLess(event.timestamp, time())
+
+        # Check the timestamp value can't be reassigned.
+        with self.assertRaises(AttributeError):
+            event.timestamp = time()
+
+
+class TestVersionEvent(unittest.TestCase):
+    def test(self):
+        # Check base class can be sub-classed.
+        class Event(VersionEvent):
+            pass
+
+        # Check event can be instantiated with a version.
+        version1 = 1
+        event = Event(entity_version=version1)
+        self.assertEqual(event.entity_version, version1)
+
+        # Check event can't be instantiated without a version.
+        with self.assertRaises(TypeError):
+            event = Event()
+
+        # Check version must be an integer.
+        with self.assertRaises(TypeError):
+            event = Event(entity_version='1')
+
+        # Check the version value can't be reassigned.
+        with self.assertRaises(AttributeError):
+            event.entity_version = 2
+
+
+class TestVersionEntityEvent(unittest.TestCase):
+    def test(self):
+        # Check base class can be sub-classed.
+        class Event(VersionEntityEvent):
+            pass
+
+        # Check construction requires both an ID and version.
+        with self.assertRaises(TypeError):
+            Event()
+
+        with self.assertRaises(TypeError):
+            Event(entity_id='1')
+
+        with self.assertRaises(TypeError):
+            Event(entity_version=1)
+
+        event1 = Event(entity_id='1', entity_version=0)
+
+        event2 = Event(entity_id='1', entity_version=1)
+
+        # Check the event attributes.
+        self.assertEqual(event1.entity_id, '1')
+        self.assertEqual(event2.entity_id, '1')
+        self.assertEqual(event1.entity_version, 0)
+        self.assertEqual(event2.entity_version, 1)
+
+        # Check the events are not equal to each other, whilst being equal to themselves.
+        self.assertEqual(event1, event1)
+        self.assertEqual(event2, event2)
+        self.assertNotEqual(event1, event2)
+
+
+class TestTimestampEntityEvent(unittest.TestCase):
+    def test(self):
+        # Check base class can be sub-classed.
+        class Event(TimestampEntityEvent):
+            pass
+
+        # Check construction requires an ID.
+        with self.assertRaises(TypeError):
+            Event()
+
+        # Get timestamp before events.
+        time1 = time()
+
+        # Construct events.
+        event1 = Event(entity_id='1')
+        event2 = Event(entity_id='1')
+
+        # Check the entity IDs.
+        self.assertEqual(event1.entity_id, '1')
+        self.assertEqual(event2.entity_id, '1')
+
+        # Check the event timestamps.
+        self.assertLess(time1, event1.timestamp)
+        self.assertLess(event1.timestamp, event2.timestamp)
+        self.assertLess(event2.timestamp, time())
+
+        # Check the events are not equal to each other, whilst being equal to themselves.
+        self.assertEqual(event1, event1)
+        self.assertEqual(event2, event2)
+        self.assertNotEqual(event1, event2)
 
 
 class TestTimeSequencedEvent(unittest.TestCase):
-
     def test(self):
         # Check base class can be sub-classed.
-        class Event(TimeSequencedDomainEvent):
+        class Event(TimestampEntityEvent):
             pass
 
-        class Event2(TimeSequencedDomainEvent):
+        class Event2(TimestampEntityEvent):
             pass
 
         # Check subclass can be instantiated with 'entity_id' parameter.
@@ -152,7 +243,6 @@ class TestTimeSequencedEvent(unittest.TestCase):
             an_attribute=VALUE1,
         )
         self.assertEqual(event1.timestamp, event5.timestamp)
-
 
         # Check it's not equal to different type with same values.
         self.assertFalse(event3 == Event2(

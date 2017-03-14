@@ -12,7 +12,7 @@ import six
 
 from eventsourcing.domain.model.entity import EventSourcedEntity
 from eventsourcing.domain.model.events import DomainEvent, resolve_domain_topic, topic_from_domain_class, \
-    IntegerSequencedDomainEvent, AbstractDomainEvent
+    IntegerSequencedDomainEvent, NewDomainEvent
 from eventsourcing.domain.services.cipher import AbstractCipher
 
 EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
@@ -268,7 +268,7 @@ class JSONDomainEventTranscoder(AbstractDomainEventTranscoder):
         # Get the domain event class from the topic.
         event_class = resolve_domain_topic(sequenced_item.topic)
 
-        if not issubclass(event_class, AbstractDomainEvent):
+        if not issubclass(event_class, NewDomainEvent):
             raise ValueError("Event class is not a DomainEvent: {}".format(event_class))
 
         event_attrs = sequenced_item.data
