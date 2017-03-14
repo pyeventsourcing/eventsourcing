@@ -2,7 +2,7 @@ from abc import ABCMeta
 
 from six import with_metaclass
 
-from eventsourcing.application.policies import PersistenceSubscriber
+from eventsourcing.application.policies import PersistenceSubscriber, NewPersistenceSubscriber
 from eventsourcing.infrastructure.eventstore import EventStore, AbstractStoredEventRepository, \
     AbstractSequencedItemRepository, NewEventStore
 from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder, JSONDomainEventTranscoder
@@ -111,8 +111,9 @@ class NewEventSourcedApplication(NewReadOnlyEventSourcingApplication):
         self.persistence_subscriber = self.construct_persistence_subscriber()
 
     def construct_persistence_subscriber(self):
-        return PersistenceSubscriber(
-            event_store=self.event_store
+        return NewPersistenceSubscriber(
+            version_entity_event_store=self.version_entity_event_store,
+            timestamp_entity_event_store=self.timetamp_entity_event_store,
         )
 
     def close(self):
