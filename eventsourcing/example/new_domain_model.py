@@ -1,6 +1,6 @@
 import uuid
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, attribute, EntityRepository, entity_mutator, \
+from eventsourcing.domain.model.new_entity import EventSourcedEntity, attribute, EntityRepository, entity_mutator, \
     singledispatch, Created, AttributeChanged, Discarded
 from eventsourcing.domain.model.events import publish, DomainEvent
 
@@ -10,8 +10,9 @@ class Example(EventSourcedEntity):
     An example event sourced domain model entity.
     """
 
+    # Todo: Move this to the Cassandra repo, and make sure it will work by default.
     # Needed to get an event history longer than 10000 in Cassandra.
-    __page_size__ = 1000
+    # __page_size__ = 1000
 
     # Make sure events that are applied to the entity have originated
     # from the entity at the version the instance it is current at.

@@ -1,11 +1,10 @@
 from abc import abstractproperty
 
-from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity
+from eventsourcing.domain.model.new_entity import EntityRepository, EventSourcedEntity
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.infrastructure.eventplayer import EventPlayer
+from eventsourcing.infrastructure.eventplayer import NewEventPlayer
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
-from eventsourcing.infrastructure.transcoding import id_prefix_from_entity_class
 
 
 class EventSourcedRepository(EntityRepository):
@@ -36,12 +35,11 @@ class EventSourcedRepository(EntityRepository):
 
         # Instantiate an event player for this repo, with
         # repo-specific mutate function, page size, etc.
-        self.event_player = EventPlayer(
+        self.event_player = NewEventPlayer(
             event_store=self.event_store,
-            id_prefix=id_prefix_from_entity_class(self.domain_class),
             mutate_func=self.domain_class.mutate,
-            page_size=self.__page_size__ or self.domain_class.__page_size__,
-            is_short=self.__is_short__ or self.domain_class.__is_short__,
+            page_size=self.__page_size__,
+            is_short=self.__is_short__,
             snapshot_strategy=self._snapshot_strategy,
         )
 
@@ -85,24 +83,24 @@ class EventSourcedRepository(EntityRepository):
         Returns the type of entity held by this repository.
         """
 
-    def get_entity(self, entity_id, until=None):
+    def get_entity(self, entity_id, lte=None):
         """
         Returns entity with given ID, optionally as it was until the given domain event ID.
         """
 
         # Get a snapshot (None if none exist).
-        snapshot = self.event_player.get_snapshot(entity_id, until)
+        snapshot = self.event_player.get_snapshot(entity_id, lte=lte)
 
         # Decide the initial state, and after when we need to get the events.
         if snapshot is None:
-            after = None
+            gt = None
             initial_state = None
         else:
-            after = snapshot.at_event_id
+            gt = snapshot.timestamp
             initial_state = entity_from_snapshot(snapshot)
 
         # Replay domain events.
-        return self.event_player.replay_entity(entity_id, after=after, until=until, initial_state=initial_state)
+        return self.event_player.replay_entity(entity_id, gt=gt, lte=lte, initial_state=initial_state)
 
     def fastforward(self, stale_entity, until=None):
         """

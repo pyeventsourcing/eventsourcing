@@ -184,12 +184,11 @@ class NewEventPlayer(object):
     retrieved from the event store, optionally with snapshots.
     """
 
-    def __init__(self, event_store, id_prefix, mutate_func, page_size=None, is_short=False, snapshot_strategy=None):
+    def __init__(self, event_store, mutate_func, page_size=None, is_short=False, snapshot_strategy=None):
         assert isinstance(event_store, AbstractEventStore), event_store
         if snapshot_strategy is not None:
             assert isinstance(snapshot_strategy, AbstractSnapshotStrategy)
         self.event_store = event_store
-        self.id_prefix = id_prefix
         self.mutate_func = mutate_func
         self.page_size = page_size
         self.is_short = is_short

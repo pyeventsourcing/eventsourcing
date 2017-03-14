@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractproperty
 
 import six
 
-from eventsourcing.domain.model.events import DomainEvent, TimeSequencedDomainEvent
+from eventsourcing.domain.model.events import DomainEvent
 
 
 class AbstractSnapshop(six.with_metaclass(ABCMeta)):
@@ -14,15 +14,15 @@ class AbstractSnapshop(six.with_metaclass(ABCMeta)):
         """
 
     @abstractproperty
-    def state(self):
+    def attrs(self):
         """
         State of the snapshotted entity.
         """
 
     @abstractproperty
-    def timestamp(self):
+    def at_event_id(self):
         """
-        Timestamp of the snapshot.
+        Event ID.
         """
 
 
@@ -47,32 +47,3 @@ class Snapshot(DomainEvent, AbstractSnapshop):
     @property
     def at_event_id(self):
         return self.__dict__['domain_event_id']
-
-
-class NewSnapshot(TimeSequencedDomainEvent, AbstractSnapshop):
-
-    def __init__(self, entity_id, timestamp, topic, state):
-        super(NewSnapshot, self).__init__(
-            entity_id=entity_id,
-            timestamp=timestamp,
-            topic=topic,
-            state=state,
-            entity_version=None,
-        )
-
-    @property
-    def timestamp(self):
-        return self.__dict__['timestamp']
-
-    @property
-    def topic(self):
-        """Path to the class.
-        """
-        return self.__dict__['topic']
-
-    @property
-    def state(self):
-        """
-        Snapshotted state of the entity.
-        """
-        return self.__dict__['state']

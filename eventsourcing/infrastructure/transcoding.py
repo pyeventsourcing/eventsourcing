@@ -328,5 +328,5 @@ def id_prefix_from_entity(domain_entity):
 
 
 def id_prefix_from_entity_class(domain_class):
-    assert issubclass(domain_class, EventSourcedEntity)
+    assert issubclass(domain_class, EventSourcedEntity), domain_class
     return domain_class.__name__

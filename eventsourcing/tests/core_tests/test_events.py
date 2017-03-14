@@ -112,16 +112,16 @@ class TestTimeSequencedEvent(unittest.TestCase):
         self.assertEqual(event1.entity_id, ID1)
 
         # Check event has a domain event ID, and a timestamp.
-        self.assertTrue(event1.domain_event_id)
+        self.assertTrue(event1.timestamp)
         self.assertIsInstance(event1.timestamp, float)
 
-        # Check subclass can be instantiated with 'domain_event_id' parameter.
+        # Check subclass can be instantiated with 'timestamp' parameter.
         DOMAIN_EVENT_ID1 = create_timesequenced_event_id()
         event2 = Event(
             entity_id=ID1,
-            domain_event_id=DOMAIN_EVENT_ID1,
+            timestamp=DOMAIN_EVENT_ID1,
         )
-        self.assertEqual(event2.domain_event_id, DOMAIN_EVENT_ID1)
+        self.assertEqual(event2.timestamp, DOMAIN_EVENT_ID1)
 
         # Check subclass can be instantiated with other parameters.
         event3 = Event(
@@ -140,7 +140,7 @@ class TestTimeSequencedEvent(unittest.TestCase):
         self.assertFalse(event3 != event3)
         event4 = Event(
             entity_id=ID1,
-            domain_event_id=event3.domain_event_id,
+            timestamp=event3.timestamp,
             an_attribute=VALUE1,
         )
         self.assertEqual(event3, event4)
@@ -148,7 +148,7 @@ class TestTimeSequencedEvent(unittest.TestCase):
         # Check domain events with same domain event ID have the same timestamp.
         event5 = Event(
             entity_id=event1.entity_id,
-            domain_event_id=event1.domain_event_id,
+            timestamp=event1.timestamp,
             an_attribute=VALUE1,
         )
         self.assertEqual(event1.timestamp, event5.timestamp)
@@ -183,7 +183,7 @@ class TestTimeSequencedEvent(unittest.TestCase):
             entity_id=ID1,
             an_attribute=VALUE1,
         )
-        self.assertNotEqual(event2.domain_event_id, event4.domain_event_id)
+        self.assertNotEqual(event2.timestamp, event4.timestamp)
         self.assertNotEqual(event2.timestamp, event4.timestamp)
 
 
