@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from eventsourcing.infrastructure.transcoding import IntegerSequencedItem, TimeSequencedItem
+from eventsourcing.infrastructure.transcoding import SequencedItem
 
 
 class TestIntegerSequencedItem(TestCase):
@@ -10,7 +10,7 @@ class TestIntegerSequencedItem(TestCase):
         position = 0
         topic = 'topic1'
         data = '{}'
-        item = IntegerSequencedItem(
+        item = SequencedItem(
             sequence_id=sequence_id,
             position=position,
             topic=topic,
@@ -32,7 +32,7 @@ class TestTimeSequencedItem(TestCase):
         position = 0
         topic = 'topic1'
         data = '{}'
-        item = TimeSequencedItem(
+        item = SequencedItem(
             sequence_id=sequence_id,
             position=position,
             topic=topic,

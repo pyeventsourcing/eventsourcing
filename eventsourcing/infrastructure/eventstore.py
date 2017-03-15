@@ -6,8 +6,8 @@ import six
 from eventsourcing.domain.model.events import DomainEvent, NewDomainEvent
 from eventsourcing.exceptions import EntityVersionNotFound
 from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.transcoding import IntegerSequencedItem, JSONStoredEventTranscoder, StoredEvent, \
-    StoredEventTranscoder, TimeSequencedItem, AbstractDomainEventTranscoder
+from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder, StoredEvent, \
+    StoredEventTranscoder, SequencedItem, AbstractSequencedItemMapper
 
 
 class AbstractEventStore(six.with_metaclass(ABCMeta)):
@@ -42,7 +42,7 @@ class EventStore(AbstractEventStore):
         self.transcoder = transcoder
 
     def append(self, domain_event):
-        assert isinstance(domain_event, DomainEvent), domain_event
+        assert isinstance(domain_event, DomainEvent), type(domain_event)
         # Serialize the domain event.
         stored_event = self.transcoder.serialize(domain_event)
 
@@ -91,19 +91,17 @@ class EventStore(AbstractEventStore):
 
 
 class NewEventStore(AbstractEventStore):
-    def __init__(self, sequenced_item_repository, transcoder=None):
+    def __init__(self, sequenced_item_repository, sequenced_item_mapper=None):
         assert isinstance(sequenced_item_repository, AbstractSequencedItemRepository), sequenced_item_repository
-        if transcoder is None:
-            transcoder = JSONStoredEventTranscoder()
-        assert isinstance(transcoder, AbstractDomainEventTranscoder), transcoder
+        assert isinstance(sequenced_item_mapper, AbstractSequencedItemMapper), sequenced_item_mapper
         self.sequenced_item_repository = sequenced_item_repository
 
-        self.transcoder = transcoder
+        self.sequenced_item_mapper = sequenced_item_mapper
 
     def append(self, domain_event):
         assert isinstance(domain_event, NewDomainEvent)
         # Serialize the domain event as a sequenced item.
-        sequenced_item = self.transcoder.serialize(domain_event)
+        sequenced_item = self.sequenced_item_mapper.to_sequenced_item(domain_event)
 
         # Append to the sequenced item to the repository.
         self.sequenced_item_repository.append_item(sequenced_item)
@@ -126,7 +124,7 @@ class NewEventStore(AbstractEventStore):
             sequenced_items = self.sequenced_item_repository.get_items(
                 sequence_id=entity_id,
                 gt=gt,
-                gte=gt,
+                gte=gte,
                 lt=lt,
                 lte=lte,
                 limit=limit,
@@ -135,7 +133,7 @@ class NewEventStore(AbstractEventStore):
             )
 
         # Deserialize to domain events.
-        return six.moves.map(self.transcoder.deserialize, sequenced_items)
+        return six.moves.map(self.sequenced_item_mapper.from_sequenced_item, sequenced_items)
 
 
 class AbstractSequencedItemRepository(six.with_metaclass(ABCMeta)):
@@ -156,8 +154,7 @@ class AbstractSequencedItemRepository(six.with_metaclass(ABCMeta)):
 
 class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
     stored_event_class = StoredEvent
-    integer_sequenced_item_type = IntegerSequencedItem
-    time_sequenced_item_tuple = TimeSequencedItem
+    sequenced_item_type = SequencedItem
 
     # Todo: Change stored_event_class to be a class attribute, rather than constructor argument.
     # - does that support the use case of substituting a customer stored event class? write a test first
@@ -267,7 +264,7 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         """
         Appends a time sequenced item to the sequence.
         """
-        assert isinstance(item, self.time_sequenced_item_tuple), (item, self.time_sequenced_item_tuple)
+        assert isinstance(item, self.sequenced_item_type), (item, self.sequenced_item_type)
 
     # @abstractmethod
     def get_time_sequenced_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,

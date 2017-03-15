@@ -89,7 +89,7 @@ class EventSourcedRepository(EntityRepository):
         """
 
         # Get a snapshot (None if none exist).
-        snapshot = self.event_player.get_snapshot(entity_id, lte=lte)
+        snapshot = self._snapshot_strategy.get_snapshot(entity_id, lte=lte)
 
         # Decide the initial state, and after when we need to get the events.
         if snapshot is None:

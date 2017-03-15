@@ -1,13 +1,12 @@
-from eventsourcing.application.policies import PersistenceSubscriber
+from eventsourcing.application.policies import NewPersistenceSubscriber
 from eventsourcing.example.new_application import ExampleApplication
 from eventsourcing.example.new_domain_model import Example
 from eventsourcing.example.new_infrastructure import ExampleRepo
 from eventsourcing.infrastructure.eventstore import AbstractEventStore, AbstractSequencedItemRepository
-from eventsourcing.tests.sequenced_item_repository_tests.base import AbstractStoredEventRepositoryTestCase
+from eventsourcing.tests.sequenced_item_repository_tests.base import CombinedSequencedItemRepositoryTestCase
 
 
-class ExampleApplicationTestCase(AbstractStoredEventRepositoryTestCase):
-
+class ExampleApplicationTestCase(CombinedSequencedItemRepositoryTestCase):
     def test(self):
         """
         Checks the example application works in the way an example application should.
@@ -15,15 +14,18 @@ class ExampleApplicationTestCase(AbstractStoredEventRepositoryTestCase):
 
         with self.construct_application() as app:
             # Check there's a stored event repo.
-            self.assertIsInstance(app.sequenced_item_repository, AbstractSequencedItemRepository)
+            self.assertIsInstance(app.integer_sequenced_item_repository, AbstractSequencedItemRepository)
 
             # Check there's an event store.
-            self.assertIsInstance(app.event_store, AbstractEventStore)
-            self.assertEqual(app.event_store.sequenced_item_repository, app.sequenced_item_repository)
+            self.assertIsInstance(app.version_entity_event_store, AbstractEventStore)
+            self.assertEqual(app.version_entity_event_store.sequenced_item_repository,
+                             app.integer_sequenced_item_repository)
 
             # Check there's a persistence subscriber.
-            self.assertIsInstance(app.persistence_subscriber, PersistenceSubscriber)
-            self.assertEqual(app.persistence_subscriber.event_store, app.event_store)
+            self.assertIsInstance(app.persistence_subscriber, NewPersistenceSubscriber)
+            # Todo: Move the next two checks to the persistence subscriber unit test.
+            self.assertEqual(app.persistence_subscriber.version_entity_event_store, app.version_entity_event_store)
+            self.assertEqual(app.persistence_subscriber.timestamp_entity_event_store, app.timestamp_entity_event_store)
 
             # Check there's an example repository.
             self.assertIsInstance(app.example_repo, ExampleRepo)
@@ -46,7 +48,7 @@ class ExampleApplicationTestCase(AbstractStoredEventRepositoryTestCase):
             self.assertEqual(100, entity1.a)
 
             # Take a snapshot of the entity.
-            # app.example_repo.event_player.snapshot_strategy.take_snapshot(entity1, create_timesequenced_event_id())
+            app.example_repo.event_player.snapshot_strategy.take_snapshot(entity1)
 
             # Check the new value is available in the repo.
             entity1 = app.example_repo[example1.id]
@@ -55,7 +57,8 @@ class ExampleApplicationTestCase(AbstractStoredEventRepositoryTestCase):
     def construct_application(self):
         cipher = self.construct_cipher()
         app = ExampleApplication(
-            sequenced_item_repository=self.sequenced_item_repo,
+            integer_sequenced_item_repository=self.integer_sequenced_item_repository,
+            timestamp_sequenced_item_repository=self.timestamp_sequenced_item_repository,
             always_encrypt=bool(cipher),
             cipher=cipher,
         )

@@ -5,6 +5,7 @@ import six
 from cassandra import DriverException
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
+from cassandra.protocol import InvalidRequest
 
 from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, SequencedItemError, \
     TimeSequenceError
@@ -84,9 +85,9 @@ class CqlIntegerSequencedItem(Model):
 class CqlTimestampSequencedItem(Model):
     """Stores timestamp-sequenced items in Cassandra."""
 
-    _if_not_exists = True
+    # _if_not_exists = True
 
-    __table_name__ = 'time_sequenced_items'
+    __table_name__ = 'timestamp_sequenced_items'
 
     # Sequence ID (e.g. an entity or aggregate ID).
     s = columns.Text(partition_key=True)
@@ -107,7 +108,7 @@ class CqlTimeuuidSequencedItem(Model):
 
     _if_not_exists = True
 
-    __table_name__ = 'time_sequenced_items'
+    __table_name__ = 'timeuuid_sequenced_items'
 
     # Sequence ID (e.g. an entity or aggregate ID).
     s = columns.Text(partition_key=True)
@@ -143,6 +144,8 @@ class CassandraSequencedItemRepository(AbstractSequencedItemRepository):
                   query_ascending=True, results_ascending=True):
 
         assert limit is None or limit >= 1, limit
+        assert not (gte and gt)
+        assert not (lte and lt)
 
         query = self.active_record_strategy.filter(s=sequence_id)
 
@@ -162,7 +165,11 @@ class CassandraSequencedItemRepository(AbstractSequencedItemRepository):
             query = query.limit(limit)
 
         items = six.moves.map(self.active_record_strategy.from_active_record, query)
-        items = list(items)
+        try:
+            items = list(items)
+        except InvalidRequest as e:
+            msg = "Invalid request: {}".format(e)
+            raise DatasourceOperationError(msg)
 
         if results_ascending != query_ascending:
             items.reverse()
@@ -400,7 +407,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
         )
 
     def to_cql_time_sequenced_item(self, item):
-        assert isinstance(item, self.time_sequenced_item_tuple), item
+        assert isinstance(item, self.sequenced_item_type), item
         return self.time_sequenced_item_table(
             s=item.sequence_id,
             p=item.position,
@@ -410,7 +417,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
 
     def from_cql_time_sequenced_item(self, cql_item):
         assert isinstance(cql_item, self.time_sequenced_item_table), cql_item
-        return self.time_sequenced_item_tuple(
+        return self.sequenced_item_type(
             sequence_id=cql_item.s,
             position=cql_item.p.hex,
             topic=cql_item.t,

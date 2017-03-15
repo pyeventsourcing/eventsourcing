@@ -116,16 +116,21 @@ class SqlIntegerSequencedItem(Base):
                                       name='integer_sequenced_item_uc'),
 
 
-class SqlTimeSequencedItem(Base):
-    __tablename__ = 'time_sequenced_items'
+class SqlTimestampSequencedItem(Base):
 
+    # Explicit table name.
+    __tablename__ = 'timestamp_sequenced_items'
+
+    # Unique constraint.
+    __table_args__ = UniqueConstraint('sequence_id', 'position', name='time_sequenced_items_uc'),
+
+    # Primary key.
     id = Column(Integer, Sequence('integer_sequened_item_id_seq'), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
     sequence_id = Column(String(255), index=True)
 
     # Position (timestamp) of item in sequence.
-    # position = Column(BigInteger(), index=True)
     position = Column(Float(), index=True)
 
     # Topic of the item (e.g. path to domain event class).
@@ -134,9 +139,6 @@ class SqlTimeSequencedItem(Base):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Unique constraint.
-    __table_args__ = UniqueConstraint('sequence_id', 'position',
-                                      name='time_sequenced_item_uc'),
 
 
 class SQLAlchemySequencedItemRepository(AbstractSequencedItemRepository):

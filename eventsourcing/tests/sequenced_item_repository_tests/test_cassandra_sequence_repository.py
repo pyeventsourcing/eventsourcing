@@ -1,8 +1,8 @@
 from eventsourcing.infrastructure.storedevents.cassandrarepo import CassandraStoredEventRepository, CqlStoredEvent, \
     CassandraSequencedItemRepository, CassandraActiveRecordStrategy, CqlIntegerSequencedItem, CqlTimestampSequencedItem
-from eventsourcing.infrastructure.transcoding import IntegerSequencedItem, TimeSequencedItem
+from eventsourcing.infrastructure.transcoding import SequencedItem
 from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
-from eventsourcing.tests.sequenced_item_repository_tests.base import AbstractStoredEventRepositoryTestCase, \
+from eventsourcing.tests.sequenced_item_repository_tests.base import CombinedSequencedItemRepositoryTestCase, \
     IntegerSequencedItemRepositoryTestCase, SimpleStoredEventIteratorTestCase, StoredEventRepositoryTestCase, \
     ThreadedStoredEventIteratorTestCase, TimeSequencedItemRepositoryTestCase
 
@@ -12,7 +12,7 @@ class TestCassandraIntegerSequencedItemRepository(CassandraDatastoreTestCase, In
         return CassandraSequencedItemRepository(
             active_record_strategy=CassandraActiveRecordStrategy(
                 active_record_class=CqlIntegerSequencedItem,
-                sequenced_item_class=IntegerSequencedItem,
+                sequenced_item_class=SequencedItem,
             )
         )
 
@@ -22,32 +22,38 @@ class TestCassandraTimeSequencedItemRepository(CassandraDatastoreTestCase, TimeS
         return CassandraSequencedItemRepository(
             active_record_strategy=CassandraActiveRecordStrategy(
                 active_record_class=CqlTimestampSequencedItem,
-                sequenced_item_class=TimeSequencedItem,
+                sequenced_item_class=SequencedItem,
             )
         )
 
 
-class CassandraIntegerSequencedRepoTestCase(CassandraDatastoreTestCase, AbstractStoredEventRepositoryTestCase):
-    """
-    Implements the sequenced_item_repo property, by
-    providing a Cassandra stored event repository.
-    """
-    def construct_stored_event_repo(self):
+class CassandraIntegerSequencedRepoTestCase(CassandraDatastoreTestCase, CombinedSequencedItemRepositoryTestCase):
+    def construct_integer_sequenced_item_repository(self):
         return CassandraSequencedItemRepository(
             active_record_strategy=CassandraActiveRecordStrategy(
                 active_record_class=CqlIntegerSequencedItem,
-                sequenced_item_class=IntegerSequencedItem,
+                sequenced_item_class=SequencedItem,
             )
         )
 
 
-class CassandraRepoTestCase(CassandraDatastoreTestCase, AbstractStoredEventRepositoryTestCase):
+class CassandraTimestampSequencedRepoTestCase(CassandraDatastoreTestCase, CombinedSequencedItemRepositoryTestCase):
+    def construct_timestamp_sequenced_item_repository(self):
+        return CassandraSequencedItemRepository(
+            active_record_strategy=CassandraActiveRecordStrategy(
+                active_record_class=CqlTimestampSequencedItem,
+                sequenced_item_class=SequencedItem,
+            )
+        )
+
+
+class CassandraRepoTestCase(CassandraDatastoreTestCase, CombinedSequencedItemRepositoryTestCase):
     """
-    Implements the sequenced_item_repo property, by
+    Implements the integer_sequenced_item_repository property, by
     providing a Cassandra stored event repository.
     """
 
-    def construct_stored_event_repo(self):
+    def construct_integer_sequenced_item_repository(self):
         return CassandraStoredEventRepository(
             stored_event_table=CqlStoredEvent,
             always_write_entity_version=True,

@@ -58,7 +58,7 @@ class PerformanceTestCase(ExampleApplicationTestCase):
                 def last_n(n):
                     n = min(n, num_beats + 1)
                     stored_entity_id = make_stored_entity_id('Example', example.id)
-                    repo = app.example_repo.event_player.event_store.sequenced_item_repo
+                    repo = app.example_repo.event_player.event_store.integer_sequenced_item_repository
 
                     start_last_n = utc_now()
                     last_n_stored_events = []

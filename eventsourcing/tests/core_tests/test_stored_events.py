@@ -73,7 +73,7 @@ class TestStoredEvent(TestCase):
     #     if numpy is not None:
     #         event1 = DomainEvent(a=numpy.array([10.123456]), entity_version=0, entity_id='entity1', domain_event_id=3)
     #
-    #         stored_event = JSONStoredEventTranscoder().serialize(event1)
+    #         stored_event = JSONStoredEventTranscoder().to_sequenced_item(event1)
     #         self.assertEqual('eventsourcing.domain.model.events#DomainEvent', stored_event.event_topic)
     #         self.assertEqual('{"a":{"__ndarray__":"\\"\\\\u0093NUMPY\\\\u0001\\\\u0000F\\\\u0000{\'descr\': \'<f8\', '
     #                          '\'fortran_order\': False, \'shape\': (1,), }            \\\\nm\\\\u00fd\\\\u00f4\\\\u00'

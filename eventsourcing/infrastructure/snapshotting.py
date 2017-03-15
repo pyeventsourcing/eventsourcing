@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.domain.model.events import publish, topic_from_domain_class
-from eventsourcing.domain.model.snapshot import AbstractSnapshop, Snapshot
+from eventsourcing.domain.model.new_snapshot import AbstractSnapshop, Snapshot
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.infrastructure.transcoding import deserialize_domain_entity, id_prefix_from_entity, \
     id_prefix_from_event_class, make_stored_entity_id
@@ -50,8 +50,8 @@ def get_snapshot(stored_entity_id, event_store, until=None):
 def entity_from_snapshot(snapshot):
     """Deserialises a domain entity from a snapshot object.
     """
-    assert isinstance(snapshot, AbstractSnapshop)
-    return deserialize_domain_entity(snapshot.topic, snapshot.attrs)
+    assert isinstance(snapshot, AbstractSnapshop), type(snapshot)
+    return deserialize_domain_entity(snapshot.topic, snapshot.state)
 
 
 def take_snapshot(entity, at_event_id):

@@ -44,10 +44,12 @@ class Discarded(TimestampEvent, VersionEntityEvent):
 
 class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
-    def __init__(self, entity_id, entity_version=0):
+    def __init__(self, entity_id, entity_version=0, timestamp=None):
         self._id = entity_id
         self._version = entity_version
         self._is_discarded = False
+        self._created_on = timestamp
+        self._last_modified_on = timestamp
 
     def _increment_version(self):
         if self._version is not None:
@@ -64,6 +66,14 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
     @property
     def version(self):
         return self._version
+
+    @property
+    def created_on(self):
+        return self._created_on
+
+    @property
+    def last_modified_on(self):
+        return self._last_modified_on
 
     def _validate_originator(self, event):
         self._validate_originator_id(event)
@@ -146,6 +156,7 @@ def attribute_changed_mutator(event, self):
     assert isinstance(self, EventSourcedEntity), self
     self._validate_originator(event)
     setattr(self, event.name, event.value)
+    self._last_modified_on = event.timestamp
     self._increment_version()
     return self
 

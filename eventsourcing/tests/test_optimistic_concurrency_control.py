@@ -18,14 +18,14 @@ from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemyS
 from eventsourcing.infrastructure.transcoding import StoredEvent
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
-from eventsourcing.tests.sequenced_item_repository_tests.base import AbstractStoredEventRepositoryTestCase
+from eventsourcing.tests.sequenced_item_repository_tests.base import CombinedSequencedItemRepositoryTestCase
 from eventsourcing.tests.sequenced_item_repository_tests.test_cassandra_sequence_repository import \
     CassandraRepoTestCase
 from eventsourcing.tests.sequenced_item_repository_tests.test_sqlalchemy_sequence_repository import \
     SQLAlchemyRepoTestCase
 
 
-class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase):
+class OptimisticConcurrencyControlTestCase(CombinedSequencedItemRepositoryTestCase):
     @notquick()
     def test_optimistic_concurrency_control(self):
         """Appends lots of events, but with a pool of workers
@@ -46,7 +46,7 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
         pool = Pool(
             initializer=pool_initializer,
             processes=pool_size,
-            initargs=(type(self.sequenced_item_repo), temp_file_name),
+            initargs=(type(self.integer_sequenced_item_repository), temp_file_name),
         )
 
         # Append duplicate events to the repo, or at least try...
@@ -85,7 +85,7 @@ class OptimisticConcurrencyControlTestCase(AbstractStoredEventRepositoryTestCase
         self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
 
         # Check the repo actually has a contiguous version sequence.
-        events = self.sequenced_item_repo.get_stored_events(stored_entity_id)
+        events = self.integer_sequenced_item_repository.get_stored_events(stored_entity_id)
         self.assertEqual(len(events), number_of_events)
         version_counter = 0
         for event in events:

@@ -3,7 +3,7 @@ from functools import reduce
 from eventsourcing.domain.model.entity import EventSourcedEntity
 from eventsourcing.domain.model.snapshot import AbstractSnapshop
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
-from eventsourcing.infrastructure.snapshotting import AbstractSnapshotStrategy, entity_from_snapshot
+from eventsourcing.infrastructure.new_snapshotting import AbstractSnapshotStrategy, entity_from_snapshot
 from eventsourcing.infrastructure.transcoding import make_stored_entity_id
 
 
@@ -187,7 +187,7 @@ class NewEventPlayer(object):
     def __init__(self, event_store, mutate_func, page_size=None, is_short=False, snapshot_strategy=None):
         assert isinstance(event_store, AbstractEventStore), event_store
         if snapshot_strategy is not None:
-            assert isinstance(snapshot_strategy, AbstractSnapshotStrategy)
+            assert isinstance(snapshot_strategy, AbstractSnapshotStrategy), snapshot_strategy
         self.event_store = event_store
         self.mutate_func = mutate_func
         self.page_size = page_size
@@ -247,9 +247,6 @@ class NewEventPlayer(object):
         """
         Returns domain events for given entity ID.
         """
-        # Make the stored entity ID.
-        stored_entity_id = self.make_stored_entity_id(entity_id)
-
         # Get entity's domain events from the event store.
         domain_events = self.event_store.get_domain_events(
             entity_id=entity_id,
@@ -261,7 +258,7 @@ class NewEventPlayer(object):
             page_size=self.page_size,
             is_ascending=is_ascending,
         )
-        return domain_events
+        return list(domain_events)
 
     def take_snapshot(self, entity_id, until=None):
         """
@@ -313,8 +310,7 @@ class NewEventPlayer(object):
         optional as it existed until a given time.
         """
         if self.snapshot_strategy:
-            stored_entity_id = self.make_stored_entity_id(entity_id=entity_id)
-            return self.snapshot_strategy.get_snapshot(stored_entity_id, lte=lte)
+            return self.snapshot_strategy.get_snapshot(entity_id, lte=lte)
 
     def get_most_recent_event(self, entity_id, until=None):
         """Returns the most recent event for the given entity ID.
