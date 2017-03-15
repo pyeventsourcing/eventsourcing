@@ -11,7 +11,7 @@ from eventsourcing.infrastructure.transcoding import deserialize_domain_entity
 class AbstractSnapshotStrategy(six.with_metaclass(ABCMeta)):
 
     @abstractmethod
-    def get_snapshot(self, stored_entity_id, lte=None):
+    def get_snapshot(self, stored_entity_id, lt=None, lte=None):
         """Returns pre-existing snapshot for stored entity ID from given
         event store, optionally until a particular domain event ID.
         """
@@ -29,21 +29,21 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
         assert isinstance(event_store, NewEventStore)
         self.event_store = event_store
 
-    def get_snapshot(self, entity_id, lte=None):
-        return get_snapshot(entity_id, self.event_store, lte=lte)
+    def get_snapshot(self, entity_id, lt=None, lte=None):
+        return get_snapshot(entity_id, self.event_store, lt=lt, lte=lte)
 
     def take_snapshot(self, entity, timestamp=None):
         return take_snapshot(entity, timestamp=timestamp)
 
 
-def get_snapshot(entity_id, event_store, lte=None):
+def get_snapshot(entity_id, event_store, lt=None, lte=None):
     """
     Get the last snapshot for entity.
 
     :rtype: Snapshot
     """
     assert isinstance(event_store, AbstractEventStore)
-    snapshots = event_store.get_domain_events(entity_id, lte=lte, is_ascending=False, limit=1)
+    snapshots = event_store.get_domain_events(entity_id, lt=lt, lte=lte, is_ascending=False, limit=1)
     snapshots = list(snapshots)
     if len(snapshots) == 1:
         return snapshots[0]

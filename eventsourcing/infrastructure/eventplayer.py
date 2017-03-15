@@ -139,11 +139,10 @@ class EventPlayer(object):
             stored_entity_id = self.make_stored_entity_id(entity_id=entity_id)
             return self.snapshot_strategy.get_snapshot(stored_entity_id, until=until)
 
-    def get_most_recent_event(self, entity_id, until=None):
+    def get_most_recent_event(self, entity_id, lt=None, lte=None):
         """Returns the most recent event for the given entity ID.
         """
-        stored_entity_id = self.make_stored_entity_id(entity_id)
-        return self.event_store.get_most_recent_event(stored_entity_id, until=until)
+        return self.event_store.get_most_recent_event(entity_id, lt=lt, lte=lte)
 
     def make_stored_entity_id(self, entity_id):
         """Prefixes the given entity ID with the ID prefix for entity's type.
@@ -261,15 +260,15 @@ class NewEventPlayer(object):
         )
         return list(domain_events)
 
-    def take_snapshot(self, entity_id, until=None):
+    def take_snapshot(self, entity_id, lt=None, lte=None):
         """
-        Takes a snapshot of the entity as it existed after
-        the most recent event, optionally until a given time.
+        Takes a snapshot of the entity as it existed after the most recent
+        event, optionally less than or less than or equal to a particular position.
         """
         assert isinstance(self.snapshot_strategy, AbstractSnapshotStrategy)
 
         # Get the last event (optionally until a particular time).
-        last_event = self.get_most_recent_event(entity_id, until=until)
+        last_event = self.get_most_recent_event(entity_id, lt=lt, lte=lte)
 
         # If there aren't any events, there can't be a snapshot, so return None.
         if last_event is None:
@@ -277,15 +276,14 @@ class NewEventPlayer(object):
 
         # If there is something to snapshot, then look for
         # the last snapshot before the last event.
-        last_event_id = last_event.domain_event_id
-        last_snapshot = self.get_snapshot(entity_id, until=last_event_id)
+        last_snapshot = self.get_snapshot(entity_id, lte=last_event.timestamp)
 
         # If there's a snapshot...
         if last_snapshot:
             assert isinstance(last_snapshot, AbstractSnapshop), type(last_snapshot)
 
             # and it is coincident with the last event...
-            if last_snapshot.at_event_id == last_event_id:
+            if last_snapshot.timestamp == last_event.timestamp:
                 # then there's nothing to do.
                 return last_snapshot
             else:
@@ -293,30 +291,31 @@ class NewEventPlayer(object):
                 # remember to get events after the last event that was
                 # applied to the entity, and obtain the initial entity
                 # state so those event can be applied.
-                after_event_id = last_snapshot.at_event_id
+                gt = last_snapshot.timestamp
                 initial_state = entity_from_snapshot(last_snapshot)
         else:
             # If there isn't a snapshot, start from scratch.
-            after_event_id = None
+            gt = None
             initial_state = None
 
         # Get entity in the state after this event was applied.
-        entity = self.replay_entity(entity_id, after=after_event_id, until=last_event_id, initial_state=initial_state)
+        entity = self.replay_entity(entity_id, gt=gt, lt=lt, lte=last_event.timestamp, initial_state=initial_state)
 
         # Take a snapshot of the entity.
-        return self.snapshot_strategy.take_snapshot(entity, at_event_id=last_event_id)
+        return self.snapshot_strategy.take_snapshot(entity, timestamp=entity.last_modified_on)
 
-    def get_snapshot(self, entity_id, lte=None):
-        """Uses strategy to get a snapshot of the entity,
-        optional as it existed until a given time.
+    def get_snapshot(self, entity_id, lt=None, lte=None):
+        """
+        Returns a snapshot for given entity ID, according to the snapshot strategy.
         """
         if self.snapshot_strategy:
-            return self.snapshot_strategy.get_snapshot(entity_id, lte=lte)
+            return self.snapshot_strategy.get_snapshot(entity_id, lt=lt, lte=lte)
 
-    def get_most_recent_event(self, entity_id, until=None):
-        """Returns the most recent event for the given entity ID.
+    def get_most_recent_event(self, entity_id, lt=None, lte=None):
         """
-        return self.event_store.get_most_recent_event(entity_id, until=until)
+        Returns the most recent event for the given entity ID.
+        """
+        return self.event_store.get_most_recent_event(entity_id, lt=lt, lte=lte)
 
     def fastforward(self, stale_entity, until=None):
         assert isinstance(stale_entity, EventSourcedEntity)

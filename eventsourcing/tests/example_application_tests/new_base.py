@@ -55,7 +55,7 @@ class ExampleApplicationTestCase(WithActiveRecordStrategies):
             self.assertEqual(100, entity1.a)
 
             # Take a snapshot of the entity.
-            app.example_repo.event_player.snapshot_strategy.take_snapshot(entity1)
+            app.example_repo.event_player.take_snapshot(entity1.id)
 
             # Check the snapshot exists.
             snapshot = app.example_repo.event_player.snapshot_strategy.get_snapshot(entity1.id)

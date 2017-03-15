@@ -22,13 +22,8 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
                           page_size=None):
         """Returns domain events for given stored entity ID."""
 
-    # @abstractmethod
-    def get_entity_version(self, stored_entity_id, version):
-        """Returns entity version for given stored entity ID."""
-
-    # @abstractmethod
-    def get_most_recent_event(self, stored_entity_id, until=None, include_until=False):
-        """Returns most recent event for given stored entity ID."""
+    def get_most_recent_event(self, entity_id, lt=None, lte=None):
+        """Returns most recent domain event for given entity ID."""
 
 
 class EventStore(AbstractEventStore):
@@ -133,6 +128,14 @@ class NewEventStore(AbstractEventStore):
 
         # Deserialize to domain events.
         return six.moves.map(self.sequenced_item_mapper.from_sequenced_item, sequenced_items)
+
+    def get_most_recent_event(self, entity_id, lt=None, lte=None):
+        events = self.get_domain_events(entity_id=entity_id, lt=lt, lte=lte, limit=1, is_ascending=False)
+        events = list(events)
+        try:
+            return events[0]
+        except IndexError:
+            pass
 
 
 class SequencedItemRepository(six.with_metaclass(ABCMeta)):
