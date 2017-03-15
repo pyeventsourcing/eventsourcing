@@ -8,10 +8,10 @@ from eventsourcing.domain.model.log import Log, Logger, get_logger, start_new_lo
     bucket_starts
 from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.log_reader import get_log_reader
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_sequence_repository import \
-    CassandraRepoTestCase
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_sequence_repository import \
-    SQLAlchemyRepoTestCase
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
+    CassandraActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
+    WithSQLAlchemyActiveRecordStrategies
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.sequenced_item_tests.base import PersistenceSubscribingTestCase
 from eventsourcing.tests.sequenced_item_tests.test_python_objects_stored_event_repository import \
@@ -354,7 +354,7 @@ class LogTestCase(PersistenceSubscribingTestCase):
             bucket_duration(bucket_size='invalid')
 
 
-class TestLogWithCassandra(CassandraRepoTestCase, LogTestCase):
+class TestLogWithCassandra(CassandraActiveRecordStrategies, LogTestCase):
     pass
 
 
@@ -362,5 +362,5 @@ class TestLogWithPythonObjects(PythonObjectsRepoTestCase, LogTestCase):
     pass
 
 
-class TestLogWithSQLAlchemy(SQLAlchemyRepoTestCase, LogTestCase):
+class TestLogWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, LogTestCase):
     pass

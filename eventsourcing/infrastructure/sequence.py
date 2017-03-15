@@ -9,8 +9,7 @@ from eventsourcing.infrastructure.transcoding import EntityVersion
 
 def append_item_to_sequence(name, item, event_player, max_size=None):
     assert isinstance(event_player, EventPlayer)
-    stored_entity_id = event_player.make_stored_entity_id(name)
-    last_event = event_player.event_store.get_most_recent_event(stored_entity_id)
+    last_event = event_player.event_store.get_most_recent_event(name)
     next_version = last_event.entity_version + 1
     if max_size and max_size < next_version:
         raise SequenceFullError

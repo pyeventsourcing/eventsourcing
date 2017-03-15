@@ -22,7 +22,7 @@ class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):
             raise DatasourceOperationError('Artificial failure')
 
         # Put the event in the various dicts.
-        stored_entity_id = new_stored_event.stored_entity_id
+        stored_entity_id = new_stored_event.entity_id
         if self.always_write_entity_version and new_version_number is not None:
             versions = self._entity_versions[stored_entity_id]
             if next(versions[new_version_number]) != 0:

@@ -20,7 +20,7 @@ class TestStoredEvent(TestCase):
         event1 = DomainEvent(a=1, b=2, c=datetime_now, d=datetime_now_tzaware, e=date_now, entity_version=0,
                              entity_id='entity1', domain_event_id=3)
         stored_event = JSONStoredEventTranscoder().serialize(event1)
-        self.assertEqual('DomainEvent::entity1', stored_event.stored_entity_id)
+        self.assertEqual('DomainEvent::entity1', stored_event.entity_id)
         self.assertEqual('eventsourcing.domain.model.events#DomainEvent', stored_event.event_topic)
         self.assertEqual('{"a":1,"b":2,"c":{"ISO8601_datetime":"2015-09-08T16:20:50.577429"},"d":{"ISO8601_datetime":'
                          '"2015-09-08T16:20:50.577429+0000"},"e":{"ISO8601_date":"2015-09-08"},"entity_id":"entity1",'
@@ -34,7 +34,7 @@ class TestStoredEvent(TestCase):
         event1 = DomainEvent(a=1, b=2, c=datetime_now, d=datetime_now_tzaware, e=date_now, entity_version=0,
                              entity_id='entity1', domain_event_id=3)
         stored_event = JSONStoredEventTranscoder().serialize(event1)
-        self.assertEqual('DomainEvent::entity1', stored_event.stored_entity_id)
+        self.assertEqual('DomainEvent::entity1', stored_event.entity_id)
         self.assertEqual('eventsourcing.domain.model.events#DomainEvent', stored_event.event_topic)
         self.assertEqual('{"a":1,"b":2,"c":{"ISO8601_datetime":"2015-09-08T16:20:50.577429"},"d":{"ISO8601_datetime":'
                          '"2015-09-08T16:20:50.577429+0000"},"e":{"ISO8601_date":"2015-09-08"},"entity_id":"entity1",'
@@ -106,7 +106,7 @@ class TestStoredEvent(TestCase):
         stored_event = StoredEvent(event_id='1',
                                    stored_entity_id='entity1',
                                    event_topic=topic_from_domain_class(NotADomainEvent),
-                                   event_attrs='{"a":1,"b":2,"stored_entity_id":"entity1","timestamp":3}')
+                                   event_attrs='{"a":1,"b":2,"entity_id":"entity1","timestamp":3}')
         with self.assertRaises(ValueError):
             JSONStoredEventTranscoder().deserialize(stored_event)
 

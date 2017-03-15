@@ -4,7 +4,7 @@ import os
 import traceback
 from multiprocessing.pool import Pool
 from time import sleep
-from uuid import uuid4, uuid1
+from uuid import uuid1, uuid4
 
 import six
 
@@ -14,18 +14,18 @@ from eventsourcing.infrastructure.datastore.sqlalchemyorm import SQLAlchemyDatas
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.storedevents.cassandrarepo import CassandraStoredEventRepository, CqlStoredEvent
 from eventsourcing.infrastructure.storedevents.pythonobjectsrepo import PythonObjectsStoredEventRepository
-from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemyStoredEventRepository, SqlStoredEvent
+from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemyStoredEventRepository
 from eventsourcing.infrastructure.transcoding import StoredEvent
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
-from eventsourcing.tests.sequenced_item_tests.base import CombinedSequencedItemRepositoryTestCase
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_sequence_repository import \
-    CassandraRepoTestCase
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_sequence_repository import \
-    SQLAlchemyRepoTestCase
+from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
+    CassandraActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
+    WithSQLAlchemyActiveRecordStrategies
 
 
-class OptimisticConcurrencyControlTestCase(CombinedSequencedItemRepositoryTestCase):
+class OptimisticConcurrencyControlTestCase(WithActiveRecordStrategies):
     @notquick()
     def test_optimistic_concurrency_control(self):
         """Appends lots of events, but with a pool of workers
@@ -46,7 +46,7 @@ class OptimisticConcurrencyControlTestCase(CombinedSequencedItemRepositoryTestCa
         pool = Pool(
             initializer=pool_initializer,
             processes=pool_size,
-            initargs=(type(self.integer_sequenced_item_repository), temp_file_name),
+            initargs=(type(self.integer_sequence_active_record_strategy), temp_file_name),
         )
 
         # Append duplicate events to the repo, or at least try...
@@ -85,7 +85,7 @@ class OptimisticConcurrencyControlTestCase(CombinedSequencedItemRepositoryTestCa
         self.assertEqual(len(set([i[1] for i in total_failures])), pool_size)
 
         # Check the repo actually has a contiguous version sequence.
-        events = self.integer_sequenced_item_repository.get_stored_events(stored_entity_id)
+        events = self.integer_sequence_active_record_strategy.get_stored_events(stored_entity_id)
         self.assertEqual(len(events), number_of_events)
         version_counter = 0
         for event in events:
@@ -170,11 +170,13 @@ class OptimisticConcurrencyControlTestCase(CombinedSequencedItemRepositoryTestCa
 
 
 @notquick()
-class TestOptimisticConcurrencyControlWithCassandra(CassandraRepoTestCase, OptimisticConcurrencyControlTestCase):
+class TestOptimisticConcurrencyControlWithCassandra(CassandraActiveRecordStrategies,
+                                                    OptimisticConcurrencyControlTestCase):
     pass
 
 
-class TestOptimisticConcurrencyControlWithSQLAlchemy(SQLAlchemyRepoTestCase, OptimisticConcurrencyControlTestCase):
+class TestOptimisticConcurrencyControlWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies,
+                                                     OptimisticConcurrencyControlTestCase):
     use_named_temporary_file = True
 
 

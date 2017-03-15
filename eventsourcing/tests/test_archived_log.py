@@ -7,10 +7,10 @@ from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRe
 from eventsourcing.infrastructure.notification_log import append_item_to_notification_log
 from eventsourcing.interface.archived_logs import ArchivedLogReader, ArchivedLogRepo, RemoteArchivedLogRepo, \
     serialize_archived_log, deserialise_archived_log
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_sequence_repository import \
-    CassandraRepoTestCase
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_sequence_repository import \
-    SQLAlchemyRepoTestCase
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
+    CassandraActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
+    WithSQLAlchemyActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.base import PersistenceSubscribingTestCase
 from eventsourcing.tests.sequenced_item_tests.test_python_objects_stored_event_repository import \
     PythonObjectsRepoTestCase
@@ -238,11 +238,11 @@ class TestArchivedLogWithPythonObjects(PythonObjectsRepoTestCase, ArchivedLogTes
     pass
 
 
-class TestArchivedLogWithCassandra(CassandraRepoTestCase, ArchivedLogTestCase):
+class TestArchivedLogWithCassandra(CassandraActiveRecordStrategies, ArchivedLogTestCase):
     pass
 
 
-class TestArchivedLogWithSQLAlchemy(SQLAlchemyRepoTestCase, ArchivedLogTestCase):
+class TestArchivedLogWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, ArchivedLogTestCase):
     use_named_temporary_file = True
     # pass
 

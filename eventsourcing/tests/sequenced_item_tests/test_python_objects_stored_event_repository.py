@@ -1,7 +1,7 @@
 from eventsourcing.infrastructure.storedevents.pythonobjectsrepo import PythonObjectsStoredEventRepository
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
-from eventsourcing.tests.sequenced_item_tests.base import CombinedSequencedItemRepositoryTestCase, \
-    SimpleStoredEventIteratorTestCase, StoredEventRepositoryTestCase, ThreadedStoredEventIteratorTestCase
+from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies, \
+    SimpleSequencedItemteratorTestCase, StoredEventRepositoryTestCase, ThreadedSequencedItemIteratorTestCase
 
 
 class PythonObjectsDatastoreTestCase(AbstractDatastoreTestCase):
@@ -9,9 +9,9 @@ class PythonObjectsDatastoreTestCase(AbstractDatastoreTestCase):
         return None
 
 
-class PythonObjectsRepoTestCase(PythonObjectsDatastoreTestCase, CombinedSequencedItemRepositoryTestCase):
+class PythonObjectsRepoTestCase(PythonObjectsDatastoreTestCase, WithActiveRecordStrategies):
 
-    def construct_integer_sequenced_item_repository(self):
+    def construct_integer_sequence_active_record_strategy(self):
         return PythonObjectsStoredEventRepository(
             always_write_entity_version=True,
             always_check_expected_version=True,
@@ -22,11 +22,11 @@ class TestPythonObjectsStoredEventRepository(PythonObjectsRepoTestCase, StoredEv
     pass
 
 
-class TestSimpleStoredEventIteratorWithPythonObjects(PythonObjectsRepoTestCase, SimpleStoredEventIteratorTestCase):
+class TestSimpleIteratorWithPythonObjects(PythonObjectsRepoTestCase, SimpleSequencedItemteratorTestCase):
     pass
 
 
-class TestThreadedStoredEventIteratorWithPythonObjects(PythonObjectsRepoTestCase, ThreadedStoredEventIteratorTestCase):
+class TestThreadedIteratorWithPythonObjects(PythonObjectsRepoTestCase, ThreadedSequencedItemIteratorTestCase):
     pass
 
 

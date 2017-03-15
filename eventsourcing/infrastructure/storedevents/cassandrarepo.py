@@ -5,13 +5,12 @@ import six
 from cassandra import DriverException
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
-from cassandra.protocol import InvalidRequest
 
 from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, SequencedItemError, \
     TimeSequenceError
-from eventsourcing.infrastructure.eventstore import AbstractSequencedItemRepository, AbstractStoredEventRepository
+from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
+from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedSequencedItemIterator
 from eventsourcing.infrastructure.transcoding import EntityVersion
 
 
@@ -42,11 +41,8 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             query = query.limit(limit)
 
         items = six.moves.map(self.from_active_record, query)
-        try:
-            items = list(items)
-        except InvalidRequest as e:
-            msg = "Invalid request: {}".format(e)
-            raise DatasourceOperationError(msg)
+
+        items = list(items)
 
         if results_ascending != query_ascending:
             items.reverse()
@@ -185,9 +181,6 @@ class CqlStoredEvent(Model):
     a = columns.Text(required=True)
 
 
-class CassandraSequencedItemRepository(AbstractSequencedItemRepository):
-    pass
-
 class CassandraStoredEventRepository(AbstractStoredEventRepository):
     def __init__(self, stored_event_table=None, integer_sequenced_item_table=None, time_sequenced_item_table=None,
                  **kwargs):
@@ -198,7 +191,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
 
     @property
     def iterator_class(self):
-        return ThreadedStoredEventIterator
+        return ThreadedSequencedItemIterator
 
     def append_time_sequenced_item(self, item):
         cql_object = self.to_cql_time_sequenced_item(item)
@@ -216,7 +209,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
         """
 
         # Write the next version.
-        stored_entity_id = new_stored_event.stored_entity_id
+        stored_entity_id = new_stored_event.entity_id
         new_entity_version = None
         if self.always_write_entity_version and new_version_number is not None:
             assert isinstance(new_version_number, six.integer_types)
@@ -280,7 +273,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
                 #     sleep(0.1)
                 #     try:
                 #         # If the event actually exists, despite the exception, all is well.
-                #         CqlStoredEvent.get(n=new_stored_event.stored_entity_id, v=new_stored_event.event_id)
+                #         CqlStoredEvent.get(n=new_stored_event.entity_id, v=new_stored_event.event_id)
                 #
                 #     except CqlStoredEvent.DoesNotExist:
                 #         # Otherwise, try harder to recover by removing the new version.
@@ -303,7 +296,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
                 #                         raise Exception("Unable to delete version {} of entity {} after failing to
                 #  write"
                 #                                         "event: event write error {}: version delete error {}"
-                #                                         .format(new_entity_version, stored_entity_id,
+                #                                         .format(new_entity_version, entity_id,
                 #                                                 event_write_error, version_delete_error))
                 #                     else:
                 #                         # Otherwise retry.
@@ -393,7 +386,7 @@ class CassandraStoredEventRepository(AbstractStoredEventRepository):
     def to_cql(self, stored_event):
         assert isinstance(stored_event, self.stored_event_class), stored_event
         return self.stored_event_table(
-            n=stored_event.stored_entity_id,
+            n=stored_event.entity_id,
             v=stored_event.event_id,
             t=stored_event.event_topic,
             a=stored_event.event_attrs

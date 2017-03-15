@@ -1,5 +1,7 @@
 from functools import reduce
 
+from copy import deepcopy
+
 from eventsourcing.domain.model.entity import EventSourcedEntity
 from eventsourcing.domain.model.snapshot import AbstractSnapshop
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
@@ -178,6 +180,12 @@ class EventPlayer(object):
         return fresh_entity
 
 
+def clone_object(initial_state):
+    initial_state_copy = object.__new__(type(initial_state))
+    initial_state_copy.__dict__.update(deepcopy(initial_state.__dict__))
+    return initial_state_copy
+
+
 class NewEventPlayer(object):
     """
     Reconstitutes domain entities from domain events
@@ -227,15 +235,8 @@ class NewEventPlayer(object):
         if not is_ascending:
             domain_events = reversed(list(domain_events))
 
-        # Clone the initial state, to avoid side effects for the caller.
-        if initial_state is None:
-            initial_state_copy = None
-        else:
-            initial_state_copy = object.__new__(type(initial_state))
-            initial_state_copy.__dict__.update(initial_state.__dict__)
-
         # Replay the domain events, starting with the initial state.
-        return self.replay_events(initial_state_copy, domain_events)
+        return self.replay_events(initial_state, domain_events)
 
     def replay_events(self, initial_state, domain_events):
         """
@@ -315,19 +316,10 @@ class NewEventPlayer(object):
     def get_most_recent_event(self, entity_id, until=None):
         """Returns the most recent event for the given entity ID.
         """
-        stored_entity_id = self.make_stored_entity_id(entity_id)
-        return self.event_store.get_most_recent_event(stored_entity_id, until=until)
-
-    def make_stored_entity_id(self, entity_id):
-        """Prefixes the given entity ID with the ID prefix for entity's type.
-        """
-        return make_stored_entity_id(self.id_prefix, entity_id)
+        return self.event_store.get_most_recent_event(entity_id, until=until)
 
     def fastforward(self, stale_entity, until=None):
         assert isinstance(stale_entity, EventSourcedEntity)
-
-        # Get the entity version object, which provides the event ID.
-        stored_entity_id = self.make_stored_entity_id(stale_entity.id)
 
         # The last applied event version is the one before the current
         # version number, because each mutator increments the version

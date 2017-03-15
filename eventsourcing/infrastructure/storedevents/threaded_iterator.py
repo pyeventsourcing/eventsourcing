@@ -1,10 +1,11 @@
 # coding=utf-8
 from threading import Thread
 
-from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, StoredEventIterator
+from eventsourcing.infrastructure.eventstore import AbstractStoredEventIterator
+from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
 
 
-class ThreadedStoredEventIterator(StoredEventIterator):
+class ThreadedSequencedItemIterator(AbstractStoredEventIterator):
     def __iter__(self):
         # Start a thread to get a page of events.
         thread = self.start_thread()
@@ -30,7 +31,7 @@ class ThreadedStoredEventIterator(StoredEventIterator):
             is_last_page = (
                 num_stored_events != self.page_size
             ) or (
-                self.all_event_counter + num_stored_events == self.limit
+                self.all_item_counter + num_stored_events == self.limit
             )
 
             if not is_last_page:
@@ -45,7 +46,7 @@ class ThreadedStoredEventIterator(StoredEventIterator):
             for stored_event in stored_events:
 
                 # Stop if we're over the limit.
-                if self.limit and self.all_event_counter >= self.limit:
+                if self.limit and self.all_item_counter >= self.limit:
                     raise StopIteration
 
                 # Count each event.
@@ -59,11 +60,26 @@ class ThreadedStoredEventIterator(StoredEventIterator):
                 raise StopIteration
 
     def start_thread(self):
+        gt = self.gt
+        gte = self.gte
+        lt = self.lt
+        lte = self.lte
+
+        if self._position is not None:
+            if self.is_ascending:
+                gt = self._position
+                gte = None
+            else:
+                lt = self._position
+                lte = None
+
         thread = GetEntityEventsThread(
-            repo=self.repo,
-            stored_entity_id=self.stored_entity_id,
-            after=self.after,
-            until=self.until,
+            active_record_strategy=self.active_record_strategy,
+            sequence_id=self.sequence_id,
+            gt=gt,
+            gte=gte,
+            lt=lt,
+            lte=lte,
             page_size=self.page_size,
             is_ascending=self.is_ascending
         )
@@ -72,23 +88,27 @@ class ThreadedStoredEventIterator(StoredEventIterator):
 
 
 class GetEntityEventsThread(Thread):
-    def __init__(self, repo, stored_entity_id, after=None, until=None, page_size=None, is_ascending=True, *args,
-                 **kwargs):
+    def __init__(self, active_record_strategy, sequence_id, gt=None, gte=None, lt=None, lte=None, page_size=None,
+                 is_ascending=True, *args, **kwargs):
         super(GetEntityEventsThread, self).__init__(*args, **kwargs)
-        assert isinstance(repo, AbstractStoredEventRepository)
-        self.repo = repo
-        self.stored_entity_id = stored_entity_id
-        self.after = after
-        self.until = until
+        assert isinstance(active_record_strategy, AbstractActiveRecordStrategy), type(active_record_strategy)
+        self.active_record_strategy = active_record_strategy
+        self.stored_entity_id = sequence_id
+        self.gt = gt
+        self.gte = gte
+        self.lt = lt
+        self.lte = lte
         self.page_size = page_size
         self.is_ascending = is_ascending
         self.stored_events = None
 
     def run(self):
-        self.stored_events = list(self.repo.get_stored_events(
-            stored_entity_id=self.stored_entity_id,
-            after=self.after,
-            until=self.until,
+        self.stored_events = list(self.active_record_strategy.get_items(
+            sequence_id=self.stored_entity_id,
+            gt=self.gt,
+            gte=self.gte,
+            lt=self.lt,
+            lte=self.lte,
             limit=self.page_size,
             query_ascending=self.is_ascending,
             results_ascending=self.is_ascending,

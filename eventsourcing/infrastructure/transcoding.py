@@ -17,7 +17,7 @@ from eventsourcing.domain.services.cipher import AbstractCipher
 
 EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
 
-StoredEvent = namedtuple('StoredEvent', ['event_id', 'stored_entity_id', 'event_topic', 'event_attrs'])
+StoredEvent = namedtuple('StoredEvent', ['event_id', 'entity_id', 'event_topic', 'event_attrs'])
 
 
 class SequencedItem(tuple):

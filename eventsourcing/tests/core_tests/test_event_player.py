@@ -1,6 +1,6 @@
 from uuid import uuid1
 
-from eventsourcing.application.policies import PersistenceSubscriber, NewPersistenceSubscriber
+from eventsourcing.application.policies import NewPersistenceSubscriber, PersistenceSubscriber
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.example.new_domain_model import Example, register_new_example
@@ -9,8 +9,8 @@ from eventsourcing.infrastructure.eventstore import EventStore, NewEventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy, entity_from_snapshot, \
     take_snapshot
 from eventsourcing.infrastructure.storedevents.pythonobjectsrepo import PythonObjectsStoredEventRepository
-from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemySequencedItemRepository, \
-    SQLAlchemyActiveRecordStrategy, SqlIntegerSequencedItem, SqlTimestampSequencedItem
+from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemyActiveRecordStrategy, \
+    SqlIntegerSequencedItem, SqlTimestampSequencedItem
 from eventsourcing.infrastructure.transcoding import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 
@@ -22,25 +22,29 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
 
         self.datastore.setup_connection()
         self.datastore.setup_tables()
-        # Setup an event store.
-        self.timestamp_entity_event_store = NewEventStore(
-            sequenced_item_repository=SQLAlchemySequencedItemRepository(
-                active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    datastore=self.datastore,
-                    active_record_class=SqlTimestampSequencedItem,
-                ),
-            ),
-            sequenced_item_mapper=SequencedItemMapper('timestamp'),
-        )
+
+        # Setup an event store for version entity events.
         self.version_entity_event_store = NewEventStore(
-            sequenced_item_repository=SQLAlchemySequencedItemRepository(
-                active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    datastore=self.datastore,
-                    active_record_class=SqlIntegerSequencedItem,
-                ),
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+                datastore=self.datastore,
+                active_record_class=SqlIntegerSequencedItem,
             ),
-            sequenced_item_mapper = SequencedItemMapper('entity_version'),
+            sequenced_item_mapper=SequencedItemMapper(
+                position_attr_name='entity_version',
+            ),
         )
+
+        # Setup an event store for timestamp entity events.
+        self.timestamp_entity_event_store = NewEventStore(
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+                datastore=self.datastore,
+                active_record_class=SqlTimestampSequencedItem,
+            ),
+            sequenced_item_mapper=SequencedItemMapper(
+                position_attr_name='timestamp',
+            ),
+        )
+
         self.ps = None
 
     def tearDown(self):
@@ -52,7 +56,6 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         assert_event_handlers_empty()
 
     def test_get_entity(self):
-
         # Store example events.
         event1 = Example.Created(entity_id='entity1', a=1, b=2)
         self.version_entity_event_store.append(event1)

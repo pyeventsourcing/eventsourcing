@@ -4,10 +4,10 @@ from eventsourcing.example.application import ExampleApplication
 from eventsourcing.example.domain_model import Example
 from eventsourcing.example.infrastructure import ExampleRepo
 from eventsourcing.infrastructure.eventstore import AbstractEventStore, AbstractStoredEventRepository
-from eventsourcing.tests.sequenced_item_tests.base import CombinedSequencedItemRepositoryTestCase
+from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies
 
 
-class ExampleApplicationTestCase(CombinedSequencedItemRepositoryTestCase):
+class ExampleApplicationTestCase(WithActiveRecordStrategies):
 
     def test(self):
         """
@@ -56,7 +56,7 @@ class ExampleApplicationTestCase(CombinedSequencedItemRepositoryTestCase):
     def construct_application(self):
         cipher = self.construct_cipher()
         app = ExampleApplication(
-            stored_event_repository=self.integer_sequenced_item_repository,
+            stored_event_repository=self.integer_sequence_active_record_strategy,
             always_encrypt=bool(cipher),
             cipher=cipher,
         )

@@ -13,7 +13,7 @@
 #
 # from eventsourcing.exceptions import ConcurrencyError, EntityVersionNotFound
 # from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
-# from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedStoredEventIterator
+# from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedSequencedItemIterator
 #
 # DEFAULT_CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'eventsourcing')
 # DEFAULT_CASSANDRA_CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', 'LOCAL_QUORUM')
@@ -63,7 +63,7 @@
 # class Cassandra2StoredEventRepository(AbstractStoredEventRepository):
 #     @property
 #     def iterator_class(self):
-#         return ThreadedStoredEventIterator
+#         return ThreadedSequencedItemIterator
 #
 #     def write_version_and_event(self, new_stored_event, new_version_number=0, max_retries=3,
 #                                 artificial_failure_rate=0):
@@ -71,7 +71,7 @@
 #         Writes the stored event with version number.
 #         """
 #         # Write the next version.
-#         stored_entity_id = new_stored_event.stored_entity_id
+#         entity_id = new_stored_event.entity_id
 #         new_entity_version = None
 #         # Write the stored event into the database.
 #         try:
@@ -81,7 +81,7 @@
 #
 #                     if new_version_number is None:
 #                         try:
-#                             cql_stored_event = CqlStoredEvent.objects.filter(n=stored_entity_id).limit(1).get()
+#                             cql_stored_event = CqlStoredEvent.objects.filter(n=entity_id).limit(1).get()
 #                         except CqlStoredEvent.DoesNotExist:
 #                             new_version_number = 0
 #                         else:
@@ -101,7 +101,7 @@
 #                     if new_version_number is not None:
 #                         # Save the version number with the event ID (UUID1).
 #                         cql_entity_version = CqlEntityVersion(
-#                             n=stored_entity_id,
+#                             n=entity_id,
 #                             i=new_stored_event.event_id,
 #                             v=new_version_number
 #                         )
@@ -119,7 +119,7 @@
 #
 #                 except LWTException as e:
 #                     raise ConcurrencyError(
-#                         "Version {} of entity {} already exists: {}".format(new_entity_version, stored_entity_id, e))
+#                         "Version {} of entity {} already exists: {}".format(new_entity_version, entity_id, e))
 #                 else:
 #
 #                     break
@@ -135,7 +135,7 @@
 #             sleep(0.1)
 #             try:
 #                 # If the event actually exists, despite the exception, all is well.
-#                 CqlStoredEvent.get(n=new_stored_event.stored_entity_id, v=new_version_number)
+#                 CqlStoredEvent.get(n=new_stored_event.entity_id, v=new_version_number)
 #
 #             except InvalidRequest:
 #                 raise event_write_error
@@ -161,7 +161,7 @@
 #                                 # Raise when retries are exhausted.
 #                                 raise Exception("Unable to delete version {} of entity {} after failing to write"
 #                                                 "event: event write error {}: version delete error {}"
-#                                                 .format(new_entity_version, stored_entity_id,
+#                                                 .format(new_entity_version, entity_id,
 #                                                         event_write_error, version_delete_error))
 #                             else:
 #                                 # Otherwise retry.
@@ -172,19 +172,19 @@
 #                             break
 #                 raise event_write_error
 #
-#     def get_entity_version(self, stored_entity_id, version_number):
+#     def get_entity_version(self, entity_id, version_number):
 #         try:
-#             CqlStoredEvent.get(n=stored_entity_id, v=version_number)
+#             CqlStoredEvent.get(n=entity_id, v=version_number)
 #         except CqlEntityVersion.DoesNotExist:
 #             raise EntityVersionNotFound()
 #
-#     def get_domain_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
+#     def get_domain_events(self, entity_id, after=None, until=None, limit=None, query_ascending=True,
 #                           results_ascending=True):
 #
 #         if limit is not None and limit < 1:
 #             return []
 #
-#         query = CqlStoredEvent.objects.filter(n=stored_entity_id)
+#         query = CqlStoredEvent.objects.filter(n=entity_id)
 #
 #         if query_ascending:
 #             query = query.order_by('v')
@@ -192,18 +192,18 @@
 #         if after is not None:
 #             if query_ascending:
 #                 try:
-#                     after_version = CqlEntityVersion.objects.order_by('i').limit(1).get(n=stored_entity_id,
+#                     after_version = CqlEntityVersion.objects.order_by('i').limit(1).get(n=entity_id,
 #                                                                                         i__gte=after).v
 #                 except CqlEntityVersion.DoesNotExist:
 #                     pass
 #                 else:
 #                     query = query.filter(v__gt=after_version)
 #             else:
-#                 after_version = CqlEntityVersion.objects.limit(1).get(n=stored_entity_id, i__gte=after).v
+#                 after_version = CqlEntityVersion.objects.limit(1).get(n=entity_id, i__gte=after).v
 #                 query = query.filter(v__gte=after_version)
 #         if until is not None:
 #             try:
-#                 until_version = CqlEntityVersion.objects.limit(1).get(n=stored_entity_id, i__lte=until).v
+#                 until_version = CqlEntityVersion.objects.limit(1).get(n=entity_id, i__lte=until).v
 #             except CqlEntityVersion.DoesNotExist:
 #                 pass
 #             else:
@@ -226,7 +226,7 @@
 #     def to_active_record(self, stored_event, new_version_number):
 #         assert isinstance(stored_event, self.stored_event_class), stored_event
 #         return CqlStoredEvent(
-#             n=stored_event.stored_entity_id,
+#             n=stored_event.entity_id,
 #             v=new_version_number,
 #             i=stored_event.event_id,
 #             t=stored_event.event_topic,
@@ -236,7 +236,7 @@
 #     def from_active_record(self, cql_stored_event):
 #         assert isinstance(cql_stored_event, CqlStoredEvent), cql_stored_event
 #         return self.stored_event_class(
-#             stored_entity_id=cql_stored_event.n,
+#             entity_id=cql_stored_event.n,
 #             event_id=cql_stored_event.i.hex,
 #             event_topic=cql_stored_event.t,
 #             event_attrs=cql_stored_event.a

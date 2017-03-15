@@ -12,7 +12,7 @@ from eventsourcing.tests.sequenced_item_tests.test_python_objects_stored_event_r
 
 
 class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCase):
-# class TestExampleEntity(SQLAlchemyRepoTestCase, PersistenceSubscribingTestCase):
+# class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, PersistenceSubscribingTestCase):
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
         example1 = register_new_example(a=1, b=2)

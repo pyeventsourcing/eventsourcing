@@ -9,7 +9,7 @@ from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text, Float
 
 from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, SequencedItemError
 from eventsourcing.infrastructure.datastore.sqlalchemyorm import Base, SQLAlchemyDatastore
-from eventsourcing.infrastructure.eventstore import AbstractSequencedItemRepository, AbstractStoredEventRepository
+from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.transcoding import EntityVersion
 from eventsourcing.utils.time import timestamp_long_from_uuid
@@ -110,7 +110,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         assert isinstance(sql_stored_event, self.stored_event_table), sql_stored_event
         return self.stored_event_class(
             event_id=sql_stored_event.event_id,
-            stored_entity_id=sql_stored_event.stored_entity_id,
+            stored_entity_id=sql_stored_event.entity_id,
             event_attrs=sql_stored_event.event_attrs,
             event_topic=sql_stored_event.event_topic
         )
@@ -120,7 +120,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         return self.stored_event_table(
             event_id=stored_event.event_id,
             timestamp_long=timestamp_long_from_uuid(stored_event.event_id),
-            stored_entity_id=stored_event.stored_entity_id,
+            stored_entity_id=stored_event.entity_id,
             event_attrs=stored_event.event_attrs,
             event_topic=stored_event.event_topic
         )
@@ -131,22 +131,6 @@ class SqlEntityVersion(Base):
 
     entity_version_id = Column(String(355), primary_key=True)
     event_id = Column(String(255))
-
-
-class SqlStoredEvent(Base):
-    __tablename__ = 'storedevents'
-
-    id = Column(Integer, Sequence('stored_event_id_seq'), primary_key=True)
-    stored_entity_id = Column(String(255), index=True)
-    event_id = Column(String(255), index=True)
-    timestamp_long = Column(BigInteger(), index=True)
-    event_topic = Column(String(255))
-    event_attrs = Column(Text())
-
-    # Unique contraint includes 'stored_entity_id' which is a good value
-    # to partition on, because all events for an entity will be in the same
-    # partition, which may help performance.
-    __table_args__ = UniqueConstraint('stored_entity_id', 'event_id', name='stored_event_uc'),
 
 
 class SqlIntegerSequencedItem(Base):
@@ -166,7 +150,7 @@ class SqlIntegerSequencedItem(Base):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Unique constraint includes 'stored_entity_id' which is a good value
+    # Unique constraint includes 'entity_id' which is a good value
     # to partition on, because all events for an entity will be in the same
     # partition, which may help performance.
     __table_args__ = UniqueConstraint('sequence_id', 'position',
@@ -197,11 +181,6 @@ class SqlTimestampSequencedItem(Base):
     data = Column(Text())
 
 
-
-class SQLAlchemySequencedItemRepository(AbstractSequencedItemRepository):
-    pass
-
-
 class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
     def __init__(self, datastore, stored_event_table, **kwargs):
         super(SQLAlchemyStoredEventRepository, self).__init__(**kwargs)
@@ -222,7 +201,7 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
         """
         Writes new entity version and stored event into the database in a single transaction.
         """
-        stored_entity_id = new_stored_event.stored_entity_id
+        stored_entity_id = new_stored_event.entity_id
         new_entity_version = None
         try:
             # Write entity version into the transaction.
@@ -328,7 +307,7 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
         assert isinstance(sql_stored_event, self.stored_event_table), sql_stored_event
         return self.stored_event_class(
             event_id=sql_stored_event.event_id,
-            stored_entity_id=sql_stored_event.stored_entity_id,
+            stored_entity_id=sql_stored_event.entity_id,
             event_attrs=sql_stored_event.event_attrs,
             event_topic=sql_stored_event.event_topic
         )
@@ -338,7 +317,7 @@ class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):
         return self.stored_event_table(
             event_id=stored_event.event_id,
             timestamp_long=timestamp_long_from_uuid(stored_event.event_id),
-            stored_entity_id=stored_event.stored_entity_id,
+            stored_entity_id=stored_event.entity_id,
             event_attrs=stored_event.event_attrs,
             event_topic=stored_event.event_topic
         )

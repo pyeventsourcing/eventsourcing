@@ -11,10 +11,10 @@ from eventsourcing.tests.base import notquick
 from eventsourcing.tests.core_tests.test_utils import utc_now
 from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
 from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import CipheringTestCase
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_sequence_repository import \
-    CassandraRepoTestCase
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_sequence_repository import \
-    SQLAlchemyRepoTestCase
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
+    CassandraActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
+    WithSQLAlchemyActiveRecordStrategies
 
 
 @notquick()
@@ -58,7 +58,7 @@ class PerformanceTestCase(ExampleApplicationTestCase):
                 def last_n(n):
                     n = min(n, num_beats + 1)
                     stored_entity_id = make_stored_entity_id('Example', example.id)
-                    repo = app.example_repo.event_player.event_store.integer_sequenced_item_repository
+                    repo = app.example_repo.event_player.event_store.integer_sequence_active_record_strategy
 
                     start_last_n = utc_now()
                     last_n_stored_events = []
@@ -205,7 +205,7 @@ class PerformanceTestCase(ExampleApplicationTestCase):
 
 
 @notquick()
-class TestCassandraPerformance(CassandraRepoTestCase, PerformanceTestCase):
+class TestCassandraPerformance(CassandraActiveRecordStrategies, PerformanceTestCase):
     pass
 
 
@@ -221,5 +221,5 @@ class TestEncryptionPerformance(CipheringTestCase, TestCassandraPerformance):
 
 
 @notquick()
-class TestSQLAlchemyPerformance(SQLAlchemyRepoTestCase, PerformanceTestCase):
+class TestSQLAlchemyPerformance(WithSQLAlchemyActiveRecordStrategies, PerformanceTestCase):
     pass

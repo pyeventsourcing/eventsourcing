@@ -91,11 +91,10 @@ class EventStore(AbstractEventStore):
 
 
 class NewEventStore(AbstractEventStore):
-    def __init__(self, sequenced_item_repository, sequenced_item_mapper=None):
-        assert isinstance(sequenced_item_repository, AbstractSequencedItemRepository), sequenced_item_repository
+    def __init__(self, active_record_strategy, sequenced_item_mapper=None):
+        assert isinstance(active_record_strategy, AbstractActiveRecordStrategy), active_record_strategy
         assert isinstance(sequenced_item_mapper, AbstractSequencedItemMapper), sequenced_item_mapper
-        self.sequenced_item_repository = sequenced_item_repository
-
+        self.active_record_strategy = active_record_strategy
         self.sequenced_item_mapper = sequenced_item_mapper
 
     def append(self, domain_event):
@@ -103,14 +102,14 @@ class NewEventStore(AbstractEventStore):
         # Serialize the domain event as a sequenced item.
         sequenced_item = self.sequenced_item_mapper.to_sequenced_item(domain_event)
 
-        # Append to the sequenced item to the repository.
-        self.sequenced_item_repository.append_item(sequenced_item)
+        # Append to the item to the sequence.
+        self.active_record_strategy.append_item(sequenced_item)
 
     def get_domain_events(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
                           page_size=None):
         # Get all the sequenced items for the entity.
         if page_size:
-            sequenced_items = self.sequenced_item_repository.iterate_stored_events(
+            sequenced_items = self.active_record_strategy.iterate_stored_events(
                 sequence_id=entity_id,
                 gt=gt,
                 gte=gte,
@@ -121,7 +120,7 @@ class NewEventStore(AbstractEventStore):
                 page_size=page_size
             )
         else:
-            sequenced_items = self.sequenced_item_repository.get_items(
+            sequenced_items = self.active_record_strategy.get_items(
                 sequence_id=entity_id,
                 gt=gt,
                 gte=gte,
@@ -136,7 +135,7 @@ class NewEventStore(AbstractEventStore):
         return six.moves.map(self.sequenced_item_mapper.from_sequenced_item, sequenced_items)
 
 
-class AbstractSequencedItemRepository(six.with_metaclass(ABCMeta)):
+class SequencedItemRepository(six.with_metaclass(ABCMeta)):
 
     def __init__(self, active_record_strategy):
         assert isinstance(active_record_strategy, AbstractActiveRecordStrategy)
@@ -203,7 +202,7 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         """
         assert isinstance(new_stored_event, self.stored_event_class)
 
-        stored_entity_id = new_stored_event.stored_entity_id
+        stored_entity_id = new_stored_event.entity_id
         expected_version_number = self.decide_expected_version_number(new_version_number)
         if expected_version_number is not None:
             assert isinstance(expected_version_number, six.integer_types)
@@ -216,7 +215,7 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
             #         raise ConcurrencyError("New event ID '{}' occurs before last version event ID '{}' for
             # entity {}"
             #                                "".format(new_stored_event.event_id, entity_version.event_id,
-            # stored_entity_id))
+            # entity_id))
 
     def decide_expected_version_number(self, new_version_number):
         return new_version_number - 1 if new_version_number else None
@@ -307,7 +306,7 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
     @property
     def iterator_class(self):
-        return SimpleStoredEventIterator
+        return SimpleSequencedItemIterator
 
     def get_most_recent_event(self, stored_entity_id, until=None, include_until=False):
         """
@@ -369,24 +368,28 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
         )
 
 
-class StoredEventIterator(six.with_metaclass(ABCMeta)):
+class AbstractStoredEventIterator(six.with_metaclass(ABCMeta)):
     DEFAULT_PAGE_SIZE = 1000
 
-    def __init__(self, repo, stored_entity_id, page_size=None, after=None, until=None, limit=None, is_ascending=True):
-        assert isinstance(repo, AbstractStoredEventRepository), type(repo)
-        assert isinstance(stored_entity_id, six.string_types)
+    def __init__(self, active_record_strategy, sequence_id, page_size=None, gt=None, gte=None, lt=None, lte=None,
+                 limit=None, is_ascending=True):
+        assert isinstance(active_record_strategy, AbstractActiveRecordStrategy), type(active_record_strategy)
+        assert isinstance(sequence_id, six.string_types)
         assert isinstance(page_size, (six.integer_types, type(None)))
         assert isinstance(limit, (six.integer_types, type(None)))
-        self.repo = repo
-        self.stored_entity_id = stored_entity_id
+        self.active_record_strategy = active_record_strategy
+        self.sequence_id = sequence_id
         self.page_size = page_size or self.DEFAULT_PAGE_SIZE
-        self.after = after
-        self.until = until
+        self.gt = gt
+        self.gte = gte
+        self.lte = lte
+        self.lt = lt
         self.limit = limit
         self.query_counter = 0
         self.page_counter = 0
-        self.all_event_counter = 0
+        self.all_item_counter = 0
         self.is_ascending = is_ascending
+        self._position = None
 
     def _inc_page_counter(self):
         """
@@ -406,37 +409,34 @@ class StoredEventIterator(six.with_metaclass(ABCMeta)):
         self.query_counter += 1
 
     def _inc_all_event_counter(self):
-        self.all_event_counter += 1
+        self.all_item_counter += 1
 
-    def _update_position(self, stored_event):
-        assert isinstance(stored_event, self.repo.stored_event_class), type(stored_event)
-        if self.is_ascending:
-            self.after = stored_event.event_id
-        else:
-            self.until = stored_event.event_id
+    def _update_position(self, sequenced_item):
+        assert isinstance(sequenced_item, self.active_record_strategy.sequenced_item_class), type(sequenced_item)
+        self._position = sequenced_item.position
 
     @abstractmethod
     def __iter__(self):
         """
-        Returns an Python iterable, probably a Python generator, that
-        can be used to iterate over the stored events, according to
-        the implement in a subclass.
+        Yields a continuous sequence of items.
         """
 
 
-class SimpleStoredEventIterator(StoredEventIterator):
+class SimpleSequencedItemIterator(AbstractStoredEventIterator):
     def __iter__(self):
         """
-        Yields pages of events until the last page.
-
-        Implements the iterator as a Python generator, that can be
-        used to iterate over the stored events, by retrieving
-        pages of stored events from the stored event repository.
+        Yields a continuous sequence of items from "pages"
+        of sequenced items retrieved using the active record strategy.
         """
+        gt = self.gt
+        gte = self.gte
+        lt = self.lt
+        lte = self.lte
+
         while True:
             # Get next page of events.
             if self.limit is not None:
-                limit = min(self.page_size, self.limit - self.all_event_counter)
+                limit = min(self.page_size, self.limit - self.all_item_counter)
             else:
                 limit = self.page_size
 
@@ -444,10 +444,20 @@ class SimpleStoredEventIterator(StoredEventIterator):
                 raise StopIteration
 
             # Get the events.
-            stored_events = self.repo.get_stored_events(
-                stored_entity_id=self.stored_entity_id,
-                after=self.after,
-                until=self.until,
+            if self._position is not None:
+                if self.is_ascending:
+                    gt = self._position
+                    gte = None
+                else:
+                    lt = self._position
+                    lte = None
+
+            sequenced_items = self.active_record_strategy.get_items(
+                sequence_id=self.sequence_id,
+                gt=gt,
+                gte=gte,
+                lt=lt,
+                lte=lte,
                 limit=limit,
                 query_ascending=self.is_ascending,
                 results_ascending=self.is_ascending,
@@ -456,25 +466,25 @@ class SimpleStoredEventIterator(StoredEventIterator):
             self._inc_query_counter()
 
             # Start counting events in this page.
-            in_page_event_counter = 0
+            page_item_counter = 0
 
             # Yield each stored event.
-            for stored_event in stored_events:
+            for sequenced_item in sequenced_items:
 
                 # Count each event.
                 self._inc_all_event_counter()
-                in_page_event_counter += 1
+                page_item_counter += 1
 
                 # Yield the event.
-                yield stored_event
+                yield sequenced_item
 
                 # Remember the position as the last event.
-                self._update_position(stored_event)
+                self._update_position(sequenced_item)
 
             # If that wasn't an empty page, count the page.
-            if in_page_event_counter:
+            if page_item_counter:
                 self._inc_page_counter()
 
             # If that wasn't a full page, stop iterating (there can be no more items).
-            if in_page_event_counter != self.page_size:
+            if page_item_counter != self.page_size:
                 raise StopIteration

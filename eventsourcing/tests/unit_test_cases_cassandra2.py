@@ -23,13 +23,13 @@
 #         super(Cassandra2Repo2TestCase, self).setUp()
 #
 #     @property
-#     def integer_sequenced_item_repository(self):
+#     def integer_sequence_active_record_strategy(self):
 #         try:
 #             return self._stored_event_repo
 #         except AttributeError:
-#             integer_sequenced_item_repository = Cassandra2StoredEventRepository(
+#             integer_sequence_active_record_strategy = Cassandra2StoredEventRepository(
 #                 always_write_entity_version=True,
 #                 always_check_expected_version=True,
 #             )
-#             self._stored_event_repo = integer_sequenced_item_repository
-#             return integer_sequenced_item_repository
+#             self._stored_event_repo = integer_sequence_active_record_strategy
+#             return integer_sequence_active_record_strategy

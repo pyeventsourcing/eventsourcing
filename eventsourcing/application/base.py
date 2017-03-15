@@ -4,7 +4,8 @@ from six import with_metaclass
 
 from eventsourcing.application.policies import PersistenceSubscriber, NewPersistenceSubscriber
 from eventsourcing.infrastructure.eventstore import EventStore, AbstractStoredEventRepository, \
-    AbstractSequencedItemRepository, NewEventStore
+    NewEventStore
+from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder, SequencedItemMapper
 
 
@@ -67,8 +68,8 @@ class EventSourcedApplication(ReadOnlyEventSourcingApplication):
 
 class NewReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
 
-    def __init__(self, integer_sequenced_item_repository=None,
-                 timestamp_sequenced_item_repository=None, always_encrypt=False, cipher=None):
+    def __init__(self, integer_sequenced_active_record_strategy=None,
+                 timestamp_sequenced_active_record_strategy=None, always_encrypt=False, cipher=None):
         """
         Constructs an event store using the given stored event repository.
 
@@ -79,29 +80,31 @@ class NewReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         :param cipher:  Used to encrypt and decrypt stored events.
 
         """
-        assert isinstance(integer_sequenced_item_repository, AbstractSequencedItemRepository), \
-            type(integer_sequenced_item_repository)
-        assert isinstance(timestamp_sequenced_item_repository, AbstractSequencedItemRepository), \
-            type(integer_sequenced_item_repository)
-        self.integer_sequenced_item_repository = integer_sequenced_item_repository
-        self.timestamp_sequenced_item_repository = timestamp_sequenced_item_repository
+        assert isinstance(integer_sequenced_active_record_strategy, AbstractActiveRecordStrategy), \
+            type(integer_sequenced_active_record_strategy)
+
+        assert isinstance(timestamp_sequenced_active_record_strategy, AbstractActiveRecordStrategy), \
+            type(integer_sequenced_active_record_strategy)
+
+        self.integer_sequenced_active_record_strategy = integer_sequenced_active_record_strategy
+        self.timestamp_sequenced_active_record_strategy = timestamp_sequenced_active_record_strategy
         self.version_entity_event_store = self.construct_event_store(
             position_attr_name='entity_version',
-            sequenced_item_repository=self.integer_sequenced_item_repository,
+            active_record_strategy=self.integer_sequenced_active_record_strategy,
             always_encrypt=always_encrypt,
             cipher=cipher,
         )
         self.timestamp_entity_event_store = self.construct_event_store(
             position_attr_name='timestamp',
-            sequenced_item_repository=self.timestamp_sequenced_item_repository,
+            active_record_strategy=self.timestamp_sequenced_active_record_strategy,
             always_encrypt=always_encrypt,
             cipher=cipher,
         )
 
-    def construct_event_store(self, position_attr_name, sequenced_item_repository, always_encrypt=False, cipher=None):
+    def construct_event_store(self, position_attr_name, active_record_strategy, always_encrypt=False, cipher=None):
         sequenced_item_mapper = self.construct_sequenced_item_mapper(position_attr_name, always_encrypt, cipher)
         event_store = NewEventStore(
-            sequenced_item_repository=sequenced_item_repository,
+            active_record_strategy=active_record_strategy,
             sequenced_item_mapper=sequenced_item_mapper,
         )
         return event_store
@@ -111,7 +114,7 @@ class NewReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
 
     def close(self):
         self.event_store = None
-        self.integer_sequenced_item_repository = None
+        self.integer_sequenced_active_record_strategy = None
 
     def __enter__(self):
         return self
