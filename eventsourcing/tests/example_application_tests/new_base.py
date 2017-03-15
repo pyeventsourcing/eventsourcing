@@ -1,9 +1,10 @@
 from eventsourcing.application.policies import NewPersistenceSubscriber
+from eventsourcing.domain.model.new_snapshot import Snapshot
 from eventsourcing.example.new_application import ExampleApplication
 from eventsourcing.example.new_domain_model import Example
 from eventsourcing.example.new_infrastructure import ExampleRepo
 from eventsourcing.infrastructure.eventstore import AbstractEventStore, AbstractSequencedItemRepository
-from eventsourcing.tests.sequenced_item_repository_tests.base import CombinedSequencedItemRepositoryTestCase
+from eventsourcing.tests.sequenced_item_tests.base import CombinedSequencedItemRepositoryTestCase
 
 
 class ExampleApplicationTestCase(CombinedSequencedItemRepositoryTestCase):
@@ -49,6 +50,10 @@ class ExampleApplicationTestCase(CombinedSequencedItemRepositoryTestCase):
 
             # Take a snapshot of the entity.
             app.example_repo.event_player.snapshot_strategy.take_snapshot(entity1)
+
+            # Check the snapshot exists.
+            snapshot = app.example_repo.event_player.snapshot_strategy.get_snapshot(entity1)
+            self.assertIsInstance(snapshot, Snapshot)
 
             # Check the new value is available in the repo.
             entity1 = app.example_repo[example1.id]

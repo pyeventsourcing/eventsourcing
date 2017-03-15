@@ -3,12 +3,12 @@ from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
 from eventsourcing.infrastructure.event_sourced_repos.notificationlog_repo import NotificationLogRepo
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.infrastructure.notification_log import NotificationLogReader, append_item_to_notification_log
-from eventsourcing.tests.sequenced_item_repository_tests.test_cassandra_sequence_repository import \
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_sequence_repository import \
     CassandraRepoTestCase
-from eventsourcing.tests.sequenced_item_repository_tests.test_sqlalchemy_sequence_repository import \
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_sequence_repository import \
     SQLAlchemyRepoTestCase
-from eventsourcing.tests.sequenced_item_repository_tests.base import PersistenceSubscribingTestCase
-from eventsourcing.tests.sequenced_item_repository_tests.test_python_objects_stored_event_repository import \
+from eventsourcing.tests.sequenced_item_tests.base import PersistenceSubscribingTestCase
+from eventsourcing.tests.sequenced_item_tests.test_python_objects_stored_event_repository import \
     PythonObjectsRepoTestCase
 
 

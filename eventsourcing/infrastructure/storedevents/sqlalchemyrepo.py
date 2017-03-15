@@ -22,6 +22,63 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         super(SQLAlchemyActiveRecordStrategy, self).__init__(*args, **kwargs)
         self.datastore = datastore
 
+    def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
+                  query_ascending=True, results_ascending=True):
+
+        assert limit is None or limit >= 1, limit
+
+        try:
+            query = self.filter(sequence_id=sequence_id)
+
+            if query_ascending:
+                query = query.order_by(asc(self.active_record_class.position))
+            else:
+                query = query.order_by(desc(self.active_record_class.position))
+
+            if gt is not None:
+                query = query.filter(self.active_record_class.position > gt)
+            if gte is not None:
+                query = query.filter(self.active_record_class.position >= gte)
+            if lt is not None:
+                query = query.filter(self.active_record_class.position < lt)
+            if lte is not None:
+                query = query.filter(self.active_record_class.position <= lte)
+
+            if limit is not None:
+                query = query.limit(limit)
+
+            events = six.moves.map(self.from_active_record, query)
+            events = list(events)
+
+        finally:
+            self.datastore.db_session.close()
+
+        if results_ascending != query_ascending:
+            events.reverse()
+
+        return events
+
+    def append_item(self, item):
+        active_record = self.to_active_record(item)
+        try:
+            # Write stored event into the transaction.
+            self.datastore.db_session.add(active_record)
+
+            # Commit the transaction.
+            self.datastore.db_session.commit()
+
+        except IntegrityError as e:
+            # Roll back the transaction.
+            self.datastore.db_session.rollback()
+            raise SequencedItemError(e)
+
+        except DBAPIError as e:
+            raise DatasourceOperationError(e)
+
+        finally:
+            # Begin new transaction.
+            self.datastore.db_session.close()
+
     def to_active_record(self, sequenced_item):
         """
         Returns an active record, from given sequenced item.
@@ -142,63 +199,7 @@ class SqlTimestampSequencedItem(Base):
 
 
 class SQLAlchemySequencedItemRepository(AbstractSequencedItemRepository):
-
-    def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                  query_ascending=True, results_ascending=True):
-
-        assert limit is None or limit >= 1, limit
-
-        try:
-            query = self.active_record_strategy.filter(sequence_id=sequence_id)
-
-            if query_ascending:
-                query = query.order_by(asc(self.active_record_strategy.active_record_class.position))
-            else:
-                query = query.order_by(desc(self.active_record_strategy.active_record_class.position))
-
-            if gt is not None:
-                query = query.filter(self.active_record_strategy.active_record_class.position > gt)
-            if gte is not None:
-                query = query.filter(self.active_record_strategy.active_record_class.position >= gte)
-            if lt is not None:
-                query = query.filter(self.active_record_strategy.active_record_class.position < lt)
-            if lte is not None:
-                query = query.filter(self.active_record_strategy.active_record_class.position <= lte)
-
-            if limit is not None:
-                query = query.limit(limit)
-
-            events = six.moves.map(self.active_record_strategy.from_active_record, query)
-            events = list(events)
-
-        finally:
-            self.active_record_strategy.datastore.db_session.close()
-
-        if results_ascending != query_ascending:
-            events.reverse()
-
-        return events
-
-    def append_item(self, item):
-        active_record = self.active_record_strategy.to_active_record(item)
-        try:
-            # Write stored event into the transaction.
-            self.active_record_strategy.datastore.db_session.add(active_record)
-
-            # Commit the transaction.
-            self.active_record_strategy.datastore.db_session.commit()
-
-        except IntegrityError as e:
-            # Roll back the transaction.
-            self.active_record_strategy.datastore.db_session.rollback()
-            raise SequencedItemError(e)
-
-        except DBAPIError as e:
-            raise DatasourceOperationError(e)
-
-        finally:
-            # Begin new transaction.
-            self.active_record_strategy.datastore.db_session.close()
+    pass
 
 
 class SQLAlchemyStoredEventRepository(AbstractStoredEventRepository):

@@ -1,5 +1,5 @@
 from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
-from eventsourcing.tests.sequenced_item_repository_tests.test_sqlalchemy_sequence_repository import \
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_sequence_repository import \
     SQLAlchemyRepoTestCase
 
 

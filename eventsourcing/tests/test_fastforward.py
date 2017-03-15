@@ -2,7 +2,7 @@ from eventsourcing.example.application import ExampleApplication
 from eventsourcing.example.domain_model import Example
 from eventsourcing.exceptions import ConcurrencyError
 from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
-from eventsourcing.tests.sequenced_item_repository_tests.test_python_objects_stored_event_repository import \
+from eventsourcing.tests.sequenced_item_tests.test_python_objects_stored_event_repository import \
     PythonObjectsRepoTestCase
 
 

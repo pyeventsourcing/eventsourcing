@@ -16,6 +16,52 @@ from eventsourcing.infrastructure.transcoding import EntityVersion
 
 
 class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
+
+    def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
+                  query_ascending=True, results_ascending=True):
+
+        assert limit is None or limit >= 1, limit
+        assert not (gte and gt)
+        assert not (lte and lt)
+
+        query = self.filter(s=sequence_id)
+
+        if query_ascending:
+            query = query.order_by('p')
+
+        if gt is not None:
+            query = query.filter(p__gt=gt)
+        if gte is not None:
+            query = query.filter(p__gte=gte)
+        if lt is not None:
+            query = query.filter(p__lt=lt)
+        if lte is not None:
+            query = query.filter(p__lte=lte)
+
+        if limit is not None:
+            query = query.limit(limit)
+
+        items = six.moves.map(self.from_active_record, query)
+        try:
+            items = list(items)
+        except InvalidRequest as e:
+            msg = "Invalid request: {}".format(e)
+            raise DatasourceOperationError(msg)
+
+        if results_ascending != query_ascending:
+            items.reverse()
+
+        return items
+
+    def append_item(self, item):
+        active_record = self.to_active_record(item)
+        try:
+            active_record.save()
+        except LWTException as e:
+            raise SequencedItemError((active_record.s, active_record.p, e))
+        except DriverException as e:
+            raise DatasourceOperationError(e)
+
     def to_active_record(self, sequenced_item):
         """
         Returns an active record instance, from given sequenced item.
@@ -85,7 +131,7 @@ class CqlIntegerSequencedItem(Model):
 class CqlTimestampSequencedItem(Model):
     """Stores timestamp-sequenced items in Cassandra."""
 
-    # _if_not_exists = True
+    _if_not_exists = True
 
     __table_name__ = 'timestamp_sequenced_items'
 
@@ -140,51 +186,7 @@ class CqlStoredEvent(Model):
 
 
 class CassandraSequencedItemRepository(AbstractSequencedItemRepository):
-    def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                  query_ascending=True, results_ascending=True):
-
-        assert limit is None or limit >= 1, limit
-        assert not (gte and gt)
-        assert not (lte and lt)
-
-        query = self.active_record_strategy.filter(s=sequence_id)
-
-        if query_ascending:
-            query = query.order_by('p')
-
-        if gt is not None:
-            query = query.filter(p__gt=gt)
-        if gte is not None:
-            query = query.filter(p__gte=gte)
-        if lt is not None:
-            query = query.filter(p__lt=lt)
-        if lte is not None:
-            query = query.filter(p__lte=lte)
-
-        if limit is not None:
-            query = query.limit(limit)
-
-        items = six.moves.map(self.active_record_strategy.from_active_record, query)
-        try:
-            items = list(items)
-        except InvalidRequest as e:
-            msg = "Invalid request: {}".format(e)
-            raise DatasourceOperationError(msg)
-
-        if results_ascending != query_ascending:
-            items.reverse()
-
-        return items
-
-    def append_item(self, item):
-        active_record = self.active_record_strategy.to_active_record(item)
-        try:
-            active_record.save()
-        except LWTException as e:
-            raise SequencedItemError((active_record.s, active_record.p, e))
-        except DriverException as e:
-            raise DatasourceOperationError(e)
-
+    pass
 
 class CassandraStoredEventRepository(AbstractStoredEventRepository):
     def __init__(self, stored_event_table=None, integer_sequenced_item_table=None, time_sequenced_item_table=None,

@@ -4,7 +4,7 @@ from eventsourcing.example.application import ExampleApplication
 from eventsourcing.example.domain_model import Example
 from eventsourcing.example.infrastructure import ExampleRepo
 from eventsourcing.infrastructure.eventstore import AbstractEventStore, AbstractStoredEventRepository
-from eventsourcing.tests.sequenced_item_repository_tests.base import CombinedSequencedItemRepositoryTestCase
+from eventsourcing.tests.sequenced_item_tests.base import CombinedSequencedItemRepositoryTestCase
 
 
 class ExampleApplicationTestCase(CombinedSequencedItemRepositoryTestCase):

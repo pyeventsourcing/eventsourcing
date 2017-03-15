@@ -142,14 +142,23 @@ class AbstractSequencedItemRepository(six.with_metaclass(ABCMeta)):
         assert isinstance(active_record_strategy, AbstractActiveRecordStrategy)
         self.active_record_strategy = active_record_strategy
 
-    @abstractmethod
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
         """Returns items in sequence."""
+        return self.active_record_strategy.get_items(
+            sequence_id,
+            gt=gt,
+            gte=gte,
+            lt=gte,
+            lte=lte,
+            limit=limit,
+            query_ascending=query_ascending,
+            results_ascending=results_ascending,
+        )
 
-    @abstractmethod
     def append_item(self, item):
         """Appends item to sequence."""
+        self.active_record_strategy.append_item(item)
 
 
 class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):

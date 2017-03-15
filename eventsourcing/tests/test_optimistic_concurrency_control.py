@@ -18,10 +18,10 @@ from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemyS
 from eventsourcing.infrastructure.transcoding import StoredEvent
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
-from eventsourcing.tests.sequenced_item_repository_tests.base import CombinedSequencedItemRepositoryTestCase
-from eventsourcing.tests.sequenced_item_repository_tests.test_cassandra_sequence_repository import \
+from eventsourcing.tests.sequenced_item_tests.base import CombinedSequencedItemRepositoryTestCase
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_sequence_repository import \
     CassandraRepoTestCase
-from eventsourcing.tests.sequenced_item_repository_tests.test_sqlalchemy_sequence_repository import \
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_sequence_repository import \
     SQLAlchemyRepoTestCase
 
 

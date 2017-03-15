@@ -6,8 +6,8 @@ from eventsourcing.domain.model.events import DomainEvent, publish, subscribe, u
 from eventsourcing.example.domain_model import Example, register_new_example
 from eventsourcing.example.infrastructure import ExampleRepo
 from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError
-from eventsourcing.tests.sequenced_item_repository_tests.base import PersistenceSubscribingTestCase
-from eventsourcing.tests.sequenced_item_repository_tests.test_python_objects_stored_event_repository import \
+from eventsourcing.tests.sequenced_item_tests.base import PersistenceSubscribingTestCase
+from eventsourcing.tests.sequenced_item_tests.test_python_objects_stored_event_repository import \
     PythonObjectsRepoTestCase
 
 
