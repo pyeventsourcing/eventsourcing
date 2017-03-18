@@ -1,6 +1,6 @@
 from singledispatch import singledispatch
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository, entity_mutator, Created
+from eventsourcing.domain.model.entity import EventSourcedEntity, AbstractEntityRepository, entity_mutator, Created
 from eventsourcing.domain.model.events import publish
 
 # Todo: New idea, just make it be a mixture of an archived log to hold the current sequence and a sequence.
@@ -41,7 +41,7 @@ def notification_log_mutator(event, initial):
     return entity_mutator(event, initial)
 
 
-class NotificationLogRepository(EntityRepository):
+class NotificationLogRepository(AbstractEntityRepository):
     def get_or_create(self, log_name, timebucket_size=None, sequence_size=None):
         """
         Gets or creates a log.

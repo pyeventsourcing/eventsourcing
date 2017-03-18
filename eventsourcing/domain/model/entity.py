@@ -11,7 +11,7 @@ from abc import ABCMeta, abstractmethod
 from inspect import isfunction
 from six import with_metaclass
 
-from eventsourcing.domain.model.events import publish, QualnameABCMeta, DomainEvent
+from eventsourcing.domain.model.events import publish, QualnameABCMeta, OldDomainEvent
 
 
 class EntityIDConsistencyError(ConsistencyError):
@@ -30,16 +30,16 @@ class EntityIsDiscarded(AssertionError):
     pass
 
 
-class Created(DomainEvent):
+class Created(OldDomainEvent):
     def __init__(self, entity_version=0, **kwargs):
         super(Created, self).__init__(entity_version=entity_version, **kwargs)
 
 
-class AttributeChanged(DomainEvent):
+class AttributeChanged(OldDomainEvent):
     pass
 
 
-class Discarded(DomainEvent):
+class Discarded(OldDomainEvent):
     pass
 
 
@@ -194,7 +194,7 @@ def attribute(getter):
         raise ProgrammingError("Expected a function, got: {}".format(repr(getter)))
 
 
-class EntityRepository(with_metaclass(ABCMeta)):
+class AbstractEntityRepository(with_metaclass(ABCMeta)):
 
     @abstractmethod
     def __getitem__(self, entity_id):

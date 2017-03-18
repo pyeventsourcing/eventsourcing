@@ -1,30 +1,32 @@
 from math import floor
-from uuid import uuid1
+from time import time
 
 import six
 
 from eventsourcing.domain.model.log import get_logger, start_new_log
-from eventsourcing.example.domain_model import Example, register_new_example
+from eventsourcing.example.new_domain_model import Example, register_new_example
+from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.eventstore import NewEventStore
+from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.log_reader import LogReader, get_log_reader
-from eventsourcing.infrastructure.transcoding import make_stored_entity_id
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.core_tests.test_utils import utc_now
-from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
-from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import CipheringTestCase
+from eventsourcing.tests.example_application_tests.new_base import ExampleApplicationTestCase
+from eventsourcing.tests.example_application_tests.test_new_example_application_with_encryption import \
+    CipheringTestCase
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
-    CassandraActiveRecordStrategies
+    WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 
 
 @notquick()
 class PerformanceTestCase(ExampleApplicationTestCase):
-
     def test(self):
         """
         Reports on the performance of Example entity and repo.
 
-        NB: This test doesn't actually check anything, so it isn't really a test.
+        NB: This test doesn't actually assert anything, so it isn't really a test.
         """
 
         with self.construct_application() as app:
@@ -35,9 +37,9 @@ class PerformanceTestCase(ExampleApplicationTestCase):
             report_name = type(self).__name__[4:]
             print("\n\n{} report:\n".format(report_name))
 
-            repetitions = 10
+            repetitions = 1  # 10
 
-            # NB: Use range(1, 5) to test whether we can get more than 10000 event from Cassandra.
+            # NB: Use range(1, 5) to test whether we can get more than 10000 items from Cassandra.
             for i in six.moves.range(0, 5):
                 # Setup a number of entities, with different lengths of event history.
                 payload = 3
@@ -57,16 +59,23 @@ class PerformanceTestCase(ExampleApplicationTestCase):
                 # Get the last n events from the repo.
                 def last_n(n):
                     n = min(n, num_beats + 1)
-                    stored_entity_id = make_stored_entity_id('Example', example.id)
-                    repo = app.example_repo.event_player.event_store.integer_sequence_active_record_strategy
+                    assert isinstance(app.example_repo.event_player.event_store, NewEventStore)
+                    ars = app.example_repo.event_player.event_store.active_record_strategy
+                    assert isinstance(ars, AbstractActiveRecordStrategy)
 
                     start_last_n = utc_now()
                     last_n_stored_events = []
                     for _ in six.moves.range(repetitions):
-                        last_n_stored_events = repo.get_most_recent_events(stored_entity_id, limit=n)
+                        iterator = SequencedItemIterator(
+                            active_record_strategy=ars,
+                            sequence_id=example.id,
+                            limit=n,
+                            is_ascending=False,
+                        )
+                        last_n_stored_events = list(iterator)
                     time_last_n = (utc_now() - start_last_n) / repetitions
 
-                    num_retrieved_events = len(list(last_n_stored_events))
+                    num_retrieved_events = len(last_n_stored_events)
                     events_per_second = num_retrieved_events / time_last_n
                     print(("Time to get last {:>" + str(i + 1) + "} events after {} events: {:.6f}s ({:.0f} events/s)"
                                                                  "").format(n, num_beats + 1, time_last_n,
@@ -88,7 +97,7 @@ class PerformanceTestCase(ExampleApplicationTestCase):
                       "".format(num_beats, time_replaying, num_beats / time_replaying, time_replaying / num_beats))
 
                 # Take snapshot, and beat heart a few more times.
-                app.example_repo.event_player.take_snapshot(example.id, until=uuid1().hex)
+                app.example_repo.event_player.take_snapshot(example.id, lte=time())
 
                 extra_beats = 4
                 for _ in six.moves.range(extra_beats):
@@ -108,7 +117,7 @@ class PerformanceTestCase(ExampleApplicationTestCase):
 
                 print("")
 
-    def test_log_performance(self):
+    def _test_log_performance(self):
 
         with self.construct_application() as app:
             log = start_new_log('example', bucket_size='year')
@@ -205,7 +214,7 @@ class PerformanceTestCase(ExampleApplicationTestCase):
 
 
 @notquick()
-class TestCassandraPerformance(CassandraActiveRecordStrategies, PerformanceTestCase):
+class TestCassandraPerformance(WithCassandraActiveRecordStrategies, PerformanceTestCase):
     pass
 
 

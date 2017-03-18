@@ -4,10 +4,10 @@ from eventsourcing.infrastructure.event_sourced_repos.notificationlog_repo impor
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.infrastructure.notification_log import NotificationLogReader, append_item_to_notification_log
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
-    CassandraActiveRecordStrategies
+    WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
-from eventsourcing.tests.sequenced_item_tests.base import PersistenceSubscribingTestCase
+from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
 from eventsourcing.tests.sequenced_item_tests.test_python_objects_stored_event_repository import \
     PythonObjectsRepoTestCase
 
@@ -24,7 +24,7 @@ from eventsourcing.tests.sequenced_item_tests.test_python_objects_stored_event_r
 # Todo: Read from subsequent sequences if slice.stop goes beyond the end of the sequence.
 
 
-class NotificationLogTestCase(PersistenceSubscribingTestCase):
+class NotificationLogTestCase(WithPersistencePolicy):
 
     def test_entity_lifecycle(self):
         notification_log_repo = NotificationLogRepo(self.event_store)
@@ -123,7 +123,7 @@ class TestNotificationLogWithPythonObjects(PythonObjectsRepoTestCase, Notificati
     pass
 
 
-class TestNotificationLogWithCassandra(CassandraActiveRecordStrategies, NotificationLogTestCase):
+class TestNotificationLogWithCassandra(WithCassandraActiveRecordStrategies, NotificationLogTestCase):
     pass
 
 

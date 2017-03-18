@@ -1,8 +1,8 @@
 import uuid
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, attribute, EntityRepository, entity_mutator, \
-    singledispatch, Created, AttributeChanged, Discarded
-from eventsourcing.domain.model.events import publish, DomainEvent
+from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, Discarded, \
+    EventSourcedEntity, attribute, entity_mutator, singledispatch
+from eventsourcing.domain.model.events import OldDomainEvent, publish
 
 
 class Example(EventSourcedEntity):
@@ -27,7 +27,7 @@ class Example(EventSourcedEntity):
     class Discarded(Discarded):
         pass
 
-    class Heartbeat(DomainEvent):
+    class Heartbeat(OldDomainEvent):
         pass
 
     def __init__(self, a, b, **kwargs):
@@ -72,7 +72,7 @@ def heartbeat_mutator(event, self):
     return self
 
 
-class ExampleRepository(EntityRepository):
+class ExampleRepository(AbstractEntityRepository):
     pass
 
 

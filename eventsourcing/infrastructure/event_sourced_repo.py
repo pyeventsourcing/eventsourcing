@@ -1,6 +1,6 @@
 from abc import abstractproperty
 
-from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity
+from eventsourcing.domain.model.new_entity import EventSourcedEntity, AbstractEntityRepository
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
@@ -8,7 +8,7 @@ from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 from eventsourcing.infrastructure.transcoding import id_prefix_from_entity_class
 
 
-class EventSourcedRepository(EntityRepository):
+class EventSourcedRepository(AbstractEntityRepository):
 
     # If the entity won't have very many events, marking the entity as
     # "short" by setting __is_short__ value equal to True will mean
@@ -40,7 +40,7 @@ class EventSourcedRepository(EntityRepository):
             event_store=self.event_store,
             id_prefix=id_prefix_from_entity_class(self.domain_class),
             mutate_func=self.domain_class.mutate,
-            page_size=self.__page_size__ or self.domain_class.__page_size__,
+            page_size=self.__page_size__,
             is_short=self.__is_short__ or self.domain_class.__is_short__,
             snapshot_strategy=self._snapshot_strategy,
         )

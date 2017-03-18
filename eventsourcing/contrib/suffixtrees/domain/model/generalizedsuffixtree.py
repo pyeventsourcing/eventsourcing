@@ -9,9 +9,9 @@ import six
 from singledispatch import singledispatch
 
 from eventsourcing.domain.model.collection import Collection
-from eventsourcing.domain.model.entity import AttributeChanged, Created, Discarded, EntityRepository, \
+from eventsourcing.domain.model.entity import AttributeChanged, Created, Discarded, AbstractEntityRepository, \
     EventSourcedEntity, attribute, entity_mutator
-from eventsourcing.domain.model.events import DomainEvent, publish
+from eventsourcing.domain.model.events import OldDomainEvent, publish
 from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 
 # Use a private code point to terminate the strings.
@@ -491,11 +491,11 @@ class SuffixTreeNodeChildCollection(EventSourcedEntity):
 
     class Discarded(Discarded): pass
 
-    class ChildNodeAdded(DomainEvent): pass
+    class ChildNodeAdded(OldDomainEvent): pass
 
-    class ChildNodeRemoved(DomainEvent): pass
+    class ChildNodeRemoved(OldDomainEvent): pass
 
-    class ChildNodeSwitched(DomainEvent): pass
+    class ChildNodeSwitched(OldDomainEvent): pass
 
     def __init__(self, *args, **kwargs):
         super(SuffixTreeNodeChildCollection, self).__init__(*args, **kwargs)
@@ -566,7 +566,7 @@ class SuffixTreeEdge(EventSourcedEntity):
     class AttributeChanged(AttributeChanged):
         pass
 
-    class Shortened(DomainEvent):
+    class Shortened(OldDomainEvent):
         @property
         def label(self):
             return self.__dict__['label']
@@ -790,13 +790,13 @@ def register_new_suffix_tree(case_insensitive=False):
 
 # Repositories.
 
-class GeneralizedSuffixTreeRepository(EntityRepository):
+class GeneralizedSuffixTreeRepository(AbstractEntityRepository):
     pass
 
 
-class NodeRepository(EntityRepository):
+class NodeRepository(AbstractEntityRepository):
     pass
 
 
-class EdgeRepository(EntityRepository):
+class EdgeRepository(AbstractEntityRepository):
     pass

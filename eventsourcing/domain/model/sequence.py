@@ -1,5 +1,5 @@
-from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository, Created
-from eventsourcing.domain.model.events import DomainEvent, publish
+from eventsourcing.domain.model.entity import EventSourcedEntity, AbstractEntityRepository, Created
+from eventsourcing.domain.model.events import OldDomainEvent, publish
 from eventsourcing.exceptions import RepositoryKeyError
 
 
@@ -8,7 +8,7 @@ class Sequence(EventSourcedEntity):
     class Started(Created):
         """Occurs when sequence is started."""
 
-    class Appended(DomainEvent):
+    class Appended(OldDomainEvent):
         """Occurs when item is appended."""
 
     @property
@@ -23,7 +23,7 @@ def start_sequence(name):
     return entity
 
 
-class SequenceRepository(EntityRepository):
+class SequenceRepository(AbstractEntityRepository):
 
     def get_or_create(self, sequence_name):
         """

@@ -60,7 +60,7 @@ class NewDomainEvent(with_metaclass(QualnameABCMeta)):
         """
         Inhibits event attributes from being updated by assignment.
         """
-        raise AttributeError("DomainEvent attributes are read-only")
+        raise AttributeError("OldDomainEvent attributes are read-only")
 
     def __eq__(self, rhs):
         """
@@ -91,6 +91,9 @@ class NewDomainEvent(with_metaclass(QualnameABCMeta)):
 
 
 class EntityEvent(NewDomainEvent):
+    """
+    For events that have an entity ID attribute.
+    """
 
     def __init__(self, entity_id, **kwargs):
         super(EntityEvent, self).__init__(**kwargs)
@@ -102,6 +105,9 @@ class EntityEvent(NewDomainEvent):
 
 
 class TimestampEvent(NewDomainEvent):
+    """
+    For events that have an timestamp attribute.
+    """
 
     def __init__(self, timestamp=None, **kwargs):
         super(TimestampEvent, self).__init__(**kwargs)
@@ -112,7 +118,15 @@ class TimestampEvent(NewDomainEvent):
         return self.__dict__['timestamp']
 
 
+class TimestampEntityEvent(TimestampEvent, EntityEvent):
+    """
+    For events of timestamp-based entities (e.g. a log).
+    """
+
 class VersionEvent(NewDomainEvent):
+    """
+    For events that have an entity version number.
+    """
 
     def __init__(self, entity_version, **kwargs):
         if not isinstance(entity_version, six.integer_types):
@@ -127,17 +141,17 @@ class VersionEvent(NewDomainEvent):
 
 class VersionEntityEvent(VersionEvent, EntityEvent):
     """
-    Base class for events of version-based entities.
+    For events of version-based entities.
     """
 
 
-class TimestampEntityEvent(TimestampEvent, EntityEvent):
+class TimestampedVersionEntityEvent(TimestampEvent, VersionEntityEvent):
     """
-    Base class for events of non-versioned entities.
+    For events of version-based entities, that are also timestamped.
     """
 
 
-class DomainEvent(NewDomainEvent):
+class OldDomainEvent(NewDomainEvent):
     """
     Original domain event.
 
@@ -166,7 +180,7 @@ class DomainEvent(NewDomainEvent):
     """
 
     def __init__(self, entity_id, entity_version, domain_event_id=None, **kwargs):
-        super(DomainEvent, self).__init__(**kwargs)
+        super(OldDomainEvent, self).__init__(**kwargs)
         self.__dict__['entity_id'] = entity_id
         self.__dict__['entity_version'] = entity_version
         self.__dict__['domain_event_id'] = domain_event_id or create_timesequenced_event_id()

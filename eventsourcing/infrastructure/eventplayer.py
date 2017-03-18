@@ -2,8 +2,8 @@ from functools import reduce
 
 from copy import deepcopy
 
-from eventsourcing.domain.model.entity import EventSourcedEntity
-from eventsourcing.domain.model.snapshot import AbstractSnapshop
+from eventsourcing.domain.model.new_entity import EventSourcedEntity
+from eventsourcing.domain.model.new_snapshot import AbstractSnapshop
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.infrastructure.new_snapshotting import AbstractSnapshotStrategy, entity_from_snapshot
 from eventsourcing.infrastructure.transcoding import make_stored_entity_id
@@ -72,8 +72,6 @@ class EventPlayer(object):
         """
         Returns domain events for given entity ID.
         """
-        # Make the stored entity ID.
-        stored_entity_id = self.make_stored_entity_id(entity_id)
 
         # Get entity's domain events from the event store.
         domain_events = self.event_store.get_domain_events(
@@ -278,28 +276,24 @@ class NewEventPlayer(object):
         # the last snapshot before the last event.
         last_snapshot = self.get_snapshot(entity_id, lte=last_event.timestamp)
 
-        # If there's a snapshot...
         if last_snapshot:
             assert isinstance(last_snapshot, AbstractSnapshop), type(last_snapshot)
-
-            # and it is coincident with the last event...
-            if last_snapshot.timestamp == last_event.timestamp:
-                # then there's nothing to do.
-                return last_snapshot
-            else:
-                # Otherwise there must be events after the snapshot, so
-                # remember to get events after the last event that was
-                # applied to the entity, and obtain the initial entity
-                # state so those event can be applied.
-                gt = last_snapshot.timestamp
+            if last_snapshot.timestamp < last_event.timestamp:
+                # There must be events after the snapshot, so get events after
+                # the last event that was applied to the entity, and obtain the
+                # initial entity state so those event can be applied to it.
                 initial_state = entity_from_snapshot(last_snapshot)
+                gte = initial_state._version
+            else:
+                # There's nothing to do.
+                return last_snapshot
         else:
             # If there isn't a snapshot, start from scratch.
-            gt = None
             initial_state = None
+            gte = None
 
         # Get entity in the state after this event was applied.
-        entity = self.replay_entity(entity_id, gt=gt, lt=lt, lte=last_event.timestamp, initial_state=initial_state)
+        entity = self.replay_entity(entity_id, gte=gte, lt=lt, lte=lte, initial_state=initial_state)
 
         # Take a snapshot of the entity.
         return self.snapshot_strategy.take_snapshot(entity, timestamp=entity.last_modified_on)

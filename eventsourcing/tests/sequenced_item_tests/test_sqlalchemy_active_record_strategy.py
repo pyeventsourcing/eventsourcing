@@ -1,4 +1,4 @@
-from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemyActiveRecordStrategy, \
+from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     SqlIntegerSequencedItem, SqlTimestampSequencedItem
 from eventsourcing.infrastructure.transcoding import SequencedItem
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase

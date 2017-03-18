@@ -9,7 +9,7 @@ from eventsourcing.domain.model.events import assert_event_handlers_empty, subsc
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepo
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.storedevents.pythonobjectsrepo import \
+from eventsourcing.infrastructure.pythonobjectsrepo import \
     PythonObjectsStoredEventRepository
 
 

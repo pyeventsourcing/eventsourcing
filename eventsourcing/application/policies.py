@@ -25,6 +25,9 @@ class AbstractPolicy(object):
     def __init__(self, *args, **kwargs):
         pass
 
+    def close(self):
+        pass
+
 
 class VersionEntityEventPersistence(AbstractPolicy):
     def __init__(self, version_entity_event_store=None, *args, **kwargs):
@@ -41,6 +44,7 @@ class VersionEntityEventPersistence(AbstractPolicy):
         self.version_entity_event_store.append(event)
 
     def close(self):
+        super(VersionEntityEventPersistence, self).close()
         unsubscribe(self.is_version_entity_event, self.store_version_entity_event)
 
 
@@ -60,8 +64,10 @@ class TimestampEntityEventPersistence(AbstractPolicy):
         self.timestamp_entity_event_store.append(event)
 
     def close(self):
+        super(TimestampEntityEventPersistence, self).close()
         unsubscribe(self.is_timestamp_entity_event, self.store_timestamp_entity_event)
 
 
-class NewPersistenceSubscriber(VersionEntityEventPersistence, TimestampEntityEventPersistence):
+
+class PersistencePolicy(VersionEntityEventPersistence, TimestampEntityEventPersistence):
     pass

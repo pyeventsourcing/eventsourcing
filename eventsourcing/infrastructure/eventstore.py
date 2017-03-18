@@ -3,11 +3,12 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.domain.model.events import DomainEvent, NewDomainEvent
+from eventsourcing.domain.model.events import OldDomainEvent, NewDomainEvent
 from eventsourcing.exceptions import EntityVersionNotFound
-from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder, StoredEvent, \
-    StoredEventTranscoder, SequencedItem, AbstractSequencedItemMapper
+from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.iterators import SequencedItemIterator
+from eventsourcing.infrastructure.transcoding import AbstractSequencedItemMapper, JSONStoredEventTranscoder, \
+    SequencedItem, StoredEvent, StoredEventTranscoder
 
 
 class AbstractEventStore(six.with_metaclass(ABCMeta)):
@@ -18,8 +19,7 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def get_domain_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
-                          page_size=None):
+    def get_domain_events(self, entity_id, after=None, until=None, limit=None, is_ascending=True, page_size=None):
         """Returns domain events for given stored entity ID."""
 
     def get_most_recent_event(self, entity_id, lt=None, lte=None):
@@ -37,7 +37,7 @@ class EventStore(AbstractEventStore):
         self.transcoder = transcoder
 
     def append(self, domain_event):
-        assert isinstance(domain_event, DomainEvent), type(domain_event)
+        assert isinstance(domain_event, OldDomainEvent), type(domain_event)
         # Serialize the domain event.
         stored_event = self.transcoder.serialize(domain_event)
 
@@ -47,12 +47,12 @@ class EventStore(AbstractEventStore):
             new_version_number=domain_event.entity_version,
         )
 
-    def get_domain_events(self, stored_entity_id, after=None, until=None, limit=None, is_ascending=True,
+    def get_domain_events(self, entity_id, after=None, until=None, limit=None, is_ascending=True,
                           page_size=None):
         # Get the events that have been stored for the entity.
         if page_size:
             stored_events = self.stored_event_repo.iterate_stored_events(
-                stored_entity_id=stored_entity_id,
+                stored_entity_id=entity_id,
                 after=after,
                 until=until,
                 limit=limit,
@@ -61,7 +61,7 @@ class EventStore(AbstractEventStore):
             )
         else:
             stored_events = self.stored_event_repo.get_stored_events(
-                stored_entity_id=stored_entity_id,
+                stored_entity_id=entity_id,
                 after=after,
                 until=until,
                 limit=limit,
@@ -75,7 +75,7 @@ class EventStore(AbstractEventStore):
     def get_most_recent_event(self, stored_entity_id, until=None, include_until=False):
         """Returns last event for given stored entity ID.
 
-        :rtype: DomainEvent, NoneType
+        :rtype: OldDomainEvent, NoneType
         """
         stored_event = self.stored_event_repo.get_most_recent_event(stored_entity_id, until=until,
                                                                     include_until=include_until)
@@ -86,6 +86,9 @@ class EventStore(AbstractEventStore):
 
 
 class NewEventStore(AbstractEventStore):
+
+    iterator_class = SequencedItemIterator
+
     def __init__(self, active_record_strategy, sequenced_item_mapper=None):
         assert isinstance(active_record_strategy, AbstractActiveRecordStrategy), active_record_strategy
         assert isinstance(sequenced_item_mapper, AbstractSequencedItemMapper), sequenced_item_mapper
@@ -104,16 +107,18 @@ class NewEventStore(AbstractEventStore):
                           page_size=None):
         # Get all the sequenced items for the entity.
         if page_size:
-            sequenced_items = self.active_record_strategy.iterate_stored_events(
+            iterator = self.iterator_class(
+                active_record_strategy=self.active_record_strategy,
                 sequence_id=entity_id,
+                page_size=page_size,
                 gt=gt,
                 gte=gte,
                 lt=lt,
                 lte=lte,
                 limit=limit,
-                query_ascending=is_ascending,
-                page_size=page_size
+                is_ascending=is_ascending,
             )
+            sequenced_items = list(iterator)
         else:
             sequenced_items = self.active_record_strategy.get_items(
                 sequence_id=entity_id,
@@ -309,13 +314,13 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
 
     @property
     def iterator_class(self):
-        return SimpleSequencedItemIterator
+        return SequencedItemIterator
 
     def get_most_recent_event(self, stored_entity_id, until=None, include_until=False):
         """
         Returns the most recent stored event for given entity ID.
 
-        :rtype: DomainEvent, NoneType
+        :rtype: OldDomainEvent, NoneType
 
         """
         events = self.get_most_recent_events(stored_entity_id, until=until, limit=1, include_until=include_until)
@@ -369,125 +374,3 @@ class AbstractStoredEventRepository(six.with_metaclass(ABCMeta)):
             "Entity version '{}' for of stored entity '{}' not found."
             "".format(version_number, stored_entity_id)
         )
-
-
-class AbstractStoredEventIterator(six.with_metaclass(ABCMeta)):
-    DEFAULT_PAGE_SIZE = 1000
-
-    def __init__(self, active_record_strategy, sequence_id, page_size=None, gt=None, gte=None, lt=None, lte=None,
-                 limit=None, is_ascending=True):
-        assert isinstance(active_record_strategy, AbstractActiveRecordStrategy), type(active_record_strategy)
-        assert isinstance(sequence_id, six.string_types)
-        assert isinstance(page_size, (six.integer_types, type(None)))
-        assert isinstance(limit, (six.integer_types, type(None)))
-        self.active_record_strategy = active_record_strategy
-        self.sequence_id = sequence_id
-        self.page_size = page_size or self.DEFAULT_PAGE_SIZE
-        self.gt = gt
-        self.gte = gte
-        self.lte = lte
-        self.lt = lt
-        self.limit = limit
-        self.query_counter = 0
-        self.page_counter = 0
-        self.all_item_counter = 0
-        self.is_ascending = is_ascending
-        self._position = None
-
-    def _inc_page_counter(self):
-        """
-        Increments the page counter.
-
-        Each query result as a page, even if there are no items in the page. This really counts queries.
-         - it is easy to divide the number of events by the page size if the "correct" answer is required
-         - there will be a difference in the counts when the number of events can be exactly divided by the page
-           size, because there is no way to know in advance that a full page is also the last page.
-        """
-        self.page_counter += 1
-
-    def _inc_query_counter(self):
-        """
-        Increments the query counter.
-        """
-        self.query_counter += 1
-
-    def _inc_all_event_counter(self):
-        self.all_item_counter += 1
-
-    def _update_position(self, sequenced_item):
-        assert isinstance(sequenced_item, self.active_record_strategy.sequenced_item_class), type(sequenced_item)
-        self._position = sequenced_item.position
-
-    @abstractmethod
-    def __iter__(self):
-        """
-        Yields a continuous sequence of items.
-        """
-
-
-class SimpleSequencedItemIterator(AbstractStoredEventIterator):
-    def __iter__(self):
-        """
-        Yields a continuous sequence of items from "pages"
-        of sequenced items retrieved using the active record strategy.
-        """
-        gt = self.gt
-        gte = self.gte
-        lt = self.lt
-        lte = self.lte
-
-        while True:
-            # Get next page of events.
-            if self.limit is not None:
-                limit = min(self.page_size, self.limit - self.all_item_counter)
-            else:
-                limit = self.page_size
-
-            if limit == 0:
-                raise StopIteration
-
-            # Get the events.
-            if self._position is not None:
-                if self.is_ascending:
-                    gt = self._position
-                    gte = None
-                else:
-                    lt = self._position
-                    lte = None
-
-            sequenced_items = self.active_record_strategy.get_items(
-                sequence_id=self.sequence_id,
-                gt=gt,
-                gte=gte,
-                lt=lt,
-                lte=lte,
-                limit=limit,
-                query_ascending=self.is_ascending,
-                results_ascending=self.is_ascending,
-            )
-
-            self._inc_query_counter()
-
-            # Start counting events in this page.
-            page_item_counter = 0
-
-            # Yield each stored event.
-            for sequenced_item in sequenced_items:
-
-                # Count each event.
-                self._inc_all_event_counter()
-                page_item_counter += 1
-
-                # Yield the event.
-                yield sequenced_item
-
-                # Remember the position as the last event.
-                self._update_position(sequenced_item)
-
-            # If that wasn't an empty page, count the page.
-            if page_item_counter:
-                self._inc_page_counter()
-
-            # If that wasn't a full page, stop iterating (there can be no more items).
-            if page_item_counter != self.page_size:
-                raise StopIteration

@@ -1,10 +1,10 @@
-from eventsourcing.application.policies import NewPersistenceSubscriber
+from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.new_snapshot import Snapshot
 from eventsourcing.example.new_application import ExampleApplication
 from eventsourcing.example.new_domain_model import Example
 from eventsourcing.example.new_infrastructure import ExampleRepo
+from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
-from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies
 
 
@@ -29,7 +29,7 @@ class ExampleApplicationTestCase(WithActiveRecordStrategies):
                              app.timestamp_sequenced_active_record_strategy)
 
             # Check there's a persistence subscriber.
-            self.assertIsInstance(app.persistence_subscriber, NewPersistenceSubscriber)
+            self.assertIsInstance(app.persistence_subscriber, PersistencePolicy)
             # Todo: Move the next two checks to the persistence subscriber unit test.
             self.assertEqual(app.persistence_subscriber.version_entity_event_store, app.version_entity_event_store)
             self.assertEqual(app.persistence_subscriber.timestamp_entity_event_store, app.timestamp_entity_event_store)
@@ -48,22 +48,42 @@ class ExampleApplicationTestCase(WithActiveRecordStrategies):
             self.assertEqual(example1, entity1)
 
             # Change attribute values.
-            entity1.a = 100
+            entity1.a = 50
+
+            # Check the attribute has the new value.
+            self.assertEqual(50, entity1.a)
 
             # Check the new value is available in the repo.
             entity1 = app.example_repo[example1.id]
-            self.assertEqual(100, entity1.a)
+            self.assertEqual(50, entity1.a)
 
             # Take a snapshot of the entity.
-            app.example_repo.event_player.take_snapshot(entity1.id)
+            snapshot1 = app.example_repo.event_player.take_snapshot(entity1.id)
+
+            # Take another snapshot of the entity (should be the same event).
+            snapshot2 = app.example_repo.event_player.take_snapshot(entity1.id)
+            self.assertEqual(snapshot1, snapshot2)
 
             # Check the snapshot exists.
-            snapshot = app.example_repo.event_player.snapshot_strategy.get_snapshot(entity1.id)
-            self.assertIsInstance(snapshot, Snapshot)
+            snapshot3 = app.example_repo.event_player.snapshot_strategy.get_snapshot(entity1.id)
+            self.assertIsInstance(snapshot3, Snapshot)
+            self.assertEqual(snapshot1, snapshot3)
+
+            # Change attribute values.
+            entity1.a = 100
+
+            # Check the attribute has the new value.
+            self.assertEqual(100, entity1.a)
 
             # Check the new value is available in the repo.
             entity1 = app.example_repo[example1.id]
             self.assertEqual(100, entity1.a)
+
+            # Take another snapshot of the entity.
+            snapshot4 = app.example_repo.event_player.take_snapshot(entity1.id)
+
+            # Check the new snapshot is not equal to the first.
+            self.assertNotEqual(snapshot1, snapshot4)
 
     def construct_application(self):
         cipher = self.construct_cipher()

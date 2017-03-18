@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
+from eventsourcing.exceptions import SequencedItemError
 from eventsourcing.infrastructure.transcoding import SequencedItem
 
 
@@ -41,3 +42,7 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
         """
         Returns a query object.
         """
+
+    def raise_sequence_item_error(self, sequence_id, position, e):
+        raise SequencedItemError("Item at position '{}' already exists in sequence '{}': {}"
+                                 "".format(position, sequence_id, e))

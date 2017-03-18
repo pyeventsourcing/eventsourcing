@@ -1,6 +1,6 @@
 from abc import abstractmethod
 
-from eventsourcing.infrastructure.datastore.base import DatastoreConnectionError, DatastoreTableError
+from eventsourcing.infrastructure.datastore import DatastoreConnectionError, DatastoreTableError
 from eventsourcing.tests.base import AbstractTestCase
 
 
@@ -17,7 +17,7 @@ class AbstractDatastoreTestCase(AbstractTestCase):
     @property
     def datastore(self):
         """
-        :rtype: eventsourcing.infrastructure.datastore.base.Datastore
+        :rtype: eventsourcing.infrastructure.datastore.datastore.Datastore
         """
         if self._datastore is None:
             self._datastore = self.construct_datastore()
@@ -26,7 +26,7 @@ class AbstractDatastoreTestCase(AbstractTestCase):
     @abstractmethod
     def construct_datastore(self):
         """
-        :rtype: eventsourcing.infrastructure.datastore.base.Datastore
+        :rtype: eventsourcing.infrastructure.datastore.datastore.Datastore
         """
 
 

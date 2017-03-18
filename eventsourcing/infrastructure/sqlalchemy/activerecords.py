@@ -5,12 +5,12 @@ import six
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
-from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text, Float
+from sqlalchemy.sql.sqltypes import BigInteger, Float, Integer, String, Text
 
-from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, SequencedItemError
-from eventsourcing.infrastructure.datastore.sqlalchemyorm import Base, SQLAlchemyDatastore
+from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError
+from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
-from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDatastore
 from eventsourcing.infrastructure.transcoding import EntityVersion
 from eventsourcing.utils.time import timestamp_long_from_uuid
 
@@ -70,14 +70,15 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         except IntegrityError as e:
             # Roll back the transaction.
             self.datastore.db_session.rollback()
-            raise SequencedItemError(e)
-
+            self.raise_sequence_item_error(item.sequence_id, item.position, e)
         except DBAPIError as e:
-            raise DatasourceOperationError(e)
-
+            self.raise_db_operation_error(e)
         finally:
             # Begin new transaction.
             self.datastore.db_session.close()
+
+    def raise_db_operation_error(self, e):
+        raise DatasourceOperationError(e)
 
     def to_active_record(self, sequenced_item):
         """

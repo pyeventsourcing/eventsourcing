@@ -10,8 +10,8 @@ from json.encoder import JSONEncoder
 import dateutil.parser
 import six
 
-from eventsourcing.domain.model.entity import EventSourcedEntity
-from eventsourcing.domain.model.events import DomainEvent, NewDomainEvent, resolve_domain_topic, \
+from eventsourcing.domain.model.new_entity import EventSourcedEntity
+from eventsourcing.domain.model.events import OldDomainEvent, NewDomainEvent, resolve_domain_topic, \
     topic_from_domain_class, EntityEvent
 from eventsourcing.domain.services.cipher import AbstractCipher
 
@@ -119,7 +119,7 @@ class JSONStoredEventTranscoder(StoredEventTranscoder):
         domain event with a common format that can easily be written
         into its particular database management system.
         """
-        assert isinstance(domain_event, DomainEvent), type(domain_event)
+        assert isinstance(domain_event, OldDomainEvent), type(domain_event)
 
         # Copy the state of the domain event.
         event_attrs = domain_event.__dict__.copy()
@@ -158,8 +158,8 @@ class JSONStoredEventTranscoder(StoredEventTranscoder):
         # Get the domain event class from the topic.
         event_class = resolve_domain_topic(stored_event.event_topic)
 
-        if not issubclass(event_class, DomainEvent):
-            raise ValueError("Event class is not a DomainEvent: {}".format(event_class))
+        if not issubclass(event_class, OldDomainEvent):
+            raise ValueError("Event class is not a OldDomainEvent: {}".format(event_class))
 
         event_attrs = stored_event.event_attrs
 
@@ -203,7 +203,6 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         into its particular database management system.
         """
         assert isinstance(domain_event, EntityEvent), type(domain_event)
-        assert isinstance(domain_event, EntityEvent), type(domain_event)
 
         # Copy the state of the domain event.
         event_attrs = domain_event.__dict__.copy()
@@ -218,7 +217,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
             event_attrs,
             separators=(',', ':'),
             sort_keys=True,
-            cls=self.json_encoder_class
+            cls=self.json_encoder_class,
         )
 
         # Encrypt (optional).
@@ -246,7 +245,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         event_class = resolve_domain_topic(sequenced_item.topic)
 
         if not issubclass(event_class, NewDomainEvent):
-            raise ValueError("Event class is not a DomainEvent: {}".format(event_class))
+            raise ValueError("Event class is not a OldDomainEvent: {}".format(event_class))
 
         event_attrs = sequenced_item.data
 
@@ -257,9 +256,6 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         # Deserialize event attributes from JSON, optionally decrypted with cipher.
         event_attrs = json.loads(event_attrs, cls=self.json_decoder_class)
-
-        # Set the domain event ID.
-        event_attrs['entity_version'] = sequenced_item.position
 
         # Reinstantiate and return the domain event object.
         domain_event = object.__new__(event_class)

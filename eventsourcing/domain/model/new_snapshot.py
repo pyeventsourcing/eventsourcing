@@ -34,7 +34,6 @@ class Snapshot(TimestampEntityEvent, AbstractSnapshop):
             timestamp=timestamp,
             topic=topic,
             state=state,
-            entity_version=None,
         )
 
     @property

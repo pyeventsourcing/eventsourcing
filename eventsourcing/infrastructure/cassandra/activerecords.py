@@ -6,11 +6,10 @@ from cassandra import DriverException
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
-from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, SequencedItemError, \
-    TimeSequenceError
+from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, TimeSequenceError
+from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
-from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedSequencedItemIterator
+from eventsourcing.infrastructure.iterators import ThreadedSequencedItemIterator
 from eventsourcing.infrastructure.transcoding import EntityVersion
 
 
@@ -54,7 +53,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         try:
             active_record.save()
         except LWTException as e:
-            raise SequencedItemError((active_record.s, active_record.p, e))
+            self.raise_sequence_item_error(item.sequence_id, item.position, e)
         except DriverException as e:
             raise DatasourceOperationError(e)
 

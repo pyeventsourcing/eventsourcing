@@ -5,13 +5,13 @@ import six
 from dateutil.relativedelta import relativedelta
 from six import with_metaclass
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, EntityRepository, Created, AttributeChanged
-from eventsourcing.domain.model.events import DomainEvent, publish, QualnameABCMeta, create_timesequenced_event_id
+from eventsourcing.domain.model.entity import EventSourcedEntity, AbstractEntityRepository, Created, AttributeChanged
+from eventsourcing.domain.model.events import OldDomainEvent, publish, QualnameABCMeta, create_timesequenced_event_id
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.utils.time import timestamp_from_uuid, utc_timezone
 
 
-class MessageLogged(DomainEvent):
+class MessageLogged(OldDomainEvent):
     def __init__(self, message, entity_id):
         super(MessageLogged, self).__init__(entity_id=entity_id, entity_version=None, message=message)
 
@@ -175,7 +175,7 @@ class Log(EventSourcedEntity):
         return event
 
 
-class LogRepository(EntityRepository):
+class LogRepository(AbstractEntityRepository):
 
     def get_or_create(self, log_name, bucket_size):
         """

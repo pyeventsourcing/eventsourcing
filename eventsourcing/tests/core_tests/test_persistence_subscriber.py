@@ -1,7 +1,7 @@
 import unittest
 
-from eventsourcing.application.policies import NewPersistenceSubscriber, PersistenceSubscriber, TimestampEntityEvent
-from eventsourcing.domain.model.events import DomainEvent, VersionEntityEvent, publish
+from eventsourcing.application.policies import PersistencePolicy, PersistenceSubscriber, TimestampEntityEvent
+from eventsourcing.domain.model.events import OldDomainEvent, VersionEntityEvent, publish
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 try:
@@ -25,7 +25,7 @@ class TestPersistenceSubscriber(unittest.TestCase):
         self.assertEqual(0, event_store.append.call_count)
 
         # Publish a (mock) domain event.
-        domain_event = mock.Mock(spec=DomainEvent)
+        domain_event = mock.Mock(spec=OldDomainEvent)
         publish(domain_event)
 
         # Check the append method HAS been called once with the domain event.
@@ -37,7 +37,7 @@ class TestNewPersistenceSubscriber(unittest.TestCase):
         # Setup the persistence subscriber with an event store.
         self.ve_es = mock.Mock(spec=AbstractEventStore)
         self.te_es = mock.Mock(spec=AbstractEventStore)
-        self.ps = NewPersistenceSubscriber(
+        self.ps = PersistencePolicy(
             version_entity_event_store=self.ve_es,
             timestamp_entity_event_store=self.te_es,
         )

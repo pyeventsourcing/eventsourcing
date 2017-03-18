@@ -5,15 +5,14 @@ from time import time
 
 import six
 
-from eventsourcing.application.policies import PersistenceSubscriber
+from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.events import TimestampEntityEvent, VersionEntityEvent, topic_from_domain_class
 from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, EntityVersionNotFound, \
     SequencedItemError
-from eventsourcing.infrastructure.eventstore import EventStore, \
-    SimpleSequencedItemIterator
-from eventsourcing.infrastructure.storedevents.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.storedevents.threaded_iterator import ThreadedSequencedItemIterator
-from eventsourcing.infrastructure.transcoding import SequencedItem, StoredEvent
+from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.eventstore import NewEventStore
+from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
+from eventsourcing.infrastructure.transcoding import SequencedItem, SequencedItemMapper, StoredEvent
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 
@@ -553,7 +552,8 @@ class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
 
         assert isinstance(self.integer_sequence_active_record_strategy, AbstractActiveRecordStrategy)
         stored_events = self.integer_sequence_active_record_strategy.get_items(
-            sequence_id=self.entity_id)
+            sequence_id=self.entity_id
+        )
         stored_events = list(stored_events)
         self.assertEqual(len(stored_events), self.num_events)
 
@@ -629,7 +629,7 @@ class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
 class SimpleSequencedItemteratorTestCase(SequencedItemIteratorTestCase):
     @property
     def iterator_cls(self):
-        return SimpleSequencedItemIterator
+        return SequencedItemIterator
 
 
 class ThreadedSequencedItemIteratorTestCase(SequencedItemIteratorTestCase):
@@ -638,18 +638,32 @@ class ThreadedSequencedItemIteratorTestCase(SequencedItemIteratorTestCase):
         return ThreadedSequencedItemIterator
 
 
-class PersistenceSubscribingTestCase(WithActiveRecordStrategies):
+class WithPersistencePolicy(WithActiveRecordStrategies):
     """
     Base class for test cases that required a persistence subscriber.
     """
 
     def setUp(self):
-        super(PersistenceSubscribingTestCase, self).setUp()
+        super(WithPersistencePolicy, self).setUp()
         # Setup the persistence subscriber.
-        self.event_store = EventStore(self.integer_sequence_active_record_strategy)
-        self.persistence_subscriber = PersistenceSubscriber(event_store=self.event_store)
+        self.version_entity_event_store = NewEventStore(
+            active_record_strategy=self.integer_sequence_active_record_strategy,
+            sequenced_item_mapper=SequencedItemMapper(
+                position_attr_name='entity_version'
+            )
+        )
+        self.timestamp_entity_event_store = NewEventStore(
+            active_record_strategy=self.timestamp_sequence_active_record_strategy,
+            sequenced_item_mapper=SequencedItemMapper(
+                position_attr_name='timestamp'
+            )
+        )
+        self.persistence_policy = PersistencePolicy(
+            version_entity_event_store=self.version_entity_event_store,
+            timestamp_entity_event_store=self.timestamp_entity_event_store,
+        )
 
     def tearDown(self):
         # Close the persistence subscriber.
-        self.persistence_subscriber.close()
-        super(PersistenceSubscribingTestCase, self).tearDown()
+        self.persistence_policy.close()
+        super(WithPersistencePolicy, self).tearDown()

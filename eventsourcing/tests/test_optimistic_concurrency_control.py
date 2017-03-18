@@ -20,7 +20,7 @@
 # from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
 # from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies
 # from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
-#     CassandraActiveRecordStrategies
+#     WithCassandraActiveRecordStrategies
 # from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
 #     WithSQLAlchemyActiveRecordStrategies
 #
@@ -170,7 +170,7 @@
 #
 #
 # @notquick()
-# class TestOptimisticConcurrencyControlWithCassandra(CassandraActiveRecordStrategies,
+# class TestOptimisticConcurrencyControlWithCassandra(WithCassandraActiveRecordStrategies,
 #                                                     OptimisticConcurrencyControlTestCase):
 #     pass
 #

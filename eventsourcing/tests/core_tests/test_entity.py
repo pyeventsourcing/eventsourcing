@@ -1,18 +1,17 @@
 import mock
 
-from eventsourcing.domain.model.entity import CreatedMutatorRequiresTypeNotInstance, EntityIDConsistencyError, \
-    EntityVersionConsistencyError, EventSourcedEntity, created_mutator, attribute, AttributeChanged, Created
-from eventsourcing.domain.model.events import DomainEvent, publish, subscribe, unsubscribe
-from eventsourcing.example.domain_model import Example, register_new_example
+from eventsourcing.domain.model.new_entity import AttributeChanged, Created, CreatedMutatorRequiresTypeNotInstance, \
+    EntityIDConsistencyError, EntityVersionConsistencyError, EventSourcedEntity, attribute, created_mutator
+from eventsourcing.domain.model.events import VersionEntityEvent, publish, subscribe, unsubscribe, NewDomainEvent
 from eventsourcing.example.infrastructure import ExampleRepo
-from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError
-from eventsourcing.tests.sequenced_item_tests.base import PersistenceSubscribingTestCase
-from eventsourcing.tests.sequenced_item_tests.test_python_objects_stored_event_repository import \
-    PythonObjectsRepoTestCase
+from eventsourcing.example.new_domain_model import Example, register_new_example
+from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError, SequencedItemError
+from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
+    WithSQLAlchemyActiveRecordStrategies
 
 
-class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCase):
-# class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, PersistenceSubscribingTestCase):
+class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicy):
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
         example1 = register_new_example(a=1, b=2)
@@ -32,7 +31,7 @@ class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCas
         self.assertNotEqual(example1, example2)
 
         # Setup the repo.
-        repo = ExampleRepo(self.event_store)
+        repo = ExampleRepo(self.version_entity_event_store)
 
         # Check the example entities can be retrieved from the example repository.
         entity1 = repo[example1.id]
@@ -68,37 +67,41 @@ class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCas
         self.assertRaises(AssertionError, entity1.discard)
 
         # Should fail to validate event with wrong entity ID.
-        self.assertRaises(EntityIDConsistencyError,
-                          entity2._validate_originator,
-                          DomainEvent(entity_id=entity2.id + 'wrong', entity_version=0)
-                          )
+        with self.assertRaises(EntityIDConsistencyError):
+            entity2._validate_originator(
+                VersionEntityEvent(
+                    entity_id=entity2.id + 'wrong',
+                    entity_version=0
+                )
+            )
         # Should fail to validate event with wrong entity version.
-        self.assertRaises(EntityVersionConsistencyError,
-                          entity2._validate_originator,
-                          DomainEvent(entity_id=entity2.id, entity_version=0)
-                          )
-        # Should validate event with correct entity ID and version.
-        entity2._validate_originator(
-            DomainEvent(entity_id=entity2.id, entity_version=entity2.version)
+        with self.assertRaises(EntityVersionConsistencyError):
+            entity2._validate_originator(
+                VersionEntityEvent(
+                    entity_id=entity2.id,
+                    entity_version=0,
+                )
         )
 
-        # Check an entity can be reregistered with the same ID.
-        replacement_event = Example.Created(entity_id=entity1.id, a=11, b=12)
-        # replacement = Example.mutate(event=replacement_event)
-        publish(event=replacement_event)
+        # Should validate event with correct entity ID and version.
+        entity2._validate_originator(
+            VersionEntityEvent(
+                entity_id=entity2.id,
+                entity_version=entity2.version,
+            )
+        )
 
-        # Check the replacement entity can be retrieved from the example repository.
-        replacement = repo[entity1.id]
-        assert isinstance(replacement, Example)
-        self.assertEqual(replacement.a, 11)
-        self.assertEqual(replacement.b, 12)
+        # Check an entity cannot be reregistered with the ID of a discarded entity.
+        replacement_event = Example.Created(entity_id=entity1.id, a=11, b=12)
+        with self.assertRaises(SequencedItemError):
+            publish(event=replacement_event)
 
     def test_not_implemented_error(self):
         # Define an event class.
-        class UnsupportedEvent(DomainEvent): pass
+        class UnsupportedEvent(NewDomainEvent): pass
 
         # Check we get an error when attempting to mutate on the event.
-        self.assertRaises(NotImplementedError, Example.mutate, Example, UnsupportedEvent('1', '0'))
+        self.assertRaises(NotImplementedError, Example.mutate, Example, UnsupportedEvent())
 
     def test_attribute(self):
         # Check we get an error when called with something other than a function.
@@ -118,7 +121,7 @@ class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCas
         self.assertTrue(p.fget)
 
         # Pretend we decorated an object.
-        o = EventSourcedEntity(entity_id='1', entity_version=0, domain_event_id=1)
+        o = EventSourcedEntity(entity_id='entity1', entity_version=0)
         o.__dict__['_<lambda>'] = 'value1'
 
         # Call the property's getter function.
@@ -153,7 +156,7 @@ class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCas
         subscribe(*subscription)
         entity_id = '1'
         try:
-            aaa = Aaa(entity_id=entity_id, entity_version=None, domain_event_id='0', a=1)
+            aaa = Aaa(entity_id=entity_id, entity_version=1, a=1)
             self.assertEqual(aaa.a, 1)
             aaa.a = 'value1'
             self.assertEqual(aaa.a, 'value1')
@@ -168,7 +171,7 @@ class TestExampleEntity(PythonObjectsRepoTestCase, PersistenceSubscribingTestCas
         self.assertIsInstance(published_event, AttributeChanged)
         self.assertEqual(published_event.name, '_a')
         self.assertEqual(published_event.value, 'value1')
-        self.assertTrue(published_event.domain_event_id)
+        self.assertTrue(published_event.entity_version, 1)
         self.assertEqual(published_event.entity_id, entity_id)
 
     def test_static_mutator_method(self):

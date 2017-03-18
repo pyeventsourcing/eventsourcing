@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import six
 
-from eventsourcing.domain.model.entity import EntityRepository, EventSourcedEntity, attribute, Created, \
+from eventsourcing.domain.model.entity import AbstractEntityRepository, EventSourcedEntity, attribute, Created, \
     AttributeChanged, Discarded
 from eventsourcing.domain.model.events import publish
 from eventsourcing.example.application import ExampleApplication
@@ -372,15 +372,15 @@ def register_new_suffix_tree(case_insensitive=False):
 
 # Repositories.
 
-class SuffixTreeRepository(EntityRepository):
+class SuffixTreeRepository(AbstractEntityRepository):
     pass
 
 
-class NodeRepository(EntityRepository):
+class NodeRepository(AbstractEntityRepository):
     pass
 
 
-class EdgeRepository(EntityRepository):
+class EdgeRepository(AbstractEntityRepository):
     pass
 
 

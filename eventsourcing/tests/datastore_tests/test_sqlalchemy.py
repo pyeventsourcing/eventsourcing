@@ -2,10 +2,10 @@ from tempfile import NamedTemporaryFile
 
 from sqlalchemy.exc import OperationalError
 
-from eventsourcing.infrastructure.datastore.base import DatastoreTableError
-from eventsourcing.infrastructure.datastore.sqlalchemyorm import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
+from eventsourcing.infrastructure.datastore import DatastoreTableError
+from eventsourcing.infrastructure.sqlalchemy.datastore import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
     SQLAlchemySettings
-from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SqlIntegerSequencedItem, SqlTimestampSequencedItem
+from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem, SqlTimestampSequencedItem
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
 
 

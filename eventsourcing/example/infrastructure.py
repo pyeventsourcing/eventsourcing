@@ -1,5 +1,5 @@
-from eventsourcing.example.domain_model import Example, ExampleRepository
-from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository
+from eventsourcing.example.new_domain_model import Example, ExampleRepository
+from eventsourcing.infrastructure.new_event_sourced_repo import EventSourcedRepository
 
 
 class ExampleRepo(EventSourcedRepository, ExampleRepository):

@@ -1,15 +1,10 @@
-from uuid import uuid1
-
-from eventsourcing.application.policies import NewPersistenceSubscriber, PersistenceSubscriber
+from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.events import assert_event_handlers_empty
-from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.example.new_domain_model import Example, register_new_example
-from eventsourcing.infrastructure.eventplayer import EventPlayer, NewEventPlayer
-from eventsourcing.infrastructure.eventstore import EventStore, NewEventStore
-from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy, entity_from_snapshot, \
-    take_snapshot
-from eventsourcing.infrastructure.storedevents.pythonobjectsrepo import PythonObjectsStoredEventRepository
-from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SQLAlchemyActiveRecordStrategy, \
+from eventsourcing.infrastructure.eventplayer import NewEventPlayer
+from eventsourcing.infrastructure.eventstore import NewEventStore
+from eventsourcing.infrastructure.new_snapshotting import entity_from_snapshot, take_snapshot
+from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     SqlIntegerSequencedItem, SqlTimestampSequencedItem
 from eventsourcing.infrastructure.transcoding import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
@@ -96,7 +91,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
 
     # Todo: Maybe this is an application-level test? If not, test event player capabilities here only.
     def test_snapshots(self):
-        self.ps = NewPersistenceSubscriber(
+        self.ps = PersistencePolicy(
             version_entity_event_store=self.version_entity_event_store,
             timestamp_entity_event_store=self.timestamp_entity_event_store,
 
@@ -107,101 +102,67 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         registered_example = register_new_example(a=123, b=234)
 
         # Take a snapshot.
-        snapshot = take_snapshot(registered_example, uuid1().hex)
+        snapshot1 = take_snapshot(registered_example)
 
         # Replay from this snapshot.
-        after = snapshot.at_event_id
-        initial_state = entity_from_snapshot(snapshot)
-        retrieved_example = event_player.replay_entity(registered_example.id, initial_state=initial_state, after=after)
+        initial_state = entity_from_snapshot(snapshot1)
+        retrieved_example = event_player.replay_entity(registered_example.id,
+                                                       initial_state=initial_state,
+                                                       gte=initial_state._version)
 
         # Check the attributes are correct.
         self.assertEqual(retrieved_example.a, 123)
 
-        # Remember the time now.
-        timecheck1 = uuid1().hex
+        # Remember the version now.
+        version1 = retrieved_example._version
 
         # Change attribute value.
         retrieved_example.a = 999
 
-        # Check the initial state doesn't move.
-        self.assertEqual(initial_state.a, 123)
-
-        # Remember the time now.
-        timecheck2 = uuid1().hex
+        # Remember the version now.
+        version2 = retrieved_example._version
 
         # Change attribute value.
         retrieved_example.a = 9999
 
-        # Remember the time now.
-        timecheck3 = uuid1().hex
+        # Remember the version now.
+        version3 = retrieved_example._version
 
         # Check the event sourced entities are correct.
-        assert initial_state.a == 123
         retrieved_example = event_player.replay_entity(registered_example.id)
         self.assertEqual(retrieved_example.a, 9999)
 
         # Take another snapshot.
-        snapshot2 = take_snapshot(retrieved_example, uuid1().hex)
+        snapshot2 = take_snapshot(retrieved_example)
 
         # Check we can replay from this snapshot.
-        initial_state2 = entity_from_snapshot(snapshot2)
-        after2 = snapshot2.domain_event_id
-        retrieved_example = event_player.replay_entity(registered_example.id, initial_state=initial_state2,
-                                                       after=after2)
+        initial_state = entity_from_snapshot(snapshot2)
+        retrieved_example = event_player.replay_entity(
+            registered_example.id,
+            initial_state=initial_state,
+            gte=initial_state._version,
+        )
         # Check the attributes are correct.
         self.assertEqual(retrieved_example.a, 9999)
 
-        # Check we can get historical state at timecheck1.
-        retrieved_example = event_player.replay_entity(registered_example.id, until=timecheck1)
+        # Check we can get historical state at version1.
+        retrieved_example = event_player.replay_entity(registered_example.id, lt=version1)
         self.assertEqual(retrieved_example.a, 123)
 
-        # Check we can get historical state at timecheck2.
-        retrieved_example = event_player.replay_entity(registered_example.id, until=timecheck2)
+        # Check we can get historical state at version2.
+        retrieved_example = event_player.replay_entity(registered_example.id, lt=version2)
         self.assertEqual(retrieved_example.a, 999)
 
-        # Check we can get historical state at timecheck3.
-        retrieved_example = event_player.replay_entity(registered_example.id, until=timecheck3)
+        # Check we can get historical state at version3.
+        retrieved_example = event_player.replay_entity(registered_example.id, lt=version3)
         self.assertEqual(retrieved_example.a, 9999)
 
         # Similarly, check we can get historical state using a snapshot
-        retrieved_example = event_player.replay_entity(registered_example.id, initial_state=initial_state, after=after,
-                                                       until=timecheck2)
-        self.assertEqual(retrieved_example.a, 999)
-
-    def test_with_snapshots(self):
-        # Check the EventPlayer's take_snapshot() method.
-        stored_event_repo = PythonObjectsStoredEventRepository()
-        event_store = EventStore(stored_event_repo)
-        self.ps = PersistenceSubscriber(event_store)
-        event_player = EventPlayer(
-            event_store=event_store,
-            id_prefix='Example',
-            mutate_func=Example.mutate,
-            snapshot_strategy=EventSourcedSnapshotStrategy(event_store=event_store)
+        initial_state = entity_from_snapshot(snapshot1)
+        retrieved_example = event_player.replay_entity(
+            registered_example.id,
+            initial_state=initial_state,
+            gte=initial_state._version,
+            lt=version2,
         )
-
-        # Check the method returns None when there are no events.
-        snapshot = event_player.take_snapshot('wrong')
-        self.assertIsNone(snapshot)
-
-        # Create a new entity.
-        example = register_new_example(a=123, b=234)
-
-        # Take a snapshot with the entity.
-        snapshot1 = event_player.take_snapshot(example.id)
-        self.assertIsInstance(snapshot1, Snapshot)
-
-        # Take another snapshot with the entity.
-        snapshot2 = event_player.take_snapshot(example.id)
-        # - should return the previous snapshot
-
-        self.assertIsInstance(snapshot2, Snapshot)
-        self.assertEqual(snapshot2.at_event_id, snapshot1.at_event_id)
-
-        # Generate a domain event.
-        example.beat_heart()
-
-        # Take another snapshot with the entity.
-        # - should use the previous snapshot and the heartbeat event
-        snapshot3 = event_player.take_snapshot(example.id)
-        self.assertNotEqual(snapshot3.at_event_id, snapshot1.at_event_id)
+        self.assertEqual(retrieved_example.a, 999)

@@ -1,9 +1,10 @@
-from eventsourcing.infrastructure.storedevents.cassandrarepo import CassandraActiveRecordStrategy, \
+from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, \
     CqlIntegerSequencedItem, CqlTimestampSequencedItem
 from eventsourcing.infrastructure.transcoding import SequencedItem
 from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
-from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies, IntegerSequencedItemTestCase, \
-    SimpleSequencedItemteratorTestCase, ThreadedSequencedItemIteratorTestCase, TimestampSequencedItemTestCase
+from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \
+    SimpleSequencedItemteratorTestCase, ThreadedSequencedItemIteratorTestCase, TimestampSequencedItemTestCase, \
+    WithActiveRecordStrategies
 
 
 def construct_integer_sequenced_active_record_strategy():
@@ -32,7 +33,7 @@ class TestCassandraActiveRecordStrategyWithTimestampSequences(CassandraDatastore
         return construct_timestamp_sequenced_active_record_strategy()
 
 
-class CassandraActiveRecordStrategies(CassandraDatastoreTestCase, WithActiveRecordStrategies):
+class WithCassandraActiveRecordStrategies(CassandraDatastoreTestCase, WithActiveRecordStrategies):
     def construct_integer_sequence_active_record_strategy(self):
         return construct_integer_sequenced_active_record_strategy()
 
@@ -41,11 +42,11 @@ class CassandraActiveRecordStrategies(CassandraDatastoreTestCase, WithActiveReco
 
 
 
-class TestSimpleStoredEventIteratorWithCassandra(CassandraActiveRecordStrategies,
+class TestSimpleStoredEventIteratorWithCassandra(WithCassandraActiveRecordStrategies,
                                                  SimpleSequencedItemteratorTestCase):
     pass
 
 
-class TestThreadedStoredEventIteratorWithCassandra(CassandraActiveRecordStrategies,
+class TestThreadedStoredEventIteratorWithCassandra(WithCassandraActiveRecordStrategies,
                                                    ThreadedSequencedItemIteratorTestCase):
     pass

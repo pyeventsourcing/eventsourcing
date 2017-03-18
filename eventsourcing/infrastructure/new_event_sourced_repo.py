@@ -1,13 +1,13 @@
 from abc import abstractproperty
 
-from eventsourcing.domain.model.new_entity import EntityRepository, EventSourcedEntity
+from eventsourcing.domain.model.new_entity import AbstractEntityRepository, EventSourcedEntity
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.eventplayer import NewEventPlayer
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 
 
-class EventSourcedRepository(EntityRepository):
+class EventSourcedRepository(AbstractEntityRepository):
 
     # If the entity won't have very many events, marking the entity as
     # "short" by setting __is_short__ value equal to True will mean
@@ -89,18 +89,21 @@ class EventSourcedRepository(EntityRepository):
         """
 
         # Get a snapshot (None if none exist).
-        snapshot = self._snapshot_strategy.get_snapshot(entity_id, lte=lte)
+        if self._snapshot_strategy is not None:
+            snapshot = self._snapshot_strategy.get_snapshot(entity_id, lte=lte)
+        else:
+            snapshot = None
 
         # Decide the initial state, and after when we need to get the events.
         if snapshot is None:
-            gt = None
             initial_state = None
+            gte = None
         else:
-            gt = snapshot.timestamp
             initial_state = entity_from_snapshot(snapshot)
+            gte = initial_state._version
 
         # Replay domain events.
-        return self.event_player.replay_entity(entity_id, gt=gt, lte=lte, initial_state=initial_state)
+        return self.event_player.replay_entity(entity_id, gte=gte, lte=lte, initial_state=initial_state)
 
     def fastforward(self, stale_entity, until=None):
         """

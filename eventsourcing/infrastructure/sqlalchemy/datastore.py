@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative.api import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-from eventsourcing.infrastructure.datastore.base import DatastoreSettings, Datastore, DatastoreConnectionError
+from eventsourcing.infrastructure.datastore import Datastore, DatastoreConnectionError, DatastoreSettings
 
 Base = declarative_base()
 
