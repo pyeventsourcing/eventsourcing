@@ -7,13 +7,11 @@ from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strat
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
-from eventsourcing.tests.sequenced_item_tests.test_python_objects_stored_event_repository import \
-    PythonObjectsRepoTestCase
 
 
 class SequenceTestCase(WithPersistencePolicy):
     def test(self):
-        repo = SequenceRepo(self.event_store)
+        repo = SequenceRepo(self.version_entity_event_store)
 
         # Start a new sequence.
         name = 'sequence1'
@@ -96,10 +94,6 @@ class SequenceTestCase(WithPersistencePolicy):
         with self.assertRaises(SequenceFullError):
             # Append another item.
             append_item_to_sequence(name, 'item1', repo.event_player, max_size=1)
-
-
-class TestPythonObjectsSequence(PythonObjectsRepoTestCase, SequenceTestCase):
-    pass
 
 
 class TestCassandraSequence(WithCassandraActiveRecordStrategies, SequenceTestCase):

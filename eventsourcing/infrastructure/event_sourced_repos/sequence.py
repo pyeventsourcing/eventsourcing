@@ -1,5 +1,5 @@
 from eventsourcing.domain.model.sequence import SequenceRepository, Sequence
-from eventsourcing.infrastructure.oldevent_sourced_repo import EventSourcedRepository
+from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
 
 class SequenceRepo(EventSourcedRepository, SequenceRepository):

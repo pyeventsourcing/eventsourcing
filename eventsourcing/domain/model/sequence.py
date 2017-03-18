@@ -1,5 +1,5 @@
-from eventsourcing.domain.model.oldentity import EventSourcedEntity, AbstractEntityRepository, Created
-from eventsourcing.domain.model.events import OldDomainEvent, publish
+from eventsourcing.domain.model.entity import EventSourcedEntity, AbstractEntityRepository, Created
+from eventsourcing.domain.model.events import publish, TimestampedVersionEntityEvent
 from eventsourcing.exceptions import RepositoryKeyError
 
 
@@ -8,7 +8,7 @@ class Sequence(EventSourcedEntity):
     class Started(Created):
         """Occurs when sequence is started."""
 
-    class Appended(OldDomainEvent):
+    class Appended(TimestampedVersionEntityEvent):
         """Occurs when item is appended."""
 
     @property

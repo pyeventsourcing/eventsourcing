@@ -8,8 +8,6 @@ from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strat
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
-from eventsourcing.tests.sequenced_item_tests.test_python_objects_stored_event_repository import \
-    PythonObjectsRepoTestCase
 
 
 # Todo: Interface object that can split an archived log ID of form "x,y" into two integers,
@@ -27,7 +25,7 @@ from eventsourcing.tests.sequenced_item_tests.test_python_objects_stored_event_r
 class NotificationLogTestCase(WithPersistencePolicy):
 
     def test_entity_lifecycle(self):
-        notification_log_repo = NotificationLogRepo(self.event_store)
+        notification_log_repo = NotificationLogRepo(self.timestamp_entity_event_store)
 
         notification_log = notification_log_repo.get_or_create(
             log_name='log1',
@@ -38,7 +36,7 @@ class NotificationLogTestCase(WithPersistencePolicy):
 
         item1 = 'item1'
 
-        log_repo = LogRepo(self.event_store)
+        log_repo = LogRepo(self.timestamp_entity_event_store)
         sequence_repo = SequenceRepo(event_store=self.event_store)
 
         append_item_to_notification_log(notification_log, item1, sequence_repo, log_repo, self.event_store)
@@ -117,10 +115,6 @@ class NotificationLogTestCase(WithPersistencePolicy):
 
             # Check the message.
             self.assertEqual(notification_log_reader[notification_log_index], item)
-
-
-class TestNotificationLogWithPythonObjects(PythonObjectsRepoTestCase, NotificationLogTestCase):
-    pass
 
 
 class TestNotificationLogWithCassandra(WithCassandraActiveRecordStrategies, NotificationLogTestCase):
