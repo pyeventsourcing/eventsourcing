@@ -1,5 +1,4 @@
 from unittest.case import TestCase
-from uuid import uuid1
 
 from cassandra import InvalidRequest
 from cassandra.cluster import NoHostAvailable
@@ -28,17 +27,16 @@ class CassandraDatastoreTestCase(AbstractDatastoreTestCase):
 
 
 class TestCassandraDatastore(CassandraDatastoreTestCase, DatastoreTestCase):
-
     def list_records(self):
         try:
-            return list(CqlStoredEvent.objects.all())
+            return list(CqlIntegerSequencedItem.objects.all())
         except (CQLEngineException, NoHostAvailable) as e:
             raise DatastoreConnectionError(e)
         except InvalidRequest as e:
             raise DatastoreTableError(e)
 
     def create_record(self):
-        record = CqlStoredEvent(n='entity1', v=uuid1(), t='topic', a='{}')
+        record = CqlIntegerSequencedItem(s='entity1', p=0, t='topic', d='{}')
         try:
             record.save()
         except (CQLEngineException, NoHostAvailable) as e:
@@ -49,7 +47,6 @@ class TestCassandraDatastore(CassandraDatastoreTestCase, DatastoreTestCase):
 
 
 class TestPlainTextAuthProvider(TestCase):
-
     def test_plain_text_auth_provider(self):
         datastore = CassandraDatastore(
             settings=CassandraSettings(
@@ -63,7 +60,6 @@ class TestPlainTextAuthProvider(TestCase):
 
 
 class TestDatabaseSettingsError(TestCase):
-
     def test_consistency_level_error(self):
         datastore = CassandraDatastore(
             settings=CassandraSettings(
@@ -75,4 +71,3 @@ class TestDatabaseSettingsError(TestCase):
 
         with self.assertRaises(DatasourceSettingsError):
             datastore.setup_connection()
-

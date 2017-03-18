@@ -88,3 +88,11 @@ class DatastoreTestCase(AbstractDatastoreTestCase):
     @abstractmethod
     def create_record(self):
         return None
+
+    def tearDown(self):
+        # Try to remove any tables.
+        self.datastore.setup_connection()
+        self.datastore.drop_tables()
+        self.datastore.drop_connection()
+        super(DatastoreTestCase, self).tearDown()
+
