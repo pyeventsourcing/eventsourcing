@@ -1,5 +1,5 @@
 from eventsourcing.domain.model.collection import CollectionRepository, Collection
-from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository
+from eventsourcing.infrastructure.oldevent_sourced_repo import EventSourcedRepository
 
 
 class CollectionRepo(EventSourcedRepository, CollectionRepository):

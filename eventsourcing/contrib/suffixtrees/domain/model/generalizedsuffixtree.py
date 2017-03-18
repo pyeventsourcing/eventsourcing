@@ -9,7 +9,7 @@ import six
 from singledispatch import singledispatch
 
 from eventsourcing.domain.model.collection import Collection
-from eventsourcing.domain.model.entity import AttributeChanged, Created, Discarded, AbstractEntityRepository, \
+from eventsourcing.domain.model.oldentity import AttributeChanged, Created, Discarded, AbstractEntityRepository, \
     EventSourcedEntity, attribute, entity_mutator
 from eventsourcing.domain.model.events import OldDomainEvent, publish
 from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError

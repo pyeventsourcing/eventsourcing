@@ -1,15 +1,14 @@
 import importlib
 import itertools
+import time
 from abc import ABCMeta
 from collections import OrderedDict
 from uuid import uuid1
 
 import six
-import time
 from six import with_metaclass
 
 from eventsourcing.exceptions import TopicResolutionError
-from eventsourcing.utils.time import timestamp_from_uuid
 
 
 class QualnameABCMeta(ABCMeta):
@@ -41,7 +40,7 @@ def create_timesequenced_event_id():
     return uuid1().hex
 
 
-class NewDomainEvent(with_metaclass(QualnameABCMeta)):
+class DomainEvent(with_metaclass(QualnameABCMeta)):
     """
     Base class for domain events.
 
@@ -90,7 +89,7 @@ class NewDomainEvent(with_metaclass(QualnameABCMeta)):
             "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
 
 
-class EntityEvent(NewDomainEvent):
+class EntityEvent(DomainEvent):
     """
     For events that have an entity ID attribute.
     """
@@ -104,7 +103,7 @@ class EntityEvent(NewDomainEvent):
         return self.__dict__['entity_id']
 
 
-class TimestampEvent(NewDomainEvent):
+class TimestampEvent(DomainEvent):
     """
     For events that have an timestamp attribute.
     """
@@ -123,7 +122,8 @@ class TimestampEntityEvent(TimestampEvent, EntityEvent):
     For events of timestamp-based entities (e.g. a log).
     """
 
-class VersionEvent(NewDomainEvent):
+
+class VersionEvent(DomainEvent):
     """
     For events that have an entity version number.
     """
@@ -151,55 +151,55 @@ class TimestampedVersionEntityEvent(TimestampEvent, VersionEntityEvent):
     """
 
 
-class OldDomainEvent(NewDomainEvent):
-    """
-    Original domain event.
-
-    Due to the origins of the project, this design ended
-    up as a confusion of time-sequenced and integer-sequenced
-    events. It was used for both time-sequenced streams, such
-    as time-bucketed logs and snapshots, where the entity
-    version number appeared as the code smell known as "refused
-    bequest". It was also used for integer sequenced streams,
-    such as versioned domain entities, where the timestamp-based
-    implementation threatened inconsistency due to network issues.
-    The "solution" to the timestamp-based integer sequencing was
-    to have a second table controlling consistency of integer
-    sequenced. But working across two tables without cross-table
-    transaction support (e.g. in Cassandra) is a dead-end. Now,
-    integer sequenced domain events don't essentially require
-    to know what time they happened.
-
-    Therefore it must be much better to have two separate types
-    of domain event: time-sequenced events, and integer-sequenced
-    events. Domain entities and notification logs can have integer-
-    sequenced events, and snapshots and time-bucketed logs can
-    have time-sequenced events.
-
-    That's why this class has been deprecated :-).
-    """
-
-    def __init__(self, entity_id, entity_version, domain_event_id=None, **kwargs):
-        super(OldDomainEvent, self).__init__(**kwargs)
-        self.__dict__['entity_id'] = entity_id
-        self.__dict__['entity_version'] = entity_version
-        self.__dict__['domain_event_id'] = domain_event_id or create_timesequenced_event_id()
-
-    @property
-    def entity_id(self):
-        return self.__dict__['entity_id']
-
-    @property
-    def entity_version(self):
-        return self.__dict__['entity_version']
-
-    @property
-    def domain_event_id(self):
-        return self.__dict__['domain_event_id']
-
-    @property
-    def timestamp(self):
-        return timestamp_from_uuid(self.__dict__['domain_event_id'])
+# class OldDomainEvent(DomainEvent):
+#     """
+#     Original domain event.
+#
+#     Due to the origins of the project, this design ended
+#     up as a confusion of time-sequenced and integer-sequenced
+#     events. It was used for both time-sequenced streams, such
+#     as time-bucketed logs and snapshots, where the entity
+#     version number appeared as the code smell known as "refused
+#     bequest". It was also used for integer sequenced streams,
+#     such as versioned domain entities, where the timestamp-based
+#     implementation threatened inconsistency due to network issues.
+#     The "solution" to the timestamp-based integer sequencing was
+#     to have a second table controlling consistency of integer
+#     sequenced. But working across two tables without cross-table
+#     transaction support (e.g. in Cassandra) is a dead-end. Now,
+#     integer sequenced domain events don't essentially require
+#     to know what time they happened.
+#
+#     Therefore it must be much better to have two separate types
+#     of domain event: time-sequenced events, and integer-sequenced
+#     events. Domain entities and notification logs can have integer-
+#     sequenced events, and snapshots and time-bucketed logs can
+#     have time-sequenced events.
+#
+#     That's why this class has been deprecated :-).
+#     """
+#
+#     def __init__(self, entity_id, entity_version, domain_event_id=None, **kwargs):
+#         super(OldDomainEvent, self).__init__(**kwargs)
+#         self.__dict__['entity_id'] = entity_id
+#         self.__dict__['entity_version'] = entity_version
+#         self.__dict__['domain_event_id'] = domain_event_id or create_timesequenced_event_id()
+#
+#     @property
+#     def entity_id(self):
+#         return self.__dict__['entity_id']
+#
+#     @property
+#     def entity_version(self):
+#         return self.__dict__['entity_version']
+#
+#     @property
+#     def domain_event_id(self):
+#         return self.__dict__['domain_event_id']
+#
+#     @property
+#     def timestamp(self):
+#         return timestamp_from_uuid(self.__dict__['domain_event_id'])
 
 
 _event_handlers = OrderedDict()

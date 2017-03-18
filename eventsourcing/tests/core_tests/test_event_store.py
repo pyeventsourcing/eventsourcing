@@ -1,5 +1,5 @@
-from eventsourcing.example.new_domain_model import Example
-from eventsourcing.infrastructure.eventstore import NewEventStore
+from eventsourcing.example.domainmodel import Example
+from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.transcoding import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
@@ -21,7 +21,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         super(TestEventStore, self).tearDown()
 
     def construct_event_store(self):
-        event_store = NewEventStore(
+        event_store = EventStore(
             active_record_strategy=construct_integer_sequence_active_record_strategy(
                 datastore=self.datastore,
             ),

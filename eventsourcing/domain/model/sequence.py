@@ -1,4 +1,4 @@
-from eventsourcing.domain.model.entity import EventSourcedEntity, AbstractEntityRepository, Created
+from eventsourcing.domain.model.oldentity import EventSourcedEntity, AbstractEntityRepository, Created
 from eventsourcing.domain.model.events import OldDomainEvent, publish
 from eventsourcing.exceptions import RepositoryKeyError
 

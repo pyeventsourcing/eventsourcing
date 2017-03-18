@@ -6,10 +6,10 @@ from uuid import uuid4
 
 import six
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, EventSourcedEntity, attribute, Created, \
+from eventsourcing.domain.model.oldentity import AbstractEntityRepository, EventSourcedEntity, attribute, Created, \
     AttributeChanged, Discarded
 from eventsourcing.domain.model.events import publish
-from eventsourcing.example.application import ExampleApplication
+from eventsourcing.example.oldapplication import ExampleApplication
 from eventsourcing.exceptions import RepositoryKeyError
 
 

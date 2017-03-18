@@ -2,70 +2,13 @@ from abc import ABCMeta
 
 from six import with_metaclass
 
-from eventsourcing.application.policies import PersistencePolicy, PersistenceSubscriber
+from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository, EventStore, NewEventStore
-from eventsourcing.infrastructure.transcoding import JSONStoredEventTranscoder, SequencedItemMapper
+from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.transcoding import SequencedItemMapper
 
 
 class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
-
-    def __init__(self, stored_event_repository=None, always_encrypt=False, cipher=None):
-        """
-        Constructs an event store using the given stored event repository.
-
-        :param: stored_event_repository:  Repository containing stored events.
-
-        :param always_encrypt:  Optional encryption of all stored events.
-
-        :param cipher:  Used to decrypt (and possibly encrypt) stored events.
-
-        """
-        assert isinstance(stored_event_repository, AbstractStoredEventRepository), stored_event_repository
-        self.stored_event_repository = stored_event_repository
-        self.event_store = self.construct_event_store(always_encrypt, cipher)
-
-    def construct_event_store(self, always_encrypt=False, cipher=None):
-        transcoder = self.construct_transcoder(always_encrypt, cipher)
-        event_store = EventStore(
-            stored_event_repo=self.stored_event_repository,
-            transcoder=transcoder,
-        )
-        return event_store
-
-    def construct_transcoder(self, always_encrypt=False, cipher=None):
-        return JSONStoredEventTranscoder(always_encrypt=always_encrypt, cipher=cipher)
-
-    def close(self):
-        self.event_store = None
-        self.stored_event_repository = None
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_):
-        self.close()
-
-
-class EventSourcedApplication(ReadOnlyEventSourcingApplication):
-
-    def __init__(self, **kwargs):
-        super(EventSourcedApplication, self).__init__(**kwargs)
-        self.persistence_subscriber = self.construct_persistence_subscriber()
-
-    def construct_persistence_subscriber(self):
-        return PersistenceSubscriber(
-            event_store=self.event_store
-        )
-
-    def close(self):
-        if self.persistence_subscriber is not None:
-            self.persistence_subscriber.close()
-            self.persistence_subscriber = None
-        super(EventSourcedApplication, self).close()
-
-
-class NewReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
 
     def __init__(self, integer_sequenced_active_record_strategy=None,
                  timestamp_sequenced_active_record_strategy=None, always_encrypt=False, cipher=None):
@@ -102,7 +45,7 @@ class NewReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
 
     def construct_event_store(self, position_attr_name, active_record_strategy, always_encrypt=False, cipher=None):
         sequenced_item_mapper = self.construct_sequenced_item_mapper(position_attr_name, always_encrypt, cipher)
-        event_store = NewEventStore(
+        event_store = EventStore(
             active_record_strategy=active_record_strategy,
             sequenced_item_mapper=sequenced_item_mapper,
         )
@@ -122,10 +65,10 @@ class NewReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         self.close()
 
 
-class NewEventSourcedApplication(NewReadOnlyEventSourcingApplication):
+class EventSourcedApplication(ReadOnlyEventSourcingApplication):
 
     def __init__(self, **kwargs):
-        super(NewEventSourcedApplication, self).__init__(**kwargs)
+        super(EventSourcedApplication, self).__init__(**kwargs)
         self.persistence_subscriber = self.construct_persistence_subscriber()
 
     def construct_persistence_subscriber(self):
@@ -138,4 +81,4 @@ class NewEventSourcedApplication(NewReadOnlyEventSourcingApplication):
         if self.persistence_subscriber is not None:
             self.persistence_subscriber.close()
             self.persistence_subscriber = None
-        super(NewEventSourcedApplication, self).close()
+        super(EventSourcedApplication, self).close()

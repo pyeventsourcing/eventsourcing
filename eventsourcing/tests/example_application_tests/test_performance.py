@@ -4,15 +4,15 @@ from time import time
 import six
 
 from eventsourcing.domain.model.log import get_logger, start_new_log
-from eventsourcing.example.new_domain_model import Example, register_new_example
+from eventsourcing.example.domainmodel import Example, register_new_example
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.eventstore import NewEventStore
+from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.log_reader import LogReader, get_log_reader
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.core_tests.test_utils import utc_now
-from eventsourcing.tests.example_application_tests.new_base import ExampleApplicationTestCase
-from eventsourcing.tests.example_application_tests.test_new_example_application_with_encryption import \
+from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
+from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import \
     CipheringTestCase
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
     WithCassandraActiveRecordStrategies
@@ -59,7 +59,7 @@ class PerformanceTestCase(ExampleApplicationTestCase):
                 # Get the last n events from the repo.
                 def last_n(n):
                     n = min(n, num_beats + 1)
-                    assert isinstance(app.example_repo.event_player.event_store, NewEventStore)
+                    assert isinstance(app.example_repo.event_player.event_store, EventStore)
                     ars = app.example_repo.event_player.event_store.active_record_strategy
                     assert isinstance(ars, AbstractActiveRecordStrategy)
 

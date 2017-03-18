@@ -1,5 +1,4 @@
 from eventsourcing.exceptions import ConsistencyError, ProgrammingError
-from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
     # Python 3.4+
@@ -11,7 +10,7 @@ from abc import ABCMeta, abstractmethod
 from inspect import isfunction
 from six import with_metaclass
 
-from eventsourcing.domain.model.events import publish, QualnameABCMeta, OldDomainEvent
+from eventsourcing.domain.model.events import publish, QualnameABCMeta, TimestampedVersionEntityEvent
 
 
 class EntityIDConsistencyError(ConsistencyError):
@@ -30,43 +29,27 @@ class EntityIsDiscarded(AssertionError):
     pass
 
 
-class Created(OldDomainEvent):
+class Created(TimestampedVersionEntityEvent):
     def __init__(self, entity_version=0, **kwargs):
         super(Created, self).__init__(entity_version=entity_version, **kwargs)
 
 
-class AttributeChanged(OldDomainEvent):
+class AttributeChanged(TimestampedVersionEntityEvent):
     pass
 
 
-class Discarded(OldDomainEvent):
+class Discarded(TimestampedVersionEntityEvent):
     pass
 
 
 class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
-    # The page size by which events are retrieved. If this
-    # value is set to a positive integer, the events of
-    # the entity will be retrieved in pages, using a series
-    # of queries, rather than with one potentially large query.
-    __page_size__ = None
-
-    # If the entity won't have very many events, marking the entity as
-    # "short" by setting __is_short__ value equal to True will mean
-    # the fastest path for getting all the events is used.
-    __is_short__ = False
-
-    # This should be enabled for models that have their consistency
-    # protected against concurrency errors, with e.g. optimistic
-    # concurrency control. See 'always_write_entity_version' constructor
-    # argument in EventSourcedApplication and StoredEventRepo classes.
-    __always_validate_originator_version__ = False
-
-    def __init__(self, entity_id, entity_version=0, domain_event_id=None):
+    def __init__(self, entity_id, entity_version=0, timestamp=None):
         self._id = entity_id
         self._version = entity_version
         self._is_discarded = False
-        self._initial_event_id = domain_event_id
+        self._created_on = timestamp
+        self._last_modified_on = timestamp
 
     def _increment_version(self):
         if self._version is not None:
@@ -86,22 +69,37 @@ class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
 
     @property
     def created_on(self):
-        return timestamp_from_uuid(self._initial_event_id)
+        return self._created_on
+
+    @property
+    def last_modified_on(self):
+        return self._last_modified_on
 
     def _validate_originator(self, event):
-        # Check event's entity ID matches this entity's ID.
-        if self._id != event.entity_id:
-            raise EntityIDConsistencyError("Entity ID '{}' not equal to event's entity ID '{}'"
-                                           "".format(self.id, event.entity_id))
+        self._validate_originator_id(event)
+        self._validate_originator_version(event)
 
-        # Check event's entity version matches this entity's version.
-        if self.__always_validate_originator_version__ and self._version != event.entity_version:
+    def _validate_originator_id(self, event):
+        """
+        Checks the event's entity ID matches this entity's ID.
+        """
+        if self._id != event.entity_id:
+            raise EntityIDConsistencyError(
+                "Entity ID '{}' not equal to event's entity ID '{}'"
+                "".format(self.id, event.entity_id)
+            )
+
+    def _validate_originator_version(self, event):
+        """
+        Checks the event's entity version matches this entity's version.
+        """
+        if self._version != event.entity_version:
             raise EntityVersionConsistencyError(
                 ("Event version '{}' not equal to entity version '{}', "
                  "event type: '{}', entity type: '{}', entity ID: '{}'"
                  "".format(event.entity_version, self._version,
                            type(event).__name__, type(self).__name__, self._id)
-                )
+                 )
             )
 
     def __eq__(self, other):
@@ -158,6 +156,7 @@ def attribute_changed_mutator(event, self):
     assert isinstance(self, EventSourcedEntity), self
     self._validate_originator(event)
     setattr(self, event.name, event.value)
+    self._last_modified_on = event.timestamp
     self._increment_version()
     return self
 

@@ -10,8 +10,8 @@ from json.encoder import JSONEncoder
 import dateutil.parser
 import six
 
-from eventsourcing.domain.model.new_entity import EventSourcedEntity
-from eventsourcing.domain.model.events import OldDomainEvent, NewDomainEvent, resolve_domain_topic, \
+from eventsourcing.domain.model.entity import EventSourcedEntity
+from eventsourcing.domain.model.events import DomainEvent, resolve_domain_topic, \
     topic_from_domain_class, EntityEvent
 from eventsourcing.domain.services.cipher import AbstractCipher
 
@@ -97,89 +97,6 @@ class ObjectJSONDecoder(JSONDecoder):
         return dateutil.parser.parse(d['ISO8601_datetime'])
 
 
-class JSONStoredEventTranscoder(StoredEventTranscoder):
-    """
-    Encodes domain events as stored events, and decodes stored
-    events as domain events.
-    """
-
-    def __init__(self, json_encoder_cls=ObjectJSONEncoder, json_decoder_cls=ObjectJSONDecoder,
-                 always_encrypt=False, cipher=None, stored_event_cls=StoredEvent):
-
-        self.json_encoder_cls = json_encoder_cls
-        self.json_decoder_cls = json_decoder_cls
-        self.cipher = cipher
-        self.always_encrypt = always_encrypt
-        self.stored_event_cls = stored_event_cls
-
-    def serialize(self, domain_event):
-        """
-        Serializes a domain event into a stored event. Used in stored
-        event repositories to represent an instance of any type of
-        domain event with a common format that can easily be written
-        into its particular database management system.
-        """
-        assert isinstance(domain_event, OldDomainEvent), type(domain_event)
-
-        # Copy the state of the domain event.
-        event_attrs = domain_event.__dict__.copy()
-
-        # Get the domain event ID.
-        event_id = event_attrs.pop('domain_event_id')
-
-        # Make stored entity ID and topic.
-        stored_entity_id = make_stored_entity_id(id_prefix_from_event(domain_event), domain_event.entity_id)
-        event_topic = topic_from_domain_class(type(domain_event))
-
-        # Serialise event attributes to JSON.
-        serialized_event_attrs = json.dumps(event_attrs, separators=(',', ':'), sort_keys=True,
-                                            cls=self.json_encoder_cls)
-
-        # Encrypt (optional).
-        if self.always_encrypt or domain_event.__class__.__always_encrypt__:
-            assert isinstance(self.cipher, AbstractCipher)
-            serialized_event_attrs = self.cipher.encrypt(serialized_event_attrs)
-
-        # Return a stored event object (a named tuple, by default).
-        return self.stored_event_cls(
-            event_id=event_id,
-            stored_entity_id=stored_entity_id,
-            event_topic=event_topic,
-            event_attrs=serialized_event_attrs,
-        )
-
-    def deserialize(self, stored_event):
-        """
-        Recreates original domain event from stored event topic and
-        event attrs. Used in the event store when getting domain events.
-        """
-        assert isinstance(stored_event, self.stored_event_cls)
-
-        # Get the domain event class from the topic.
-        event_class = resolve_domain_topic(stored_event.event_topic)
-
-        if not issubclass(event_class, OldDomainEvent):
-            raise ValueError("Event class is not a OldDomainEvent: {}".format(event_class))
-
-        event_attrs = stored_event.event_attrs
-
-        # Decrypt (optional).
-        if self.always_encrypt or event_class.__always_encrypt__:
-            assert isinstance(self.cipher, AbstractCipher), self.cipher
-            event_attrs = self.cipher.decrypt(event_attrs)
-
-        # Deserialize event attributes from JSON, optionally decrypted with cipher.
-        event_attrs = json.loads(event_attrs, cls=self.json_decoder_cls)
-
-        # Set the domain event ID.
-        event_attrs['domain_event_id'] = stored_event.event_id
-
-        # Reinstantiate and return the domain event object.
-        domain_event = object.__new__(event_class)
-        domain_event.__dict__.update(event_attrs)
-        return domain_event
-
-
 class SequencedItemMapper(AbstractSequencedItemMapper):
     """
     Uses JSON to transcode domain events.
@@ -244,7 +161,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Get the domain event class from the topic.
         event_class = resolve_domain_topic(sequenced_item.topic)
 
-        if not issubclass(event_class, NewDomainEvent):
+        if not issubclass(event_class, DomainEvent):
             raise ValueError("Event class is not a OldDomainEvent: {}".format(event_class))
 
         event_attrs = sequenced_item.data
@@ -286,12 +203,12 @@ def make_stored_entity_id(id_prefix, entity_id):
 
 
 def id_prefix_from_event(domain_event):
-    assert isinstance(domain_event, NewDomainEvent), type(domain_event)
+    assert isinstance(domain_event, DomainEvent), type(domain_event)
     return id_prefix_from_event_class(type(domain_event))
 
 
 def id_prefix_from_event_class(domain_event_class):
-    assert issubclass(domain_event_class, NewDomainEvent), type(domain_event_class)
+    assert issubclass(domain_event_class, DomainEvent), type(domain_event_class)
     return domain_event_class.__qualname__.split('.')[0]
 
 

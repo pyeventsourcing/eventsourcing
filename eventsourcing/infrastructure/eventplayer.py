@@ -2,10 +2,10 @@ from functools import reduce
 
 from copy import deepcopy
 
-from eventsourcing.domain.model.new_entity import EventSourcedEntity
-from eventsourcing.domain.model.new_snapshot import AbstractSnapshop
+from eventsourcing.domain.model.entity import EventSourcedEntity
+from eventsourcing.domain.model.snapshot import AbstractSnapshop
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
-from eventsourcing.infrastructure.new_snapshotting import AbstractSnapshotStrategy, entity_from_snapshot
+from eventsourcing.infrastructure.snapshotting import AbstractSnapshotStrategy, entity_from_snapshot
 
 
 # class EventPlayer(object):
@@ -182,7 +182,7 @@ def clone_object(initial_state):
     return initial_state_copy
 
 
-class NewEventPlayer(object):
+class EventPlayer(object):
     """
     Reconstitutes domain entities from domain events
     retrieved from the event store, optionally with snapshots.

@@ -1,9 +1,9 @@
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.events import assert_event_handlers_empty
-from eventsourcing.example.new_domain_model import Example, register_new_example
-from eventsourcing.infrastructure.eventplayer import NewEventPlayer
-from eventsourcing.infrastructure.eventstore import NewEventStore
-from eventsourcing.infrastructure.new_snapshotting import entity_from_snapshot, take_snapshot
+from eventsourcing.example.domainmodel import Example, register_new_example
+from eventsourcing.infrastructure.eventplayer import EventPlayer
+from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.snapshotting import entity_from_snapshot, take_snapshot
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     SqlIntegerSequencedItem, SqlTimestampSequencedItem
 from eventsourcing.infrastructure.transcoding import SequencedItemMapper
@@ -19,7 +19,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         self.datastore.setup_tables()
 
         # Setup an event store for version entity events.
-        self.version_entity_event_store = NewEventStore(
+        self.version_entity_event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=self.datastore,
                 active_record_class=SqlIntegerSequencedItem,
@@ -30,7 +30,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         )
 
         # Setup an event store for timestamp entity events.
-        self.timestamp_entity_event_store = NewEventStore(
+        self.timestamp_entity_event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=self.datastore,
                 active_record_class=SqlTimestampSequencedItem,
@@ -63,7 +63,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
 
         # Check the event sourced entities are correct.
         # - just use a trivial mutate that always instantiates the 'Example'.
-        event_player = NewEventPlayer(event_store=self.version_entity_event_store, mutate_func=Example.mutate)
+        event_player = EventPlayer(event_store=self.version_entity_event_store, mutate_func=Example.mutate)
 
         # The the reconstituted entity has correct attribute values.
         self.assertEqual('entity1', event_player.replay_entity('entity1').id)
@@ -79,10 +79,10 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         event5 = Example.AttributeChanged(entity_id='entity1', entity_version=1, name='a', value=10)
         self.version_entity_event_store.append(event5)
 
-        event_player = NewEventPlayer(event_store=self.version_entity_event_store, mutate_func=Example.mutate)
+        event_player = EventPlayer(event_store=self.version_entity_event_store, mutate_func=Example.mutate)
         self.assertEqual(10, event_player.replay_entity('entity1').a)
 
-        event_player = NewEventPlayer(
+        event_player = EventPlayer(
             event_store=self.version_entity_event_store,
             mutate_func=Example.mutate,
             is_short=True,
@@ -96,7 +96,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
             timestamp_entity_event_store=self.timestamp_entity_event_store,
 
         )
-        event_player = NewEventPlayer(event_store=self.version_entity_event_store, mutate_func=Example.mutate)
+        event_player = EventPlayer(event_store=self.version_entity_event_store, mutate_func=Example.mutate)
 
         # Create a new entity.
         registered_example = register_new_example(a=123, b=234)

@@ -10,7 +10,7 @@ from eventsourcing.domain.model.events import TimestampEntityEvent, VersionEntit
 from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, EntityVersionNotFound, \
     SequencedItemError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.eventstore import NewEventStore
+from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
 from eventsourcing.infrastructure.transcoding import SequencedItem, SequencedItemMapper, StoredEvent
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
@@ -646,13 +646,13 @@ class WithPersistencePolicy(WithActiveRecordStrategies):
     def setUp(self):
         super(WithPersistencePolicy, self).setUp()
         # Setup the persistence subscriber.
-        self.version_entity_event_store = NewEventStore(
+        self.version_entity_event_store = EventStore(
             active_record_strategy=self.integer_sequence_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
                 position_attr_name='entity_version'
             )
         )
-        self.timestamp_entity_event_store = NewEventStore(
+        self.timestamp_entity_event_store = EventStore(
             active_record_strategy=self.timestamp_sequence_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
                 position_attr_name='timestamp'

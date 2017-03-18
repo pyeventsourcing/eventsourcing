@@ -4,7 +4,7 @@ from unittest.case import TestCase
 
 from eventsourcing.application.policies import PersistenceSubscriber
 from eventsourcing.domain.model.collection import Collection, register_new_collection
-from eventsourcing.domain.model.entity import EntityIsDiscarded
+from eventsourcing.domain.model.oldentity import EntityIsDiscarded
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepo

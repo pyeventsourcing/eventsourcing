@@ -3,12 +3,11 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.domain.model.events import OldDomainEvent, NewDomainEvent
+from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import EntityVersionNotFound
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
-from eventsourcing.infrastructure.transcoding import AbstractSequencedItemMapper, JSONStoredEventTranscoder, \
-    SequencedItem, StoredEvent, StoredEventTranscoder
+from eventsourcing.infrastructure.transcoding import AbstractSequencedItemMapper, SequencedItem, StoredEvent
 
 
 class AbstractEventStore(six.with_metaclass(ABCMeta)):
@@ -27,66 +26,6 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
 
 
 class EventStore(AbstractEventStore):
-    def __init__(self, stored_event_repo, transcoder=None):
-        assert isinstance(stored_event_repo, AbstractStoredEventRepository), stored_event_repo
-        if transcoder is None:
-            transcoder = JSONStoredEventTranscoder()
-        assert isinstance(transcoder, StoredEventTranscoder), transcoder
-        self.stored_event_repo = stored_event_repo
-
-        self.transcoder = transcoder
-
-    def append(self, domain_event):
-        assert isinstance(domain_event, OldDomainEvent), type(domain_event)
-        # Serialize the domain event.
-        stored_event = self.transcoder.serialize(domain_event)
-
-        # Append the stored event to the stored event repo.
-        self.stored_event_repo.append(
-            new_stored_event=stored_event,
-            new_version_number=domain_event.entity_version,
-        )
-
-    def get_domain_events(self, entity_id, after=None, until=None, limit=None, is_ascending=True,
-                          page_size=None):
-        # Get the events that have been stored for the entity.
-        if page_size:
-            stored_events = self.stored_event_repo.iterate_stored_events(
-                stored_entity_id=entity_id,
-                after=after,
-                until=until,
-                limit=limit,
-                is_ascending=is_ascending,
-                page_size=page_size
-            )
-        else:
-            stored_events = self.stored_event_repo.get_stored_events(
-                stored_entity_id=entity_id,
-                after=after,
-                until=until,
-                limit=limit,
-                query_ascending=is_ascending,
-                results_ascending=is_ascending,
-            )
-
-        # Deserialize all the stored event objects into domain event objects.
-        return six.moves.map(self.transcoder.deserialize, stored_events)
-
-    def get_most_recent_event(self, stored_entity_id, until=None, include_until=False):
-        """Returns last event for given stored entity ID.
-
-        :rtype: OldDomainEvent, NoneType
-        """
-        stored_event = self.stored_event_repo.get_most_recent_event(stored_entity_id, until=until,
-                                                                    include_until=include_until)
-        return None if stored_event is None else self.transcoder.deserialize(stored_event)
-
-    def get_entity_version(self, stored_entity_id, version):
-        return self.stored_event_repo.get_entity_version(stored_entity_id=stored_entity_id, version_number=version)
-
-
-class NewEventStore(AbstractEventStore):
-
     iterator_class = SequencedItemIterator
 
     def __init__(self, active_record_strategy, sequenced_item_mapper=None):
@@ -96,7 +35,7 @@ class NewEventStore(AbstractEventStore):
         self.sequenced_item_mapper = sequenced_item_mapper
 
     def append(self, domain_event):
-        assert isinstance(domain_event, NewDomainEvent)
+        assert isinstance(domain_event, DomainEvent)
         # Serialize the domain event as a sequenced item.
         sequenced_item = self.sequenced_item_mapper.to_sequenced_item(domain_event)
 
@@ -144,7 +83,6 @@ class NewEventStore(AbstractEventStore):
 
 
 class SequencedItemRepository(six.with_metaclass(ABCMeta)):
-
     def __init__(self, active_record_strategy):
         assert isinstance(active_record_strategy, AbstractActiveRecordStrategy)
         self.active_record_strategy = active_record_strategy

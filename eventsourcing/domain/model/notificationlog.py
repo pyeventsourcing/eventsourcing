@@ -1,6 +1,6 @@
 from singledispatch import singledispatch
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, AbstractEntityRepository, entity_mutator, Created
+from eventsourcing.domain.model.oldentity import EventSourcedEntity, AbstractEntityRepository, entity_mutator, Created
 from eventsourcing.domain.model.events import publish
 
 # Todo: New idea, just make it be a mixture of an archived log to hold the current sequence and a sequence.

@@ -5,8 +5,8 @@ from uuid import UUID, uuid4
 from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.events import EntityEvent, EventHandlersNotEmptyError, \
     VersionEntityEvent, TimestampEntityEvent, _event_handlers, assert_event_handlers_empty, \
-    create_timesequenced_event_id, publish, subscribe, unsubscribe, TimestampEvent, VersionEvent, NewDomainEvent
-from eventsourcing.example.new_domain_model import Example
+    create_timesequenced_event_id, publish, subscribe, unsubscribe, TimestampEvent, VersionEvent, DomainEvent
+from eventsourcing.example.domainmodel import Example
 
 try:
     from unittest import mock
@@ -17,7 +17,7 @@ except ImportError:
 class TestAbstractDomainEvent(unittest.TestCase):
     def test(self):
         # Check base class can be sub-classed.
-        class Event(NewDomainEvent):
+        class Event(DomainEvent):
             pass
 
         # Check subclass can be instantiated.

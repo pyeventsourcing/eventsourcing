@@ -1,5 +1,5 @@
 from eventsourcing.domain.model.notificationlog import NotificationLog, NotificationLogRepository
-from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository
+from eventsourcing.infrastructure.oldevent_sourced_repo import EventSourcedRepository
 
 
 class NotificationLogRepo(EventSourcedRepository, NotificationLogRepository):

@@ -1,10 +1,10 @@
 import mock
 
-from eventsourcing.domain.model.new_entity import AttributeChanged, Created, CreatedMutatorRequiresTypeNotInstance, \
+from eventsourcing.domain.model.entity import AttributeChanged, Created, CreatedMutatorRequiresTypeNotInstance, \
     EntityIDConsistencyError, EntityVersionConsistencyError, EventSourcedEntity, attribute, created_mutator
-from eventsourcing.domain.model.events import VersionEntityEvent, publish, subscribe, unsubscribe, NewDomainEvent
+from eventsourcing.domain.model.events import VersionEntityEvent, publish, subscribe, unsubscribe, DomainEvent
 from eventsourcing.example.infrastructure import ExampleRepo
-from eventsourcing.example.new_domain_model import Example, register_new_example
+from eventsourcing.example.domainmodel import Example, register_new_example
 from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError, SequencedItemError
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
@@ -98,7 +98,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
     def test_not_implemented_error(self):
         # Define an event class.
-        class UnsupportedEvent(NewDomainEvent): pass
+        class UnsupportedEvent(DomainEvent): pass
 
         # Check we get an error when attempting to mutate on the event.
         self.assertRaises(NotImplementedError, Example.mutate, Example, UnsupportedEvent())

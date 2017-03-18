@@ -1,8 +1,8 @@
 from abc import abstractproperty
 
-from eventsourcing.domain.model.new_entity import AbstractEntityRepository, EventSourcedEntity
+from eventsourcing.domain.model.entity import AbstractEntityRepository, EventSourcedEntity
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.infrastructure.eventplayer import NewEventPlayer
+from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 
@@ -35,7 +35,7 @@ class EventSourcedRepository(AbstractEntityRepository):
 
         # Instantiate an event player for this repo, with
         # repo-specific mutate function, page size, etc.
-        self.event_player = NewEventPlayer(
+        self.event_player = EventPlayer(
             event_store=self.event_store,
             mutate_func=self.domain_class.mutate,
             page_size=self.__page_size__,
