@@ -1,13 +1,12 @@
 import unittest
 from time import time
-from uuid import UUID, uuid1, uuid4
+from uuid import UUID, uuid4
 
 from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.events import EntityEvent, EventHandlersNotEmptyError, \
     VersionEntityEvent, TimestampEntityEvent, _event_handlers, assert_event_handlers_empty, \
     create_timesequenced_event_id, publish, subscribe, unsubscribe, TimestampEvent, VersionEvent, NewDomainEvent
-from eventsourcing.example.domain_model import Example
-from eventsourcing.utils.time import timestamp_from_uuid
+from eventsourcing.example.new_domain_model import Example
 
 try:
     from unittest import mock
@@ -277,6 +276,7 @@ class TestTimeSequencedEvent(unittest.TestCase):
         self.assertNotEqual(event2.timestamp, event4.timestamp)
 
 
+# Todo: Review and reduce. This is the original test case, much but not all of which is covered by the new tests.
 class TestEvents(unittest.TestCase):
     def tearDown(self):
         _event_handlers.clear()
@@ -294,10 +294,8 @@ class TestEvents(unittest.TestCase):
         self.assertIsInstance(event.timestamp, float)
 
         # Check timestamp value can be given to domain events.
-        self.assertEqual(3, Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3).domain_event_id)
-        domain_event_id = uuid1().hex
-        self.assertEqual(timestamp_from_uuid(domain_event_id),
-                         Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=domain_event_id).timestamp)
+        event1 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
+        self.assertEqual(3, event1.timestamp)
 
     def test_publish_subscribe_unsubscribe(self):
         # Check subscribing event handlers with predicates.
@@ -343,23 +341,23 @@ class TestEvents(unittest.TestCase):
         assert_event_handlers_empty()
 
     def test_hash(self):
-        event1 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)
-        event2 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)
+        event1 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
+        event2 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
         self.assertEqual(hash(event1), hash(event2))
 
     def test_equality_comparison(self):
-        event1 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)
-        event2 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)
-        event3 = Example.Created(entity_id='entity1', a=3, b=2, domain_event_id=3)
+        event1 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
+        event2 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
+        event3 = Example.Created(entity_id='entity1', a=3, b=2, timestamp=3)
         self.assertEqual(event1, event2)
         self.assertNotEqual(event1, event3)
         self.assertNotEqual(event2, event3)
         self.assertNotEqual(event2, None)
 
     def test_repr(self):
-        event1 = Example.Created(entity_id='entity1', a=1, b=2, domain_event_id=3)
+        event1 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
         self.assertEqual(
-            "Example.Created(a=1, b=2, domain_event_id=3, entity_id='entity1', entity_version=0)",
+            "Example.Created(a=1, b=2, entity_id='entity1', entity_version=0, timestamp=3)",
             repr(event1)
         )
 
