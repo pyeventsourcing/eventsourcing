@@ -1,7 +1,7 @@
 from threading import Thread
 from unittest.case import TestCase
 
-from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
+from eventsourcing.infrastructure.event_sourced_repos.timebucketedlog_repo import TimebucketedlogRepo
 from eventsourcing.infrastructure.event_sourced_repos.notificationlog_repo import NotificationLogRepo
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.infrastructure.notification_log import append_item_to_notification_log
@@ -21,7 +21,7 @@ class NotificationLogContext(object):
     def __init__(self, event_store):
         super(NotificationLogContext, self).__init__()
         self.event_store = event_store
-        self.log_repo = LogRepo(event_store)
+        self.log_repo = TimebucketedlogRepo(event_store)
         self.sequence_repo = SequenceRepo(event_store)
         self.notification_log_repo = NotificationLogRepo(event_store)
 

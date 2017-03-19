@@ -1,11 +1,11 @@
 import six
 
-from eventsourcing.domain.model.log import LogRepository
+from eventsourcing.domain.model.timebucketedlog import TimebucketedlogRepository
 from eventsourcing.domain.model.notificationlog import NotificationLog
 from eventsourcing.domain.model.sequence import Sequence, SequenceRepository
 from eventsourcing.exceptions import SequenceFullError
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
-from eventsourcing.infrastructure.log_reader import LogReader
+from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader
 from eventsourcing.infrastructure.sequence import SequenceReader, append_item_to_sequence
 
 
@@ -16,7 +16,7 @@ def append_item_to_notification_log(notification_log, item, sequence_repo, log_r
     the item is added to the next sequence."""
     assert isinstance(notification_log, NotificationLog), notification_log
     assert isinstance(sequence_repo, SequenceRepository)
-    assert isinstance(log_repo, LogRepository)
+    assert isinstance(log_repo, TimebucketedlogRepository)
     # Get the sequence.
     current_sequence = get_current_notification_log_sequence(notification_log, sequence_repo, log_repo, event_store)
     assert isinstance(current_sequence, Sequence)
@@ -45,9 +45,9 @@ def get_current_notification_log_sequence(notification_log, sequence_repo, log_r
 def get_current_notification_log_sequence_id(notification_log, sequence_repo, log_repo, event_store):
     assert isinstance(notification_log, NotificationLog), notification_log
     assert isinstance(sequence_repo, SequenceRepository), sequence_repo
-    assert isinstance(log_repo, LogRepository), log_repo
+    assert isinstance(log_repo, TimebucketedlogRepository), log_repo
     log = log_repo.get_or_create(notification_log.name, notification_log.bucket_size)
-    log_reader = LogReader(log, event_store)
+    log_reader = TimebucketedlogReader(log, event_store)
     events = list(log_reader.get_events(limit=1))
     if len(events):
         most_recent_event = events[0]
@@ -67,7 +67,7 @@ class NotificationLogReader(object):
     def __init__(self, notification_log, sequence_repo, log_repo, event_store):
         assert isinstance(notification_log, NotificationLog), notification_log
         assert isinstance(sequence_repo, SequenceRepository)
-        assert isinstance(log_repo, LogRepository)
+        assert isinstance(log_repo, TimebucketedlogRepository)
         assert isinstance(event_store, AbstractEventStore), event_store
         self.notification_log = notification_log
         self.sequence_repo = sequence_repo

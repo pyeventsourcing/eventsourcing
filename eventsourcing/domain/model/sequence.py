@@ -29,7 +29,7 @@ class SequenceRepository(AbstractEntityRepository):
         """
         Gets or creates a log.
 
-        :rtype: Log
+        :rtype: Timebucketedlog
         """
         try:
             return self[sequence_name]

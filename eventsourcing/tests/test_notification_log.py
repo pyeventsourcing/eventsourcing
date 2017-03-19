@@ -1,5 +1,5 @@
 from eventsourcing.domain.model.notificationlog import NotificationLog
-from eventsourcing.infrastructure.event_sourced_repos.log_repo import LogRepo
+from eventsourcing.infrastructure.event_sourced_repos.timebucketedlog_repo import TimebucketedlogRepo
 from eventsourcing.infrastructure.event_sourced_repos.notificationlog_repo import NotificationLogRepo
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.infrastructure.notification_log import NotificationLogReader, append_item_to_notification_log
@@ -13,7 +13,7 @@ from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
 # Todo: Interface object that can split an archived log ID of form "x,y" into two integers,
 # and query for the events between those versions, returning data that can be rendered.
 # Navigate from start by getting first log, if full then also second log, etc. Client
-# tracks where it is up to. Log entity version number gives offset in log, and log number
+# tracks where it is up to. Timebucketedlog entity version number gives offset in log, and log number
 # gives position in archived log. Archived log paging can be smaller sized than the log
 # size, with index numbers in page ID being used to identify and key into archived log.
 # Navigate from end by getting "current" log, if has "back link" then can follow it
@@ -36,7 +36,7 @@ class NotificationLogTestCase(WithPersistencePolicy):
 
         item1 = 'item1'
 
-        log_repo = LogRepo(self.timestamp_entity_event_store)
+        log_repo = TimebucketedlogRepo(self.timestamp_entity_event_store)
         sequence_repo = SequenceRepo(event_store=self.event_store)
 
         append_item_to_notification_log(notification_log, item1, sequence_repo, log_repo, self.event_store)

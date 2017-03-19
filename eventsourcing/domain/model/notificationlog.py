@@ -4,7 +4,7 @@ from eventsourcing.domain.model.entity import EventSourcedEntity, AbstractEntity
 from eventsourcing.domain.model.events import publish
 
 # Todo: New idea, just make it be a mixture of an archived log to hold the current sequence and a sequence.
-# class NotificationLog(Log, Sequence):
+# class NotificationLog(Timebucketedlog, Sequence):
 from eventsourcing.exceptions import RepositoryKeyError
 
 

@@ -3,17 +3,17 @@ from time import time
 
 import six
 
-from eventsourcing.domain.model.log import get_logger, start_new_log
+from eventsourcing.domain.model.timebucketedlog import start_new_timebucketedlog
 from eventsourcing.example.domainmodel import Example, register_new_example
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
-from eventsourcing.infrastructure.log_reader import LogReader, get_log_reader
+from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader, get_timebucketedlog_reader
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.core_tests.test_utils import utc_now
-from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
+from eventsourcing.tests.example_application_tests.base import WithExampleApplication
 from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import \
-    CipheringTestCase
+    WithEncryption
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
     WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
@@ -21,7 +21,7 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 
 
 @notquick()
-class PerformanceTestCase(ExampleApplicationTestCase):
+class PerformanceTestCase(WithExampleApplication):
     def test(self):
         """
         Reports on the performance of Example entity and repo.
@@ -117,19 +117,18 @@ class PerformanceTestCase(ExampleApplicationTestCase):
 
                 print("")
 
-    def _test_log_performance(self):
+    def test_log_performance(self):
 
         with self.construct_application() as app:
-            log = start_new_log('example', bucket_size='year')
-            logger = get_logger(log)
-            log_reader = get_log_reader(log, app.event_store)
+            log = start_new_timebucketedlog('example', bucket_size='year')
+            log_reader = get_timebucketedlog_reader(log, app.timestamp_entity_event_store)
 
             # Write a load of messages.
             start_write = utc_now()
             number_of_messages = 111
             events = []
             for i in range(number_of_messages):
-                event = logger.log('Logger message number {}'.format(i))
+                event = log.append_message('Logger message number {}'.format(i))
                 events.append(event)
             time_to_write = (utc_now() - start_write)
             print("Time to log {} messages: {:.2f}s ({:.0f} messages/s, {:.6f}s each)"
@@ -138,7 +137,7 @@ class PerformanceTestCase(ExampleApplicationTestCase):
 
             # Read pages of messages in descending order.
             # - get a limited number until a time, then use the earliest in that list as the position
-            position = events[-1].domain_event_id
+            position = events[-1].timestamp
 
             page_size = 10
 
@@ -193,21 +192,20 @@ class PerformanceTestCase(ExampleApplicationTestCase):
                   "".format(total_num_reads, total_time_to_read, reads_per_second, messages_per_second))
 
     def get_message_logged_events_and_next_position(self, log_reader, position, page_size, is_ascending=False):
-        assert isinstance(log_reader, LogReader), type(log_reader)
-        assert isinstance(position, (six.string_types, type(None))), type(position)
+        assert isinstance(log_reader, TimebucketedlogReader), type(log_reader)
         assert isinstance(page_size, six.integer_types), type(page_size)
         assert isinstance(is_ascending, bool)
         if is_ascending:
-            after = position
-            until = None
+            gt = position
+            lt = None
         else:
-            after = None
-            until = position
+            lt = position
+            gt = None
 
-        events = log_reader.get_events(after=after, until=until, limit=page_size + 1, is_ascending=is_ascending)
+        events = log_reader.get_events(gt=gt, lt=lt, limit=page_size + 1, is_ascending=is_ascending)
         events = list(events)
         if len(events) == page_size + 1:
-            next_position = events.pop().domain_event_id
+            next_position = events.pop().timestamp
         else:
             next_position = None
         return events, next_position
@@ -218,14 +216,8 @@ class TestCassandraPerformance(WithCassandraActiveRecordStrategies, PerformanceT
     pass
 
 
-# @notquick()
-# class TestCassandra2Performance(Cassandra2RepoTestCase, PerformanceTestCase):
-#     pass
-
-
-
 @notquick()
-class TestEncryptionPerformance(CipheringTestCase, TestCassandraPerformance):
+class TestEncryptionPerformance(WithEncryption, TestCassandraPerformance):
     pass
 
 

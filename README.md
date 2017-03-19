@@ -815,7 +815,7 @@ experience, which might not be enough adequately to practise design approaches s
 
 * Republisher that subscribers to Amazon SQS and publishes domain event locally (forthcoming)
 
-* Linked pages of domain events ("Archived Log"), to allow event sourced projections easily to make sure they have
+* Linked pages of domain events ("Archived Timebucketedlog"), to allow event sourced projections easily to make sure they have
 all the events (forthcoming)
 
 * Base class for event sourced projections or views (forthcoming)

@@ -8,7 +8,22 @@ from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies
 
 
-class ExampleApplicationTestCase(WithActiveRecordStrategies):
+class WithExampleApplication(WithActiveRecordStrategies):
+    def construct_application(self):
+        cipher = self.construct_cipher()
+        app = ExampleApplication(
+            integer_sequenced_active_record_strategy=self.integer_sequence_active_record_strategy,
+            timestamp_sequenced_active_record_strategy=self.timestamp_sequence_active_record_strategy,
+            always_encrypt=bool(cipher),
+            cipher=cipher,
+        )
+        return app
+
+    def construct_cipher(self):
+        return None
+
+
+class ExampleApplicationTestCase(WithExampleApplication):
     def test(self):
         """
         Checks the example application works in the way an example application should.
@@ -84,16 +99,3 @@ class ExampleApplicationTestCase(WithActiveRecordStrategies):
 
             # Check the new snapshot is not equal to the first.
             self.assertNotEqual(snapshot1, snapshot4)
-
-    def construct_application(self):
-        cipher = self.construct_cipher()
-        app = ExampleApplication(
-            integer_sequenced_active_record_strategy=self.integer_sequence_active_record_strategy,
-            timestamp_sequenced_active_record_strategy=self.timestamp_sequence_active_record_strategy,
-            always_encrypt=bool(cipher),
-            cipher=cipher,
-        )
-        return app
-
-    def construct_cipher(self):
-        return None

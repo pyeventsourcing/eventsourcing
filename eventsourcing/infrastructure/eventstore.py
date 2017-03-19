@@ -18,11 +18,16 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def get_domain_events(self, entity_id, after=None, until=None, limit=None, is_ascending=True, page_size=None):
-        """Returns domain events for given stored entity ID."""
+    def get_domain_events(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
+                          page_size=None):
+        """
+        Returns domain events for given entity ID.
+        """
 
     def get_most_recent_event(self, entity_id, lt=None, lte=None):
-        """Returns most recent domain event for given entity ID."""
+        """
+        Returns most recent domain event for given entity ID.
+        """
 
 
 class EventStore(AbstractEventStore):

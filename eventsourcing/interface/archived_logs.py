@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 import requests
 import six
 
-from eventsourcing.domain.model.log import LogRepository
+from eventsourcing.domain.model.timebucketedlog import TimebucketedlogRepository
 from eventsourcing.domain.model.notificationlog import NotificationLog
 from eventsourcing.domain.model.sequence import SequenceRepository
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
@@ -37,7 +37,7 @@ class ArchivedLogRepo(ArchivedLogRepository):
     def __init__(self, notification_log, sequence_repo, log_repo, event_store, doc_size):
         assert isinstance(notification_log, NotificationLog), notification_log
         assert isinstance(sequence_repo, SequenceRepository), sequence_repo
-        assert isinstance(log_repo, LogRepository), log_repo
+        assert isinstance(log_repo, TimebucketedlogRepository), log_repo
         assert isinstance(event_store, AbstractEventStore), event_store
         assert isinstance(doc_size, six.integer_types), doc_size
         if notification_log.sequence_size % doc_size:
