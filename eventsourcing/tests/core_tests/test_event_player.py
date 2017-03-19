@@ -1,4 +1,4 @@
-from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.application.policies import CombinedPersistencePolicy
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.example.domainmodel import Example, register_new_example
 from eventsourcing.infrastructure.eventplayer import EventPlayer
@@ -40,13 +40,13 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
             ),
         )
 
-        self.ps = None
+        self.policy = None
 
     def tearDown(self):
         self.datastore.drop_tables()
         self.datastore.drop_connection()
-        if self.ps is not None:
-            self.ps.close()
+        if self.policy is not None:
+            self.policy.close()
         super(TestEventPlayer, self).tearDown()
         assert_event_handlers_empty()
 
@@ -91,9 +91,9 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
 
     # Todo: Maybe this is an application-level test? If not, test event player capabilities here only.
     def test_snapshots(self):
-        self.ps = PersistencePolicy(
-            version_entity_event_store=self.version_entity_event_store,
-            timestamp_entity_event_store=self.timestamp_entity_event_store,
+        self.policy = CombinedPersistencePolicy(
+            versioned_entity_event_store=self.version_entity_event_store,
+            timestamped_entity_event_store=self.timestamp_entity_event_store,
 
         )
         event_player = EventPlayer(event_store=self.version_entity_event_store, mutate_func=Example.mutate)

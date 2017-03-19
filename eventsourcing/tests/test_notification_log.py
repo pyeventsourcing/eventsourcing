@@ -25,7 +25,7 @@ from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
 class NotificationLogTestCase(WithPersistencePolicy):
 
     def test_entity_lifecycle(self):
-        notification_log_repo = NotificationLogRepo(self.timestamp_entity_event_store)
+        notification_log_repo = NotificationLogRepo(self.timestamped_entity_event_store)
 
         notification_log = notification_log_repo.get_or_create(
             log_name='log1',
@@ -36,8 +36,8 @@ class NotificationLogTestCase(WithPersistencePolicy):
 
         item1 = 'item1'
 
-        log_repo = TimebucketedlogRepo(self.timestamp_entity_event_store)
-        sequence_repo = SequenceRepo(event_store=self.event_store)
+        log_repo = TimebucketedlogRepo(self.timestamped_entity_event_store)
+        sequence_repo = SequenceRepo(event_store=self.versioned_entity_event_store)
 
         append_item_to_notification_log(notification_log, item1, sequence_repo, log_repo, self.event_store)
 

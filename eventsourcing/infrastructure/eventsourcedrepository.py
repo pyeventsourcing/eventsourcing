@@ -1,6 +1,6 @@
 from abc import abstractproperty
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, EventSourcedEntity
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
@@ -31,7 +31,7 @@ class EventSourcedRepository(AbstractEntityRepository):
         self.event_store = event_store
 
         # Check domain class is a type of event sourced entity.
-        assert issubclass(self.domain_class, EventSourcedEntity), self.domain_class
+        assert issubclass(self.domain_class, TimestampedVersionedEntity), self.domain_class
 
         # Instantiate an event player for this repo, with
         # repo-specific mutate function, page size, etc.

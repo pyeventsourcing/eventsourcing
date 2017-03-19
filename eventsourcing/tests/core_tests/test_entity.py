@@ -1,8 +1,8 @@
 import mock
 
 from eventsourcing.domain.model.entity import AttributeChanged, Created, CreatedMutatorRequiresTypeNotInstance, \
-    EntityIDConsistencyError, EntityVersionConsistencyError, EventSourcedEntity, attribute, created_mutator
-from eventsourcing.domain.model.events import VersionEntityEvent, publish, subscribe, unsubscribe, DomainEvent
+    EntityIDConsistencyError, EntityVersionConsistencyError, TimestampedVersionedEntity, attribute, created_mutator
+from eventsourcing.domain.model.events import VersionedEntityEvent, publish, subscribe, unsubscribe, DomainEvent
 from eventsourcing.example.infrastructure import ExampleRepo
 from eventsourcing.example.domainmodel import Example, register_new_example
 from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError, SequencedItemError
@@ -21,7 +21,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertEqual(1, example1.a)
         self.assertEqual(2, example1.b)
 
-        # Check the properties of the EventSourcedEntity class.
+        # Check the properties of the TimestampedVersionedEntity class.
         self.assertTrue(example1.id)
         self.assertEqual(1, example1.version)
         self.assertTrue(example1.created_on)
@@ -31,7 +31,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertNotEqual(example1, example2)
 
         # Setup the repo.
-        repo = ExampleRepo(self.version_entity_event_store)
+        repo = ExampleRepo(self.versioned_entity_event_store)
 
         # Check the example entities can be retrieved from the example repository.
         entity1 = repo[example1.id]
@@ -69,7 +69,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         # Should fail to validate event with wrong entity ID.
         with self.assertRaises(EntityIDConsistencyError):
             entity2._validate_originator(
-                VersionEntityEvent(
+                VersionedEntityEvent(
                     entity_id=entity2.id + 'wrong',
                     entity_version=0
                 )
@@ -77,7 +77,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         # Should fail to validate event with wrong entity version.
         with self.assertRaises(EntityVersionConsistencyError):
             entity2._validate_originator(
-                VersionEntityEvent(
+                VersionedEntityEvent(
                     entity_id=entity2.id,
                     entity_version=0,
                 )
@@ -85,7 +85,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Should validate event with correct entity ID and version.
         entity2._validate_originator(
-            VersionEntityEvent(
+            VersionedEntityEvent(
                 entity_id=entity2.id,
                 entity_version=entity2.version,
             )
@@ -121,7 +121,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertTrue(p.fget)
 
         # Pretend we decorated an object.
-        o = EventSourcedEntity(entity_id='entity1', entity_version=0)
+        o = TimestampedVersionedEntity(entity_id='entity1', entity_version=0)
         o.__dict__['_<lambda>'] = 'value1'
 
         # Call the property's getter function.
@@ -139,7 +139,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertNotEqual(p.fget, getter)
 
         # Define a class that uses the decorator.
-        class Aaa(EventSourcedEntity):
+        class Aaa(TimestampedVersionedEntity):
             "An event sourced entity."
 
             def __init__(self, a, *args, **kwargs):
@@ -175,7 +175,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertEqual(published_event.entity_id, entity_id)
 
     def test_static_mutator_method(self):
-        self.assertRaises(NotImplementedError, EventSourcedEntity._mutator, 1, 2)
+        self.assertRaises(NotImplementedError, TimestampedVersionedEntity._mutator, 1, 2)
 
     def test_created_mutator_error(self):
         with self.assertRaises(CreatedMutatorRequiresTypeNotInstance):

@@ -224,7 +224,7 @@ Add those events to your entity class.
 ```python
 from eventsourcing.domain.model.entity import Created, AttributeChanged, Discarded
 
-class Example(EventSourcedEntity):
+class Example(TimestampedVersionedEntity):
     """An example of an event sourced entity class."""
 
     class Created(Created):
@@ -255,7 +255,7 @@ and adjust the import statement to import 'attribute'.
 ```python
 from eventsourcing.domain.model.entity import attribute
 
-class Example(EventSourcedEntity):
+class Example(TimestampedVersionedEntity):
     """An example of an event sourced entity class."""
 
     class Created(Created):
@@ -292,7 +292,7 @@ will be passed through to the base class constructor.
 
 
 ```python
-class Example(EventSourcedEntity):
+class Example(TimestampedVersionedEntity):
     """An example of an event sourced entity class."""
 
     class Created(Created):
@@ -901,16 +901,16 @@ through long histories of events and getting only recent events after a snapshot
 A few things have been renamed, for example '@mutableproperty' is the new name for '@eventsourcedproperty'.
 This change was made to reflect the fact that immutable properties are also event sourced.
 
-The EventSourcedEntity class now has a property 'created_on', which replaces the attribute '_created_on'.
+The TimestampedVersionedEntity class now has a property 'created_on', which replaces the attribute '_created_on'.
 This change follows from the fact that the domain events no longer have an floating point attribute 'timestamp'
 but instead a UUID attribute 'domain_event_id', which is set on an event sourced entity as '_initial_event_id'.
 That UUID value is used to generate the floating point timestamp value of the 'created_on' property.
 
 Please note, the mutator style has changed to use the `singledispatch` package. Mutators were implemented as a
-big if-elif-else block. Subclasses of EventSourcedEntity must implement a static method called _mutator() in
+big if-elif-else block. Subclasses of TimestampedVersionedEntity must implement a static method called _mutator() in
 order to have their own mutator function invoked when mutate() is called.
 
-There is a new method called _apply() on EventSourcedEntity, which makes operations that need to apply events
+There is a new method called _apply() on TimestampedVersionedEntity, which makes operations that need to apply events
 have a suitably named method to call. The apply() method calls the mutate() class method, which is also used by the
 event source repository to replay events. The mutate() class method calls the static method _mutator() with the
 event and an initial state. So the static method _mutator is a good method to override in order to introduce

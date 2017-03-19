@@ -11,7 +11,7 @@ from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
 
 class SequenceTestCase(WithPersistencePolicy):
     def test(self):
-        repo = SequenceRepo(self.version_entity_event_store)
+        repo = SequenceRepo(self.versioned_entity_event_store)
 
         # Start a new sequence.
         name = 'sequence1'

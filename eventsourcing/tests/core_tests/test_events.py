@@ -3,9 +3,9 @@ from time import time
 from uuid import UUID, uuid4
 
 from eventsourcing.domain.model.decorators import subscribe_to
-from eventsourcing.domain.model.events import EntityEvent, EventHandlersNotEmptyError, \
-    VersionEntityEvent, TimestampEntityEvent, _event_handlers, assert_event_handlers_empty, \
-    create_timesequenced_event_id, publish, subscribe, unsubscribe, TimestampEvent, VersionEvent, DomainEvent
+from eventsourcing.domain.model.events import DomainEvent, EntityEvent, EventHandlersNotEmptyError, \
+    EventWithEntityVersion, EventWithTimestamp, TimestampedEntityEvent, VersionedEntityEvent, _event_handlers, \
+    assert_event_handlers_empty, create_timesequenced_event_id, publish, subscribe, unsubscribe
 from eventsourcing.example.domainmodel import Example
 
 try:
@@ -45,6 +45,7 @@ class TestAbstractDomainEvent(unittest.TestCase):
         # Check not equal to different type with same values.
         class SubclassEvent(Event):
             pass
+
         self.assertNotEqual(event2, SubclassEvent(name='value'))
 
 
@@ -56,6 +57,7 @@ class TestEntityEvent(unittest.TestCase):
 
         # Check can't instantiate without an ID.
         with self.assertRaises(TypeError):
+            # noinspection PyArgumentList
             Event()
 
         # Check any kind of ID is acceptable.
@@ -70,13 +72,14 @@ class TestEntityEvent(unittest.TestCase):
 
         # Check the ID value can't be reassigned.
         with self.assertRaises(AttributeError):
+            # noinspection PyPropertyAccess
             event.entity_id = '2'
 
 
 class TestTimestampEvent(unittest.TestCase):
     def test(self):
         # Check base class can be sub-classed.
-        class Event(TimestampEvent):
+        class Event(EventWithTimestamp):
             pass
 
         # Check event can be instantiated with a timestamp.
@@ -91,13 +94,14 @@ class TestTimestampEvent(unittest.TestCase):
 
         # Check the timestamp value can't be reassigned.
         with self.assertRaises(AttributeError):
+            # noinspection PyPropertyAccess
             event.timestamp = time()
 
 
 class TestVersionEvent(unittest.TestCase):
     def test(self):
         # Check base class can be sub-classed.
-        class Event(VersionEvent):
+        class Event(EventWithEntityVersion):
             pass
 
         # Check event can be instantiated with a version.
@@ -107,6 +111,7 @@ class TestVersionEvent(unittest.TestCase):
 
         # Check event can't be instantiated without a version.
         with self.assertRaises(TypeError):
+            # noinspection PyArgumentList
             event = Event()
 
         # Check version must be an integer.
@@ -115,20 +120,24 @@ class TestVersionEvent(unittest.TestCase):
 
         # Check the version value can't be reassigned.
         with self.assertRaises(AttributeError):
+            # noinspection PyPropertyAccess
             event.entity_version = 2
 
 
 class TestVersionEntityEvent(unittest.TestCase):
+    # noinspection PyArgumentList
     def test(self):
         # Check base class can be sub-classed.
-        class Event(VersionEntityEvent):
+        class Event(VersionedEntityEvent):
             pass
 
         # Check construction requires both an ID and version.
         with self.assertRaises(TypeError):
+            # noinspection PyArgumentList
             Event()
 
         with self.assertRaises(TypeError):
+            # noinspection PyArgumentList
             Event(entity_id='1')
 
         with self.assertRaises(TypeError):
@@ -153,7 +162,7 @@ class TestVersionEntityEvent(unittest.TestCase):
 class TestTimestampEntityEvent(unittest.TestCase):
     def test(self):
         # Check base class can be sub-classed.
-        class Event(TimestampEntityEvent):
+        class Event(TimestampedEntityEvent):
             pass
 
         # Check construction requires an ID.
@@ -185,10 +194,10 @@ class TestTimestampEntityEvent(unittest.TestCase):
 class TestTimeSequencedEvent(unittest.TestCase):
     def test(self):
         # Check base class can be sub-classed.
-        class Event(TimestampEntityEvent):
+        class Event(TimestampedEntityEvent):
             pass
 
-        class Event2(TimestampEntityEvent):
+        class Event2(TimestampedEntityEvent):
             pass
 
         # Check subclass can be instantiated with 'entity_id' parameter.

@@ -1,8 +1,8 @@
-from eventsourcing.domain.model.collection import CollectionRepository, Collection
-from eventsourcing.infrastructure.oldevent_sourced_repo import EventSourcedRepository
+from eventsourcing.domain.model.collection import AbstractCollectionRepository, Collection
+from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
 
-class CollectionRepo(EventSourcedRepository, CollectionRepository):
+class CollectionRepository(EventSourcedRepository, AbstractCollectionRepository):
     """
     Event sourced repository for the Collection domain model entity.
     """

@@ -103,13 +103,13 @@ class EntityEvent(DomainEvent):
         return self.__dict__['entity_id']
 
 
-class TimestampEvent(DomainEvent):
+class EventWithTimestamp(DomainEvent):
     """
     For events that have an timestamp attribute.
     """
 
     def __init__(self, timestamp=None, **kwargs):
-        super(TimestampEvent, self).__init__(**kwargs)
+        super(EventWithTimestamp, self).__init__(**kwargs)
         self.__dict__['timestamp'] = timestamp or time.time()
 
     @property
@@ -117,13 +117,7 @@ class TimestampEvent(DomainEvent):
         return self.__dict__['timestamp']
 
 
-class TimestampEntityEvent(TimestampEvent, EntityEvent):
-    """
-    For events of timestamp-based entities (e.g. a log).
-    """
-
-
-class VersionEvent(DomainEvent):
+class EventWithEntityVersion(DomainEvent):
     """
     For events that have an entity version number.
     """
@@ -131,7 +125,7 @@ class VersionEvent(DomainEvent):
     def __init__(self, entity_version, **kwargs):
         if not isinstance(entity_version, six.integer_types):
             raise TypeError("Version must be an integer: {}".format(entity_version))
-        super(VersionEvent, self).__init__(**kwargs)
+        super(EventWithEntityVersion, self).__init__(**kwargs)
         self.__dict__['entity_version'] = entity_version
 
     @property
@@ -139,15 +133,26 @@ class VersionEvent(DomainEvent):
         return self.__dict__['entity_version']
 
 
-class VersionEntityEvent(VersionEvent, EntityEvent):
+class TimestampedEntityEvent(EventWithTimestamp, EntityEvent):
     """
-    For events of version-based entities.
+    For events of timestamp-based entities (e.g. a log).
     """
 
 
-class TimestampedVersionEntityEvent(TimestampEvent, VersionEntityEvent):
+class VersionedEntityEvent(EventWithEntityVersion, EntityEvent):
+    """
+    For events of versioned entities.
+    """
+
+
+class TimestampedVersionedEntityEvent(EventWithTimestamp, VersionedEntityEvent):
     """
     For events of version-based entities, that are also timestamped.
+    """
+
+class AggregateEvent(TimestampedVersionedEntityEvent):
+    """
+    For events of DDD aggregates.
     """
 
 

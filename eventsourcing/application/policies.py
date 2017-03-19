@@ -1,73 +1,60 @@
-from eventsourcing.domain.model.events import DomainEvent, subscribe, unsubscribe, VersionEntityEvent, \
-    TimestampEntityEvent
+from eventsourcing.domain.model.events import TimestampedEntityEvent, VersionedEntityEvent, subscribe, unsubscribe
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 
-class PersistenceSubscriber(object):
-    def __init__(self, event_store):
+class VersionedEntityPersistencePolicy(object):
+    """
+    Persists versioned entity events, whenever they are published.
+    """
+    def __init__(self, event_store=None):
         assert isinstance(event_store, AbstractEventStore)
         self.event_store = event_store
-        subscribe(self.is_domain_event, self.store_domain_event)
+        subscribe(self.is_versioned_entity_event, self.store_versioned_entity_event)
 
     @staticmethod
-    def is_domain_event(event):
-        return isinstance(event, DomainEvent)
+    def is_versioned_entity_event(event):
+        return isinstance(event, VersionedEntityEvent)
 
-    def store_domain_event(self, event):
+    def store_versioned_entity_event(self, event):
         self.event_store.append(event)
 
     def close(self):
-        unsubscribe(self.is_domain_event, self.store_domain_event)
+        unsubscribe(self.is_versioned_entity_event, self.store_versioned_entity_event)
 
 
-class AbstractPolicy(object):
-
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def close(self):
-        pass
-
-
-class VersionEntityEventPersistence(AbstractPolicy):
-    def __init__(self, version_entity_event_store=None, *args, **kwargs):
-        super(VersionEntityEventPersistence, self).__init__(*args, **kwargs)
-        assert isinstance(version_entity_event_store, AbstractEventStore)
-        self.version_entity_event_store = version_entity_event_store
-        subscribe(self.is_version_entity_event, self.store_version_entity_event)
+class TimestampedEntityPersistencePolicy(object):
+    """
+    Persists timestamped entity events, whenever they are published.
+    """
+    def __init__(self, event_store):
+        assert isinstance(event_store, AbstractEventStore)
+        self.event_store = event_store
+        subscribe(self.is_timestamped_entity_event, self.store_timestamped_entity_event)
 
     @staticmethod
-    def is_version_entity_event(event):
-        return isinstance(event, VersionEntityEvent)
+    def is_timestamped_entity_event(event):
+        return isinstance(event, TimestampedEntityEvent)
 
-    def store_version_entity_event(self, event):
-        self.version_entity_event_store.append(event)
-
-    def close(self):
-        super(VersionEntityEventPersistence, self).close()
-        unsubscribe(self.is_version_entity_event, self.store_version_entity_event)
-
-
-class TimestampEntityEventPersistence(AbstractPolicy):
-    def __init__(self, timestamp_entity_event_store=None, *args, **kwargs):
-        super(TimestampEntityEventPersistence, self).__init__(*args, **kwargs)
-        assert isinstance(timestamp_entity_event_store, AbstractEventStore)
-        self.timestamp_entity_event_store = timestamp_entity_event_store
-
-        subscribe(self.is_timestamp_entity_event, self.store_timestamp_entity_event)
-
-    @staticmethod
-    def is_timestamp_entity_event(event):
-        return isinstance(event, TimestampEntityEvent)
-
-    def store_timestamp_entity_event(self, event):
-        self.timestamp_entity_event_store.append(event)
+    def store_timestamped_entity_event(self, event):
+        self.event_store.append(event)
 
     def close(self):
-        super(TimestampEntityEventPersistence, self).close()
-        unsubscribe(self.is_timestamp_entity_event, self.store_timestamp_entity_event)
+        unsubscribe(self.is_timestamped_entity_event, self.store_timestamped_entity_event)
 
 
+class CombinedPersistencePolicy(object):
+    """
+    Persists both timestamped and versioned entity events, whenever they are published.
+    """
 
-class PersistencePolicy(VersionEntityEventPersistence, TimestampEntityEventPersistence):
-    pass
+    def __init__(self, timestamped_entity_event_store, versioned_entity_event_store):
+        self.timestamped_entity_policy =  TimestampedEntityPersistencePolicy(
+            event_store=timestamped_entity_event_store
+        )
+        self.versioned_entity_policy =  VersionedEntityPersistencePolicy(
+            event_store=versioned_entity_event_store
+        )
+
+    def close(self):
+        self.timestamped_entity_policy.close()
+        self.versioned_entity_policy.close()

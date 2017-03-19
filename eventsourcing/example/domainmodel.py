@@ -1,23 +1,14 @@
 import uuid
 
-from eventsourcing.domain.model.events import publish
-from eventsourcing.domain.model.entity import AttributeChanged, Created, Discarded, EventSourcedEntity, \
-    TimestampedVersionEntityEvent, attribute, entity_mutator, singledispatch, AbstractEntityRepository
+from eventsourcing.domain.model.entity import AbstractEntityRepository, Aggregate, AttributeChanged, Created, \
+    Discarded, attribute, entity_mutator, singledispatch
+from eventsourcing.domain.model.events import AggregateEvent, publish
 
 
-class Example(EventSourcedEntity):
+class Example(Aggregate):
     """
     An example event sourced domain model entity.
     """
-
-    # Todo: Move this to the Cassandra repo, and make sure it will work by default.
-    # Needed to get an event history longer than 10000 in Cassandra.
-    # __page_size__ = 1000
-
-    # Make sure events that are applied to the entity have originated
-    # from the entity at the version the instance it is current at.
-    #  - this assumes _validate_originator() is called in mutators.
-    __always_validate_originator_version__ = True
 
     class Created(Created):
         pass
@@ -28,7 +19,7 @@ class Example(EventSourcedEntity):
     class Discarded(Discarded):
         pass
 
-    class Heartbeat(TimestampedVersionEntityEvent):
+    class Heartbeat(AggregateEvent):
         pass
 
     def __init__(self, a, b, **kwargs):
@@ -39,11 +30,11 @@ class Example(EventSourcedEntity):
 
     @attribute
     def a(self):
-        """The 'a' attribute."""
+        """An example attribute."""
 
     @attribute
     def b(self):
-        """The 'b' attribute."""
+        """Another example attribute."""
 
     def beat_heart(self):
         self._assert_not_discarded()

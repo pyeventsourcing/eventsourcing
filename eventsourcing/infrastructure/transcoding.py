@@ -10,7 +10,7 @@ from json.encoder import JSONEncoder
 import dateutil.parser
 import six
 
-from eventsourcing.domain.model.entity import EventSourcedEntity
+from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 from eventsourcing.domain.model.events import DomainEvent, resolve_domain_topic, \
     topic_from_domain_class, EntityEvent
 from eventsourcing.domain.services.cipher import AbstractCipher
@@ -25,6 +25,7 @@ class SequencedItem(tuple):
 
     _fields = ('sequence_id', 'position', 'topic', 'data')
 
+    # noinspection PyInitNewSignature
     def __new__(cls, sequence_id, position, topic, data):
         return tuple.__new__(cls, (sequence_id, position, topic, data))
 
@@ -213,10 +214,10 @@ def id_prefix_from_event_class(domain_event_class):
 
 
 def id_prefix_from_entity(domain_entity):
-    assert isinstance(domain_entity, EventSourcedEntity)
+    assert isinstance(domain_entity, TimestampedVersionedEntity)
     return id_prefix_from_entity_class(type(domain_entity))
 
 
 def id_prefix_from_entity_class(domain_class):
-    assert issubclass(domain_class, EventSourcedEntity), domain_class
+    assert issubclass(domain_class, TimestampedVersionedEntity), domain_class
     return domain_class.__name__

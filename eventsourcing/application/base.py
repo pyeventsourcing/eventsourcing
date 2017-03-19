@@ -2,7 +2,7 @@ from abc import ABCMeta
 
 from six import with_metaclass
 
-from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.application.policies import CombinedPersistencePolicy
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.transcoding import SequencedItemMapper
@@ -69,16 +69,16 @@ class EventSourcedApplication(ReadOnlyEventSourcingApplication):
 
     def __init__(self, **kwargs):
         super(EventSourcedApplication, self).__init__(**kwargs)
-        self.persistence_subscriber = self.construct_persistence_subscriber()
+        self.persistence_policy = self.construct_persistence_policy()
 
-    def construct_persistence_subscriber(self):
-        return PersistencePolicy(
-            version_entity_event_store=self.version_entity_event_store,
-            timestamp_entity_event_store=self.timestamp_entity_event_store,
+    def construct_persistence_policy(self):
+        return CombinedPersistencePolicy(
+            versioned_entity_event_store=self.version_entity_event_store,
+            timestamped_entity_event_store=self.timestamp_entity_event_store,
         )
 
     def close(self):
-        if self.persistence_subscriber is not None:
-            self.persistence_subscriber.close()
-            self.persistence_subscriber = None
+        if self.persistence_policy is not None:
+            self.persistence_policy.close()
+            self.persistence_policy = None
         super(EventSourcedApplication, self).close()

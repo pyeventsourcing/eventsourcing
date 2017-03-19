@@ -1,14 +1,14 @@
-from eventsourcing.domain.model.entity import EventSourcedEntity, AbstractEntityRepository, Created
-from eventsourcing.domain.model.events import publish, TimestampedVersionEntityEvent
+from eventsourcing.domain.model.entity import TimestampedVersionedEntity, AbstractEntityRepository, Created
+from eventsourcing.domain.model.events import publish, TimestampedVersionedEntityEvent
 from eventsourcing.exceptions import RepositoryKeyError
 
 
-class Sequence(EventSourcedEntity):
+class Sequence(TimestampedVersionedEntity):
 
     class Started(Created):
         """Occurs when sequence is started."""
 
-    class Appended(TimestampedVersionEntityEvent):
+    class Appended(TimestampedVersionedEntityEvent):
         """Occurs when item is appended."""
 
     @property

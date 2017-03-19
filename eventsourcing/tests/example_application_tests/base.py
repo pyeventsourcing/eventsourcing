@@ -1,4 +1,4 @@
-from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.application.policies import CombinedPersistencePolicy
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.example.domainmodel import Example
@@ -43,11 +43,8 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(app.timestamp_entity_event_store.active_record_strategy,
                              app.timestamp_sequenced_active_record_strategy)
 
-            # Check there's a persistence subscriber.
-            self.assertIsInstance(app.persistence_subscriber, PersistencePolicy)
-            # Todo: Move the next two checks to the persistence subscriber unit test.
-            self.assertEqual(app.persistence_subscriber.version_entity_event_store, app.version_entity_event_store)
-            self.assertEqual(app.persistence_subscriber.timestamp_entity_event_store, app.timestamp_entity_event_store)
+            # Check there's a persistence policy.
+            self.assertIsInstance(app.persistence_policy, CombinedPersistencePolicy)
 
             # Check there's an example repository.
             self.assertIsInstance(app.example_repo, ExampleRepo)

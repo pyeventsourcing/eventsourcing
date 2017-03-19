@@ -5,8 +5,8 @@ from time import time
 
 import six
 
-from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.events import TimestampEntityEvent, VersionEntityEvent, topic_from_domain_class
+from eventsourcing.application.policies import CombinedPersistencePolicy
+from eventsourcing.domain.model.events import TimestampedEntityEvent, VersionedEntityEvent, topic_from_domain_class
 from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError, EntityVersionNotFound, \
     SequencedItemError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
@@ -286,19 +286,19 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
         raise NotImplementedError
 
 
-class ExampleVersionEntityEvent1(VersionEntityEvent):
+class ExampleVersionEntityEvent1(VersionedEntityEvent):
     pass
 
 
-class ExampleVersionEntityEvent2(VersionEntityEvent):
+class ExampleVersionEntityEvent2(VersionedEntityEvent):
     pass
 
 
-class ExampleTimestampEntityEvent1(TimestampEntityEvent):
+class ExampleTimestampEntityEvent1(TimestampedEntityEvent):
     pass
 
 
-class ExampleTimestampEntityEvent2(TimestampEntityEvent):
+class ExampleTimestampEntityEvent2(TimestampedEntityEvent):
     pass
 
 
@@ -646,21 +646,21 @@ class WithPersistencePolicy(WithActiveRecordStrategies):
     def setUp(self):
         super(WithPersistencePolicy, self).setUp()
         # Setup the persistence subscriber.
-        self.version_entity_event_store = EventStore(
+        self.versioned_entity_event_store = EventStore(
             active_record_strategy=self.integer_sequence_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
                 position_attr_name='entity_version'
             )
         )
-        self.timestamp_entity_event_store = EventStore(
+        self.timestamped_entity_event_store = EventStore(
             active_record_strategy=self.timestamp_sequence_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
                 position_attr_name='timestamp'
             )
         )
-        self.persistence_policy = PersistencePolicy(
-            version_entity_event_store=self.version_entity_event_store,
-            timestamp_entity_event_store=self.timestamp_entity_event_store,
+        self.persistence_policy = CombinedPersistencePolicy(
+            versioned_entity_event_store=self.versioned_entity_event_store,
+            timestamped_entity_event_store=self.timestamped_entity_event_store,
         )
 
     def tearDown(self):

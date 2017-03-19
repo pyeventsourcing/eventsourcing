@@ -1,15 +1,11 @@
 from singledispatch import singledispatch
 
-from eventsourcing.domain.model.entity import EventSourcedEntity, AbstractEntityRepository, entity_mutator, Created
+from eventsourcing.domain.model.entity import AbstractEntityRepository, Aggregate, Created, entity_mutator
 from eventsourcing.domain.model.events import publish
-
-# Todo: New idea, just make it be a mixture of an archived log to hold the current sequence and a sequence.
-# class NotificationLog(Timebucketedlog, Sequence):
 from eventsourcing.exceptions import RepositoryKeyError
 
 
-class NotificationLog(EventSourcedEntity):
-
+class NotificationLog(Aggregate):
     class Started(Created):
         pass
 

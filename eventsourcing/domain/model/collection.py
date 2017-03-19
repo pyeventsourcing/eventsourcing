@@ -2,12 +2,12 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from uuid import uuid4
 
-from eventsourcing.domain.model.oldentity import AbstractEntityRepository, Created, Discarded, EventSourcedEntity, \
-    entity_mutator, singledispatch
-from eventsourcing.domain.model.events import OldDomainEvent, publish
+from eventsourcing.domain.model.entity import Created, Discarded, entity_mutator, singledispatch, Aggregate, \
+    AggregateRepository
+from eventsourcing.domain.model.events import publish, AggregateEvent
 
 
-class Collection(EventSourcedEntity):
+class Collection(Aggregate):
     class Created(Created):
         def __init__(self, **kwargs):
             super(Collection.Created, self).__init__(**kwargs)
@@ -16,12 +16,12 @@ class Collection(EventSourcedEntity):
         def __init__(self, **kwargs):
             super(Collection.Discarded, self).__init__(**kwargs)
 
-    class ItemAdded(OldDomainEvent):
+    class ItemAdded(AggregateEvent):
         @property
         def item(self):
             return self.__dict__['item']
 
-    class ItemRemoved(OldDomainEvent):
+    class ItemRemoved(AggregateEvent):
         @property
         def item(self):
             return self.__dict__['item']
@@ -91,5 +91,5 @@ def collection_item_removed_mutator(event, entity):
     return entity
 
 
-class CollectionRepository(AbstractEntityRepository):
+class AbstractCollectionRepository(AggregateRepository):
     pass

@@ -10,7 +10,7 @@ from abc import ABCMeta, abstractmethod
 from inspect import isfunction
 from six import with_metaclass
 
-from eventsourcing.domain.model.events import publish, QualnameABCMeta, TimestampedVersionEntityEvent
+from eventsourcing.domain.model.events import publish, QualnameABCMeta, AggregateEvent
 
 
 class EntityIDConsistencyError(ConsistencyError):
@@ -29,21 +29,20 @@ class EntityIsDiscarded(AssertionError):
     pass
 
 
-class Created(TimestampedVersionEntityEvent):
+class Created(AggregateEvent):
     def __init__(self, entity_version=0, **kwargs):
         super(Created, self).__init__(entity_version=entity_version, **kwargs)
 
 
-class AttributeChanged(TimestampedVersionEntityEvent):
+class AttributeChanged(AggregateEvent):
     pass
 
 
-class Discarded(TimestampedVersionEntityEvent):
+class Discarded(AggregateEvent):
     pass
 
 
-class EventSourcedEntity(with_metaclass(QualnameABCMeta)):
-
+class TimestampedVersionedEntity(with_metaclass(QualnameABCMeta)):
     def __init__(self, entity_id, entity_version=0, timestamp=None):
         self._id = entity_id
         self._version = entity_version
@@ -145,7 +144,7 @@ def created_mutator(event, cls):
                "(event entity id: {}, event type: {})"
                "".format(type(cls), event.entity_id, type(event)))
         raise CreatedMutatorRequiresTypeNotInstance(msg)
-    assert issubclass(cls, EventSourcedEntity), cls
+    assert issubclass(cls, TimestampedVersionedEntity), cls
     self = cls(**event.__dict__)
     self._increment_version()
     return self
@@ -153,7 +152,7 @@ def created_mutator(event, cls):
 
 @entity_mutator.register(AttributeChanged)
 def attribute_changed_mutator(event, self):
-    assert isinstance(self, EventSourcedEntity), self
+    assert isinstance(self, TimestampedVersionedEntity), self
     self._validate_originator(event)
     setattr(self, event.name, event.value)
     self._last_modified_on = event.timestamp
@@ -163,7 +162,7 @@ def attribute_changed_mutator(event, self):
 
 @entity_mutator.register(Discarded)
 def discarded_mutator(event, self):
-    assert isinstance(self, EventSourcedEntity), self
+    assert isinstance(self, TimestampedVersionedEntity), self
     self._validate_originator(event)
     self._is_discarded = True
     self._increment_version()
@@ -179,12 +178,12 @@ def attribute(getter):
     """
     if isfunction(getter):
         def setter(self, value):
-            assert isinstance(self, EventSourcedEntity), type(self)
+            assert isinstance(self, TimestampedVersionedEntity), type(self)
             name = '_' + getter.__name__
             self._change_attribute(name=name, value=value)
 
         def new_getter(self):
-            assert isinstance(self, EventSourcedEntity), type(self)
+            assert isinstance(self, TimestampedVersionedEntity), type(self)
             name = '_' + getter.__name__
             return getattr(self, name)
 
@@ -194,7 +193,6 @@ def attribute(getter):
 
 
 class AbstractEntityRepository(with_metaclass(ABCMeta)):
-
     @abstractmethod
     def __getitem__(self, entity_id):
         """
@@ -206,3 +204,15 @@ class AbstractEntityRepository(with_metaclass(ABCMeta)):
         """
         Returns True or False, according to whether or not entity exists.
         """
+
+
+class Aggregate(TimestampedVersionedEntity):
+    """
+    For aggregates in Domain Driven Design.
+    """
+
+
+class AggregateRepository(AbstractEntityRepository):
+    """
+    For aggregate repositories in Domain Driven Design.
+    """
