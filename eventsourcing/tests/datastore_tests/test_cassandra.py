@@ -5,8 +5,7 @@ from cassandra.cluster import NoHostAvailable
 from cassandra.cqlengine import CQLEngineException
 
 from eventsourcing.exceptions import DatasourceSettingsError
-from eventsourcing.infrastructure.cassandra.activerecords import CqlEntityVersion, CqlIntegerSequencedItem, \
-    CqlStoredEvent, CqlTimestampSequencedItem
+from eventsourcing.infrastructure.cassandra.activerecords import CqlIntegerSequencedItem, CqlTimestampSequencedItem
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.datastore import DatastoreConnectionError, DatastoreTableError
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
@@ -54,7 +53,7 @@ class TestPlainTextAuthProvider(TestCase):
                 username='username',
                 password='password',
             ),
-            tables=(CqlStoredEvent, CqlEntityVersion),
+            tables=(CqlIntegerSequencedItem,),
         )
         datastore.setup_connection()
 
@@ -66,7 +65,7 @@ class TestDatabaseSettingsError(TestCase):
                 default_keyspace=DEFAULT_KEYSPACE_FOR_TESTING,
                 consistency='really great',
             ),
-            tables=(CqlStoredEvent, CqlEntityVersion),
+            tables=(CqlIntegerSequencedItem,),
         )
 
         with self.assertRaises(DatasourceSettingsError):

@@ -44,7 +44,6 @@ def get_snapshot(entity_id, event_store, lt=None, lte=None):
     """
     assert isinstance(event_store, AbstractEventStore)
     snapshots = event_store.get_domain_events(entity_id, lt=lt, lte=lte, is_ascending=False, limit=1)
-    snapshots = list(snapshots)
     if len(snapshots) == 1:
         return snapshots[0]
 

@@ -1,7 +1,7 @@
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import GeneralizedSuffixTree, \
     GeneralizedSuffixTreeRepository, NodeRepository, SuffixTreeNode, SuffixTreeEdge, EdgeRepository, \
     SuffixTreeNodeChildCollection, StringidCollection
-from eventsourcing.infrastructure.oldevent_sourced_repo import EventSourcedRepository
+from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepository
 
 

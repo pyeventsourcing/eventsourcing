@@ -317,7 +317,7 @@ class TestEvents(unittest.TestCase):
         assert_event_handlers_empty()
 
         # When predicate is True, handler should be called ONCE.
-        subscribe(event_predicate=predicate, subscriber=handler)
+        subscribe(handler=handler, predicate=predicate)
 
         # Check we can assert there are event handlers subscribed.
         self.assertRaises(EventHandlersNotEmptyError, assert_event_handlers_empty)
@@ -328,7 +328,7 @@ class TestEvents(unittest.TestCase):
         handler.assert_called_once_with(event)
 
         # When predicate is True, after unsubscribing, handler should NOT be called again.
-        unsubscribe(event_predicate=predicate, subscriber=handler)
+        unsubscribe(handler=handler, predicate=predicate)
         publish(event)
         predicate.assert_called_once_with(event)
         handler.assert_called_once_with(event)
@@ -339,12 +339,12 @@ class TestEvents(unittest.TestCase):
         # When predicate is False, handler should NOT be called.
         predicate = lambda x: False
         handler = mock.Mock()
-        subscribe(event_predicate=predicate, subscriber=handler)
+        subscribe(handler=handler, predicate=predicate)
         publish(event)
         self.assertEqual(0, handler.call_count)
 
         # Unsubscribe.
-        unsubscribe(event_predicate=predicate, subscriber=handler)
+        unsubscribe(handler=handler, predicate=predicate)
 
         # Check we can assert there are no event handlers subscribed.
         assert_event_handlers_empty()

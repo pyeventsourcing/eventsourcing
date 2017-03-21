@@ -12,7 +12,7 @@ import six
 
 from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 from eventsourcing.domain.model.events import DomainEvent, resolve_domain_topic, \
-    topic_from_domain_class, EntityEvent
+    topic_from_domain_class
 from eventsourcing.domain.services.cipher import AbstractCipher
 
 EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
@@ -120,7 +120,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         domain event with a common format that can easily be written
         into its particular database management system.
         """
-        assert isinstance(domain_event, EntityEvent), type(domain_event)
+        # assert isinstance(domain_event, EntityEvent), type(domain_event)
 
         # Copy the state of the domain event.
         event_attrs = domain_event.__dict__.copy()
@@ -139,7 +139,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         )
 
         # Encrypt (optional).
-        if self.always_encrypt or domain_event.__class__.__always_encrypt__:
+        if self.always_encrypt or getattr(domain_event.__class__, '__always_encrypt__', None):
             assert isinstance(self.cipher, AbstractCipher)
             event_data = self.cipher.encrypt(event_data)
 
@@ -162,13 +162,10 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Get the domain event class from the topic.
         event_class = resolve_domain_topic(sequenced_item.topic)
 
-        if not issubclass(event_class, DomainEvent):
-            raise ValueError("Event class is not a OldDomainEvent: {}".format(event_class))
-
         event_attrs = sequenced_item.data
 
         # Decrypt (optional).
-        if self.always_encrypt or event_class.__always_encrypt__:
+        if self.always_encrypt or getattr(event_class, '__always_encrypt__', None):
             assert isinstance(self.cipher, AbstractCipher), self.cipher
             event_attrs = self.cipher.decrypt(event_attrs)
 
@@ -205,6 +202,7 @@ def make_stored_entity_id(id_prefix, entity_id):
 
 def id_prefix_from_event(domain_event):
     assert isinstance(domain_event, DomainEvent), type(domain_event)
+    # noinspection PyTypeChecker
     return id_prefix_from_event_class(type(domain_event))
 
 
@@ -215,6 +213,7 @@ def id_prefix_from_event_class(domain_event_class):
 
 def id_prefix_from_entity(domain_entity):
     assert isinstance(domain_entity, TimestampedVersionedEntity)
+    # noinspection PyTypeChecker
     return id_prefix_from_entity_class(type(domain_entity))
 
 

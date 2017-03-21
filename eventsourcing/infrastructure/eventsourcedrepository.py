@@ -1,6 +1,6 @@
 from abc import abstractproperty
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
+from eventsourcing.domain.model.entity import AbstractEntityRepository
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
@@ -21,7 +21,7 @@ class EventSourcedRepository(AbstractEntityRepository):
     # of queries, rather than with one potentially large query.
     __page_size__ = None
 
-    def __init__(self, event_store, use_cache=False, snapshot_strategy=None):
+    def __init__(self, event_store, use_cache=False, snapshot_strategy=None, mutator=None):
         self._cache = {}
         self._use_cache = use_cache
         self._snapshot_strategy = snapshot_strategy
@@ -30,14 +30,14 @@ class EventSourcedRepository(AbstractEntityRepository):
         assert isinstance(event_store, AbstractEventStore)
         self.event_store = event_store
 
-        # Check domain class is a type of event sourced entity.
-        assert issubclass(self.domain_class, TimestampedVersionedEntity), self.domain_class
+        # # Check domain class is a type of event sourced entity.
+        # assert issubclass(self.domain_class, TimestampedVersionedEntity), self.domain_class
 
         # Instantiate an event player for this repo, with
         # repo-specific mutate function, page size, etc.
         self.event_player = EventPlayer(
             event_store=self.event_store,
-            mutate_func=self.domain_class.mutate,
+            mutate_func=mutator or self.domain_class.mutate,
             page_size=self.__page_size__,
             is_short=self.__is_short__,
             snapshot_strategy=self._snapshot_strategy,
@@ -105,8 +105,8 @@ class EventSourcedRepository(AbstractEntityRepository):
         # Replay domain events.
         return self.event_player.replay_entity(entity_id, gte=gte, lte=lte, initial_state=initial_state)
 
-    def fastforward(self, stale_entity, until=None):
+    def fastforward(self, stale_entity, lt=None, lte=None):
         """
         Mutates an instance of an entity, according to the events that have occurred since its version.
         """
-        return self.event_player.fastforward(stale_entity, until=until)
+        return self.event_player.fastforward(stale_entity, lt=lt, lte=lte)

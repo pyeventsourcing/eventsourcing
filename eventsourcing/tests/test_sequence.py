@@ -75,7 +75,6 @@ class SequenceTestCase(WithPersistencePolicy):
         self.assertEqual(reader[:-3], [])
         self.assertEqual(reader[:-4], [])
 
-
         # Check iterator.
         for i, item in enumerate(reader):
             self.assertEqual(item, 'item{}'.format(i + 1))
@@ -86,9 +85,11 @@ class SequenceTestCase(WithPersistencePolicy):
         # Check index errors.
         # - out of range
         with self.assertRaises(IndexError):
+            # noinspection PyStatementEffect
             reader[3]
 
         with self.assertRaises(IndexError):
+            # noinspection PyStatementEffect
             reader[-4]
 
         with self.assertRaises(SequenceFullError):

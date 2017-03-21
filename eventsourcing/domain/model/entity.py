@@ -42,6 +42,7 @@ class Discarded(AggregateEvent):
     pass
 
 
+# Todo: Decompose this, to allow for entities without timestamps and without versions.
 class TimestampedVersionedEntity(with_metaclass(QualnameABCMeta)):
     def __init__(self, entity_id, entity_version=0, timestamp=None):
         self._id = entity_id

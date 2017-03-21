@@ -87,7 +87,7 @@ class EventPlayer(object):
             page_size=self.page_size,
             is_ascending=is_ascending,
         )
-        return list(domain_events)
+        return domain_events
 
     def take_snapshot(self, entity_id, lt=None, lte=None):
         """
@@ -142,26 +142,15 @@ class EventPlayer(object):
         """
         return self.event_store.get_most_recent_event(entity_id, lt=lt, lte=lte)
 
-    def fastforward(self, stale_entity, until=None):
+    def fastforward(self, stale_entity, lt=None, lte=None):
         assert isinstance(stale_entity, TimestampedVersionedEntity)
-
-        # The last applied event version is the one before the current
-        # version number, because each mutator increments the version
-        # after an event is applied, and it starts by checking the
-        # version number is the same. Hence version of the last applied
-        # is the value of the entity's version property minus one.
-        last_applied_version_number = stale_entity.version - 1
-        last_applied_entity_version = self.event_store.get_entity_version(
-            stored_entity_id=stored_entity_id,
-            version=last_applied_version_number
-        )
-        last_applied_event_id = last_applied_entity_version.event_id
 
         # Replay the events since the entity version.
         fresh_entity = self.replay_entity(
             entity_id=stale_entity.id,
-            after=last_applied_event_id,
-            until=until,
+            gt=stale_entity.version,
+            lt=lt,
+            lte=lte,
             initial_state=stale_entity,
         )
 

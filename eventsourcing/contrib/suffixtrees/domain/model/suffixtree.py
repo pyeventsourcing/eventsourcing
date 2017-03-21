@@ -6,14 +6,14 @@ from uuid import uuid4
 
 import six
 
-from eventsourcing.domain.model.oldentity import AbstractEntityRepository, EventSourcedEntity, attribute, Created, \
+from eventsourcing.domain.model.entity import AbstractEntityRepository, Aggregate, attribute, Created, \
     AttributeChanged, Discarded
 from eventsourcing.domain.model.events import publish
-from eventsourcing.example.oldapplication import ExampleApplication
+from eventsourcing.example.application import ExampleApplication
 from eventsourcing.exceptions import RepositoryKeyError
 
 
-class SuffixTree(EventSourcedEntity):
+class SuffixTree(Aggregate):
     """A suffix tree for string matching. Uses Ukkonen's algorithm
     for construction.
     """
@@ -181,7 +181,7 @@ class SuffixTree(EventSourcedEntity):
                 self._canonize_suffix(suffix)
 
 
-class Node(EventSourcedEntity):
+class Node(Aggregate):
     """A node in the suffix tree.
     """
 
@@ -207,7 +207,7 @@ class Node(EventSourcedEntity):
         return "Node(suffix link: %d)" % self.suffix_node_id
 
 
-class Edge(EventSourcedEntity):
+class Edge(Aggregate):
     """An edge in the suffix tree.
     """
 

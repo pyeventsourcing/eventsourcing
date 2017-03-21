@@ -19,7 +19,7 @@ def subscribe_to(event_class):
         return isinstance(event, event_class)
 
     def wrap(handler_func):
-        subscribe(event_type_predicate, handler_func)
+        subscribe(handler_func, event_type_predicate)
         return handler_func
 
     return wrap

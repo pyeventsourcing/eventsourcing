@@ -26,10 +26,6 @@ class RepositoryKeyError(KeyError, EventSourcingError):
     """Raised when access an entity that does not exist."""
 
 
-class LogFullError(EventSourcingError):
-    "Raised when attempting to write a message to a log that is full."
-
-
 class SequenceFullError(EventSourcingError):
     "Raised when attempting to append an item to a sequence that is already at its maximum size."
 

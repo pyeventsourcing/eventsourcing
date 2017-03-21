@@ -9,16 +9,16 @@ import six
 from singledispatch import singledispatch
 
 from eventsourcing.domain.model.collection import Collection
-from eventsourcing.domain.model.oldentity import AttributeChanged, Created, Discarded, AbstractEntityRepository, \
-    EventSourcedEntity, attribute, entity_mutator
-from eventsourcing.domain.model.events import OldDomainEvent, publish
+from eventsourcing.domain.model.entity import AttributeChanged, Created, Discarded, AbstractEntityRepository, \
+    Aggregate, attribute, entity_mutator
+from eventsourcing.domain.model.events import publish, AggregateEvent
 from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 
 # Use a private code point to terminate the strings.
 STRING_ID_END = '\uEFFF'
 
 
-class GeneralizedSuffixTree(EventSourcedEntity):
+class GeneralizedSuffixTree(Aggregate):
     """A suffix tree for string matching. Uses Ukkonen's algorithm
     for construction.
 
@@ -431,7 +431,7 @@ class GeneralizedSuffixTree(EventSourcedEntity):
                 self._canonize_suffix(suffix, string)
 
 
-class SuffixTreeNode(EventSourcedEntity):
+class SuffixTreeNode(Aggregate):
     """A node in the suffix tree.
     """
 
@@ -481,7 +481,7 @@ class StringidCollection(Collection):
         pass
 
 
-class SuffixTreeNodeChildCollection(EventSourcedEntity):
+class SuffixTreeNodeChildCollection(Aggregate):
     """A collecton of child nodes in the suffix tree.
     """
 
@@ -491,11 +491,11 @@ class SuffixTreeNodeChildCollection(EventSourcedEntity):
 
     class Discarded(Discarded): pass
 
-    class ChildNodeAdded(OldDomainEvent): pass
+    class ChildNodeAdded(AggregateEvent): pass
 
-    class ChildNodeRemoved(OldDomainEvent): pass
+    class ChildNodeRemoved(AggregateEvent): pass
 
-    class ChildNodeSwitched(OldDomainEvent): pass
+    class ChildNodeSwitched(AggregateEvent): pass
 
     def __init__(self, *args, **kwargs):
         super(SuffixTreeNodeChildCollection, self).__init__(*args, **kwargs)
@@ -556,7 +556,7 @@ def child_node_child_collection_switched_mutator(event, self):
     return self
 
 
-class SuffixTreeEdge(EventSourcedEntity):
+class SuffixTreeEdge(Aggregate):
     """An edge in the suffix tree.
     """
 
@@ -566,7 +566,7 @@ class SuffixTreeEdge(EventSourcedEntity):
     class AttributeChanged(AttributeChanged):
         pass
 
-    class Shortened(OldDomainEvent):
+    class Shortened(AggregateEvent):
         @property
         def label(self):
             return self.__dict__['label']

@@ -210,25 +210,29 @@ class AggregateEvent(TimestampedVersionedEntityEvent):
 _event_handlers = OrderedDict()
 
 
-def subscribe(event_predicate, subscriber):
-    if event_predicate not in _event_handlers:
-        _event_handlers[event_predicate] = []
-    _event_handlers[event_predicate].append(subscriber)
+def all_events(_):
+    return True
 
 
-def unsubscribe(event_predicate, subscriber):
-    if event_predicate in _event_handlers:
-        handlers = _event_handlers[event_predicate]
-        if subscriber in handlers:
-            handlers.remove(subscriber)
+def subscribe(handler, predicate=all_events):
+    if predicate not in _event_handlers:
+        _event_handlers[predicate] = []
+    _event_handlers[predicate].append(handler)
+
+
+def unsubscribe(handler, predicate=all_events):
+    if predicate in _event_handlers:
+        handlers = _event_handlers[predicate]
+        if handler in handlers:
+            handlers.remove(handler)
             if not handlers:
-                _event_handlers.pop(event_predicate)
+                _event_handlers.pop(predicate)
 
 
 def publish(event):
     matching_handlers = []
-    for event_predicate, handlers in _event_handlers.items():
-        if event_predicate(event):
+    for predicate, handlers in _event_handlers.items():
+        if predicate(event):
             for handler in handlers:
                 if handler not in matching_handlers:
                     matching_handlers.append(handler)
@@ -255,7 +259,7 @@ def topic_from_domain_class(domain_class):
     Returns:
         A string describing the class.
     """
-    return domain_class.__module__ + '#' + domain_class.__qualname__
+    return domain_class.__module__ + '#' + getattr(domain_class, '__qualname__', domain_class.__name__)
 
 
 def resolve_domain_topic(topic):
