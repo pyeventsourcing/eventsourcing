@@ -203,24 +203,20 @@ services, and optionally makes use of any optimistic concurrency controls the da
 
 ## Usage
 
-Let's create a simple event sourced application.
+This section describes how to write a simple event sourced application. To create
+a working program, you can copy and paste the following code snippets into a single
+Python file.
 
-This section describes how to write a simple event sourced
-application. The application will have a layered architecture.
-
-We can start with an example domain model. We can then define some
-infrastructure, and bind the two with an application object.
-
-To create a working program, you can copy and paste the following code
-snippets into a single Python file. Feel free to experiment by making
+The code snippets in this section have been tested. You may experiment by making
 variations. If you installed the library into a Python virtualenv, please
 check that your virtualenv is activated before running your program.
+
 
 #### Step 1: domain events
 
 The state of an event sourced application is determined by a sequence of events.
 
-For the sake of simplicity, assume things can be create, changed, and discarded.
+For the sake of simplicity, let's assume things can be "created", "changed", and "discarded".
 
 Let's define some domain event classes. We can use simple Python classes. The
 common attributes of a domain event, such as the entity ID and version, and the
@@ -259,13 +255,13 @@ class Discarded(DomainEvent):
 ```
 
 Next, let's define an example entity. It has an ID, a version number,
-and a timestamp. Let it also have a property called 'foo', and a method
-to use when the entity is discarded.
+and a timestamp. It also has a property called 'foo', and a method
+to use when the entity is discarded. A factory method can be used to
+create new entities.
 
-A factory method can be used to create new entities.
-
-All the methods use a "mutate" function to apply the events to the
-entity, and a "publish" function to publish the events to any subscribers.
+The methods follow a similar pattern. They construct an event, and
+use a "mutate" function to apply the event to the entity. And then
+they "publish" the event for the benefit of any subscribers.
 
 In an event sourced application, when replaying a sequence of events, a
 "mutator function" is commonly used to apply an event to an initial state.
@@ -377,7 +373,7 @@ def mutate(entity, event):
         raise NotImplementedError(type(event))
 ```
 
-Now we can create a new entity, update its property 'foo', and discard the entity.
+We can now create a new entity, update its property 'foo', and discard the entity.
 
 Let's firstly subscribe to the events that will be published, so we can see what's happening.
 
