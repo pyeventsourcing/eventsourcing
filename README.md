@@ -492,6 +492,10 @@ Most importantly, the application has a persistence policy. The persistence
 policy firstly subscribes to receive events when they are published, and it
 uses the event store to store all the events that it receives.
 
+As a convenience, it is useful to make the application function as a Python
+context manager, so that the application can close the persistence policy,
+unsubscribing itself from receiving further domain events.
+
 ```python
 from eventsourcing.application.policies import PersistencePolicy
 
@@ -515,44 +519,48 @@ class Application(object):
         
     def create_example(self, foo):
         return create_new_example(foo=foo)
+        
+    def close(self):
+        self.persistence_policy.close()
+
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        
 ```
 
-After instatiating the application, we can create more example entities
+After instantiating the application, we can create more example entities
 and expect they will be immediately available in the repository.
 
-```python
-app = Application(datastore)
-
-entity2 = app.create_example(foo='bar3')
-entity3 = app.create_example(foo='bar4')
-
-assert entity2.id in app.example_repository
-assert entity3.id in app.example_repository
-
-assert app.example_repository[entity2.id].foo == 'bar3'
-assert app.example_repository[entity3.id].foo == 'bar4'
-
-entity2.foo = 'bar5'
-entity3.foo = 'bar6'
-
-assert app.example_repository[entity2.id].foo == 'bar5'
-assert app.example_repository[entity3.id].foo == 'bar6'
-```
-
-A discarded entity can not be retrieved from the repository. The repository's
-dictionary-like interface raises a Python key error whenever an attempt is made to get
- an entity that has been discarded.
+Please note, a discarded entity can not be retrieved from the repository.
+The repository's dictionary-like interface will raise a Python ```KeyError```
+exception instead of returning an entity.
 
 ```python
-entity2.discard()
-assert entity2.id not in app.example_repository
+with Application(datastore) as app:
 
-try:
-    app.example_repository[entity2.id]
-except KeyError:
-    pass
-else:
-    raise Exception('KeyError was not raised')
+    entity2 = app.create_example(foo='bar3')
+    
+    assert entity2.id in app.example_repository
+    
+    assert app.example_repository[entity2.id].foo == 'bar3'
+    
+    entity2.foo = 'bar4'
+    
+    assert app.example_repository[entity2.id].foo == 'bar4'
+
+    # Discard the entity.    
+    entity2.discard()
+    assert entity2.id not in app.example_repository
+    
+    try:
+        app.example_repository[entity2.id]
+    except KeyError:
+        pass
+    else:
+        raise Exception('KeyError was not raised')
 ```
 
 Congratulations. You have created yourself an event sourced application.
@@ -561,8 +569,76 @@ A more sophisticated example application can be found at in the library
 module ```eventsourcing.example.application```
 
 
-Todo: optimistic concurrency control
-Todo: encryption
+#### Step 4: encryption
+
+To enable encryption, pass in a cipher strategy object when constructing
+the sequenced item mapper, and set ```always_encrypt`` to a True value.
+
+```python
+class EncryptedApplication(object):
+
+    def __init__(self, datastore, cipher):
+        self.event_store = EventStore(
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+                datastore=datastore,
+                active_record_class=IntegerSequencedItem,
+            ),
+            sequenced_item_mapper=SequencedItemMapper(
+                position_attr_name='entity_version',
+                always_encrypt=True,
+                cipher=cipher,
+            )
+        )
+        self.example_repository = ExampleRepository(
+            event_store=self.event_store,
+            mutator=mutate,
+        )
+        self.persistence_policy = PersistencePolicy(self.event_store)
+        
+    def create_example(self, foo):
+        return create_new_example(foo=foo)
+        
+    def close(self):
+        self.persistence_policy.close()
+
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        
+```
+
+You can use the AES cipher strategy provided by this library. Alternatively,
+you can craft your own cipher strategy object.
+
+Event attribute values are encrypted inside the application before they are mapped
+to the database. The values are decrypted before domain events are replayed.
+
+```python
+from eventsourcing.domain.services.cipher import AESCipher
+
+
+aes_key = '0123456789abcdef'
+
+with EncryptedApplication(datastore, cipher=AESCipher(aes_key)) as app:
+
+    entity3 = app.create_example(foo='secret info')
+
+    # Without encryption, application state is visible in the database.
+    item1 = app.event_store.active_record_strategy.get_item(entity1.id, 0)
+    assert 'bar1' in item1.data
+    
+    # With encryption enabled, application state is not visible in the database. 
+    item2 = app.event_store.active_record_strategy.get_item(entity3.id, 0)
+    assert 'secret info' not in item2.data
+    
+    # Events are decrypted inside the application.
+    retrieved_entity = app.example_repository[entity3.id]
+    assert 'secret info' in retrieved_entity.foo    
+```
+
+
 
 
 ## Design
