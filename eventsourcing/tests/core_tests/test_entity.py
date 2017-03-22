@@ -5,7 +5,7 @@ from eventsourcing.domain.model.entity import AttributeChanged, Created, Created
 from eventsourcing.domain.model.events import VersionedEntityEvent, publish, subscribe, unsubscribe, DomainEvent
 from eventsourcing.example.infrastructure import ExampleRepo
 from eventsourcing.example.domainmodel import Example, register_new_example
-from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError, SequencedItemError
+from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError, SequencedItemError, ConcurrencyError
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
@@ -93,7 +93,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Check an entity cannot be reregistered with the ID of a discarded entity.
         replacement_event = Example.Created(entity_id=entity1.id, a=11, b=12)
-        with self.assertRaises(SequencedItemError):
+        with self.assertRaises(ConcurrencyError):
             publish(event=replacement_event)
 
     def test_not_implemented_error(self):
