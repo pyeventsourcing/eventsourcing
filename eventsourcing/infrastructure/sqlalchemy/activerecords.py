@@ -116,25 +116,6 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         query = self.datastore.db_session.query(self.active_record_class)
         return query.filter_by(*args, **kwargs)
 
-    def from_sql(self, sql_stored_event):
-        assert isinstance(sql_stored_event, self.stored_event_table), sql_stored_event
-        return self.stored_event_class(
-            event_id=sql_stored_event.event_id,
-            stored_entity_id=sql_stored_event.entity_id,
-            event_attrs=sql_stored_event.event_attrs,
-            event_topic=sql_stored_event.event_topic
-        )
-
-    def to_sql(self, stored_event):
-        assert isinstance(stored_event, self.stored_event_class)
-        return self.stored_event_table(
-            event_id=stored_event.event_id,
-            timestamp_long=timestamp_long_from_uuid(stored_event.event_id),
-            stored_entity_id=stored_event.entity_id,
-            event_attrs=stored_event.event_attrs,
-            event_topic=stored_event.event_topic
-        )
-
 
 class SqlIntegerSequencedItem(Base):
     __tablename__ = 'integer_sequenced_items'
