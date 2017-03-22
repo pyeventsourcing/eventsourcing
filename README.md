@@ -492,9 +492,11 @@ databases is forthcoming.
 
 The application layer brings together the domain and the infrastructure.
 
+The application has an event store, and can have entity repositories.
+
 Most importantly, the application has a persistence policy. The persistence
-policy firstly subscribes to receive events when they are published, and
-then uses the event store to store all the events that it receives.
+policy firstly subscribes to receive events when they are published, and it
+uses the event store to store all the events that it receives.
 
 ```python
 from eventsourcing.application.policies import PersistencePolicy
@@ -557,7 +559,6 @@ except KeyError:
     pass
 else:
     raise Exception('KeyError was not raised')
-
 ```
 
 Congratulations. You have created yourself an event sourced application.
