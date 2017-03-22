@@ -46,16 +46,6 @@ class SequencedItem(tuple):
         return self[3]
 
 
-class StoredEventTranscoder(six.with_metaclass(ABCMeta)):
-    @abstractmethod
-    def serialize(self, domain_event):
-        """Returns a stored event, for the given domain event."""
-
-    @abstractmethod
-    def deserialize(self, stored_event):
-        """Returns a domain event, for the given stored event."""
-
-
 class AbstractSequencedItemMapper(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def to_sequenced_item(self, domain_event):
@@ -196,27 +186,3 @@ def deserialize_domain_entity(entity_topic, entity_attrs):
     return entity
 
 
-def make_stored_entity_id(id_prefix, entity_id):
-    return '{}::{}'.format(id_prefix, entity_id)
-
-
-def id_prefix_from_event(domain_event):
-    assert isinstance(domain_event, DomainEvent), type(domain_event)
-    # noinspection PyTypeChecker
-    return id_prefix_from_event_class(type(domain_event))
-
-
-def id_prefix_from_event_class(domain_event_class):
-    assert issubclass(domain_event_class, DomainEvent), type(domain_event_class)
-    return domain_event_class.__qualname__.split('.')[0]
-
-
-def id_prefix_from_entity(domain_entity):
-    assert isinstance(domain_entity, TimestampedVersionedEntity)
-    # noinspection PyTypeChecker
-    return id_prefix_from_entity_class(type(domain_entity))
-
-
-def id_prefix_from_entity_class(domain_class):
-    assert issubclass(domain_class, TimestampedVersionedEntity), domain_class
-    return domain_class.__name__

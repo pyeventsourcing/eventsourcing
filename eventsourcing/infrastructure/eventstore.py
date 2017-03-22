@@ -22,6 +22,12 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
         Returns domain events for given entity ID.
         """
 
+    @abstractmethod
+    def get_domain_event(self, entity_id, eq):
+        """
+        Returns a single domain event.
+        """
+
     def get_most_recent_event(self, entity_id, lt=None, lte=None):
         """
         Returns most recent domain event for given entity ID.
@@ -76,6 +82,14 @@ class EventStore(AbstractEventStore):
         domain_events = list(domain_events)
         return domain_events
 
+    def get_domain_event(self, entity_id, eq):
+        sequenced_item = self.active_record_strategy.get_item(
+            sequence_id=entity_id,
+            eq=eq,
+        )
+        domain_event = self.sequenced_item_mapper.from_sequenced_item(sequenced_item)
+        return domain_event
+
     def get_most_recent_event(self, entity_id, lt=None, lte=None):
         events = self.get_domain_events(entity_id=entity_id, lt=lt, lte=lte, limit=1, is_ascending=False)
         events = list(events)
@@ -83,27 +97,3 @@ class EventStore(AbstractEventStore):
             return events[0]
         except IndexError:
             pass
-
-
-class SequencedItemRepository(six.with_metaclass(ABCMeta)):
-    def __init__(self, active_record_strategy):
-        assert isinstance(active_record_strategy, AbstractActiveRecordStrategy)
-        self.active_record_strategy = active_record_strategy
-
-    def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                  query_ascending=True, results_ascending=True):
-        """Returns items in sequence."""
-        return self.active_record_strategy.get_items(
-            sequence_id,
-            gt=gt,
-            gte=gte,
-            lt=gte,
-            lte=lte,
-            limit=limit,
-            query_ascending=query_ascending,
-            results_ascending=results_ascending,
-        )
-
-    def append_item(self, item):
-        """Appends item to sequence."""
-        self.active_record_strategy.append_item(item)

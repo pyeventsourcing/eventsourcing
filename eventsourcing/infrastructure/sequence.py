@@ -39,15 +39,11 @@ class SequenceReader(object):
                     raise IndexError("Sequence index out of range: {}".format(item))
             else:
                 index = item
-            events = self.event_player.event_store.get_domain_events(
+            event = self.event_player.event_store.get_domain_event(
                 entity_id=self.sequence.id,
-                gt=index,
-                limit=1,
+                eq=index,
             )
-            events = list(events)
-            if len(events) == 0:
-                raise IndexError("Sequence index out of range: {}".format(item))
-            return events[0].item
+            return event.item
         elif isinstance(item, slice):
             assert item.step == None, "Slice step must be 1: {}".format(str(item.step))
             if item.start is None:

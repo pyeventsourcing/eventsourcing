@@ -9,6 +9,15 @@ from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrate
 
 class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
 
+    def get_item(self, sequence_id, eq):
+        query = self.filter(s=sequence_id, p__eq=eq)
+        items = six.moves.map(self.from_active_record, query)
+        items = list(items)
+        try:
+            return items[0]
+        except IndexError:
+            self.raise_index_error(eq)
+
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
 

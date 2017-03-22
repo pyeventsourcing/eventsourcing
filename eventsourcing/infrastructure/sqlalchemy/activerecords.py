@@ -17,6 +17,20 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         super(SQLAlchemyActiveRecordStrategy, self).__init__(*args, **kwargs)
         self.datastore = datastore
 
+    def get_item(self, sequence_id, eq):
+        try:
+            query = self.filter(sequence_id=sequence_id)
+            query = query.filter(self.active_record_class.position == eq)
+            events = six.moves.map(self.from_active_record, query)
+            events = list(events)
+        finally:
+            self.datastore.db_session.close()
+
+        try:
+            return events[0]
+        except IndexError:
+            self.raise_index_error(eq)
+
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
 

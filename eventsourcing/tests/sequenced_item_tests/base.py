@@ -37,7 +37,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
     @property
     def active_record_strategy(self):
         """
-        :rtype: eventsourcing.infrastructure.eventstore.SequencedItemRepository
+        :rtype: AbstractActiveRecordStrategy
         """
         if self._active_record_strategy is None:
             self._active_record_strategy = self.construct_active_record_strategy()
@@ -75,6 +75,15 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             data=data1,
         )
         self.active_record_strategy.append_item(item1)
+
+        # Check the get_item() method returns item at position.
+        retrieved_item = self.active_record_strategy.get_item(sequence_id, position1)
+        self.assertEqual(retrieved_item.sequence_id, sequence_id)
+        self.assertEqual(retrieved_item.position, position1)
+
+        # Check index error is raised when item does not exist at position.
+        with self.assertRaises(IndexError):
+            self.active_record_strategy.get_item(sequence_id, position2)
 
         # Check repo returns the item.
         retrieved_items = self.active_record_strategy.get_items(sequence_id)
