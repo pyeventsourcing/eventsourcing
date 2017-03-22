@@ -15,8 +15,16 @@ class SequenceTestCase(WithPersistencePolicy):
 
         # Start a new sequence.
         name = 'sequence1'
-        sequence = start_sequence(name)
+
+        # Check get_or_create() can create a new sequence.
+        sequence = repo.get_or_create(name)
         self.assertIsInstance(sequence, Sequence)
+        self.assertEqual(sequence.name, name)
+
+        # Check get_or_create() can return an existing sequence.
+        sequence = repo.get_or_create(name)
+        self.assertIsInstance(sequence, Sequence)
+        self.assertEqual(sequence.name, name)
 
         # Append some items.
         append_item_to_sequence(name, 'item1', repo.event_player)
