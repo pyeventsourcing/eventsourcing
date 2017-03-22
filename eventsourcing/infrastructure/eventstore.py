@@ -3,6 +3,7 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
+from eventsourcing.exceptions import ConcurrencyError, SequencedItemError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.transcoding import AbstractSequencedItemMapper
@@ -48,7 +49,10 @@ class EventStore(AbstractEventStore):
         sequenced_item = self.sequenced_item_mapper.to_sequenced_item(domain_event)
 
         # Append to the item to the sequence.
-        self.active_record_strategy.append_item(sequenced_item)
+        try:
+            self.active_record_strategy.append_item(sequenced_item)
+        except SequencedItemError as e:
+            raise ConcurrencyError(e)
 
     def get_domain_events(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
                           page_size=None):
