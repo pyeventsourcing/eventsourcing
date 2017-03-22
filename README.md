@@ -65,13 +65,6 @@ mapper and an active record strategy to map domain events in any database.
 the capabilities of this library by implementing snapshots as domain events. It can
 easily be substituted with a strategy that, for example, uses a dedicated table for snapshots.
 
-**Synchronous Publish-Subscribe Mechanism** — Stable and deterministic,
-with handlers called in the order they are registered, and with which
-calls to publish events do not return until all event subscribers have
-returned. In general, subscribers are policies of the application, which may 
-execute further commands whenever an particular kind of event is received.
-Publishers of domain events are typically the methods of an entity.
-
 **Persistence Policy** - Subscribes to receive published domain events.
 Appends the domain events to the event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
@@ -87,22 +80,29 @@ all (the default). Included is an AES cipher strategy, by default in CBC mode
 with 128 bit blocksize, that uses a 16 byte encryption key passed in at run time,
 and which generates a unique 16 byte initialization vector for each encryption.
 In this cipher, data is compressed before it is encrypted, which can mean application
-performance is surprisingly improved when encryption is enabled.
+performance is improved when encryption is enabled.
 
 **Optimistic Concurrency Control** — Can be used to ensure a distributed or
 horizontally scaled application doesn't become inconsistent due to concurrent
 method execution. Leverages any optimistic concurrency controls in the database adapted
-by the stored event repository. With Cassandra, this can accomplish linearly-scalable
+by the stored event repository. For example with Cassandra, this can accomplish linearly-scalable
 distributed optimistic concurrency control, guaranteeing sequential consistency of an
 event stream, across a distributed application. It is also possible to serialize calls
 to the methods of an entity, but that is currently out of the scope of this package -
 if you wish to do that, perhaps something like [Zookeeper](https://zookeeper.apache.org/)
 might help.
 
-**Abstract Base Classes** — For application objects, event soured domain entities,
-domain entity repositories, domain events, mapping strategies, snapshotting strategies,
+**Abstract Base Classes** — For application objects, domain entities, entity repositories,
+domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
 test cases, etc. These classes are at least suggestive of how to structure an event sourced
-application, and can be used directly to extend this library for your own purposes.
+application. They are relatively simple and can be easily extended for your own purposes.
+
+**Synchronous Publish-Subscribe Mechanism** — Stable and deterministic,
+with handlers called in the order they are registered, and with which
+calls to publish events do not return until all event subscribers have
+returned. In general, subscribers are policies of the application, which may 
+execute further commands whenever an particular kind of event is received.
+Publishers of domain events are typically the methods of an entity.
 
 **Worked Examples** — A simple worked example application (see below), with example
 entity class, example event sourced repository, and example factory method.
@@ -481,9 +481,10 @@ are classes in the library for Cassandra. Support for other
 databases is forthcoming.
 
 
-#### Step 3: application
+#### Step 3: application object
 
-The application layer brings together the domain and the infrastructure.
+Although we can do everything at the module level, an application object brings
+everything together.
 
 The application has an event store, and can have entity repositories.
 
@@ -517,7 +518,7 @@ class Application(object):
 ```
 
 After instatiating the application, we can create more example entities
-and expect they will be available in the repository immediately.
+and expect they will be immediately available in the repository.
 
 ```python
 app = Application(datastore)
@@ -555,6 +556,9 @@ else:
 ```
 
 Congratulations. You have created yourself an event sourced application.
+
+A more sophisticated example application can be found at in the library
+module ```eventsourcing.example.application```
 
 
 Todo: optimistic concurrency control
