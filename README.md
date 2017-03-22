@@ -32,14 +32,13 @@ After installing with 'test', the test suite should pass.
     python -m unittest discover eventsourcing.tests -v
 
 Please register any [issues on GitHub](https://github.com/johnbywater/eventsourcing/issues).
-
-There is also a []mailing list](https://groups.google.com/forum/#!forum/eventsourcing-users).
+There is also a [mailing list](https://groups.google.com/forum/#!forum/eventsourcing-users).
 And a [room on Gitter](https://gitter.im/eventsourcing-in-python/eventsourcing)
 
 
 ## Overview
 
-This library supports event sourcing in Python.
+This library supports event sourcing in Python. What is event sourcing?
 
 One definition of event sourcing suggests the state of an event sourced application
 is determined by a sequence of events. Another definition has event
@@ -47,11 +46,11 @@ sourcing as a persistence mechanism for domain driven design.
 
 It is common for the state of a software application state to be distributed or partitioned
 across a set of entities or "models". Therefore, this library provides mechanisms useful in
-such an application that is event soured: a style for coding entity behaviours to instantiate
-and publishe domain events; and a way for the domain events of an entity to be stored and replayed to
+an event sourced application: a style for coding entity behaviours to instantiate and publish
+domain events; and a way for the domain events of an entity to be stored and replayed to
 obtain the state of the entity on demand.
 
-    This document highlights the main features of the library, provides instructions for installing
+This document highlights the main features of the library, provides instructions for installing
 the package, includes a detailed example of usage, describes the design of the software, and has
 some background information about the project.
 
