@@ -10,9 +10,7 @@ from json.encoder import JSONEncoder
 import dateutil.parser
 import six
 
-from eventsourcing.domain.model.entity import TimestampedVersionedEntity
-from eventsourcing.domain.model.events import DomainEvent, resolve_domain_topic, \
-    topic_from_domain_class
+from eventsourcing.domain.model.events import resolve_domain_topic, topic_from_domain_class
 from eventsourcing.domain.services.cipher import AbstractCipher
 
 EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])

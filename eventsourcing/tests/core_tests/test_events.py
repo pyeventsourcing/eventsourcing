@@ -5,8 +5,10 @@ from uuid import UUID, uuid4
 from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.events import DomainEvent, EntityEvent, EventHandlersNotEmptyError, \
     EventWithEntityVersion, EventWithTimestamp, TimestampedEntityEvent, VersionedEntityEvent, _event_handlers, \
-    assert_event_handlers_empty, create_timesequenced_event_id, publish, subscribe, unsubscribe, all_events
+    assert_event_handlers_empty, create_timesequenced_event_id, publish, subscribe, unsubscribe, all_events, \
+    resolve_domain_topic
 from eventsourcing.example.domainmodel import Example
+from eventsourcing.exceptions import TopicResolutionError
 
 try:
     from unittest import mock
@@ -353,6 +355,15 @@ class TestEvents(unittest.TestCase):
         self.assertTrue(all_events(True))
         self.assertTrue(all_events(False))
         self.assertTrue(all_events(None))
+
+    def test_topic_resolution_error(self):
+        # Check topic resolution error is raised, if the module path is
+        # broken, and if the class name is broken.
+        resolve_domain_topic('eventsourcing.domain.model.events#DomainEvent')
+        with self.assertRaises(TopicResolutionError):
+            resolve_domain_topic('eventsourcing.domain.model.broken#DomainEvent')
+        with self.assertRaises(TopicResolutionError):
+            resolve_domain_topic('eventsourcing.domain.model.events#Broken')
 
     def test_hash(self):
         event1 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
