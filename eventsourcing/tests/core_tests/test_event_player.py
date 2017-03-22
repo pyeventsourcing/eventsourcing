@@ -3,7 +3,7 @@ from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.example.domainmodel import Example, register_new_example
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.snapshotting import entity_from_snapshot, take_snapshot, EventSourcedSnapshotStrategy
+from eventsourcing.infrastructure.snapshotting import entity_from_snapshot, EventSourcedSnapshotStrategy
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     SqlIntegerSequencedItem, SqlTimestampSequencedItem
 from eventsourcing.infrastructure.transcoding import SequencedItemMapper
