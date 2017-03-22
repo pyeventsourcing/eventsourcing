@@ -38,17 +38,15 @@ And a [room on Gitter](https://gitter.im/eventsourcing-in-python/eventsourcing)
 
 ## Overview
 
-This library supports event sourcing in Python. What is event sourcing?
-
-One definition of event sourcing suggests the state of an event sourced application
-is determined by a sequence of events. Another definition has event
-sourcing as a persistence mechanism for domain driven design.
+What is event sourcing? One definition of event sourcing suggests the state of an event sourced application
+is determined by a sequence of events. Another definition has event sourcing as a persistence mechanism for domain 
+driven design.
 
 It is common for the state of a software application state to be distributed or partitioned
 across a set of entities or "models". Therefore, this library provides mechanisms useful in
-an event sourced application: a style for coding entity behaviours to instantiate and publish
+an event sourced application: a style for coding entity behaviours that instantiate and publish
 domain events; and a way for the domain events of an entity to be stored and replayed to
-obtain the state of the entity on demand.
+obtain the state of an entity on demand.
 
 This document highlights the main features of the library, provides instructions for installing
 the package, includes a detailed example of usage, describes the design of the software, and has
