@@ -38,15 +38,15 @@ And a [room on Gitter](https://gitter.im/eventsourcing-in-python/eventsourcing)
 
 ## Overview
 
-What is event sourcing? One definition of event sourcing suggests the state of an event sourced application
-is determined by a sequence of events. Another definition has event sourcing as a persistence mechanism for domain 
-driven design.
+One definition of event sourcing suggests the state of an event sourced application
+is determined by a sequence of events. Another definition has event sourcing as a
+persistence mechanism for domain driven design. In any case, it is common for the state
+of a software application to be distributed or partitioned across a set of entities
+or "models".
 
-It is common for the state of a software application state to be distributed or partitioned
-across a set of entities or "models". Therefore, this library provides mechanisms useful in
-an event sourced application: a style for coding entity behaviours that instantiate and publish
-domain events; and a way for the domain events of an entity to be stored and replayed to
-obtain the state of an entity on demand.
+Therefore, this library provides mechanisms useful in an event sourced application: a style
+for coding entity behaviours that instantiate and publish domain events; and a way for the
+domain events of an entity to be stored and replayed to obtain the state of an entity on demand.
 
 This document highlights the main features of the library, provides instructions for installing
 the package, includes a detailed example of usage, describes the design of the software, and has
@@ -55,23 +55,15 @@ some background information about the project.
 
 ## Features
 
-**Event Store** — Appends and retrieves domain events. The event store uses
-a stored event repository to append and retrieve stored events. The event store uses a
-transcoder to serialise and deserialise domain events as store events. The library has a
-number of different stored event repositories that adapt a variety of ORMs and
-databases systems (e.g. SQLAlchemy, Cassandra). If your database system isn't
-already supported, it will be easy to adapt with a custom stored event repository.
+**Event Store** — Appends and retrieves domain events. Uses a sequenced item
+mapper and an active record strategy to map domain events in any database.
 
-**Event Player** — Use the event store to retrieve domain events. An event player
-reconstitutes entities of a particular type from their domain events, optionally with
-snapshotting. Snapshotting avoids replaying an entire event stream to obtain
-the current state of an entity. A snapshot strategy is included which reuses
+**Event Player** — Reconstitutes entities by replaying domain events, optionally with snapshotting.
+
+**Snapshotting** - Snapshotting avoids replaying an entire event stream to
+ obtain the state of an entity. A snapshot strategy is included which reuses
 the capabilities of this library by implementing snapshots as domain events. It can
 easily be substituted with a strategy that, for example, uses a dedicated table for snapshots.
-
-**Persistence Policy** - Subscribes to receive published domain events.
-Appends the domain events to the event store whenever a domain event is
-published. Domain events are typically published by the methods of an entity.
 
 **Synchronous Publish-Subscribe Mechanism** — Stable and deterministic,
 with handlers called in the order they are registered, and with which
@@ -79,6 +71,10 @@ calls to publish events do not return until all event subscribers have
 returned. In general, subscribers are policies of the application, which may 
 execute further commands whenever an particular kind of event is received.
 Publishers of domain events are typically the methods of an entity.
+
+**Persistence Policy** - Subscribes to receive published domain events.
+Appends the domain events to the event store whenever a domain event is
+published. Domain events are typically published by the methods of an entity.
 
 **Customizable Datastore** — Flexible mapping between domain events and sequenced
 items, and between sequenced items and your database. Allows support to be added for
