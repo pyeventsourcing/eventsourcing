@@ -14,43 +14,32 @@ the Python Package Index.
 
     pip install eventsourcing
 
-If you want to use SQLAlchemy, then please install with the optional extra called 'sqlalchemy'.
+If you want to use SQLAlchemy, then please install with 'sqlalchemy' optional extra.
 
     pip install eventsourcing[sqlalchemy]
 
-Similarly, if you want to use Cassandra, then please install with the optional extra called 'cassandra'.
+Similarly, if you want to use Cassandra, then please install with 'cassandra'.
 
     pip install eventsourcing[cassandra]
 
 If you want to run the test suite, or try the example below with different backends, then
-please install with the optional extra called 'test'.
+please install with the 'test' optional extra.
 
     pip install eventsourcing[test]
 
-After installing with the 'test' optional extra, the test suite should
-pass.
+After installing with 'test', the test suite should pass.
 
     python -m unittest discover eventsourcing.tests -v
 
-Please register any issues you find.
+Please register any [issues on GitHub](https://github.com/johnbywater/eventsourcing/issues).
 
-* https://github.com/johnbywater/eventsourcing/issues
-
-
-There is also a mailing list.
-
-* https://groups.google.com/forum/#!forum/eventsourcing-users
-
-
-And a room on Gitter.
-
-* https://gitter.im/eventsourcing-in-python/eventsourcing
-
+There is also a []mailing list](https://groups.google.com/forum/#!forum/eventsourcing-users).
+And a [room on Gitter](https://gitter.im/eventsourcing-in-python/eventsourcing)
 
 
 ## Overview
 
-This library can help you develop and maintain event sourced applications in Python.
+This library supports event sourcing in Python.
 
 One definition of event sourcing suggests the state of an event sourced software
 application is determined by a sequence of events. Another definition has event
