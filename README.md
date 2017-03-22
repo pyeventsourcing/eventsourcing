@@ -121,6 +121,8 @@ This section describes how to write a simple event sourced application. To creat
 a working program, you can copy and paste the following code snippets into a single
 Python file.
 
+This example follows the layered architecture: application, domain, and infrastructure.
+
 The code snippets in this section have been tested. You may experiment by making
 variations. If you installed the library into a Python virtualenv, please
 check that your virtualenv is activated before running your program.
@@ -128,13 +130,16 @@ check that your virtualenv is activated before running your program.
 
 #### Step 1: domain model
 
-The state of an event sourced application is determined by a sequence of events. For
-the sake of simplicity in this example, let's assume things in our domain can be
-"created", "changed", and "discarded".
+Let's start with the domain model. Because the state of an event sourced application
+is determined by a sequence of events, we need to define some events.
 
-With that domain in mind, let's define some domain event classes. We can use simple
-Python classes. The common attributes of a domain event, such as the entity ID and
-version, and the timestamp of the event, can be declared in a layer supertype.
+For the sake of simplicity in this example, let's assume things in our 
+domain can be "created", "changed", and "discarded". With that in mind,
+let's define some domain event classes.
+
+In the example below, the common attributes of a domain event, such as the entity ID
+and version, and the timestamp of the event, have been pulled up to a layer supertype
+called ```DomainEvent```.
 
 ```python
 import time
@@ -168,16 +173,20 @@ class Discarded(DomainEvent):
     
 ```
 
-Now let's use those events to define an example entity.
+Please note, these classes do not depend on the library. However, the library does contain
+a collection of different kinds of domain events clasees that you can use in your models,
+for example the ```AggregateEvent```.
 
-The exampe entity below has an entity ID, a version number, and a
-timestamp. It also has a property called 'foo', and a method to use
-when the entity is discarded. The factory method can be used to
-create new entities.
+Now, let's use the events classes above to define an "example" entity.
 
-All the methods follow a similar pattern. They construct an event, and
-use a "mutate" function to apply the event to the entity. And then
-they "publish" the event for the benefit of any subscribers.
+The ```Example```entity class below has an entity ID, a version number, and a
+timestamp. It also has a property ```foo```, and a ```discard()``` method to use
+when the entity is discarded. The factory method ```create_new_example()``` can
+be used to create new entities.
+
+All the methods follow a similar pattern. They construct an event that represents the result
+of the operation. They use a "mutator function" function ```mutate()``` to apply the event
+to the entity. And they "publish" the event for the benefit of any subscribers.
 
 When replaying a sequence of events, a "mutator function" is commonly
 used to apply an event to an initial state. For the sake of simplicity
@@ -288,9 +297,10 @@ def mutate(entity, event):
         raise NotImplementedError(type(event))
 ```
 
-We can now create a new example entity. We can update its property 'foo'. And we can discard
-the entity. Let's subscribe to receive the events that will be published, so we can see what
-is happening.
+We can now create a new example entity. We can update its property ```foo```. And we can discard
+the entity using the ```discard()``` method.
+
+Let's subscribe to receive the events that will be published, so we can see what is happening.
 
 ```python
 from eventsourcing.domain.model.events import subscribe
@@ -337,13 +347,17 @@ assert received_events[1].name == 'foo'
 assert received_events[1].value == 'bar2'
 ```
 
+This example uses the library's ```publish()``` and ```subscribe()``` functions, but you could
+easily use your own publish-subscribe implementation.
+
+
 #### Step 2: infrastructure
 
-Since the appliation state is determined by a sequence of events, the events of the
+Since the application state is determined by a sequence of events, the events of the
 entities of the application must somehow be stored.
 
-Let's start by setting up a database for that. For the sake of simplicity in this example,
-use SQLAlchemy to define a database that stores integer-sequenced items.
+Let's start by setting up a database for storing events. For the sake of simplicity in this
+example, use SQLAlchemy to define a database that stores integer-sequenced items.
 
 ```python
 from sqlalchemy.ext.declarative.api import declarative_base
@@ -376,8 +390,8 @@ class IntegerSequencedItem(Base):
                                       name='integer_sequenced_item_uc'),
 ```
 
-Now create the database and tables. The SQLAlchemy objects are adapted for the application with classes from the 
-library.
+Now create the database and tables. The SQLAlchemy objects are adapted with classes from the 
+library, which provide a common interface for required operations.
 
 ```python
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
@@ -392,7 +406,7 @@ datastore.setup_connection()
 datastore.setup_tables()
 ```
 
-Ultimately, we want to retrieve whole entities, rather than merely a sequence of events. So let's
+We want to retrieve whole entities, rather than merely a sequence of events. So let's
 define an event sourced repository for the example entity class, since it is common to retrieve 
 entities from a repository.
 
@@ -404,11 +418,16 @@ class ExampleRepository(EventSourcedRepository):
 ```
 
 The event sourced repository needs an event store to save and retrieve domain
-events. To support different kinds of sequences, and allow for different schemas,
+events.
+
+To support different kinds of sequences, and allow for different schemas,
 the event store has been designed to use a sequenced item mapper to map domain events
-into a sequence of items. And it uses an active record strategy to map between a
-logical sequence of items and a table in a database. The details have been made
-explicit in the design so they can be easily replaced.
+into sequenced items.
+
+The event store also uses an active record strategy to map between sequenced
+items and a table in a database.
+
+The details have been made explicit so they can be easily replaced.
 
 ```python
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -443,7 +462,7 @@ stored_events = event_store.get_domain_events(entity1.id)
 assert len(stored_events) == 2, (received_events, stored_events)
 ```
 
-The entity can now be retrieved from the repository.
+The entity can now be retrieved from the repository, using its dictionary-like interface.
 
 ```python
 
@@ -471,7 +490,7 @@ databases is forthcoming.
 
 #### Step 3: application
 
-The application layer brings together the model and the infrastructure.
+The application layer brings together the domain and the infrastructure.
 
 Most importantly, the application has a persistence policy. The persistence
 policy firstly subscribes to receive events when they are published, and
