@@ -41,21 +41,20 @@ And a [room on Gitter](https://gitter.im/eventsourcing-in-python/eventsourcing)
 
 This library supports event sourcing in Python.
 
-One definition of event sourcing suggests the state of an event sourced software
-application is determined by a sequence of events. Another definition has event
+One definition of event sourcing suggests the state of an event sourced application
+is determined by a sequence of events. Another definition has event
 sourcing as a persistence mechanism for domain driven design.
 
-It is common for software applications to be implemented with the application state
-distributed or partitioned across the entities. Therefore, this library provides
-mechanisms useful in such an application: a style for coding entity behaviours - that
-mutates the state of the entity by instantiating, applying, and publishing domain
-events of different kinds; and a way for those events to be stored and replayed,
-to obtain the state of an entity on demand.
+It is common for the state of a software application state to be distributed or partitioned
+across a set of entities or "models". Therefore, this library provides mechanisms useful in
+such an application that is event soured: a style for coding entity behaviours to instantiate
+and publishe domain events; and a way for the domain events of an entity to be stored and replayed to
+obtain the state of the entity on demand.
 
-This document highlights the main features of the library,
-provides instructions for installing the package, describes the
-design of the software, includes a detailed example of usage and
-has some background information about the project.
+    This document highlights the main features of the library, provides instructions for installing
+the package, includes a detailed example of usage, describes the design of the software, and has
+some background information about the project.
+
 
 ## Features
 
@@ -66,17 +65,16 @@ number of different stored event repositories that adapt a variety of ORMs and
 databases systems (e.g. SQLAlchemy, Cassandra). If your database system isn't
 already supported, it will be easy to adapt with a custom stored event repository.
 
-**Event Players** — Use the event store to retrieve domain events. An event player
+**Event Player** — Use the event store to retrieve domain events. An event player
 reconstitutes entities of a particular type from their domain events, optionally with
 snapshotting. Snapshotting avoids replaying an entire event stream to obtain
 the current state of an entity. A snapshot strategy is included which reuses
 the capabilities of this library by implementing snapshots as domain events. It can
 easily be substituted with a strategy that, for example, uses a dedicated table for snapshots.
 
-**Persistence Subscriber** - Listens for published domain events, and
-appends the domain events to the event store whenever a domain event is
+**Persistence Policy** - Subscribes to receive published domain events.
+Appends the domain events to the event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
-The persistence subscriber is an example of an application policy ("do Y whenever X happens").
 
 **Synchronous Publish-Subscribe Mechanism** — Stable and deterministic,
 with handlers called in the order they are registered, and with which
@@ -85,10 +83,9 @@ returned. In general, subscribers are policies of the application, which may
 execute further commands whenever an particular kind of event is received.
 Publishers of domain events are typically the methods of an entity.
 
-**Customizable Transcoding** — Between domain events and stored events,
-allows support to be added for serialization and deserialization of
-custom value object types, and also makes it possible to use different
-database schemas when developing a custom stored event repository.
+**Customizable Datastore** — Flexible mapping between domain events and sequenced
+items, and between sequenced items and your database. Allows support to be added for
+serialization and deserialization of custom value object types.
 
 **Application-Level Encryption** — Symmetric encryption of stored
 events, including snapshots and logged messages, using a customizable
@@ -99,95 +96,23 @@ and which generates a unique 16 byte initialization vector for each encryption.
 In this cipher, data is compressed before it is encrypted, which can mean application
 performance is surprisingly improved when encryption is enabled.
 
-**Optimistic Concurrency Control** — Applicable to integer sequenced events only.
-Can be used to ensure a distributed or horizontally scaled application doesn't
-become inconsistent due to concurrent method execution. Leverages any optimistic
-concurrency controls in the database adapted by the stored event repository. With
-Cassandra, this can accomplish linearly-scalable distributed optimistic concurrency
-control, guaranteeing sequential consistency of an event stream, across a distributed
-application. It is also possible to serialize calls to the methods of an entity, but
-that is currently out of the scope of this package - if you wish to do that, perhaps
-something like [Zookeeper](https://zookeeper.apache.org/) might help.
+**Optimistic Concurrency Control** — Can be used to ensure a distributed or
+horizontally scaled application doesn't become inconsistent due to concurrent
+method execution. Leverages any optimistic concurrency controls in the database adapted
+by the stored event repository. With Cassandra, this can accomplish linearly-scalable
+distributed optimistic concurrency control, guaranteeing sequential consistency of an
+event stream, across a distributed application. It is also possible to serialize calls
+to the methods of an entity, but that is currently out of the scope of this package -
+if you wish to do that, perhaps something like [Zookeeper](https://zookeeper.apache.org/)
+might help.
 
 **Abstract Base Classes** — For application objects, event soured domain entities,
-domain entity repositories, domain events, transcoding strategies, snapshotting strategies,
-stored event repositories, notification log views and readers, test cases, etc. These
-classes are at least suggestive of how to structure an event sourced application, and
-can be used directly to extend this library for your own purposes.
+domain entity repositories, domain events, mapping strategies, snapshotting strategies,
+test cases, etc. These classes are at least suggestive of how to structure an event sourced
+application, and can be used directly to extend this library for your own purposes.
 
 **Worked Examples** — A simple worked example application (see below), with example
 entity class, example event sourced repository, and example factory method.
-
-**Extensions** — Event sourced collections. Time-bucketed logs. Notification logs. Suffix trees.
-
-
-
-## Background
-
-Although the event sourcing patterns are each quite simple, and they can be reproduced in code for each project,
-they do suggest cohesive mechanisms, for example applying and publishing the events generated within domain
-entities, storing and retrieving selections of the events in a highly scalable manner, replaying the stored
-events for a particular entity to obtain the current state, and projecting views of the event stream that are
-persisted in other models. Quoting from the "Cohesive Mechanism" pages in Eric Evan's Domain Driven Design book:
-
-_"Therefore: Partition a conceptually COHESIVE MECHANISM into a separate lightweight framework. Particularly watch
-for formalisms for well-documented categories of algorithms. Expose the capabilities of the framework
-with an INTENTION-REVEALING INTERFACE. Now the other elements of the domain can focus on expressing the problem
-("what"), delegating the intricacies of the solution ("how") to the framework."_
-
-The example usage (see above) introduces the "interface". The "intricacies" can be found in the source code.
-
-Inspiration:
-
-* Martin Fowler's article on event sourcing
-    * http://martinfowler.com/eaaDev/EventSourcing.html
-
-* Greg Young's discussions about event sourcing, and EventStore system
-    * https://www.youtube.com/watch?v=JHGkaShoyNs
-    * https://www.youtube.com/watch?v=LDW0QWie21s
-    * https://dl.dropboxusercontent.com/u/9162958/CQRS/Events%20as%20a%20Storage%20Mechanism%20CQRS.pdf
-    * https://geteventstore.com/
-
-* Robert Smallshire's brilliant example code on Bitbucket
-    * https://bitbucket.org/sixty-north/d5-kanban-python/src
-
-* Various professional projects that called for this approach, across which I didn't want to rewrite
-  the same things each time
-
-
-See also:
-
-* 'Evaluation of using NoSQL databases in an event sourcing system' by Johan Rothsberg
-    * http://www.diva-portal.se/smash/get/diva2:877307/FULLTEXT01.pdf
-
-* Wikipedia page on Object-relational impedance mismatch
-    * https://en.wikipedia.org/wiki/Object-relational_impedance_mismatch
-
-
-## Design
-
-The design of the library follows the layered architecture: interfaces, application, domain, and infrastructure.
-
-The domain layer contains a model of the supported domain, and services that depend on that
-model. The infrastructure layer encapsulates the infrastructural services required by the application.
-
-The application is responsible for binding domain and infrastructure, and has policies
-such as the persistence policy, which stores domain events whenever they are published by the model.
-
-The example application has an example respository, from which example entities can be retrieved. It
-also has a factory method to register new example entities. Each repository has an event player, which all share
-an event store with the persistence subscriber. The persistence subscriber uses the event store
-to store domain events, and the event players use the event store to retrieve the stored events. The event
-players also share with the model the mutator functions that are used to apply domain events to an initial state.
-
-Functionality such as transcoding and snapshotting is factored as strategy objects, injected into dependents
-by constructor parameter. Application level encryption is a transcoding option.
-
-The sequnced item persistence model allows domain events to be stored in wide variety of database 
-services, and optionally makes use of any optimistic concurrency controls the database system may afford.
-
-
-![UML Class Diagram](https://www.lucidchart.com/publicSegments/view/9919fa7f-2c6d-4aac-b189-5f2871a69aee/image.png)
 
 
 ## Usage
@@ -201,7 +126,7 @@ variations. If you installed the library into a Python virtualenv, please
 check that your virtualenv is activated before running your program.
 
 
-#### Step 1: domain events
+#### Step 1: domain model
 
 The state of an event sourced application is determined by a sequence of events. For
 the sake of simplicity in this example, let's assume things in our domain can be
@@ -619,8 +544,78 @@ else:
 Congratulations. You have created yourself an event sourced application.
 
 
-# Todo: optimistic concurrency control
-# Todo: encryption
+Todo: optimistic concurrency control
+Todo: encryption
+
+
+## Design
+
+The design of the library follows the layered architecture: interfaces, application, domain, and infrastructure.
+
+The domain layer contains a model of the supported domain, and services that depend on that
+model. The infrastructure layer encapsulates the infrastructural services required by the application.
+
+The application is responsible for binding domain and infrastructure, and has policies
+such as the persistence policy, which stores domain events whenever they are published by the model.
+
+The example application has an example respository, from which example entities can be retrieved. It
+also has a factory method to register new example entities. Each repository has an event player, which all share
+an event store with the persistence policy. The persistence policy uses the event store
+to store domain events, and the event players use the event store to retrieve the stored events. The event
+players also share with the model the mutator functions that are used to apply domain events to an initial state.
+
+Functionality such as mapping events to a database, or snapshotting, is factored as strategy objects and injected
+into dependents by constructor parameter. Application level encryption is a mapping option.
+
+The sequnced item persistence model allows domain events to be stored in wide variety of database 
+services, and optionally makes use of any optimistic concurrency controls the database system may afford.
+
+
+![UML Class Diagram](https://www.lucidchart.com/publicSegments/view/9919fa7f-2c6d-4aac-b189-5f2871a69aee/image.png)
+
+
+
+
+## Background
+
+Although the event sourcing patterns are each quite simple, and they can be reproduced in code for each project,
+they do suggest cohesive mechanisms, for example applying and publishing the events generated within domain
+entities, storing and retrieving selections of the events in a highly scalable manner, replaying the stored
+events for a particular entity to obtain the current state, and projecting views of the event stream that are
+persisted in other models. Quoting from the "Cohesive Mechanism" pages in Eric Evan's Domain Driven Design book:
+
+_"Therefore: Partition a conceptually COHESIVE MECHANISM into a separate lightweight framework. Particularly watch
+for formalisms for well-documented categories of algorithms. Expose the capabilities of the framework
+with an INTENTION-REVEALING INTERFACE. Now the other elements of the domain can focus on expressing the problem
+("what"), delegating the intricacies of the solution ("how") to the framework."_
+
+The example usage (see above) introduces the "interface". The "intricacies" can be found in the source code.
+
+Inspiration:
+
+* Martin Fowler's article on event sourcing
+    * http://martinfowler.com/eaaDev/EventSourcing.html
+
+* Greg Young's discussions about event sourcing, and EventStore system
+    * https://www.youtube.com/watch?v=JHGkaShoyNs
+    * https://www.youtube.com/watch?v=LDW0QWie21s
+    * https://dl.dropboxusercontent.com/u/9162958/CQRS/Events%20as%20a%20Storage%20Mechanism%20CQRS.pdf
+    * https://geteventstore.com/
+
+* Robert Smallshire's brilliant example code on Bitbucket
+    * https://bitbucket.org/sixty-north/d5-kanban-python/src
+
+* Various professional projects that called for this approach, across which I didn't want to rewrite
+  the same things each time
+
+
+See also:
+
+* 'Evaluation of using NoSQL databases in an event sourcing system' by Johan Rothsberg
+    * http://www.diva-portal.se/smash/get/diva2:877307/FULLTEXT01.pdf
+
+* Wikipedia page on Object-relational impedance mismatch
+    * https://en.wikipedia.org/wiki/Object-relational_impedance_mismatch
 
 
 ## Forthcoming Features
