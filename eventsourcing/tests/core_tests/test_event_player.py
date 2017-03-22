@@ -3,7 +3,7 @@ from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.example.domainmodel import Example, register_new_example
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.snapshotting import entity_from_snapshot, take_snapshot
+from eventsourcing.infrastructure.snapshotting import entity_from_snapshot, take_snapshot, EventSourcedSnapshotStrategy
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     SqlIntegerSequencedItem, SqlTimestampSequencedItem
 from eventsourcing.infrastructure.transcoding import SequencedItemMapper
@@ -96,13 +96,22 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
             timestamped_entity_event_store=self.timestamp_entity_event_store,
 
         )
-        event_player = EventPlayer(event_store=self.version_entity_event_store, mutate_func=Example.mutate)
+        event_player = EventPlayer(
+            event_store=self.version_entity_event_store,
+            mutate_func=Example.mutate,
+            snapshot_strategy=EventSourcedSnapshotStrategy(
+                event_store=self.timestamp_entity_event_store
+            )
+        )
+
+        # Take a snapshot with a non-existent ID.
+        self.assertIsNone(event_player.take_snapshot('invalid'))
 
         # Create a new entity.
         registered_example = register_new_example(a=123, b=234)
 
         # Take a snapshot.
-        snapshot1 = take_snapshot(registered_example)
+        snapshot1 = event_player.take_snapshot(registered_example.id)
 
         # Replay from this snapshot.
         initial_state = entity_from_snapshot(snapshot1)
@@ -133,7 +142,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         self.assertEqual(retrieved_example.a, 9999)
 
         # Take another snapshot.
-        snapshot2 = take_snapshot(retrieved_example)
+        snapshot2 = event_player.take_snapshot(retrieved_example.id)
 
         # Check we can replay from this snapshot.
         initial_state = entity_from_snapshot(snapshot2)
