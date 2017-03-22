@@ -1,9 +1,7 @@
 import six
-from cassandra import DriverException
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException
 
-from eventsourcing.exceptions import DatasourceOperationError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 
 
