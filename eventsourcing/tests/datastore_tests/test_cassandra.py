@@ -63,7 +63,7 @@ class TestDatabaseSettingsError(TestCase):
         datastore = CassandraDatastore(
             settings=CassandraSettings(
                 default_keyspace=DEFAULT_KEYSPACE_FOR_TESTING,
-                consistency='really great',
+                consistency='invalid',
             ),
             tables=(CqlIntegerSequencedItem,),
         )

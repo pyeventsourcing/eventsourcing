@@ -57,8 +57,6 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             active_record.save()
         except LWTException as e:
             self.raise_sequence_item_error(item.sequence_id, item.position, e)
-        except DriverException as e:
-            raise DatasourceOperationError(e)
 
     def to_active_record(self, sequenced_item):
         """
