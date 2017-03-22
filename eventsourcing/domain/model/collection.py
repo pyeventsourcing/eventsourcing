@@ -1,28 +1,27 @@
-from __future__ import absolute_import, unicode_literals, division, print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from uuid import uuid4
 
-from eventsourcing.domain.model.entity import entity_mutator, singledispatch, EntityRepository
-from eventsourcing.domain.model.events import DomainEvent, publish
+from eventsourcing.domain.model.entity import Created, Discarded, entity_mutator, singledispatch, Aggregate, \
+    AggregateRepository
+from eventsourcing.domain.model.events import publish, AggregateEvent
 
-from eventsourcing.domain.model.entity import EventSourcedEntity
 
-
-class Collection(EventSourcedEntity):
-    class Created(EventSourcedEntity.Created):
+class Collection(Aggregate):
+    class Created(Created):
         def __init__(self, **kwargs):
             super(Collection.Created, self).__init__(**kwargs)
 
-    class Discarded(EventSourcedEntity.Discarded):
+    class Discarded(Discarded):
         def __init__(self, **kwargs):
             super(Collection.Discarded, self).__init__(**kwargs)
 
-    class ItemAdded(DomainEvent):
+    class ItemAdded(AggregateEvent):
         @property
         def item(self):
             return self.__dict__['item']
 
-    class ItemRemoved(DomainEvent):
+    class ItemRemoved(AggregateEvent):
         @property
         def item(self):
             return self.__dict__['item']
@@ -92,5 +91,5 @@ def collection_item_removed_mutator(event, entity):
     return entity
 
 
-class CollectionRepository(EntityRepository):
+class AbstractCollectionRepository(AggregateRepository):
     pass

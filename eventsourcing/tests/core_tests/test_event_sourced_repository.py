@@ -1,17 +1,40 @@
-import unittest
-
-from eventsourcing.example.domain_model import Example
+from eventsourcing.example.domainmodel import Example
 from eventsourcing.example.infrastructure import ExampleRepo
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.storedevents.pythonobjectsrepo import PythonObjectsStoredEventRepository
+from eventsourcing.infrastructure.transcoding import SequencedItemMapper
+from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
+    construct_integer_sequence_active_record_strategy
 
 
-class TestEventSourcedRepository(unittest.TestCase):
+class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
+
+    def setUp(self):
+        super(TestEventSourcedRepository, self).setUp()
+        if self.datastore is not None:
+            self.datastore.setup_connection()
+            self.datastore.setup_tables()
+
+    def tearDown(self):
+        if self.datastore is not None:
+            self.datastore.drop_tables()
+            self.datastore.drop_connection()
+        super(TestEventSourcedRepository, self).tearDown()
+
+    def construct_event_store(self):
+        event_store = EventStore(
+            active_record_strategy=construct_integer_sequence_active_record_strategy(
+                datastore=self.datastore,
+            ),
+            sequenced_item_mapper=SequencedItemMapper(
+                position_attr_name='entity_version'
+            )
+        )
+        return event_store
 
     def test_get_item(self):
         # Setup an event store.
-        stored_event_repo = PythonObjectsStoredEventRepository()
-        event_store = EventStore(stored_event_repo=stored_event_repo)
+        event_store = self.construct_event_store()
 
         # Put an event in the event store.
         entity_id = 'entity1'

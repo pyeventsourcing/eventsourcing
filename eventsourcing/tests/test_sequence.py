@@ -2,23 +2,29 @@ from eventsourcing.domain.model.sequence import Sequence, start_sequence
 from eventsourcing.exceptions import SequenceFullError
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.infrastructure.sequence import SequenceReader, append_item_to_sequence
-from eventsourcing.tests.stored_event_repository_tests.test_cassandra_stored_event_repository import \
-    CassandraRepoTestCase
-from eventsourcing.tests.stored_event_repository_tests.test_sqlalchemy_stored_event_repository import \
-    SQLAlchemyRepoTestCase
-from eventsourcing.tests.stored_event_repository_tests.base import PersistenceSubscribingTestCase
-from eventsourcing.tests.stored_event_repository_tests.test_python_objects_stored_event_repository import \
-    PythonObjectsRepoTestCase
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
+    WithCassandraActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
+    WithSQLAlchemyActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
 
 
-class SequenceTestCase(PersistenceSubscribingTestCase):
+class SequenceTestCase(WithPersistencePolicy):
     def test(self):
-        repo = SequenceRepo(self.event_store)
+        repo = SequenceRepo(self.versioned_entity_event_store)
 
         # Start a new sequence.
         name = 'sequence1'
-        sequence = start_sequence(name)
+
+        # Check get_or_create() can create a new sequence.
+        sequence = repo.get_or_create(name)
         self.assertIsInstance(sequence, Sequence)
+        self.assertEqual(sequence.name, name)
+
+        # Check get_or_create() can return an existing sequence.
+        sequence = repo.get_or_create(name)
+        self.assertIsInstance(sequence, Sequence)
+        self.assertEqual(sequence.name, name)
 
         # Append some items.
         append_item_to_sequence(name, 'item1', repo.event_player)
@@ -77,7 +83,6 @@ class SequenceTestCase(PersistenceSubscribingTestCase):
         self.assertEqual(reader[:-3], [])
         self.assertEqual(reader[:-4], [])
 
-
         # Check iterator.
         for i, item in enumerate(reader):
             self.assertEqual(item, 'item{}'.format(i + 1))
@@ -88,9 +93,11 @@ class SequenceTestCase(PersistenceSubscribingTestCase):
         # Check index errors.
         # - out of range
         with self.assertRaises(IndexError):
+            # noinspection PyStatementEffect
             reader[3]
 
         with self.assertRaises(IndexError):
+            # noinspection PyStatementEffect
             reader[-4]
 
         with self.assertRaises(SequenceFullError):
@@ -98,13 +105,9 @@ class SequenceTestCase(PersistenceSubscribingTestCase):
             append_item_to_sequence(name, 'item1', repo.event_player, max_size=1)
 
 
-class TestPythonObjectsSequence(PythonObjectsRepoTestCase, SequenceTestCase):
+class TestCassandraSequence(WithCassandraActiveRecordStrategies, SequenceTestCase):
     pass
 
 
-class TestCassandraSequence(CassandraRepoTestCase, SequenceTestCase):
-    pass
-
-
-class TestSQLAlchemySequence(SQLAlchemyRepoTestCase, SequenceTestCase):
+class TestSQLAlchemySequence(WithSQLAlchemyActiveRecordStrategies, SequenceTestCase):
     pass

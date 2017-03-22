@@ -9,7 +9,7 @@ class DatastoreSettings(object):
 
 class Datastore(six.with_metaclass(ABCMeta)):
     def __init__(self, settings, tables):
-        assert isinstance(settings, DatastoreSettings), settings
+        # assert isinstance(settings, DatastoreSettings), settings
         assert isinstance(tables, tuple), tables
         self.settings = settings
         self.tables = tables

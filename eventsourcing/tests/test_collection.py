@@ -2,15 +2,14 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from unittest.case import TestCase
 
-from eventsourcing.application.policies import PersistenceSubscriber
 from eventsourcing.domain.model.collection import Collection, register_new_collection
 from eventsourcing.domain.model.entity import EntityIsDiscarded
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepo
-from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.storedevents.pythonobjectsrepo import \
-    PythonObjectsStoredEventRepository
+from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepository
+from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
+    WithSQLAlchemyActiveRecordStrategies
 
 
 class TestCollection(TestCase):
@@ -105,30 +104,21 @@ class TestCollection(TestCase):
         self.assertRaises(EntityIsDiscarded, getattr, collection, 'items')
 
 
-class TestCollectionRepo(TestCase):
-
-    def setUp(self):
-        assert_event_handlers_empty()
-        # Setup the repo, and a persistence subscriber.
-        stored_event_repo = PythonObjectsStoredEventRepository()
-        event_store = EventStore(stored_event_repo=stored_event_repo)
-        self.repo = CollectionRepo(event_store=event_store)
-        self.ps = PersistenceSubscriber(event_store=event_store)
-
-    def tearDown(self):
-        self.ps.close()
-        assert_event_handlers_empty()
+class TestCollectionRepo(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicy):
 
     def test(self):
+
+        repo = CollectionRepository(event_store=self.versioned_entity_event_store)
+
         # Check the collection is not in the repo.
         with self.assertRaises(RepositoryKeyError):
-            _ = self.repo['none']
+            _ = repo['none']
 
         # Register a new collection.
         collection_id = register_new_collection().id
 
         # Check the collection is in the repo.
-        collection = self.repo[collection_id]
+        collection = repo[collection_id]
         self.assertIsInstance(collection, Collection)
         self.assertEqual(collection.id, collection_id)
         # Check the collection has zero items.
@@ -139,7 +129,7 @@ class TestCollectionRepo(TestCase):
         collection.add_item(item1)
 
         # Check the collection is in the repo.
-        collection = self.repo[collection_id]
+        collection = repo[collection_id]
         self.assertIsInstance(collection, Collection)
         self.assertEqual(collection.id, collection_id)
         # Check the collection has one item.
@@ -149,7 +139,7 @@ class TestCollectionRepo(TestCase):
         collection.remove_item(item1)
 
         # Check the collection is in the repo.
-        collection = self.repo[collection_id]
+        collection = repo[collection_id]
         self.assertIsInstance(collection, Collection)
         self.assertEqual(collection.id, collection_id)
         # Check the collection has zero items.
@@ -160,4 +150,4 @@ class TestCollectionRepo(TestCase):
 
         # Check the collection is not in the repo.
         with self.assertRaises(RepositoryKeyError):
-            _ = self.repo['none']
+            _ = repo['none']

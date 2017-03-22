@@ -1,5 +1,5 @@
 from eventsourcing.domain.model.sequence import SequenceRepository, Sequence
-from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository
+from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
 
 class SequenceRepo(EventSourcedRepository, SequenceRepository):
@@ -9,4 +9,4 @@ class SequenceRepo(EventSourcedRepository, SequenceRepository):
         """
         Replays entity using only the 'Started' event.
         """
-        return self.event_player.replay_events(entity_id, limit=1)
+        return self.event_player.replay_entity(entity_id, limit=1)

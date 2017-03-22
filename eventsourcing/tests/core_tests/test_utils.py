@@ -16,6 +16,9 @@ class TestUtils(TestCase):
         self.assertLess(until, uuid_timestamp)
         self.assertGreater(after, uuid_timestamp)
 
+        # Check it works with hex strings, as well as UUID objects.
+        self.assertEqual(timestamp_from_uuid(uuid.hex), timestamp_from_uuid(uuid))
+
 
 def utc_now():
     now_datetime = datetime.datetime.now(utc_timezone)

@@ -1,7 +1,7 @@
 from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
-from eventsourcing.tests.stored_event_repository_tests.test_cassandra_stored_event_repository import \
-    CassandraRepoTestCase
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
+    WithCassandraActiveRecordStrategies
 
 
-class TestExampleApplicationWithCassandra(CassandraRepoTestCase, ExampleApplicationTestCase):
+class TestExampleApplicationWithCassandra(WithCassandraActiveRecordStrategies, ExampleApplicationTestCase):
     pass

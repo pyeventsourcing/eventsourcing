@@ -26,10 +26,6 @@ class RepositoryKeyError(KeyError, EventSourcingError):
     """Raised when access an entity that does not exist."""
 
 
-class LogFullError(EventSourcingError):
-    "Raised when attempting to write a message to a log that is full."
-
-
 class SequenceFullError(EventSourcingError):
     "Raised when attempting to append an item to a sequence that is already at its maximum size."
 
@@ -37,5 +33,10 @@ class SequenceFullError(EventSourcingError):
 class DatasourceSettingsError(EventSourcingError):
     "Raised when an error is detected in settings for a datasource."
 
-class DatasourceOperationError(EventSourcingError):
-    "Raised when a database operation error is encountered."
+
+class SequencedItemError(EventSourcingError):
+    "Raised when an integer sequence error occurs e.g. trying to save a version that already exists."
+
+
+class TimeSequenceError(EventSourcingError):
+    "Raised when a time sequence error occurs e.g. trying to save a timestamp that already exists."

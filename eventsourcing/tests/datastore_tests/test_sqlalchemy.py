@@ -2,10 +2,10 @@ from tempfile import NamedTemporaryFile
 
 from sqlalchemy.exc import OperationalError
 
-from eventsourcing.infrastructure.datastore.base import DatastoreTableError
-from eventsourcing.infrastructure.datastore.sqlalchemyorm import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
-    SQLAlchemySettings
-from eventsourcing.infrastructure.storedevents.sqlalchemyrepo import SqlStoredEvent
+from eventsourcing.infrastructure.datastore import DatastoreTableError
+from eventsourcing.infrastructure.sqlalchemy.datastore import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
+    SQLAlchemySettings, Base
+from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem, SqlTimestampSequencedItem
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
 
 
@@ -19,15 +19,16 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
         else:
             uri = DEFAULT_SQLALCHEMY_DB_URI
         return SQLAlchemyDatastore(
+            base=Base,
             settings=SQLAlchemySettings(uri=uri),
-            tables=(SqlStoredEvent,),
+            tables=(SqlIntegerSequencedItem, SqlTimestampSequencedItem),
         )
 
 
 class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, DatastoreTestCase):
     def list_records(self):
         try:
-            query = self.datastore.db_session.query(SqlStoredEvent)
+            query = self.datastore.db_session.query(SqlIntegerSequencedItem)
             return list(query)
         except OperationalError as e:
             self.datastore.db_session.rollback()
@@ -35,7 +36,7 @@ class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, DatastoreTestCase):
 
     def create_record(self):
         try:
-            record = SqlStoredEvent()
+            record = SqlIntegerSequencedItem()
             self.datastore.db_session.add(record)
             self.datastore.db_session.commit()
         except OperationalError as e:
