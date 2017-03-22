@@ -214,13 +214,13 @@ check that your virtualenv is activated before running your program.
 
 #### Step 1: domain events
 
-The state of an event sourced application is determined by a sequence of events.
+The state of an event sourced application is determined by a sequence of events. For
+the sake of simplicity in this example, let's assume things in our domain can be
+"created", "changed", and "discarded".
 
-For the sake of simplicity, let's assume things can be "created", "changed", and "discarded".
-
-Let's define some domain event classes. We can use simple Python classes. The
-common attributes of a domain event, such as the entity ID and version, and the
- timestamp of the event, can be declared in a layer supertype.
+With that domain in mind, let's define some domain event classes. We can use simple
+Python classes. The common attributes of a domain event, such as the entity ID and
+version, and the timestamp of the event, can be declared in a layer supertype.
 
 ```python
 import time
@@ -254,19 +254,21 @@ class Discarded(DomainEvent):
     
 ```
 
-Next, let's define an example entity. It has an ID, a version number,
-and a timestamp. It also has a property called 'foo', and a method
-to use when the entity is discarded. A factory method can be used to
+Now let's use those events to define an example entity.
+
+The exampe entity below has an entity ID, a version number, and a
+timestamp. It also has a property called 'foo', and a method to use
+when the entity is discarded. The factory method can be used to
 create new entities.
 
-The methods follow a similar pattern. They construct an event, and
+All the methods follow a similar pattern. They construct an event, and
 use a "mutate" function to apply the event to the entity. And then
 they "publish" the event for the benefit of any subscribers.
 
-In an event sourced application, when replaying a sequence of events, a
-"mutator function" is commonly used to apply an event to an initial state.
-For the sake of simplicity in this example, we'll use an if-else block that
-can handle the different types of events.
+When replaying a sequence of events, a "mutator function" is commonly
+used to apply an event to an initial state. For the sake of simplicity
+in this example, we'll use an if-else block that can handle the different
+types of events.
 
 
 ```python
@@ -328,7 +330,6 @@ class Example(object):
         publish(event)
 
 
-
 def create_new_example(foo):
     """Factory method for Example entities."""
 
@@ -373,17 +374,17 @@ def mutate(entity, event):
         raise NotImplementedError(type(event))
 ```
 
-We can now create a new entity, update its property 'foo', and discard the entity.
-
-Let's firstly subscribe to the events that will be published, so we can see what's happening.
+We can now create a new example entity. We can update its property 'foo'. And we can discard
+the entity. Let's subscribe to receive the events that will be published, so we can see what
+is happening.
 
 ```python
 from eventsourcing.domain.model.events import subscribe
 
-# Create a list, for received events.
+# A list of received events.
 received_events = []
 
-# Subscribe a lambda function that appends events to the list.
+# Subscribe to receive published events.
 subscribe(lambda e: received_events.append(e))
 
 # Create a new entity using the factory.
@@ -424,10 +425,10 @@ assert received_events[1].value == 'bar2'
 
 #### Step 2: infrastructure
 
-Since the appliation state is determined by a sequence of events, we need
-to store the events of an entity. 
+Since the appliation state is determined by a sequence of events, the events of the
+entities of the application must somehow be stored.
 
-Let's start by setting up the datastore. For the sake of simplicity in this example,
+Let's start by setting up a database for that. For the sake of simplicity in this example,
 use SQLAlchemy to define a database that stores integer-sequenced items.
 
 ```python
@@ -461,17 +462,15 @@ class IntegerSequencedItem(Base):
                                       name='integer_sequenced_item_uc'),
 ```
 
-Now create the database and tables, using library classes for convenience.
+Now create the database and tables. The SQLAlchemy objects are adapted for the application with classes from the 
+library.
 
 ```python
-from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings
-from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore
-
-settings = SQLAlchemySettings(uri='sqlite:///:memory:')
+from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
 
 datastore = SQLAlchemyDatastore(
     base=Base,
-    settings=settings,
+    settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
     tables=(IntegerSequencedItem,),
 )
 
@@ -479,11 +478,9 @@ datastore.setup_connection()
 datastore.setup_tables()
 ```
 
-Ultimately, we want to retrieve whole entities, rather than merely a sequence of events.
-
-Let's define an event sourced repository for the example entity class, since it is common to retrieve 
+Ultimately, we want to retrieve whole entities, rather than merely a sequence of events. So let's
+define an event sourced repository for the example entity class, since it is common to retrieve 
 entities from a repository.
-
 
 ```python
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
@@ -515,33 +512,29 @@ event_store = EventStore(
         position_attr_name='entity_version',
     )
 )
+
+example_repository = ExampleRepository(
+    event_store=event_store,
+    mutator=mutate,
+)
 ```
 
-Now, let's write into the event store all the events we subscribed to earlier.
+Now, let's write all the events we subscribed to earlier into the event store.
 
 ```python
 for event in received_events:
     event_store.append(event)
 
 stored_events = event_store.get_domain_events(entity1.id)
-
 assert len(stored_events) == 2, (received_events, stored_events)
 ```
 
 The entity can now be retrieved from the repository.
 
 ```python
-repository = ExampleRepository(
-    event_store=event_store,
-    mutator=mutate,
-)
 
-assert entity1.id in repository
-
-retrieved_entity = repository[entity1.id]
-
+retrieved_entity = example_repository[entity1.id]
 assert retrieved_entity.foo == 'bar2'
-
 ```
 
 The example above uses an SQLite in memory relational database, but you
@@ -564,11 +557,11 @@ databases is forthcoming.
 
 #### Step 3: application
 
-The application layer brings together the model and the infrastructure. It has the
-repository and the factory method.
+The application layer brings together the model and the infrastructure.
 
-It also has a persistence policy which firstly subscribes to receive events when they are published,
-and then uses the event store to store all the events that it receives.
+Most importantly, the application has a persistence policy. The persistence
+policy firstly subscribes to receive events when they are published, and
+then uses the event store to store all the events that it receives.
 
 ```python
 from eventsourcing.application.policies import PersistencePolicy
@@ -596,7 +589,7 @@ class Application(object):
 ```
 
 After instatiating the application, we can create more example entities
-and expect they will immediately be available in the repository.
+and expect they will be available in the repository immediately.
 
 ```python
 app = Application(datastore)
@@ -605,6 +598,7 @@ entity2 = app.create_example(foo='bar3')
 entity3 = app.create_example(foo='bar4')
 
 assert entity2.id in app.example_repository
+assert entity3.id in app.example_repository
 
 assert app.example_repository[entity2.id].foo == 'bar3'
 assert app.example_repository[entity3.id].foo == 'bar4'
@@ -638,7 +632,6 @@ Congratulations. You have created yourself an event sourced application.
 
 # Todo: optimistic concurrency control
 # Todo: encryption
-
 
 
 ## Forthcoming Features
