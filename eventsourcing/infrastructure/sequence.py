@@ -41,7 +41,7 @@ class SequenceReader(object):
                 index = item
             event = self.event_player.event_store.get_domain_event(
                 entity_id=self.sequence.id,
-                eq=index,
+                eq=index + 1,
             )
             return event.item
         elif isinstance(item, slice):
@@ -69,7 +69,7 @@ class SequenceReader(object):
 
             events = self.event_player.event_store.get_domain_events(
                 entity_id=self.sequence.id,
-                gt=start_index,
+                gte=start_index + 1,
                 limit=limit
             )
             items = [e.item for e in events]
