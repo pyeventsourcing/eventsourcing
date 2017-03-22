@@ -8,10 +8,10 @@ from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.infrastructure.snapshotting import AbstractSnapshotStrategy, entity_from_snapshot
 
 
-def clone_object(initial_state):
-    initial_state_copy = object.__new__(type(initial_state))
-    initial_state_copy.__dict__.update(deepcopy(initial_state.__dict__))
-    return initial_state_copy
+# def clone_object(initial_state):
+#     initial_state_copy = object.__new__(type(initial_state))
+#     initial_state_copy.__dict__.update(deepcopy(initial_state.__dict__))
+#     return initial_state_copy
 
 
 class EventPlayer(object):
