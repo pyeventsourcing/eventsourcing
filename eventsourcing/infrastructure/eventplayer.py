@@ -142,17 +142,17 @@ class EventPlayer(object):
         """
         return self.event_store.get_most_recent_event(entity_id, lt=lt, lte=lte)
 
-    def fastforward(self, stale_entity, lt=None, lte=None):
-        assert isinstance(stale_entity, TimestampedVersionedEntity)
-
-        # Replay the events since the entity version.
-        fresh_entity = self.replay_entity(
-            entity_id=stale_entity.id,
-            gt=stale_entity.version,
-            lt=lt,
-            lte=lte,
-            initial_state=stale_entity,
-        )
-
-        # Return the fresh instance.
-        return fresh_entity
+    # def fastforward(self, stale_entity, lt=None, lte=None):
+    #     assert isinstance(stale_entity, TimestampedVersionedEntity)
+    #
+    #     # Replay the events since the entity version.
+    #     fresh_entity = self.replay_entity(
+    #         entity_id=stale_entity.id,
+    #         gt=stale_entity.version,
+    #         lt=lt,
+    #         lte=lte,
+    #         initial_state=stale_entity,
+    #     )
+    #
+    #     # Return the fresh instance.
+    #     return fresh_entity
