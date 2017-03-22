@@ -3,6 +3,8 @@ from unittest.case import TestCase
 
 import datetime
 
+from decimal import Decimal
+
 from eventsourcing.domain.model.events import VersionedEntityEvent, TimestampedEntityEvent, \
     topic_from_domain_class, DomainEvent
 from eventsourcing.infrastructure.transcoding import SequencedItemMapper, SequencedItem
@@ -108,3 +110,18 @@ class TestSequencedItemMapper(TestCase):
         self.assertEqual(domain_event.entity_id, event3.entity_id)
         self.assertEqual(domain_event.a, event3.a)
         self.assertEqual(domain_event.b, event3.b)
+
+    def test_errors(self):
+        # Setup the mapper, and create an event.
+        mapper = SequencedItemMapper(position_attr_name='a')
+
+        # Create an event with dates and datetimes.
+        event3 = Event3(
+            entity_id='entity3',
+            entity_version=303,
+            a=Decimal(1.0),
+        )
+
+        # Check to_sequenced_item() method results in a sequenced item.
+        with self.assertRaises(TypeError):
+            mapper.to_sequenced_item(event3)

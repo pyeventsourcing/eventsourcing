@@ -54,7 +54,6 @@ class AbstractSequencedItemMapper(six.with_metaclass(ABCMeta)):
         """Deserializes domain events."""
 
 
-# Todo: Reimplement the object encoding and decoding, this time under test.
 class ObjectJSONEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime.datetime):
