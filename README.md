@@ -479,6 +479,28 @@ retrieved_entity = example_repository[entity1.id]
 assert retrieved_entity.foo == 'bar2'
 ```
 
+To keep things grounded, we can always get the sequenced items directly from the active record
+strategy. A sequenced item is a Python tuple with four fields: ```sequence_id```, ```position```,
+```topic```, and ```data```. The event's ```entity_id``` is mapped to ```sequence_id```.
+The event's ```entity_version``` is mapped to ```position```. The sequenced item's```topic```
+identifies the type of the event. And the ```data``` field represents the state of the event.
+
+```python
+sequenced_items = event_store.active_record_strategy.get_items(entity1.id)
+
+assert len(sequenced_items) == 2
+
+assert sequenced_items[0].sequence_id == entity1.id
+assert sequenced_items[0].position == 0
+assert 'Created' in sequenced_items[0].topic
+assert 'bar1' in sequenced_items[0].data
+
+assert sequenced_items[1].sequence_id == entity1.id
+assert sequenced_items[1].position == 1
+assert 'ValueChanged' in sequenced_items[1].topic
+assert 'bar2' in sequenced_items[1].data
+```
+
 The example above uses an SQLite in memory relational database, but you
 could change 'uri' to any valid connection string. Here are some example
 connection strings: for an SQLite file; for a PostgreSQL database; and
@@ -588,7 +610,7 @@ module ```eventsourcing.example.application```
 #### Step 4: encryption
 
 To enable encryption, pass in a cipher strategy object when constructing
-the sequenced item mapper, and set ```always_encrypt`` to a True value.
+the sequenced item mapper, and set ```always_encrypt``` to a True value.
 
 ```python
 class EncryptedApplication(object):
