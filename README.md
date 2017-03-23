@@ -180,7 +180,7 @@ class Discarded(DomainEvent):
 ```
 
 Please note, the domain event classes above do not depend on the library. However, the library does contain
-a collection of different kinds of domain events clasees that you can use in your models,
+a collection of different kinds of domain events classes that you can use in your models,
 for example see ```AggregateEvent```. The domain event classes in the library are slightly more
 sophisticated than the code in this example.
 
@@ -195,10 +195,9 @@ All the methods follow a similar pattern. They construct an event that represent
 of the operation. They use a "mutator function" function ```mutate()``` to apply the event
 to the entity. And they "publish" the event for the benefit of any subscribers.
 
-When replaying a sequence of events, a "mutator function" is commonly
-used to apply an event to an initial state. For the sake of simplicity
-in this example, we'll use an if-else block that can handle the different
-types of events.
+When replaying a sequence of events, a "mutator function" is used to apply an event to
+an initial state. For the sake of simplicity in this example, we'll use an if-else block
+that can handle the different types of events.
 
 
 ```python
@@ -287,7 +286,7 @@ def mutate(entity, event):
         entity = Example(**event.__dict__)
         entity._version += 1
         return entity
-    # Handle "attribute changed" events by setting the named value.
+    # Handle "value changed" events by setting the named value.
     elif isinstance(event, ValueChanged):
         assert not entity.is_discarded
         setattr(entity, '_' + event.name, event.value)
@@ -306,9 +305,9 @@ def mutate(entity, event):
 
 Please note, this entity class does not depend on the library. However, the library does contain
 a collection of domain entity classes that you can use in your domain model, for example see the
-```Aggregate``` class. The library classes are slightly more sophisticated than the code in this example.
+```Aggregate``` class. The library classes are slightly more refined than the code in this example.
 
-With this stand-alone code, we can now create a new example entity. we can update its property
+With this stand-alone code, we can now create a new example entity object. We can update its property
 ```foo```, and we can discard the entity using the ```discard()``` method. Let's subscribe to
 receive the events that will be published, so we can see what is happening.
 
