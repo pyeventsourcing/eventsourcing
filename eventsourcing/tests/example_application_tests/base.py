@@ -2,7 +2,7 @@ from eventsourcing.application.policies import CombinedPersistencePolicy
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.example.domainmodel import Example
-from eventsourcing.example.infrastructure import ExampleRepo
+from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies
@@ -47,7 +47,7 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertIsInstance(app.persistence_policy, CombinedPersistencePolicy)
 
             # Check there's an example repository.
-            self.assertIsInstance(app.example_repo, ExampleRepo)
+            self.assertIsInstance(app.example_repo, ExampleRepository)
 
             # Register a new example.
             example1 = app.register_new_example(a=10, b=20)

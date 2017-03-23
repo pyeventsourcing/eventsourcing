@@ -1,5 +1,3 @@
-from uuid import uuid4, UUID
-
 import six
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import asc, desc

@@ -5,7 +5,7 @@ import mock
 from eventsourcing.domain.model.entity import AttributeChanged, Created, CreatedMutatorRequiresTypeNotInstance, \
     EntityIDConsistencyError, EntityVersionConsistencyError, TimestampedVersionedEntity, attribute, created_mutator
 from eventsourcing.domain.model.events import VersionedEntityEvent, publish, subscribe, unsubscribe, DomainEvent
-from eventsourcing.example.infrastructure import ExampleRepo
+from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.example.domainmodel import Example, register_new_example
 from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError, ConcurrencyError
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
@@ -35,7 +35,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertNotEqual(example1, example2)
 
         # Setup the repo.
-        repo = ExampleRepo(self.versioned_entity_event_store)
+        repo = ExampleRepository(self.versioned_entity_event_store)
 
         # Check the example entities can be retrieved from the example repository.
         entity1 = repo[example1.id]
@@ -78,7 +78,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         with self.assertRaises(EntityIDConsistencyError):
             entity2._validate_originator(
                 VersionedEntityEvent(
-                    entity_id=entity2.id + 'wrong',
+                    entity_id=uuid4(),
                     entity_version=0
                 )
             )

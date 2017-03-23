@@ -1,6 +1,6 @@
 from eventsourcing.application.base import EventSourcedApplication
 from eventsourcing.example.domainmodel import register_new_example
-from eventsourcing.example.infrastructure import ExampleRepo
+from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
 
@@ -18,7 +18,7 @@ class ExampleApplication(EventSourcedApplication):
         self.snapshot_strategy = EventSourcedSnapshotStrategy(
             event_store=self.timestamp_entity_event_store,
         )
-        self.example_repo = ExampleRepo(
+        self.example_repo = ExampleRepository(
             event_store=self.version_entity_event_store,
             snapshot_strategy=self.snapshot_strategy,
         )

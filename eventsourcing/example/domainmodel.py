@@ -68,7 +68,7 @@ def heartbeat_mutator(event, self):
     return self
 
 
-class ExampleRepository(AbstractEntityRepository):
+class AbstractExampleRepository(AbstractEntityRepository):
     pass
 
 
@@ -78,7 +78,7 @@ def register_new_example(a, b):
 
     :rtype: Example
     """
-    entity_id = uuid.uuid4().hex
+    entity_id = uuid.uuid4()
     event = Example.Created(entity_id=entity_id, a=a, b=b)
     entity = Example.mutate(event=event)
     publish(event=event)
