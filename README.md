@@ -42,7 +42,7 @@ And a [room on Gitter](https://gitter.im/eventsourcing-in-python/eventsourcing)
 What is event sourcing? One definition suggests the state of an event sourced application
 is determined by a sequence of events. Another definition has event sourcing as a
 persistence mechanism for domain driven design. In any case, it is common for the state
-of a software application to be distributed or partitioned across a set of entities
+of a software application to be distributed (or partitioned) across a set of entities
 or "models".
 
 Therefore, this library provides mechanisms useful in an event sourced application: a style
@@ -55,6 +55,10 @@ some background information about the project.
 
 ## Features
 
+**Event Store** — Appends and retrieves domain events. The event store uses a
+"sequenced item mapper" and an "active record strategy" to map domain events
+to a database in ways that can be easily substituted.
+
 **Persistence Policy** - Subscribes to receive published domain events.
 Appends received domain events to an event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
@@ -62,10 +66,6 @@ published. Domain events are typically published by the methods of an entity.
 **Event Players** — Get domain events from the event store. Reconstitutes entities by
 replaying events, optionally with snapshotting. An event player is used
 by an entity repository to determine the state of an entity.
-
-**Event Store** — Appends and retrieves domain events. The event store uses a
-"sequenced item mapper" and an "active record strategy" to map domain events
-to a database in ways that can be easily substituted.
 
 **Sequenced Item Mapper** — Maps between domain events and "sequenced items", the archetype
 persistence model used by the library to store domain events. The library supports two
@@ -179,7 +179,7 @@ class Discarded(DomainEvent):
 ```
 
 Please note, the domain event classes above do not depend on the library. However, the library does contain
-a collection of different kinds of domain events clasees that you can use in your models,
+a collection of different kinds of domain event classes that you can use in your models,
 for example see ```AggregateEvent```. The domain event classes in the library are slightly more
 sophisticated than the code in this example.
 
@@ -194,10 +194,9 @@ All the methods follow a similar pattern. They construct an event that represent
 of the operation. They use a "mutator function" function ```mutate()``` to apply the event
 to the entity. And they "publish" the event for the benefit of any subscribers.
 
-When replaying a sequence of events, a "mutator function" is commonly
-used to apply an event to an initial state. For the sake of simplicity
-in this example, we'll use an if-else block that can handle the different
-types of events.
+When replaying a sequence of events, a "mutator function" is used to apply an event to
+an initial state. For the sake of simplicity in this example, we'll use an if-else block
+that can handle the different types of events.
 
 
 ```python
@@ -286,7 +285,7 @@ def mutate(entity, event):
         entity = Example(**event.__dict__)
         entity._version += 1
         return entity
-    # Handle "attribute changed" events by setting the named value.
+    # Handle "value changed" events by setting the named value.
     elif isinstance(event, ValueChanged):
         assert not entity.is_discarded
         setattr(entity, '_' + event.name, event.value)
@@ -305,9 +304,9 @@ def mutate(entity, event):
 
 Please note, this entity class does not depend on the library. However, the library does contain
 a collection of domain entity classes that you can use in your domain model, for example see the
-```Aggregate``` class. The library classes are slightly more sophisticated than the code in this example.
+```Aggregate``` class. The library classes are slightly more refined than the code in this example.
 
-With this stand-alone code, we can now create a new example entity. we can update its property
+With this stand-alone code, we can now create a new example entity object. We can update its property
 ```foo```, and we can discard the entity using the ```discard()``` method. Let's subscribe to
 receive the events that will be published, so we can see what is happening.
 
@@ -415,9 +414,9 @@ datastore.setup_connection()
 datastore.setup_tables()
 ```
 
-We want to retrieve whole entities, rather than merely a sequence of events. So let's
-define an event sourced repository for the example entity class, since it is common to retrieve 
-entities from a repository.
+The application wants to deal with entities, not a sequence of events. Since it is common
+to retrieve entities from a repository, let's define an event sourced repository for the
+example entity class.
 
 ```python
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
@@ -426,17 +425,14 @@ class ExampleRepository(EventSourcedRepository):
     domain_class = Example
 ```
 
-The event sourced repository needs an event store to save and retrieve domain
-events.
+The event sourced repository uses an event store object to save and retrieve domain
+events. We can directly use the event store class provided by the library.
 
-To support different kinds of sequences, and allow for different schemas,
-the event store has been designed to use a sequenced item mapper to map domain events
-into sequenced items.
-
-The event store also uses an active record strategy to map between sequenced
-items and a table in a database.
-
-The details have been made explicit so they can be easily replaced.
+However, to support different kinds of sequences, and allow for different schemas,
+the event store uses a sequenced item mapper to map domain events
+into sequenced items, and an active record strategy to map between sequenced
+items and a table in a database. The details have been made explicit so they
+can be easily replaced.
 
 ```python
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -501,8 +497,8 @@ assert 'ValueChanged' in sequenced_items[1].topic
 assert 'bar2' in sequenced_items[1].data
 ```
 
-The example above uses an SQLite in memory relational database, but you
-could change 'uri' to any valid connection string. Here are some example
+The example above uses an SQLite in memory relational database. You can
+change ```uri``` to any valid connection string. Here are some example
 connection strings: for an SQLite file; for a PostgreSQL database; and
 for a MySQL database. See SQLAlchemy's create_engine() documentation for details.
 
@@ -745,10 +741,7 @@ into dependents by constructor parameter. Application level encryption is a mapp
 The sequenced item persistence model allows domain events to be stored in wide variety of database 
 services, and optionally makes use of any optimistic concurrency controls the database system may afford.
 
-
 ![UML Class Diagram](https://www.lucidchart.com/publicSegments/view/9919fa7f-2c6d-4aac-b189-5f2871a69aee/image.png)
-
-
 
 
 ## Background
