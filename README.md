@@ -601,7 +601,7 @@ with Application(datastore) as app:
 Congratulations. You have created yourself an event sourced application.
 
 A slightly more developed example application can be found in the library
-module ```eventsourcing.example.application```
+module ```eventsourcing.example.application```.
 
 
 #### Step 4: encryption
