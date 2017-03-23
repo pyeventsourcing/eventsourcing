@@ -55,24 +55,24 @@ some background information about the project.
 
 ## Features
 
-**Event Store** — Appends and retrieves domain events. The event store uses a
-"sequenced item mapper" and an "active record strategy" to map domain events
-to a database.
-
-**Event Player** — Gets domain events from the event store. Reconstitutes entities by
-replaying events, optionally with snapshotting. Event players are used
-by entity repositories to determine the state of an entity.
-
 **Persistence Policy** - Subscribes to receive published domain events.
-Appends the domain events to the event store whenever a domain event is
+Appends received domain events to an event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
 
-**Sequenced Item Mapper** — Maps between domain events and "sequenced items" - the
+**Event Players** — Get domain events from the event store. Reconstitutes entities by
+replaying events, optionally with snapshotting. An event player is used
+by an entity repository to determine the state of an entity.
+
+**Event Store** — Appends and retrieves domain events. The event store uses a
+"sequenced item mapper" and an "active record strategy" to map domain events
+to a database in ways that can be easily substituted.
+
+**Sequenced Item Mapper** — Maps between domain events and "sequenced items", the archetype
 persistence model used by the library to store domain events. The library supports two
 different kinds of sequenced item: items that are sequenced by a contiguous series of
 integers; and items that are sequenced by time. They support two different kinds of
-domain events: versioned entity entity events (e.g. an aggregate in domain driven design),
-and timestamped entity events (e.g. a log of messages, or a series of snapshots).
+domain events: events of versioned entities (e.g. an aggregate in domain driven design),
+and unversioned timestamped events (e.g. entries in a log).
 
 **Active Record Strategies** Maps between "sequenced items" and your
 database records. Support can be added for a new database schema by introducing a new
