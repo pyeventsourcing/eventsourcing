@@ -13,6 +13,12 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
         self.sequenced_item_class = sequenced_item_class
 
     @abstractmethod
+    def append_item(self, sequenced_item):
+        """
+        Writes sequenced item into the datastore.
+        """
+
+    @abstractmethod
     def get_item(self, sequence_id, eq):
         """
         Reads sequenced item from the datastore.
@@ -23,30 +29,6 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
                   query_ascending=True, results_ascending=True):
         """
         Reads sequenced items from the datastore.
-        """
-
-    @abstractmethod
-    def append_item(self, sequenced_item):
-        """
-        Writes sequenced item into the datastore.
-        """
-
-    @abstractmethod
-    def to_active_record(self, sequenced_item):
-        """
-        Returns an active record instance, from given sequenced item.
-        """
-
-    @abstractmethod
-    def from_active_record(self, active_record):
-        """
-        Returns a sequenced item instance.
-        """
-
-    @abstractmethod
-    def filter(self, *args, **kwargs):
-        """
-        Returns a query object.
         """
 
     def raise_sequence_item_error(self, sequence_id, position, e):

@@ -7,6 +7,8 @@ from eventsourcing.example.infrastructure import ExampleRepo
 from eventsourcing.example.domainmodel import Example, register_new_example
 from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError, ConcurrencyError
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
+    WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 
@@ -189,3 +191,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 class CustomValueObject(object):
     def __init__(self, value):
         self.value = value
+
+
+class TestExampleEntityWithCassandra(WithCassandraActiveRecordStrategies, TestExampleEntity):
+    pass

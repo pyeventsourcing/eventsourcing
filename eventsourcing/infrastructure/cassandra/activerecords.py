@@ -1,15 +1,33 @@
 import six
 from cassandra.cqlengine.models import Model, columns
-from cassandra.cqlengine.query import LWTException
+from cassandra.cqlengine.query import LWTException, BatchQuery
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 
 
 class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
 
+    def append_item(self, sequenced_item):
+        if isinstance(sequenced_item, list):
+            with BatchQuery() as b:
+                for i in sequenced_item:
+                    assert isinstance(i, self.sequenced_item_class), (type(i), self.sequenced_item_class)
+                    self.active_record_class.batch(b).create(
+                        s=i.sequence_id,
+                        p=i.position,
+                        t=i.topic,
+                        d=i.data,
+                    )
+        else:
+            active_record = self._to_active_record(sequenced_item)
+            try:
+                active_record.save()
+            except LWTException as e:
+                self.raise_sequence_item_error(sequenced_item.sequence_id, sequenced_item.position, e)
+
     def get_item(self, sequence_id, eq):
-        query = self.filter(s=sequence_id, p__eq=eq)
-        items = six.moves.map(self.from_active_record, query)
+        query = self._filter(s=sequence_id, p__eq=eq)
+        items = six.moves.map(self._from_active_record, query)
         items = list(items)
         try:
             return items[0]
@@ -23,7 +41,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         assert not (gte and gt)
         assert not (lte and lt)
 
-        query = self.filter(s=sequence_id)
+        query = self._filter(s=sequence_id)
 
         if query_ascending:
             query = query.order_by('p')
@@ -40,7 +58,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         if limit is not None:
             query = query.limit(limit)
 
-        items = six.moves.map(self.from_active_record, query)
+        items = six.moves.map(self._from_active_record, query)
 
         items = list(items)
 
@@ -49,17 +67,12 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
 
         return items
 
-    def append_item(self, item):
-        active_record = self.to_active_record(item)
-        try:
-            active_record.save()
-        except LWTException as e:
-            self.raise_sequence_item_error(item.sequence_id, item.position, e)
-
-    def to_active_record(self, sequenced_item):
+    def _to_active_record(self, sequenced_item):
         """
         Returns an active record instance, from given sequenced item.
         """
+        if isinstance(sequenced_item, list):
+            return [self._to_active_record(i) for i in sequenced_item]
         assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
         return self.active_record_class(
             s=sequenced_item.sequence_id,
@@ -68,7 +81,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             d=sequenced_item.data
         )
 
-    def from_active_record(self, active_record):
+    def _from_active_record(self, active_record):
         """
         Returns a sequenced item instance, from given active record.
         """
@@ -79,7 +92,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             data=active_record.d,
         )
 
-    def filter(self, *args, **kwargs):
+    def _filter(self, *args, **kwargs):
         return self.active_record_class.objects.filter(*args, **kwargs)
 
 
@@ -114,7 +127,6 @@ class CqlTimestampSequencedItem(Model):
     s = columns.Text(partition_key=True)
 
     # Position (in time) of item in sequence.
-    # p = columns.TimeUUID(clustering_order='DESC', primary_key=True)
     p = columns.Double(clustering_order='DESC', primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
