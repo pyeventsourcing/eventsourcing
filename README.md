@@ -43,7 +43,7 @@ And a [room on Gitter](https://gitter.im/eventsourcing-in-python/eventsourcing)
 What is event sourcing? One definition suggests the state of an event sourced application
 is determined by a sequence of events. Another definition has event sourcing as a
 persistence mechanism for domain driven design. In any case, it is common for the state
-of a software application to be distributed or partitioned across a set of entities
+of a software application to be distributed (or partitioned) across a set of entities
 or "models".
 
 Therefore, this library provides mechanisms useful in an event sourced application: a style
