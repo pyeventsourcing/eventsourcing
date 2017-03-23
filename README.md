@@ -55,23 +55,33 @@ some background information about the project.
 
 ## Features
 
-**Event Store** — Appends and retrieves domain events. Uses a sequenced item
-mapper and an active record strategy to map domain events in any database.
+**Event Store** — Appends and retrieves domain events. The event store uses a
+"sequenced item mapper" and an "active record strategy" to map domain events
+to a database.
 
-**Event Player** — Reconstitutes entities by replaying domain events, optionally with snapshotting.
+**Event Player** — Gets domain events from the event store. Reconstitutes entities by
+replaying events, optionally with snapshotting. Event players are used
+by entity repositories to determine the state of an entity.
 
 **Persistence Policy** - Subscribes to receive published domain events.
 Appends the domain events to the event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
 
-**Mappers** — Flexible mapping between domain events and sequenced
-items, and between sequenced items and your database. Allows support to be added for
-serialization and deserialization of custom value object types.
+**Sequenced Item Mapper** — Maps between domain events and "sequenced items" - the
+persistence model used by the library to store domain events. The library supports two
+different kinds of sequenced item: items that are sequenced by a contiguous series of
+integers; and items that are sequenced by time. They support two different kinds of
+domain events: versioned entity entity events (e.g. an aggregate in domain driven design),
+and timestamped entity events (e.g. a log of messages, or a series of snapshots).
+
+**Active Record Strategies** Maps between "sequenced items" and your
+database records. Support can be added for a new database schema by introducing a new
+active record strategy.
 
 **Snapshotting** - Avoids replaying an entire event stream to
  obtain the state of an entity. A snapshot strategy is included which reuses
-the capabilities of this library by implementing snapshots as domain events. It can
-easily be substituted with one that uses a dedicated table for snapshots.
+the capabilities of this library by implementing snapshots as time-sequenced domain
+events. It can easily be substituted with one that uses a dedicated table for snapshots.
 
 **Application-Level Encryption** — Symmetric encryption of stored
 events, including snapshots and logged messages, using a customizable
@@ -94,8 +104,10 @@ might help.
 
 **Abstract Base Classes** — For application objects, domain entities, entity repositories,
 domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
-test cases, etc. These classes are suggestive of how to structure an event sourced
-application. They are well factored, relatively simple, and can be easily extended for your own purposes.
+test cases, etc. These classes are at least suggestive of how to structure an event sourced
+application. They are well factored, relatively simple, and can be easily extended for your own
+purposes. If you wanted to create domain model that is entirely stand-alone (recommended by
+purists for maximum longevity), you could start by copying the library classes.
 
 **Synchronous Publish-Subscribe Mechanism** — Stable and deterministic,
 with handlers called in the order they are registered, and with which
