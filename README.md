@@ -60,11 +60,6 @@ mapper and an active record strategy to map domain events in any database.
 
 **Event Player** — Reconstitutes entities by replaying domain events, optionally with snapshotting.
 
-**Snapshotting** - Avoids replaying an entire event stream to
- obtain the state of an entity. A snapshot strategy is included which reuses
-the capabilities of this library by implementing snapshots as domain events. It can
-easily be substituted with one that uses a dedicated table for snapshots.
-
 **Persistence Policy** - Subscribes to receive published domain events.
 Appends the domain events to the event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
@@ -72,6 +67,11 @@ published. Domain events are typically published by the methods of an entity.
 **Mappers** — Flexible mapping between domain events and sequenced
 items, and between sequenced items and your database. Allows support to be added for
 serialization and deserialization of custom value object types.
+
+**Snapshotting** - Avoids replaying an entire event stream to
+ obtain the state of an entity. A snapshot strategy is included which reuses
+the capabilities of this library by implementing snapshots as domain events. It can
+easily be substituted with one that uses a dedicated table for snapshots.
 
 **Application-Level Encryption** — Symmetric encryption of stored
 events, including snapshots and logged messages, using a customizable
@@ -94,8 +94,8 @@ might help.
 
 **Abstract Base Classes** — For application objects, domain entities, entity repositories,
 domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
-test cases, etc. These classes are at least suggestive of how to structure an event sourced
-application. They are relatively simple and can be easily extended for your own purposes.
+test cases, etc. These classes are suggestive of how to structure an event sourced
+application. They are well factored, relatively simple, and can be easily extended for your own purposes.
 
 **Synchronous Publish-Subscribe Mechanism** — Stable and deterministic,
 with handlers called in the order they are registered, and with which
@@ -166,9 +166,10 @@ class Discarded(DomainEvent):
     
 ```
 
-Please note, these classes do not depend on the library. However, the library does contain
+Please note, the domain event classes above do not depend on the library. However, the library does contain
 a collection of different kinds of domain events clasees that you can use in your models,
-for example the ```AggregateEvent```.
+for example see ```AggregateEvent```. The domain event classes in the library are slightly more
+sophisticated than the code in this example.
 
 Now, let's use the events classes above to define an "example" entity.
 
@@ -290,10 +291,13 @@ def mutate(entity, event):
         raise NotImplementedError(type(event))
 ```
 
-We can now create a new example entity. We can update its property ```foo```. And we can discard
-the entity using the ```discard()``` method.
+Please note, this entity class does not depend on the library. However, the library does contain
+a collection of domain entity classes that you can use in your domain model, for example see the
+```Aggregate``` class. The library classes are slightly more sophisticated than the code in this example.
 
-Let's subscribe to receive the events that will be published, so we can see what is happening.
+With this stand-alone code, we can now create a new example entity. we can update its property
+```foo```, and we can discard the entity using the ```discard()``` method. Let's subscribe to
+receive the events that will be published, so we can see what is happening.
 
 ```python
 from eventsourcing.domain.model.events import subscribe
