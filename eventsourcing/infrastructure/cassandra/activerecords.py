@@ -143,8 +143,8 @@ class CqlTimeuuidSequencedItem(Model):
 
     __table_name__ = 'timeuuid_sequenced_items'
 
-    # Sequence ID (e.g. an entity or aggregate ID).
-    s = columns.Text(partition_key=True)
+    # Sequence UUID (e.g. an entity or aggregate ID).
+    s = columns.UUID(partition_key=True)
 
     # Position (in time) of item in sequence.
     p = columns.TimeUUID(clustering_order='DESC', primary_key=True)

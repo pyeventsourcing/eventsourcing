@@ -1,4 +1,5 @@
 from eventsourcing.exceptions import ConsistencyError, ProgrammingError
+from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
     # Python 3.4+
@@ -147,7 +148,26 @@ class TimestampedEntity(DomainEntity):
         return self._last_modified_on
 
 
+class TimeuuidedEntity(DomainEntity):
+    def __init__(self, event_id=None, **kwargs):
+        super(TimeuuidedEntity, self).__init__(**kwargs)
+        self._initial_event_id = event_id
+        self._last_event_id = event_id
+
+    @property
+    def created_on(self):
+        return timestamp_from_uuid(self._initial_event_id)
+
+    @property
+    def last_modified_on(self):
+        return timestamp_from_uuid(self._last_event_id)
+
+
 class TimestampedVersionedEntity(TimestampedEntity, VersionedEntity):
+    pass
+
+
+class TimeuuidedVersionedEntity(TimeuuidedEntity, VersionedEntity):
     pass
 
 
