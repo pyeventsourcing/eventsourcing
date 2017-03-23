@@ -6,6 +6,7 @@ from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 from json.decoder import JSONDecoder
 from json.encoder import JSONEncoder
+from uuid import UUID
 
 import dateutil.parser
 import six
@@ -60,6 +61,18 @@ class ObjectJSONEncoder(JSONEncoder):
             return {'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z')}
         elif isinstance(obj, datetime.date):
             return {'ISO8601_date': obj.isoformat()}
+        elif isinstance(obj, UUID):
+            return {'UUID': obj.hex}
+        elif hasattr(obj, '__class__') and hasattr(obj, '__dict__'):
+            topic = topic_from_domain_class(obj.__class__)
+            state = obj.__dict__.copy()
+            return {
+                '__class__': {
+                    'topic': topic,
+                    'state': state,
+                }
+            }
+
         # Let the base class default method raise the TypeError.
         return JSONEncoder.default(self, obj)
 
@@ -74,6 +87,10 @@ class ObjectJSONDecoder(JSONDecoder):
             return ObjectJSONDecoder._decode_datetime(d)
         elif 'ISO8601_date' in d:
             return ObjectJSONDecoder._decode_date(d)
+        elif 'UUID' in d:
+            return ObjectJSONDecoder._decode_uuid(d)
+        elif '__class__' in d:
+            return ObjectJSONDecoder._decode_object(d)
         return d
 
     @staticmethod
@@ -83,6 +100,19 @@ class ObjectJSONDecoder(JSONDecoder):
     @staticmethod
     def _decode_datetime(d):
         return dateutil.parser.parse(d['ISO8601_datetime'])
+
+    @staticmethod
+    def _decode_uuid(d):
+        return UUID(d['UUID'])
+
+    @staticmethod
+    def _decode_object(d):
+        topic = d['__class__']['topic']
+        state = d['__class__']['state']
+        obj_class = resolve_domain_topic(topic)
+        obj = object.__new__(obj_class)
+        obj.__dict__.update(state)
+        return obj
 
 
 class SequencedItemMapper(AbstractSequencedItemMapper):
@@ -107,7 +137,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         domain event with a common format that can easily be written
         into its particular database management system.
         """
-        # assert isinstance(domain_event, EntityEvent), type(domain_event)
+        # assert isinstance(domain_event, EventWithEntityID), type(domain_event)
 
         # Copy the state of the domain event.
         event_attrs = domain_event.__dict__.copy()

@@ -4,6 +4,7 @@ from unittest.case import TestCase
 import datetime
 
 from decimal import Decimal
+from uuid import uuid4
 
 from eventsourcing.domain.model.events import VersionedEntityEvent, TimestampedEntityEvent, \
     topic_from_domain_class, DomainEvent
@@ -20,6 +21,15 @@ class Event2(TimestampedEntityEvent):
 
 class Event3(DomainEvent):
     pass
+
+
+class ValueObject1(object):
+
+    def __init__(self, value):
+        self.value = value
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
 
 
 class TestSequencedItemMapper(TestCase):
@@ -90,7 +100,10 @@ class TestSequencedItemMapper(TestCase):
             entity_id='entity3',
             entity_version=303,
             a=datetime.datetime(2017, 3, 22, 9, 12, 14),
-            b=datetime.date(2017, 3, 22)
+            b=datetime.date(2017, 3, 22),
+            c=uuid4(),
+            # d=Decimal(1.1),
+            e=ValueObject1('value1'),
         )
 
         # Check to_sequenced_item() method results in a sequenced item.
@@ -110,6 +123,9 @@ class TestSequencedItemMapper(TestCase):
         self.assertEqual(domain_event.entity_id, event3.entity_id)
         self.assertEqual(domain_event.a, event3.a)
         self.assertEqual(domain_event.b, event3.b)
+        self.assertEqual(domain_event.c, event3.c)
+        # self.assertEqual(domain_event.d, event3.d)
+        self.assertEqual(domain_event.e, event3.e)
 
     def test_errors(self):
         # Setup the mapper, and create an event.

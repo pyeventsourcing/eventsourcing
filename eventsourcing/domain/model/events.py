@@ -89,13 +89,13 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
             "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
 
 
-class EntityEvent(DomainEvent):
+class EventWithEntityID(DomainEvent):
     """
     For events that have an entity ID attribute.
     """
 
     def __init__(self, entity_id, **kwargs):
-        super(EntityEvent, self).__init__(**kwargs)
+        super(EventWithEntityID, self).__init__(**kwargs)
         self.__dict__['entity_id'] = entity_id
 
     @property
@@ -133,13 +133,13 @@ class EventWithEntityVersion(DomainEvent):
         return self.__dict__['entity_version']
 
 
-class TimestampedEntityEvent(EventWithTimestamp, EntityEvent):
+class TimestampedEntityEvent(EventWithTimestamp, EventWithEntityID):
     """
     For events of timestamp-based entities (e.g. a log).
     """
 
 
-class VersionedEntityEvent(EventWithEntityVersion, EntityEvent):
+class VersionedEntityEvent(EventWithEntityVersion, EventWithEntityID):
     """
     For events of versioned entities.
     """
