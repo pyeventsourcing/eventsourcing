@@ -69,7 +69,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         active_record = self.to_active_record(item)
         try:
             # Write stored event into the transaction.
-            self.datastore.db_session.add(active_record)
+            self.add_record_to_session(active_record)
 
             # Commit the transaction.
             self.datastore.db_session.commit()
@@ -82,11 +82,20 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
             # Begin new transaction.
             self.datastore.db_session.close()
 
+    def add_record_to_session(self, active_record):
+        if isinstance(active_record, list):
+            for r in active_record:
+                self.add_record_to_session(r)
+        else:
+            self.datastore.db_session.add(active_record)
+
     def to_active_record(self, sequenced_item):
         """
         Returns an active record, from given sequenced item.
         """
-        assert isinstance(sequenced_item, self.sequenced_item_class), sequenced_item
+        if isinstance(sequenced_item, list):
+            return [self.to_active_record(i) for i in sequenced_item]
+        assert isinstance(sequenced_item, self.sequenced_item_class), type(sequenced_item)
         return self.active_record_class(
             sequence_id=sequenced_item.sequence_id,
             position=sequenced_item.position,

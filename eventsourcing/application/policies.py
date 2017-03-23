@@ -13,6 +13,8 @@ class PersistencePolicy(object):
         subscribe(self.store_event, self.is_event)
 
     def is_event(self, event):
+        if isinstance(event, (list, tuple)):
+            return all(map(self.is_event, event))
         return self.event_type is None or isinstance(event, self.event_type)
 
     def store_event(self, event):

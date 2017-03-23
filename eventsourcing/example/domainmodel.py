@@ -36,11 +36,15 @@ class Example(Aggregate):
     def b(self):
         """Another example attribute."""
 
-    def beat_heart(self):
+    def beat_heart(self, number_of_beats=1):
         self._assert_not_discarded()
-        event = self.Heartbeat(entity_id=self._id, entity_version=self._version)
-        self._apply(event)
-        publish(event)
+        events = []
+        while number_of_beats > 0:
+            event = self.Heartbeat(entity_id=self._id, entity_version=self._version)
+            events.append(event)
+            self._apply(event)
+            number_of_beats -= 1
+        publish(events)
 
     def count_heartbeats(self):
         return self._count_heartbeats
