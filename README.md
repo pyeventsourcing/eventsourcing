@@ -32,6 +32,7 @@ After installing with 'test', the test suite should pass.
     python -m unittest discover eventsourcing.tests -v
 
 Please register any [issues on GitHub](https://github.com/johnbywater/eventsourcing/issues).
+
 There is also a [mailing list](https://groups.google.com/forum/#!forum/eventsourcing-users).
 And a [room on Gitter](https://gitter.im/eventsourcing-in-python/eventsourcing)
 
@@ -59,16 +60,16 @@ mapper and an active record strategy to map domain events in any database.
 
 **Event Player** — Reconstitutes entities by replaying domain events, optionally with snapshotting.
 
-**Snapshotting** - Snapshotting avoids replaying an entire event stream to
+**Snapshotting** - Avoids replaying an entire event stream to
  obtain the state of an entity. A snapshot strategy is included which reuses
 the capabilities of this library by implementing snapshots as domain events. It can
-easily be substituted with a strategy that, for example, uses a dedicated table for snapshots.
+easily be substituted with one that uses a dedicated table for snapshots.
 
 **Persistence Policy** - Subscribes to receive published domain events.
 Appends the domain events to the event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
 
-**Customizable Datastore** — Flexible mapping between domain events and sequenced
+**Mappers** — Flexible mapping between domain events and sequenced
 items, and between sequenced items and your database. Allows support to be added for
 serialization and deserialization of custom value object types.
 
@@ -703,7 +704,7 @@ players also share with the model the mutator functions that are used to apply d
 Functionality such as mapping events to a database, or snapshotting, is factored as strategy objects and injected
 into dependents by constructor parameter. Application level encryption is a mapping option.
 
-The sequnced item persistence model allows domain events to be stored in wide variety of database 
+The sequenced item persistence model allows domain events to be stored in wide variety of database 
 services, and optionally makes use of any optimistic concurrency controls the database system may afford.
 
 
