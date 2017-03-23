@@ -32,6 +32,7 @@ After installing with 'test', the test suite should pass.
     python -m unittest discover eventsourcing.tests -v
 
 Please register any [issues on GitHub](https://github.com/johnbywater/eventsourcing/issues).
+
 There is also a [mailing list](https://groups.google.com/forum/#!forum/eventsourcing-users).
 And a [room on Gitter](https://gitter.im/eventsourcing-in-python/eventsourcing)
 
@@ -54,23 +55,33 @@ some background information about the project.
 
 ## Features
 
-**Event Store** — Appends and retrieves domain events. Uses a sequenced item
-mapper and an active record strategy to map domain events in any database.
-
-**Event Player** — Reconstitutes entities by replaying domain events, optionally with snapshotting.
-
-**Snapshotting** - Snapshotting avoids replaying an entire event stream to
- obtain the state of an entity. A snapshot strategy is included which reuses
-the capabilities of this library by implementing snapshots as domain events. It can
-easily be substituted with a strategy that, for example, uses a dedicated table for snapshots.
-
 **Persistence Policy** - Subscribes to receive published domain events.
-Appends the domain events to the event store whenever a domain event is
+Appends received domain events to an event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
 
-**Customizable Datastore** — Flexible mapping between domain events and sequenced
-items, and between sequenced items and your database. Allows support to be added for
-serialization and deserialization of custom value object types.
+**Event Players** — Get domain events from the event store. Reconstitutes entities by
+replaying events, optionally with snapshotting. An event player is used
+by an entity repository to determine the state of an entity.
+
+**Event Store** — Appends and retrieves domain events. The event store uses a
+"sequenced item mapper" and an "active record strategy" to map domain events
+to a database in ways that can be easily substituted.
+
+**Sequenced Item Mapper** — Maps between domain events and "sequenced items", the archetype
+persistence model used by the library to store domain events. The library supports two
+different kinds of sequenced item: items that are sequenced by a contiguous series of
+integers; and items that are sequenced by time. They support two different kinds of
+domain events: events of versioned entities (e.g. an aggregate in domain driven design),
+and unversioned timestamped events (e.g. entries in a log).
+
+**Active Record Strategies** Maps between "sequenced items" and your
+database records. Support can be added for a new database schema by introducing a new
+active record strategy.
+
+**Snapshotting** - Avoids replaying an entire event stream to
+ obtain the state of an entity. A snapshot strategy is included which reuses
+the capabilities of this library by implementing snapshots as time-sequenced domain
+events. It can easily be substituted with one that uses a dedicated table for snapshots.
 
 **Application-Level Encryption** — Symmetric encryption of stored
 events, including snapshots and logged messages, using a customizable
@@ -94,7 +105,9 @@ might help.
 **Abstract Base Classes** — For application objects, domain entities, entity repositories,
 domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
 test cases, etc. These classes are at least suggestive of how to structure an event sourced
-application. They are relatively simple and can be easily extended for your own purposes.
+application. They are well factored, relatively simple, and can be easily extended for your own
+purposes. If you wanted to create domain model that is entirely stand-alone (recommended by
+purists for maximum longevity), you could start by copying the library classes.
 
 **Synchronous Publish-Subscribe Mechanism** — Stable and deterministic,
 with handlers called in the order they are registered, and with which
@@ -165,9 +178,10 @@ class Discarded(DomainEvent):
     
 ```
 
-Please note, these classes do not depend on the library. However, the library does contain
+Please note, the domain event classes above do not depend on the library. However, the library does contain
 a collection of different kinds of domain events clasees that you can use in your models,
-for example the ```AggregateEvent```.
+for example see ```AggregateEvent```. The domain event classes in the library are slightly more
+sophisticated than the code in this example.
 
 Now, let's use the events classes above to define an "example" entity.
 
@@ -289,10 +303,13 @@ def mutate(entity, event):
         raise NotImplementedError(type(event))
 ```
 
-We can now create a new example entity. We can update its property ```foo```. And we can discard
-the entity using the ```discard()``` method.
+Please note, this entity class does not depend on the library. However, the library does contain
+a collection of domain entity classes that you can use in your domain model, for example see the
+```Aggregate``` class. The library classes are slightly more sophisticated than the code in this example.
 
-Let's subscribe to receive the events that will be published, so we can see what is happening.
+With this stand-alone code, we can now create a new example entity. we can update its property
+```foo```, and we can discard the entity using the ```discard()``` method. Let's subscribe to
+receive the events that will be published, so we can see what is happening.
 
 ```python
 from eventsourcing.domain.model.events import subscribe
@@ -703,7 +720,7 @@ players also share with the model the mutator functions that are used to apply d
 Functionality such as mapping events to a database, or snapshotting, is factored as strategy objects and injected
 into dependents by constructor parameter. Application level encryption is a mapping option.
 
-The sequnced item persistence model allows domain events to be stored in wide variety of database 
+The sequenced item persistence model allows domain events to be stored in wide variety of database 
 services, and optionally makes use of any optimistic concurrency controls the database system may afford.
 
 
