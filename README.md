@@ -476,8 +476,8 @@ retrieved_entity = example_repository[entity1.id]
 assert retrieved_entity.foo == 'bar2'
 ```
 
-To keep things grounded, we can always get the sequenced items directly from the active record
-strategy. A sequenced item is a Python tuple with four fields: ```sequence_id```, ```position```,
+To keep things grounded, we can get the sequenced items directly from the active record
+strategy. In the library, a ```SequencedItem``` is a Python tuple with four fields: ```sequence_id```, ```position```,
 ```topic```, and ```data```. The event's ```entity_id``` is mapped to ```sequence_id```.
 The event's ```entity_version``` is mapped to ```position```. The sequenced item's```topic```
 identifies the type of the event. And the ```data``` field represents the state of the event.
@@ -600,7 +600,7 @@ with Application(datastore) as app:
 
 Congratulations. You have created yourself an event sourced application.
 
-A more sophisticated example application can be found at in the library
+A slightly more developed example application can be found in the library
 module ```eventsourcing.example.application```
 
 
