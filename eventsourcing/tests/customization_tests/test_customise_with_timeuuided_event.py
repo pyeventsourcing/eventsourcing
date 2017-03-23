@@ -37,7 +37,7 @@ class ExampleEntity(TimeuuidedVersionedEntity):
     @staticmethod
     def _mutator(event, initial):
         if isinstance(event, ExampleEntity.Started):
-            return TimeuuidedVersionedEntity(**event.__dict__)
+            return ExampleEntity(**event.__dict__)
         elif isinstance(event, ExampleEntity.Finished):
             initial._is_finished = True
             return initial
@@ -60,8 +60,8 @@ class ExampleApplicationWithTimeuuidSequencedItems(object):
                 position_attr_name='event_id',
             )
         )
-        self.custom_repository = EventSourcedRepository(
-            domain_class=TimeuuidedVersionedEntity,
+        self.repository = EventSourcedRepository(
+            domain_class=ExampleEntity,
             event_store=self.event_store,
         )
         self.persistence_policy = PersistencePolicy(self.event_store)
@@ -98,6 +98,12 @@ class TestDomainEventsWithTimeUUIDs(AbstractDatastoreTestCase):
 
     def test(self):
         with ExampleApplicationWithTimeuuidSequencedItems() as app:
+
+            # Create entity.
             entity1 = app.start_entity()
             self.assertIsInstance(entity1._initial_event_id, UUID)
             self.assertEqual(entity1.created_on, timestamp_from_uuid(entity1._initial_event_id))
+
+            # Read entity from repo.
+            retrieved_obj = app.repository[entity1.id]
+            self.assertEqual(retrieved_obj.id, entity1.id)
