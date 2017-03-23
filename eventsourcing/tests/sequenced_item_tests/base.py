@@ -1,6 +1,7 @@
 import json
 import uuid
 from time import time
+from uuid import uuid4
 
 import six
 
@@ -54,7 +55,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         raise NotImplementedError()
 
     def test_get_and_append_items(self):
-        sequence_id = uuid.uuid1().hex
+        sequence_id = uuid.uuid1()
 
         # Check repo returns None when there aren't any items.
         self.assertEqual(self.active_record_strategy.get_items(sequence_id), [])
@@ -327,9 +328,12 @@ class TimestampSequencedItemTestCase(ActiveRecordStrategyTestCase):
 
 
 class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
+
+    ENTITY_ID1 = uuid4()
+
     @property
     def entity_id(self):
-        return 'entity1'
+        return self.ENTITY_ID1
 
     @property
     def num_events(self):

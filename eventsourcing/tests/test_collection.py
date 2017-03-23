@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from unittest.case import TestCase
+from uuid import uuid4
 
 from eventsourcing.domain.model.collection import Collection, register_new_collection
 from eventsourcing.domain.model.entity import EntityIsDiscarded
@@ -110,9 +111,9 @@ class TestCollectionRepo(WithSQLAlchemyActiveRecordStrategies, WithPersistencePo
 
         repo = CollectionRepository(event_store=self.versioned_entity_event_store)
 
-        # Check the collection is not in the repo.
+        # Check unknown collections are not found in the repo.
         with self.assertRaises(RepositoryKeyError):
-            _ = repo['none']
+            _ = repo[uuid4()]
 
         # Register a new collection.
         collection_id = register_new_collection().id
@@ -150,4 +151,4 @@ class TestCollectionRepo(WithSQLAlchemyActiveRecordStrategies, WithPersistencePo
 
         # Check the collection is not in the repo.
         with self.assertRaises(RepositoryKeyError):
-            _ = repo['none']
+            _ = repo[collection.id]

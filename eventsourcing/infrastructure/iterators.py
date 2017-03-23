@@ -12,7 +12,6 @@ class AbstractSequencedItemIterator(six.with_metaclass(ABCMeta)):
     def __init__(self, active_record_strategy, sequence_id, page_size=None, gt=None, gte=None, lt=None, lte=None,
                  limit=None, is_ascending=True):
         assert isinstance(active_record_strategy, AbstractActiveRecordStrategy), type(active_record_strategy)
-        assert isinstance(sequence_id, six.string_types)
         assert isinstance(page_size, (six.integer_types, type(None)))
         assert isinstance(limit, (six.integer_types, type(None)))
         self.active_record_strategy = active_record_strategy

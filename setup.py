@@ -29,10 +29,12 @@ setup(
             'mock',
             'PyCrypto',
             'sqlalchemy',
+            'sqlalchemy-utils',
             'requests',
         ],
         'sqlalchemy': [
             'sqlalchemy',
+            'sqlalchemy-utils',
         ],
     },
     zip_safe=False,

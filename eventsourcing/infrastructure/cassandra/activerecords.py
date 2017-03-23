@@ -104,7 +104,7 @@ class CqlIntegerSequencedItem(Model):
     __table_name__ = 'integer_sequenced_items'
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    s = columns.Text(partition_key=True)
+    s = columns.UUID(partition_key=True)
 
     # Position (index) of item in sequence.
     p = columns.BigInt(clustering_order='DESC', primary_key=True)
@@ -124,7 +124,7 @@ class CqlTimestampSequencedItem(Model):
     __table_name__ = 'timestamp_sequenced_items'
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    s = columns.Text(partition_key=True)
+    s = columns.UUID(partition_key=True)
 
     # Position (in time) of item in sequence.
     p = columns.Double(clustering_order='DESC', primary_key=True)

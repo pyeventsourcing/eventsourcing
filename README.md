@@ -262,7 +262,7 @@ def create_new_example(foo):
     """Factory method for Example entities."""
 
     # Create an entity ID.
-    entity_id = uuid.uuid4().hex
+    entity_id = uuid.uuid4()
     
     # Instantiate a domain event.
     event = Created(entity_id=entity_id, foo=foo)
@@ -371,6 +371,7 @@ example, use SQLAlchemy to define a database that stores integer-sequenced items
 from sqlalchemy.ext.declarative.api import declarative_base
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
+from sqlalchemy_utils import UUIDType
 
 
 Base = declarative_base()
@@ -379,10 +380,10 @@ Base = declarative_base()
 class IntegerSequencedItem(Base):
     __tablename__ = 'integer_sequenced_items'
 
-    id = Column(Integer, Sequence('integer_sequened_item_id_seq'), primary_key=True)
+    id = Column(Integer(), Sequence('integer_sequened_item_id_seq'), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(String(255), index=True)
+    sequence_id = Column(UUIDType(), index=True)
 
     # Position (index) of item in sequence.
     position = Column(BigInteger(), index=True)

@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from eventsourcing.domain.model.sequence import Sequence, start_sequence
 from eventsourcing.exceptions import SequenceFullError
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
@@ -14,7 +16,7 @@ class SequenceTestCase(WithPersistencePolicy):
         repo = SequenceRepo(self.versioned_entity_event_store)
 
         # Start a new sequence.
-        name = 'sequence1'
+        name = uuid4()
 
         # Check get_or_create() can create a new sequence.
         sequence = repo.get_or_create(name)

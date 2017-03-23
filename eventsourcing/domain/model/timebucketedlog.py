@@ -106,7 +106,7 @@ class MessageLogged(TimestampedEntityEvent):
         return self.__dict__['entity_id']
 
 
-def make_timebucket_id(log_name, timestamp, bucket_size):
+def make_timebucket_id(log_id, timestamp, bucket_size):
     d = datetime.datetime.utcfromtimestamp(timestamp)
 
     assert isinstance(d, datetime.datetime)
@@ -151,7 +151,7 @@ def make_timebucket_id(log_name, timestamp, bucket_size):
         )
     else:
         raise ValueError("Bucket size not supported: {}".format(bucket_size))
-    return uuid5(Namespace_Timebuckets, log_name + '_' + boundary).hex
+    return uuid5(Namespace_Timebuckets, log_id.hex + '_' + boundary)
 
 
 def next_bucket_starts(timestamp, bucket_size):

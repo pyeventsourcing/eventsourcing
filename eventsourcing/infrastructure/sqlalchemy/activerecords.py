@@ -1,8 +1,11 @@
+from uuid import uuid4, UUID
+
 import six
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Float, Integer, String, Text
+from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDatastore
@@ -125,7 +128,7 @@ class SqlIntegerSequencedItem(Base):
     id = Column(Integer, Sequence('integer_sequened_item_id_seq'), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(String(255), index=True)
+    sequence_id = Column(UUIDType(), index=True)
 
     # Position (index) of item in sequence.
     position = Column(BigInteger(), index=True)
@@ -155,7 +158,7 @@ class SqlTimestampSequencedItem(Base):
     id = Column(Integer, Sequence('integer_sequened_item_id_seq'), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(String(255), index=True)
+    sequence_id = Column(UUIDType(), index=True)
 
     # Position (timestamp) of item in sequence.
     position = Column(Float(), index=True)

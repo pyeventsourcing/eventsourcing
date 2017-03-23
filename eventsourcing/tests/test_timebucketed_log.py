@@ -1,6 +1,7 @@
 import datetime
 import time
 from time import sleep
+from uuid import uuid4
 
 from eventsourcing.domain.model.timebucketedlog import Timebucketedlog, bucket_duration, bucket_starts, \
     make_timebucket_id, start_new_timebucketedlog
@@ -21,9 +22,10 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         self.log_repo = TimebucketedlogRepo(self.timestamped_entity_event_store)
 
     def test_entity_lifecycle(self):
-        log = self.log_repo.get_or_create(log_name='log1', bucket_size='year')
+        log_name = uuid4()
+        log = self.log_repo.get_or_create(log_name=log_name, bucket_size='year')
         self.assertIsInstance(log, Timebucketedlog)
-        self.assertEqual(log.name, 'log1')
+        self.assertEqual(log.name, log_name)
         self.assertEqual(log.bucket_size, 'year')
 
         # Append some messages to the log.
@@ -135,7 +137,7 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
     @notquick()
     def test_buckets_size_second(self):
         # Start new log.
-        log = start_new_timebucketedlog(name='log1', bucket_size='second')
+        log = start_new_timebucketedlog(name=uuid4(), bucket_size='second')
 
         # Write messages across the time interval
         start = datetime.datetime.now()
@@ -277,7 +279,8 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
 
     def test_buckets_of_all_sizes(self):
         # Start new second sized log.
-        log = start_new_timebucketedlog(name='log2', bucket_size='second')
+        log_id2 = uuid4()
+        log = start_new_timebucketedlog(name=log_id2, bucket_size='second')
         log.append_message('message')
 
         # Get the messages.
@@ -285,7 +288,8 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new minute sized log.
-        log = start_new_timebucketedlog(name='log3', bucket_size='minute')
+        log_id3 = uuid4()
+        log = start_new_timebucketedlog(name=log_id3, bucket_size='minute')
         log.append_message('message')
 
         # Get the messages.
@@ -293,7 +297,8 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new hour sized log.
-        log = start_new_timebucketedlog(name='log4', bucket_size='hour')
+        log_id4 = uuid4()
+        log = start_new_timebucketedlog(name=log_id4, bucket_size='hour')
         log.append_message('message')
 
         # Get the messages.
@@ -301,7 +306,8 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new day sized log.
-        log = start_new_timebucketedlog(name='log5', bucket_size='day')
+        log_id5 = uuid4()
+        log = start_new_timebucketedlog(name=log_id5, bucket_size='day')
         log.append_message('message')
 
         # Get the messages.
@@ -309,7 +315,8 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new month sized log.
-        log = start_new_timebucketedlog(name='log6', bucket_size='month')
+        log_id6 = uuid4()
+        log = start_new_timebucketedlog(name=log_id6, bucket_size='month')
         log.append_message('message')
 
         # Get the messages.
@@ -317,7 +324,8 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new year sized log.
-        log = start_new_timebucketedlog(name='log7', bucket_size='year')
+        log_id7 = uuid4()
+        log = start_new_timebucketedlog(name=log_id7, bucket_size='year')
         log.append_message('message')
 
         # Get the messages.
@@ -325,7 +333,8 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new default sized log.
-        log = start_new_timebucketedlog(name='log8')
+        log_id8 = uuid4()
+        log = start_new_timebucketedlog(name=log_id8)
         log.append_message('message')
 
         # Get the messages.
@@ -334,11 +343,13 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
 
         # Start new invalid sized log.
         with self.assertRaises(ValueError):
-            log = start_new_timebucketedlog(name='log9', bucket_size='invalid')
+            log_id9 = uuid4()
+            log = start_new_timebucketedlog(name=log_id9, bucket_size='invalid')
 
         # Check the helper methods are protected against invalid bucket sizes.
         with self.assertRaises(ValueError):
-            make_timebucket_id('log10', time.time(), bucket_size='invalid')
+            log_id10 = uuid4()
+            make_timebucket_id(log_id10, time.time(), bucket_size='invalid')
 
         with self.assertRaises(ValueError):
             bucket_starts(time.time(), bucket_size='invalid')

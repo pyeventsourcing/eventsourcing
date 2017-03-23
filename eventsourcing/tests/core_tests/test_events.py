@@ -203,8 +203,8 @@ class TestTimeSequencedEvent(unittest.TestCase):
             pass
 
         # Check subclass can be instantiated with 'entity_id' parameter.
-        ID1 = 'entity1'
-        ID2 = 'entity2'
+        ID1 = uuid4()
+        ID2 = uuid4()
         VALUE1 = 'a string'
         VALUE2 = 'another string'
         event1 = Event(
@@ -293,7 +293,8 @@ class TestEvents(unittest.TestCase):
         _event_handlers.clear()
 
     def test_event_attributes(self):
-        event = Example.Created(entity_id='entity1', a=1, b=2)
+        entity_id1 = uuid4()
+        event = Example.Created(entity_id=entity_id1, a=1, b=2)
 
         # Check constructor keyword args lead to read-only attributes.
         self.assertEqual(1, event.a)
@@ -305,7 +306,7 @@ class TestEvents(unittest.TestCase):
         self.assertIsInstance(event.timestamp, float)
 
         # Check timestamp value can be given to domain events.
-        event1 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
+        event1 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
         self.assertEqual(3, event1.timestamp)
 
     def test_publish_subscribe_unsubscribe(self):
@@ -357,28 +358,32 @@ class TestEvents(unittest.TestCase):
         self.assertTrue(all_events(None))
 
     def test_hash(self):
-        event1 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
-        event2 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
+        entity_id1 = uuid4()
+        event1 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
+        event2 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
         self.assertEqual(hash(event1), hash(event2))
 
     def test_equality_comparison(self):
-        event1 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
-        event2 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
-        event3 = Example.Created(entity_id='entity1', a=3, b=2, timestamp=3)
+        entity_id1 = uuid4()
+        event1 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
+        event2 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
+        event3 = Example.Created(entity_id=entity_id1, a=3, b=2, timestamp=3)
         self.assertEqual(event1, event2)
         self.assertNotEqual(event1, event3)
         self.assertNotEqual(event2, event3)
         self.assertNotEqual(event2, None)
 
     def test_repr(self):
-        event1 = Example.Created(entity_id='entity1', a=1, b=2, timestamp=3)
+        entity_id1 = uuid4()
+        event1 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
         self.assertEqual(
-            "Example.Created(a=1, b=2, entity_id='entity1', entity_version=0, timestamp=3)",
+            "Example.Created(a=1, b=2, entity_id={}, entity_version=0, timestamp=3)".format(repr(entity_id1)),
             repr(event1)
         )
 
     def test_subscribe_to_decorator(self):
-        event = Example.Created(entity_id='entity1', a=1, b=2)
+        entity_id1 = uuid4()
+        event = Example.Created(entity_id=entity_id1, a=1, b=2)
         handler = mock.Mock()
 
         # Check we can assert there are no event handlers subscribed.

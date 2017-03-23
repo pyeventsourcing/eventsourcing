@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import mock
 
 from eventsourcing.domain.model.entity import AttributeChanged, Created, CreatedMutatorRequiresTypeNotInstance, \
@@ -127,7 +129,8 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertTrue(p.fget)
 
         # Pretend we decorated an object.
-        o = TimestampedVersionedEntity(entity_id='entity1', entity_version=0)
+        entity_id = uuid4()
+        o = TimestampedVersionedEntity(entity_id=entity_id, entity_version=0)
         o.__dict__['_<lambda>'] = 'value1'
 
         # Call the property's getter function.
@@ -160,7 +163,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         published_events = []
         subscription = (lambda x: True, lambda x: published_events.append(x))
         subscribe(*subscription)
-        entity_id = '1'
+        entity_id = uuid4()
         try:
             aaa = Aaa(entity_id=entity_id, entity_version=1, a=1)
             self.assertEqual(aaa.a, 1)

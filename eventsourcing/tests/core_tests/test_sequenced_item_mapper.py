@@ -37,13 +37,14 @@ class TestSequencedItemMapper(TestCase):
     def test_with_versioned_entity_event(self):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(position_attr_name='entity_version')
-        event1 = Event1(entity_id='entity1', entity_version=101)
+        entity_id1 = uuid4()
+        event1 = Event1(entity_id=entity_id1, entity_version=101)
 
         # Check to_sequenced_item() method results in a sequenced item.
         sequenced_item = mapper.to_sequenced_item(event1)
         self.assertIsInstance(sequenced_item, SequencedItem)
         self.assertEqual(sequenced_item.position, 101)
-        self.assertEqual(sequenced_item.sequence_id, 'entity1')
+        self.assertEqual(sequenced_item.sequence_id, entity_id1)
         self.assertEqual(sequenced_item.topic, topic_from_domain_class(Event1))
         self.assertTrue(sequenced_item.data)
 
