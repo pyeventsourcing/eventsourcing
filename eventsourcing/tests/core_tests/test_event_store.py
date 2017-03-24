@@ -91,23 +91,30 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         entity_event = event_store.get_most_recent_event(entity_id=entity_id1)
         self.assertEqual(entity_event, event1)
 
-    def test_get_all_domain_events(self):
+    def test_all_domain_events(self):
         event_store = self.construct_event_store()
 
+        # Check there are zero domain events in total.
         domain_events = event_store.all_domain_events()
         domain_events = list(domain_events)
         self.assertEqual(len(domain_events), 0)
 
         # Store a domain event.
-        entity_id = uuid4()
-        event1 = Example.Created(entity_id=entity_id, a=1, b=2)
+        entity_id1 = uuid4()
+        event1 = Example.Created(entity_id=entity_id1, a=1, b=2)
         event_store.append(event1)
 
-        # Store another domain event.
-        event1 = Example.AttributeChanged(entity_id=entity_id, a=1, b=2, entity_version=1)
+        # Store another domain event for the same entity.
+        event1 = Example.AttributeChanged(entity_id=entity_id1, a=1, b=2, entity_version=1)
         event_store.append(event1)
 
+        # Store a domain event for a different entity.
+        entity_id2 = uuid4()
+        event1 = Example.Created(entity_id=entity_id2, a=1, b=2)
+        event_store.append(event1)
+
+        # Check there are three domain events in total.
         domain_events = event_store.all_domain_events()
         domain_events = list(domain_events)
-        self.assertEqual(len(domain_events), 2)
+        self.assertEqual(len(domain_events), 3)
 
