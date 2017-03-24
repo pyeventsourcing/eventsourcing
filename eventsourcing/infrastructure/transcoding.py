@@ -174,7 +174,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         Recreates original domain event from stored event topic and
         event attrs. Used in the event store when getting domain events.
         """
-        assert isinstance(sequenced_item, self.sequenced_item_class)
+        assert isinstance(sequenced_item, self.sequenced_item_class), type(sequenced_item)
 
         # Get the domain event class from the topic.
         event_class = resolve_domain_topic(sequenced_item.topic)
