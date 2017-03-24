@@ -251,9 +251,11 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         # Iterate over all items in all sequences.
         retrieved_items = self.active_record_strategy.all_items()
         retrieved_items = list(retrieved_items)
+
+        # Not always in order, but check the number of events.
         self.assertEqual(len(retrieved_items), 4)
 
-        # Not always in order, but check we can get all the sequence IDs.
+        # Check we can get all the sequence IDs.
         entity_ids = set([i.sequence_id for i in retrieved_items])
         self.assertEqual(entity_ids, {sequence_id1, sequence_id2})
 
