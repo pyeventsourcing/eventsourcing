@@ -248,7 +248,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.assertEqual(retrieved_items[0].position, position3)
         self.assertEqual(retrieved_items[2].position, position1)
 
-        # Iterator all items from all sequences.
+        # Iterate over all items in all sequences.
         retrieved_items = self.active_record_strategy.all_items()
         retrieved_items = list(retrieved_items)
         self.assertEqual(len(retrieved_items), 4)
