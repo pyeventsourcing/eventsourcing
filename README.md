@@ -133,12 +133,12 @@ variations. If you installed the library into a Python virtualenv, please
 check that your virtualenv is activated before running your program.
 
 
-### Step 1: domain model
+### Step 1: Domain Model
 
 Let's start with the domain model. Because the state of an event sourced application
 is determined by a sequence of events, we need to define some events.
 
-#### domain events
+#### define domain events
 
 For the sake of simplicity in this example, let's assume things in our 
 domain can be "created", "changed", and "discarded". With that in mind,
@@ -185,7 +185,7 @@ a collection of different kinds of domain event classes that you can use in your
 for example see ```AggregateEvent```. The domain event classes in the library are slightly more
 sophisticated than the code in this example.
 
-#### domain entity
+#### define domain entity
 
 Now, let's use the events classes above to define an "example" entity.
 
@@ -365,12 +365,12 @@ This example uses the library's ```publish()``` and ```subscribe()``` functions,
 easily use your own publish-subscribe implementation.
 
 
-### Step 2: infrastructure
+### Step 2: Infrastructure
 
 Since the application state is determined by a sequence of events, the events of the
 entities of the application must somehow be stored.
 
-#### database table
+#### setup database table
 
 Let's start by setting up a database for storing events. For the sake of simplicity in this
 example, use SQLAlchemy to define a database that stores integer-sequenced items.
@@ -423,7 +423,7 @@ datastore.setup_connection()
 datastore.setup_tables()
 ```
 
-#### entity repository
+#### define entity repository
 
 The application wants to deal with entities, not a sequence of events. Since it is common
 to retrieve entities from a repository, let's define an event sourced repository for the
@@ -528,7 +528,7 @@ are classes in the library for Cassandra. Support for other
 databases is forthcoming.
 
 
-### Step 3: application object
+### Step 3: Application Object
 
 Although we can do everything at the module level, an application object brings
 everything together.
@@ -616,7 +616,7 @@ A slightly more developed example application can be found in the library
 module ```eventsourcing.example.application```
 
 
-### Step 4: encryption
+### Step 4: Application Level Encryption
 
 To enable encryption, pass in a cipher strategy object when constructing
 the sequenced item mapper, and set ```always_encrypt``` to a True value.
@@ -685,7 +685,7 @@ with EncryptedApplication(datastore, cipher=AESCipher(aes_key)) as app:
     assert 'secret info' in retrieved_entity.foo    
 ```
 
-### Step 5: optimistic concurrency control
+### Step 5: Optimistic Concurrency Control
 
 With the application above, because of the unique constraint
 on the SQLAlchemy table, it isn't possible to branch the
