@@ -94,7 +94,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
     def test_get_all_domain_events(self):
         event_store = self.construct_event_store()
 
-        domain_events = event_store.get_all_domain_events()
+        domain_events = event_store.all_domain_events()
         domain_events = list(domain_events)
         self.assertEqual(len(domain_events), 0)
 
@@ -107,7 +107,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         event1 = Example.AttributeChanged(entity_id=entity_id, a=1, b=2, entity_version=1)
         event_store.append(event1)
 
-        domain_events = event_store.get_all_domain_events()
+        domain_events = event_store.all_domain_events()
         domain_events = list(domain_events)
         self.assertEqual(len(domain_events), 2)
 

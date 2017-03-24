@@ -36,9 +36,9 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def get_all_domain_events(self):
+    def all_domain_events(self):
         """
-        Returns all domain events.
+        Returns all domain events in the event store.
         """
 
 
@@ -114,7 +114,7 @@ class EventStore(AbstractEventStore):
         except IndexError:
             pass
 
-    def get_all_domain_events(self):
+    def all_domain_events(self):
         all_items = self.active_record_strategy.all_items()
         return map(self.sequenced_item_mapper.from_sequenced_item, all_items)
 
