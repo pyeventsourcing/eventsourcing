@@ -1,4 +1,4 @@
-from time import time
+from time import time, sleep
 from unittest.case import TestCase
 
 import datetime
@@ -66,7 +66,9 @@ class TestSequencedItemMapper(TestCase):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(position_attr_name='timestamp')
         before = time()
+        sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
         event2 = Event2(entity_id='entity2')
+        sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
         after = time()
 
         # Check to_sequenced_item() method results in a sequenced item.
