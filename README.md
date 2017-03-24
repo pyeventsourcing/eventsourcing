@@ -128,9 +128,10 @@ Python file.
 
 This example follows the layered architecture: application, domain, and infrastructure.
 
-The code snippets in this section have been tested. You may experiment by making
-variations. If you installed the library into a Python virtualenv, please
-check that your virtualenv is activated before running your program.
+The code snippets in this section have been tested. If you installed the
+library into a Python virtualenv, please check that your virtualenv is
+activated before running your program. Please feel able to experiment by
+making variations. 
 
 
 ### Step 1: Domain Model
@@ -310,6 +311,17 @@ Please note, this entity class does not depend on the library. The library does 
 a collection of domain entity classes that you can use in your domain model, for example see the
 ```Aggregate``` class. The library classes are slightly more refined than the code in this example.
 
+(Note on ```save()``` methods: The library does support appending events in batches, so that
+you could style your entities to have interally pending events: events that are emitted by the operations
+(as above) but are not immedidately published for others but instead are added to a list of pending events within
+the entity. In this scenario, the pending events could then be published altogether as a list
+when e.g. a ```save()``` method is called. If the event store is given a list of events to append,
+they will be written to the database by the active record strategy in the same database transaction,
+so that either all events will be written, or none of them will be written and the save operation will fail.
+Although there currently isn't an entity class in the library with such a ```save()``` method, the
+```Aggregate``` class seems like a good place.)
+
+
 #### Run the code
 
 With this stand-alone code, we can now create a new example entity object. We can update its property
@@ -364,13 +376,6 @@ assert received_events[1].value == 'bar2'
 This example uses the library's ```publish()``` and ```subscribe()``` functions, but you could
 easily use your own publish-subscribe implementation.
 
-The library does support publishing a list of events, so that you can style your entities to
-have pending events: events that result from the operations (as above) but are not immedidately
-published by the operations but instead added to a list of pending events within the entity.
-The pending events can then be published altogether when e.g. a ```save()``` method is called.
-Such a list of events will be written to the database by the active record strategy in the same
-database transaction, so that either all events will be written, or none of them will be written.
-There currently isn't an entity class in the library with such a ```save()``` method. 
 
 ### Step 2: Infrastructure
 
