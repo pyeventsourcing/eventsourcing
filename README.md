@@ -307,19 +307,21 @@ def mutate(entity, event):
         raise NotImplementedError(type(event))
 ```
 
-Please note, this entity class does not depend on the library. The library does however contain
-a collection of domain entity classes that you can use in your domain model, for example see the
-```Aggregate``` class. The library classes are slightly more refined than the code in this example.
+Apart from using the library's ```publish()``` function, the example entity class does not depend on the
+library. It doesn't inherit from a "magical" entity base class. It just publishes events that it has
+applied to itself. The library does however contain domain entity classes that you can use to build your
+domain model. For example see the ```Aggregate``` class, which is also a timestamped, versioned entity.
+The library classes are slightly more refined than the code in this example.
 
-(Note on ```save()``` methods: The library does support appending events in batches, so that
-you could style your entities to have interally pending events: events that are emitted by the operations
-(as above) but are not immedidately published for others but instead are added to a list of pending events within
-the entity. In this scenario, the pending events could then be published altogether as a list
-when e.g. a ```save()``` method is called. If the event store is given a list of events to append,
-they will be written to the database by the active record strategy in the same database transaction,
+(Note on entity ```save()``` methods: The library does support appending events to the event store in
+batches, so that you could style your entities to have interal list of pending events: events that are
+emitted by the operations (as above) but are not immedidately published for others but instead are added
+to a list of pending events within the entity. In this scenario, the pending events could then be published
+altogether as a list when e.g. a ```save()``` method is called. If the event store is given a list of events
+to append, they will be written to the database by the active record strategy in the same database transaction,
 so that either all events will be written, or none of them will be written and the save operation will fail.
 Although there currently isn't an entity class in the library with such a ```save()``` method, the
-```Aggregate``` class seems like a good place.)
+```Aggregate``` class might be good place to add this behaviour.)
 
 
 #### Run the code
@@ -372,9 +374,6 @@ assert received_events[1].entity_version == 1
 assert received_events[1].name == 'foo'
 assert received_events[1].value == 'bar2'
 ```
-
-This example uses the library's ```publish()``` and ```subscribe()``` functions, but you could
-easily use your own publish-subscribe implementation.
 
 
 ### Step 2: Infrastructure
