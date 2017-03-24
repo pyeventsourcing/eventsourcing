@@ -138,7 +138,7 @@ check that your virtualenv is activated before running your program.
 Let's start with the domain model. Because the state of an event sourced application
 is determined by a sequence of events, we need to define some events.
 
-#### define domain events
+#### Define domain events
 
 For the sake of simplicity in this example, let's assume things in our 
 domain can be "created", "changed", and "discarded". With that in mind,
@@ -185,7 +185,7 @@ a collection of different kinds of domain event classes that you can use in your
 for example see ```AggregateEvent```. The domain event classes in the library are slightly more
 sophisticated than the code in this example.
 
-#### define domain entity
+#### Define domain entity
 
 Now, let's use the events classes above to define an "example" entity.
 
@@ -310,7 +310,7 @@ Please note, this entity class does not depend on the library. However, the libr
 a collection of domain entity classes that you can use in your domain model, for example see the
 ```Aggregate``` class. The library classes are slightly more refined than the code in this example.
 
-##### run the code
+##### Run the code
 
 With this stand-alone code, we can now create a new example entity object. We can update its property
 ```foo```, and we can discard the entity using the ```discard()``` method. Let's subscribe to
@@ -370,7 +370,7 @@ easily use your own publish-subscribe implementation.
 Since the application state is determined by a sequence of events, the events of the
 entities of the application must somehow be stored.
 
-#### setup database table
+#### Setup database table
 
 Let's start by setting up a database for storing events. For the sake of simplicity in this
 example, use SQLAlchemy to define a database that stores integer-sequenced items.
@@ -423,7 +423,7 @@ datastore.setup_connection()
 datastore.setup_tables()
 ```
 
-#### define entity repository
+#### Define entity repository
 
 The application wants to deal with entities, not a sequence of events. Since it is common
 to retrieve entities from a repository, let's define an event sourced repository for the
@@ -468,7 +468,7 @@ example_repository = ExampleRepository(
 )
 ```
 
-#### run the code
+#### Run the code
 
 Now, let's write all the events we subscribed to earlier into the event store.
 
