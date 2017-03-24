@@ -310,7 +310,7 @@ Please note, this entity class does not depend on the library. However, the libr
 a collection of domain entity classes that you can use in your domain model, for example see the
 ```Aggregate``` class. The library classes are slightly more refined than the code in this example.
 
-##### Run the code
+#### Run the code
 
 With this stand-alone code, we can now create a new example entity object. We can update its property
 ```foo```, and we can discard the entity using the ```discard()``` method. Let's subscribe to
