@@ -162,13 +162,13 @@ class DomainEvent(object):
 
 
 class Created(DomainEvent):
-    """Raised when an entity is created."""
+    """Published when an entity is created."""
     def __init__(self, **kwargs):
         super(Created, self).__init__(entity_version=0, **kwargs)
 
     
 class ValueChanged(DomainEvent):
-    """Raised when a named value is changed."""
+    """Published when an attribute value is changed."""
     def __init__(self, name, value, **kwargs):
         super(ValueChanged, self).__init__(**kwargs)
         self.name = name
@@ -176,14 +176,14 @@ class ValueChanged(DomainEvent):
 
     
 class Discarded(DomainEvent):
-    """Raised when an entity is discarded."""
+    """Published when an entity is discarded."""
     
 ```
 
-Please note, the domain event classes above do not depend on the library. However, the library does contain
-a collection of different kinds of domain event classes that you can use in your models,
-for example see ```AggregateEvent```. The domain event classes in the library are slightly more
-sophisticated than the code in this example.
+Please note, the domain event classes above do not depend on the library. The library does
+however contain a collection of different kinds of domain event classes that you can use
+in your models, for example see ```AggregateEvent```. The domain event classes in the
+library are slightly more sophisticated than the code in this example.
 
 #### Define domain entity
 
@@ -306,7 +306,7 @@ def mutate(entity, event):
         raise NotImplementedError(type(event))
 ```
 
-Please note, this entity class does not depend on the library. However, the library does contain
+Please note, this entity class does not depend on the library. The library does however contain
 a collection of domain entity classes that you can use in your domain model, for example see the
 ```Aggregate``` class. The library classes are slightly more refined than the code in this example.
 
@@ -364,6 +364,13 @@ assert received_events[1].value == 'bar2'
 This example uses the library's ```publish()``` and ```subscribe()``` functions, but you could
 easily use your own publish-subscribe implementation.
 
+The library does support publishing a list of events, so that you can style your entities to
+have pending events: events that result from the operations (as above) but are not immedidately
+published by the operations but instead added to a list of pending events within the entity.
+The pending events can then be published altogether when e.g. a ```save()``` method is called.
+Such a list of events will be written to the database by the active record strategy in the same
+database transaction, so that either all events will be written, or none of them will be written.
+There currently isn't an entity class in the library with such a ```save()``` method. 
 
 ### Step 2: Infrastructure
 
@@ -488,7 +495,7 @@ retrieved_entity = example_repository[entity1.id]
 assert retrieved_entity.foo == 'bar2'
 ```
 
-To keep things grounded, we can get the sequenced items directly from the active record
+To keep things grounded, we can always get the sequenced items directly from the active record
 strategy. In the library, a ```SequencedItem``` is a Python tuple with four fields: ```sequence_id```, ```position```,
 ```topic```, and ```data```. The event's ```entity_id``` is mapped to ```sequence_id```.
 The event's ```entity_version``` is mapped to ```position```. The sequenced item's```topic```
