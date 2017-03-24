@@ -499,11 +499,11 @@ retrieved_entity = example_repository[entity1.id]
 assert retrieved_entity.foo == 'bar2'
 ```
 
-To keep things grounded, we can always get the sequenced items directly from the active record
-strategy. In the library, a ```SequencedItem``` is a Python tuple with four fields: ```sequence_id```, ```position```,
-```topic```, and ```data```. The event's ```entity_id``` is mapped to ```sequence_id```.
-The event's ```entity_version``` is mapped to ```position```. The sequenced item's```topic```
-identifies the type of the event. And the ```data``` field represents the state of the event.
+To keep things grounded, remember that we can always get the sequenced items directly from the active record
+strategy. Sequenced items are the domain events, but a serialised representation. In the library, a
+```SequencedItem``` is a Python tuple with four fields: ```sequence_id```, ```position```,
+```topic```, and ```data```. By default, an event's ```entity_id``` attribute is mapped to the ```sequence_id``` field, and the event's ```entity_version``` attribute is mapped to the ```position``` field. The ```topic``` field of a sequenced item
+is used to identify the event class, and the ```data``` field represents the state of the event (a JSON string).
 
 ```python
 sequenced_items = event_store.active_record_strategy.get_items(entity1.id)
@@ -542,7 +542,7 @@ databases is forthcoming.
 ### Step 3: Application Object
 
 Although we can do everything at the module level, an application object brings
-everything together.
+things together.
 
 The application has an event store, and can have entity repositories.
 
