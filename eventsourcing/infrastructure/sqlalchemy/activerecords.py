@@ -83,6 +83,9 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 
         return events
 
+    def all_items(self):
+        return map(self._from_active_record, self._filter())
+
     def _add_record_to_session(self, active_record):
         if isinstance(active_record, list):
             for r in active_record:

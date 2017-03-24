@@ -29,9 +29,16 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
         Returns a single domain event.
         """
 
+    @abstractmethod
     def get_most_recent_event(self, entity_id, lt=None, lte=None):
         """
         Returns most recent domain event for given entity ID.
+        """
+
+    @abstractmethod
+    def get_all_domain_events(self):
+        """
+        Returns all domain events.
         """
 
 
@@ -106,3 +113,8 @@ class EventStore(AbstractEventStore):
             return events[0]
         except IndexError:
             pass
+
+    def get_all_domain_events(self):
+        all_items = self.active_record_strategy.all_items()
+        return map(self.sequenced_item_mapper.from_sequenced_item, all_items)
+

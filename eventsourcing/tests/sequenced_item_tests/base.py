@@ -54,11 +54,12 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
     def EXAMPLE_EVENT_TOPIC2(self):
         raise NotImplementedError()
 
-    def test_get_and_append_items(self):
-        sequence_id = uuid.uuid1()
+    def test(self):
+        sequence_id1 = uuid.uuid1()
+        sequence_id2 = uuid.uuid1()
 
         # Check repo returns None when there aren't any items.
-        self.assertEqual(self.active_record_strategy.get_items(sequence_id), [])
+        self.assertEqual(self.active_record_strategy.get_items(sequence_id1), [])
 
         position1, position2, position3 = self.construct_positions()
 
@@ -68,24 +69,34 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         # Append an item.
         data1 = json.dumps({'name': 'value1'})
         item1 = SequencedItem(
-            sequence_id=sequence_id,
+            sequence_id=sequence_id1,
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data1,
         )
         self.active_record_strategy.append_item(item1)
 
+        # Append an item to a different sequence.
+        data2 = json.dumps({'name': 'value2'})
+        item2 = SequencedItem(
+            sequence_id=sequence_id2,
+            position=position1,
+            topic=self.EXAMPLE_EVENT_TOPIC1,
+            data=data2,
+        )
+        self.active_record_strategy.append_item(item2)
+
         # Check the get_item() method returns item at position.
-        retrieved_item = self.active_record_strategy.get_item(sequence_id, position1)
-        self.assertEqual(retrieved_item.sequence_id, sequence_id)
+        retrieved_item = self.active_record_strategy.get_item(sequence_id1, position1)
+        self.assertEqual(retrieved_item.sequence_id, sequence_id1)
         self.assertEqual(retrieved_item.position, position1)
 
         # Check index error is raised when item does not exist at position.
         with self.assertRaises(IndexError):
-            self.active_record_strategy.get_item(sequence_id, position2)
+            self.active_record_strategy.get_item(sequence_id1, position2)
 
         # Check repo returns the item.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id)
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 1)
         self.assertIsInstance(retrieved_items[0], SequencedItem)
         self.assertEqual(retrieved_items[0].sequence_id, item1.sequence_id)
@@ -93,29 +104,18 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.assertEqual(retrieved_items[0].data, item1.data)
         self.assertEqual(retrieved_items[0].topic, item1.topic)
 
-        # Check appending a different item at the same position in the same sequence causes an error.
-        data2 = json.dumps({'name': 'value2'})
-        item2 = SequencedItem(
-            sequence_id=item1.sequence_id,
-            position=position1,
-            topic=self.EXAMPLE_EVENT_TOPIC2,
-            data=data2,
-        )
-        self.assertEqual(item1.sequence_id, item2.sequence_id)
-        self.assertEqual(position1, item2.position)
-        self.assertNotEqual(item1.topic, item2.topic)
-        self.assertNotEqual(item1.data, item2.data)
-        with self.assertRaises(SequencedItemError):
-            self.active_record_strategy.append_item(item2)
-
-        # Check appending a different item at the same position in the same sequence causes an error.
-        data2 = json.dumps({'name': 'value2'})
+        # Check raises SequencedItemError when appending an item at same position in same sequence.
+        data3 = json.dumps({'name': 'value3'})
         item3 = SequencedItem(
             sequence_id=item1.sequence_id,
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC2,
-            data=data2,
+            data=data3,
         )
+        self.assertEqual(item1.sequence_id, item3.sequence_id)
+        self.assertEqual(position1, item3.position)
+        self.assertNotEqual(item1.topic, item3.topic)
+        self.assertNotEqual(item1.data, item3.data)
         with self.assertRaises(SequencedItemError):
             self.active_record_strategy.append_item(item3)
 
@@ -124,25 +124,25 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             sequence_id=item1.sequence_id,
             position=position2,
             topic=self.EXAMPLE_EVENT_TOPIC2,
-            data=data2,
+            data=data3,
         )
         self.active_record_strategy.append_item(item4)
 
-        # Check there are two items.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id)
+        # Check there are two items in the sequence.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 2)
 
-        # Append a third item.
+        # Append a third item to the sequence at the next position.
         item5 = SequencedItem(
             sequence_id=item1.sequence_id,
             position=position3,
             topic=self.EXAMPLE_EVENT_TOPIC2,
-            data=data2,
+            data=data3,
         )
         self.active_record_strategy.append_item(item5)
 
         # Check there are three items.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id)
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 3)
 
         # Check the items are in sequential order.
@@ -153,10 +153,10 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.assertEqual(retrieved_items[0].data, item1.data)
 
         self.assertIsInstance(retrieved_items[1], SequencedItem)
-        self.assertEqual(retrieved_items[1].sequence_id, item2.sequence_id)
+        self.assertEqual(retrieved_items[1].sequence_id, item3.sequence_id)
         self.assertEqual(retrieved_items[1].position, position2)
-        self.assertEqual(retrieved_items[1].topic, item2.topic)
-        self.assertEqual(retrieved_items[1].data, item2.data)
+        self.assertEqual(retrieved_items[1].topic, item3.topic)
+        self.assertEqual(retrieved_items[1].data, item3.data)
 
         self.assertIsInstance(retrieved_items[2], SequencedItem)
         self.assertEqual(retrieved_items[2].sequence_id, item5.sequence_id)
@@ -164,89 +164,98 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.assertEqual(retrieved_items[2].topic, item5.topic)
         self.assertEqual(retrieved_items[2].data, item5.data)
 
-        # Get all items greater than a position.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id, gt=position1)
+        # Get items greater than a position.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1, gt=position1)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position2)
         self.assertEqual(retrieved_items[1].position, position3)
 
-        # Get all items greater then or equal to a position.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id, gte=position2)
+        # Get items greater then or equal to a position.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1, gte=position2)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position2)
         self.assertEqual(retrieved_items[1].position, position3)
 
-        # Get all items less than a position.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id, lt=position3)
+        # Get items less than a position.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1, lt=position3)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position1)
         self.assertEqual(retrieved_items[1].position, position2)
 
-        # Get all items less then or equal to a position.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id, lte=position2)
+        # Get items less then or equal to a position.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1, lte=position2)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position1)
         self.assertEqual(retrieved_items[1].position, position2)
 
-        # Get all items greater then or equal to a position and less then or equal to a position.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id, gte=position2, lte=position2)
+        # Get items greater then or equal to a position and less then or equal to a position.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1, gte=position2, lte=position2)
         self.assertEqual(len(retrieved_items), 1)
         self.assertEqual(retrieved_items[0].position, position2)
 
-        # Get all items greater then or equal to a position and less then a position.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id, gte=position2, lt=position3)
+        # Get items greater then or equal to a position and less then a position.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1, gte=position2, lt=position3)
         self.assertEqual(len(retrieved_items), 1)
         self.assertEqual(retrieved_items[0].position, position2)
 
-        # Get all items greater then a position and less then or equal to a position.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id, gt=position1, lte=position2)
+        # Get items greater then a position and less then or equal to a position.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1, gt=position1, lte=position2)
         self.assertEqual(len(retrieved_items), 1)
         self.assertEqual(retrieved_items[0].position, position2)
 
-        # Get all items greater a position and less a position.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id, gt=position1, lt=position3)
+        # Get items greater a position and less a position.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1, gt=position1, lt=position3)
         self.assertEqual(len(retrieved_items), 1)
         self.assertEqual(retrieved_items[0].position, position2)
 
-        # Get all items, with a limit.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id, limit=1)
+        # Get items with a limit.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1, limit=1)
         self.assertEqual(len(retrieved_items), 1)
         self.assertEqual(retrieved_items[0].position, position1)
 
-        # Get all items, with a limit, and with descending query (so that we get the last ones).
-        retrieved_items = self.active_record_strategy.get_items(sequence_id, limit=2,
+        # Get items with a limit, and with descending query (so that we get the last ones).
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1, limit=2,
                                                                 query_ascending=False)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position2)
         self.assertEqual(retrieved_items[1].position, position3)
 
-        # Get all items, with a limit and descending query, greater than a position.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id, limit=2, gt=position2,
+        # Get items with a limit and descending query, greater than a position.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1, limit=2, gt=position2,
                                                                 query_ascending=False)
         self.assertEqual(len(retrieved_items), 1)
         self.assertEqual(retrieved_items[0].position, position3)
 
-        # Get all items, with a limit and descending query, less than a position.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id, limit=2, lt=position3,
+        # Get items with a limit and descending query, less than a position.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1, limit=2, lt=position3,
                                                                 query_ascending=False)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position1)
         self.assertEqual(retrieved_items[1].position, position2)
 
-        # Get all items in descending order, queried in ascending order.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id,
+        # Get items in descending order, queried in ascending order.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1,
                                                                 results_ascending=False)
         self.assertEqual(len(retrieved_items), 3)
         self.assertEqual(retrieved_items[0].position, position3)
         self.assertEqual(retrieved_items[2].position, position1)
 
-        # Get all items in descending order, queried in descending order.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id,
+        # Get items in descending order, queried in descending order.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1,
                                                                 query_ascending=False,
                                                                 results_ascending=False)
         self.assertEqual(len(retrieved_items), 3)
         self.assertEqual(retrieved_items[0].position, position3)
         self.assertEqual(retrieved_items[2].position, position1)
+
+        # Iterator all items from all sequences.
+        retrieved_items = self.active_record_strategy.all_items()
+        retrieved_items = list(retrieved_items)
+        self.assertEqual(len(retrieved_items), 4)
+
+        # Not always in order, but check we can get all the sequence IDs.
+        entity_ids = set([i.sequence_id for i in retrieved_items])
+        self.assertEqual(entity_ids, {sequence_id1, sequence_id2})
 
 
 class WithActiveRecordStrategies(AbstractDatastoreTestCase):

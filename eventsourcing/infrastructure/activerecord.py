@@ -31,6 +31,12 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
         Reads sequenced items from the datastore.
         """
 
+    @abstractmethod
+    def all_items(self):
+        """
+        Returns all items from all sequences (possibly in chronological order, depending on database).
+        """
+
     def raise_sequence_item_error(self, sequence_id, position, e):
         raise SequencedItemError("Item at position '{}' already exists in sequence '{}': {}"
                                  "".format(position, sequence_id, e))

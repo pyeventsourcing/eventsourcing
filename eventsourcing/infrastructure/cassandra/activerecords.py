@@ -1,4 +1,5 @@
 import six
+from cassandra.cqlengine.functions import Token
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import LWTException, BatchQuery
 
@@ -66,6 +67,15 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             items.reverse()
 
         return items
+
+    def all_items(self):
+        query = self.active_record_class.objects.all().limit(10)
+        page = list(query)
+        while page:
+            for record in page:
+                yield self._from_active_record(record)
+            last = page[-1]
+            page = list(query.filter(pk__token__gt=Token(last.pk)))
 
     def _to_active_record(self, sequenced_item):
         """

@@ -90,3 +90,24 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         # Check there is an event.
         entity_event = event_store.get_most_recent_event(entity_id=entity_id1)
         self.assertEqual(entity_event, event1)
+
+    def test_get_all_domain_events(self):
+        event_store = self.construct_event_store()
+
+        domain_events = event_store.get_all_domain_events()
+        domain_events = list(domain_events)
+        self.assertEqual(len(domain_events), 0)
+
+        # Store a domain event.
+        entity_id = uuid4()
+        event1 = Example.Created(entity_id=entity_id, a=1, b=2)
+        event_store.append(event1)
+
+        # Store another domain event.
+        event1 = Example.AttributeChanged(entity_id=entity_id, a=1, b=2, entity_version=1)
+        event_store.append(event1)
+
+        domain_events = event_store.get_all_domain_events()
+        domain_events = list(domain_events)
+        self.assertEqual(len(domain_events), 2)
+
