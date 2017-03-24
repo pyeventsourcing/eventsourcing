@@ -74,7 +74,7 @@ integers; and items that are sequenced by time. They support two different kinds
 domain events: events of versioned entities (e.g. an aggregate in domain driven design),
 and unversioned timestamped events (e.g. entries in a log).
 
-**Active Record Strategies** Maps between "sequenced items" and your
+**Active Record Strategies** Map between "sequenced items" and your
 database records. Support can be added for a new database schema by introducing a new
 active record strategy.
 
