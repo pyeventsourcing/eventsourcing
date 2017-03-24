@@ -7,22 +7,15 @@ class TestGetAllEventFromSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithEx
 
     def test(self):
         with self.construct_application() as app:
-            domain_events = self.get_all_domain_events(app)
+            es = app.version_entity_event_store
+            domain_events = es.all_domain_events()
+            domain_events = list(domain_events)
             self.assertEqual(len(domain_events), 0)
 
             app.register_new_example('a1', 'b1')
             app.register_new_example('a2', 'b2')
             app.register_new_example('a3', 'b3')
 
-            domain_events = self.get_all_domain_events(app)
+            domain_events = es.all_domain_events()
+            domain_events = list(domain_events)
             self.assertEqual(len(domain_events), 3)
-
-    def get_all_domain_events(self, app):
-        es = app.version_entity_event_store
-        active_records = es.active_record_strategy.filter()
-        domain_events = []
-        for r in active_records:
-            i = es.active_record_strategy.from_active_record(r)
-            e = es.sequenced_item_mapper.from_sequenced_item(i)
-            domain_events.append(e)
-        return domain_events
