@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Float, Integer, String, Text
+from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDatastore
@@ -14,6 +15,23 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         assert isinstance(datastore, SQLAlchemyDatastore)
         super(SQLAlchemyActiveRecordStrategy, self).__init__(*args, **kwargs)
         self.datastore = datastore
+
+    def append_item(self, item):
+        active_record = self.to_active_record(item)
+        try:
+            # Write stored event into the transaction.
+            self.add_record_to_session(active_record)
+
+            # Commit the transaction.
+            self.datastore.db_session.commit()
+
+        except IntegrityError as e:
+            # Roll back the transaction.
+            self.datastore.db_session.rollback()
+            self.raise_sequence_item_error(item.sequence_id, item.position, e)
+        finally:
+            # Begin new transaction.
+            self.datastore.db_session.close()
 
     def get_item(self, sequence_id, eq):
         try:
@@ -65,28 +83,23 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 
         return events
 
-    def append_item(self, item):
-        active_record = self.to_active_record(item)
-        try:
-            # Write stored event into the transaction.
+    def all_items(self):
+        return map(self.from_active_record, self.filter())
+
+    def add_record_to_session(self, active_record):
+        if isinstance(active_record, list):
+            for r in active_record:
+                self.add_record_to_session(r)
+        else:
             self.datastore.db_session.add(active_record)
-
-            # Commit the transaction.
-            self.datastore.db_session.commit()
-
-        except IntegrityError as e:
-            # Roll back the transaction.
-            self.datastore.db_session.rollback()
-            self.raise_sequence_item_error(item.sequence_id, item.position, e)
-        finally:
-            # Begin new transaction.
-            self.datastore.db_session.close()
 
     def to_active_record(self, sequenced_item):
         """
         Returns an active record, from given sequenced item.
         """
-        assert isinstance(sequenced_item, self.sequenced_item_class), sequenced_item
+        if isinstance(sequenced_item, list):
+            return [self.to_active_record(i) for i in sequenced_item]
+        assert isinstance(sequenced_item, self.sequenced_item_class), type(sequenced_item)
         return self.active_record_class(
             sequence_id=sequenced_item.sequence_id,
             position=sequenced_item.position,
@@ -116,7 +129,7 @@ class SqlIntegerSequencedItem(Base):
     id = Column(Integer, Sequence('integer_sequened_item_id_seq'), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(String(255), index=True)
+    sequence_id = Column(UUIDType(), index=True)
 
     # Position (index) of item in sequence.
     position = Column(BigInteger(), index=True)
@@ -146,7 +159,7 @@ class SqlTimestampSequencedItem(Base):
     id = Column(Integer, Sequence('integer_sequened_item_id_seq'), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(String(255), index=True)
+    sequence_id = Column(UUIDType(), index=True)
 
     # Position (timestamp) of item in sequence.
     position = Column(Float(), index=True)

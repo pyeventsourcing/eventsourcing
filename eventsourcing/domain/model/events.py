@@ -89,13 +89,13 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
             "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
 
 
-class EntityEvent(DomainEvent):
+class EventWithEntityID(DomainEvent):
     """
     For events that have an entity ID attribute.
     """
 
     def __init__(self, entity_id, **kwargs):
-        super(EntityEvent, self).__init__(**kwargs)
+        super(EventWithEntityID, self).__init__(**kwargs)
         self.__dict__['entity_id'] = entity_id
 
     @property
@@ -133,15 +133,34 @@ class EventWithEntityVersion(DomainEvent):
         return self.__dict__['entity_version']
 
 
-class TimestampedEntityEvent(EventWithTimestamp, EntityEvent):
+class EventWithTimeuuid(DomainEvent):
+    """
+    For events that have an UUIDv1 event ID.
+    """
+    def __init__(self, event_id=None, **kwargs):
+        super(EventWithTimeuuid, self).__init__(**kwargs)
+        self.__dict__['event_id'] = event_id or uuid1()
+
+    @property
+    def event_id(self):
+        return self.__dict__['event_id']
+
+
+class TimestampedEntityEvent(EventWithTimestamp, EventWithEntityID):
     """
     For events of timestamp-based entities (e.g. a log).
     """
 
 
-class VersionedEntityEvent(EventWithEntityVersion, EntityEvent):
+class VersionedEntityEvent(EventWithEntityVersion, EventWithEntityID):
     """
     For events of versioned entities.
+    """
+
+
+class TimeuuidedEntityEvent(EventWithTimeuuid, EventWithEntityID):
+    """
+    For events of entities.
     """
 
 
@@ -149,13 +168,6 @@ class TimestampedVersionedEntityEvent(EventWithTimestamp, VersionedEntityEvent):
     """
     For events of version-based entities, that are also timestamped.
     """
-
-class AggregateEvent(TimestampedVersionedEntityEvent):
-    """
-    For events of DDD aggregates.
-    """
-
-
 # class OldDomainEvent(DomainEvent):
 #     """
 #     Original domain event.
@@ -205,6 +217,12 @@ class AggregateEvent(TimestampedVersionedEntityEvent):
 #     @property
 #     def timestamp(self):
 #         return timestamp_from_uuid(self.__dict__['domain_event_id'])
+
+
+class AggregateEvent(TimestampedVersionedEntityEvent):
+    """
+    For events of DDD aggregates.
+    """
 
 
 _event_handlers = OrderedDict()

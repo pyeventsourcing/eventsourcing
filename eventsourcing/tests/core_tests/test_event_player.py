@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from eventsourcing.application.policies import CombinedPersistencePolicy
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.example.domainmodel import Example, register_new_example
@@ -52,13 +54,16 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
 
     def test_get_entity(self):
         # Store example events.
-        event1 = Example.Created(entity_id='entity1', a=1, b=2)
+        entity_id1 = uuid4()
+        event1 = Example.Created(entity_id=entity_id1, a=1, b=2)
         self.version_entity_event_store.append(event1)
-        event2 = Example.Created(entity_id='entity2', a=2, b=4)
+        entity_id2 = uuid4()
+        event2 = Example.Created(entity_id=entity_id2, a=2, b=4)
         self.version_entity_event_store.append(event2)
-        event3 = Example.Created(entity_id='entity3', a=3, b=6)
+        entity_id3 = uuid4()
+        event3 = Example.Created(entity_id=entity_id3, a=3, b=6)
         self.version_entity_event_store.append(event3)
-        event4 = Example.Discarded(entity_id='entity3', entity_version=1)
+        event4 = Example.Discarded(entity_id=entity_id3, entity_version=1)
         self.version_entity_event_store.append(event4)
 
         # Check the event sourced entities are correct.
@@ -66,28 +71,28 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         event_player = EventPlayer(event_store=self.version_entity_event_store, mutate_func=Example.mutate)
 
         # The the reconstituted entity has correct attribute values.
-        self.assertEqual('entity1', event_player.replay_entity('entity1').id)
-        self.assertEqual(1, event_player.replay_entity('entity1').a)
-        self.assertEqual(2, event_player.replay_entity('entity2').a)
-        self.assertEqual(None, event_player.replay_entity('entity3'))
+        self.assertEqual(entity_id1, event_player.replay_entity(entity_id1).id)
+        self.assertEqual(1, event_player.replay_entity(entity_id1).a)
+        self.assertEqual(2, event_player.replay_entity(entity_id2).a)
+        self.assertEqual(None, event_player.replay_entity(entity_id3))
 
         # Check entity3 raises KeyError.
-        self.assertEqual(event_player.replay_entity('entity3'), None)
+        self.assertEqual(event_player.replay_entity(entity_id3), None)
 
         # Check it works for "short" entities (should be faster, but the main thing is that it still works).
         # - just use a trivial mutate that always instantiates the 'Example'.
-        event5 = Example.AttributeChanged(entity_id='entity1', entity_version=1, name='a', value=10)
+        event5 = Example.AttributeChanged(entity_id=entity_id1, entity_version=1, name='a', value=10)
         self.version_entity_event_store.append(event5)
 
         event_player = EventPlayer(event_store=self.version_entity_event_store, mutate_func=Example.mutate)
-        self.assertEqual(10, event_player.replay_entity('entity1').a)
+        self.assertEqual(10, event_player.replay_entity(entity_id1).a)
 
         event_player = EventPlayer(
             event_store=self.version_entity_event_store,
             mutate_func=Example.mutate,
             is_short=True,
         )
-        self.assertEqual(10, event_player.replay_entity('entity1').a)
+        self.assertEqual(10, event_player.replay_entity(entity_id1).a)
 
     # Todo: Maybe this is an application-level test? If not, test event player capabilities here only.
     def test_snapshots(self):
@@ -105,7 +110,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         )
 
         # Take a snapshot with a non-existent ID.
-        self.assertIsNone(event_player.take_snapshot('invalid'))
+        self.assertIsNone(event_player.take_snapshot(uuid4()))
 
         # Create a new entity.
         registered_example = register_new_example(a=123, b=234)

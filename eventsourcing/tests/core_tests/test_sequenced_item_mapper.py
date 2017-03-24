@@ -1,9 +1,10 @@
-from time import time
+from time import time, sleep
 from unittest.case import TestCase
 
 import datetime
 
 from decimal import Decimal
+from uuid import uuid4
 
 from eventsourcing.domain.model.events import VersionedEntityEvent, TimestampedEntityEvent, \
     topic_from_domain_class, DomainEvent
@@ -22,18 +23,28 @@ class Event3(DomainEvent):
     pass
 
 
+class ValueObject1(object):
+
+    def __init__(self, value):
+        self.value = value
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+
 class TestSequencedItemMapper(TestCase):
 
     def test_with_versioned_entity_event(self):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(position_attr_name='entity_version')
-        event1 = Event1(entity_id='entity1', entity_version=101)
+        entity_id1 = uuid4()
+        event1 = Event1(entity_id=entity_id1, entity_version=101)
 
         # Check to_sequenced_item() method results in a sequenced item.
         sequenced_item = mapper.to_sequenced_item(event1)
         self.assertIsInstance(sequenced_item, SequencedItem)
         self.assertEqual(sequenced_item.position, 101)
-        self.assertEqual(sequenced_item.sequence_id, 'entity1')
+        self.assertEqual(sequenced_item.sequence_id, entity_id1)
         self.assertEqual(sequenced_item.topic, topic_from_domain_class(Event1))
         self.assertTrue(sequenced_item.data)
 
@@ -55,7 +66,9 @@ class TestSequencedItemMapper(TestCase):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(position_attr_name='timestamp')
         before = time()
+        sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
         event2 = Event2(entity_id='entity2')
+        sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
         after = time()
 
         # Check to_sequenced_item() method results in a sequenced item.
@@ -90,7 +103,10 @@ class TestSequencedItemMapper(TestCase):
             entity_id='entity3',
             entity_version=303,
             a=datetime.datetime(2017, 3, 22, 9, 12, 14),
-            b=datetime.date(2017, 3, 22)
+            b=datetime.date(2017, 3, 22),
+            c=uuid4(),
+            # d=Decimal(1.1),
+            e=ValueObject1('value1'),
         )
 
         # Check to_sequenced_item() method results in a sequenced item.
@@ -110,6 +126,9 @@ class TestSequencedItemMapper(TestCase):
         self.assertEqual(domain_event.entity_id, event3.entity_id)
         self.assertEqual(domain_event.a, event3.a)
         self.assertEqual(domain_event.b, event3.b)
+        self.assertEqual(domain_event.c, event3.c)
+        # self.assertEqual(domain_event.d, event3.d)
+        self.assertEqual(domain_event.e, event3.e)
 
     def test_errors(self):
         # Setup the mapper, and create an event.

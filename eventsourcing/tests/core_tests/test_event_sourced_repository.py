@@ -1,5 +1,7 @@
+from uuid import uuid4
+
 from eventsourcing.example.domainmodel import Example
-from eventsourcing.example.infrastructure import ExampleRepo
+from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.transcoding import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
@@ -37,15 +39,15 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
         event_store = self.construct_event_store()
 
         # Put an event in the event store.
-        entity_id = 'entity1'
+        entity_id = uuid4()
         event_store.append(Example.Created(entity_id=entity_id, a=1, b=2))
 
         # Setup an example repository.
-        example_repo = ExampleRepo(event_store=event_store)
+        example_repo = ExampleRepository(event_store=event_store)
 
         # Check the repo has the example.
         self.assertIn(entity_id, example_repo)
-        self.assertNotIn('xxxxxxxx', example_repo)
+        self.assertNotIn(uuid4(), example_repo)
 
         # Check the entity attributes.
         example = example_repo[entity_id]

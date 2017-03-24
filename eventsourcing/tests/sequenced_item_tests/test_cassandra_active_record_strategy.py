@@ -41,12 +41,11 @@ class WithCassandraActiveRecordStrategies(CassandraDatastoreTestCase, WithActive
         return construct_timestamp_sequenced_active_record_strategy()
 
 
-
-class TestSimpleStoredEventIteratorWithCassandra(WithCassandraActiveRecordStrategies,
-                                                 SimpleSequencedItemteratorTestCase):
+class TestSimpleSequencedItemIteratorWithCassandra(WithCassandraActiveRecordStrategies,
+                                                   SimpleSequencedItemteratorTestCase):
     pass
 
 
-class TestThreadedStoredEventIteratorWithCassandra(WithCassandraActiveRecordStrategies,
-                                                   ThreadedSequencedItemIteratorTestCase):
+class TestThreadedSequencedItemIteratorWithCassandra(WithCassandraActiveRecordStrategies,
+                                                     ThreadedSequencedItemIteratorTestCase):
     pass

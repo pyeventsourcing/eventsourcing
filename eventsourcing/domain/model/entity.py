@@ -1,4 +1,5 @@
 from eventsourcing.exceptions import ConsistencyError, ProgrammingError
+from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
     # Python 3.4+
@@ -43,17 +44,11 @@ class Discarded(AggregateEvent):
 
 
 # Todo: Decompose this, to allow for entities without timestamps and without versions.
-class TimestampedVersionedEntity(with_metaclass(QualnameABCMeta)):
-    def __init__(self, entity_id, entity_version=0, timestamp=None):
-        self._id = entity_id
-        self._version = entity_version
-        self._is_discarded = False
-        self._created_on = timestamp
-        self._last_modified_on = timestamp
+class DomainEntity(with_metaclass(QualnameABCMeta)):
 
-    def _increment_version(self):
-        if self._version is not None:
-            self._version += 1
+    def __init__(self, entity_id):
+        self._id = entity_id
+        self._is_discarded = False
 
     def _assert_not_discarded(self):
         if self._is_discarded:
@@ -63,21 +58,8 @@ class TimestampedVersionedEntity(with_metaclass(QualnameABCMeta)):
     def id(self):
         return self._id
 
-    @property
-    def version(self):
-        return self._version
-
-    @property
-    def created_on(self):
-        return self._created_on
-
-    @property
-    def last_modified_on(self):
-        return self._last_modified_on
-
     def _validate_originator(self, event):
         self._validate_originator_id(event)
-        self._validate_originator_version(event)
 
     def _validate_originator_id(self, event):
         """
@@ -87,19 +69,6 @@ class TimestampedVersionedEntity(with_metaclass(QualnameABCMeta)):
             raise EntityIDConsistencyError(
                 "Entity ID '{}' not equal to event's entity ID '{}'"
                 "".format(self.id, event.entity_id)
-            )
-
-    def _validate_originator_version(self, event):
-        """
-        Checks the event's entity version matches this entity's version.
-        """
-        if self._version != event.entity_version:
-            raise EntityVersionConsistencyError(
-                ("Event version '{}' not equal to entity version '{}', "
-                 "event type: '{}', entity type: '{}', entity ID: '{}'"
-                 "".format(event.entity_version, self._version,
-                           type(event).__name__, type(self).__name__, self._id)
-                 )
             )
 
     def __eq__(self, other):
@@ -130,6 +99,76 @@ class TimestampedVersionedEntity(with_metaclass(QualnameABCMeta)):
     @staticmethod
     def _mutator(event, initial):
         return entity_mutator(event, initial)
+
+
+class VersionedEntity(DomainEntity):
+
+    def __init__(self, entity_version=None, **kwargs):
+        super(VersionedEntity, self).__init__(**kwargs)
+        self._version = entity_version
+
+    @property
+    def version(self):
+        return self._version
+
+    def _increment_version(self):
+        if self._version is not None:
+            self._version += 1
+
+    def _validate_originator(self, event):
+        super(VersionedEntity, self)._validate_originator(event)
+        self._validate_originator_version(event)
+
+    def _validate_originator_version(self, event):
+        """
+        Checks the event's entity version matches this entity's version.
+        """
+        if self._version != event.entity_version:
+            raise EntityVersionConsistencyError(
+                ("Event version '{}' not equal to entity version '{}', "
+                 "event type: '{}', entity type: '{}', entity ID: '{}'"
+                 "".format(event.entity_version, self._version,
+                           type(event).__name__, type(self).__name__, self._id)
+                 )
+            )
+
+
+class TimestampedEntity(DomainEntity):
+    def __init__(self, timestamp=None, **kwargs):
+        super(TimestampedEntity, self).__init__(**kwargs)
+        self._created_on = timestamp
+        self._last_modified_on = timestamp
+
+    @property
+    def created_on(self):
+        return self._created_on
+
+    @property
+    def last_modified_on(self):
+        return self._last_modified_on
+
+
+class TimeuuidedEntity(DomainEntity):
+    def __init__(self, event_id=None, **kwargs):
+        super(TimeuuidedEntity, self).__init__(**kwargs)
+        self._initial_event_id = event_id
+        self._last_event_id = event_id
+
+    @property
+    def created_on(self):
+        return timestamp_from_uuid(self._initial_event_id)
+
+    @property
+    def last_modified_on(self):
+        return timestamp_from_uuid(self._last_event_id)
+
+
+class TimestampedVersionedEntity(TimestampedEntity, VersionedEntity):
+    pass
+
+
+class TimeuuidedVersionedEntity(TimeuuidedEntity, VersionedEntity):
+    pass
 
 
 @singledispatch

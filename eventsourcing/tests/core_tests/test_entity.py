@@ -1,12 +1,16 @@
+from uuid import uuid4
+
 import mock
 
 from eventsourcing.domain.model.entity import AttributeChanged, Created, CreatedMutatorRequiresTypeNotInstance, \
     EntityIDConsistencyError, EntityVersionConsistencyError, TimestampedVersionedEntity, attribute, created_mutator
 from eventsourcing.domain.model.events import VersionedEntityEvent, publish, subscribe, unsubscribe, DomainEvent
-from eventsourcing.example.infrastructure import ExampleRepo
+from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.example.domainmodel import Example, register_new_example
-from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError, SequencedItemError, ConcurrencyError
+from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError, ConcurrencyError
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
+    WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 
@@ -31,7 +35,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertNotEqual(example1, example2)
 
         # Setup the repo.
-        repo = ExampleRepo(self.versioned_entity_event_store)
+        repo = ExampleRepository(self.versioned_entity_event_store)
 
         # Check the example entities can be retrieved from the example repository.
         entity1 = repo[example1.id]
@@ -57,6 +61,10 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertEqual(3, entity1.count_heartbeats())
         self.assertEqual(3, repo[entity1.id].count_heartbeats())
 
+        # Check the entity can publish multiple events simultaneously.
+        entity1.beat_heart(number_of_beats=3)
+        self.assertEqual(6, repo[entity1.id].count_heartbeats())
+
         # Check the entity can be discarded.
         entity1.discard()
 
@@ -70,7 +78,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         with self.assertRaises(EntityIDConsistencyError):
             entity2._validate_originator(
                 VersionedEntityEvent(
-                    entity_id=entity2.id + 'wrong',
+                    entity_id=uuid4(),
                     entity_version=0
                 )
             )
@@ -121,7 +129,8 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertTrue(p.fget)
 
         # Pretend we decorated an object.
-        o = TimestampedVersionedEntity(entity_id='entity1', entity_version=0)
+        entity_id = uuid4()
+        o = TimestampedVersionedEntity(entity_id=entity_id, entity_version=0)
         o.__dict__['_<lambda>'] = 'value1'
 
         # Call the property's getter function.
@@ -154,7 +163,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         published_events = []
         subscription = (lambda x: True, lambda x: published_events.append(x))
         subscribe(*subscription)
-        entity_id = '1'
+        entity_id = uuid4()
         try:
             aaa = Aaa(entity_id=entity_id, entity_version=1, a=1)
             self.assertEqual(aaa.a, 1)
@@ -185,3 +194,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 class CustomValueObject(object):
     def __init__(self, value):
         self.value = value
+
+
+class TestExampleEntityWithCassandra(WithCassandraActiveRecordStrategies, TestExampleEntity):
+    pass

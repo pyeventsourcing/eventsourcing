@@ -1,5 +1,6 @@
 from math import floor
 from time import time
+from uuid import uuid4
 
 import six
 
@@ -120,7 +121,8 @@ class PerformanceTestCase(WithExampleApplication):
     def test_log_performance(self):
 
         with self.construct_application() as app:
-            log = start_new_timebucketedlog('example', bucket_size='year')
+            example_id = uuid4()
+            log = start_new_timebucketedlog(example_id, bucket_size='year')
             log_reader = get_timebucketedlog_reader(log, app.timestamp_entity_event_store)
 
             # Write a load of messages.

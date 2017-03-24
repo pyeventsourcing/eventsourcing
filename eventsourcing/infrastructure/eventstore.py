@@ -29,9 +29,16 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
         Returns a single domain event.
         """
 
+    @abstractmethod
     def get_most_recent_event(self, entity_id, lt=None, lte=None):
         """
         Returns most recent domain event for given entity ID.
+        """
+
+    @abstractmethod
+    def all_domain_events(self):
+        """
+        Returns all domain events in the event store.
         """
 
 
@@ -46,13 +53,18 @@ class EventStore(AbstractEventStore):
 
     def append(self, domain_event):
         # Serialize the domain event as a sequenced item.
-        sequenced_item = self.sequenced_item_mapper.to_sequenced_item(domain_event)
+        sequenced_item = self.to_sequenced_item(domain_event)
 
         # Append to the item to the sequence.
         try:
             self.active_record_strategy.append_item(sequenced_item)
         except SequencedItemError as e:
             raise ConcurrencyError(e)
+
+    def to_sequenced_item(self, domain_event):
+        if isinstance(domain_event, (list, tuple)):
+            return [self.to_sequenced_item(e) for e in domain_event]
+        return self.sequenced_item_mapper.to_sequenced_item(domain_event)
 
     def get_domain_events(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
                           page_size=None):
@@ -101,3 +113,8 @@ class EventStore(AbstractEventStore):
             return events[0]
         except IndexError:
             pass
+
+    def all_domain_events(self):
+        all_items = self.active_record_strategy.all_items()
+        return map(self.sequenced_item_mapper.from_sequenced_item, all_items)
+

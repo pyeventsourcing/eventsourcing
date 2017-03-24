@@ -1,4 +1,5 @@
 from unittest.case import TestCase
+from uuid import uuid4
 
 from cassandra import InvalidRequest
 from cassandra.cluster import NoHostAvailable
@@ -35,7 +36,7 @@ class TestCassandraDatastore(CassandraDatastoreTestCase, DatastoreTestCase):
             raise DatastoreTableError(e)
 
     def create_record(self):
-        record = CqlIntegerSequencedItem(s='entity1', p=0, t='topic', d='{}')
+        record = CqlIntegerSequencedItem(s=uuid4(), p=0, t='topic', d='{}')
         try:
             record.save()
         except (CQLEngineException, NoHostAvailable) as e:

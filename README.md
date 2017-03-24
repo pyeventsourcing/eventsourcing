@@ -1,4 +1,3 @@
-
 # Event Sourcing in Python
 
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png?branch=develop)](https://travis-ci.org/johnbywater/eventsourcing)
@@ -134,10 +133,12 @@ variations. If you installed the library into a Python virtualenv, please
 check that your virtualenv is activated before running your program.
 
 
-#### Step 1: domain model
+### Step 1: Domain Model
 
 Let's start with the domain model. Because the state of an event sourced application
 is determined by a sequence of events, we need to define some events.
+
+#### Define domain events
 
 For the sake of simplicity in this example, let's assume things in our 
 domain can be "created", "changed", and "discarded". With that in mind,
@@ -180,9 +181,11 @@ class Discarded(DomainEvent):
 ```
 
 Please note, the domain event classes above do not depend on the library. However, the library does contain
-a collection of different kinds of domain events classes that you can use in your models,
+a collection of different kinds of domain event classes that you can use in your models,
 for example see ```AggregateEvent```. The domain event classes in the library are slightly more
 sophisticated than the code in this example.
+
+#### Define domain entity
 
 Now, let's use the events classes above to define an "example" entity.
 
@@ -263,7 +266,7 @@ def create_new_example(foo):
     """Factory method for Example entities."""
 
     # Create an entity ID.
-    entity_id = uuid.uuid4().hex
+    entity_id = uuid.uuid4()
     
     # Instantiate a domain event.
     event = Created(entity_id=entity_id, foo=foo)
@@ -306,6 +309,8 @@ def mutate(entity, event):
 Please note, this entity class does not depend on the library. However, the library does contain
 a collection of domain entity classes that you can use in your domain model, for example see the
 ```Aggregate``` class. The library classes are slightly more refined than the code in this example.
+
+#### Run the code
 
 With this stand-alone code, we can now create a new example entity object. We can update its property
 ```foo```, and we can discard the entity using the ```discard()``` method. Let's subscribe to
@@ -360,10 +365,12 @@ This example uses the library's ```publish()``` and ```subscribe()``` functions,
 easily use your own publish-subscribe implementation.
 
 
-#### Step 2: infrastructure
+### Step 2: Infrastructure
 
 Since the application state is determined by a sequence of events, the events of the
 entities of the application must somehow be stored.
+
+#### Setup database table
 
 Let's start by setting up a database for storing events. For the sake of simplicity in this
 example, use SQLAlchemy to define a database that stores integer-sequenced items.
@@ -372,6 +379,7 @@ example, use SQLAlchemy to define a database that stores integer-sequenced items
 from sqlalchemy.ext.declarative.api import declarative_base
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
+from sqlalchemy_utils import UUIDType
 
 
 Base = declarative_base()
@@ -380,10 +388,10 @@ Base = declarative_base()
 class IntegerSequencedItem(Base):
     __tablename__ = 'integer_sequenced_items'
 
-    id = Column(Integer, Sequence('integer_sequened_item_id_seq'), primary_key=True)
+    id = Column(Integer(), Sequence('integer_sequened_item_id_seq'), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(String(255), index=True)
+    sequence_id = Column(UUIDType(), index=True)
 
     # Position (index) of item in sequence.
     position = Column(BigInteger(), index=True)
@@ -414,6 +422,8 @@ datastore = SQLAlchemyDatastore(
 datastore.setup_connection()
 datastore.setup_tables()
 ```
+
+#### Define entity repository
 
 The application wants to deal with entities, not a sequence of events. Since it is common
 to retrieve entities from a repository, let's define an event sourced repository for the
@@ -457,6 +467,8 @@ example_repository = ExampleRepository(
     mutator=mutate,
 )
 ```
+
+#### Run the code
 
 Now, let's write all the events we subscribed to earlier into the event store.
 
@@ -516,7 +528,7 @@ are classes in the library for Cassandra. Support for other
 databases is forthcoming.
 
 
-#### Step 3: application object
+### Step 3: Application Object
 
 Although we can do everything at the module level, an application object brings
 everything together.
@@ -604,7 +616,7 @@ A slightly more developed example application can be found in the library
 module ```eventsourcing.example.application```.
 
 
-#### Step 4: encryption
+### Step 4: Application Level Encryption
 
 To enable encryption, pass in a cipher strategy object when constructing
 the sequenced item mapper, and set ```always_encrypt``` to a True value.
@@ -673,7 +685,7 @@ with EncryptedApplication(datastore, cipher=AESCipher(aes_key)) as app:
     assert 'secret info' in retrieved_entity.foo    
 ```
 
-#### Step 5: optimistic concurrency control
+### Step 5: Optimistic Concurrency Control
 
 With the application above, because of the unique constraint
 on the SQLAlchemy table, it isn't possible to branch the
@@ -807,4 +819,3 @@ This project is hosted on GitHub.
 Questions, requests and any other issues can be registered here:
 
 * https://github.com/johnbywater/eventsourcing/issues
-

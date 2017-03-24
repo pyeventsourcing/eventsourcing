@@ -1,11 +1,30 @@
 import six
+from cassandra.cqlengine.functions import Token
 from cassandra.cqlengine.models import Model, columns
-from cassandra.cqlengine.query import LWTException
+from cassandra.cqlengine.query import LWTException, BatchQuery
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 
 
 class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
+
+    def append_item(self, sequenced_item):
+        if isinstance(sequenced_item, list):
+            with BatchQuery() as b:
+                for i in sequenced_item:
+                    assert isinstance(i, self.sequenced_item_class), (type(i), self.sequenced_item_class)
+                    self.active_record_class.batch(b).create(
+                        s=i.sequence_id,
+                        p=i.position,
+                        t=i.topic,
+                        d=i.data,
+                    )
+        else:
+            active_record = self.to_active_record(sequenced_item)
+            try:
+                active_record.save()
+            except LWTException as e:
+                self.raise_sequence_item_error(sequenced_item.sequence_id, sequenced_item.position, e)
 
     def get_item(self, sequence_id, eq):
         query = self.filter(s=sequence_id, p__eq=eq)
@@ -49,17 +68,21 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
 
         return items
 
-    def append_item(self, item):
-        active_record = self.to_active_record(item)
-        try:
-            active_record.save()
-        except LWTException as e:
-            self.raise_sequence_item_error(item.sequence_id, item.position, e)
+    def all_items(self):
+        query = self.active_record_class.objects.all().limit(10)
+        page = list(query)
+        while page:
+            for record in page:
+                yield self.from_active_record(record)
+            last = page[-1]
+            page = list(query.filter(pk__token__gt=Token(last.pk)))
 
     def to_active_record(self, sequenced_item):
         """
         Returns an active record instance, from given sequenced item.
         """
+        if isinstance(sequenced_item, list):
+            return [self.to_active_record(i) for i in sequenced_item]
         assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
         return self.active_record_class(
             s=sequenced_item.sequence_id,
@@ -91,7 +114,7 @@ class CqlIntegerSequencedItem(Model):
     __table_name__ = 'integer_sequenced_items'
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    s = columns.Text(partition_key=True)
+    s = columns.UUID(partition_key=True)
 
     # Position (index) of item in sequence.
     p = columns.BigInt(clustering_order='DESC', primary_key=True)
@@ -111,10 +134,9 @@ class CqlTimestampSequencedItem(Model):
     __table_name__ = 'timestamp_sequenced_items'
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    s = columns.Text(partition_key=True)
+    s = columns.UUID(partition_key=True)
 
     # Position (in time) of item in sequence.
-    # p = columns.TimeUUID(clustering_order='DESC', primary_key=True)
     p = columns.Double(clustering_order='DESC', primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
@@ -131,8 +153,8 @@ class CqlTimeuuidSequencedItem(Model):
 
     __table_name__ = 'timeuuid_sequenced_items'
 
-    # Sequence ID (e.g. an entity or aggregate ID).
-    s = columns.Text(partition_key=True)
+    # Sequence UUID (e.g. an entity or aggregate ID).
+    s = columns.UUID(partition_key=True)
 
     # Position (in time) of item in sequence.
     p = columns.TimeUUID(clustering_order='DESC', primary_key=True)
