@@ -86,12 +86,12 @@ class StoredEventMapper(SequencedItemMapper):
 
 class CustomActiveRecordStrategy(SQLAlchemyActiveRecordStrategy):
 
-    def _to_active_record(self, sequenced_item):
+    def to_active_record(self, sequenced_item):
         """
         Returns an active record, from given sequenced item.
         """
         if isinstance(sequenced_item, list):
-            return [self._to_active_record(i) for i in sequenced_item]
+            return [self.to_active_record(i) for i in sequenced_item]
         return SqlStoredEvent(
             aggregate_id=sequenced_item.aggregate_id,
             aggregate_version=sequenced_item.aggregate_version,
@@ -100,7 +100,7 @@ class CustomActiveRecordStrategy(SQLAlchemyActiveRecordStrategy):
             state=sequenced_item.state,
         )
 
-    def _from_active_record(self, active_record):
+    def from_active_record(self, active_record):
         """
         Returns a sequenced item, from given active record.
         """
@@ -168,7 +168,7 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
             self.assertEqual(entity1.b, 'b')
 
             # Check there is a stored event.
-            all_records = list(app.event_store.active_record_strategy._filter())
+            all_records = list(app.event_store.active_record_strategy.filter())
             assert len(all_records) == 1
             stored_event = all_records[0]
             assert stored_event.aggregate_id == entity1.id

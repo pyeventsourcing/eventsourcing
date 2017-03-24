@@ -20,15 +20,15 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
                         d=i.data,
                     )
         else:
-            active_record = self._to_active_record(sequenced_item)
+            active_record = self.to_active_record(sequenced_item)
             try:
                 active_record.save()
             except LWTException as e:
                 self.raise_sequence_item_error(sequenced_item.sequence_id, sequenced_item.position, e)
 
     def get_item(self, sequence_id, eq):
-        query = self._filter(s=sequence_id, p__eq=eq)
-        items = six.moves.map(self._from_active_record, query)
+        query = self.filter(s=sequence_id, p__eq=eq)
+        items = six.moves.map(self.from_active_record, query)
         items = list(items)
         try:
             return items[0]
@@ -42,7 +42,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         assert not (gte and gt)
         assert not (lte and lt)
 
-        query = self._filter(s=sequence_id)
+        query = self.filter(s=sequence_id)
 
         if query_ascending:
             query = query.order_by('p')
@@ -59,7 +59,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         if limit is not None:
             query = query.limit(limit)
 
-        items = six.moves.map(self._from_active_record, query)
+        items = six.moves.map(self.from_active_record, query)
 
         items = list(items)
 
@@ -73,16 +73,16 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         page = list(query)
         while page:
             for record in page:
-                yield self._from_active_record(record)
+                yield self.from_active_record(record)
             last = page[-1]
             page = list(query.filter(pk__token__gt=Token(last.pk)))
 
-    def _to_active_record(self, sequenced_item):
+    def to_active_record(self, sequenced_item):
         """
         Returns an active record instance, from given sequenced item.
         """
         if isinstance(sequenced_item, list):
-            return [self._to_active_record(i) for i in sequenced_item]
+            return [self.to_active_record(i) for i in sequenced_item]
         assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
         return self.active_record_class(
             s=sequenced_item.sequence_id,
@@ -91,7 +91,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             d=sequenced_item.data
         )
 
-    def _from_active_record(self, active_record):
+    def from_active_record(self, active_record):
         """
         Returns a sequenced item instance, from given active record.
         """
@@ -102,7 +102,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             data=active_record.d,
         )
 
-    def _filter(self, *args, **kwargs):
+    def filter(self, *args, **kwargs):
         return self.active_record_class.objects.filter(*args, **kwargs)
 
 
