@@ -434,6 +434,19 @@ datastore.setup_connection()
 datastore.setup_tables()
 ```
 
+This example uses an SQLite in memory relational database. You can
+change ```uri``` to any valid connection string. Here are some example
+connection strings: for an SQLite file; for a PostgreSQL database; and
+for a MySQL database. See SQLAlchemy's create_engine() documentation for details.
+
+```
+sqlite:////tmp/mydatabase
+
+postgresql://scott:tiger@localhost:5432/mydatabase
+
+mysql://scott:tiger@hostname/dbname
+```
+
 #### Define entity repository
 
 The application wants to deal with entities, not a sequence of events. Since it is common
@@ -519,19 +532,6 @@ assert sequenced_items[1].sequence_id == entity1.id
 assert sequenced_items[1].position == 1
 assert 'ValueChanged' in sequenced_items[1].topic
 assert 'bar2' in sequenced_items[1].data
-```
-
-The example above uses an SQLite in memory relational database. You can
-change ```uri``` to any valid connection string. Here are some example
-connection strings: for an SQLite file; for a PostgreSQL database; and
-for a MySQL database. See SQLAlchemy's create_engine() documentation for details.
-
-```
-sqlite:////tmp/mydatabase
-
-postgresql://scott:tiger@localhost:5432/mydatabase
-
-mysql://scott:tiger@hostname/dbname
 ```
 
 Similar to the support for storing events in SQLAlchemy, there
