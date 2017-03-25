@@ -764,7 +764,7 @@ into dependents by constructor parameter. Application level encryption is a mapp
 The sequenced item persistence model allows domain events to be stored in wide variety of database 
 services, and optionally makes use of any optimistic concurrency controls the database system may afford.
 
-![UML Class Diagram](https://www.lucidchart.com/publicSegments/view/434448a2-cd4a-430f-af13-356b3dad68d8/image.png)
+![UML Class Diagram](https://www.lucidchart.com/publicSegments/view/098200e1-0ca9-4660-be7f-11f8f13a2163/image.png)
 
 
 ## Background
