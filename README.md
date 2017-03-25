@@ -84,12 +84,12 @@ events. It can easily be substituted with one that uses a dedicated table for sn
 
 **Application-level encryption** — Symmetric encryption of stored
 events, including snapshots and logged messages, using a customizable
-cipher. Can be used to encrypt some events, or all events, or not applied at
-all (the default). Included is an AES cipher strategy, by default in CBC mode
-with 128 bit blocksize, that uses a 16 byte encryption key,
-and which generates a unique 16 byte initialization vector for each encryption.
-In this cipher, data is compressed before it is encrypted, which can mean application
-performance is improved when encryption is enabled.
+cipher strategy. Can be used to encrypt some events, or all events, or not applied at
+all (the default). Included is a cipher strategy which uses a standard AES cipher, by
+default in CBC mode with 128 bit blocksize and a 16 byte encryption key, which generates
+a unique 16 byte initialization vector for each encryption. In this cipher strategy, data
+is compressed before it is encrypted, which can mean application performance is improved
+when encryption is enabled.
 
 **Optimistic concurrency control** — Can be used to ensure a distributed or
 horizontally scaled application doesn't become inconsistent due to concurrent
@@ -112,7 +112,7 @@ purists for maximum longevity), you might start by copying the library classes.
 with handlers called in the order they are registered, and with which
 calls to publish events do not return until all event subscribers have
 returned. In general, subscribers are policies of the application, which may 
-execute further commands whenever an particular kind of event is received.
+execute further commands whenever a particular kind of event is received.
 Publishers of domain events are typically the methods of an entity.
 
 **Worked examples** — A simple worked example application (see below), with example
