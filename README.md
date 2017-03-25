@@ -42,10 +42,10 @@ And a [room on Gitter](https://gitter.im/eventsourcing-in-python/eventsourcing)
 What is event sourcing? One definition suggests the state of an event sourced application
 is determined by a sequence of events. Another definition has event sourcing as a
 persistence mechanism for domain driven design. In any case, it is common for the state
-of a software application to be distributed (or partitioned) across a set of entities
-or "models".
+of a software application to be distributed or partitioned across a set of entities or aggregates
+in a domain model.
 
-Therefore, this library provides mechanisms useful in an event sourced application: a style
+Therefore, this library provides mechanisms useful in event sourced applications: a style
 for coding entity behaviours that emit events; and a way for the events of an
 entity to be stored and replayed to obtain the entities on demand.
 
@@ -90,7 +90,7 @@ byte encryption key, and which generates a unique 16 byte initialization vector 
 encryption. In this cipher strategy, data is compressed before it is encrypted, which can
 mean application performance is improved when encryption is enabled.
 
-**Optimistic concurrency control** — Can be used to ensure a distributed or
+**Optimistic concurrency control** — can be used to ensure a distributed or
 horizontally scaled application doesn't become inconsistent due to concurrent
 method execution. Leverages any optimistic concurrency controls in the database
 adapted by the stored event repository. For example with Cassandra, this can
@@ -100,21 +100,20 @@ application threads. It is also possible to serialize calls to the methods of an
 entity, but that is currently out of the scope of this package — if you wish to do that,
 perhaps something like [Zookeeper](https://zookeeper.apache.org/) might help.
 
-**Abstract base classes** — For application objects, domain entities, entity repositories,
+**Abstract base classes** — suggest of how to structure an event sourced application.
+The library has base classes for application objects, domain entities, entity repositories,
 domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
-test cases, etc. These classes are at least suggestive of how to structure an event sourced
-application. They are well factored, relatively simple, and can be easily extended for your own
+test cases, etc. They are well factored, relatively simple, and can be easily extended for your own
 purposes. If you wanted to create a domain model that is entirely stand-alone (recommended by
 purists for maximum longevity), you might start by copying the library classes.
 
-**Synchronous publish-subscribe mechanism** — Stable and deterministic,
-with handlers called in the order they are registered, and with which
-calls to publish events do not return until all event subscribers have
-returned. In general, subscribers are policies of the application, which may 
-execute further commands whenever a particular kind of event is received.
-Publishers of domain events are typically the methods of an entity.
+**Synchronous publish-subscribe mechanism** — propagates events from publishers to subscribers.
+Stable and deterministic, with handlers called in the order they are registered, and with which
+calls to publish events do not return until all event subscribers have returned. In general,
+subscribers are policies of the application, which may execute further commands whenever a
+particular kind of event is received. Publishers of domain events are typically methods of domain entities.
 
-**Worked examples** — A simple worked example application (see below), with example
+**Worked examples** — a simple worked example application (see below), with example
 entity class, example event sourced repository, and example factory method.
 
 
@@ -182,6 +181,7 @@ Please note, the domain event classes above do not depend on the library. The li
 however contain a collection of different kinds of domain event classes that you can use
 in your models, for example see ```AggregateEvent```. The domain event classes in the
 library are slightly more sophisticated than the code in this example.
+
 
 #### Domain entity
 
@@ -378,6 +378,7 @@ assert received_events[1].value == 'bar2'
 Since the application state is determined by a sequence of events, the events of the
 entities of the application must somehow be stored.
 
+
 #### Database table
 
 Let's start by setting up a database for storing events. For the sake of simplicity in this
@@ -444,6 +445,7 @@ postgresql://scott:tiger@localhost:5432/mydatabase
 mysql://scott:tiger@hostname/dbname
 ```
 
+
 #### Entity repository
 
 The application wants to deal with entities, not a sequence of events. Since it is common
@@ -488,6 +490,7 @@ example_repository = ExampleRepository(
     mutator=mutate,
 )
 ```
+
 
 #### Run the code
 
@@ -690,6 +693,7 @@ with EncryptedApplication(datastore, cipher=AESCipher(aes_key)) as app:
     retrieved_entity = app.example_repository[entity3.id]
     assert 'secret info' in retrieved_entity.foo    
 ```
+
 
 ### Step 5: Optimistic concurrency control
 
