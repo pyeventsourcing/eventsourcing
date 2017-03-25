@@ -86,7 +86,7 @@ events. It can easily be substituted with one that uses a dedicated table for sn
 events, including snapshots and logged messages, using a customizable
 cipher. Can be used to encrypt some events, or all events, or not applied at
 all (the default). Included is an AES cipher strategy, by default in CBC mode
-with 128 bit blocksize, that uses a 16 byte encryption key passed in at run time,
+with 128 bit blocksize, that uses a 16 byte encryption key,
 and which generates a unique 16 byte initialization vector for each encryption.
 In this cipher, data is compressed before it is encrypted, which can mean application
 performance is improved when encryption is enabled.
