@@ -55,26 +55,26 @@ some background information about the project.
 
 ## Features
 
-**Event store** — Appends and retrieves domain events. The event store uses a
+**Event store** — appends and retrieves domain events. The event store uses a
 "sequenced item mapper" and an "active record strategy" to map domain events
 to a database in ways that can be easily substituted.
 
-**Persistence policy** — Subscribes to receive published domain events.
+**Persistence policy** — subscribes to receive published domain events.
 Appends received domain events to an event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
 
-**Event player** — Reconstitutes entities by replaying events, optionally with
+**Event player** — reconstitutes entities by replaying events, optionally with
 snapshotting. An event player is used by an entity repository to determine the
 state of an entity. The event player retrieves domain events from the event store. 
 
-**Sequenced item mapper** — Maps between domain events and "sequenced items", the archetype
+**Sequenced item mapper** — maps between domain events and "sequenced items", the archetype
 persistence model used by the library to store domain events. The library supports two
 different kinds of sequenced item: items that are sequenced by a contiguous series of
 integers; and items that are sequenced in time. They support two different kinds of
 domain events: events of versioned entities (e.g. an aggregate in domain driven design),
 and unversioned timestamped events (e.g. entries in a log).
 
-**Active record strategy** — Maps between "sequenced items" and your database records.
+**Active record strategy** — maps between "sequenced items" and database records (ORM).
 Support can be added for a new database schema by introducing a new active record strategy.
 
 **Snapshotting** — Avoids replaying an entire event stream to
