@@ -187,7 +187,7 @@ library are slightly more sophisticated than the code in this example.
 
 Now, let's use the event classes above to define an "example" entity.
 
-The ```Example```entity class below has an entity ID, a version number, and a
+The ```Example``` entity class below has an entity ID, a version number, and a
 timestamp. It also has a property ```foo```, and a ```discard()``` method to use
 when the entity is discarded. The factory method ```create_new_example()``` can
 be used to create new entities.
