@@ -47,7 +47,7 @@ or "models".
 
 Therefore, this library provides mechanisms useful in an event sourced application: a style
 for coding entity behaviours that emit events; and a way for the events of an
-entity to be stored and replayed to obtain the state of an entity on demand.
+entity to be stored and replayed to obtain the entities of the application.
 
 This document provides instructions for installing the package, highlights the main features of
 the library, includes a detailed example of usage, describes the design of the software, and has
