@@ -14,7 +14,7 @@ the Python Package Index.
 
     pip install eventsourcing
 
-If you want to use SQLAlchemy, then please install with 'sqlalchemy' optional extra.
+If you want to use SQLAlchemy, then please install with 'sqlalchemy'.
 
     pip install eventsourcing[sqlalchemy]
 
@@ -46,7 +46,7 @@ of a software application to be distributed (or partitioned) across a set of ent
 or "models".
 
 Therefore, this library provides mechanisms useful in an event sourced application: a style
-for coding entity behaviours that emit domain events; and a way for the domain events of an
+for coding entity behaviours that emit events; and a way for the events of an
 entity to be stored and replayed to obtain the state of an entity on demand.
 
 This document provides instructions for installing the package, highlights the main features of
