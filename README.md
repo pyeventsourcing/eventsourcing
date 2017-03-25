@@ -59,7 +59,7 @@ some background information about the project.
 "sequenced item mapper" and an "active record strategy" to map domain events
 to a database in ways that can be easily substituted.
 
-**Persistence policy** - Subscribes to receive published domain events.
+**Persistence policy** — Subscribes to receive published domain events.
 Appends received domain events to an event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
 
@@ -74,10 +74,10 @@ integers; and items that are sequenced in time. They support two different kinds
 domain events: events of versioned entities (e.g. an aggregate in domain driven design),
 and unversioned timestamped events (e.g. entries in a log).
 
-**Active record strategy** Maps between "sequenced items" and your database records.
+**Active record strategy** — Maps between "sequenced items" and your database records.
 Support can be added for a new database schema by introducing a new active record strategy.
 
-**Snapshotting** - Avoids replaying an entire event stream to
+**Snapshotting** — Avoids replaying an entire event stream to
  obtain the state of an entity. A snapshot strategy is included which reuses
 the capabilities of this library by implementing snapshots as time-sequenced domain
 events. It can easily be substituted with one that uses a dedicated table for snapshots.
