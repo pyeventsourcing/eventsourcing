@@ -46,8 +46,8 @@ of a software application to be distributed (or partitioned) across a set of ent
 or "models".
 
 Therefore, this library provides mechanisms useful in an event sourced application: a style
-for coding entity behaviours that instantiate and publish domain events; and a way for the
-domain events of an entity to be stored and replayed to obtain the state of an entity on demand.
+for coding entity behaviours that emit domain events; and a way for the domain events of an
+entity to be stored and replayed to obtain the state of an entity on demand.
 
 This document provides instructions for installing the package, highlights the main features of
 the library, includes a detailed example of usage, describes the design of the software, and has
@@ -63,20 +63,19 @@ to a database in ways that can be easily substituted.
 Appends received domain events to an event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
 
-**Event Players** — Get domain events from the event store. Reconstitutes entities by
-replaying events, optionally with snapshotting. An event player is used
-by an entity repository to determine the state of an entity.
+**Event Player** — Reconstitutes entities by replaying events, optionally with
+snapshotting. An event player is used by an entity repository to determine the
+state of an entity. The event player retrieves domain events from the event store. 
 
 **Sequenced Item Mapper** — Maps between domain events and "sequenced items", the archetype
 persistence model used by the library to store domain events. The library supports two
 different kinds of sequenced item: items that are sequenced by a contiguous series of
-integers; and items that are sequenced by time. They support two different kinds of
+integers; and items that are sequenced in time. They support two different kinds of
 domain events: events of versioned entities (e.g. an aggregate in domain driven design),
 and unversioned timestamped events (e.g. entries in a log).
 
-**Active Record Strategies** Map between "sequenced items" and your
-database records. Support can be added for a new database schema by introducing a new
-active record strategy.
+**Active Record Strategy** Maps between "sequenced items" and your database records.
+Support can be added for a new database schema by introducing a new active record strategy.
 
 **Snapshotting** - Avoids replaying an entire event stream to
  obtain the state of an entity. A snapshot strategy is included which reuses
@@ -106,8 +105,8 @@ might help.
 domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
 test cases, etc. These classes are at least suggestive of how to structure an event sourced
 application. They are well factored, relatively simple, and can be easily extended for your own
-purposes. If you wanted to create domain model that is entirely stand-alone (recommended by
-purists for maximum longevity), you could start by copying the library classes.
+purposes. If you wanted to create a domain model that is entirely stand-alone (recommended by
+purists for maximum longevity), you might start by copying the library classes.
 
 **Synchronous Publish-Subscribe Mechanism** — Stable and deterministic,
 with handlers called in the order they are registered, and with which
@@ -314,14 +313,14 @@ domain model. For example see the ```Aggregate``` class, which is also a timesta
 The library classes are slightly more refined than the code in this example.
 
 (Note on entity ```save()``` methods: The library does support appending events to the event store in
-batches, so that you could style your entities to have interal list of pending events: events that are
-emitted by the operations (as above) but are not immedidately published for others but instead are added
-to a list of pending events within the entity. In this scenario, the pending events could then be published
+batches, so that you could style your entities to have internal list of pending events: events that are
+indirectly emitted by the operations, not published immedidately for others but instead are added
+to a list of pending events within the entity. In this scenario, such pending events could be published
 altogether as a list when e.g. a ```save()``` method is called. If the event store is given a list of events
-to append, they will be written to the database by the active record strategy in the same database transaction,
-so that either all events will be written, or none of them will be written and the save operation will fail.
-Although there currently isn't an entity class in the library with such a ```save()``` method, the
-```Aggregate``` class might be good place to add this behaviour.)
+to append, they are written to the database by the active record strategy atomically (e.g. in the same database
+transaction, or otherwise with an atomic batch operation) so that either all events will be written, or none
+of them will be written and the save operation will fail. Although there currently isn't an entity class in the
+library with such a ```save()``` method, it would seem to have affinity with the ```Aggregate``` class.)
 
 
 #### Run the code
