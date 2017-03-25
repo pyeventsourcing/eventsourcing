@@ -77,29 +77,28 @@ and unversioned timestamped events (e.g. entries in a log).
 **Active record strategy** — maps between "sequenced items" and database records (ORM).
 Support can be added for a new database schema by introducing a new active record strategy.
 
-**Snapshotting** — Avoids replaying an entire event stream to
+**Snapshotting** — avoids replaying an entire event stream to
  obtain the state of an entity. A snapshot strategy is included which reuses
 the capabilities of this library by implementing snapshots as time-sequenced domain
 events. It can easily be substituted with one that uses a dedicated table for snapshots.
 
-**Application-level encryption** — Symmetric encryption of stored
-events, including snapshots and logged messages, using a customizable
-cipher strategy. Can be used to encrypt some events, or all events, or not applied at
-all (the default). Included is a cipher strategy which uses a standard AES cipher, by
-default in CBC mode with 128 bit blocksize and a 16 byte encryption key, which generates
-a unique 16 byte initialization vector for each encryption. In this cipher strategy, data
-is compressed before it is encrypted, which can mean application performance is improved
-when encryption is enabled.
+**Application-level encryption** — encrypts and decrypts stored events, using a cipher
+strategy passed as an option to the sequenced item mapper. Can be used to encrypt some
+events, or all events, or not applied at all (the default). Included is a cipher strategy
+which uses a standard AES cipher, by default in CBC mode with 128 bit blocksize and a 16
+byte encryption key, and which generates a unique 16 byte initialization vector for each
+encryption. In this cipher strategy, data is compressed before it is encrypted, which can
+mean application performance is improved when encryption is enabled.
 
 **Optimistic concurrency control** — Can be used to ensure a distributed or
 horizontally scaled application doesn't become inconsistent due to concurrent
-method execution. Leverages any optimistic concurrency controls in the database adapted
-by the stored event repository. For example with Cassandra, this can accomplish linearly-scalable
-distributed optimistic concurrency control, guaranteeing sequential consistency of an
-event stream, across a distributed application. It is also possible to serialize calls
-to the methods of an entity, but that is currently out of the scope of this package -
-if you wish to do that, perhaps something like [Zookeeper](https://zookeeper.apache.org/)
-might help.
+method execution. Leverages any optimistic concurrency controls in the database
+adapted by the stored event repository. For example with Cassandra, this can
+accomplish linearly-scalable distributed optimistic concurrency control,
+guaranteeing sequential consistency of the events of an entity, across concurent
+application threads. It is also possible to serialize calls to the methods of an
+entity, but that is currently out of the scope of this package — if you wish to do that,
+perhaps something like [Zookeeper](https://zookeeper.apache.org/) might help.
 
 **Abstract base classes** — For application objects, domain entities, entity repositories,
 domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
