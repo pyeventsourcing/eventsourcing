@@ -55,26 +55,26 @@ some background information about the project.
 
 ## Features
 
-**Event Store** — Appends and retrieves domain events. The event store uses a
+**Event store** — Appends and retrieves domain events. The event store uses a
 "sequenced item mapper" and an "active record strategy" to map domain events
 to a database in ways that can be easily substituted.
 
-**Persistence Policy** - Subscribes to receive published domain events.
+**Persistence policy** - Subscribes to receive published domain events.
 Appends received domain events to an event store whenever a domain event is
 published. Domain events are typically published by the methods of an entity.
 
-**Event Player** — Reconstitutes entities by replaying events, optionally with
+**Event player** — Reconstitutes entities by replaying events, optionally with
 snapshotting. An event player is used by an entity repository to determine the
 state of an entity. The event player retrieves domain events from the event store. 
 
-**Sequenced Item Mapper** — Maps between domain events and "sequenced items", the archetype
+**Sequenced item mapper** — Maps between domain events and "sequenced items", the archetype
 persistence model used by the library to store domain events. The library supports two
 different kinds of sequenced item: items that are sequenced by a contiguous series of
 integers; and items that are sequenced in time. They support two different kinds of
 domain events: events of versioned entities (e.g. an aggregate in domain driven design),
 and unversioned timestamped events (e.g. entries in a log).
 
-**Active Record Strategy** Maps between "sequenced items" and your database records.
+**Active record strategy** Maps between "sequenced items" and your database records.
 Support can be added for a new database schema by introducing a new active record strategy.
 
 **Snapshotting** - Avoids replaying an entire event stream to
@@ -82,7 +82,7 @@ Support can be added for a new database schema by introducing a new active recor
 the capabilities of this library by implementing snapshots as time-sequenced domain
 events. It can easily be substituted with one that uses a dedicated table for snapshots.
 
-**Application-Level Encryption** — Symmetric encryption of stored
+**Application-level encryption** — Symmetric encryption of stored
 events, including snapshots and logged messages, using a customizable
 cipher. Can be used to encrypt some events, or all events, or not applied at
 all (the default). Included is an AES cipher strategy, by default in CBC mode
@@ -91,7 +91,7 @@ and which generates a unique 16 byte initialization vector for each encryption.
 In this cipher, data is compressed before it is encrypted, which can mean application
 performance is improved when encryption is enabled.
 
-**Optimistic Concurrency Control** — Can be used to ensure a distributed or
+**Optimistic concurrency control** — Can be used to ensure a distributed or
 horizontally scaled application doesn't become inconsistent due to concurrent
 method execution. Leverages any optimistic concurrency controls in the database adapted
 by the stored event repository. For example with Cassandra, this can accomplish linearly-scalable
@@ -101,21 +101,21 @@ to the methods of an entity, but that is currently out of the scope of this pack
 if you wish to do that, perhaps something like [Zookeeper](https://zookeeper.apache.org/)
 might help.
 
-**Abstract Base Classes** — For application objects, domain entities, entity repositories,
+**Abstract base classes** — For application objects, domain entities, entity repositories,
 domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
 test cases, etc. These classes are at least suggestive of how to structure an event sourced
 application. They are well factored, relatively simple, and can be easily extended for your own
 purposes. If you wanted to create a domain model that is entirely stand-alone (recommended by
 purists for maximum longevity), you might start by copying the library classes.
 
-**Synchronous Publish-Subscribe Mechanism** — Stable and deterministic,
+**Synchronous publish-subscribe mechanism** — Stable and deterministic,
 with handlers called in the order they are registered, and with which
 calls to publish events do not return until all event subscribers have
 returned. In general, subscribers are policies of the application, which may 
 execute further commands whenever an particular kind of event is received.
 Publishers of domain events are typically the methods of an entity.
 
-**Worked Examples** — A simple worked example application (see below), with example
+**Worked examples** — A simple worked example application (see below), with example
 entity class, example event sourced repository, and example factory method.
 
 
@@ -133,12 +133,12 @@ activated before running your program. Please feel able to experiment by
 making variations. 
 
 
-### Step 1: Domain Model
+### Step 1: Domain model
 
 Let's start with the domain model. Because the state of an event sourced application
 is determined by a sequence of events, we need to define some events.
 
-#### Define domain events
+#### Domain events
 
 For the sake of simplicity in this example, let's assume things in our 
 domain can be "created", "changed", and "discarded". With that in mind,
@@ -185,7 +185,7 @@ however contain a collection of different kinds of domain event classes that you
 in your models, for example see ```AggregateEvent```. The domain event classes in the
 library are slightly more sophisticated than the code in this example.
 
-#### Define domain entity
+#### Domain entity
 
 Now, let's use the events classes above to define an "example" entity.
 
@@ -380,7 +380,7 @@ assert received_events[1].value == 'bar2'
 Since the application state is determined by a sequence of events, the events of the
 entities of the application must somehow be stored.
 
-#### Setup database table
+#### Database table
 
 Let's start by setting up a database for storing events. For the sake of simplicity in this
 example, use SQLAlchemy to define a database that stores integer-sequenced items.
@@ -446,7 +446,7 @@ postgresql://scott:tiger@localhost:5432/mydatabase
 mysql://scott:tiger@hostname/dbname
 ```
 
-#### Define entity repository
+#### Entity repository
 
 The application wants to deal with entities, not a sequence of events. Since it is common
 to retrieve entities from a repository, let's define an event sourced repository for the
@@ -493,7 +493,7 @@ example_repository = ExampleRepository(
 
 #### Run the code
 
-Now, let's write all the events we subscribed to earlier into the event store.
+Now, let's write the events we received earlier into the event store.
 
 ```python
 for event in received_events:
@@ -538,7 +538,7 @@ are classes in the library for Cassandra. Support for other
 databases is forthcoming.
 
 
-### Step 3: Application Object
+### Step 3: Application
 
 Although we can do everything at the module level, an application object brings
 things together.
@@ -626,7 +626,7 @@ A slightly more developed example application can be found in the library
 module ```eventsourcing.example.application```.
 
 
-### Step 4: Application Level Encryption
+### Step 4: Application-level encryption
 
 To enable encryption, pass in a cipher strategy object when constructing
 the sequenced item mapper, and set ```always_encrypt``` to a True value.
@@ -695,7 +695,7 @@ with EncryptedApplication(datastore, cipher=AESCipher(aes_key)) as app:
     assert 'secret info' in retrieved_entity.foo    
 ```
 
-### Step 5: Optimistic Concurrency Control
+### Step 5: Optimistic concurrency control
 
 With the application above, because of the unique constraint
 on the SQLAlchemy table, it isn't possible to branch the
@@ -764,7 +764,7 @@ into dependents by constructor parameter. Application level encryption is a mapp
 The sequenced item persistence model allows domain events to be stored in wide variety of database 
 services, and optionally makes use of any optimistic concurrency controls the database system may afford.
 
-![UML Class Diagram](https://www.lucidchart.com/publicSegments/view/8071c09b-146a-422a-82dc-f1b629764080/image.png)
+![UML Class Diagram](https://www.lucidchart.com/publicSegments/view/434448a2-cd4a-430f-af13-356b3dad68d8/image.png)
 
 
 ## Background
@@ -809,9 +809,9 @@ See also:
     * https://en.wikipedia.org/wiki/Object-relational_impedance_mismatch
 
 
-## Upgrade Notes
+## Upgrade notes
 
-### Upgrading From 1.x to 2.x
+### Upgrading from 1.x to 2.x
 
 Version 2 departs from version 1 by using sequenced items as the persistence model (was stored events
 in version 1). This makes version 2 incompatible with version 1. However, with a little bit of code
