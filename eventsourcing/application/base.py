@@ -5,7 +5,7 @@ from six import with_metaclass
 from eventsourcing.application.policies import CombinedPersistencePolicy
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.transcoding import SequencedItemMapper
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 
 class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):

@@ -3,7 +3,7 @@ from uuid import uuid4
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.transcoding import SequencedItemMapper
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     construct_integer_sequence_active_record_strategy

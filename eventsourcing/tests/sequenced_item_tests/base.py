@@ -11,7 +11,7 @@ from eventsourcing.exceptions import SequencedItemError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
-from eventsourcing.infrastructure.transcoding import SequencedItem, SequencedItemMapper, StoredEvent
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItem, SequencedItemMapper, StoredEvent
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 

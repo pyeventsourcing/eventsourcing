@@ -119,11 +119,17 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     """
     Uses JSON to transcode domain events.
     """
-
-    def __init__(self, position_attr_name, encoder_class=ObjectJSONEncoder, decoder_class=ObjectJSONDecoder,
-                 always_encrypt=False, cipher=None, sequenced_item_class=SequencedItem):
+    def __init__(self, position_attr_name, sequence_id_field_name='sequence_id',
+                 position_field_name='position', topic_field_name='topic',
+                 data_field_name='data', encoder_class=ObjectJSONEncoder,
+                 decoder_class=ObjectJSONDecoder, always_encrypt=False, cipher=None,
+                 sequenced_item_class=SequencedItem):
 
         self.position_attr_name = position_attr_name
+        self.sequence_id_field_name = sequence_id_field_name
+        self.position_field_name = position_field_name
+        self.topic_field_name = topic_field_name
+        self.data_field_name = data_field_name
         self.json_encoder_class = encoder_class
         self.json_decoder_class = decoder_class
         self.cipher = cipher
@@ -139,60 +145,82 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         """
         # assert isinstance(domain_event, EventWithEntityID), type(domain_event)
 
-        # Copy the state of the domain event.
-        event_attrs = domain_event.__dict__.copy()
+        item_args = self.construct_item_args(domain_event)
+        return self.construct_sequenced_item(item_args)
 
+    def construct_item_args(self, domain_event):
         # Pick out the attributes of a sequenced item.
         sequence_id = domain_event.entity_id
-        position = event_attrs[self.position_attr_name]
-        topic = topic_from_domain_class(type(domain_event))
-
+        position = getattr(domain_event, self.position_attr_name)
+        topic = self.topic_from_domain_class(domain_event.__class__)
         # Serialise event attributes to JSON.
+        is_encrypted = self.is_encrypted(domain_event.__class__)
+        event_data = self.serialize_event_attrs(domain_event.__dict__, is_encrypted=is_encrypted)
+        # Return a sequenced item.
+        item_args = {
+            self.sequence_id_field_name: sequence_id,
+            self.position_field_name: position,
+            self.topic_field_name: topic,
+            self.data_field_name: event_data,
+        }
+        return item_args
+
+    def construct_sequenced_item(self, item_args):
+        return self.sequenced_item_class(**item_args)
+
+    def from_sequenced_item(self, sequenced_item):
+        """
+        Reconstructs domain event from stored event topic and
+        event attrs. Used in the event store when getting domain events.
+        """
+        assert isinstance(sequenced_item, self.sequenced_item_class), type(sequenced_item)
+
+        # Get the domain event class from the topic.
+        domain_event_class = self.class_from_topic(getattr(sequenced_item, self.topic_field_name))
+
+        # Deserialize, optionally with decryption.
+        is_encrypted = self.is_encrypted(domain_event_class)
+        event_attrs = self.deserialize_event_attrs(getattr(sequenced_item, self.data_field_name), is_encrypted)
+
+        # Reconstruct the domain event object.
+        return self.reconstruct_object(domain_event_class, event_attrs)
+
+    def reconstruct_object(self, obj_class, obj_state):
+        obj = object.__new__(obj_class)
+        obj.__dict__.update(obj_state)
+        return obj
+
+    def topic_from_domain_class(self, domain_class):
+        return topic_from_domain_class(domain_class)
+
+    def class_from_topic(self, topic):
+        return resolve_domain_topic(topic)
+
+    def serialize_event_attrs(self, event_attrs, is_encrypted=False):
         event_data = json.dumps(
             event_attrs,
             separators=(',', ':'),
             sort_keys=True,
             cls=self.json_encoder_class,
         )
-
         # Encrypt (optional).
-        if self.always_encrypt or getattr(domain_event.__class__, '__always_encrypt__', None):
+        if is_encrypted:
             assert isinstance(self.cipher, AbstractCipher)
             event_data = self.cipher.encrypt(event_data)
 
-        # Return a sequenced item.
-        sequenced_item = self.sequenced_item_class(
-            sequence_id=sequence_id,
-            position=position,
-            topic=topic,
-            data=event_data,
-        )
-        return sequenced_item
+        return event_data
 
-    def from_sequenced_item(self, sequenced_item):
+    def deserialize_event_attrs(self, event_attrs, is_encrypted):
         """
-        Recreates original domain event from stored event topic and
-        event attrs. Used in the event store when getting domain events.
+        Deserialize event attributes from JSON, optionally with decryption.
         """
-        assert isinstance(sequenced_item, self.sequenced_item_class), type(sequenced_item)
-
-        # Get the domain event class from the topic.
-        event_class = resolve_domain_topic(sequenced_item.topic)
-
-        event_attrs = sequenced_item.data
-
-        # Decrypt (optional).
-        if self.always_encrypt or getattr(event_class, '__always_encrypt__', None):
+        if is_encrypted:
             assert isinstance(self.cipher, AbstractCipher), self.cipher
             event_attrs = self.cipher.decrypt(event_attrs)
+        return json.loads(event_attrs, cls=self.json_decoder_class)
 
-        # Deserialize event attributes from JSON, optionally decrypted with cipher.
-        event_attrs = json.loads(event_attrs, cls=self.json_decoder_class)
-
-        # Reinstantiate and return the domain event object.
-        domain_event = object.__new__(event_class)
-        domain_event.__dict__.update(event_attrs)
-        return domain_event
+    def is_encrypted(self, domain_event_class):
+        return self.always_encrypt or getattr(domain_event_class, '__always_encrypt__', False)
 
 
 def deserialize_domain_entity(entity_topic, entity_attrs):

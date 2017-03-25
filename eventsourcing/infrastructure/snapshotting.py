@@ -5,7 +5,7 @@ import six
 from eventsourcing.domain.model.events import publish, topic_from_domain_class
 from eventsourcing.domain.model.snapshot import AbstractSnapshop, Snapshot
 from eventsourcing.infrastructure.eventstore import AbstractEventStore, EventStore
-from eventsourcing.infrastructure.transcoding import deserialize_domain_entity
+from eventsourcing.infrastructure.sequenceditemmapper import deserialize_domain_entity
 
 
 class AbstractSnapshotStrategy(six.with_metaclass(ABCMeta)):

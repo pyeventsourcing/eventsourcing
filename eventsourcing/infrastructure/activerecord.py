@@ -3,14 +3,17 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.exceptions import SequencedItemError
-from eventsourcing.infrastructure.transcoding import SequencedItem
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItem
 
 
 class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
 
-    def __init__(self, active_record_class, sequenced_item_class=SequencedItem):
+    def __init__(self, active_record_class, sequenced_item_class=SequencedItem, sequence_id_field_name='sequence_id',
+                 position_field_name='position'):
         self.active_record_class = active_record_class
         self.sequenced_item_class = sequenced_item_class
+        self.sequence_id_field_name = sequence_id_field_name
+        self.position_field_name = position_field_name
 
     @abstractmethod
     def append_item(self, sequenced_item):

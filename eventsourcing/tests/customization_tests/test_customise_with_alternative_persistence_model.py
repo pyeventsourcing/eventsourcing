@@ -10,7 +10,7 @@ from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, Base, SQLAlchemySettings
-from eventsourcing.infrastructure.transcoding import SequencedItemMapper
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 
@@ -73,18 +73,31 @@ class SqlStoredEvent(Base):
 
 class StoredEventMapper(SequencedItemMapper):
 
-    def to_sequenced_item(self, domain_event):
-        sequenced_item = super(StoredEventMapper, self).to_sequenced_item(domain_event)
-        return StoredEvent(
-            aggregate_id=domain_event.entity_id,
-            aggregate_version=domain_event.entity_version,
-            event_type=domain_event.__class__.__name__,
-            timestamp=domain_event.timestamp,
-            state=sequenced_item.data,
+    def __init__(self):
+        super(StoredEventMapper, self).__init__(
+            position_attr_name='entity_version',
+            sequence_id_field_name='aggregate_id',
+            position_field_name='aggregate_version',
+            topic_field_name='event_type',
+            data_field_name='state',
+            sequenced_item_class=StoredEvent,
         )
+
+    def construct_item_args(self, domain_event):
+        item_args = super(StoredEventMapper, self).construct_item_args(domain_event)
+        item_args['timestamp'] = domain_event.timestamp
+        return item_args
 
 
 class CustomActiveRecordStrategy(SQLAlchemyActiveRecordStrategy):
+
+    def __init__(self, *args, **kwargs):
+        super(CustomActiveRecordStrategy, self).__init__(
+            sequence_id_field_name='aggregate_id',
+            position_field_name='aggregate_version',
+            *args,
+            **kwargs
+        )
 
     def to_active_record(self, sequenced_item):
         """
@@ -119,11 +132,11 @@ class ExampleApplicationWithAlternativeSequencedItemType(object):
             active_record_strategy=CustomActiveRecordStrategy(
                 datastore=datastore,
                 active_record_class=SqlStoredEvent,
+                sequenced_item_class=StoredEvent,
+
 
             ),
-            sequenced_item_mapper=StoredEventMapper(
-                position_attr_name='entity_version',
-            )
+            sequenced_item_mapper=StoredEventMapper()
         )
         self.repository = ExampleRepository(
             event_store=self.event_store,
@@ -176,7 +189,7 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
 
             # Todo: Finish this off so we can read events.
             # Read entity from repo.
-            # retrieved_obj = app.repository[entity1.id]
-            # self.assertEqual(retrieved_obj.id, entity1.id)
+            retrieved_obj = app.repository[entity1.id]
+            self.assertEqual(retrieved_obj.id, entity1.id)
 
 

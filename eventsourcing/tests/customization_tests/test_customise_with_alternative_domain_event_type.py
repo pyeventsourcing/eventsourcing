@@ -8,7 +8,7 @@ from eventsourcing.infrastructure.cassandra.activerecords import CassandraActive
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.transcoding import SequencedItemMapper
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
 from eventsourcing.utils.time import timestamp_from_uuid

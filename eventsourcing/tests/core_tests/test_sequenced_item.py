@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from eventsourcing.infrastructure.transcoding import SequencedItem
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItem
 
 
 class TestIntegerSequencedItem(TestCase):

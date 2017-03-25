@@ -9,13 +9,14 @@ from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrate
 class AbstractSequencedItemIterator(six.with_metaclass(ABCMeta)):
     DEFAULT_PAGE_SIZE = 1000
 
-    def __init__(self, active_record_strategy, sequence_id, page_size=None, gt=None, gte=None, lt=None, lte=None,
-                 limit=None, is_ascending=True):
+    def __init__(self, active_record_strategy, sequence_id, position_field_name='position',
+                 page_size=None, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True):
         assert isinstance(active_record_strategy, AbstractActiveRecordStrategy), type(active_record_strategy)
         assert isinstance(page_size, (six.integer_types, type(None)))
         assert isinstance(limit, (six.integer_types, type(None)))
         self.active_record_strategy = active_record_strategy
         self.sequence_id = sequence_id
+        self.position_field_name = position_field_name
         self.page_size = page_size or self.DEFAULT_PAGE_SIZE
         self.gt = gt
         self.gte = gte
@@ -50,7 +51,7 @@ class AbstractSequencedItemIterator(six.with_metaclass(ABCMeta)):
 
     def _update_position(self, sequenced_item):
         assert isinstance(sequenced_item, self.active_record_strategy.sequenced_item_class), type(sequenced_item)
-        self._position = sequenced_item.position
+        self._position = getattr(sequenced_item, self.position_field_name)
 
     @abstractmethod
     def __iter__(self):

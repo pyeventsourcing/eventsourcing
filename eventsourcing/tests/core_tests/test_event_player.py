@@ -8,7 +8,7 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import entity_from_snapshot, EventSourcedSnapshotStrategy
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     SqlIntegerSequencedItem, SqlTimestampSequencedItem
-from eventsourcing.infrastructure.transcoding import SequencedItemMapper
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 
 
