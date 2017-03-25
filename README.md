@@ -177,7 +177,6 @@ class ValueChanged(DomainEvent):
     
 class Discarded(DomainEvent):
     """Published when an entity is discarded."""
-    
 ```
 
 Please note, the domain event classes above do not depend on the library. The library does
@@ -325,9 +324,9 @@ library with such a ```save()``` method, it would seem to have affinity with the
 
 #### Run the code
 
-With this stand-alone code, we can now create a new example entity object. We can update its property
-```foo```, and we can discard the entity using the ```discard()``` method. Let's subscribe to
-receive the events that will be published, so we can see what is happening.
+With this stand-alone code, we can create a new example entity object. We can update its property
+```foo```, and we can discard the entity using the ```discard()``` method. Let's firstly subscribe to
+receive the events that will be published, so we can see what happened.
 
 ```python
 from eventsourcing.domain.model.events import subscribe
@@ -585,7 +584,6 @@ class Application(object):
         
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-        
 ```
 
 After instantiating the application, we can create more example entities
@@ -663,7 +661,6 @@ class EncryptedApplication(object):
         
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-        
 ```
 
 You can use the AES cipher strategy provided by this library. Alternatively,
