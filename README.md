@@ -185,7 +185,7 @@ library are slightly more sophisticated than the code in this example.
 
 #### Domain entity
 
-Now, let's use the events classes above to define an "example" entity.
+Now, let's use the event classes above to define an "example" entity.
 
 The ```Example```entity class below has an entity ID, a version number, and a
 timestamp. It also has a property ```foo```, and a ```discard()``` method to use
