@@ -448,7 +448,7 @@ can be easily replaced.
 ```python
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
-from eventsourcing.infrastructure.transcoding import SequencedItemMapper
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 active_record_strategy = SQLAlchemyActiveRecordStrategy(
     datastore=datastore,
@@ -458,6 +458,7 @@ active_record_strategy = SQLAlchemyActiveRecordStrategy(
 event_store = EventStore(
     active_record_strategy=active_record_strategy,
     sequenced_item_mapper=SequencedItemMapper(
+        sequence_id_attr_name='entity_id',
         position_attr_name='entity_version',
     )
 )
@@ -555,6 +556,7 @@ class Application(object):
                 active_record_class=IntegerSequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
+                sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version',
             )
         )
@@ -631,6 +633,7 @@ class EncryptedApplication(object):
                 active_record_class=IntegerSequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
+                sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version',
                 always_encrypt=True,
                 cipher=cipher,

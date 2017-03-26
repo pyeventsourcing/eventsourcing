@@ -28,6 +28,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
                 datastore=self.datastore,
             ),
             sequenced_item_mapper=SequencedItemMapper(
+                sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version'
             )
         )

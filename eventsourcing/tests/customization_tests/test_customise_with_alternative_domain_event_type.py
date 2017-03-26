@@ -13,7 +13,9 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
 from eventsourcing.utils.time import timestamp_from_uuid
 
+# This test has events with TimeUUID value as the 'event ID'.
 
+# This entity has events with TimeUUIDs.
 class ExampleEntity(TimeuuidedVersionedEntity):
 
     def __init__(self, **kwargs):
@@ -57,6 +59,7 @@ class ExampleApplicationWithTimeuuidSequencedItems(object):
                 active_record_class=CqlTimeuuidSequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
+                sequence_id_attr_name='entity_id',
                 position_attr_name='event_id',
             )
         )

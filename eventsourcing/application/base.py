@@ -9,7 +9,6 @@ from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 
 class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
-
     def __init__(self, integer_sequenced_active_record_strategy=None,
                  timestamp_sequenced_active_record_strategy=None, always_encrypt=False, cipher=None):
         """
@@ -31,28 +30,42 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         self.integer_sequenced_active_record_strategy = integer_sequenced_active_record_strategy
         self.timestamp_sequenced_active_record_strategy = timestamp_sequenced_active_record_strategy
         self.version_entity_event_store = self.construct_event_store(
+            sequence_id_attr_name='entity_id',
             position_attr_name='entity_version',
             active_record_strategy=self.integer_sequenced_active_record_strategy,
             always_encrypt=always_encrypt,
             cipher=cipher,
         )
         self.timestamp_entity_event_store = self.construct_event_store(
+            sequence_id_attr_name='entity_id',
             position_attr_name='timestamp',
             active_record_strategy=self.timestamp_sequenced_active_record_strategy,
             always_encrypt=always_encrypt,
             cipher=cipher,
         )
 
-    def construct_event_store(self, position_attr_name, active_record_strategy, always_encrypt=False, cipher=None):
-        sequenced_item_mapper = self.construct_sequenced_item_mapper(position_attr_name, always_encrypt, cipher)
+    def construct_event_store(self, sequence_id_attr_name, position_attr_name, active_record_strategy,
+                              always_encrypt=False, cipher=None):
+        sequenced_item_mapper = self.construct_sequenced_item_mapper(
+            sequence_id_attr_name=sequence_id_attr_name,
+            position_attr_name=position_attr_name,
+            always_encrypt=always_encrypt,
+            cipher=cipher
+        )
         event_store = EventStore(
             active_record_strategy=active_record_strategy,
             sequenced_item_mapper=sequenced_item_mapper,
         )
         return event_store
 
-    def construct_sequenced_item_mapper(self, position_attr_name, always_encrypt=False, cipher=None):
-        return SequencedItemMapper(position_attr_name, always_encrypt=always_encrypt, cipher=cipher)
+    def construct_sequenced_item_mapper(self, sequence_id_attr_name, position_attr_name, always_encrypt=False,
+                                        cipher=None):
+        return SequencedItemMapper(
+            sequence_id_attr_name=sequence_id_attr_name,
+            position_attr_name=position_attr_name,
+            always_encrypt=always_encrypt,
+            cipher=cipher
+        )
 
     def close(self):
         self.event_store = None
@@ -66,7 +79,6 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
 
 
 class EventSourcedApplication(ReadOnlyEventSourcingApplication):
-
     def __init__(self, **kwargs):
         super(EventSourcedApplication, self).__init__(**kwargs)
         self.persistence_policy = self.construct_persistence_policy()

@@ -36,7 +36,10 @@ class TestSequencedItemMapper(TestCase):
 
     def test_with_versioned_entity_event(self):
         # Setup the mapper, and create an event.
-        mapper = SequencedItemMapper(position_attr_name='entity_version')
+        mapper = SequencedItemMapper(
+            sequence_id_attr_name='entity_id',
+            position_attr_name='entity_version'
+        )
         entity_id1 = uuid4()
         event1 = Event1(entity_id=entity_id1, entity_version=101)
 
@@ -64,7 +67,10 @@ class TestSequencedItemMapper(TestCase):
 
     def test_with_timestamped_entity_event(self):
         # Setup the mapper, and create an event.
-        mapper = SequencedItemMapper(position_attr_name='timestamp')
+        mapper = SequencedItemMapper(
+            sequence_id_attr_name='entity_id',
+            position_attr_name='timestamp'
+        )
         before = time()
         sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
         event2 = Event2(entity_id='entity2')
@@ -96,7 +102,10 @@ class TestSequencedItemMapper(TestCase):
 
     def test_with_different_types_of_event_attributes(self):
         # Setup the mapper, and create an event.
-        mapper = SequencedItemMapper(position_attr_name='a')
+        mapper = SequencedItemMapper(
+            sequence_id_attr_name='entity_id',
+            position_attr_name='a'
+        )
 
         # Create an event with dates and datetimes.
         event3 = Event3(
@@ -132,7 +141,7 @@ class TestSequencedItemMapper(TestCase):
 
     def test_errors(self):
         # Setup the mapper, and create an event.
-        mapper = SequencedItemMapper(position_attr_name='a')
+        mapper = SequencedItemMapper(sequence_id_attr_name='entity_id', position_attr_name='a')
 
         # Create an event with dates and datetimes.
         event3 = Event3(

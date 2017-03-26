@@ -97,6 +97,7 @@ class ExampleApplicationWithExtendedSequencedItemType(object):
 
             ),
             sequenced_item_mapper=StoredEventMapper(
+                sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version',
             )
         )

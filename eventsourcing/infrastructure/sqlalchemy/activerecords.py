@@ -93,8 +93,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 
     def add_record_to_session(self, active_record):
         if isinstance(active_record, list):
-            for r in active_record:
-                self.add_record_to_session(r)
+            [self.add_record_to_session(r) for r in active_record]
         else:
             self.datastore.db_session.add(active_record)
 
@@ -102,34 +101,23 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Returns an active record, from given sequenced item.
         """
+        # Recurse if it's a list.
         if isinstance(sequenced_item, list):
             return [self.to_active_record(i) for i in sequenced_item]
-        assert isinstance(sequenced_item, self.sequenced_item_class), type(sequenced_item)
 
-        record_args = self.construct_record_args(sequenced_item)
-        return self.active_record_class(**record_args)
+        # Check we got a sequenced item.
+        assert isinstance(sequenced_item, self.sequenced_item_class)
 
-    def construct_record_args(self, sequenced_item):
-        record_args = {
-            self.sequence_id_field_name: getattr(sequenced_item, self.sequence_id_field_name),
-            self.position_field_name: getattr(sequenced_item, self.position_field_name),
-            'topic': sequenced_item.topic,
-            'data': sequenced_item.data,
-        }
-        return record_args
+        # Construct and return an ORM object.
+        orm_kwargs = {f: sequenced_item[i] for i, f in enumerate(self.field_names)}
+        return self.active_record_class(**orm_kwargs)
 
     def from_active_record(self, active_record):
         """
         Returns a sequenced item, from given active record.
         """
-        item_args = {
-            self.sequence_id_field_name: getattr(active_record, self.sequence_id_field_name),
-            self.position_field_name: getattr(active_record, self.position_field_name),
-            'topic': active_record.topic,
-            'data': active_record.data,
-
-        }
-        return self.sequenced_item_class(**item_args)
+        item_args = [getattr(active_record, f) for f in self.field_names]
+        return self.sequenced_item_class(*item_args)
 
     def filter(self, *args, **kwargs):
         query = self.datastore.db_session.query(self.active_record_class)

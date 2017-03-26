@@ -14,35 +14,7 @@ import six
 from eventsourcing.domain.model.events import resolve_domain_topic, topic_from_domain_class
 from eventsourcing.domain.services.cipher import AbstractCipher
 
-EntityVersion = namedtuple('EntityVersion', ['entity_version_id', 'event_id'])
-
-StoredEvent = namedtuple('StoredEvent', ['event_id', 'entity_id', 'event_topic', 'event_attrs'])
-
-
-class SequencedItem(tuple):
-    __slots__ = ()
-
-    _fields = ('sequence_id', 'position', 'topic', 'data')
-
-    # noinspection PyInitNewSignature
-    def __new__(cls, sequence_id, position, topic, data):
-        return tuple.__new__(cls, (sequence_id, position, topic, data))
-
-    @property
-    def sequence_id(self):
-        return self[0]
-
-    @property
-    def position(self):
-        return self[1]
-
-    @property
-    def topic(self):
-        return self[2]
-
-    @property
-    def data(self):
-        return self[3]
+SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data'])
 
 
 class AbstractSequencedItemMapper(six.with_metaclass(ABCMeta)):
@@ -119,54 +91,69 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     """
     Uses JSON to transcode domain events.
     """
-    def __init__(self, position_attr_name, sequence_id_field_name='sequence_id',
-                 position_field_name='position', topic_field_name='topic',
-                 data_field_name='data', encoder_class=ObjectJSONEncoder,
-                 decoder_class=ObjectJSONDecoder, always_encrypt=False, cipher=None,
+
+    def __init__(self, sequence_id_attr_name, position_attr_name,
+                 encoder_class=ObjectJSONEncoder, decoder_class=ObjectJSONDecoder,
+                 always_encrypt=False, cipher=None,
                  sequenced_item_class=SequencedItem):
 
+        self.sequence_id_attr_name = sequence_id_attr_name
         self.position_attr_name = position_attr_name
-        self.sequence_id_field_name = sequence_id_field_name
-        self.position_field_name = position_field_name
-        self.topic_field_name = topic_field_name
-        self.data_field_name = data_field_name
         self.json_encoder_class = encoder_class
         self.json_decoder_class = decoder_class
         self.cipher = cipher
         self.always_encrypt = always_encrypt
         self.sequenced_item_class = sequenced_item_class
 
+    @property
+    def sequence_id_field_name(self):
+        # Sequence ID is assumed to be the first field of a sequenced item.
+        return self.field_names[0]
+
+    @property
+    def position_field_name(self):
+        # Position is assumed to be the second field of a sequenced item.
+        return self.field_names[1]
+
+    @property
+    def topic_field_name(self):
+        # Topic is assumed to be the third field of a sequenced item.
+        return self.field_names[2]
+
+    @property
+    def data_field_name(self):
+        # Data is assumed to be the fourth field of a sequenced item.
+        return self.field_names[3]
+
+    @property
+    def field_names(self):
+        return self.sequenced_item_class._fields
+
     def to_sequenced_item(self, domain_event):
         """
-        Serializes a domain event into a stored event. Used in stored
-        event repositories to represent an instance of any type of
-        domain event with a common format that can easily be written
-        into its particular database management system.
+        Constructs a sequenced item from a domain event.
         """
-        # assert isinstance(domain_event, EventWithEntityID), type(domain_event)
-
         item_args = self.construct_item_args(domain_event)
         return self.construct_sequenced_item(item_args)
 
     def construct_item_args(self, domain_event):
-        # Pick out the attributes of a sequenced item.
-        sequence_id = domain_event.entity_id
+        # Construct attributes of a sequenced item from the domain event.
+
+        # Identify the sequence ID.
+        sequence_id = getattr(domain_event, self.sequence_id_attr_name)
+
+        # Identify the position in the sequence.
         position = getattr(domain_event, self.position_attr_name)
         topic = self.topic_from_domain_class(domain_event.__class__)
-        # Serialise event attributes to JSON.
+
+        # Serialise event attributes to JSON, optionally encrypted.
         is_encrypted = self.is_encrypted(domain_event.__class__)
         event_data = self.serialize_event_attrs(domain_event.__dict__, is_encrypted=is_encrypted)
-        # Return a sequenced item.
-        item_args = {
-            self.sequence_id_field_name: sequence_id,
-            self.position_field_name: position,
-            self.topic_field_name: topic,
-            self.data_field_name: event_data,
-        }
-        return item_args
+
+        return (sequence_id, position, topic, event_data)
 
     def construct_sequenced_item(self, item_args):
-        return self.sequenced_item_class(**item_args)
+        return self.sequenced_item_class(*item_args)
 
     def from_sequenced_item(self, sequenced_item):
         """
@@ -239,5 +226,3 @@ def deserialize_domain_entity(entity_topic, entity_attrs):
 
     # Return a new domain entity object.
     return entity
-
-
