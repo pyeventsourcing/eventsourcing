@@ -69,8 +69,8 @@ state of an entity. The event player retrieves domain events from the event stor
 
 **Sequenced item mapper** — maps between domain events and "sequenced items", the archetype
 persistence model used by the library to store domain events. The library supports two
-different kinds of sequenced item: items that are sequenced by a contiguous series of
-integers; and items that are sequenced in time. They support two different kinds of
+different kinds of sequenced item: items that are sequenced by an increasing series
+of integers; and items that are sequenced in time. They support two different kinds of
 domain events: events of versioned entities (e.g. an aggregate in domain driven design),
 and unversioned timestamped events (e.g. entries in a log).
 
@@ -93,11 +93,11 @@ mean application performance is improved when encryption is enabled.
 **Optimistic concurrency control** — can be used to ensure a distributed or
 horizontally scaled application doesn't become inconsistent due to concurrent
 method execution. Leverages any optimistic concurrency controls in the database
-adapted by the stored event repository. For example with Cassandra, this can
-accomplish linearly-scalable distributed optimistic concurrency control,
-guaranteeing sequential consistency of the events of an entity, across concurent
+adapted by the stored event repository. For example the Cassandra database, which implements
+the Paxos protocol, can accomplish linearly-scalable distributed optimistic concurrency
+control, guaranteeing sequential consistency of the events of an entity, across concurent
 application threads. It is also possible to serialize calls to the methods of an
-entity, but that is currently out of the scope of this package — if you wish to do that,
+entity, but that is out of the scope of this package — if you wish to do that,
 perhaps something like [Zookeeper](https://zookeeper.apache.org/) might help.
 
 **Abstract base classes** — suggest of how to structure an event sourced application.
