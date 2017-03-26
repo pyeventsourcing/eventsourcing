@@ -11,7 +11,8 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     SqlIntegerSequencedItem
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, Base, SQLAlchemySettings
-from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper, SequencedItem
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 

@@ -1,6 +1,6 @@
 from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, \
     CqlIntegerSequencedItem, CqlTimestampSequencedItem
-from eventsourcing.infrastructure.sequenceditemmapper import SequencedItem
+from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \
     SimpleSequencedItemteratorTestCase, ThreadedSequencedItemIteratorTestCase, TimestampSequencedItemTestCase, \

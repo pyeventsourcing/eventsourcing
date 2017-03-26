@@ -35,9 +35,9 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 
     def get_item(self, sequence_id, eq):
         try:
-            filter_args = {self.sequence_id_field_name: sequence_id}
+            filter_args = {self.field_names.sequence_id: sequence_id}
             query = self.filter(**filter_args)
-            position_field = getattr(self.active_record_class, self.position_field_name)
+            position_field = getattr(self.active_record_class, self.field_names.position)
             query = query.filter(position_field == eq)
             events = six.moves.map(self.from_active_record, query)
             events = list(events)
@@ -55,10 +55,10 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         assert limit is None or limit >= 1, limit
 
         try:
-            filter_args = {self.sequence_id_field_name: sequence_id}
+            filter_args = {self.field_names.sequence_id: sequence_id}
             query = self.filter(**filter_args)
 
-            position_field = getattr(self.active_record_class, self.position_field_name)
+            position_field = getattr(self.active_record_class, self.field_names.position)
 
             if query_ascending:
                 query = query.order_by(asc(position_field))

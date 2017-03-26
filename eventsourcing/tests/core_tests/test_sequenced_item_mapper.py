@@ -8,7 +8,8 @@ from uuid import uuid4
 
 from eventsourcing.domain.model.events import VersionedEntityEvent, TimestampedEntityEvent, \
     topic_from_domain_class, DomainEvent
-from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper, SequencedItem
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+from eventsourcing.infrastructure.sequenceditem import SequencedItem
 
 
 class Event1(VersionedEntityEvent):

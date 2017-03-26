@@ -73,7 +73,6 @@ class EventStore(AbstractEventStore):
             sequenced_items = self.iterator_class(
                 active_record_strategy=self.active_record_strategy,
                 sequence_id=entity_id,
-                position_field_name=self.sequenced_item_mapper.position_field_name,
                 page_size=page_size,
                 gt=gt,
                 gte=gte,
