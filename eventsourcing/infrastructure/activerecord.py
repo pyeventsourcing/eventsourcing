@@ -38,9 +38,10 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
         Returns all items from all sequences (possibly in chronological order, depending on database).
         """
 
-    def raise_sequence_item_error(self, sequence_id, position, e):
+    def raise_sequenced_item_error(self, sequenced_item, e):
+        sequenced_item = sequenced_item[0] if isinstance(sequenced_item, list) else sequenced_item
         raise SequencedItemError("Item at position '{}' already exists in sequence '{}': {}"
-                                 "".format(position, sequence_id, e))
+                                 "".format(sequenced_item[1], sequenced_item[0], e))
 
     def raise_index_error(self, eq):
         raise IndexError("Sequence index out of range: {}".format(eq))

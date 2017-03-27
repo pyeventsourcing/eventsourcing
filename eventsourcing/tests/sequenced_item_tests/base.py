@@ -284,22 +284,22 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
     @property
     def integer_sequence_active_record_strategy(self):
         if self._integer_sequence_strategy is None:
-            self._integer_sequence_strategy = self.construct_integer_sequence_active_record_strategy()
+            self._integer_sequence_strategy = self.construct_integer_sequenced_active_record_strategy()
         return self._integer_sequence_strategy
 
     @property
     def timestamp_sequence_active_record_strategy(self):
         if self._timestamp_sequence_strategy is None:
-            self._timestamp_sequence_strategy = self.construct_timestamp_sequence_active_record_strategy()
+            self._timestamp_sequence_strategy = self.construct_timestamp_sequenced_active_record_strategy()
         return self._timestamp_sequence_strategy
 
-    def construct_integer_sequence_active_record_strategy(self):
+    def construct_integer_sequenced_active_record_strategy(self):
         """
         :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordStrategy
         """
         raise NotImplementedError
 
-    def construct_timestamp_sequence_active_record_strategy(self):
+    def construct_timestamp_sequenced_active_record_strategy(self):
         """
         :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordStrategy
         """

@@ -73,7 +73,7 @@ class ExampleApplicationWithTimeuuidSequencedItems(object):
             )
         )
         self.repository = EventSourcedRepository(
-            domain_class=ExampleEntity,
+            mutator=ExampleEntity.mutate,
             event_store=self.event_store,
         )
         self.persistence_policy = PersistencePolicy(self.event_store)
