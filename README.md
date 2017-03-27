@@ -741,11 +741,11 @@ with Application(datastore) as app:
     a = app.example_repository[entity1.id]
     b = app.example_repository[entity1.id]
     
-    # Update instance 'a'.
+    # Change the entity using instance 'a'.
     a.foo = 'bar6'
     
-    # Because 'a' has been updated since 'b' was obtained,
-    # instance 'b' cannot be updated unless it is refreshed.
+    # Because 'a' has been changed since 'b' was obtained,
+    # 'b' cannot be updated unless it is firstly refreshed.
     try:
         b.foo = 'bar7'
     except ConcurrencyError:
@@ -753,15 +753,15 @@ with Application(datastore) as app:
     else:
         raise Exception("Failed to control concurrency of 'b'.")
       
-    # Refresh 'b', it has been updated with the value just given to 'a'.
+    # Refresh object 'b', so that 'b' has the current state of the entity.
     b = app.example_repository[entity1.id]
     assert b.foo == 'bar6'
 
-    # Updating instance 'b' now works because 'b' is up-to-date.
+    # Changing the entity using instance 'b' now works because 'b' is up to date.
     b.foo = 'bar7'    
     assert app.example_repository[entity1.id].foo == 'bar7'
     
-    # And we cannot update 'a' because it is behind.
+    # Now 'a' does not have the current state of the entity, and cannot be changed.
     try:
         a.foo = 'bar8'
     except ConcurrencyError:
