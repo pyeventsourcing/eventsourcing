@@ -7,7 +7,7 @@ from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTe
     WithActiveRecordStrategies
 
 
-def construct_integer_sequence_active_record_strategy(datastore):
+def construct_integer_sequenced_active_record_strategy(datastore):
     return SQLAlchemyActiveRecordStrategy(
         active_record_class=SqlIntegerSequencedItem,
         sequenced_item_class=SequencedItem,
@@ -15,7 +15,7 @@ def construct_integer_sequence_active_record_strategy(datastore):
     )
 
 
-def construct_timestamp_sequence_active_record_strategy(datastore):
+def construct_timestamp_sequenced_active_record_strategy(datastore):
     return SQLAlchemyActiveRecordStrategy(
         active_record_class=SqlTimestampSequencedItem,
         sequenced_item_class=SequencedItem,
@@ -26,21 +26,21 @@ def construct_timestamp_sequence_active_record_strategy(datastore):
 class TestSQLAlchemyActiveRecordStrategyWithIntegerSequences(SQLAlchemyDatastoreTestCase,
                                                              IntegerSequencedItemTestCase):
     def construct_active_record_strategy(self):
-        return construct_integer_sequence_active_record_strategy(self.datastore)
+        return construct_integer_sequenced_active_record_strategy(self.datastore)
 
 
 class TestSQLAlchemyActiveRecordStrategyWithTimestampSequences(SQLAlchemyDatastoreTestCase,
                                                                TimestampSequencedItemTestCase):
     def construct_active_record_strategy(self):
-        return construct_timestamp_sequence_active_record_strategy(self.datastore)
+        return construct_timestamp_sequenced_active_record_strategy(self.datastore)
 
 
 class WithSQLAlchemyActiveRecordStrategies(WithActiveRecordStrategies, SQLAlchemyDatastoreTestCase):
-    def construct_integer_sequence_active_record_strategy(self):
-        return construct_integer_sequence_active_record_strategy(self.datastore)
+    def construct_integer_sequenced_active_record_strategy(self):
+        return construct_integer_sequenced_active_record_strategy(self.datastore)
 
-    def construct_timestamp_sequence_active_record_strategy(self):
-        return construct_timestamp_sequence_active_record_strategy(self.datastore)
+    def construct_timestamp_sequenced_active_record_strategy(self):
+        return construct_timestamp_sequenced_active_record_strategy(self.datastore)
 
 
 class TestSimpleIteratorWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies,

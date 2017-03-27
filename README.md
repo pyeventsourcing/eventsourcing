@@ -113,8 +113,9 @@ calls to publish events do not return until all event subscribers have returned.
 subscribers are policies of the application, which may execute further commands whenever a
 particular kind of event is received. Publishers of domain events are typically methods of domain entities.
 
-**Worked examples** — a simple worked example application (see below), with example
-entity class, example event sourced repository, and example factory method.
+**Worked examples** — a simple worked example application (see below) with an example
+entity class, with example domain events, an example factory method, an example mutator function,
+and an example database table.
 
 
 ## Usage
@@ -313,15 +314,15 @@ applied to itself. The library does however contain domain entity classes that y
 domain model. For example see the ```Aggregate``` class, which is also a timestamped, versioned entity.
 The library classes are slightly more refined than the code in this example.
 
-(Note on entity ```save()``` methods: The library does support appending events to the event store in
+Note on entity ```save()``` methods: The library does support appending events to the event store in
 batches, so that you could style your entities to have internal list of pending events: events that are
-indirectly emitted by the operations, not published immedidately for others but instead are added
+indirectly emitted by the operations, not published immedidately for others but instead added
 to a list of pending events within the entity. In this scenario, such pending events could be published
 altogether as a list when e.g. a ```save()``` method is called. If the event store is given a list of events
 to append, they are written to the database by the active record strategy atomically (e.g. in the same database
 transaction, or otherwise with an atomic batch operation) so that either all events will be written, or none
 of them will be written and the save operation will fail. Although there currently isn't an entity class in the
-library with such a ```save()``` method, it would seem to have affinity with the ```Aggregate``` class.)
+library with such a ```save()``` method, it would seem to have affinity with the ```Aggregate``` class.
 
 
 #### Run the code
@@ -417,9 +418,9 @@ class SequencedItemTable(Base):
                                       name='integer_sequenced_item_uc'),
 ```
 
-Now create the database table. The SQLAlchemy objects can be adapted with classes from the 
-library, which provide a common interface for the required operations (```setup_connection()```
-and ```setup_tables()```).
+Now create the database table. The SQLAlchemy objects can be adapted with a ```Datastore``` from the 
+library, which provides a common interface for the operations ```setup_connection()```
+and ```setup_tables()```.
 
 ```python
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
@@ -450,30 +451,29 @@ mysql://scott:tiger@hostname/dbname
 
 #### Event store
 
-To support different kinds of sequences, and allow for different schemas
-for storing events, the event store uses a "sequenced item mapper" to map
-domain events into sequenced items, and an "active record strategy" to map
-between sequenced items and a database table. The details have been made
-explicit so they can be easily replaced.
+To support different kinds of sequences, and to allow for different schemas
+for storing events, the event store has been factored to use a "sequenced
+item mapper" to map domain events to sequenced items, and an "active record
+strategy" to map between sequenced items and a database table. The details
+have been made explicit so they can be easily replaced.
 
-The sequenced item mapper reads the event attribute values and derives the
-values of sequenced item fields. It instrospects the sequences item class
-to map the derived values onto a sequenced item.
+The sequenced item mapper gets values from the domain event and derives the
+values of sequenced item fields. The active record strategy uses an active
+record class to access a database table.
 
-The active record strategy reads and writes data in the database, using
-an active record class. It introspects the sequence item class to map
-sequenced items on to the database object by reflection. 
+Hence, by passing in an alternative active record class to the active record
+strategy it is possible to use different column or field types in the database
+(e.g. a smaller or larger size of integer for version numbers). By using a
+different active record strategy class altogether, it is possible to use a
+different database management system.
 
-Hence, it is possible to use alternative field types (e.g. different sizes of
-integer for storing version numbers) by passing in an alternative active record
-class. It is possible to use different databases by replacing the active record
-strategy. It is possible to change the schema names (e.g. so the database records
-look more like "stored events" rather than "sequenced items") by passing in an
-alternative sequenced item class (along with a suitable active record class). And
-it is possible to extend or replace the schema by extending or replacing the active
-record strategy.
+By using an alternative sequenced item class, it is possible to use
+alternative field names in the schema, for example so the database
+records look like "stored events" rather than "sequenced items". And it
+is possible to extend or replace the schema by extending or replacing
+the sequenced item mapper. It is also possible to use a custom event store.
 
-We can also use the library's classes without any such customizations.
+To keep things simple, let's use the library's classes without any customizations.
 
 ```python
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -487,13 +487,15 @@ active_record_strategy = SQLAlchemyActiveRecordStrategy(
     sequenced_item_class=SequencedItem,
 )
 
+sequenced_item_mapper = SequencedItemMapper(
+    sequenced_item_class=SequencedItem,
+    event_sequence_id_attr='entity_id',
+    event_position_attr='entity_version',
+)
+
 event_store = EventStore(
     active_record_strategy=active_record_strategy,
-    sequenced_item_mapper=SequencedItemMapper(
-        sequenced_item_class=SequencedItem,
-        event_sequence_id_attr='entity_id',
-        event_position_attr='entity_version',
-    )
+    sequenced_item_mapper=sequenced_item_mapper
 )
 ```
 
@@ -705,7 +707,6 @@ to the database. The values are decrypted before domain events are replayed.
 
 ```python
 from eventsourcing.domain.services.cipher import AESCipher
-
 
 aes_key = '0123456789abcdef'
 
