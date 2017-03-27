@@ -1,51 +1,29 @@
+from collections import namedtuple
 from uuid import UUID
 
-from sqlalchemy.sql.schema import UniqueConstraint, Column, Sequence
-from sqlalchemy.sql.sqltypes import Integer, Float, String, Text, BigInteger
+from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
+from sqlalchemy.sql.sqltypes import BigInteger, Float, Integer, String, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.example.domainmodel import register_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
-from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, Base, SQLAlchemySettings
-from eventsourcing.infrastructure.transcoding import SequencedItemMapper
+from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
+# This test replaces the default SequencedItem class with a StoredEvent class.
+# How easy is it to customize the infrastructure to support that? We just need
+# to define the new sequenced item class, define a suitable active record class,
+# and configure the other components. It's easy.
 
-class StoredEvent(tuple):
-    __slots__ = ()
 
-    _fields = ('aggregate_id', 'aggregate_version', 'event_type', 'timestamp', 'state')
-
-    # noinspection PyInitNewSignature
-    def __new__(cls, aggregate_id, aggregate_version, event_type, timestamp, state):
-        return tuple.__new__(cls, (aggregate_id, aggregate_version, event_type, timestamp, state))
-
-    @property
-    def aggregate_id(self):
-        return self[0]
-
-    @property
-    def aggregate_version(self):
-        return self[1]
-
-    @property
-    def event_type(self):
-        return self[2]
-
-    @property
-    def timestamp(self):
-        return self[3]
-
-    @property
-    def state(self):
-        return self[4]
+StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'event_type', 'state'])
 
 
 class SqlStoredEvent(Base):
-
     # Explicit table name.
     __tablename__ = 'stored_events'
 
@@ -71,57 +49,17 @@ class SqlStoredEvent(Base):
     state = Column(Text())
 
 
-class StoredEventMapper(SequencedItemMapper):
-
-    def to_sequenced_item(self, domain_event):
-        sequenced_item = super(StoredEventMapper, self).to_sequenced_item(domain_event)
-        return StoredEvent(
-            aggregate_id=domain_event.entity_id,
-            aggregate_version=domain_event.entity_version,
-            event_type=domain_event.__class__.__name__,
-            timestamp=domain_event.timestamp,
-            state=sequenced_item.data,
-        )
-
-
-class CustomActiveRecordStrategy(SQLAlchemyActiveRecordStrategy):
-
-    def to_active_record(self, sequenced_item):
-        """
-        Returns an active record, from given sequenced item.
-        """
-        if isinstance(sequenced_item, list):
-            return [self.to_active_record(i) for i in sequenced_item]
-        return SqlStoredEvent(
-            aggregate_id=sequenced_item.aggregate_id,
-            aggregate_version=sequenced_item.aggregate_version,
-            event_type=sequenced_item.event_type,
-            timestamp=sequenced_item.timestamp,
-            state=sequenced_item.state,
-        )
-
-    def from_active_record(self, active_record):
-        """
-        Returns a sequenced item, from given active record.
-        """
-        return self.sequenced_item_class(
-            aggregate_id=active_record.aggregate_id,
-            aggregate_version=active_record.aggregate_version,
-            event_type=active_record.event_type,
-            timestamp=active_record.timestamp,
-            state=active_record.state,
-        )
-
-
 class ExampleApplicationWithAlternativeSequencedItemType(object):
     def __init__(self, datastore):
         self.event_store = EventStore(
-            active_record_strategy=CustomActiveRecordStrategy(
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=datastore,
                 active_record_class=SqlStoredEvent,
-
+                sequenced_item_class=StoredEvent,
             ),
-            sequenced_item_mapper=StoredEventMapper(
+            sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=StoredEvent,
+                sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version',
             )
         )
@@ -160,7 +98,6 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
 
     def test(self):
         with ExampleApplicationWithAlternativeSequencedItemType(self.datastore) as app:
-
             # Create entity.
             entity1 = register_new_example(a='a', b='b')
             self.assertIsInstance(entity1.id, UUID)
@@ -176,7 +113,5 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
 
             # Todo: Finish this off so we can read events.
             # Read entity from repo.
-            # retrieved_obj = app.repository[entity1.id]
-            # self.assertEqual(retrieved_obj.id, entity1.id)
-
-
+            retrieved_obj = app.repository[entity1.id]
+            self.assertEqual(retrieved_obj.id, entity1.id)

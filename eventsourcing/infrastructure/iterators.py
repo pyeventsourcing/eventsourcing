@@ -50,7 +50,7 @@ class AbstractSequencedItemIterator(six.with_metaclass(ABCMeta)):
 
     def _update_position(self, sequenced_item):
         assert isinstance(sequenced_item, self.active_record_strategy.sequenced_item_class), type(sequenced_item)
-        self._position = sequenced_item.position
+        self._position = getattr(sequenced_item, self.active_record_strategy.field_names.position)
 
     @abstractmethod
     def __iter__(self):
@@ -151,10 +151,10 @@ class ThreadedSequencedItemIterator(AbstractSequencedItemIterator):
 
             # Decide if this is the last page.
             is_last_page = (
-                num_stored_events != self.page_size
-            ) or (
-                self.all_item_counter + num_stored_events == self.limit
-            )
+                               num_stored_events != self.page_size
+                           ) or (
+                               self.all_item_counter + num_stored_events == self.limit
+                           )
 
             if not is_last_page:
                 # Update loop variables.

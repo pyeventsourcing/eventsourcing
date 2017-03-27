@@ -1,6 +1,6 @@
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     SqlIntegerSequencedItem, SqlTimestampSequencedItem
-from eventsourcing.infrastructure.transcoding import SequencedItem
+from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \
     SimpleSequencedItemteratorTestCase, ThreadedSequencedItemIteratorTestCase, TimestampSequencedItemTestCase, \

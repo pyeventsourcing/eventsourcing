@@ -6,7 +6,7 @@ import six
 from eventsourcing.exceptions import ConcurrencyError, SequencedItemError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
-from eventsourcing.infrastructure.transcoding import AbstractSequencedItemMapper
+from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
 
 
 class AbstractEventStore(six.with_metaclass(ABCMeta)):

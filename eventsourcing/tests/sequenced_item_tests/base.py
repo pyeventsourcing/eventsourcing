@@ -11,7 +11,8 @@ from eventsourcing.exceptions import SequencedItemError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
-from eventsourcing.infrastructure.transcoding import SequencedItem, SequencedItemMapper, StoredEvent
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 
@@ -485,12 +486,16 @@ class WithPersistencePolicy(WithActiveRecordStrategies):
         self.versioned_entity_event_store = EventStore(
             active_record_strategy=self.integer_sequence_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
+                sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version'
             )
         )
         self.timestamped_entity_event_store = EventStore(
             active_record_strategy=self.timestamp_sequence_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
+                sequence_id_attr_name='entity_id',
                 position_attr_name='timestamp'
             )
         )

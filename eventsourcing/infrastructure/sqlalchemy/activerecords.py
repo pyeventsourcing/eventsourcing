@@ -35,8 +35,10 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 
     def get_item(self, sequence_id, eq):
         try:
-            query = self.filter(sequence_id=sequence_id)
-            query = query.filter(self.active_record_class.position == eq)
+            filter_args = {self.field_names.sequence_id: sequence_id}
+            query = self.filter(**filter_args)
+            position_field = getattr(self.active_record_class, self.field_names.position)
+            query = query.filter(position_field == eq)
             events = six.moves.map(self.from_active_record, query)
             events = list(events)
         finally:
@@ -53,21 +55,24 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         assert limit is None or limit >= 1, limit
 
         try:
-            query = self.filter(sequence_id=sequence_id)
+            filter_args = {self.field_names.sequence_id: sequence_id}
+            query = self.filter(**filter_args)
+
+            position_field = getattr(self.active_record_class, self.field_names.position)
 
             if query_ascending:
-                query = query.order_by(asc(self.active_record_class.position))
+                query = query.order_by(asc(position_field))
             else:
-                query = query.order_by(desc(self.active_record_class.position))
+                query = query.order_by(desc(position_field))
 
             if gt is not None:
-                query = query.filter(self.active_record_class.position > gt)
+                query = query.filter(position_field > gt)
             if gte is not None:
-                query = query.filter(self.active_record_class.position >= gte)
+                query = query.filter(position_field >= gte)
             if lt is not None:
-                query = query.filter(self.active_record_class.position < lt)
+                query = query.filter(position_field < lt)
             if lte is not None:
-                query = query.filter(self.active_record_class.position <= lte)
+                query = query.filter(position_field <= lte)
 
             if limit is not None:
                 query = query.limit(limit)
@@ -88,8 +93,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 
     def add_record_to_session(self, active_record):
         if isinstance(active_record, list):
-            for r in active_record:
-                self.add_record_to_session(r)
+            [self.add_record_to_session(r) for r in active_record]
         else:
             self.datastore.db_session.add(active_record)
 
@@ -97,26 +101,23 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Returns an active record, from given sequenced item.
         """
+        # Recurse if it's a list.
         if isinstance(sequenced_item, list):
             return [self.to_active_record(i) for i in sequenced_item]
-        assert isinstance(sequenced_item, self.sequenced_item_class), type(sequenced_item)
-        return self.active_record_class(
-            sequence_id=sequenced_item.sequence_id,
-            position=sequenced_item.position,
-            topic=sequenced_item.topic,
-            data=sequenced_item.data
-        )
+
+        # Check we got a sequenced item.
+        assert isinstance(sequenced_item, self.sequenced_item_class), (self.sequenced_item_class, type(sequenced_item))
+
+        # Construct and return an ORM object.
+        orm_kwargs = {f: sequenced_item[i] for i, f in enumerate(self.field_names)}
+        return self.active_record_class(**orm_kwargs)
 
     def from_active_record(self, active_record):
         """
         Returns a sequenced item, from given active record.
         """
-        return self.sequenced_item_class(
-            sequence_id=active_record.sequence_id,
-            position=active_record.position,
-            topic=active_record.topic,
-            data=active_record.data,
-        )
+        item_args = [getattr(active_record, f) for f in self.field_names]
+        return self.sequenced_item_class(*item_args)
 
     def filter(self, *args, **kwargs):
         query = self.datastore.db_session.query(self.active_record_class)

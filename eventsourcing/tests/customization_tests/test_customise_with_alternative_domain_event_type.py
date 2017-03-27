@@ -8,12 +8,17 @@ from eventsourcing.infrastructure.cassandra.activerecords import CassandraActive
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.transcoding import SequencedItemMapper
+from eventsourcing.infrastructure.sequenceditem import SequencedItem
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
 from eventsourcing.utils.time import timestamp_from_uuid
 
+# This test has events with TimeUUID value as the 'event ID'. How easy is it to customize
+# the infrastructure to support that? We just need to make a model that uses these events,
+# define a suitable database table, and configure the other components. It's easy.
 
+# Firstly, define and entity that uses events with TimeUUIDs.
 class ExampleEntity(TimeuuidedVersionedEntity):
 
     def __init__(self, **kwargs):
@@ -50,13 +55,20 @@ class ExampleEntity(TimeuuidedVersionedEntity):
         return entity
 
 
+# Define a suitable active record class.
+#  - class CqlTimeuuidSequencedItem has been moved into the library
+
+# Define an application that uses the entity class and the table
 class ExampleApplicationWithTimeuuidSequencedItems(object):
     def __init__(self):
         self.event_store = EventStore(
             active_record_strategy=CassandraActiveRecordStrategy(
                 active_record_class=CqlTimeuuidSequencedItem,
+                sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
+                sequence_id_attr_name='entity_id',
                 position_attr_name='event_id',
             )
         )
