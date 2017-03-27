@@ -3,7 +3,7 @@ from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepo
 
 
 class SequenceRepo(EventSourcedRepository, SequenceRepository):
-    domain_class = Sequence
+    mutator = Sequence.mutate
 
     def get_entity(self, entity_id, until=None):
         """

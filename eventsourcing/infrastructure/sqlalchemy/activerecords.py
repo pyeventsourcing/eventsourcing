@@ -16,8 +16,8 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         super(SQLAlchemyActiveRecordStrategy, self).__init__(*args, **kwargs)
         self.datastore = datastore
 
-    def append_item(self, item):
-        active_record = self.to_active_record(item)
+    def append_item(self, sequenced_item):
+        active_record = self.to_active_record(sequenced_item)
         try:
             # Write stored event into the transaction.
             self.add_record_to_session(active_record)
@@ -28,7 +28,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         except IntegrityError as e:
             # Roll back the transaction.
             self.datastore.db_session.rollback()
-            self.raise_sequence_item_error(item.sequence_id, item.position, e)
+            self.raise_sequenced_item_error(sequenced_item, e)
         finally:
             # Begin new transaction.
             self.datastore.db_session.close()

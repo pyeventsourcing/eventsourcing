@@ -24,7 +24,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             try:
                 active_record.save()
             except LWTException as e:
-                self.raise_sequence_item_error(sequenced_item.sequence_id, sequenced_item.position, e)
+                self.raise_sequenced_item_error(sequenced_item, e)
 
     def get_item(self, sequence_id, eq):
         query = self.filter(s=sequence_id, p__eq=eq)
