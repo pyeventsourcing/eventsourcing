@@ -448,16 +448,19 @@ can be easily replaced.
 ```python
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
+from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 active_record_strategy = SQLAlchemyActiveRecordStrategy(
     datastore=datastore,
     active_record_class=IntegerSequencedItem,
+    sequenced_item_class=SequencedItem,
 )
 
 event_store = EventStore(
     active_record_strategy=active_record_strategy,
     sequenced_item_mapper=SequencedItemMapper(
+        sequenced_item_class=SequencedItem,
         sequence_id_attr_name='entity_id',
         position_attr_name='entity_version',
     )
@@ -554,8 +557,10 @@ class Application(object):
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=datastore,
                 active_record_class=IntegerSequencedItem,
+                sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version',
             )
@@ -631,8 +636,10 @@ class EncryptedApplication(object):
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=datastore,
                 active_record_class=IntegerSequencedItem,
+                sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version',
                 always_encrypt=True,

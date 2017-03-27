@@ -26,6 +26,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=self.datastore,
                 active_record_class=SqlIntegerSequencedItem,
+                sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
@@ -39,6 +40,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=self.datastore,
                 active_record_class=SqlTimestampSequencedItem,
+                sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
