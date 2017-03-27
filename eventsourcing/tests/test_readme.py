@@ -7,7 +7,7 @@ from unittest.case import TestCase
 import eventsourcing
 
 
-class TestUsage(TestCase):
+class TestReadmeFile(TestCase):
 
     def test_code_snippets_in_readme_file(self):
         # Extract lines of Python code from the README.md file.

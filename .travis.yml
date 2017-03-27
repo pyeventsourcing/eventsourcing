@@ -6,14 +6,25 @@ python:
   - "2.7"
   - "3.3"
   - "3.4"
-  - "pypy"
-# Suspended "3.5" on 6 July because Cassandra isn't working on Travis with Python 3.5.
+# Temporarily suspended "3.5" on 6 July 2016 because Cassandra isn't working on Travis with Python 3.5.
 # Apparently the Cassandra driver doesn't support Python 3.5, maybe it will someday.
 #  - "3.5"
+# Temporarily suspended "pypy" on 22 Feb 2017 because it is suddenly running approx an order of magnitude slower
+# than normal Python and takes so long the CI job is getting killed by Travis.
+#  - "pypy"
 
 install:
 - pip install -U pip
 - pip install -r requirements.txt
+- pip install python-coveralls
+
+env:
+  global:
+    - CASSANDRA_PROTOCOL_VERSION=2
+    - CASSANDRA_HOSTS=127.0.0.1
 
 script:
-- python -m unittest discover eventsourcing.tests -v
+- coverage run -m unittest discover eventsourcing.tests -v
+
+after_success:
+- coveralls

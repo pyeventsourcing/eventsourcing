@@ -9,7 +9,7 @@ except ImportError:
 
 setup(
     name='eventsourcing',
-    version='1.2.1',
+    version='2.0.0',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
@@ -22,17 +22,19 @@ setup(
     ] + install_requires_singledispatch,
     extras_require={
         'cassandra': [
-            'cassandra-driver',
+            'cassandra-driver==3.8.0',
         ],
         'test': [
-            'cassandra-driver',
+            'cassandra-driver==3.8.0',
             'mock',
-            # 'numpy',
             'PyCrypto',
             'sqlalchemy',
+            'sqlalchemy-utils',
+            'requests',
         ],
         'sqlalchemy': [
             'sqlalchemy',
+            'sqlalchemy-utils',
         ],
     },
     zip_safe=False,
@@ -58,5 +60,3 @@ An extensive
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
 )
-
-

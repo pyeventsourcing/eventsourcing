@@ -1,7 +1,9 @@
-cassandra-driver==3.7.0
+cassandra-driver==3.8.0
 mock==2.0.0
 pycrypto==2.6.1
 python-dateutil==2.5.3
 singledispatch==3.4.0.3
 six==1.10.0
 SQLAlchemy==1.1.1
+sqlalchemy-utils
+requests

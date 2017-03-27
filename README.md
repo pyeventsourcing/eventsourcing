@@ -1,84 +1,10 @@
 # Event Sourcing in Python
 
-[![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png?branch=master)]
-(https://travis-ci.org/johnbywater/eventsourcing)
+[![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png?branch=develop)](https://travis-ci.org/johnbywater/eventsourcing)
+[![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=develop#123)](https://coveralls.io/github/johnbywater/eventsourcing?branch=develop)
+[![Gitter chat](https://badges.gitter.im/gitterHQ/services.png)](https://gitter.im/eventsourcing-in-python/eventsourcing)
 
 A library for event sourcing in Python.
-
-
-## Features
-
-**Worked Examples** — A simple worked example application, with example
-entity class, event sourced repository, and factory method (see below).
-Included in the library is a slightly more sophisticated version of the
-example application below. Also, in the 'eventsourcing.contrib' package,
-there is a persistent "generalized suffix tree" which shows how a more
-complex model could be written.
-
-**Generic Event Store** — With an extendable set of adapters (called
-"stored event repositories" in the code) for popular ORMs and databases
-systems (e.g. Cassandra, SQLAlchemy). Also supports using Python objects
-in memory, for rapid application development. If your database system
-isn't already supported, it will be relatively easy to adapt by writing
-a custom stored event repository. The event store is also derived from
-an abstract base class in case you want to use a custom event store in
-your application. There are test cases you can use that make it easy to
-check your implementation.
-
-**Abstract Base Classes and Test Cases** — Makes it easy to develop new
-applications, with custom entities and repositories, custom domain
-events and custom subscribers (see example below, and the test cases).
-
-**Collections** — An object-oriented alternative to "joins", used for
-modelling multiplicities of different kinds.
-
-**Snapshots** — Avoids replaying an entire event stream to obtain the
-current state of an entity, hence entity access in constant time,
-rather than proportional to the number of events. Snapshotting is
-implemented as a strategy object in the application class, making it
-easy to use a custom snapshotting mechanism and storage. A snapshot
-strategy is included which reuses the capabilities of this library by
-implementing snapshots as domain events.
-
-**Optimistic Concurrency Control** — Implemented using optimistic
-concurrency controls in the adapted database. For example, with
-Cassandra this accomplishes linearly-scalable distributed optimistic
-concurrency control, guaranteeing sequential consistency of each
-event stream, across a distributed application. It is also possible to
-serialize the execution of commands on an aggregate, but that is out 
-of the scope of this package. If you wish to do that, perhaps something
-like [Zookeeper](https://zookeeper.apache.org/) might help.
-
-**Fast Forwarding** — Of entities to latest published event, used with
-snapshots and also when optimistic currency control exceptions are
-encountered.
-
-**Application-Level Encryption** — Symmetric encryption of all stored
-events, including snapshots and logged messages, using a customizable
-cipher. Can optionally be applied to particular events, or all stored
-events, or not applied at all (the default). Included is an AES cipher,
-in CBC mode with 128 bit blocksize, that uses a 16 byte encryption key
-passed in at run time, and which generates a unique 16 byte
-initialization vector for each encryption. Data is compressed before it
-is encrypted, which can mean application performance is improved when
-encryption is enabled.
-
-**Synchronous Publish-Subscribe Mechanism** — Entirely deterministic,
-with handlers called in the order they are registered, and with which
-calls to publish events do not return until all event subscribers have
-returned.
-
-**Time-Bucketed Logs** — Logged messages and log readers, for writing
-and reading an indefinitely long stream of events in a scalable manner.
-An example could be a domain event log, that allows all stored events
-in an application to be logged in a linearly scalable manner, and then 
-retrieved quickly in order, limited by number, from any point in time
-until another point in time, in reverse or ascending order.
-
-**Customizable Transcoding** — Between domain events and stored events,
-allows support to be added for serialization and deserialization of
-custom value object types, and also makes it possible to use different
-database schemas when developing a custom stored event repository.
 
 
 ## Install
@@ -88,311 +14,430 @@ the Python Package Index.
 
     pip install eventsourcing
 
-If you want to run the test suite, or try the example below, then please install with the 
-optional extra called 'test'.
+If you want to use SQLAlchemy, then please install with 'sqlalchemy'.
+
+    pip install eventsourcing[sqlalchemy]
+
+Similarly, if you want to use Cassandra, then please install with 'cassandra'.
+
+    pip install eventsourcing[cassandra]
+
+If you want to run the test suite, or try the example below with different backends, then
+please install with the 'test' optional extra.
 
     pip install eventsourcing[test]
 
-After installing with the 'test' optional extra, the test suite should pass.
+After installing with 'test', the test suite should pass.
 
     python -m unittest discover eventsourcing.tests -v
 
-Please register any issues you find.
+Please register any [issues on GitHub](https://github.com/johnbywater/eventsourcing/issues).
 
-* https://github.com/johnbywater/eventsourcing/issues
+There is also a [mailing list](https://groups.google.com/forum/#!forum/eventsourcing-users).
+And a [room on Gitter](https://gitter.im/eventsourcing-in-python/eventsourcing)
 
 
-There is also a mailing list.
+## Overview
 
-* https://groups.google.com/forum/#!forum/eventsourcing-users
+What is event sourcing? One definition suggests the state of an event sourced application
+is determined by a sequence of events. Another definition has event sourcing as a
+persistence mechanism for domain driven design. In any case, it is common for the state
+of a software application to be distributed or partitioned across a set of entities or aggregates
+in a domain model.
+
+Therefore, this library provides mechanisms useful in event sourced applications: a style
+for coding entity behaviours that emit events; and a way for the events of an
+entity to be stored and replayed to obtain the entities on demand.
+
+This document provides instructions for installing the package, highlights the main features of
+the library, includes a detailed example of usage, describes the design of the software, and has
+some background information about the project.
+
+## Features
+
+**Event store** — appends and retrieves domain events. The event store uses a
+"sequenced item mapper" and an "active record strategy" to map domain events
+to a database in ways that can be easily substituted.
+
+**Persistence policy** — subscribes to receive published domain events.
+Appends received domain events to an event store whenever a domain event is
+published. Domain events are typically published by the methods of an entity.
+
+**Event player** — reconstitutes entities by replaying events, optionally with
+snapshotting. An event player is used by an entity repository to determine the
+state of an entity. The event player retrieves domain events from the event store. 
+
+**Sequenced item mapper** — maps between domain events and "sequenced items", the archetype
+persistence model used by the library to store domain events. The library supports two
+different kinds of sequenced item: items that are sequenced by an increasing series
+of integers; and items that are sequenced in time. They support two different kinds of
+domain events: events of versioned entities (e.g. an aggregate in domain driven design),
+and unversioned timestamped events (e.g. entries in a log).
+
+**Active record strategy** — maps between "sequenced items" and database records (ORM).
+Support can be added for a new database schema by introducing a new active record strategy.
+
+**Snapshotting** — avoids replaying an entire event stream to
+ obtain the state of an entity. A snapshot strategy is included which reuses
+the capabilities of this library by implementing snapshots as time-sequenced domain
+events. It can easily be substituted with one that uses a dedicated table for snapshots.
+
+**Application-level encryption** — encrypts and decrypts stored events, using a cipher
+strategy passed as an option to the sequenced item mapper. Can be used to encrypt some
+events, or all events, or not applied at all (the default). Included is a cipher strategy
+which uses a standard AES cipher, by default in CBC mode with 128 bit blocksize and a 16
+byte encryption key, and which generates a unique 16 byte initialization vector for each
+encryption. In this cipher strategy, data is compressed before it is encrypted, which can
+mean application performance is improved when encryption is enabled.
+
+**Optimistic concurrency control** — can be used to ensure a distributed or
+horizontally scaled application doesn't become inconsistent due to concurrent
+method execution. Leverages any optimistic concurrency controls in the database
+adapted by the stored event repository. For example the Cassandra database, which implements
+the Paxos protocol, can accomplish linearly-scalable distributed optimistic concurrency
+control, guaranteeing sequential consistency of the events of an entity, across concurent
+application threads. It is also possible to serialize calls to the methods of an
+entity, but that is out of the scope of this package — if you wish to do that,
+perhaps something like [Zookeeper](https://zookeeper.apache.org/) might help.
+
+**Abstract base classes** — suggest how to structure an event sourced application.
+The library has base classes for application objects, domain entities, entity repositories,
+domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
+test cases, etc. They are well factored, relatively simple, and can be easily extended for your own
+purposes. If you wanted to create a domain model that is entirely stand-alone (recommended by
+purists for maximum longevity), you might start by copying the library classes.
+
+**Synchronous publish-subscribe mechanism** — propagates events from publishers to subscribers.
+Stable and deterministic, with handlers called in the order they are registered, and with which
+calls to publish events do not return until all event subscribers have returned. In general,
+subscribers are policies of the application, which may execute further commands whenever a
+particular kind of event is received. Publishers of domain events are typically methods of domain entities.
+
+**Worked examples** — a simple worked example application (see below), with example
+entity class, example event sourced repository, and example factory method.
 
 
 ## Usage
 
-Start by opening a new Python file in your favourite editor, or start a
-new project in your favourite IDE (I've been using PyCharm for this code).
+This section describes how to write a simple event sourced application. To create
+a working program, you can copy and paste the following code snippets into a single
+Python file.
 
-Start writing yourself a new event sourced entity class, by making a
-subclass of 'EventSourcedEntity' (from module
-'eventsourcing.domain.model.entity').
+This example follows the layered architecture: application, domain, and infrastructure.
+
+The code snippets in this section have been tested. If you installed the
+library into a Python virtualenv, please check that your virtualenv is
+activated before running your program. Please feel able to experiment by
+making variations. 
+
+
+### Step 1: Domain model
+
+Let's start with the domain model. Because the state of an event sourced application
+is determined by a sequence of events, we need to define some events.
+
+#### Domain events
+
+For the sake of simplicity in this example, let's assume things in our 
+domain can be "created", "changed", and "discarded". With that in mind,
+let's define some domain event classes.
+
+In the example below, the common attributes of a domain event, such as the entity ID
+and version, and the timestamp of the event, have been pulled up to a layer supertype
+called ```DomainEvent```.
 
 ```python
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
+import time
+
+class DomainEvent(object):
+    """Layer supertype."""
+
+    def __init__(self, entity_id, entity_version, timestamp=None, **kwargs):
+        self.entity_id = entity_id
+        self.entity_version = entity_version
+        self.timestamp = timestamp or time.time()
+        self.__dict__.update(kwargs)
 
 
-class Example(EventSourcedEntity):
-    """An example of an event sourced entity class."""
+class Created(DomainEvent):
+    """Published when an entity is created."""
+    def __init__(self, **kwargs):
+        super(Created, self).__init__(entity_version=0, **kwargs)
+
     
+class ValueChanged(DomainEvent):
+    """Published when an attribute value is changed."""
+    def __init__(self, name, value, **kwargs):
+        super(ValueChanged, self).__init__(**kwargs)
+        self.name = name
+        self.value = value
+
+    
+class Discarded(DomainEvent):
+    """Published when an entity is discarded."""
 ```
 
-The entity class domain events must be defined on the domain entity
-class. In the example below, an 'Example' entity defines 'Created',
-'AttributeChanged', and 'Discarded' events. Add these events to your 
-entity class.
+Please note, the domain event classes above do not depend on the library. The library does
+however contain a collection of different kinds of domain event classes that you can use
+in your models, for example see ```AggregateEvent```. The domain event classes in the
+library are slightly more sophisticated than the code in this example.
+
+
+#### Domain entity
+
+Now, let's use the event classes above to define an "example" entity.
+
+The ```Example``` entity class below has an entity ID, a version number, and a
+timestamp. It also has a property ```foo```, and a ```discard()``` method to use
+when the entity is discarded. The factory method ```create_new_example()``` can
+be used to create new entities.
+
+All the methods follow a similar pattern. They construct an event that represents the result
+of the operation. They use a "mutator function" function ```mutate()``` to apply the event
+to the entity. And they "publish" the event for the benefit of any subscribers.
+
+When replaying a sequence of events, a "mutator function" is used to apply an event to
+an initial state. For the sake of simplicity in this example, we'll use an if-else block
+that can handle the different types of events.
 
 ```python
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
-
-
-class Example(EventSourcedEntity):
-    """An example of an event sourced entity class."""
-
-    class Created(EventSourcedEntity.Created):
-        pass
-
-    class AttributeChanged(EventSourcedEntity.AttributeChanged):
-        pass
-
-    class Discarded(EventSourcedEntity.Discarded):
-        pass
-
-```
-
-When are these events published? The 'Created' event is published by a
-factory method (see below), its values are used to initialise an
-entity. The 'Discarded' event is published by the discard() method,
-which is defined on class 'EventSourcedEntity'.
-
-The 'mutableproperty' decorator is used to define mutable properties
-'a' and 'b'. The decorator introduces a setter that generates
-'AttributeChanged' events when values are assigned to the properties.
-
-Add the two mutable properties 'a' and 'b' to your entity class.
-
-```python
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
-
-
-class Example(EventSourcedEntity):
-    """An example of an event sourced entity class."""
-
-    class Created(EventSourcedEntity.Created):
-        pass
-
-    class AttributeChanged(EventSourcedEntity.AttributeChanged):
-        pass
-
-    class Discarded(EventSourcedEntity.Discarded):
-        pass
-
-    @mutableproperty
-    def a(self):
-        return self._a
-
-    @mutableproperty
-    def b(self):
-        return self._b
-```
-
-That's everything you need to publish domain events. How are they
-applied?
-
-The entity class inherits a mutator method that is capable of handling
-those events. For example, when a 'Created' event is handled by the
-mutator, the attribute values of the Created event object are passed
-into the entity class constructor. A factory method will instantiate a
-Created event with the attribute values expected by the entity class
-constructor.
-
-Add a constructor to your entity class which takes two positional
-arguments ('a' and 'b') and keyword arguments ('kwargs') which it
-passes through to the base class constructor.
-
-
-```python
-from eventsourcing.domain.model.entity import EventSourcedEntity, mutableproperty
-
-
-class Example(EventSourcedEntity):
-    """An example of an event sourced entity class."""
-
-    class Created(EventSourcedEntity.Created):
-        pass
-
-    class AttributeChanged(EventSourcedEntity.AttributeChanged):
-        pass
-
-    class Discarded(EventSourcedEntity.Discarded):
-        pass
-
-    def __init__(self, a, b, **kwargs):
-        super(Example, self).__init__(**kwargs)
-        self._a = a
-        self._b = b
-
-    @mutableproperty
-    def a(self):
-        return self._a
-
-    @mutableproperty
-    def b(self):
-        return self._b
-
-```
-
-
-Next, define a factory method that returns new entity instances. Rather
-than directly constructing the entity object instance, it should firstly
-instantiate a 'Created' domain event, and then call the mutator to
-obtain an entity object. The factory method then publishes the event
-(for example, so that it might be saved into the event store by the
-persistence subscriber). Finally it returns the entity to the caller.
-
-```python
-from eventsourcing.domain.model.events import publish
 import uuid
 
-def register_new_example(a, b):
-    entity_id = uuid.uuid4().hex
-    event = Example.Created(entity_id=entity_id, a=a, b=b)
-    entity = Example.mutate(event=event)
-    publish(event=event)
-    return entity
-```
-
-That's everything needed to create new entities. How can existing
-entities be obtained?
-
-Entities are retrieved from repositories.
- 
-Define an event sourced repository class for your entity. Inherit from
-eventsourcing.infrastructure.event_sourced_repo.EventSourcedRepository
-and set the 'domain_class' attribute on the subclass.
-
-```python
-from eventsourcing.infrastructure.event_sourced_repo import EventSourcedRepository    
-
-class ExampleRepository(EventSourcedRepository):
-
-    domain_class = Example
-```
-
-Application objects are used to bind domain and infrastructure. This
-normally involves having some kind of stored event repository suitable
-for the database system you want to use. The stored event repository is
-used by the event store, which is used by both the persistence
-subscriber to make events durable, and by event players in repositories
-to get the events for an entity that has been requested.
-
-Please note, for convenience when using SQLAlchemy or Cassandra to
-store events, two application sub-classes are provided:
-'EventSourcingWithSQLAlchemy' and 'EventSourcingWithCassandra'.
-
-Add an application class, inheriting from 'EventSourcingWithSQLAlchemy',
-that has an event sourced repo. This inheritance provides a
-persistence subscriber, an event store, and a stored event repository
-that works with SQLAlchemy.
+from eventsourcing.domain.model.events import publish
 
 
-```python
-from eventsourcing.application.with_sqlalchemy import EventSourcingWithSQLAlchemy
+class Example(object):
+    """Example domain entity."""
+    def __init__(self, entity_id, entity_version=0, foo='', timestamp=None):
+        self._id = entity_id
+        self._version = entity_version
+        self._is_discarded = False
+        self._created_on = timestamp
+        self._last_modified_on = timestamp
+        self._foo = foo
 
-class ExampleApplication(EventSourcingWithSQLAlchemy):
+    @property
+    def id(self):
+        return self._id
 
-    def __init__(self, **kwargs):
-        super(ExampleApplication, self).__init__(**kwargs)
-        self.example_repo = ExampleRepository(
-            event_store=self.event_store,
+    @property
+    def version(self):
+        return self._version
+
+    @property
+    def is_discarded(self):
+        return self._is_discarded
+
+    @property
+    def created_on(self):
+        return self._created_on
+
+    @property
+    def last_modified_on(self):
+        return self._last_modified_on
+
+    @property
+    def foo(self):
+        return self._foo
+    
+    @foo.setter
+    def foo(self, value):
+        assert not self._is_discarded    
+        # Instantiate a domain event.
+        event = ValueChanged(
+            entity_id=self.id,
+            entity_version=self.version,
+            name='foo',
+            value=value,
         )
+        # Apply the event to self.
+        mutate(self, event)
+        # Publish the event for others.
+        publish(event)
 
-```
-
-For simplicity, this application has just one type of entity. A more
-realistic application may involve several different types of entity,
-several factory methods, several entity repositories, and different
-event sourced projections (mutator funtions).
-
-As shown below, an event sourced application object can be used as a
-context manager, which closes the application at the end of the block.
-
-The 'db_uri' arg is used in the application constructor to configure
-the database connection. And also a True value for arg 'enable_occ' is
-given, so that optimistic concurrency control  is enabled. If you
-aren't developing a distributed (or otherwise concurrent and
-potentially contentious) application, you don't need to
-enable optimistic concurrency control.
-
-With an instance of the example application, call the factory method
-register_new_entity() to register a new entity. Then, update an
-attribute value by assigning a value. Use the generated entity ID to
-subsequently retrieve the registered entity from the repository. Check
-the changed attribute value has been stored. Discard the entity and see
-that the repository gives a key error when an attempt is made to obtain
-the entity after it has been discarded:
+    def discard(self):
+        assert not self._is_discarded
+        # Instantiate a domain event.
+        event = Discarded(entity_id=self.id, entity_version=self.version)
+        # Apply the event to self.
+        mutate(self, event)
+        # Publish the event for others.
+        publish(event)
 
 
-```python
-db_uri = 'sqlite:///:memory:'
-with ExampleApplication(db_uri=db_uri, enable_occ=True) as app:
-    
-    # Register a new example.
-    example1 = register_new_example(a=1, b=2)
-    
-    # Check the example is available in the repo.
-    assert example1.id in app.example_repo
-    
-    # Check the attribute values.
-    entity1 = app.example_repo[example1.id]
-    assert entity1.a == 1
-    assert entity1.b == 2
-    
-    # Change attribute values.
-    entity1.a = 123
-    entity1.b = 234
-    
-    # Check the new values are available in the repo.
-    entity1 = app.example_repo[example1.id]
-    assert entity1.a == 123
-    assert entity1.b == 234
-    
-    # Discard the entity.
-    entity1.discard()
+def create_new_example(foo):
+    """Factory method for Example entities."""
 
-    assert example1.id not in app.example_repo
-    
-    # Getting a discarded entity from the repo causes a KeyError.
-    try:
-        app.example_repo[example1.id]
-    except KeyError:
-        pass
+    # Create an entity ID.
+    entity_id = uuid.uuid4()
+    # Instantiate a domain event.
+    event = Created(entity_id=entity_id, foo=foo)
+    # Mutate the event to construct the entity.
+    entity = mutate(None, event)
+    # Publish the event for others.
+    publish(event=event)
+    # Return the new entity.
+    return entity
+
+
+def mutate(entity, event):
+    """Mutator function for Example entities."""
+
+    # Handle "created" events by instantiating the entity class.
+    if isinstance(event, Created):
+        entity = Example(**event.__dict__)
+        entity._version += 1
+        return entity
+        
+    # Handle "value changed" events by setting the named value.
+    elif isinstance(event, ValueChanged):
+        assert not entity.is_discarded
+        setattr(entity, '_' + event.name, event.value)
+        entity._version += 1
+        entity._last_modified_on = event.timestamp
+        return entity
+        
+    # Handle "discarded" events by returning 'None'.
+    elif isinstance(event, Discarded):
+        assert not entity.is_discarded
+        entity._version += 1
+        entity._is_discarded = True
+        return None
     else:
-        assert False
+        raise NotImplementedError(type(event))
 ```
 
-Congratulations! You have created a new event sourced application.
+Apart from using the library's ```publish()``` function, the example entity class does not depend on the
+library. It doesn't inherit from a "magical" entity base class. It just publishes events that it has
+applied to itself. The library does however contain domain entity classes that you can use to build your
+domain model. For example see the ```Aggregate``` class, which is also a timestamped, versioned entity.
+The library classes are slightly more refined than the code in this example.
 
-If you wanted also to enable application-level encryption, pass in a
-cipher, and a True value for 'always_encrypt_stored_events'. With
-application level encryption, your data below the application will
-be encrypted at rest and in transit, which can help prevent data loss.
+(Note on entity ```save()``` methods: The library does support appending events to the event store in
+batches, so that you could style your entities to have internal list of pending events: events that are
+indirectly emitted by the operations, not published immedidately for others but instead are added
+to a list of pending events within the entity. In this scenario, such pending events could be published
+altogether as a list when e.g. a ```save()``` method is called. If the event store is given a list of events
+to append, they are written to the database by the active record strategy atomically (e.g. in the same database
+transaction, or otherwise with an atomic batch operation) so that either all events will be written, or none
+of them will be written and the save operation will fail. Although there currently isn't an entity class in the
+library with such a ```save()``` method, it would seem to have affinity with the ```Aggregate``` class.)
+
+
+#### Run the code
+
+With this stand-alone code, we can create a new example entity object. We can update its property
+```foo```, and we can discard the entity using the ```discard()``` method. Let's firstly subscribe to
+receive the events that will be published, so we can see what happened.
 
 ```python
-from eventsourcing.domain.services.cipher import AESCipher
+from eventsourcing.domain.model.events import subscribe
 
-cipher = AESCipher(aes_key='0123456789abcdef')
+# A list of received events.
+received_events = []
 
-with ExampleApplication(db_uri=db_uri, enable_occ=True, cipher=cipher,
-                        always_encrypt_stored_events=True):
+# Subscribe to receive published events.
+subscribe(lambda e: received_events.append(e))
 
-    # Register a new example.
-    example1 = register_new_example(a='secret data', b='more secrets')
-    
+# Create a new entity using the factory.
+entity1 = create_new_example(foo='bar1')
 
+# Check the entity has an ID.
+assert entity1.id
+
+# Check the entity has a version number.
+assert entity1.version == 1
+
+# Check the received events.
+assert len(received_events) == 1, received_events
+assert isinstance(received_events[0], Created)
+assert received_events[0].entity_id == entity1.id
+assert received_events[0].entity_version == 0
+assert received_events[0].foo == 'bar1'
+
+# Check the value of property 'foo'.
+assert entity1.foo == 'bar1'
+
+# Update property 'foo'.
+entity1.foo = 'bar2'
+
+# Check the new value of 'foo'.
+assert entity1.foo == 'bar2'
+
+# Check the version number has increased.
+assert entity1.version == 2
+
+# Check the received events.
+assert len(received_events) == 2, received_events
+assert isinstance(received_events[1], ValueChanged)
+assert received_events[1].entity_version == 1
+assert received_events[1].name == 'foo'
+assert received_events[1].value == 'bar2'
 ```
 
-If you want to model other domain events, then simply declare them on
-the entity class like the events above, and implement methods on the
-entity which instantiate those domain events, apply them to the entity,
-publish to subscribers. Add mutator functions to apply the domain
-events to the entity objects, for example by directly changing the
-internal state of the entity. See the beat_heart() method on the
-extended example application included in this distribution.
 
-The example above uses an SQLite in memory relational database, but you
-could change 'db_uri' to another connection string if you have a real
-database. Here are some example connection strings - for an SQLite file,
-for a PostgreSQL database, and for a MySQL database. See SQLAlchemy's
-create_engine() documentation for details.
+### Step 2: Infrastructure
+
+Since the application state is determined by a sequence of events, the events of the
+application must somehow be stored, and the entities somehow retrieved.
+
+#### Database table
+
+Let's start by setting up a simple database. We can use SQLAlchemy to define a
+database table that stores integer-sequenced items.
+
+```python
+from sqlalchemy.ext.declarative.api import declarative_base
+from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
+from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
+from sqlalchemy_utils import UUIDType
+
+Base = declarative_base()
+
+
+class SequencedItemTable(Base):
+    __tablename__ = 'sequenced_items'
+
+    id = Column(Integer(), Sequence('integer_sequened_item_id_seq'), primary_key=True)
+
+    # Sequence ID (e.g. an entity or aggregate ID).
+    sequence_id = Column(UUIDType(), index=True)
+
+    # Position (index) of item in sequence.
+    position = Column(BigInteger(), index=True)
+
+    # Topic of the item (e.g. path to domain event class).
+    topic = Column(String(255))
+
+    # State of the item (serialized dict, possibly encrypted).
+    data = Column(Text())
+
+    # Unique constraint.
+    __table_args__ = UniqueConstraint('sequence_id', 'position',
+                                      name='integer_sequenced_item_uc'),
+```
+
+Now create the database and tables. The SQLAlchemy objects are adapted with classes from the 
+library, which provide a common interface for the required operations across all adapted
+databases.
+
+```python
+from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
+
+datastore = SQLAlchemyDatastore(
+    base=Base,
+    settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
+    tables=(SequencedItemTable,),
+)
+
+datastore.setup_connection()
+datastore.setup_tables()
+```
+
+This example uses an SQLite in memory relational database. You can
+change ```uri``` to any valid connection string. Here are some example
+connection strings: for an SQLite file; for a PostgreSQL database; and
+for a MySQL database. See SQLAlchemy's create_engine() documentation for details.
 
 ```
 sqlite:////tmp/mydatabase
@@ -402,49 +447,356 @@ postgresql://scott:tiger@localhost:5432/mydatabase
 mysql://scott:tiger@hostname/dbname
 ```
 
-Todo: Develop above to be a tutorial.
+
+#### Event store
+
+To support different kinds of sequences, and allow for different schemas
+for storing events, the event store uses a "sequenced item mapper" to map
+domain events into sequenced items, and an "active record strategy" to map
+between sequenced items and data in a database. The details have been made
+explicit so they can be easily replaced.
+
+The sequenced item mapper reads the event attribute values and derives the
+values of sequenced item fields. It instrospects the sequences item class
+to map the derived values onto a sequenced item.
+
+The active record strategy reads and writes data in the database, using
+an active record class. It introspects the sequence item class to map
+sequenced items on to the database object by reflection. 
+
+Hence, it is possible to use alternative field types (e.g. different sizes of
+integer for storing version numbers) by passing in an alternative active record
+class. It is possible to use different databases by replacing the active record
+strategy. It is possible to change the schema names (e.g. so the database records
+look more like "stored events" rather than "sequenced items") by passing in an
+alternative sequenced item class (along with a suitable active record class). And
+it is possible to extend or replace the schema by extending or replacing the active
+record strategy.
+
+We can also use the library's classes without any such customizations.
+
+```python
+from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
+from eventsourcing.infrastructure.sequenceditem import SequencedItem
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+
+active_record_strategy = SQLAlchemyActiveRecordStrategy(
+    datastore=datastore,
+    active_record_class=SequencedItemTable,
+    sequenced_item_class=SequencedItem,
+)
+
+event_store = EventStore(
+    active_record_strategy=active_record_strategy,
+    sequenced_item_mapper=SequencedItemMapper(
+        sequenced_item_class=SequencedItem,
+        event_sequence_id_attr='entity_id',
+        event_position_attr='entity_version',
+    )
+)
+```
+
+#### Entity repository
+
+It is common pattern to retrieve entities from a repository. An event sourced
+repository for the ```example``` entity class can be constructed directly using the
+```EventSourcedRepository``` library class. The repository is given the mutator function
+```mutate()``` and the event store, so that it can make an event player.
 
 
-### Upgrading From 1.0.x to 1.1.x
+```python
+from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
-You don't need to do anything. However before using the new optimistic concurrency controls
-you will need to migrate an existing database schema to have the new 'entity_versions' table,
-and you will also need to add a record to that table for each stored event. See notes in doc
-string of EventSourcingApplication class for a zero-downtime migration approach.
+example_repository = EventSourcedRepository(
+    event_store=event_store,
+    mutator=mutate,
+)
+```
 
-To enable optimistic concurrency control, set the application constructor argument named
-'enable_occ' to a True value. 
+#### Run the code
+
+Now, let's firstly write the events we received earlier into the event store.
+
+```python
+
+# Put each received event into the event store.
+for event in received_events:
+    event_store.append(event)
+
+# Check the events exist in the event store.
+stored_events = event_store.get_domain_events(entity1.id)
+assert len(stored_events) == 2, (received_events, stored_events)
+```
+
+Now the entity can now be retrieved from the repository, using its dictionary-like interface.
+
+```python
+retrieved_entity = example_repository[entity1.id]
+assert retrieved_entity.foo == 'bar2'
+```
+
+To keep things grounded, remember that we can always get the sequenced items directly from the active record
+strategy. A sequenced item is tuple containing a serialised representation of the domain event. In the library, a
+```SequencedItem``` is a Python tuple with four fields: ```sequence_id```, ```position```,
+```topic```, and ```data```. By default, an event's ```entity_id``` attribute is mapped to the ```sequence_id``` field,
+and the event's ```entity_version``` attribute is mapped to the ```position``` field. The ```topic``` field of a
+sequenced item is used to identify the event class, and the ```data``` field represents the state of the event (a 
+JSON string).
+
+```python
+sequenced_items = event_store.active_record_strategy.get_items(entity1.id)
+
+assert len(sequenced_items) == 2
+
+assert sequenced_items[0].sequence_id == entity1.id
+assert sequenced_items[0].position == 0
+assert 'Created' in sequenced_items[0].topic
+assert 'bar1' in sequenced_items[0].data
+
+assert sequenced_items[1].sequence_id == entity1.id
+assert sequenced_items[1].position == 1
+assert 'ValueChanged' in sequenced_items[1].topic
+assert 'bar2' in sequenced_items[1].data
+```
+
+Similar to the support for storing events in SQLAlchemy, there
+are classes in the library for Cassandra. Support for other
+databases is forthcoming.
 
 
-### Upgrading From 0.9.4 to 1.0.x
+### Step 3: Application
 
-If you are upgrading from version 0.9.4, or earlier, please note that version 0.9.4 is 
-the last version with ascending as the declared ordering of 'event_id' in column family 'cql_stored_event'.
-Subsequent versions have the this ordering declared as descending. The change was made to support both paging
-through long histories of events and getting only recent events after a snapshot.
+Although we can do everything at the module level, an application object brings
+things together.
 
-A few things have been renamed, for example '@mutableproperty' is the new name for '@eventsourcedproperty'.
-This change was made to reflect the fact that immutable properties are also event sourced.
+The application has an event store, and can have entity repositories.
 
-The EventSourcedEntity class now has a property 'created_on', which replaces the attribute '_created_on'.
-This change follows from the fact that the domain events no longer have an floating point attribute 'timestamp' 
-but instead a UUID attribute 'domain_event_id', which is set on an event sourced entity as '_initial_event_id'.
-That UUID value is used to generate the floating point timestamp value of the 'created_on' property.
+Most importantly, the application has a persistence policy. The persistence
+policy firstly subscribes to receive events when they are published, and it
+uses the event store to store all the events that it receives.
 
-Please note, the mutator style has changed to use the `singledispatch` package. Mutators were implemented as a
-big if-elif-else block. Subclasses of EventSourcedEntity must implement a static method called _mutator() in
-order to have their own mutator function invoked when mutate() is called.
+As a convenience, it is useful to make the application function as a Python
+context manager, so that the application can close the persistence policy,
+unsubscribing itself from receiving further domain events.
 
-There is a new method called _apply() on EventSourcedEntity, which makes operations that need to apply events
-have a suitably named method to call. The apply() method calls the mutate() class method, which is also used by the
-event source repository to replay events. The mutate() class method calls the static method _mutator() with the
-event and an initial state. So the static method _mutator is a good method to override in order to introduce 
-a mutator for the class.
+```python
+from eventsourcing.application.policies import PersistencePolicy
 
-Please see the Example class for details, and the documentation for singledispatch.
+class Application(object):
 
-Also, for Cassandra users, the table name for stored events has changed to 'stored_events'. The column names 
-have changed to be single characters, for storage efficiency. Production data will need to be migrated.
+    def __init__(self, datastore):
+        self.event_store = EventStore(
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+                datastore=datastore,
+                active_record_class=SequencedItemTable,
+                sequenced_item_class=SequencedItem,
+            ),
+            sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
+                event_sequence_id_attr='entity_id',
+                event_position_attr='entity_version',
+            )
+        )
+        self.example_repository = EventSourcedRepository(
+            event_store=self.event_store,
+            mutator=mutate,
+        )
+        self.persistence_policy = PersistencePolicy(self.event_store)
+        
+    def create_example(self, foo):
+        return create_new_example(foo=foo)
+        
+    def close(self):
+        self.persistence_policy.close()
+
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+```
+
+After instantiating the application, we can create more example entities
+and expect they will be immediately available in the repository.
+
+Please note, a discarded entity can not be retrieved from the repository.
+The repository's dictionary-like interface will raise a Python ```KeyError```
+exception instead of returning an entity.
+
+```python
+with Application(datastore) as app:
+
+    entity2 = app.create_example(foo='bar3')
+    
+    assert entity2.id in app.example_repository
+    
+    assert app.example_repository[entity2.id].foo == 'bar3'
+    
+    entity2.foo = 'bar4'
+    
+    assert app.example_repository[entity2.id].foo == 'bar4'
+
+    # Discard the entity.    
+    entity2.discard()
+    assert entity2.id not in app.example_repository
+    
+    try:
+        app.example_repository[entity2.id]
+    except KeyError:
+        pass
+    else:
+        raise Exception('KeyError was not raised')
+```
+
+Congratulations. You have created yourself an event sourced application.
+
+A slightly more developed example application can be found in the library
+module ```eventsourcing.example.application```.
+
+
+### Step 4: Application-level encryption
+
+To enable encryption, pass in a cipher strategy object when constructing
+the sequenced item mapper, and set ```always_encrypt``` to a True value.
+
+```python
+class EncryptedApplication(object):
+
+    def __init__(self, datastore, cipher):
+        self.event_store = EventStore(
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+                datastore=datastore,
+                active_record_class=SequencedItemTable,
+                sequenced_item_class=SequencedItem,
+            ),
+            sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
+                event_sequence_id_attr='entity_id',
+                event_position_attr='entity_version',
+                always_encrypt=True,
+                cipher=cipher,
+            )
+        )
+        self.example_repository = EventSourcedRepository(
+            event_store=self.event_store,
+            mutator=mutate,
+        )
+        self.persistence_policy = PersistencePolicy(self.event_store)
+        
+    def create_example(self, foo):
+        return create_new_example(foo=foo)
+        
+    def close(self):
+        self.persistence_policy.close()
+
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+```
+
+You can use the AES cipher strategy provided by this library. Alternatively,
+you can craft your own cipher strategy object.
+
+Event attribute values are encrypted inside the application before they are mapped
+to the database. The values are decrypted before domain events are replayed.
+
+```python
+from eventsourcing.domain.services.cipher import AESCipher
+
+
+aes_key = '0123456789abcdef'
+
+with EncryptedApplication(datastore, cipher=AESCipher(aes_key)) as app:
+
+    entity3 = app.create_example(foo='secret info')
+
+    # Without encryption, application state is visible in the database.
+    item1 = app.event_store.active_record_strategy.get_item(entity1.id, 0)
+    assert 'bar1' in item1.data
+    
+    # With encryption enabled, application state is not visible in the database. 
+    item2 = app.event_store.active_record_strategy.get_item(entity3.id, 0)
+    assert 'secret info' not in item2.data
+    
+    # Events are decrypted inside the application.
+    retrieved_entity = app.example_repository[entity3.id]
+    assert 'secret info' in retrieved_entity.foo    
+```
+
+
+### Step 5: Optimistic concurrency control
+
+With the application above, because of the unique constraint
+on the SQLAlchemy table, it isn't possible to branch the
+evolution of an entity and store two events at the same version.
+
+Hence, if the entity you are working on has been updated elsewhere,
+an attempt to update your object will raise a concurrency exception.
+
+```python
+from eventsourcing.exceptions import ConcurrencyError
+
+with Application(datastore) as app:
+
+    a = app.example_repository[entity1.id]
+    b = app.example_repository[entity1.id]
+    
+    # Change the entity using instance 'a'.
+    a.foo = 'bar6'
+    
+    # Because 'a' has been changed since 'b' was obtained,
+    # 'b' cannot be updated unless it is firstly refreshed.
+    try:
+        b.foo = 'bar7'
+    except ConcurrencyError:
+        pass
+    else:
+        raise Exception("Failed to control concurrency of 'b'.")
+      
+    # Refresh object 'b', so that 'b' has the current state of the entity.
+    b = app.example_repository[entity1.id]
+    assert b.foo == 'bar6'
+
+    # Changing the entity using instance 'b' now works because 'b' is up to date.
+    b.foo = 'bar7'    
+    assert app.example_repository[entity1.id].foo == 'bar7'
+    
+    # Now 'a' does not have the current state of the entity, and cannot be changed.
+    try:
+        a.foo = 'bar8'
+    except ConcurrencyError:
+        pass
+    else:
+        raise Exception("Failed to control concurrency of 'a'.")
+```
+
+
+## Design
+
+The design of the library follows the layered architecture: interfaces, application, domain, and infrastructure.
+
+The domain layer contains a model of the supported domain, and services that depend on that
+model. The infrastructure layer encapsulates the infrastructural services required by the application.
+
+The application is responsible for binding domain and infrastructure, and has policies
+such as the persistence policy, which stores domain events whenever they are published by the model.
+
+The example application has an example respository, from which example entities can be retrieved. It
+also has a factory method to register new example entities. Each repository has an event player, which all share
+an event store with the persistence policy. The persistence policy uses the event store
+to store domain events, and the event players use the event store to retrieve the stored events. The event
+players also share with the model the mutator functions that are used to apply domain events to an initial state.
+
+Functionality such as mapping events to a database, or snapshotting, is factored as strategy objects and injected
+into dependents by constructor parameter. Application level encryption is a mapping option.
+
+The sequenced item persistence model allows domain events to be stored in wide variety of database 
+services, and optionally makes use of any optimistic concurrency controls the database system may afford.
+
+![UML Class Diagram](https://www.lucidchart.com/publicSegments/view/098200e1-0ca9-4660-be7f-11f8f13a2163/image.png)
 
 
 ## Background
@@ -475,7 +827,7 @@ Inspiration:
 
 * Robert Smallshire's brilliant example code on Bitbucket
     * https://bitbucket.org/sixty-north/d5-kanban-python/src
-    
+
 * Various professional projects that called for this approach, across which I didn't want to rewrite
   the same things each time
 
@@ -489,193 +841,14 @@ See also:
     * https://en.wikipedia.org/wiki/Object-relational_impedance_mismatch
 
 
-## More Details About the Features
+## Upgrade notes
 
-* Example application of event sourcing, with an example event sourced entity and example domain events, and with
- an example event sourced repository containing example entity instances, and an example entity factory method
+### Upgrading from 1.x to 2.x
 
-* Storage-specific event sourced application classes
-
-    * Base class for event sourced applications with SQLAlchemy
-
-    * Base class for event sourced applications with Cassandra
-
-    * Base class for event sourced applications with simple Python objects (non-persistent)
-
-* Base class for event sourced applications, which provides an event store and a persistence subscriber, but 
- which requires subclasses to implement a method that provides a stored event repository instance
-
-* Example event sourced entity
-
-* Base class for event sourced entities
-
-    * Basic domain events, to model basic "created", "attribute changed", and "discarded" entity events
-
-    * Mutator function, to apply a domain event to an entity, variously according to the type of the event
-
-    * Event sourced property decorator, to help declare simple event sourced properties
-
-    * A "discard" method which publishes the discarded event, to call when an entity is no longer wanted, 
-
-* Domain event base class, to model events in a domain
-
-* In-process publish-subscribe mechanism, for in-process domain event propagation
-
-* Persistence subscriber class, to subscribe to locally published domain events and append them to an event store
-
-* Example event sourced domain entity repository
-
-* Base class for event sourced domain entity repositories
-
-* Event player, to recover a domain entity for a given domain entity ID, using an event store and a mutator
-
-* Domain event store class
-
-    * Method to append a new domain event
-    
-    * Method to get all the domain events for an entity
-
-* Concrete stored event repository classes
-
-    * Stored event repository to persist stored event objects in a relational database, using SQLAlchemy (as an ORM)
-
-    * Stored event repository to persist stored events in Cassandra
-
-    * Stored event repository using simple Python objects (non-persistent)
-
-* Generic stored event class, to provide a form in which to persist domain events
-
-* Function to get event topic from domain event class
-
-* Function to resolve event topic into domain event class
-
-* Function to serialize a domain event object to a stored event object
-
-* Function to recreate a domain event object from a stored event object
-
-* Base class for stored event repositories
-
-    * Method to append a new stored event to the stored collection
-
-    * Method to get all stored events for given entity ID
-
-    * Method to get all stored events for given domain event topic
-
-    * Method to get single domain event for given event ID
-
-* Entity snapshots, to avoid replaying all events
-
-* Method to get domain events for given entity ID, from given time
-
-* Method to get domain events for given entity ID, until given time
-
-* Method to get a limited number of domain events 
-
-* Generator that retrieves events in a succession of pages, emitting a
- continuous stream in ascending or descending order
-
-* Time-bucketed logs, useful for accumulating an indefinite list of
- messages in an accessible manner
-
-* Encrypted stored events, providing application level encryption
-
-* Set-based collections
-
-* Optimistic concurrency control
-
-* Generalized suffix trees
-
-Todo: Develop above to be an API reference.
-
-
-## Forthcoming Features
-
-* List-based collections (forthcoming)
-
-* Stored event repository to persist stored events in a file using a
- very simple file format (forthcoming)
-
-* Stored event repository to persist stored events using MongoDB (forthcoming)
-
-* Stored event repository to persist stored events using HBase (forthcoming)
-
-* Stored event repository to persist stored events using DynamoDB (forthcoming)
-
-* Method to delete all domain events for given domain entity ID (forthcoming)
-
-* Method to get all domain events in the order they occurred (forthcoming)
-
-* Storage retries and fallback strategies, to protect against failing to write an event (forthcoming)
-
-* Subscriber that publishes domain events to RabbitMQ (forthcoming)
-
-* Subscriber that publishes domain events to Amazon SQS (forthcoming)
-
-* Republisher that subscribes to RabbitMQ and publishes domain events locally (forthcoming)
-
-* Republisher that subscribers to Amazon SQS and publishes domain event locally (forthcoming)
-
-* Linked pages of domain events ("Archived Log"), to allow event sourced projections easily to make sure they have 
-all the events (forthcoming)
-
-* Base class for event sourced projections or views (forthcoming)
-
-    * In memory event sourced projection, which needs to replay entire event stream when system starts up (forthcoming)
-
-    * Persistent event sourced projection, which stored its projected state, but needs to replay entire event stream
-      when initialized  (forthcoming)
-
-* Event sourced indexes, as persisted event source projections, to discover extant entity IDs (forthcoming)
-
-* Event pointer, to refer to an event in a stream (forthcoming)
-
-* Updating stored events, to support domain model migration (forthcoming)
-
-* Something to store serialized event attribute values separately from the other event information, to prevent large 
-attribute values inhibiting performance and stability - different sizes could be stored in different ways... 
-(forthcoming)
-
-* Different kinds of stored event
-    * IDs generated from content, e.g. like Git (forthcoming)
-    * cryptographically signed stored events (forthcoming)
-    
-* Branch and merge mechanism for domain events (forthcoming)
-
-* Support for asynchronous I/O, with an application that uses an event loop (forthcoming)
-
-* More examples (forthcoming)
-
-* Great documentation! (forthcoming)
-
-* Context maps (so we can use univerally unique IDs within a context,
-  even though entities arise from other contexts and may not have
-  universally unique IDs e.g. integer sequences)
-
-* Optionally decouple topics from actual code, so classes can be moved.
-
-Todo: Develop above to be a release plan.
-
-
-## Possible Future Backwards-Incompatible Changes
-
-* Remove id_prefixes in stored entity ID, because it makes the code a
-  bit complicated, since each domain event needs to know which entity
-  class it is for, and that's not always desirable. This would involve
-  internal code changes that probably wouldn't impact on applications
-  using this package, however it would impact existing data. This
-  change might not even be a good idea.
-
-* Move base event classes off from abstract entity classes, so developers
-  can't get confused with events defined on super classes that can't be
-  retrieved from the event store, because they don't know which concrete
-  class they pertain to, so can't be written with correct id prefixes.
-  This would be a code change rather than a data migration thing. This
-  wouldn't be an issue if we didn't use ID prefixes.
-
-* Stored event repositories that primarily use version numbers instead
-  of UUIDs to key and order stored events. This wouldn't be a backwards
-  incompatible change, but an alternative transcoder and stored
-  event repo.
+Version 2 departs from version 1 by using sequenced items as the persistence model (was stored events
+in version 1). This makes version 2 incompatible with version 1. However, with a little bit of code
+it would be possible to rewrite all existing stored events from version 1 into the version 2 sequenced
+items, since the attribute values are broadly the same. If you need help with this, please get in touch.
 
 
 ## Project

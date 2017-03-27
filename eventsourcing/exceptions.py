@@ -1,46 +1,42 @@
 class EventSourcingError(Exception):
-    """
-    Base class for explicit errors in the eventsourcing mechanism.
-    """
-    pass
+    """Base eventsourcing exception."""
 
 
 class TopicResolutionError(EventSourcingError):
-    """
-    Error resolving a topic to a Python class.
-    """
-    pass
+    """Raised when unable to resolve a topic to a Python class."""
 
 
-class EntityVersionDoesNotExist(EventSourcingError):
-    """
-    Error when accessing an entity version.
-    """
-    pass
+class EntityVersionNotFound(EventSourcingError):
+    """Raise when accessing an entity version that does not exist."""
 
 
 class ConcurrencyError(EventSourcingError):
-    """
-    Error appending events to a versioned stream.
-    """
-    pass
+    """Raised when appending events at the wrong version to a versioned stream."""
 
 
 class ConsistencyError(EventSourcingError):
-    """
-    Error applying an event stream to a versioned entity.
-    """
-    pass
+    """Raised when applying an event stream to a versioned entity."""
 
 
 class ProgrammingError(EventSourcingError):
-    """
-    Error when reaching conditions that must have arisen from programming errors.
-    """
-    pass
+    """Raised when programming errors are encountered."""
+
 
 class RepositoryKeyError(KeyError, EventSourcingError):
-    """
-    Error when getting an entity from a repo.
-    """
-    pass
+    """Raised when access an entity that does not exist."""
+
+
+class SequenceFullError(EventSourcingError):
+    "Raised when attempting to append an item to a sequence that is already at its maximum size."
+
+
+class DatasourceSettingsError(EventSourcingError):
+    "Raised when an error is detected in settings for a datasource."
+
+
+class SequencedItemError(EventSourcingError):
+    "Raised when an integer sequence error occurs e.g. trying to save a version that already exists."
+
+
+class TimeSequenceError(EventSourcingError):
+    "Raised when a time sequence error occurs e.g. trying to save a timestamp that already exists."
