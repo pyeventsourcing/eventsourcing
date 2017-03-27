@@ -775,6 +775,122 @@ with Application(datastore) as app:
 ```
 
 
+### Step 6: Alternative database schema
+
+Let's say we want the database table to look like stored events, rather than sequenced items.
+
+It's easy to do. Just define a new sequenced item class, e.g. ```StoredEvent``` below.
+
+```python
+from collections import namedtuple
+
+StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'event_type', 'state'])
+```
+
+Then define a suitable active record class.
+
+```python
+class StoredEventTable(Base):
+    # Explicit table name.
+    __tablename__ = 'stored_events'
+
+    # Unique constraint.
+    __table_args__ = UniqueConstraint('aggregate_id', 'aggregate_version', name='stored_events_uc'),
+
+    # Primary key.
+    id = Column(Integer, Sequence('stored_event_id_seq'), primary_key=True)
+
+    # Sequence ID (e.g. an entity or aggregate ID).
+    aggregate_id = Column(UUIDType(), index=True)
+
+    # Position (timestamp) of item in sequence.
+    aggregate_version = Column(BigInteger(), index=True)
+
+    # Type of the event (class name).
+    event_type = Column(String(100))
+
+    # State of the item (serialized dict, possibly encrypted).
+    state = Column(Text())
+```
+
+Then redefine the application class to use the alternative persistence model.
+
+```python
+class Application(object):
+    def __init__(self, datastore):
+        self.event_store = EventStore(
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+                datastore=datastore,
+                active_record_class=StoredEventTable,
+                sequenced_item_class=StoredEvent,
+            ),
+            sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=StoredEvent,
+                event_sequence_id_attr='entity_id',
+                event_position_attr='entity_version',
+            )
+        )
+        self.example_repository = EventSourcedRepository(
+            event_store=self.event_store,
+            mutator=mutate,
+        )
+        self.persistence_policy = PersistencePolicy(self.event_store)
+        
+    def create_example(self, foo):
+        return create_new_example(foo=foo)
+        
+    def close(self):
+        self.persistence_policy.close()
+
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+```
+
+Setup the database again.
+
+```python
+datastore = SQLAlchemyDatastore(
+    base=Base,
+    settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
+    tables=(StoredEventTable,),
+)
+
+datastore.setup_connection()
+datastore.setup_tables()
+```
+
+Then you can use the application as before.
+
+```python
+with Application(datastore) as app:
+
+    entity2 = app.create_example(foo='bar3')
+    
+    assert entity2.id in app.example_repository
+    
+    assert app.example_repository[entity2.id].foo == 'bar3'
+    
+    entity2.foo = 'bar4'
+    
+    assert app.example_repository[entity2.id].foo == 'bar4'
+
+    # Discard the entity.    
+    entity2.discard()
+    assert entity2.id not in app.example_repository
+    
+    try:
+        app.example_repository[entity2.id]
+    except KeyError:
+        pass
+    else:
+        raise Exception('KeyError was not raised')
+```
+
+
+
 ## Design
 
 The design of the library follows the layered architecture: interfaces, application, domain, and infrastructure.
