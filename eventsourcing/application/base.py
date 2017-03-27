@@ -30,26 +30,26 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         self.integer_sequenced_active_record_strategy = integer_sequenced_active_record_strategy
         self.timestamp_sequenced_active_record_strategy = timestamp_sequenced_active_record_strategy
         self.version_entity_event_store = self.construct_event_store(
-            sequence_id_attr_name='entity_id',
-            position_attr_name='entity_version',
+            event_sequence_id_attr='entity_id',
+            event_position_attr='entity_version',
             active_record_strategy=self.integer_sequenced_active_record_strategy,
             always_encrypt=always_encrypt,
             cipher=cipher,
         )
         self.timestamp_entity_event_store = self.construct_event_store(
-            sequence_id_attr_name='entity_id',
-            position_attr_name='timestamp',
+            event_sequence_id_attr='entity_id',
+            event_position_attr='timestamp',
             active_record_strategy=self.timestamp_sequenced_active_record_strategy,
             always_encrypt=always_encrypt,
             cipher=cipher,
         )
 
-    def construct_event_store(self, sequence_id_attr_name, position_attr_name, active_record_strategy,
+    def construct_event_store(self, event_sequence_id_attr, event_position_attr, active_record_strategy,
                               always_encrypt=False, cipher=None):
         sequenced_item_mapper = self.construct_sequenced_item_mapper(
             sequenced_item_class=active_record_strategy.sequenced_item_class,
-            sequence_id_attr_name=sequence_id_attr_name,
-            position_attr_name=position_attr_name,
+            event_sequence_id_attr=event_sequence_id_attr,
+            event_position_attr=event_position_attr,
             always_encrypt=always_encrypt,
             cipher=cipher
         )
@@ -59,12 +59,12 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         )
         return event_store
 
-    def construct_sequenced_item_mapper(self, sequenced_item_class, sequence_id_attr_name, position_attr_name,
+    def construct_sequenced_item_mapper(self, sequenced_item_class, event_sequence_id_attr, event_position_attr,
                                         always_encrypt=False, cipher=None):
         return SequencedItemMapper(
             sequenced_item_class=sequenced_item_class,
-            sequence_id_attr_name=sequence_id_attr_name,
-            position_attr_name=position_attr_name,
+            event_sequence_id_attr=event_sequence_id_attr,
+            event_position_attr=event_position_attr,
             always_encrypt=always_encrypt,
             cipher=cipher
         )

@@ -26,12 +26,12 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     Uses JSON to transcode domain events.
     """
 
-    def __init__(self, sequenced_item_class, sequence_id_attr_name, position_attr_name,
+    def __init__(self, sequenced_item_class, event_sequence_id_attr, event_position_attr,
                  encoder_class=ObjectJSONEncoder, decoder_class=ObjectJSONDecoder,
                  always_encrypt=False, cipher=None):
         self.sequenced_item_class = sequenced_item_class
-        self.sequence_id_attr_name = sequence_id_attr_name
-        self.position_attr_name = position_attr_name
+        self.event_sequence_id_attr = event_sequence_id_attr
+        self.event_position_attr = event_position_attr
         self.json_encoder_class = encoder_class
         self.json_decoder_class = decoder_class
         self.cipher = cipher
@@ -49,10 +49,10 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Construct attributes of a sequenced item from the domain event.
 
         # Identify the sequence ID.
-        sequence_id = getattr(domain_event, self.sequence_id_attr_name)
+        sequence_id = getattr(domain_event, self.event_sequence_id_attr)
 
         # Identify the position in the sequence.
-        position = getattr(domain_event, self.position_attr_name)
+        position = getattr(domain_event, self.event_position_attr)
         topic = self.topic_from_domain_class(domain_event.__class__)
 
         # Serialise event attributes to JSON, optionally encrypted.

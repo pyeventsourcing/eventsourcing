@@ -427,7 +427,7 @@ from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings
 datastore = SQLAlchemyDatastore(
     base=Base,
     settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-    tables=(IntegerSequencedItem,),
+    tables=(SequencedItemTable,),
 )
 
 datastore.setup_connection()
@@ -483,7 +483,7 @@ from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 active_record_strategy = SQLAlchemyActiveRecordStrategy(
     datastore=datastore,
-    active_record_class=IntegerSequencedItem,
+    active_record_class=SequencedItemTable,
     sequenced_item_class=SequencedItem,
 )
 
@@ -491,8 +491,8 @@ event_store = EventStore(
     active_record_strategy=active_record_strategy,
     sequenced_item_mapper=SequencedItemMapper(
         sequenced_item_class=SequencedItem,
-        sequence_id_attr_name='entity_id',
-        position_attr_name='entity_version',
+        event_sequence_id_attr='entity_id',
+        event_position_attr='entity_version',
     )
 )
 ```
@@ -589,13 +589,13 @@ class Application(object):
         self.event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=datastore,
-                active_record_class=IntegerSequencedItem,
+                active_record_class=SequencedItemTable,
                 sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
-                position_attr_name='entity_version',
+                event_sequence_id_attr='entity_id',
+                event_position_attr='entity_version',
             )
         )
         self.example_repository = EventSourcedRepository(
@@ -672,8 +672,8 @@ class EncryptedApplication(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
-                position_attr_name='entity_version',
+                event_sequence_id_attr='entity_id',
+                event_position_attr='entity_version',
                 always_encrypt=True,
                 cipher=cipher,
             )
