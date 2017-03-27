@@ -1,15 +1,13 @@
-from time import time, sleep
-from unittest.case import TestCase
-
 import datetime
-
 from decimal import Decimal
+from time import sleep, time
+from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain.model.events import VersionedEntityEvent, TimestampedEntityEvent, \
-    topic_from_domain_class, DomainEvent
-from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+from eventsourcing.domain.model.events import DomainEvent, TimestampedEntityEvent, VersionedEntityEvent, \
+    topic_from_domain_class
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 
 class Event1(VersionedEntityEvent):
@@ -25,7 +23,6 @@ class Event3(DomainEvent):
 
 
 class ValueObject1(object):
-
     def __init__(self, value):
         self.value = value
 
@@ -34,10 +31,10 @@ class ValueObject1(object):
 
 
 class TestSequencedItemMapper(TestCase):
-
     def test_with_versioned_entity_event(self):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(
+            sequenced_item_class=SequencedItem,
             sequence_id_attr_name='entity_id',
             position_attr_name='entity_version'
         )
@@ -69,6 +66,7 @@ class TestSequencedItemMapper(TestCase):
     def test_with_timestamped_entity_event(self):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(
+            sequenced_item_class=SequencedItem,
             sequence_id_attr_name='entity_id',
             position_attr_name='timestamp'
         )
@@ -104,6 +102,7 @@ class TestSequencedItemMapper(TestCase):
     def test_with_different_types_of_event_attributes(self):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(
+            sequenced_item_class=SequencedItem,
             sequence_id_attr_name='entity_id',
             position_attr_name='a'
         )
@@ -142,7 +141,11 @@ class TestSequencedItemMapper(TestCase):
 
     def test_errors(self):
         # Setup the mapper, and create an event.
-        mapper = SequencedItemMapper(sequence_id_attr_name='entity_id', position_attr_name='a')
+        mapper = SequencedItemMapper(
+            sequenced_item_class=SequencedItem,
+            sequence_id_attr_name='entity_id',
+            position_attr_name='a'
+        )
 
         # Create an event with dates and datetimes.
         event3 = Event3(

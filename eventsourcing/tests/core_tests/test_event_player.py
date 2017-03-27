@@ -5,6 +5,7 @@ from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.example.domainmodel import Example, register_new_example
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.snapshotting import entity_from_snapshot, EventSourcedSnapshotStrategy
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     SqlIntegerSequencedItem, SqlTimestampSequencedItem
@@ -27,6 +28,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
                 active_record_class=SqlIntegerSequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version',
             ),
@@ -39,6 +41,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
                 active_record_class=SqlTimestampSequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='entity_id',
                 position_attr_name='timestamp',
             ),

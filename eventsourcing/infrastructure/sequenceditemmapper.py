@@ -7,7 +7,7 @@ import six
 
 from eventsourcing.domain.model.events import resolve_domain_topic, topic_from_domain_class
 from eventsourcing.domain.services.cipher import AbstractCipher
-from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
+from eventsourcing.infrastructure.sequenceditem import SequencedItemFieldNames
 from eventsourcing.infrastructure.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 
@@ -26,18 +26,16 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     Uses JSON to transcode domain events.
     """
 
-    def __init__(self, sequence_id_attr_name, position_attr_name,
+    def __init__(self, sequenced_item_class, sequence_id_attr_name, position_attr_name,
                  encoder_class=ObjectJSONEncoder, decoder_class=ObjectJSONDecoder,
-                 always_encrypt=False, cipher=None,
-                 sequenced_item_class=SequencedItem):
-
+                 always_encrypt=False, cipher=None):
+        self.sequenced_item_class = sequenced_item_class
         self.sequence_id_attr_name = sequence_id_attr_name
         self.position_attr_name = position_attr_name
         self.json_encoder_class = encoder_class
         self.json_decoder_class = decoder_class
         self.cipher = cipher
         self.always_encrypt = always_encrypt
-        self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
 
     def to_sequenced_item(self, domain_event):
@@ -71,7 +69,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         Reconstructs domain event from stored event topic and
         event attrs. Used in the event store when getting domain events.
         """
-        assert isinstance(sequenced_item, self.sequenced_item_class), type(sequenced_item)
+        assert isinstance(sequenced_item, self.sequenced_item_class), (self.sequenced_item_class, type(sequenced_item))
 
         # Get the domain event class from the topic.
         domain_event_class = self.class_from_topic(getattr(sequenced_item, self.field_names.topic))

@@ -1,103 +1,58 @@
+from collections import namedtuple
 from uuid import UUID
 
-from sqlalchemy.sql.schema import UniqueConstraint, Column, Sequence
-from sqlalchemy.sql.sqltypes import Integer, Float, String, Text, BigInteger
-from sqlalchemy_utils.types.uuid import UUIDType
+from sqlalchemy.sql.schema import Column
+from sqlalchemy.sql.sqltypes import Float, String
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.example.domainmodel import register_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     SqlIntegerSequencedItem
-from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, Base, SQLAlchemySettings
-from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sequenceditem import SequencedItem
+from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
+# This tests extending the sequenced item class with some more fields. How easy is it?
+# Just needed to define the extended type, define a suitable active record
+# class, and extend the sequenced itemevent mapper to derive values for the
+# extra attributes. It's easy.
 
-class ExtendedSequencedItem(SequencedItem):
-    __slots__ = ()
-
-    _fields = ('sequence_id', 'position', 'topic', 'data', 'timestamp', 'event_type')
-
-    # noinspection PyInitNewSignature
-    def __new__(cls, sequence_id, position, topic, data, timestamp, event_type):
-        return tuple.__new__(cls, (sequence_id, position, topic, data, timestamp, event_type))
-
-    @property
-    def timestamp(self):
-        return self[4]
-
-    @property
-    def event_type(self):
-        return self[5]
+# Define the sequenced item class.
+ExtendedSequencedItem = namedtuple('ExtendedSequencedItem',
+                                   ['sequence_id', 'position', 'topic', 'data', 'timestamp', 'event_type'])
 
 
+# Extend the database table definition to support the extra fields.
 class SqlExtendedIntegerSequencedItem(SqlIntegerSequencedItem):
+    # Timestamp of the event.
+    timestamp = Column(Float())
 
     # Type of the event (class name).
     event_type = Column(String(100))
 
-    # Timestamp of the event.
-    timestamp = Column(Float())
+
+# Extend the sequenced item mapper to derive the extra values.
+class ExtendedSequencdItemEventMapper(SequencedItemMapper):
+    def construct_item_args(self, domain_event):
+        args = super(ExtendedSequencdItemEventMapper, self).construct_item_args(domain_event)
+        timestamp = domain_event.timestamp
+        event_type = domain_event.__class__.__qualname__
+        return args + (timestamp, event_type)
 
 
-class StoredEventMapper(SequencedItemMapper):
-
-    def to_sequenced_item(self, domain_event):
-        item = super(StoredEventMapper, self).to_sequenced_item(domain_event)
-        return ExtendedSequencedItem(
-            sequence_id=item.sequence_id,
-            position=item.position,
-            topic=item.topic,
-            data=item.data,
-            event_type=domain_event.__class__.__qualname__,
-            timestamp=domain_event.timestamp,
-        )
-
-
-class CustomActiveRecordStrategy(SQLAlchemyActiveRecordStrategy):
-
-    def to_active_record(self, sequenced_item):
-        """
-        Returns an active record, from given sequenced item.
-        """
-        if isinstance(sequenced_item, list):
-            return [self.to_active_record(i) for i in sequenced_item]
-        return SqlExtendedIntegerSequencedItem(
-            sequence_id=sequenced_item.sequence_id,
-            position=sequenced_item.position,
-            topic=sequenced_item.topic,
-            data=sequenced_item.data,
-            event_type=sequenced_item.event_type,
-            timestamp=sequenced_item.timestamp,
-        )
-
-    def from_active_record(self, active_record):
-        """
-        Returns a sequenced item, from given active record.
-        """
-        return self.sequenced_item_class(
-            sequence_id=active_record.sequence_id,
-            position=active_record.position,
-            topic=active_record.topic,
-            data=active_record.data,
-            event_type=active_record.event_type,
-            timestamp=active_record.timestamp,
-        )
-
-
+# Define an application object.
 class ExampleApplicationWithExtendedSequencedItemType(object):
     def __init__(self, datastore):
         self.event_store = EventStore(
-            active_record_strategy=CustomActiveRecordStrategy(
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=datastore,
                 active_record_class=SqlExtendedIntegerSequencedItem,
                 sequenced_item_class=ExtendedSequencedItem,
-
             ),
-            sequenced_item_mapper=StoredEventMapper(
+            sequenced_item_mapper=ExtendedSequencdItemEventMapper(
+                sequenced_item_class=ExtendedSequencedItem,
                 sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version',
             )
@@ -137,7 +92,6 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
 
     def test(self):
         with ExampleApplicationWithExtendedSequencedItemType(self.datastore) as app:
-
             # Create entity.
             entity1 = register_new_example(a='a', b='b')
             self.assertIsInstance(entity1.id, UUID)
@@ -156,5 +110,3 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
             # Read entity from repo.
             retrieved_obj = app.repository[entity1.id]
             self.assertEqual(retrieved_obj.id, entity1.id)
-
-

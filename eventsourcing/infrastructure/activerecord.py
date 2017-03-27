@@ -3,12 +3,12 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.exceptions import SequencedItemError
-from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
+from eventsourcing.infrastructure.sequenceditem import SequencedItemFieldNames
 
 
 class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
 
-    def __init__(self, active_record_class, sequenced_item_class=SequencedItem):
+    def __init__(self, active_record_class, sequenced_item_class):
         self.active_record_class = active_record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)

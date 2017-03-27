@@ -106,7 +106,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
             return [self.to_active_record(i) for i in sequenced_item]
 
         # Check we got a sequenced item.
-        assert isinstance(sequenced_item, self.sequenced_item_class)
+        assert isinstance(sequenced_item, self.sequenced_item_class), (self.sequenced_item_class, type(sequenced_item))
 
         # Construct and return an ORM object.
         orm_kwargs = {f: sequenced_item[i] for i, f in enumerate(self.field_names)}

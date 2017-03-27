@@ -2,6 +2,7 @@ from uuid import uuid4
 
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
@@ -28,6 +29,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
                 datastore=self.datastore,
             ),
             sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version'
             )

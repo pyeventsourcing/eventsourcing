@@ -14,7 +14,13 @@ from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActi
 from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
-StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'event_type', 'state', 'timestamp'])
+# This test replaces the default SequencedItem class with a StoredEvent class.
+# How easy is it to customize the infrastructure to support that? We just need
+# to define the new sequenced item class, define a suitable active record class,
+# and configure the other components. It's easy.
+
+
+StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'event_type', 'state'])
 
 
 class SqlStoredEvent(Base):
@@ -43,15 +49,6 @@ class SqlStoredEvent(Base):
     state = Column(Text())
 
 
-class StoredEventMapper(SequencedItemMapper):
-    def __init__(self, sequenced_item_class=StoredEvent, *args, **kwargs):
-        super(StoredEventMapper, self).__init__(sequenced_item_class=sequenced_item_class, *args, **kwargs)
-
-    def construct_item_args(self, domain_event):
-        args = super(StoredEventMapper, self).construct_item_args(domain_event)
-        return args + (domain_event.timestamp,)
-
-
 class ExampleApplicationWithAlternativeSequencedItemType(object):
     def __init__(self, datastore):
         self.event_store = EventStore(
@@ -60,7 +57,8 @@ class ExampleApplicationWithAlternativeSequencedItemType(object):
                 active_record_class=SqlStoredEvent,
                 sequenced_item_class=StoredEvent,
             ),
-            sequenced_item_mapper=StoredEventMapper(
+            sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=StoredEvent,
                 sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version',
             )
