@@ -75,7 +75,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
 
         # Check the event sourced entities are correct.
         # - just use a trivial mutate that always instantiates the 'Example'.
-        event_player = EventPlayer(event_store=self.version_entity_event_store, mutate_func=Example.mutate)
+        event_player = EventPlayer(event_store=self.version_entity_event_store, mutator=Example.mutate)
 
         # The the reconstituted entity has correct attribute values.
         self.assertEqual(entity_id1, event_player.replay_entity(entity_id1).id)
@@ -91,12 +91,12 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         event5 = Example.AttributeChanged(entity_id=entity_id1, entity_version=1, name='a', value=10)
         self.version_entity_event_store.append(event5)
 
-        event_player = EventPlayer(event_store=self.version_entity_event_store, mutate_func=Example.mutate)
+        event_player = EventPlayer(event_store=self.version_entity_event_store, mutator=Example.mutate)
         self.assertEqual(10, event_player.replay_entity(entity_id1).a)
 
         event_player = EventPlayer(
             event_store=self.version_entity_event_store,
-            mutate_func=Example.mutate,
+            mutator=Example.mutate,
             is_short=True,
         )
         self.assertEqual(10, event_player.replay_entity(entity_id1).a)
@@ -110,7 +110,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         )
         event_player = EventPlayer(
             event_store=self.version_entity_event_store,
-            mutate_func=Example.mutate,
+            mutator=Example.mutate,
             snapshot_strategy=EventSourcedSnapshotStrategy(
                 event_store=self.timestamp_entity_event_store
             )

@@ -21,32 +21,26 @@ class EventSourcedRepository(AbstractEntityRepository):
     # of queries, rather than with one potentially large query.
     __page_size__ = None
 
-    # The type of domain entity this repository will serve.
-    domain_class = None
+    # The mutator function used by this repository. Can either
+    # be set as a class attribute, or passed as a constructor arg.
+    mutator = None
 
-    def __init__(self, event_store, use_cache=False, snapshot_strategy=None, mutator=None, domain_class=None):
+    def __init__(self, event_store, mutator=None, snapshot_strategy=None, use_cache=False):
         self._cache = {}
-        # self._use_cache = use_cache
         self._snapshot_strategy = snapshot_strategy
+        # self._use_cache = use_cache
 
         # Check we got an event store.
         assert isinstance(event_store, AbstractEventStore)
         self.event_store = event_store
 
-        # Check we have a domain class.
-        if domain_class is not None:
-            self.domain_class = domain_class
+        # Instantiate an event player for this repo.
+        mutator = mutator or type(self).mutator
         if mutator is None:
-            if self.domain_class is None:
-                raise AssertionError("Domain entity class is required unless mutator is given")
-            else:
-                mutator = self.domain_class.mutate
-
-        # Instantiate an event player for this repo, with
-        # repo-specific mutate function, page size, etc.
+            raise ValueError("Repository needs a mutator function (set class attribute or pass constructor arg)")
         self.event_player = EventPlayer(
             event_store=self.event_store,
-            mutate_func=mutator,
+            mutator=mutator,
             page_size=self.__page_size__,
             is_short=self.__is_short__,
             snapshot_strategy=self._snapshot_strategy,

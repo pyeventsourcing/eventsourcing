@@ -20,12 +20,12 @@ class EventPlayer(object):
     retrieved from the event store, optionally with snapshots.
     """
 
-    def __init__(self, event_store, mutate_func, page_size=None, is_short=False, snapshot_strategy=None):
+    def __init__(self, event_store, mutator, page_size=None, is_short=False, snapshot_strategy=None):
         assert isinstance(event_store, AbstractEventStore), event_store
         if snapshot_strategy is not None:
             assert isinstance(snapshot_strategy, AbstractSnapshotStrategy), snapshot_strategy
         self.event_store = event_store
-        self.mutate_func = mutate_func
+        self.mutator = mutator
         self.page_size = page_size
         self.is_short = is_short
         self.snapshot_strategy = snapshot_strategy
@@ -70,7 +70,7 @@ class EventPlayer(object):
         """
         Mutates initial state using the sequence of domain events.
         """
-        return reduce(self.mutate_func, domain_events, initial_state)
+        return reduce(self.mutator, domain_events, initial_state)
 
     def get_domain_events(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True):
         """
