@@ -487,16 +487,16 @@ class WithPersistencePolicy(WithActiveRecordStrategies):
             active_record_strategy=self.integer_sequence_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
-                position_attr_name='entity_version'
+                event_sequence_id_attr='entity_id',
+                event_position_attr='entity_version'
             )
         )
         self.timestamped_entity_event_store = EventStore(
             active_record_strategy=self.timestamp_sequence_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
-                position_attr_name='timestamp'
+                event_sequence_id_attr='entity_id',
+                event_position_attr='timestamp'
             )
         )
         self.persistence_policy = CombinedPersistencePolicy(

@@ -68,8 +68,8 @@ class ExampleApplicationWithTimeuuidSequencedItems(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
-                position_attr_name='event_id',
+                event_sequence_id_attr='entity_id',
+                event_position_attr='event_id',
             )
         )
         self.repository = EventSourcedRepository(

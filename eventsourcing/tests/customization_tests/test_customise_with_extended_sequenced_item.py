@@ -34,9 +34,9 @@ class SqlExtendedIntegerSequencedItem(SqlIntegerSequencedItem):
 
 
 # Extend the sequenced item mapper to derive the extra values.
-class ExtendedSequencdItemEventMapper(SequencedItemMapper):
+class ExtendedSequencedItemMapper(SequencedItemMapper):
     def construct_item_args(self, domain_event):
-        args = super(ExtendedSequencdItemEventMapper, self).construct_item_args(domain_event)
+        args = super(ExtendedSequencedItemMapper, self).construct_item_args(domain_event)
         timestamp = domain_event.timestamp
         event_type = domain_event.__class__.__qualname__
         return args + (timestamp, event_type)
@@ -51,10 +51,10 @@ class ExampleApplicationWithExtendedSequencedItemType(object):
                 active_record_class=SqlExtendedIntegerSequencedItem,
                 sequenced_item_class=ExtendedSequencedItem,
             ),
-            sequenced_item_mapper=ExtendedSequencdItemEventMapper(
+            sequenced_item_mapper=ExtendedSequencedItemMapper(
                 sequenced_item_class=ExtendedSequencedItem,
-                sequence_id_attr_name='entity_id',
-                position_attr_name='entity_version',
+                event_sequence_id_attr='entity_id',
+                event_position_attr='entity_version',
             )
         )
         self.repository = ExampleRepository(

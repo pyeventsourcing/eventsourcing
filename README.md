@@ -100,7 +100,7 @@ application threads. It is also possible to serialize calls to the methods of an
 entity, but that is out of the scope of this package — if you wish to do that,
 perhaps something like [Zookeeper](https://zookeeper.apache.org/) might help.
 
-**Abstract base classes** — suggest of how to structure an event sourced application.
+**Abstract base classes** — suggest how to structure an event sourced application.
 The library has base classes for application objects, domain entities, entity repositories,
 domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
 test cases, etc. They are well factored, relatively simple, and can be easily extended for your own
@@ -200,7 +200,6 @@ When replaying a sequence of events, a "mutator function" is used to apply an ev
 an initial state. For the sake of simplicity in this example, we'll use an if-else block
 that can handle the different types of events.
 
-
 ```python
 import uuid
 
@@ -243,20 +242,26 @@ class Example(object):
     
     @foo.setter
     def foo(self, value):
-        assert not self._is_discarded
+        assert not self._is_discarded    
+        # Instantiate a domain event.
         event = ValueChanged(
             entity_id=self.id,
             entity_version=self.version,
             name='foo',
             value=value,
         )
+        # Apply the event to self.
         mutate(self, event)
+        # Publish the event for others.
         publish(event)
 
     def discard(self):
         assert not self._is_discarded
+        # Instantiate a domain event.
         event = Discarded(entity_id=self.id, entity_version=self.version)
+        # Apply the event to self.
         mutate(self, event)
+        # Publish the event for others.
         publish(event)
 
 
@@ -265,16 +270,12 @@ def create_new_example(foo):
 
     # Create an entity ID.
     entity_id = uuid.uuid4()
-    
     # Instantiate a domain event.
     event = Created(entity_id=entity_id, foo=foo)
-    
     # Mutate the event to construct the entity.
     entity = mutate(None, event)
-    
-    # Publish the domain event.
+    # Publish the event for others.
     publish(event=event)
-    
     # Return the new entity.
     return entity
 
@@ -287,6 +288,7 @@ def mutate(entity, event):
         entity = Example(**event.__dict__)
         entity._version += 1
         return entity
+        
     # Handle "value changed" events by setting the named value.
     elif isinstance(event, ValueChanged):
         assert not entity.is_discarded
@@ -294,6 +296,7 @@ def mutate(entity, event):
         entity._version += 1
         entity._last_modified_on = event.timestamp
         return entity
+        
     # Handle "discarded" events by returning 'None'.
     elif isinstance(event, Discarded):
         assert not entity.is_discarded
@@ -376,13 +379,12 @@ assert received_events[1].value == 'bar2'
 ### Step 2: Infrastructure
 
 Since the application state is determined by a sequence of events, the events of the
-entities of the application must somehow be stored.
-
+application must somehow be stored, and the entities somehow retrieved.
 
 #### Database table
 
-Let's start by setting up a database for storing events. For the sake of simplicity in this
-example, use SQLAlchemy to define a database that stores integer-sequenced items.
+Let's start by setting up a simple database. We can use SQLAlchemy to define a
+database table that stores integer-sequenced items.
 
 ```python
 from sqlalchemy.ext.declarative.api import declarative_base
@@ -390,12 +392,11 @@ from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 from sqlalchemy_utils import UUIDType
 
-
 Base = declarative_base()
 
 
-class IntegerSequencedItem(Base):
-    __tablename__ = 'integer_sequenced_items'
+class SequencedItemTable(Base):
+    __tablename__ = 'sequenced_items'
 
     id = Column(Integer(), Sequence('integer_sequened_item_id_seq'), primary_key=True)
 
@@ -417,7 +418,8 @@ class IntegerSequencedItem(Base):
 ```
 
 Now create the database and tables. The SQLAlchemy objects are adapted with classes from the 
-library, which provide a common interface for required operations.
+library, which provide a common interface for the required operations across all adapted
+databases.
 
 ```python
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
@@ -425,7 +427,7 @@ from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings
 datastore = SQLAlchemyDatastore(
     base=Base,
     settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-    tables=(IntegerSequencedItem,),
+    tables=(SequencedItemTable,),
 )
 
 datastore.setup_connection()
@@ -446,27 +448,32 @@ mysql://scott:tiger@hostname/dbname
 ```
 
 
-#### Entity repository
+#### Event store
 
-The application wants to deal with entities, not a sequence of events. Since it is common
-to retrieve entities from a repository, let's define an event sourced repository for the
-example entity class.
+To support different kinds of sequences, and allow for different schemas
+for storing events, the event store uses a "sequenced item mapper" to map
+domain events into sequenced items, and an "active record strategy" to map
+between sequenced items and data in a database. The details have been made
+explicit so they can be easily replaced.
 
-```python
-from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
+The sequenced item mapper reads the event attribute values and derives the
+values of sequenced item fields. It instrospects the sequences item class
+to map the derived values onto a sequenced item.
 
-class ExampleRepository(EventSourcedRepository):
-    domain_class = Example
-```
+The active record strategy reads and writes data in the database, using
+an active record class. It introspects the sequence item class to map
+sequenced items on to the database object by reflection. 
 
-The event sourced repository uses an event store object to save and retrieve domain
-events. We can directly use the event store class provided by the library.
+Hence, it is possible to use alternative field types (e.g. different sizes of
+integer for storing version numbers) by passing in an alternative active record
+class. It is possible to use different databases by replacing the active record
+strategy. It is possible to change the schema names (e.g. so the database records
+look more like "stored events" rather than "sequenced items") by passing in an
+alternative sequenced item class (along with a suitable active record class). And
+it is possible to extend or replace the schema by extending or replacing the active
+record strategy.
 
-However, to support different kinds of sequences, and allow for different schemas,
-the event store uses a sequenced item mapper to map domain events
-into sequenced items, and an active record strategy to map between sequenced
-items and a table in a database. The details have been made explicit so they
-can be easily replaced.
+We can also use the library's classes without any such customizations.
 
 ```python
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -476,7 +483,7 @@ from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 active_record_strategy = SQLAlchemyActiveRecordStrategy(
     datastore=datastore,
-    active_record_class=IntegerSequencedItem,
+    active_record_class=SequencedItemTable,
     sequenced_item_class=SequencedItem,
 )
 
@@ -484,43 +491,58 @@ event_store = EventStore(
     active_record_strategy=active_record_strategy,
     sequenced_item_mapper=SequencedItemMapper(
         sequenced_item_class=SequencedItem,
-        sequence_id_attr_name='entity_id',
-        position_attr_name='entity_version',
+        event_sequence_id_attr='entity_id',
+        event_position_attr='entity_version',
     )
 )
+```
 
-example_repository = ExampleRepository(
+#### Entity repository
+
+It is common pattern to retrieve entities from a repository. An event sourced
+repository for the ```example``` entity class can be constructed directly using the
+```EventSourcedRepository``` library class. The repository is given the mutator function
+```mutate()``` and the event store, so that it can make an event player.
+
+
+```python
+from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
+
+example_repository = EventSourcedRepository(
     event_store=event_store,
     mutator=mutate,
 )
 ```
 
-
 #### Run the code
 
-Now, let's write the events we received earlier into the event store.
+Now, let's firstly write the events we received earlier into the event store.
 
 ```python
+
+# Put each received event into the event store.
 for event in received_events:
     event_store.append(event)
 
+# Check the events exist in the event store.
 stored_events = event_store.get_domain_events(entity1.id)
 assert len(stored_events) == 2, (received_events, stored_events)
 ```
 
-The entity can now be retrieved from the repository, using its dictionary-like interface.
+Now the entity can now be retrieved from the repository, using its dictionary-like interface.
 
 ```python
-
 retrieved_entity = example_repository[entity1.id]
 assert retrieved_entity.foo == 'bar2'
 ```
 
 To keep things grounded, remember that we can always get the sequenced items directly from the active record
-strategy. Sequenced items are the domain events, but a serialised representation. In the library, a
+strategy. A sequenced item is tuple containing a serialised representation of the domain event. In the library, a
 ```SequencedItem``` is a Python tuple with four fields: ```sequence_id```, ```position```,
-```topic```, and ```data```. By default, an event's ```entity_id``` attribute is mapped to the ```sequence_id``` field, and the event's ```entity_version``` attribute is mapped to the ```position``` field. The ```topic``` field of a sequenced item
-is used to identify the event class, and the ```data``` field represents the state of the event (a JSON string).
+```topic```, and ```data```. By default, an event's ```entity_id``` attribute is mapped to the ```sequence_id``` field,
+and the event's ```entity_version``` attribute is mapped to the ```position``` field. The ```topic``` field of a
+sequenced item is used to identify the event class, and the ```data``` field represents the state of the event (a 
+JSON string).
 
 ```python
 sequenced_items = event_store.active_record_strategy.get_items(entity1.id)
@@ -567,16 +589,16 @@ class Application(object):
         self.event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=datastore,
-                active_record_class=IntegerSequencedItem,
+                active_record_class=SequencedItemTable,
                 sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
-                position_attr_name='entity_version',
+                event_sequence_id_attr='entity_id',
+                event_position_attr='entity_version',
             )
         )
-        self.example_repository = ExampleRepository(
+        self.example_repository = EventSourcedRepository(
             event_store=self.event_store,
             mutator=mutate,
         )
@@ -645,18 +667,18 @@ class EncryptedApplication(object):
         self.event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=datastore,
-                active_record_class=IntegerSequencedItem,
+                active_record_class=SequencedItemTable,
                 sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
-                position_attr_name='entity_version',
+                event_sequence_id_attr='entity_id',
+                event_position_attr='entity_version',
                 always_encrypt=True,
                 cipher=cipher,
             )
         )
-        self.example_repository = ExampleRepository(
+        self.example_repository = EventSourcedRepository(
             event_store=self.event_store,
             mutator=mutate,
         )
@@ -722,11 +744,11 @@ with Application(datastore) as app:
     a = app.example_repository[entity1.id]
     b = app.example_repository[entity1.id]
     
-    # Update instance 'a'.
+    # Change the entity using instance 'a'.
     a.foo = 'bar6'
     
-    # Because 'a' has been updated since 'b' was obtained,
-    # instance 'b' cannot be updated unless it is refreshed.
+    # Because 'a' has been changed since 'b' was obtained,
+    # 'b' cannot be updated unless it is firstly refreshed.
     try:
         b.foo = 'bar7'
     except ConcurrencyError:
@@ -734,15 +756,15 @@ with Application(datastore) as app:
     else:
         raise Exception("Failed to control concurrency of 'b'.")
       
-    # Refresh 'b', it has been updated with the value just given to 'a'.
+    # Refresh object 'b', so that 'b' has the current state of the entity.
     b = app.example_repository[entity1.id]
     assert b.foo == 'bar6'
 
-    # Updating instance 'b' now works because 'b' is up-to-date.
+    # Changing the entity using instance 'b' now works because 'b' is up to date.
     b.foo = 'bar7'    
     assert app.example_repository[entity1.id].foo == 'bar7'
     
-    # And we cannot update 'a' because it is behind.
+    # Now 'a' does not have the current state of the entity, and cannot be changed.
     try:
         a.foo = 'bar8'
     except ConcurrencyError:
