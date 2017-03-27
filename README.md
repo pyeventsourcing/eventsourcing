@@ -100,7 +100,7 @@ application threads. It is also possible to serialize calls to the methods of an
 entity, but that is out of the scope of this package — if you wish to do that,
 perhaps something like [Zookeeper](https://zookeeper.apache.org/) might help.
 
-**Abstract base classes** — suggest of how to structure an event sourced application.
+**Abstract base classes** — suggest how to structure an event sourced application.
 The library has base classes for application objects, domain entities, entity repositories,
 domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
 test cases, etc. They are well factored, relatively simple, and can be easily extended for your own
@@ -200,7 +200,6 @@ When replaying a sequence of events, a "mutator function" is used to apply an ev
 an initial state. For the sake of simplicity in this example, we'll use an if-else block
 that can handle the different types of events.
 
-
 ```python
 import uuid
 
@@ -243,20 +242,26 @@ class Example(object):
     
     @foo.setter
     def foo(self, value):
-        assert not self._is_discarded
+        assert not self._is_discarded    
+        # Instantiate a domain event.
         event = ValueChanged(
             entity_id=self.id,
             entity_version=self.version,
             name='foo',
             value=value,
         )
+        # Apply the event to self.
         mutate(self, event)
+        # Publish the event for others.
         publish(event)
 
     def discard(self):
         assert not self._is_discarded
+        # Instantiate a domain event.
         event = Discarded(entity_id=self.id, entity_version=self.version)
+        # Apply the event to self.
         mutate(self, event)
+        # Publish the event for others.
         publish(event)
 
 
@@ -265,16 +270,12 @@ def create_new_example(foo):
 
     # Create an entity ID.
     entity_id = uuid.uuid4()
-    
     # Instantiate a domain event.
     event = Created(entity_id=entity_id, foo=foo)
-    
     # Mutate the event to construct the entity.
     entity = mutate(None, event)
-    
-    # Publish the domain event.
+    # Publish the event for others.
     publish(event=event)
-    
     # Return the new entity.
     return entity
 
@@ -287,6 +288,7 @@ def mutate(entity, event):
         entity = Example(**event.__dict__)
         entity._version += 1
         return entity
+        
     # Handle "value changed" events by setting the named value.
     elif isinstance(event, ValueChanged):
         assert not entity.is_discarded
@@ -294,6 +296,7 @@ def mutate(entity, event):
         entity._version += 1
         entity._last_modified_on = event.timestamp
         return entity
+        
     # Handle "discarded" events by returning 'None'.
     elif isinstance(event, Discarded):
         assert not entity.is_discarded
@@ -392,8 +395,8 @@ from sqlalchemy_utils import UUIDType
 Base = declarative_base()
 
 
-class IntegerSequencedItem(Base):
-    __tablename__ = 'integer_sequenced_items'
+class SequencedItemTable(Base):
+    __tablename__ = 'sequenced_items'
 
     id = Column(Integer(), Sequence('integer_sequened_item_id_seq'), primary_key=True)
 
@@ -664,7 +667,7 @@ class EncryptedApplication(object):
         self.event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=datastore,
-                active_record_class=IntegerSequencedItem,
+                active_record_class=SequencedItemTable,
                 sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
