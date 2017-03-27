@@ -311,18 +311,8 @@ def mutate(entity, event):
 Apart from using the library's ```publish()``` function, the example entity class does not depend on the
 library. It doesn't inherit from a "magical" entity base class. It just publishes events that it has
 applied to itself. The library does however contain domain entity classes that you can use to build your
-domain model. For example see the ```Aggregate``` class, which is also a timestamped, versioned entity.
-The library classes are slightly more refined than the code in this example.
-
-Note on entity ```save()``` methods: The library does support appending events to the event store in
-batches, so that you could style your entities to have internal list of pending events: events that are
-indirectly emitted by the operations, not published immedidately for others but instead added
-to a list of pending events within the entity. In this scenario, such pending events could be published
-altogether as a list when e.g. a ```save()``` method is called. If the event store is given a list of events
-to append, they are written to the database by the active record strategy atomically (e.g. in the same database
-transaction, or otherwise with an atomic batch operation) so that either all events will be written, or none
-of them will be written and the save operation will fail. Although there currently isn't an entity class in the
-library with such a ```save()``` method, it would seem to have affinity with the ```Aggregate``` class.
+domain model. For example see the ```TimestampedVersionedEntity``` class, which is also a timestamped,
+versioned entity. The library classes are slightly more refined than the code in this example.
 
 
 #### Run the code
@@ -813,7 +803,7 @@ class StoredEventTable(Base):
     state = Column(Text())
 ```
 
-Then redefine the application class to use the alternative persistence model.
+Then redefine the application class to use the two new classes.
 
 ```python
 class Application(object):
@@ -849,7 +839,7 @@ class Application(object):
         self.close()
 ```
 
-Setup the database again.
+Set up the database again.
 
 ```python
 datastore = SQLAlchemyDatastore(
@@ -867,28 +857,247 @@ Then you can use the application as before.
 ```python
 with Application(datastore) as app:
 
-    entity2 = app.create_example(foo='bar3')
+    entity4 = app.create_example(foo='bar9')
     
-    assert entity2.id in app.example_repository
+    assert entity4.id in app.example_repository
     
-    assert app.example_repository[entity2.id].foo == 'bar3'
+    assert app.example_repository[entity4.id].foo == 'bar9'
     
-    entity2.foo = 'bar4'
+    entity4.foo = 'bar10'
     
-    assert app.example_repository[entity2.id].foo == 'bar4'
+    assert app.example_repository[entity4.id].foo == 'bar10'
 
     # Discard the entity.    
-    entity2.discard()
-    assert entity2.id not in app.example_repository
+    entity4.discard()
+    assert entity4.id not in app.example_repository
     
     try:
-        app.example_repository[entity2.id]
+        app.example_repository[entity4.id]
     except KeyError:
         pass
     else:
         raise Exception('KeyError was not raised')
 ```
 
+### Step 7: Aggregates in domain driven design
+  
+Let's say we want to separate the sequence of events from entities, and instead have
+an aggregate that controls a set of entities.
+
+We can define some "aggregate events" which have ```aggregate_id``` and
+```aggregate_version```. And we can rework the entity class to function as a root
+entity of the aggregate.
+
+In the example below, the aggregate class has a list of pending events, and a ```save()```
+method that publishes all pending events. The other operations append events to the list
+of pending events, rather than publishing them individually.
+
+The library supports appending multiple events to the event store in
+a single atomic transaction.
+
+The entity factory is now a method of the aggregate, and the aggregate's mutator is capable
+of mutating the aggregate's entities.
+
+```python
+class AggregateEvent(object):
+    """Layer supertype."""
+
+    def __init__(self, aggregate_id, aggregate_version, timestamp=None, **kwargs):
+        self.aggregate_id = aggregate_id
+        self.aggregate_version = aggregate_version
+        self.timestamp = timestamp or time.time()
+        self.__dict__.update(kwargs)
+
+
+class AggregateCreated(AggregateEvent):
+    """Published when an aggregate is created."""
+    def __init__(self, aggregate_version=0, **kwargs):
+        super(AggregateCreated, self).__init__(aggregate_version=aggregate_version, **kwargs)
+
+
+class EntityCreated(AggregateEvent):
+    """Published when an entity is created."""
+    def __init__(self, entity_id, **kwargs):
+        super(EntityCreated, self).__init__(entity_id=entity_id, **kwargs)
+
+
+class AggregateDiscarded(AggregateEvent):
+    """Published when an aggregate is discarded."""
+    def __init__(self, **kwargs):
+        super(AggregateDiscarded, self).__init__(**kwargs)
+
+
+class ExampleAggregateRoot():
+    """Example root entity."""
+    def __init__(self, aggregate_id, aggregate_version=0, timestamp=None):
+        self._id = aggregate_id
+        self._version = aggregate_version
+        self._is_discarded = False
+        self._created_on = timestamp
+        self._last_modified_on = timestamp
+        self._pending_events = []
+        self._entities = {}
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def version(self):
+        return self._version
+
+    @property
+    def is_discarded(self):
+        return self._is_discarded
+
+    @property
+    def created_on(self):
+        return self._created_on
+
+    @property
+    def last_modified_on(self):
+        return self._last_modified_on
+
+    def count_entities(self):
+        return len(self._entities)
+        
+    def create_new_entity(self):
+        assert not self._is_discarded
+        event = EntityCreated(
+            entity_id=uuid.uuid4(),
+            aggregate_id=self.id,
+            aggregate_version=self.version,
+        )
+        mutate(self, event)
+        self._pending_events.append(event)
+
+    def discard(self):
+        assert not self._is_discarded
+        event = AggregateDiscarded(aggregate_id=self.id, aggregate_version=self.version)
+        mutate(self, event)
+        self._pending_events.append(event)
+        
+    def save(self):
+        publish(self._pending_events[:])
+        self._pending_events = []
+
+
+def mutate(aggregate, event):
+    """Mutator function for example aggregate root."""
+
+    # Handle "created" events by instantiating the aggregate class.
+    if isinstance(event, AggregateCreated):
+        aggregate = ExampleAggregateRoot(**event.__dict__)
+        aggregate._version += 1
+        return aggregate
+        
+    # Handle "entity created" events by adding a new entity to the aggregate's dict of entities.
+    elif isinstance(event, EntityCreated):
+        assert not aggregate.is_discarded
+        entity = Example(entity_id=event.entity_id)
+        aggregate._entities[entity.id] = entity
+        aggregate._version += 1
+        aggregate._last_modified_on = event.timestamp
+        return aggregate
+        
+    # Handle "discarded" events by returning 'None'.
+    elif isinstance(event, AggregateDiscarded):
+        assert not aggregate.is_discarded
+        aggregate._version += 1
+        aggregate._is_discarded = True
+        return None
+    else:
+        raise NotImplementedError(type(event))
+
+
+class DDDApplication(object):
+    def __init__(self, datastore):
+        self.event_store = EventStore(
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+                datastore=datastore,
+                active_record_class=StoredEventTable,
+                sequenced_item_class=StoredEvent,
+            ),
+            sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=StoredEvent,
+                event_sequence_id_attr='aggregate_id',
+                event_position_attr='aggregate_version',
+            )
+        )
+        self.aggregate_repository = EventSourcedRepository(
+            event_store=self.event_store,
+            mutator=mutate,
+        )
+        self.persistence_policy = PersistencePolicy(self.event_store)
+        
+    def create_example_aggregate(self):
+        event = AggregateCreated(aggregate_id=uuid.uuid4())
+        aggregate = mutate(aggregate=None, event=event)
+        aggregate._pending_events.append(event)
+        return aggregate
+        
+    def close(self):
+        self.persistence_policy.close()
+
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+
+with DDDApplication(datastore) as app:
+
+    # Create a new aggregate.
+    aggregate1 = app.create_example_aggregate()
+    aggregate1.save()
+
+    # Check it exists in the repository.
+    assert aggregate1.id in app.aggregate_repository, aggregate1.id
+
+    # Check the aggregate has zero entities.
+    assert aggregate1.count_entities() == 0
+    
+    # Check the aggregate has zero entities.
+    assert aggregate1.count_entities() == 0
+    
+    # Ask the aggregate to create an entity within itself.
+    aggregate1.create_new_entity()
+
+    # Check the aggregate has one entity.
+    assert aggregate1.count_entities() == 1
+    
+    # Check the aggregate in the repo still has zero entities.
+    assert app.aggregate_repository[aggregate1.id].count_entities() == 0
+    
+    # Call save().
+    aggregate1.save()
+    
+    # Check the aggregate in the repo now has one entity.
+    assert app.aggregate_repository[aggregate1.id].count_entities() == 1
+    
+    # Create two more entities within the aggregate.
+    aggregate1.create_new_entity()
+    aggregate1.create_new_entity()
+    
+    # Save both "entity created" events in one atomic transaction.
+    aggregate1.save()
+    
+    # Check the aggregate in the repo now has three entities.
+    assert app.aggregate_repository[aggregate1.id].count_entities() == 3
+    
+    # Discard the aggregate, but don't call save() yet.
+    aggregate1.discard()
+    
+    # Check the aggregate still exists in the repo.
+    assert aggregate1.id in app.aggregate_repository
+
+    # Call save().
+    aggregate1.save()
+
+    # Check the aggregate no longer exists in the repo.
+    assert aggregate1.id not in app.aggregate_repository
+```
 
 
 ## Design
