@@ -446,27 +446,24 @@ mysql://scott:tiger@hostname/dbname
 ```
 
 
-#### Entity repository
+#### Event store
 
-The application wants to deal with entities, not a sequence of events. Since it is common
-to retrieve entities from a repository, let's define an event sourced repository for the
-example entity class.
-
-```python
-from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-
-class ExampleRepository(EventSourcedRepository):
-    domain_class = Example
-```
-
-The event sourced repository uses an event store object to save and retrieve domain
-events. We can directly use the event store class provided by the library.
-
-However, to support different kinds of sequences, and allow for different schemas,
-the event store uses a sequenced item mapper to map domain events
-into sequenced items, and an active record strategy to map between sequenced
-items and a table in a database. The details have been made explicit so they
+To support different kinds of sequences, and allow for different schemas,
+the event store uses a "sequenced item mapper" to map domain events
+into sequenced items, and an "active record strategy" to map between sequenced
+items and data in a database. The details have been made explicit so they
 can be easily replaced.
+
+The sequenced item mapper reads the event attribute values and derives the
+values of sequenced item fields, so it needs to know how to make those values.
+
+The active record strategy introspects the sequence item class to map sequenced
+items on to the database object by reflection. It also knows how to read and write
+active records of the database. The active record class is expected to support the
+fields of the sequenced item class. Hence it is possible to use an alternative 
+database management system and schema types by passing in an alternative active
+record class. And it is possible to completely change the schema names by passing
+in an alternative sequenced item class (along with a suitable active record class).
 
 ```python
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -488,39 +485,54 @@ event_store = EventStore(
         position_attr_name='entity_version',
     )
 )
+```
 
-example_repository = ExampleRepository(
+#### Entity repository
+
+The application wants whole entities, not just a sequence of events. Since it is common
+to retrieve entities from a repository, an event sourced repository for the
+example entity can be constructed directly using the ```EventSourcedRepository```
+library class.
+
+```python
+from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
+
+example_repository = EventSourcedRepository(
+    domain_class = Example,
     event_store=event_store,
     mutator=mutate,
 )
 ```
 
-
 #### Run the code
 
-Now, let's write the events we received earlier into the event store.
+Now, let's firstly write the events we received earlier into the event store.
 
 ```python
+
+# Put each received event into the event store.
 for event in received_events:
     event_store.append(event)
 
+# Check the events exist in the event store.
 stored_events = event_store.get_domain_events(entity1.id)
 assert len(stored_events) == 2, (received_events, stored_events)
 ```
 
-The entity can now be retrieved from the repository, using its dictionary-like interface.
+Now the entity can now be retrieved from the repository, using its dictionary-like interface.
 
 ```python
-
 retrieved_entity = example_repository[entity1.id]
 assert retrieved_entity.foo == 'bar2'
 ```
 
 To keep things grounded, remember that we can always get the sequenced items directly from the active record
-strategy. Sequenced items are the domain events, but a serialised representation. In the library, a
+strategy. A sequenced item is tuple containing a serialised representation of the domain event. In the library, a
 ```SequencedItem``` is a Python tuple with four fields: ```sequence_id```, ```position```,
-```topic```, and ```data```. By default, an event's ```entity_id``` attribute is mapped to the ```sequence_id``` field, and the event's ```entity_version``` attribute is mapped to the ```position``` field. The ```topic``` field of a sequenced item
-is used to identify the event class, and the ```data``` field represents the state of the event (a JSON string).
+```topic```, and ```data```. By default, an event's ```entity_id``` attribute is mapped to the ```sequence_id``` field,
+and the event's ```entity_version``` attribute is mapped to the ```position``` field. The ```topic``` field of a
+sequenced item is used to identify the event class, and the ```data``` field represents the state of the event (a 
+JSON string).
 
 ```python
 sequenced_items = event_store.active_record_strategy.get_items(entity1.id)
@@ -576,7 +588,8 @@ class Application(object):
                 position_attr_name='entity_version',
             )
         )
-        self.example_repository = ExampleRepository(
+        self.example_repository = EventSourcedRepository(
+            domain_class=Example,
             event_store=self.event_store,
             mutator=mutate,
         )
@@ -656,7 +669,8 @@ class EncryptedApplication(object):
                 cipher=cipher,
             )
         )
-        self.example_repository = ExampleRepository(
+        self.example_repository = EventSourcedRepository(
+            domain_class=Example,
             event_store=self.event_store,
             mutator=mutate,
         )
