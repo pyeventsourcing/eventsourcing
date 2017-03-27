@@ -376,20 +376,18 @@ assert received_events[1].value == 'bar2'
 ### Step 2: Infrastructure
 
 Since the application state is determined by a sequence of events, the events of the
-entities of the application must somehow be stored.
-
+application must somehow be stored, and the entities somehow retrieved.
 
 #### Database table
 
-Let's start by setting up a database for storing events. For the sake of simplicity in this
-example, use SQLAlchemy to define a database that stores integer-sequenced items.
+Let's start by setting up a simple database. We can use SQLAlchemy to define a
+database table that stores integer-sequenced items.
 
 ```python
 from sqlalchemy.ext.declarative.api import declarative_base
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 from sqlalchemy_utils import UUIDType
-
 
 Base = declarative_base()
 
@@ -417,7 +415,8 @@ class IntegerSequencedItem(Base):
 ```
 
 Now create the database and tables. The SQLAlchemy objects are adapted with classes from the 
-library, which provide a common interface for required operations.
+library, which provide a common interface for the required operations across all adapted
+databases.
 
 ```python
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
@@ -448,22 +447,30 @@ mysql://scott:tiger@hostname/dbname
 
 #### Event store
 
-To support different kinds of sequences, and allow for different schemas,
-the event store uses a "sequenced item mapper" to map domain events
-into sequenced items, and an "active record strategy" to map between sequenced
-items and data in a database. The details have been made explicit so they
-can be easily replaced.
+To support different kinds of sequences, and allow for different schemas
+for storing events, the event store uses a "sequenced item mapper" to map
+domain events into sequenced items, and an "active record strategy" to map
+between sequenced items and data in a database. The details have been made
+explicit so they can be easily replaced.
 
 The sequenced item mapper reads the event attribute values and derives the
-values of sequenced item fields, so it needs to know how to make those values.
+values of sequenced item fields. It instrospects the sequences item class
+to map the derived values onto a sequenced item.
 
-The active record strategy introspects the sequence item class to map sequenced
-items on to the database object by reflection. It also knows how to read and write
-active records of the database. The active record class is expected to support the
-fields of the sequenced item class. Hence it is possible to use an alternative 
-database management system and schema types by passing in an alternative active
-record class. And it is possible to completely change the schema names by passing
-in an alternative sequenced item class (along with a suitable active record class).
+The active record strategy reads and writes data in the database, using
+an active record class. It introspects the sequence item class to map
+sequenced items on to the database object by reflection. 
+
+Hence, it is possible to use alternative field types (e.g. different sizes of
+integer for storing version numbers) by passing in an alternative active record
+class. It is possible to use different databases by replacing the active record
+strategy. It is possible to change the schema names (e.g. so the database records
+look more like "stored events" rather than "sequenced items") by passing in an
+alternative sequenced item class (along with a suitable active record class). And
+it is possible to extend or replace the schema by extending or replacing the active
+record strategy.
+
+We can also use the library's classes without any such customizations.
 
 ```python
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -489,16 +496,16 @@ event_store = EventStore(
 
 #### Entity repository
 
-The application wants whole entities, not just a sequence of events. Since it is common
-to retrieve entities from a repository, an event sourced repository for the
-example entity can be constructed directly using the ```EventSourcedRepository```
-library class.
+It is common pattern to retrieve entities from a repository. An event sourced
+repository for the ```example``` entity class can be constructed directly using the
+```EventSourcedRepository``` library class. The repository is given the mutator function
+```mutate()``` and the event store, so that it can make an event player.
+
 
 ```python
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
 example_repository = EventSourcedRepository(
-    domain_class = Example,
     event_store=event_store,
     mutator=mutate,
 )
@@ -589,7 +596,6 @@ class Application(object):
             )
         )
         self.example_repository = EventSourcedRepository(
-            domain_class=Example,
             event_store=self.event_store,
             mutator=mutate,
         )
@@ -670,7 +676,6 @@ class EncryptedApplication(object):
             )
         )
         self.example_repository = EventSourcedRepository(
-            domain_class=Example,
             event_store=self.event_store,
             mutator=mutate,
         )

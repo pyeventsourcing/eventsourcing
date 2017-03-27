@@ -36,13 +36,17 @@ class EventSourcedRepository(AbstractEntityRepository):
         # Check we have a domain class.
         if domain_class is not None:
             self.domain_class = domain_class
-        assert self.domain_class is not None, "Domain entity class is required"
+        if mutator is None:
+            if self.domain_class is None:
+                raise AssertionError("Domain entity class is required unless mutator is given")
+            else:
+                mutator = self.domain_class.mutate
 
         # Instantiate an event player for this repo, with
         # repo-specific mutate function, page size, etc.
         self.event_player = EventPlayer(
             event_store=self.event_store,
-            mutate_func=mutator or self.domain_class.mutate,
+            mutate_func=mutator,
             page_size=self.__page_size__,
             is_short=self.__is_short__,
             snapshot_strategy=self._snapshot_strategy,
