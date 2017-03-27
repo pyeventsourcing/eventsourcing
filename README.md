@@ -417,9 +417,9 @@ class SequencedItemTable(Base):
                                       name='integer_sequenced_item_uc'),
 ```
 
-Now create the database and tables. The SQLAlchemy objects are adapted with classes from the 
-library, which provide a common interface for the required operations across all adapted
-databases.
+Now create the database table. The SQLAlchemy objects can be adapted with classes from the 
+library, which provide a common interface for the required operations: ```setup_connection()```
+and ```setup_tables()```.
 
 ```python
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
@@ -453,7 +453,7 @@ mysql://scott:tiger@hostname/dbname
 To support different kinds of sequences, and allow for different schemas
 for storing events, the event store uses a "sequenced item mapper" to map
 domain events into sequenced items, and an "active record strategy" to map
-between sequenced items and data in a database. The details have been made
+between sequenced items and a database table. The details have been made
 explicit so they can be easily replaced.
 
 The sequenced item mapper reads the event attribute values and derives the
