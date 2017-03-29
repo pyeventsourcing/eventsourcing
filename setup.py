@@ -17,6 +17,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'python-dateutil',
+        'PyCrypto',
         'singledispatch',
         'six',
     ] + install_requires_singledispatch,
