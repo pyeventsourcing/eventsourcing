@@ -6,6 +6,7 @@ from eventsourcing.application.policies import CombinedPersistencePolicy
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+from eventsourcing.infrastructure.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
 
 
 class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
@@ -60,11 +61,14 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         return event_store
 
     def construct_sequenced_item_mapper(self, sequenced_item_class, event_sequence_id_attr, event_position_attr,
+                                        json_encoder_class=ObjectJSONEncoder, json_decoder_class=ObjectJSONDecoder,
                                         always_encrypt=False, cipher=None):
         return SequencedItemMapper(
             sequenced_item_class=sequenced_item_class,
             event_sequence_id_attr=event_sequence_id_attr,
             event_position_attr=event_position_attr,
+            json_encoder_class=json_encoder_class,
+            json_decoder_class=json_decoder_class,
             always_encrypt=always_encrypt,
             cipher=cipher
         )
