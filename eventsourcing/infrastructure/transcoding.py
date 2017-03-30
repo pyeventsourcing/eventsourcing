@@ -1,10 +1,10 @@
 import datetime
-from json import JSONEncoder, JSONDecoder
+from json import JSONDecoder, JSONEncoder
 from uuid import UUID
 
 import dateutil.parser
 
-from eventsourcing.domain.model.events import topic_from_domain_class, resolve_domain_topic
+from eventsourcing.domain.model.events import resolve_domain_topic, topic_from_domain_class
 
 
 class ObjectJSONEncoder(JSONEncoder):
@@ -24,25 +24,24 @@ class ObjectJSONEncoder(JSONEncoder):
                     'state': state,
                 }
             }
-
         # Let the base class default method raise the TypeError.
         return JSONEncoder.default(self, obj)
 
 
 class ObjectJSONDecoder(JSONDecoder):
-    def __init__(self, **kwargs):
-        super(ObjectJSONDecoder, self).__init__(object_hook=ObjectJSONDecoder.from_jsonable, **kwargs)
+    def __init__(self, object_hook=None, **kwargs):
+        super(ObjectJSONDecoder, self).__init__(object_hook=object_hook or self.from_jsonable, **kwargs)
 
-    @staticmethod
-    def from_jsonable(d):
+    @classmethod
+    def from_jsonable(cls, d):
         if 'ISO8601_datetime' in d:
-            return ObjectJSONDecoder._decode_datetime(d)
+            return cls._decode_datetime(d)
         elif 'ISO8601_date' in d:
-            return ObjectJSONDecoder._decode_date(d)
+            return cls._decode_date(d)
         elif 'UUID' in d:
-            return ObjectJSONDecoder._decode_uuid(d)
+            return cls._decode_uuid(d)
         elif '__class__' in d:
-            return ObjectJSONDecoder._decode_object(d)
+            return cls._decode_object(d)
         return d
 
     @staticmethod

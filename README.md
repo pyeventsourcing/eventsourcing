@@ -22,12 +22,11 @@ Similarly, if you want to use Cassandra, then please install with 'cassandra'.
 
     pip install eventsourcing[cassandra]
 
-If you want to run the test suite, or try the example below with different backends, then
-please install with the 'test' optional extra.
+If you want to run the test suite, then please install with the 'test' optional extra.
 
     pip install eventsourcing[test]
 
-After installing with 'test', the test suite should pass.
+After installing with 'test', and installing Cassandra locally, the test suite should pass.
 
     python -m unittest discover eventsourcing.tests -v
 
@@ -120,16 +119,20 @@ and an example database table.
 
 ## Usage
 
-This section describes how to write a simple event sourced application. To create
-a working program, you can copy and paste the following code snippets into a single
-Python file.
+This section describes how to write an event sourced application.
 
 This example follows the layered architecture: application, domain, and infrastructure.
 
-The code snippets in this section have been tested. If you installed the
-library into a Python virtualenv, please check that your virtualenv is
-activated before running your program. Please feel able to experiment by
-making variations. 
+To create a working program, you can copy and paste the following code snippets into
+a single Python file. The code snippets in this section have been tested. Please feel
+free to experiment by making variations. 
+
+If you are using a Python virtualenv, please check that your virtualenv is activated
+before installing the library and running your program.
+
+Install the library with the 'sqlalchemy' and 'crypto' options.
+
+    pip install eventsourcing[sqlaclhemy,crypto]
 
 
 ### Step 1: Domain model
@@ -696,7 +699,7 @@ Event attribute values are encrypted inside the application before they are mapp
 to the database. The values are decrypted before domain events are replayed.
 
 ```python
-from eventsourcing.domain.services.cipher import AESCipher
+from eventsourcing.domain.services.aes_cipher import AESCipher
 
 aes_key = '0123456789abcdef'
 

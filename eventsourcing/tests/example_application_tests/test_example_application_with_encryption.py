@@ -1,4 +1,4 @@
-from eventsourcing.domain.services.cipher import AESCipher
+from eventsourcing.domain.services.aes_cipher import AESCipher
 from eventsourcing.tests.example_application_tests.base import WithExampleApplication
 from eventsourcing.tests.example_application_tests.test_example_application_with_cassandra import \
     TestExampleApplicationWithCassandra

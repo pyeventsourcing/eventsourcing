@@ -186,9 +186,14 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
     def test_static_mutator_method(self):
         self.assertRaises(NotImplementedError, TimestampedVersionedEntity._mutator, 1, 2)
 
-    def test_created_mutator_error(self):
+    def test_created_mutator_errors(self):
+        # Check the guard condition raises exception.
         with self.assertRaises(CreatedMutatorRequiresTypeNotInstance):
             created_mutator(mock.Mock(spec=Created), 'not a class')
+
+        # Check the instantiation type error.
+        with self.assertRaises(TypeError):
+            created_mutator(mock.Mock(spec=Created), TimestampedVersionedEntity)
 
 
 class CustomValueObject(object):

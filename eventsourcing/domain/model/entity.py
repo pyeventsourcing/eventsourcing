@@ -185,7 +185,10 @@ def created_mutator(event, cls):
                "".format(type(cls), event.entity_id, type(event)))
         raise CreatedMutatorRequiresTypeNotInstance(msg)
     assert issubclass(cls, TimestampedVersionedEntity), cls
-    self = cls(**event.__dict__)
+    try:
+        self = cls(**event.__dict__)
+    except TypeError as e:
+        raise TypeError("Class {} {}. Given {} from event type {}".format(cls, e, event.__dict__, type(event)))
     self._increment_version()
     return self
 

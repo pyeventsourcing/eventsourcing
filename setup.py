@@ -9,7 +9,7 @@ except ImportError:
 
 setup(
     name='eventsourcing',
-    version='2.1.0',
+    version='2.1.1',
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
@@ -23,6 +23,9 @@ setup(
     extras_require={
         'cassandra': [
             'cassandra-driver',
+        ],
+        'crypto': [
+            'PyCrypto',
         ],
         'test': [
             'cassandra-driver',
