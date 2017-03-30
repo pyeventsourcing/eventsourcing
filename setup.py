@@ -17,13 +17,15 @@ setup(
     packages=find_packages(),
     install_requires=[
         'python-dateutil',
-        'PyCrypto',
         'singledispatch',
         'six',
     ] + install_requires_singledispatch,
     extras_require={
         'cassandra': [
             'cassandra-driver',
+        ],
+        'crypto': [
+            'PyCrypto',
         ],
         'test': [
             'cassandra-driver',
