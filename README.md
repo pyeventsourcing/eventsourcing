@@ -132,7 +132,7 @@ before installing the library and running your program.
 
 Install the library with the 'sqlalchemy' and 'crypto' options.
 
-    pip install eventsourcing[sqlaclhemy,crypto]
+    pip install eventsourcing[sqlalchemy,crypto]
 
 
 ### Step 1: Domain model
