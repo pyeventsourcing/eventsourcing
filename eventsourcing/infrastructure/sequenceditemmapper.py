@@ -26,7 +26,10 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     Uses JSON to transcode domain events.
     """
 
-    def __init__(self, sequenced_item_class, event_sequence_id_attr=None, event_position_attr=None,
+    SEQUENCE_ID_FIELD_INDEX = 0
+    POSITION_FIELD_INDEX = 1
+
+    def __init__(self, sequenced_item_class, sequence_id_attr_name=None, position_attr_name=None,
                  json_encoder_class=ObjectJSONEncoder, json_decoder_class=ObjectJSONDecoder,
                  always_encrypt=False, cipher=None):
         self.sequenced_item_class = sequenced_item_class
@@ -35,10 +38,8 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         self.cipher = cipher
         self.always_encrypt = always_encrypt
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
-        sequence_id_fields_index = 0
-        self.event_sequence_id_attr = event_sequence_id_attr or self.field_names[sequence_id_fields_index]
-        position_fields_index = 1
-        self.event_position_attr = event_position_attr or self.field_names[position_fields_index]
+        self.sequence_id_attr_name = sequence_id_attr_name or self.field_names[self.SEQUENCE_ID_FIELD_INDEX]
+        self.position_attr_name = position_attr_name or self.field_names[self.POSITION_FIELD_INDEX]
 
     def to_sequenced_item(self, domain_event):
         """
@@ -51,10 +52,10 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Construct attributes of a sequenced item from the domain event.
 
         # Identify the sequence ID.
-        sequence_id = getattr(domain_event, self.event_sequence_id_attr)
+        sequence_id = getattr(domain_event, self.sequence_id_attr_name)
 
         # Identify the position in the sequence.
-        position = getattr(domain_event, self.event_position_attr)
+        position = getattr(domain_event, self.position_attr_name)
         topic = self.topic_from_domain_class(domain_event.__class__)
 
         # Serialise event attributes to JSON, optionally encrypted.

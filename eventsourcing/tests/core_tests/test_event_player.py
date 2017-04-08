@@ -30,8 +30,8 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                event_sequence_id_attr='entity_id',
-                event_position_attr='entity_version',
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
             ),
         )
 
@@ -44,8 +44,8 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                event_sequence_id_attr='entity_id',
-                event_position_attr='timestamp',
+                sequence_id_attr_name='entity_id',
+                position_attr_name='timestamp',
             ),
         )
 

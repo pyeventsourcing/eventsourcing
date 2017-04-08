@@ -465,13 +465,13 @@ the persistence model by extending the sequenced item mapper and sequenced item 
 It is also possible to use a different event store object, but that is beyond the scope
 of this example.
 
-In the code below, the args '''event_sequence_id_attr''' and '''event_position_attr''' tell the
+In the code below, the args '''sequence_id_attr_name''' and '''position_attr_name''' tell the
 sequenced item mapper which domain event attributes should be used for the
 sequence ID and position fields of a sequenced item. It isn't necessary to
-provide the '''event_sequence_id_attr''' arg, if the name of the domain event
-attribute holding the sequence ID value is equal to the name of the first field
+provide the '''sequence_id_attr_name''' arg, if the name of the domain event
+attribute holding the ID value is equal to the name of the first field
 of the sequenced item class - for example if both are called 'aggregate_id'. And
-it isn't necessary to provide the '''event_position_attr''', if the name of the
+it isn't necessary to provide the '''position_attr_name''', if the name of the
 domain event attribute holding the position in the sequence is equal to the name
 of the second field of the sequence item class - for example if both are called
 'aggregate_version' (see below).
@@ -486,13 +486,13 @@ from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 active_record_strategy = SQLAlchemyActiveRecordStrategy(
     datastore=datastore,
     active_record_class=SequencedItemTable,
-    sequenced_item_class=SequencedItem,
+    sequenced_item_class=SequencedItem
 )
 
 sequenced_item_mapper = SequencedItemMapper(
     sequenced_item_class=SequencedItem,
-    event_sequence_id_attr='entity_id',
-    event_position_attr='entity_version',
+    sequence_id_attr_name='entity_id',
+    position_attr_name='entity_version'
 )
 
 event_store = EventStore(
@@ -514,7 +514,7 @@ from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepo
 
 example_repository = EventSourcedRepository(
     event_store=event_store,
-    mutator=mutate,
+    mutator=mutate
 )
 ```
 
@@ -598,8 +598,8 @@ class Application(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                event_sequence_id_attr='entity_id',
-                event_position_attr='entity_version',
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
             )
         )
         self.example_repository = EventSourcedRepository(
@@ -676,8 +676,8 @@ class EncryptedApplication(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                event_sequence_id_attr='entity_id',
-                event_position_attr='entity_version',
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
                 always_encrypt=True,
                 cipher=cipher,
             )
@@ -828,8 +828,8 @@ class Application(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=StoredEvent,
-                event_sequence_id_attr='entity_id',
-                event_position_attr='entity_version',
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
             )
         )
         self.example_repository = EventSourcedRepository(
