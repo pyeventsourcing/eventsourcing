@@ -447,26 +447,35 @@ mysql://scott:tiger@hostname/dbname
 To support different kinds of sequences, and to allow for different schemas
 for storing events, the event store has been factored to use a "sequenced
 item mapper" to map domain events to sequenced items, and an "active record
-strategy" to map between sequenced items and a database table. The details
+strategy" to write sequenced items into a database table. The details
 have been made explicit so they can be easily replaced.
 
-The sequenced item mapper gets values from the domain event and derives the
-values of sequenced item fields. The active record strategy uses an active
-record class to access a database table.
+The sequenced item mapper derives the values of sequenced item fields from
+the attributes of domain events. The active record strategy uses an active
+record class to access rows in a database table.
 
-Hence, by passing in an alternative active record class to the active record
-strategy it is possible to use different column or field types in the database
-(e.g. a smaller or larger size of integer for version numbers). By using a
-different active record strategy class altogether, it is possible to use a
-different database management system.
+Hence you can use a different database management system by using an alternative
+active record strategy, whilst reusing the sequenced item mapper. You can vary the column
+or field types used in a database by passing in an alternative active record class,
+whilst reusing both the sequenced item mapper and the active record strategy.
 
-By using an alternative sequenced item class, it is possible to use
-alternative field names in the schema, for example so the database
-records look like "stored events" rather than "sequenced items". And it
-is possible to extend or replace the schema by extending or replacing
-the sequenced item mapper. It is also possible to use a custom event store.
+You can use alternative field names by using an alternative sequenced
+item class along with a matching active record strategy. And and you can extend
+the persistence model by extending the sequenced item mapper and sequenced item class.
+It is also possible to use a different event store object, but that is beyond the scope
+of this example.
 
-To keep things simple, let's use the library's classes without any customizations.
+In the code below, the args '''event_sequence_id_attr''' and '''event_position_attr''' tell the
+sequenced item mapper which domain event attributes should be used for the
+sequence ID and position fields of a sequenced item. It isn't necessary to
+provide the '''event_sequence_id_attr''' arg, if the name of the domain event
+attribute holding the sequence ID value is equal to the name of the first field
+of the sequenced item class - for example if both are called 'aggregate_id'. And
+it isn't necessary to provide the '''event_position_attr''', if the name of the
+domain event attribute holding the position in the sequence is equal to the name
+of the second field of the sequence item class - for example if both are called
+'aggregate_version' (see below).
+
 
 ```python
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -1021,11 +1030,7 @@ class DDDApplication(object):
                 active_record_class=StoredEventTable,
                 sequenced_item_class=StoredEvent,
             ),
-            sequenced_item_mapper=SequencedItemMapper(
-                sequenced_item_class=StoredEvent,
-                event_sequence_id_attr='aggregate_id',
-                event_position_attr='aggregate_version',
-            )
+            sequenced_item_mapper=SequencedItemMapper(StoredEvent)
         )
         self.aggregate_repository = EventSourcedRepository(
             event_store=self.event_store,

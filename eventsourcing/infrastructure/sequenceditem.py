@@ -30,3 +30,6 @@ class SequencedItemFieldNames(object):
 
     def __iter__(self):
         return iter(self._field_names)
+
+    def __getitem__(self, i):
+        return self._field_names[i]
