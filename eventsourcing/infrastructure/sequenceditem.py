@@ -28,8 +28,5 @@ class SequencedItemFieldNames(object):
         # Data is assumed to be the fourth field of a sequenced item.
         return self._field_names[3]
 
-    def __iter__(self):
-        return iter(self._field_names)
-
     def __getitem__(self, i):
         return self._field_names[i]
