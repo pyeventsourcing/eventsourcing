@@ -465,13 +465,13 @@ the persistence model by extending the sequenced item mapper and sequenced item 
 It is also possible to use a different event store object, but that is beyond the scope
 of this example.
 
-In the code below, the args '''sequence_id_attr_name''' and '''position_attr_name''' tell the
+In the code below, the args ```sequence_id_attr_name``` and ```position_attr_name``` tell the
 sequenced item mapper which domain event attributes should be used for the
 sequence ID and position fields of a sequenced item. It isn't necessary to
-provide the '''sequence_id_attr_name''' arg, if the name of the domain event
+provide the ```sequence_id_attr_name``` arg, if the name of the domain event
 attribute holding the ID value is equal to the name of the first field
 of the sequenced item class - for example if both are called 'aggregate_id'. And
-it isn't necessary to provide the '''position_attr_name''', if the name of the
+it isn't necessary to provide the ```position_attr_name```, if the name of the
 domain event attribute holding the position in the sequence is equal to the name
 of the second field of the sequence item class - for example if both are called
 'aggregate_version' (see below).
@@ -533,14 +533,14 @@ stored_events = event_store.get_domain_events(entity1.id)
 assert len(stored_events) == 2, (received_events, stored_events)
 ```
 
-Now the entity can now be retrieved from the repository, using its dictionary-like interface.
+The entity can now be retrieved from the repository, using its dictionary-like interface.
 
 ```python
 retrieved_entity = example_repository[entity1.id]
 assert retrieved_entity.foo == 'bar2'
 ```
 
-To keep things grounded, remember that we can always get the sequenced items directly from the active record
+Remember that we can always get the sequenced items directly from the active record
 strategy. A sequenced item is tuple containing a serialised representation of the domain event. In the library, a
 ```SequencedItem``` is a Python tuple with four fields: ```sequence_id```, ```position```,
 ```topic```, and ```data```. By default, an event's ```entity_id``` attribute is mapped to the ```sequence_id``` field,
@@ -572,9 +572,8 @@ databases is forthcoming.
 ### Step 3: Application
 
 Although we can do everything at the module level, an application object brings
-things together.
-
-The application has an event store, and can have entity repositories.
+everything together. In the example below, the application has an event store,
+and an entity repository.
 
 Most importantly, the application has a persistence policy. The persistence
 policy firstly subscribes to receive events when they are published, and it
@@ -622,7 +621,7 @@ class Application(object):
 ```
 
 After instantiating the application, we can create more example entities
-and expect they will be immediately available in the repository.
+and expect they will be available in the repository immediately.
 
 Please note, a discarded entity can not be retrieved from the repository.
 The repository's dictionary-like interface will raise a Python ```KeyError```
