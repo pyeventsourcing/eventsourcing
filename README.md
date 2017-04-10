@@ -196,13 +196,14 @@ timestamp. It also has a property ```foo```, and a ```discard()``` method to use
 when the entity is discarded. The factory method ```create_new_example()``` can
 be used to create new entities.
 
-All the methods follow a similar pattern. They construct an event that represents the result
-of the operation. They use a "mutator function" function ```mutate()``` to apply the event
-to the entity. And they "publish" the event for the benefit of any subscribers.
+All the methods follow a similar pattern. Each constructs an event that represents the result
+of the operation. Each uses a "mutator function" function ```mutate()``` to apply the event
+to the entity. Then each publishes the event for the benefit of any subscribers.
 
-When replaying a sequence of events, a "mutator function" is used to apply an event to
-an initial state. For the sake of simplicity in this example, we'll use an if-else block
-that can handle the different types of events.
+When replaying a sequence of events, for example when reconsistuting an entity from its
+domain events, the mutator function is also successively to apply every event to an evolving
+initial state. For the sake of simplicity in this example, we'll use an if-else block
+that can handle the three types of events defined above.
 
 ```python
 import uuid
@@ -271,7 +272,6 @@ class Example(object):
 
 def create_new_example(foo):
     """Factory method for Example entities."""
-
     # Create an entity ID.
     entity_id = uuid.uuid4()
     # Instantiate a domain event.
@@ -286,13 +286,11 @@ def create_new_example(foo):
 
 def mutate(entity, event):
     """Mutator function for Example entities."""
-
     # Handle "created" events by instantiating the entity class.
     if isinstance(event, Created):
         entity = Example(**event.__dict__)
         entity._version += 1
         return entity
-        
     # Handle "value changed" events by setting the named value.
     elif isinstance(event, ValueChanged):
         assert not entity.is_discarded
@@ -300,7 +298,6 @@ def mutate(entity, event):
         entity._version += 1
         entity._last_modified_on = event.timestamp
         return entity
-        
     # Handle "discarded" events by returning 'None'.
     elif isinstance(event, Discarded):
         assert not entity.is_discarded
@@ -452,29 +449,27 @@ have been made explicit so they can be easily replaced.
 
 The sequenced item mapper derives the values of sequenced item fields from
 the attributes of domain events. The active record strategy uses an active
-record class to access rows in a database table.
+record class to access rows in a database table. Hence you you could vary the
+field types and indexes used in the database table by passing in an alternative
+active record class. You can use alternative field names in the database
+table by using an alternative sequenced item class, along with a suitable active
+record class, reusing the sequenced item mapper and the active record strategy.
 
-Hence you can use a different database management system by using an alternative
-active record strategy, whilst reusing the sequenced item mapper. You can vary the column
-or field types used in a database by passing in an alternative active record class,
-whilst reusing both the sequenced item mapper and the active record strategy.
+You can extend or replace the persistence model by extending the sequenced item
+mapper and sequenced item class, and using them along with a suitable active
+record class. A new database system or service can be adapted with a new active
+record strategy.
 
-You can use alternative field names by using an alternative sequenced
-item class along with a matching active record strategy. And and you can extend
-the persistence model by extending the sequenced item mapper and sequenced item class.
-It is also possible to use a different event store object, but that is beyond the scope
-of this example.
-
-In the code below, the args ```sequence_id_attr_name``` and ```position_attr_name``` tell the
-sequenced item mapper which domain event attributes should be used for the
+In the code below, the args ```sequence_id_attr_name``` and ```position_attr_name```
+inform the sequenced item mapper which domain event attributes should be used for the
 sequence ID and position fields of a sequenced item. It isn't necessary to
 provide the ```sequence_id_attr_name``` arg, if the name of the domain event
-attribute holding the ID value is equal to the name of the first field
-of the sequenced item class - for example if both are called 'aggregate_id'. And
-it isn't necessary to provide the ```position_attr_name```, if the name of the
-domain event attribute holding the position in the sequence is equal to the name
-of the second field of the sequence item class - for example if both are called
-'aggregate_version' (see below).
+attribute holding the sequence ID value is equal to the name of the first field
+of the sequenced item class - for example if both are called 'aggregate_id'. Similarly,
+it isn't necessary to provide a value for the ```position_attr_name``` arg, if the name
+of the domain event attribute which indicates the position of the event in a sequence
+is equal to the name of the second field of the sequence item class - for example if both
+are called 'aggregate_version' (see below).
 
 
 ```python
