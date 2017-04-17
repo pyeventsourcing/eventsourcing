@@ -11,6 +11,7 @@ Welcome to eventsourcing's documentation!
    :caption: Contents:
 
    modules
+   webframeworks
 
 .. include:: readme.rst
 
