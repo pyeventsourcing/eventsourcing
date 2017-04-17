@@ -885,7 +885,83 @@ with Application(datastore) as app:
         raise Exception('KeyError was not raised')
 ```
 
-### Step 7: Aggregates in domain driven design
+
+### Step 7: Using Cassandra
+
+Using Cassandra is very similar to using SQLAlchemy. Please note, it isn't necessary to pass
+the Cassandra datastore object into the active record strategy object.
+
+```python
+from eventsourcing.infrastructure.cassandra.datastore import CassandraSettings, CassandraDatastore
+from eventsourcing.infrastructure.cassandra.activerecords import CqlIntegerSequencedItem
+from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy
+
+cassandra_datastore = CassandraDatastore(
+    settings=CassandraSettings(),
+    tables=(CqlIntegerSequencedItem,),
+)
+
+cassandra_datastore.setup_connection()
+cassandra_datastore.setup_tables()
+
+
+class ApplicationWithCassandra(object):
+    def __init__(self):
+        self.event_store = EventStore(
+            active_record_strategy=CassandraActiveRecordStrategy(
+                active_record_class=CqlIntegerSequencedItem,
+                sequenced_item_class=SequencedItem,
+            ),
+            sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
+            )
+        )
+        self.example_repository = EventSourcedRepository(
+            event_store=self.event_store,
+            mutator=mutate,
+        )
+        self.persistence_policy = PersistencePolicy(self.event_store)
+        
+    def create_example(self, foo):
+        return create_new_example(foo=foo)
+        
+    def close(self):
+        self.persistence_policy.close()
+
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+
+with ApplicationWithCassandra() as app:
+
+    entity5 = app.create_example(foo='bar11')
+    
+    assert entity5.id in app.example_repository
+    
+    assert app.example_repository[entity5.id].foo == 'bar11'
+    
+    entity5.foo = 'bar12'
+    
+    assert app.example_repository[entity5.id].foo == 'bar12'
+
+    # Discard the entity.    
+    entity5.discard()
+    assert entity5.id not in app.example_repository
+    
+    try:
+        app.example_repository[entity5.id]
+    except KeyError:
+        pass
+    else:
+        raise Exception('KeyError was not raised')
+```
+
+### Step 8: Aggregates in domain driven design
   
 Let's say we want to separate the sequence of events from entities, and instead have
 an aggregate that controls a set of entities.
@@ -974,13 +1050,13 @@ class ExampleAggregateRoot():
             aggregate_id=self.id,
             aggregate_version=self.version,
         )
-        mutate(self, event)
+        mutate_aggregate_event(self, event)
         self._pending_events.append(event)
 
     def discard(self):
         assert not self._is_discarded
         event = AggregateDiscarded(aggregate_id=self.id, aggregate_version=self.version)
-        mutate(self, event)
+        mutate_aggregate_event(self, event)
         self._pending_events.append(event)
         
     def save(self):
@@ -988,7 +1064,7 @@ class ExampleAggregateRoot():
         self._pending_events = []
 
 
-def mutate(aggregate, event):
+def mutate_aggregate_event(aggregate, event):
     """Mutator function for example aggregate root."""
 
     # Handle "created" events by instantiating the aggregate class.
@@ -1028,13 +1104,13 @@ class DDDApplication(object):
         )
         self.aggregate_repository = EventSourcedRepository(
             event_store=self.event_store,
-            mutator=mutate,
+            mutator=mutate_aggregate_event,
         )
         self.persistence_policy = PersistencePolicy(self.event_store)
         
     def create_example_aggregate(self):
         event = AggregateCreated(aggregate_id=uuid.uuid4())
-        aggregate = mutate(aggregate=None, event=event)
+        aggregate = mutate_aggregate_event(aggregate=None, event=event)
         aggregate._pending_events.append(event)
         return aggregate
         
