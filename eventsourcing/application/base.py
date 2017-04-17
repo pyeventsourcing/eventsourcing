@@ -1,3 +1,10 @@
+"""
+:mod:`eventsourcing.application.base` Module
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Base application classes.
+
+"""
 from abc import ABCMeta
 
 from six import with_metaclass
