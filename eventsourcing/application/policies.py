@@ -1,3 +1,10 @@
+"""
+:mod:`eventsourcing.application.policies` Module
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Persistance Policies
+
+"""
 from eventsourcing.domain.model.events import TimestampedEntityEvent, VersionedEntityEvent, subscribe, unsubscribe
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
