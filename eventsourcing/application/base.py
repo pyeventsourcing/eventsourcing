@@ -72,8 +72,8 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
                                         always_encrypt=False, cipher=None):
         return SequencedItemMapper(
             sequenced_item_class=sequenced_item_class,
-            event_sequence_id_attr=event_sequence_id_attr,
-            event_position_attr=event_position_attr,
+            sequence_id_attr_name=event_sequence_id_attr,
+            position_attr_name=event_position_attr,
             json_encoder_class=json_encoder_class,
             json_decoder_class=json_decoder_class,
             always_encrypt=always_encrypt,

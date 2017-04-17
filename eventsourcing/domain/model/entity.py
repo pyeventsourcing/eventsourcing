@@ -36,14 +36,19 @@ class Created(AggregateEvent):
 
 
 class AttributeChanged(AggregateEvent):
-    pass
+    @property
+    def name(self):
+        return self.__dict__['name']
+
+    @property
+    def value(self):
+        return self.__dict__['value']
 
 
 class Discarded(AggregateEvent):
     pass
 
 
-# Todo: Decompose this, to allow for entities without timestamps and without versions.
 class DomainEntity(with_metaclass(QualnameABCMeta)):
 
     def __init__(self, entity_id):
@@ -99,6 +104,19 @@ class DomainEntity(with_metaclass(QualnameABCMeta)):
     @staticmethod
     def _mutator(event, initial):
         return entity_mutator(event, initial)
+
+
+class WithReflexiveMutator(DomainEntity):
+    """
+    Implements an entity mutator function by dispatching all
+    calls to mutate an entity with an event to the event itself.
+    
+    This is an alternative to using an independent mutator function
+    implemented with singledispatch or an if-else block.
+    """
+    @classmethod
+    def mutate(cls, entity=None, event=None):
+        return event.apply(entity or cls)
 
 
 class VersionedEntity(DomainEntity):

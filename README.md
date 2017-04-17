@@ -196,13 +196,14 @@ timestamp. It also has a property ```foo```, and a ```discard()``` method to use
 when the entity is discarded. The factory method ```create_new_example()``` can
 be used to create new entities.
 
-All the methods follow a similar pattern. They construct an event that represents the result
-of the operation. They use a "mutator function" function ```mutate()``` to apply the event
-to the entity. And they "publish" the event for the benefit of any subscribers.
+All the methods follow a similar pattern. Each constructs an event that represents the result
+of the operation. Each uses a "mutator function" function ```mutate()``` to apply the event
+to the entity. Then each publishes the event for the benefit of any subscribers.
 
-When replaying a sequence of events, a "mutator function" is used to apply an event to
-an initial state. For the sake of simplicity in this example, we'll use an if-else block
-that can handle the different types of events.
+When replaying a sequence of events, for example when reconsistuting an entity from its
+domain events, the mutator function is also successively to apply every event to an evolving
+initial state. For the sake of simplicity in this example, we'll use an if-else block
+that can handle the three types of events defined above.
 
 ```python
 import uuid
@@ -271,7 +272,6 @@ class Example(object):
 
 def create_new_example(foo):
     """Factory method for Example entities."""
-
     # Create an entity ID.
     entity_id = uuid.uuid4()
     # Instantiate a domain event.
@@ -286,13 +286,11 @@ def create_new_example(foo):
 
 def mutate(entity, event):
     """Mutator function for Example entities."""
-
     # Handle "created" events by instantiating the entity class.
     if isinstance(event, Created):
         entity = Example(**event.__dict__)
         entity._version += 1
         return entity
-        
     # Handle "value changed" events by setting the named value.
     elif isinstance(event, ValueChanged):
         assert not entity.is_discarded
@@ -300,7 +298,6 @@ def mutate(entity, event):
         entity._version += 1
         entity._last_modified_on = event.timestamp
         return entity
-        
     # Handle "discarded" events by returning 'None'.
     elif isinstance(event, Discarded):
         assert not entity.is_discarded
@@ -447,26 +444,33 @@ mysql://scott:tiger@hostname/dbname
 To support different kinds of sequences, and to allow for different schemas
 for storing events, the event store has been factored to use a "sequenced
 item mapper" to map domain events to sequenced items, and an "active record
-strategy" to map between sequenced items and a database table. The details
+strategy" to write sequenced items into a database table. The details
 have been made explicit so they can be easily replaced.
 
-The sequenced item mapper gets values from the domain event and derives the
-values of sequenced item fields. The active record strategy uses an active
-record class to access a database table.
+The sequenced item mapper derives the values of sequenced item fields from
+the attributes of domain events. The active record strategy uses an active
+record class to access rows in a database table. Hence you you could vary the
+field types and indexes used in the database table by passing in an alternative
+active record class. You can use alternative field names in the database
+table by using an alternative sequenced item class, along with a suitable active
+record class, reusing the sequenced item mapper and the active record strategy.
 
-Hence, by passing in an alternative active record class to the active record
-strategy it is possible to use different column or field types in the database
-(e.g. a smaller or larger size of integer for version numbers). By using a
-different active record strategy class altogether, it is possible to use a
-different database management system.
+You can extend or replace the persistence model by extending the sequenced item
+mapper and sequenced item class, and using them along with a suitable active
+record class. A new database system or service can be adapted with a new active
+record strategy.
 
-By using an alternative sequenced item class, it is possible to use
-alternative field names in the schema, for example so the database
-records look like "stored events" rather than "sequenced items". And it
-is possible to extend or replace the schema by extending or replacing
-the sequenced item mapper. It is also possible to use a custom event store.
+In the code below, the args ```sequence_id_attr_name``` and ```position_attr_name```
+inform the sequenced item mapper which domain event attributes should be used for the
+sequence ID and position fields of a sequenced item. It isn't necessary to
+provide the ```sequence_id_attr_name``` arg, if the name of the domain event
+attribute holding the sequence ID value is equal to the name of the first field
+of the sequenced item class - for example if both are called 'aggregate_id'. Similarly,
+it isn't necessary to provide a value for the ```position_attr_name``` arg, if the name
+of the domain event attribute which indicates the position of the event in a sequence
+is equal to the name of the second field of the sequence item class - for example if both
+are called 'aggregate_version' (see below).
 
-To keep things simple, let's use the library's classes without any customizations.
 
 ```python
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -477,13 +481,13 @@ from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 active_record_strategy = SQLAlchemyActiveRecordStrategy(
     datastore=datastore,
     active_record_class=SequencedItemTable,
-    sequenced_item_class=SequencedItem,
+    sequenced_item_class=SequencedItem
 )
 
 sequenced_item_mapper = SequencedItemMapper(
     sequenced_item_class=SequencedItem,
-    event_sequence_id_attr='entity_id',
-    event_position_attr='entity_version',
+    sequence_id_attr_name='entity_id',
+    position_attr_name='entity_version'
 )
 
 event_store = EventStore(
@@ -505,7 +509,7 @@ from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepo
 
 example_repository = EventSourcedRepository(
     event_store=event_store,
-    mutator=mutate,
+    mutator=mutate
 )
 ```
 
@@ -524,14 +528,14 @@ stored_events = event_store.get_domain_events(entity1.id)
 assert len(stored_events) == 2, (received_events, stored_events)
 ```
 
-Now the entity can now be retrieved from the repository, using its dictionary-like interface.
+The entity can now be retrieved from the repository, using its dictionary-like interface.
 
 ```python
 retrieved_entity = example_repository[entity1.id]
 assert retrieved_entity.foo == 'bar2'
 ```
 
-To keep things grounded, remember that we can always get the sequenced items directly from the active record
+Remember that we can always get the sequenced items directly from the active record
 strategy. A sequenced item is tuple containing a serialised representation of the domain event. In the library, a
 ```SequencedItem``` is a Python tuple with four fields: ```sequence_id```, ```position```,
 ```topic```, and ```data```. By default, an event's ```entity_id``` attribute is mapped to the ```sequence_id``` field,
@@ -563,9 +567,8 @@ databases is forthcoming.
 ### Step 3: Application
 
 Although we can do everything at the module level, an application object brings
-things together.
-
-The application has an event store, and can have entity repositories.
+everything together. In the example below, the application has an event store,
+and an entity repository.
 
 Most importantly, the application has a persistence policy. The persistence
 policy firstly subscribes to receive events when they are published, and it
@@ -589,8 +592,8 @@ class Application(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                event_sequence_id_attr='entity_id',
-                event_position_attr='entity_version',
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
             )
         )
         self.example_repository = EventSourcedRepository(
@@ -613,7 +616,7 @@ class Application(object):
 ```
 
 After instantiating the application, we can create more example entities
-and expect they will be immediately available in the repository.
+and expect they will be available in the repository immediately.
 
 Please note, a discarded entity can not be retrieved from the repository.
 The repository's dictionary-like interface will raise a Python ```KeyError```
@@ -667,8 +670,8 @@ class EncryptedApplication(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                event_sequence_id_attr='entity_id',
-                event_position_attr='entity_version',
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
                 always_encrypt=True,
                 cipher=cipher,
             )
@@ -819,8 +822,8 @@ class Application(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=StoredEvent,
-                event_sequence_id_attr='entity_id',
-                event_position_attr='entity_version',
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
             )
         )
         self.example_repository = EventSourcedRepository(
@@ -1021,11 +1024,7 @@ class DDDApplication(object):
                 active_record_class=StoredEventTable,
                 sequenced_item_class=StoredEvent,
             ),
-            sequenced_item_mapper=SequencedItemMapper(
-                sequenced_item_class=StoredEvent,
-                event_sequence_id_attr='aggregate_id',
-                event_position_attr='aggregate_version',
-            )
+            sequenced_item_mapper=SequencedItemMapper(StoredEvent)
         )
         self.aggregate_repository = EventSourcedRepository(
             event_store=self.event_store,

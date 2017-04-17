@@ -59,8 +59,8 @@ class ExampleApplicationWithAlternativeSequencedItemType(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=StoredEvent,
-                event_sequence_id_attr='entity_id',
-                event_position_attr='entity_version',
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
             )
         )
         self.repository = ExampleRepository(
