@@ -1,5 +1,5 @@
-Using with Web Frameworks
-=========================
+Using with Web Frameworks/WSGI
+==============================
 
 It's a good question. You can do it in the wsgi file. If you have test cases,
 you can do it there too. Also if you have any workers (e.g. celery workers) you
