@@ -1,11 +1,11 @@
 import uuid
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, Aggregate, AttributeChanged, Created, \
+from eventsourcing.domain.model.entity import AbstractEntityRepository, AggregateRoot, AttributeChanged, Created, \
     Discarded, attribute, entity_mutator, singledispatch
 from eventsourcing.domain.model.events import AggregateEvent, publish
 
 
-class Example(Aggregate):
+class Example(AggregateRoot):
     """
     An example event sourced domain model entity.
     """

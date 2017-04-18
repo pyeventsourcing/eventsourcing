@@ -1,11 +1,11 @@
 # from singledispatch import singledispatch
 #
-# from eventsourcing.domain.model.entity import AbstractEntityRepository, Aggregate, Created, entity_mutator
+# from eventsourcing.domain.model.entity import AbstractEntityRepository, AggregateRoot, Created, entity_mutator
 # from eventsourcing.domain.model.events import publish
 # from eventsourcing.exceptions import RepositoryKeyError
 #
 #
-# class NotificationLog(Aggregate):
+# class NotificationLog(AggregateRoot):
 #     class Started(Created):
 #         pass
 #
