@@ -127,10 +127,6 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         try:
             self.datastore.db_session.delete(record)
             self.datastore.db_session.commit()
-        except Exception as e:
-            # Roll back the transaction.
-            self.datastore.db_session.rollback()
-            raise e
         finally:
             # Begin new transaction.
             self.datastore.db_session.close()
