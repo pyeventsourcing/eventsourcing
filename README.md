@@ -176,7 +176,7 @@ class ValueChanged(DomainEvent):
         self.name = name
         self.value = value
 
-    
+
 class Discarded(DomainEvent):
     """Published when an entity is discarded."""
 ```
