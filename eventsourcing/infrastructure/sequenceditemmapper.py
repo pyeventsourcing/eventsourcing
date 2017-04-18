@@ -126,7 +126,6 @@ def deserialize_domain_entity(entity_topic, entity_attrs):
     """
     Return a new domain entity object from a given topic (a string) and attributes (a dict).
     """
-
     # Get the domain entity class from the entity topic.
     domain_class = resolve_domain_topic(entity_topic)
 

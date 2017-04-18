@@ -99,7 +99,7 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
             self.assertEqual(entity1.b, 'b')
 
             # Check there is a stored event.
-            all_records = list(app.event_store.active_record_strategy.filter())
+            all_records = list(app.event_store.active_record_strategy.all_records())
             self.assertEqual(len(all_records), 1)
             active_record = all_records[0]
             self.assertEqual(active_record.sequence_id, entity1.id)

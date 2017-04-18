@@ -331,32 +331,32 @@ received_events = []
 subscribe(lambda e: received_events.append(e))
 
 # Create a new entity using the factory.
-entity1 = create_new_example(foo='bar1')
+entity = create_new_example(foo='bar1')
 
 # Check the entity has an ID.
-assert entity1.id
+assert entity.id
 
 # Check the entity has a version number.
-assert entity1.version == 1
+assert entity.version == 1
 
 # Check the received events.
 assert len(received_events) == 1, received_events
 assert isinstance(received_events[0], Created)
-assert received_events[0].entity_id == entity1.id
+assert received_events[0].entity_id == entity.id
 assert received_events[0].entity_version == 0
 assert received_events[0].foo == 'bar1'
 
 # Check the value of property 'foo'.
-assert entity1.foo == 'bar1'
+assert entity.foo == 'bar1'
 
 # Update property 'foo'.
-entity1.foo = 'bar2'
+entity.foo = 'bar2'
 
 # Check the new value of 'foo'.
-assert entity1.foo == 'bar2'
+assert entity.foo == 'bar2'
 
 # Check the version number has increased.
-assert entity1.version == 2
+assert entity.version == 2
 
 # Check the received events.
 assert len(received_events) == 2, received_events
@@ -524,14 +524,14 @@ for event in received_events:
     event_store.append(event)
 
 # Check the events exist in the event store.
-stored_events = event_store.get_domain_events(entity1.id)
+stored_events = event_store.get_domain_events(entity.id)
 assert len(stored_events) == 2, (received_events, stored_events)
 ```
 
 The entity can now be retrieved from the repository, using its dictionary-like interface.
 
 ```python
-retrieved_entity = example_repository[entity1.id]
+retrieved_entity = example_repository[entity.id]
 assert retrieved_entity.foo == 'bar2'
 ```
 
@@ -544,16 +544,16 @@ sequenced item is used to identify the event class, and the ```data``` field rep
 JSON string).
 
 ```python
-sequenced_items = event_store.active_record_strategy.get_items(entity1.id)
+sequenced_items = event_store.active_record_strategy.get_items(entity.id)
 
 assert len(sequenced_items) == 2
 
-assert sequenced_items[0].sequence_id == entity1.id
+assert sequenced_items[0].sequence_id == entity.id
 assert sequenced_items[0].position == 0
 assert 'Created' in sequenced_items[0].topic
 assert 'bar1' in sequenced_items[0].data
 
-assert sequenced_items[1].sequence_id == entity1.id
+assert sequenced_items[1].sequence_id == entity.id
 assert sequenced_items[1].position == 1
 assert 'ValueChanged' in sequenced_items[1].topic
 assert 'bar2' in sequenced_items[1].data
@@ -600,7 +600,7 @@ class Application(object):
             event_store=self.event_store,
             mutator=mutate,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
         
     def create_example(self, foo):
         return create_new_example(foo=foo)
@@ -625,22 +625,22 @@ exception instead of returning an entity.
 ```python
 with Application(datastore) as app:
 
-    entity2 = app.create_example(foo='bar3')
+    entity = app.create_example(foo='bar1')
     
-    assert entity2.id in app.example_repository
+    assert entity.id in app.example_repository
     
-    assert app.example_repository[entity2.id].foo == 'bar3'
+    assert app.example_repository[entity.id].foo == 'bar1'
     
-    entity2.foo = 'bar4'
+    entity.foo = 'bar2'
     
-    assert app.example_repository[entity2.id].foo == 'bar4'
+    assert app.example_repository[entity.id].foo == 'bar2'
 
     # Discard the entity.    
-    entity2.discard()
-    assert entity2.id not in app.example_repository
+    entity.discard()
+    assert entity.id not in app.example_repository
     
     try:
-        app.example_repository[entity2.id]
+        app.example_repository[entity.id]
     except KeyError:
         pass
     else:
@@ -653,7 +653,164 @@ A slightly more developed example application can be found in the library
 module ```eventsourcing.example.application```.
 
 
-### Step 4: Application-level encryption
+### Step 4: Snapshotting
+
+To enable snapshotting, pass in a snapshotting strategy object when constructing
+an entity repository.
+
+The snapshotting strategy object depends on infrastructure. There are several
+options, but here we will simply use a separate table for snapshots.
+
+```python
+class SnapshotTable(Base):
+    __tablename__ = 'snapshots'
+
+    id = Column(Integer(), Sequence('snapshot_id_seq'), primary_key=True)
+    sequence_id = Column(UUIDType(), index=True)
+    position = Column(BigInteger(), index=True)
+    topic = Column(String(255))
+    data = Column(Text())
+    __table_args__ = UniqueConstraint('sequence_id', 'position',
+                                      name='integer_sequenced_item_uc'),
+
+
+datastore.setup_tables()
+
+```
+
+We can also introduce a snapshotting policy, so that a snapshot is automatically taken every five events.
+
+```python
+from eventsourcing.infrastructure.eventplayer import EventPlayer
+from eventsourcing.domain.model.events import unsubscribe
+
+
+class SnapshottingPolicy(object):
+
+    def __init__(self, event_player):
+        assert isinstance(event_player, EventPlayer)
+        self.event_player = event_player
+        subscribe(predicate=self.requires_snapshot, handler=self.take_snapshot)
+    
+    @staticmethod
+    def requires_snapshot(event):
+        if not isinstance(event, DomainEvent):
+            return False
+        if isinstance(event, Discarded):
+            return False
+        return not (event.entity_version + 1) % 5
+
+    def take_snapshot(self, event):
+        self.event_player.take_snapshot(event.entity_id)
+        
+    def close(self):
+        unsubscribe(predicate=self.requires_snapshot, handler=self.take_snapshot)
+```
+
+The application also needs a policy to persist snapshots that are taken.
+
+
+```python
+from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
+from eventsourcing.domain.model.snapshot import Snapshot
+
+
+class ApplicationWithSnapshotting(object):
+
+    def __init__(self, datastore):
+        self.event_store = EventStore(
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+                datastore=datastore,
+                active_record_class=SequencedItemTable,
+                sequenced_item_class=SequencedItem,
+            ),
+            sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
+            )
+        )
+        self.snapshot_store = EventStore(
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+                datastore=datastore,
+                active_record_class=SnapshotTable,
+                sequenced_item_class=SequencedItem,
+            ),
+            sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
+            )
+        )
+        self.snapshot_strategy = EventSourcedSnapshotStrategy(
+            event_store=self.snapshot_store,
+        )
+        self.example_repository = EventSourcedRepository(
+            event_store=self.event_store,
+            snapshot_strategy=self.snapshot_strategy,
+            mutator=mutate,
+        )
+        self.entity_persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
+        self.snapshot_persistence_policy = PersistencePolicy(self.snapshot_store, event_type=Snapshot)
+        self.snapshotting_policy = SnapshottingPolicy(self.example_repository.event_player)
+        
+    def create_example(self, foo):
+        return create_new_example(foo=foo)
+        
+    def close(self):
+        self.entity_persistence_policy.close()
+        self.snapshot_persistence_policy.close()
+        self.snapshotting_policy.close()
+
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+```
+
+Now snapshots of example entities will be taken every five events, except for the initial event and discarded events.
+
+```python
+with ApplicationWithSnapshotting(datastore) as app:
+
+    entity = app.create_example(foo='bar1')
+    
+    assert entity.id in app.example_repository
+    
+    assert app.example_repository[entity.id].foo == 'bar1'
+    
+    entity.foo = 'bar2'
+    entity.foo = 'bar3'
+    entity.foo = 'bar4'
+
+    assert app.example_repository.event_player.get_snapshot(entity.id) is None
+
+    entity.foo = 'bar5'
+
+    assert app.example_repository.event_player.get_snapshot(entity.id) is not None
+
+    entity.foo = 'bar6'
+    entity.foo = 'bar7'
+    
+    assert app.example_repository[entity.id].foo == 'bar7'
+    
+    assert app.example_repository.event_player.get_snapshot(entity.id).state['_foo'] == 'bar5'
+
+    # Discard the entity.    
+    entity.discard()
+    assert entity.id not in app.example_repository
+    
+    try:
+        app.example_repository[entity.id]
+    except KeyError:
+        pass
+    else:
+        raise Exception('KeyError was not raised')
+```
+
+### Step 5: Application-level encryption
 
 To enable encryption, pass in a cipher strategy object when constructing
 the sequenced item mapper, and set ```always_encrypt``` to a True value.
@@ -680,7 +837,7 @@ class EncryptedApplication(object):
             event_store=self.event_store,
             mutator=mutate,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
         
     def create_example(self, foo):
         return create_new_example(foo=foo)
@@ -708,23 +865,23 @@ aes_key = '0123456789abcdef'
 
 with EncryptedApplication(datastore, cipher=AESCipher(aes_key)) as app:
 
-    entity3 = app.create_example(foo='secret info')
+    secret_entity = app.create_example(foo='secret info')
 
     # Without encryption, application state is visible in the database.
-    item1 = app.event_store.active_record_strategy.get_item(entity1.id, 0)
+    item1 = app.event_store.active_record_strategy.get_item(entity.id, 0)
     assert 'bar1' in item1.data
     
     # With encryption enabled, application state is not visible in the database. 
-    item2 = app.event_store.active_record_strategy.get_item(entity3.id, 0)
+    item2 = app.event_store.active_record_strategy.get_item(secret_entity.id, 0)
     assert 'secret info' not in item2.data
     
     # Events are decrypted inside the application.
-    retrieved_entity = app.example_repository[entity3.id]
+    retrieved_entity = app.example_repository[secret_entity.id]
     assert 'secret info' in retrieved_entity.foo    
 ```
 
 
-### Step 5: Optimistic concurrency control
+### Step 6: Optimistic concurrency control
 
 With the application above, because of the unique constraint
 on the SQLAlchemy table, it isn't possible to branch the
@@ -738,32 +895,34 @@ from eventsourcing.exceptions import ConcurrencyError
 
 with Application(datastore) as app:
 
-    a = app.example_repository[entity1.id]
-    b = app.example_repository[entity1.id]
+    entity = app.create_example(foo='bar1')
+
+    a = app.example_repository[entity.id]
+    b = app.example_repository[entity.id]
     
     # Change the entity using instance 'a'.
-    a.foo = 'bar6'
+    a.foo = 'bar2'
     
     # Because 'a' has been changed since 'b' was obtained,
     # 'b' cannot be updated unless it is firstly refreshed.
     try:
-        b.foo = 'bar7'
+        b.foo = 'bar3'
     except ConcurrencyError:
         pass
     else:
         raise Exception("Failed to control concurrency of 'b'.")
       
     # Refresh object 'b', so that 'b' has the current state of the entity.
-    b = app.example_repository[entity1.id]
-    assert b.foo == 'bar6'
+    b = app.example_repository[entity.id]
+    assert b.foo == 'bar2'
 
     # Changing the entity using instance 'b' now works because 'b' is up to date.
-    b.foo = 'bar7'    
-    assert app.example_repository[entity1.id].foo == 'bar7'
+    b.foo = 'bar3'
+    assert app.example_repository[entity.id].foo == 'bar3'
     
     # Now 'a' does not have the current state of the entity, and cannot be changed.
     try:
-        a.foo = 'bar8'
+        a.foo = 'bar4'
     except ConcurrencyError:
         pass
     else:
@@ -771,7 +930,7 @@ with Application(datastore) as app:
 ```
 
 
-### Step 6: Alternative database schema
+### Step 7: Alternative database schema
 
 Let's say we want the database table to look like stored events, rather than sequenced items.
 
@@ -830,7 +989,7 @@ class Application(object):
             event_store=self.event_store,
             mutator=mutate,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
         
     def create_example(self, foo):
         return create_new_example(foo=foo)
@@ -863,22 +1022,22 @@ Then you can use the application as before.
 ```python
 with Application(datastore) as app:
 
-    entity4 = app.create_example(foo='bar9')
+    entity = app.create_example(foo='bar1')
     
-    assert entity4.id in app.example_repository
+    assert entity.id in app.example_repository
     
-    assert app.example_repository[entity4.id].foo == 'bar9'
+    assert app.example_repository[entity.id].foo == 'bar1'
     
-    entity4.foo = 'bar10'
+    entity.foo = 'bar2'
     
-    assert app.example_repository[entity4.id].foo == 'bar10'
+    assert app.example_repository[entity.id].foo == 'bar2'
 
     # Discard the entity.    
-    entity4.discard()
-    assert entity4.id not in app.example_repository
+    entity.discard()
+    assert entity.id not in app.example_repository
     
     try:
-        app.example_repository[entity4.id]
+        app.example_repository[entity.id]
     except KeyError:
         pass
     else:
@@ -886,7 +1045,7 @@ with Application(datastore) as app:
 ```
 
 
-### Step 7: Using Cassandra
+### Step 8: Using Cassandra
 
 Using Cassandra is very similar to using SQLAlchemy. Please note, it isn't necessary to pass
 the Cassandra datastore object into the active record strategy object.
@@ -922,7 +1081,7 @@ class ApplicationWithCassandra(object):
             event_store=self.event_store,
             mutator=mutate,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
         
     def create_example(self, foo):
         return create_new_example(foo=foo)
@@ -939,29 +1098,29 @@ class ApplicationWithCassandra(object):
 
 with ApplicationWithCassandra() as app:
 
-    entity5 = app.create_example(foo='bar11')
+    entity = app.create_example(foo='bar1')
     
-    assert entity5.id in app.example_repository
+    assert entity.id in app.example_repository
     
-    assert app.example_repository[entity5.id].foo == 'bar11'
+    assert app.example_repository[entity.id].foo == 'bar1'
     
-    entity5.foo = 'bar12'
+    entity.foo = 'bar2'
     
-    assert app.example_repository[entity5.id].foo == 'bar12'
+    assert app.example_repository[entity.id].foo == 'bar2'
 
     # Discard the entity.    
-    entity5.discard()
-    assert entity5.id not in app.example_repository
+    entity.discard()
+    assert entity.id not in app.example_repository
     
     try:
-        app.example_repository[entity5.id]
+        app.example_repository[entity.id]
     except KeyError:
         pass
     else:
         raise Exception('KeyError was not raised')
 ```
 
-### Step 8: Aggregates in domain driven design
+### Step 9: Aggregates in domain driven design
   
 Let's say we want to separate the sequence of events from entities, and instead have
 an aggregate that controls a set of entities.
@@ -1106,7 +1265,7 @@ class DDDApplication(object):
             event_store=self.event_store,
             mutator=mutate_aggregate_event,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(self.event_store, event_type=AggregateEvent)
         
     def create_example_aggregate(self):
         event = AggregateCreated(aggregate_id=uuid.uuid4())
@@ -1127,54 +1286,54 @@ class DDDApplication(object):
 with DDDApplication(datastore) as app:
 
     # Create a new aggregate.
-    aggregate1 = app.create_example_aggregate()
-    aggregate1.save()
+    aggregate = app.create_example_aggregate()
+    aggregate.save()
 
     # Check it exists in the repository.
-    assert aggregate1.id in app.aggregate_repository, aggregate1.id
+    assert aggregate.id in app.aggregate_repository, aggregate.id
 
     # Check the aggregate has zero entities.
-    assert aggregate1.count_entities() == 0
+    assert aggregate.count_entities() == 0
     
     # Check the aggregate has zero entities.
-    assert aggregate1.count_entities() == 0
+    assert aggregate.count_entities() == 0
     
     # Ask the aggregate to create an entity within itself.
-    aggregate1.create_new_entity()
+    aggregate.create_new_entity()
 
     # Check the aggregate has one entity.
-    assert aggregate1.count_entities() == 1
+    assert aggregate.count_entities() == 1
     
     # Check the aggregate in the repo still has zero entities.
-    assert app.aggregate_repository[aggregate1.id].count_entities() == 0
+    assert app.aggregate_repository[aggregate.id].count_entities() == 0
     
     # Call save().
-    aggregate1.save()
+    aggregate.save()
     
     # Check the aggregate in the repo now has one entity.
-    assert app.aggregate_repository[aggregate1.id].count_entities() == 1
+    assert app.aggregate_repository[aggregate.id].count_entities() == 1
     
     # Create two more entities within the aggregate.
-    aggregate1.create_new_entity()
-    aggregate1.create_new_entity()
+    aggregate.create_new_entity()
+    aggregate.create_new_entity()
     
     # Save both "entity created" events in one atomic transaction.
-    aggregate1.save()
+    aggregate.save()
     
     # Check the aggregate in the repo now has three entities.
-    assert app.aggregate_repository[aggregate1.id].count_entities() == 3
+    assert app.aggregate_repository[aggregate.id].count_entities() == 3
     
     # Discard the aggregate, but don't call save() yet.
-    aggregate1.discard()
+    aggregate.discard()
     
     # Check the aggregate still exists in the repo.
-    assert aggregate1.id in app.aggregate_repository
+    assert aggregate.id in app.aggregate_repository
 
     # Call save().
-    aggregate1.save()
+    aggregate.save()
 
     # Check the aggregate no longer exists in the repo.
-    assert aggregate1.id not in app.aggregate_repository
+    assert aggregate.id not in app.aggregate_repository
 ```
 
 

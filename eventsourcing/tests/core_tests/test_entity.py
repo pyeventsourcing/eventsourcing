@@ -29,6 +29,8 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertTrue(example1.id)
         self.assertEqual(1, example1.version)
         self.assertTrue(example1.created_on)
+        self.assertTrue(example1.last_modified_on)
+        self.assertEqual(example1.created_on, example1.last_modified_on)
 
         # Check a second instance with the same values is not "equal" to the first.
         example2 = register_new_example(a=1, b=2)
@@ -53,6 +55,10 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertEqual(100, repo[entity1.id].a)
         entity1.b = -200
         self.assertEqual(-200, repo[entity1.id].b)
+
+        self.assertEqual(repo[entity1.id].created_on, entity1.created_on)
+        self.assertEqual(repo[entity1.id].last_modified_on, entity1.last_modified_on)
+        self.assertNotEqual(entity1.last_modified_on, entity1.created_on)
 
         self.assertEqual(0, entity1.count_heartbeats())
         entity1.beat_heart()

@@ -1,5 +1,5 @@
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
-    SqlIntegerSequencedItem, SqlTimestampSequencedItem
+    SqlIntegerSequencedItem, SqlTimestampSequencedItem, SqlSnapshot
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \
@@ -23,6 +23,14 @@ def construct_timestamp_sequenced_active_record_strategy(datastore):
     )
 
 
+def construct_snapshot_active_record_strategy(datastore):
+    return SQLAlchemyActiveRecordStrategy(
+        active_record_class=SqlSnapshot,
+        sequenced_item_class=SequencedItem,
+        datastore=datastore,
+    )
+
+
 class TestSQLAlchemyActiveRecordStrategyWithIntegerSequences(SQLAlchemyDatastoreTestCase,
                                                              IntegerSequencedItemTestCase):
     def construct_active_record_strategy(self):
@@ -41,6 +49,9 @@ class WithSQLAlchemyActiveRecordStrategies(WithActiveRecordStrategies, SQLAlchem
 
     def construct_timestamp_sequenced_active_record_strategy(self):
         return construct_timestamp_sequenced_active_record_strategy(self.datastore)
+
+    def construct_snapshot_active_record_strategy(self):
+        return construct_snapshot_active_record_strategy(self.datastore)
 
 
 class TestSimpleIteratorWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies,

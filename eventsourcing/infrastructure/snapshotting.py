@@ -17,7 +17,7 @@ class AbstractSnapshotStrategy(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def take_snapshot(self, entity, timestamp):
+    def take_snapshot(self, entity_id, entity, last_event_version):
         """Creates snapshot from given entity, with given domain event ID.
         """
 
@@ -32,8 +32,8 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
     def get_snapshot(self, entity_id, lt=None, lte=None):
         return get_snapshot(entity_id, self.event_store, lt=lt, lte=lte)
 
-    def take_snapshot(self, entity, timestamp=None):
-        return take_snapshot(entity, timestamp=timestamp)
+    def take_snapshot(self, entity_id, entity, last_event_version):
+        return take_snapshot(entity_id, entity, last_event_version)
 
 
 def get_snapshot(entity_id, event_store, lt=None, lte=None):
@@ -51,20 +51,20 @@ def get_snapshot(entity_id, event_store, lt=None, lte=None):
 def entity_from_snapshot(snapshot):
     """Deserialises a domain entity from a snapshot object.
     """
-    assert isinstance(snapshot, AbstractSnapshop)
+    assert isinstance(snapshot, AbstractSnapshop), type(snapshot)
     return deserialize_domain_entity(snapshot.topic, snapshot.state)
 
 
-def take_snapshot(entity, timestamp=None):
+def take_snapshot(entity_id, entity, last_event_version):
     # Make the 'stored entity ID' for the entity, it is used as the Snapshot 'entity ID'.
 
     # Create the snapshot event.
     snapshot = Snapshot(
-        entity_id=entity.id,
-        timestamp=timestamp,
+        entity_id=entity_id,
+        entity_version=last_event_version,
         topic=topic_from_domain_class(entity.__class__),
         # Todo: This should be a deepcopy.
-        state=entity.__dict__.copy(),
+        state=entity.__dict__.copy() if entity is not None else None,
     )
     publish(snapshot)
 

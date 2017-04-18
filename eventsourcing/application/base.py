@@ -18,7 +18,9 @@ from eventsourcing.infrastructure.transcoding import ObjectJSONEncoder, ObjectJS
 
 class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
     def __init__(self, integer_sequenced_active_record_strategy=None,
-                 timestamp_sequenced_active_record_strategy=None, always_encrypt=False, cipher=None):
+                 timestamp_sequenced_active_record_strategy=None,
+                 snapshot_active_record_strategy=None,
+                 always_encrypt=False, cipher=None):
         """
         Constructs an event store using the given stored event repository.
 
@@ -35,8 +37,12 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         assert isinstance(timestamp_sequenced_active_record_strategy, AbstractActiveRecordStrategy), \
             type(integer_sequenced_active_record_strategy)
 
+        assert isinstance(snapshot_active_record_strategy, AbstractActiveRecordStrategy), \
+            type(snapshot_active_record_strategy)
+
         self.integer_sequenced_active_record_strategy = integer_sequenced_active_record_strategy
         self.timestamp_sequenced_active_record_strategy = timestamp_sequenced_active_record_strategy
+        self.snapshot_active_record_strategy = snapshot_active_record_strategy
         self.version_entity_event_store = self.construct_event_store(
             event_sequence_id_attr='entity_id',
             event_position_attr='entity_version',
@@ -48,6 +54,13 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
             event_sequence_id_attr='entity_id',
             event_position_attr='timestamp',
             active_record_strategy=self.timestamp_sequenced_active_record_strategy,
+            always_encrypt=always_encrypt,
+            cipher=cipher,
+        )
+        self.snapshot_store = self.construct_event_store(
+            event_sequence_id_attr='entity_id',
+            event_position_attr='entity_version',
+            active_record_strategy=self.snapshot_active_record_strategy,
             always_encrypt=always_encrypt,
             cipher=cipher,
         )
@@ -100,6 +113,7 @@ class EventSourcedApplication(ReadOnlyEventSourcingApplication):
         return CombinedPersistencePolicy(
             versioned_entity_event_store=self.version_entity_event_store,
             timestamped_entity_event_store=self.timestamp_entity_event_store,
+            snapshot_store=self.snapshot_store,
         )
 
     def close(self):

@@ -16,7 +16,7 @@ class ExampleApplication(EventSourcedApplication):
     def __init__(self, **kwargs):
         super(ExampleApplication, self).__init__(**kwargs)
         self.snapshot_strategy = EventSourcedSnapshotStrategy(
-            event_store=self.timestamp_entity_event_store,
+            event_store=self.snapshot_store,
         )
         self.example_repo = ExampleRepository(
             event_store=self.version_entity_event_store,

@@ -10,7 +10,7 @@ from singledispatch import singledispatch
 
 from eventsourcing.domain.model.collection import Collection
 from eventsourcing.domain.model.entity import AttributeChanged, Created, Discarded, AbstractEntityRepository, \
-    Aggregate, attribute, entity_mutator
+    AggregateRoot, attribute, entity_mutator
 from eventsourcing.domain.model.events import publish, AggregateEvent
 from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 
@@ -18,7 +18,7 @@ from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 STRING_ID_END = '\uEFFF'
 
 
-class GeneralizedSuffixTree(Aggregate):
+class GeneralizedSuffixTree(AggregateRoot):
     """A suffix tree for string matching. Uses Ukkonen's algorithm
     for construction.
 
@@ -431,7 +431,7 @@ class GeneralizedSuffixTree(Aggregate):
                 self._canonize_suffix(suffix, string)
 
 
-class SuffixTreeNode(Aggregate):
+class SuffixTreeNode(AggregateRoot):
     """A node in the suffix tree.
     """
 
@@ -481,7 +481,7 @@ class StringidCollection(Collection):
         pass
 
 
-class SuffixTreeNodeChildCollection(Aggregate):
+class SuffixTreeNodeChildCollection(AggregateRoot):
     """A collecton of child nodes in the suffix tree.
     """
 
@@ -556,7 +556,7 @@ def child_node_child_collection_switched_mutator(event, self):
     return self
 
 
-class SuffixTreeEdge(Aggregate):
+class SuffixTreeEdge(AggregateRoot):
     """An edge in the suffix tree.
     """
 

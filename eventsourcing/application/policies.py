@@ -6,6 +6,7 @@ Persistance Policies
 
 """
 from eventsourcing.domain.model.events import TimestampedEntityEvent, VersionedEntityEvent, subscribe, unsubscribe
+from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 
@@ -36,16 +37,21 @@ class CombinedPersistencePolicy(object):
     Persists both timestamped and versioned entity events, whenever they are published.
     """
 
-    def __init__(self, timestamped_entity_event_store, versioned_entity_event_store):
+    def __init__(self, timestamped_entity_event_store, versioned_entity_event_store, snapshot_store):
         self.timestamped_entity_event_policy = PersistencePolicy(
             event_store=timestamped_entity_event_store,
             event_type=TimestampedEntityEvent,
         )
         self.versioned_entity_event_policy = PersistencePolicy(
             event_store=versioned_entity_event_store,
-            event_type = VersionedEntityEvent,
+            event_type=VersionedEntityEvent,
+        )
+        self.snapshot_policy = PersistencePolicy(
+            event_store=snapshot_store,
+            event_type=Snapshot,
         )
 
     def close(self):
+        self.snapshot_policy.close()
         self.timestamped_entity_event_policy.close()
         self.versioned_entity_event_policy.close()

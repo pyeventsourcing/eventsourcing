@@ -267,7 +267,7 @@ class AbstractEntityRepository(with_metaclass(ABCMeta)):
         """
 
 
-class Aggregate(TimestampedVersionedEntity):
+class AggregateRoot(TimestampedVersionedEntity):
     """
     For aggregates in Domain Driven Design.
     """

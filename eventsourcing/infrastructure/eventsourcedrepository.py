@@ -1,5 +1,3 @@
-from abc import abstractproperty
-
 from eventsourcing.domain.model.entity import AbstractEntityRepository
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.eventplayer import EventPlayer
@@ -94,13 +92,13 @@ class EventSourcedRepository(AbstractEntityRepository):
         # Decide the initial state, and after when we need to get the events.
         if snapshot is None:
             initial_state = None
-            gte = None
+            gt = None
         else:
             initial_state = entity_from_snapshot(snapshot)
-            gte = initial_state._version
+            gt = snapshot.entity_version
 
         # Replay domain events.
-        return self.event_player.replay_entity(entity_id, gte=gte, lte=lte, initial_state=initial_state)
+        return self.event_player.replay_entity(entity_id, gt=gt, lte=lte, initial_state=initial_state)
 
     # def fastforward(self, stale_entity, lt=None, lte=None):
     #     """
