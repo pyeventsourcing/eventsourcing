@@ -98,7 +98,7 @@ class PerformanceTestCase(WithExampleApplication):
                       "".format(num_beats, time_replaying, num_beats / time_replaying, time_replaying / num_beats))
 
                 # Take snapshot, and beat heart a few more times.
-                app.example_repo.event_player.take_snapshot(example.id, lte=time())
+                app.example_repo.event_player.take_snapshot(example.id, example)
 
                 extra_beats = 4
                 for _ in six.moves.range(extra_beats):

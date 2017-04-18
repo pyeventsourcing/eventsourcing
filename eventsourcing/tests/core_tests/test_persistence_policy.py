@@ -14,9 +14,11 @@ class TestCombinedPersistencePolicy(unittest.TestCase):
     def setUp(self):
         self.ve_es = mock.Mock(spec=AbstractEventStore)
         self.te_es = mock.Mock(spec=AbstractEventStore)
+        self.sn_es = mock.Mock(spec=AbstractEventStore)
         self.policy = CombinedPersistencePolicy(
             versioned_entity_event_store=self.ve_es,
             timestamped_entity_event_store=self.te_es,
+            snapshot_store=self.sn_es,
         )
 
     def tearDown(self):

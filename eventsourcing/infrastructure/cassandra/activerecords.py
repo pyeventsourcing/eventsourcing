@@ -69,13 +69,21 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         return items
 
     def all_items(self):
+        for record in self.all_records():
+            yield self.from_active_record(record)
+
+    def all_records(self):
         query = self.active_record_class.objects.all().limit(10)
         page = list(query)
         while page:
             for record in page:
-                yield self.from_active_record(record)
+                yield record
             last = page[-1]
             page = list(query.filter(pk__token__gt=Token(last.pk)))
+
+    def delete_record(self, record):
+        assert isinstance(record, self.active_record_class)
+        record.delete()
 
     def to_active_record(self, sequenced_item):
         """
@@ -163,4 +171,24 @@ class CqlTimeuuidSequencedItem(Model):
     t = columns.Text(required=True)
 
     # State of the item (serialized dict, possibly encrypted).
+    d = columns.Text(required=True)
+
+
+class CqlSnapshot(Model):
+    """Stores snapshots in Cassandra."""
+
+    _if_not_exists = True
+
+    __table_name__ = 'snapshots'
+
+    # Sequence ID (e.g. an entity or aggregate ID).
+    s = columns.UUID(partition_key=True)
+
+    # Position (index) of item in sequence.
+    p = columns.BigInt(clustering_order='DESC', primary_key=True)
+
+    # Topic of the item (e.g. path to domain entity class).
+    t = columns.Text(required=True)
+
+    # State of the entity (serialized dict, possibly encrypted).
     d = columns.Text(required=True)

@@ -35,7 +35,19 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def all_items(self):
         """
-        Returns all items from all sequences (possibly in chronological order, depending on database).
+        Returns all stored items from all sequences (possibly in chronological order, depending on database).
+        """
+
+    @abstractmethod
+    def all_records(self):
+        """
+        Returns all records in the table (possibly in chronological order, depending on database).
+        """
+
+    @abstractmethod
+    def delete_record(self, record):
+        """
+        Removes permanently given record from the table.
         """
 
     def raise_sequenced_item_error(self, sequenced_item, e):

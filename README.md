@@ -600,7 +600,7 @@ class Application(object):
             event_store=self.event_store,
             mutator=mutate,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
         
     def create_example(self, foo):
         return create_new_example(foo=foo)
@@ -653,7 +653,167 @@ A slightly more developed example application can be found in the library
 module ```eventsourcing.example.application```.
 
 
-### Step 4: Application-level encryption
+### Step 4: Snapshotting
+
+To enable snapshotting, pass in a snapshotting strategy object when constructing
+an entity repository.
+
+The snapshotting strategy object depends on infrastructure. There are several
+options, but here we will simply use a separate table for snapshots.
+
+```python
+class SnapshotTable(Base):
+    __tablename__ = 'snapshots'
+
+    id = Column(Integer(), Sequence('snapshot_id_seq'), primary_key=True)
+    sequence_id = Column(UUIDType(), index=True)
+    position = Column(BigInteger(), index=True)
+    topic = Column(String(255))
+    data = Column(Text())
+    __table_args__ = UniqueConstraint('sequence_id', 'position',
+                                      name='integer_sequenced_item_uc'),
+
+
+datastore.setup_tables()
+
+```
+
+We can also introduce a snapshotting policy, so that a snapshot is automatically taken every five events.
+
+```python
+from eventsourcing.infrastructure.eventplayer import EventPlayer
+from eventsourcing.domain.model.events import unsubscribe
+
+
+class SnapshottingPolicy(object):
+
+    def __init__(self, event_player):
+        assert isinstance(event_player, EventPlayer)
+        self.event_player = event_player
+        subscribe(predicate=self.requires_snapshot, handler=self.take_snapshot)
+    
+    @staticmethod
+    def requires_snapshot(event):
+        return isinstance(event, DomainEvent)
+        if not isinstance(event, DomainEvent):
+            return False
+        if isinstance(event, Discarded):
+            return False
+        return not (event.entity_version + 1) % 5
+
+    def take_snapshot(self, event):
+        self.event_player.take_snapshot(event.entity_id)
+        
+    def close(self):
+        unsubscribe(predicate=self.requires_snapshot, handler=self.take_snapshot)
+```
+
+The application also needs a policy to persist snapshots that are taken.
+
+
+```python
+from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
+from eventsourcing.domain.model.snapshot import Snapshot
+
+
+class ApplicationWithSnapshotting(object):
+
+    def __init__(self, datastore):
+        self.event_store = EventStore(
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+                datastore=datastore,
+                active_record_class=SequencedItemTable,
+                sequenced_item_class=SequencedItem,
+            ),
+            sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
+            )
+        )
+        self.snapshot_store = EventStore(
+            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+                datastore=datastore,
+                active_record_class=SnapshotTable,
+                sequenced_item_class=SequencedItem,
+            ),
+            sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version',
+            )
+        )
+        self.snapshot_strategy = EventSourcedSnapshotStrategy(
+            event_store=self.snapshot_store,
+        )
+        self.example_repository = EventSourcedRepository(
+            event_store=self.event_store,
+            snapshot_strategy=self.snapshot_strategy,
+            mutator=mutate,
+        )
+        self.entity_persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
+        self.snapshot_persistence_policy = PersistencePolicy(self.snapshot_store, event_type=Snapshot)
+        self.snapshotting_policy = SnapshottingPolicy(self.example_repository.event_player)
+        
+    def create_example(self, foo):
+        return create_new_example(foo=foo)
+        
+    def close(self):
+        self.entity_persistence_policy.close()
+        self.snapshot_persistence_policy.close()
+        self.snapshotting_policy.close()
+
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+```
+
+Now snapshots of example entities will be taken every five events, except for the initial event and discarded events.
+
+```python
+with ApplicationWithSnapshotting(datastore) as app:
+
+    entity2 = app.create_example(foo='bar3')
+    
+    assert entity2.id in app.example_repository
+    
+    assert app.example_repository[entity2.id].foo == 'bar3'
+    
+    entity2.foo = 'bar4'
+    entity2.foo = 'bar5'
+    entity2.foo = 'bar6'
+
+    # assert app.example_repository.event_player.get_snapshot(entity2.id) is None
+
+    entity2.foo = 'bar7'
+
+    assert app.example_repository.event_player.get_snapshot(entity2.id) is not None
+
+    entity2.foo = 'bar8'
+
+
+    entity2.foo = 'bar9'
+    
+    assert app.example_repository[entity2.id].foo == 'bar9'
+    
+    assert app.example_repository.event_player.get_snapshot(entity2.id).state['_foo'] == 'bar9'
+
+    # Discard the entity.    
+    entity2.discard()
+    assert entity2.id not in app.example_repository
+    
+    try:
+        app.example_repository[entity2.id]
+    except KeyError:
+        pass
+    else:
+        raise Exception('KeyError was not raised')
+```
+
+### Step 5: Application-level encryption
 
 To enable encryption, pass in a cipher strategy object when constructing
 the sequenced item mapper, and set ```always_encrypt``` to a True value.
@@ -680,7 +840,7 @@ class EncryptedApplication(object):
             event_store=self.event_store,
             mutator=mutate,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
         
     def create_example(self, foo):
         return create_new_example(foo=foo)
@@ -724,7 +884,7 @@ with EncryptedApplication(datastore, cipher=AESCipher(aes_key)) as app:
 ```
 
 
-### Step 5: Optimistic concurrency control
+### Step 6: Optimistic concurrency control
 
 With the application above, because of the unique constraint
 on the SQLAlchemy table, it isn't possible to branch the
@@ -771,7 +931,7 @@ with Application(datastore) as app:
 ```
 
 
-### Step 6: Alternative database schema
+### Step 7: Alternative database schema
 
 Let's say we want the database table to look like stored events, rather than sequenced items.
 
@@ -830,7 +990,7 @@ class Application(object):
             event_store=self.event_store,
             mutator=mutate,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
         
     def create_example(self, foo):
         return create_new_example(foo=foo)
@@ -886,7 +1046,7 @@ with Application(datastore) as app:
 ```
 
 
-### Step 7: Using Cassandra
+### Step 8: Using Cassandra
 
 Using Cassandra is very similar to using SQLAlchemy. Please note, it isn't necessary to pass
 the Cassandra datastore object into the active record strategy object.
@@ -922,7 +1082,7 @@ class ApplicationWithCassandra(object):
             event_store=self.event_store,
             mutator=mutate,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
         
     def create_example(self, foo):
         return create_new_example(foo=foo)
@@ -961,7 +1121,7 @@ with ApplicationWithCassandra() as app:
         raise Exception('KeyError was not raised')
 ```
 
-### Step 8: Aggregates in domain driven design
+### Step 9: Aggregates in domain driven design
   
 Let's say we want to separate the sequence of events from entities, and instead have
 an aggregate that controls a set of entities.
@@ -1106,7 +1266,7 @@ class DDDApplication(object):
             event_store=self.event_store,
             mutator=mutate_aggregate_event,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(self.event_store, event_type=AggregateEvent)
         
     def create_example_aggregate(self):
         event = AggregateCreated(aggregate_id=uuid.uuid4())

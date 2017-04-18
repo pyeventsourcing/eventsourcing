@@ -1,10 +1,12 @@
+from time import sleep
+
 from eventsourcing.application.policies import CombinedPersistencePolicy
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.eventstore import AbstractEventStore
+from eventsourcing.infrastructure.eventstore import AbstractEventStore, EventStore
 from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies
 
 
@@ -14,6 +16,7 @@ class WithExampleApplication(WithActiveRecordStrategies):
         app = ExampleApplication(
             integer_sequenced_active_record_strategy=self.integer_sequence_active_record_strategy,
             timestamp_sequenced_active_record_strategy=self.timestamp_sequence_active_record_strategy,
+            snapshot_active_record_strategy=self.snapshot_active_record_strategy,
             always_encrypt=bool(cipher),
             cipher=cipher,
         )
@@ -34,12 +37,12 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertIsInstance(app.integer_sequenced_active_record_strategy, AbstractActiveRecordStrategy)
 
             # Check there's an event store for version entity events.
-            self.assertIsInstance(app.version_entity_event_store, AbstractEventStore)
+            self.assertIsInstance(app.version_entity_event_store, EventStore)
             self.assertEqual(app.version_entity_event_store.active_record_strategy,
                              app.integer_sequenced_active_record_strategy)
 
             # Check there's an event store for timestamp entity events.
-            self.assertIsInstance(app.timestamp_entity_event_store, AbstractEventStore)
+            self.assertIsInstance(app.timestamp_entity_event_store, EventStore)
             self.assertEqual(app.timestamp_entity_event_store.active_record_strategy,
                              app.timestamp_sequenced_active_record_strategy)
 
@@ -71,15 +74,18 @@ class ExampleApplicationTestCase(WithExampleApplication):
 
             # Take a snapshot of the entity.
             snapshot1 = app.example_repo.event_player.take_snapshot(entity1.id)
+            self.assertEqual(snapshot1.entity_id, entity1.id)
+            self.assertEqual(snapshot1.entity_version, entity1.version - 1)
 
             # Take another snapshot of the entity (should be the same event).
+            sleep(0.0001)
             snapshot2 = app.example_repo.event_player.take_snapshot(entity1.id)
             self.assertEqual(snapshot1, snapshot2)
 
             # Check the snapshot exists.
-            snapshot3 = app.example_repo.event_player.snapshot_strategy.get_snapshot(entity1.id)
-            self.assertIsInstance(snapshot3, Snapshot)
-            self.assertEqual(snapshot1, snapshot3)
+            snapshot2 = app.example_repo.event_player.snapshot_strategy.get_snapshot(entity1.id)
+            self.assertIsInstance(snapshot2, Snapshot)
+            self.assertEqual(snapshot1, snapshot2)
 
             # Change attribute values.
             entity1.a = 100
@@ -91,8 +97,35 @@ class ExampleApplicationTestCase(WithExampleApplication):
             entity1 = app.example_repo[example1.id]
             self.assertEqual(100, entity1.a)
 
+            # Check the old value is available in the repo.
+            entity1_v1 = app.example_repo.get_entity(entity1.id, lte=0)
+            self.assertEqual(entity1_v1.a, 10)
+            entity1_v2 = app.example_repo.get_entity(entity1.id, lte=1)
+            self.assertEqual(entity1_v2.a, 50)
+            entity1_v3 = app.example_repo.get_entity(entity1.id, lte=2)
+            self.assertEqual(entity1_v3.a, 100)
+
             # Take another snapshot of the entity.
             snapshot4 = app.example_repo.event_player.take_snapshot(entity1.id)
 
             # Check the new snapshot is not equal to the first.
             self.assertNotEqual(snapshot1, snapshot4)
+
+            # Check the new value still available in the repo.
+            self.assertEqual(100, app.example_repo[example1.id].a)
+
+            # Remove all the stored items and check the new value is still available (must be in snapshot).
+            self.assertEqual(len(list(app.integer_sequenced_active_record_strategy.all_records())), 3)
+            for record in app.integer_sequenced_active_record_strategy.all_records():
+                self.integer_sequence_active_record_strategy.delete_record(record)
+            self.assertFalse(list(app.integer_sequenced_active_record_strategy.all_records()))
+            self.assertEqual(100, app.example_repo[example1.id].a)
+
+            # Check only some of the old values are available in the repo.
+            entity1_v1 = app.example_repo.get_entity(entity1.id, lte=0)
+            self.assertEqual(entity1_v1, None)
+            entity1_v3 = app.example_repo.get_entity(entity1.id, lte=1)
+            self.assertEqual(entity1_v3.a, 50)
+            entity1_v3 = app.example_repo.get_entity(entity1.id, lte=2)
+            self.assertEqual(entity1_v3.a, 100)
+

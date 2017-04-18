@@ -92,11 +92,11 @@ class EventPlayer(object):
     def take_snapshot(self, entity_id, lt=None, lte=None):
         """
         Takes a snapshot of the entity as it existed after the most recent
-        event, optionally less than or less than or equal to a particular position.
+        event, optionally less than, or less than or equal to, a particular position.
         """
         assert isinstance(self.snapshot_strategy, AbstractSnapshotStrategy)
 
-        # Get the last event (optionally until a particular time).
+        # Get the last event (optionally until a particular position).
         last_event = self.get_most_recent_event(entity_id, lt=lt, lte=lte)
 
         # If there aren't any events, there can't be a snapshot, so return None.
@@ -104,17 +104,17 @@ class EventPlayer(object):
             return None
 
         # If there is something to snapshot, then look for
-        # the last snapshot before the last event.
-        last_snapshot = self.get_snapshot(entity_id, lte=last_event.timestamp)
+        # the last snapshot the last event.
+        last_snapshot = self.get_snapshot(entity_id, lte=last_event.entity_version)
 
         if last_snapshot:
             assert isinstance(last_snapshot, AbstractSnapshop), type(last_snapshot)
-            if last_snapshot.timestamp < last_event.timestamp:
+            if last_snapshot.entity_version < last_event.entity_version:
                 # There must be events after the snapshot, so get events after
                 # the last event that was applied to the entity, and obtain the
                 # initial entity state so those event can be applied to it.
                 initial_state = entity_from_snapshot(last_snapshot)
-                gte = initial_state._version
+                gte = last_event.entity_version
             else:
                 # There's nothing to do.
                 return last_snapshot
@@ -127,7 +127,7 @@ class EventPlayer(object):
         entity = self.replay_entity(entity_id, gte=gte, lt=lt, lte=lte, initial_state=initial_state)
 
         # Take a snapshot of the entity.
-        return self.snapshot_strategy.take_snapshot(entity, timestamp=entity.last_modified_on)
+        return self.snapshot_strategy.take_snapshot(entity_id, entity, last_event.entity_version)
 
     def get_snapshot(self, entity_id, lt=None, lte=None):
         """

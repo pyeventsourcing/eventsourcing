@@ -6,7 +6,8 @@ from cassandra.cluster import NoHostAvailable
 from cassandra.cqlengine import CQLEngineException
 
 from eventsourcing.exceptions import DatasourceSettingsError
-from eventsourcing.infrastructure.cassandra.activerecords import CqlIntegerSequencedItem, CqlTimestampSequencedItem
+from eventsourcing.infrastructure.cassandra.activerecords import CqlIntegerSequencedItem, CqlTimestampSequencedItem, \
+    CqlSnapshot
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.datastore import DatastoreConnectionError, DatastoreTableError
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
@@ -22,7 +23,7 @@ class CassandraDatastoreTestCase(AbstractDatastoreTestCase):
     def construct_datastore(self):
         return CassandraDatastore(
             settings=CassandraSettings(default_keyspace=DEFAULT_KEYSPACE_FOR_TESTING),
-            tables=(CqlIntegerSequencedItem, CqlTimestampSequencedItem),
+            tables=(CqlIntegerSequencedItem, CqlTimestampSequencedItem, CqlSnapshot),
         )
 
 

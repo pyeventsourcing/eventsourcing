@@ -266,6 +266,7 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
         super(WithActiveRecordStrategies, self).__init__(*args, **kwargs)
         self._integer_sequence_strategy = None
         self._timestamp_sequence_strategy = None
+        self._snapshot_strategy = None
 
     def setUp(self):
         super(WithActiveRecordStrategies, self).setUp()
@@ -293,6 +294,12 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
             self._timestamp_sequence_strategy = self.construct_timestamp_sequenced_active_record_strategy()
         return self._timestamp_sequence_strategy
 
+    @property
+    def snapshot_active_record_strategy(self):
+        if self._snapshot_strategy is None:
+            self._snapshot_strategy = self.construct_snapshot_active_record_strategy()
+        return self._snapshot_strategy
+
     def construct_integer_sequenced_active_record_strategy(self):
         """
         :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordStrategy
@@ -300,6 +307,12 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
         raise NotImplementedError
 
     def construct_timestamp_sequenced_active_record_strategy(self):
+        """
+        :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordStrategy
+        """
+        raise NotImplementedError
+
+    def construct_snapshot_active_record_strategy(self):
         """
         :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordStrategy
         """
@@ -499,9 +512,18 @@ class WithPersistencePolicy(WithActiveRecordStrategies):
                 position_attr_name='timestamp'
             )
         )
+        self.snapshot_store = EventStore(
+            active_record_strategy=self.snapshot_active_record_strategy,
+            sequenced_item_mapper=SequencedItemMapper(
+                sequenced_item_class=SequencedItem,
+                sequence_id_attr_name='entity_id',
+                position_attr_name='entity_version'
+            )
+        )
         self.persistence_policy = CombinedPersistencePolicy(
             versioned_entity_event_store=self.versioned_entity_event_store,
             timestamped_entity_event_store=self.timestamped_entity_event_store,
+            snapshot_store=self.snapshot_store
         )
 
     def tearDown(self):

@@ -36,7 +36,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
     def get_item(self, sequence_id, eq):
         try:
             filter_args = {self.field_names.sequence_id: sequence_id}
-            query = self.filter(**filter_args)
+            query = self.all_records(**filter_args)
             position_field = getattr(self.active_record_class, self.field_names.position)
             query = query.filter(position_field == eq)
             events = six.moves.map(self.from_active_record, query)
@@ -56,7 +56,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 
         try:
             filter_args = {self.field_names.sequence_id: sequence_id}
-            query = self.filter(**filter_args)
+            query = self.all_records(**filter_args)
 
             position_field = getattr(self.active_record_class, self.field_names.position)
 
@@ -89,7 +89,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         return events
 
     def all_items(self):
-        return map(self.from_active_record, self.filter())
+        return map(self.from_active_record, self.all_records())
 
     def add_record_to_session(self, active_record):
         if isinstance(active_record, list):
@@ -119,9 +119,21 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         item_args = [getattr(active_record, f) for f in self.field_names]
         return self.sequenced_item_class(*item_args)
 
-    def filter(self, *args, **kwargs):
+    def all_records(self, *args, **kwargs):
         query = self.datastore.db_session.query(self.active_record_class)
         return query.filter_by(*args, **kwargs)
+
+    def delete_record(self, record):
+        try:
+            self.datastore.db_session.delete(record)
+            self.datastore.db_session.commit()
+        except Exception as e:
+            # Roll back the transaction.
+            self.datastore.db_session.rollback()
+            raise e
+        finally:
+            # Begin new transaction.
+            self.datastore.db_session.close()
 
 
 class SqlIntegerSequencedItem(Base):
@@ -154,10 +166,10 @@ class SqlTimestampSequencedItem(Base):
     __tablename__ = 'timestamp_sequenced_items'
 
     # Unique constraint.
-    __table_args__ = UniqueConstraint('sequence_id', 'position', name='time_sequenced_items_uc'),
+    __table_args__ = UniqueConstraint('sequence_id', 'position', name='timestamp_sequenced_items_uc'),
 
     # Primary key.
-    id = Column(Integer, Sequence('integer_sequened_item_id_seq'), primary_key=True)
+    id = Column(Integer, Sequence('timestamp_sequened_item_id_seq'), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
     sequence_id = Column(UUIDType(), index=True)
@@ -170,3 +182,27 @@ class SqlTimestampSequencedItem(Base):
 
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
+
+
+class SqlSnapshot(Base):
+    __tablename__ = 'snapshots'
+
+    id = Column(Integer, Sequence('snapshot_seq'), primary_key=True)
+
+    # Sequence ID (e.g. an entity or aggregate ID).
+    sequence_id = Column(UUIDType(), index=True)
+
+    # Position (index) of item in sequence.
+    position = Column(BigInteger(), index=True)
+
+    # Topic of the item (e.g. path to domain entity class).
+    topic = Column(String(255))
+
+    # State of the item (serialized dict, possibly encrypted).
+    data = Column(Text())
+
+    # Unique constraint includes 'sequence_id' which is a good value
+    # to partition on, because all events for an entity will be in the same
+    # partition, which may help performance.
+    __table_args__ = UniqueConstraint('sequence_id', 'position',
+                                      name='snapshot_uc'),
