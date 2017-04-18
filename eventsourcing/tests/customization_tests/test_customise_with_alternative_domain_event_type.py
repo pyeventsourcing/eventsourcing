@@ -114,7 +114,9 @@ class TestDomainEventsWithTimeUUIDs(AbstractDatastoreTestCase):
             # Create entity.
             entity1 = app.start_entity()
             self.assertIsInstance(entity1._initial_event_id, UUID)
-            self.assertEqual(entity1.created_on, timestamp_from_uuid(entity1._initial_event_id))
+            expected_timestamp = timestamp_from_uuid(entity1._initial_event_id)
+            self.assertEqual(entity1.created_on, expected_timestamp)
+            self.assertTrue(entity1.last_modified_on, expected_timestamp)
 
             # Read entity from repo.
             retrieved_obj = app.repository[entity1.id]

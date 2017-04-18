@@ -120,27 +120,20 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         with self.assertRaises(SequencedItemError):
             self.active_record_strategy.append_item(item3)
 
-        # Append a second item at the next position.
+        # Append a second and third item at the next positions.
         item4 = SequencedItem(
             sequence_id=item1.sequence_id,
             position=position2,
             topic=self.EXAMPLE_EVENT_TOPIC2,
             data=data3,
         )
-        self.active_record_strategy.append_item(item4)
-
-        # Check there are two items in the sequence.
-        retrieved_items = self.active_record_strategy.get_items(sequence_id1)
-        self.assertEqual(len(retrieved_items), 2)
-
-        # Append a third item to the sequence at the next position.
         item5 = SequencedItem(
             sequence_id=item1.sequence_id,
             position=position3,
             topic=self.EXAMPLE_EVENT_TOPIC2,
             data=data3,
         )
-        self.active_record_strategy.append_item(item5)
+        self.active_record_strategy.append_item([item4, item5])
 
         # Check there are three items.
         retrieved_items = self.active_record_strategy.get_items(sequence_id1)
