@@ -658,8 +658,7 @@ module ```eventsourcing.example.application```.
 To enable snapshotting, pass in a snapshotting strategy object when constructing
 an entity repository.
 
-The snapshotting strategy object depends on infrastructure. There are several
-options, but here we will simply use a separate table for snapshots.
+Firstly setup a dedicated table for snapshots.
 
 ```python
 class SnapshotTable(Base):
@@ -675,10 +674,9 @@ class SnapshotTable(Base):
 
 
 datastore.setup_tables()
-
 ```
 
-We can also introduce a snapshotting policy, so that a snapshot is automatically taken every five events.
+Let's introduce a snapshotting policy, so that a snapshot is automatically taken every five events.
 
 ```python
 from eventsourcing.infrastructure.eventplayer import EventPlayer
@@ -707,8 +705,9 @@ class SnapshottingPolicy(object):
         unsubscribe(predicate=self.requires_snapshot, handler=self.take_snapshot)
 ```
 
-The application also needs a policy to persist snapshots that are taken.
-
+In the application class below, the ```EventSourcedRepository``` is constructed with
+an event sourced snapshot strategy. The application also has a policy to persist
+snapshots whever they are taken.
 
 ```python
 from eventsourcing.application.policies import PersistencePolicy
@@ -770,7 +769,7 @@ class ApplicationWithSnapshotting(object):
         self.close()
 ```
 
-Now snapshots of example entities will be taken every five events, except for the initial event and discarded events.
+Now snapshots of example entities will be taken every five events.
 
 ```python
 with ApplicationWithSnapshotting(datastore) as app:
