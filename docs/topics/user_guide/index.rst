@@ -6,11 +6,11 @@ User Guide
    :maxdepth: 2
 
    example_application
-   snapshotting
    encryption
    concurrency
-   schema
+   snapshotting
    aggregates
+   schema
    cassandra
 
 

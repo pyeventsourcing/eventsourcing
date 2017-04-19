@@ -6,7 +6,7 @@
 
 A library for event sourcing in Python.
 
-
+Please refer to the documentation [link required] for installation and usage guides.
 
 
 

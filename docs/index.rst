@@ -66,11 +66,6 @@ and unversioned timestamped events (e.g. entries in a log).
 **Active record strategy** — maps between "sequenced items" and database records (ORM).
 Support can be added for a new database schema by introducing a new active record strategy.
 
-**Snapshotting** — avoids replaying an entire event stream to
-obtain the state of an entity. A snapshot strategy is included which reuses
-the capabilities of this library by implementing snapshots as time-sequenced domain
-events. It can easily be substituted with one that uses a dedicated table for snapshots.
-
 **Application-level encryption** — encrypts and decrypts stored events, using a cipher
 strategy passed as an option to the sequenced item mapper. Can be used to encrypt some
 events, or all events, or not applied at all (the default). Included is a cipher strategy
@@ -88,6 +83,11 @@ control, guaranteeing sequential consistency of the events of an entity, across 
 application threads. It is also possible to serialize calls to the methods of an
 entity, but that is out of the scope of this package — if you wish to do that,
 perhaps something like [Zookeeper](https://zookeeper.apache.org/) might help.
+
+**Snapshotting** — avoids replaying an entire event stream to
+obtain the state of an entity. A snapshot strategy is included which reuses
+the capabilities of this library by implementing snapshots as time-sequenced domain
+events. It can easily be substituted with one that uses a dedicated table for snapshots.
 
 **Abstract base classes** — suggest how to structure an event sourced application.
 The library has base classes for application objects, domain entities, entity repositories,
