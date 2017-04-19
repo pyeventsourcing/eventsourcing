@@ -20,6 +20,7 @@ The entity factory is now a method of the aggregate, and the aggregate's mutator
 of mutating the aggregate's entities.
 
 .. code:: python
+
     from eventsourcing.infrastructure.eventstore import EventStore
     from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
     from eventsourcing.example.domainmodel import Example
@@ -167,6 +168,7 @@ Setup infrastructure using library classes.
 Define an application class that uses the model and infrastructure.
 
 .. code:: python
+
     import uuid
     import time
 
