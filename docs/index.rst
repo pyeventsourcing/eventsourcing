@@ -15,7 +15,6 @@ A library for event sourcing in Python.
    topics/installing
    topics/user_guide/index
    topics/design
-   topics/wsgi
 
 .. toctree::
    :maxdepth: 1

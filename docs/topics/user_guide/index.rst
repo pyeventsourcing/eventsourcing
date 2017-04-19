@@ -12,7 +12,7 @@ User Guide
    aggregates
    schema
    cassandra
-
+   wsgi
 
 
 This user guide describes how to write an event sourced application.
