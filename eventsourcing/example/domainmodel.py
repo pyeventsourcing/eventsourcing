@@ -22,11 +22,16 @@ class Example(AggregateRoot):
     class Heartbeat(AggregateEvent):
         pass
 
-    def __init__(self, a, b, **kwargs):
+    def __init__(self, foo='', a='', b='', **kwargs):
         super(Example, self).__init__(**kwargs)
+        self._foo = foo
         self._a = a
         self._b = b
         self._count_heartbeats = 0
+
+    @attribute
+    def foo(self):
+        """An example attribute."""
 
     @attribute
     def a(self):
@@ -72,14 +77,14 @@ class AbstractExampleRepository(AbstractEntityRepository):
     pass
 
 
-def register_new_example(a, b):
+def create_new_example(foo='', a='', b=''):
     """
     Factory method for example entities.
 
     :rtype: Example
     """
     entity_id = uuid.uuid4()
-    event = Example.Created(entity_id=entity_id, a=a, b=b)
+    event = Example.Created(entity_id=entity_id, foo=foo, a=a, b=b)
     entity = Example.mutate(event=event)
     publish(event=event)
     return entity

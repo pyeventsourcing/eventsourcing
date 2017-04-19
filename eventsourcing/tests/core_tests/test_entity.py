@@ -6,7 +6,7 @@ from eventsourcing.domain.model.entity import AttributeChanged, Created, Created
     EntityIDConsistencyError, EntityVersionConsistencyError, TimestampedVersionedEntity, attribute, created_mutator
 from eventsourcing.domain.model.events import VersionedEntityEvent, publish, subscribe, unsubscribe, DomainEvent
 from eventsourcing.example.infrastructure import ExampleRepository
-from eventsourcing.example.domainmodel import Example, register_new_example
+from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError, ConcurrencyError
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
@@ -18,7 +18,7 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicy):
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
-        example1 = register_new_example(a=1, b=2)
+        example1 = create_new_example(a=1, b=2)
         self.assertIsInstance(example1, Example)
 
         # Check the properties of the Example class.
@@ -33,7 +33,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertEqual(example1.created_on, example1.last_modified_on)
 
         # Check a second instance with the same values is not "equal" to the first.
-        example2 = register_new_example(a=1, b=2)
+        example2 = create_new_example(a=1, b=2)
         self.assertNotEqual(example1, example2)
 
         # Setup the repo.

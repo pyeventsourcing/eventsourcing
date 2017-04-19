@@ -6,7 +6,7 @@ from sqlalchemy.sql.sqltypes import BigInteger, Float, Integer, String, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.example.domainmodel import register_new_example
+from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
@@ -99,7 +99,7 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
     def test(self):
         with ExampleApplicationWithAlternativeSequencedItemType(self.datastore) as app:
             # Create entity.
-            entity1 = register_new_example(a='a', b='b')
+            entity1 = create_new_example(a='a', b='b')
             self.assertIsInstance(entity1.id, UUID)
             self.assertEqual(entity1.a, 'a')
             self.assertEqual(entity1.b, 'b')

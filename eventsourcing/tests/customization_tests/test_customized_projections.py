@@ -15,12 +15,12 @@ class TestGetAllEventFromSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithEx
         with self.construct_application() as app:
 
             # Create three domain entities.
-            entity1 = app.register_new_example('a1', 'b1')
-            entity2 = app.register_new_example('a2', 'b2')
-            entity3 = app.register_new_example('a3', 'b3')
+            entity1 = app.create_new_example('a1', 'b1')
+            entity2 = app.create_new_example('a2', 'b2')
+            entity3 = app.create_new_example('a3', 'b3')
 
             # Get all the domain events
-            es = app.version_entity_event_store
+            es = app.integer_sequenced_event_store
             domain_events = es.all_domain_events()
 
             # Project the events into a set of entity IDs.

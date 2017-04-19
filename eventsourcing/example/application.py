@@ -1,5 +1,5 @@
 from eventsourcing.application.base import EventSourcedApplication
-from eventsourcing.example.domainmodel import register_new_example
+from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
@@ -15,13 +15,16 @@ class ExampleApplication(EventSourcedApplication):
 
     def __init__(self, **kwargs):
         super(ExampleApplication, self).__init__(**kwargs)
-        self.snapshot_strategy = EventSourcedSnapshotStrategy(
-            event_store=self.snapshot_store,
-        )
-        self.example_repo = ExampleRepository(
-            event_store=self.version_entity_event_store,
+        if self.snapshot_store:
+            self.snapshot_strategy = EventSourcedSnapshotStrategy(
+                event_store=self.snapshot_store,
+            )
+        else:
+            self.snapshot_strategy = None
+        self.example_repository = ExampleRepository(
+            event_store=self.integer_sequenced_event_store,
             snapshot_strategy=self.snapshot_strategy,
         )
 
-    def register_new_example(self, a, b):
-        return register_new_example(a=a, b=b)
+    def create_new_example(self, foo='', a='', b=''):
+        return create_new_example(foo=foo, a=a, b=b)

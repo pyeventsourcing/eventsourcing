@@ -16,8 +16,8 @@ class TestCombinedPersistencePolicy(unittest.TestCase):
         self.te_es = mock.Mock(spec=AbstractEventStore)
         self.sn_es = mock.Mock(spec=AbstractEventStore)
         self.policy = CombinedPersistencePolicy(
-            versioned_entity_event_store=self.ve_es,
-            timestamped_entity_event_store=self.te_es,
+            integer_sequenced_event_store=self.ve_es,
+            timestamp_sequenced_event_store=self.te_es,
             snapshot_store=self.sn_es,
         )
 

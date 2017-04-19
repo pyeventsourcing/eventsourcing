@@ -5,7 +5,7 @@ from sqlalchemy.sql.schema import Column
 from sqlalchemy.sql.sqltypes import Float, String
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.example.domainmodel import register_new_example
+from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
@@ -14,7 +14,7 @@ from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActi
 from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
-# This tests extending the sequenced item class with some more fields. How easy is it?
+# This module explores extending the sequenced item class with some more fields. How easy is it?
 # Just needed to define the extended type, define a suitable active record
 # class, and extend the sequenced itemevent mapper to derive values for the
 # extra attributes. It's easy.
@@ -93,7 +93,7 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
     def test(self):
         with ExampleApplicationWithExtendedSequencedItemType(self.datastore) as app:
             # Create entity.
-            entity1 = register_new_example(a='a', b='b')
+            entity1 = create_new_example(a='a', b='b')
             self.assertIsInstance(entity1.id, UUID)
             self.assertEqual(entity1.a, 'a')
             self.assertEqual(entity1.b, 'b')
