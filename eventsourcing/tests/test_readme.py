@@ -9,14 +9,17 @@ from unittest.case import TestCase, expectedFailure
 import eventsourcing
 
 
+base_dir = dirname(dirname(eventsourcing.__file__))
+
+
 class TestDocs(TestCase):
     def test_code_snippets_in_readme(self):
-        path = join(dirname(dirname(eventsourcing.__file__)), 'README.md')
+        path = join(base_dir, 'README.md')
         self.check_code_snippets_in_file(path)
 
     @expectedFailure
     def test_code_snippets_in_docs(self):
-        for path in glob(join(dirname(dirname(eventsourcing.__file__)), 'docs', '*', '*.rst')):
+        for path in glob(join(base_dir, 'docs', '*', '*.rst')):
             print("Testing code snippets in {}".format(path))
             self.check_code_snippets_in_file(path)
 
@@ -71,7 +74,7 @@ class TestDocs(TestCase):
         tempfile.flush()
 
         # Run the code and catch errors.
-        p = Popen([sys.executable, temp_path], stdout=PIPE, stderr=PIPE)
+        p = Popen([sys.executable, temp_path], stdout=PIPE, stderr=PIPE, env={'PYTHONPATH': base_dir})
         out, err = p.communicate()
         out = out.decode('utf8').replace(temp_path, doc_path)
         err = err.decode('utf8').replace(temp_path, doc_path)
