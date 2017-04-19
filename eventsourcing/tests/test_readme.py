@@ -9,8 +9,8 @@ from unittest.case import TestCase
 import eventsourcing
 
 
-class TestReadmeFile(TestCase):
-    def test_code_snippets_in_readme_file(self):
+class TestDocs(TestCase):
+    def test_code_snippets(self):
         path = join(dirname(dirname(eventsourcing.__file__)), 'README.md')
         self.check_code_snippets_in_file(path)
         for path in glob(join(dirname(dirname(eventsourcing.__file__)), 'docs', '*', '*.rst')):
