@@ -1,8 +1,8 @@
 import os
 import sys
 from glob import glob
-from os.path import join, dirname
-from subprocess import Popen, PIPE
+from os.path import dirname, join
+from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
 from unittest.case import TestCase
 
@@ -10,7 +10,6 @@ import eventsourcing
 
 
 class TestReadmeFile(TestCase):
-
     def test_code_snippets_in_readme_file(self):
         path = join(dirname(dirname(eventsourcing.__file__)), 'README.md')
         self.check_code_snippets_in_file(path)
