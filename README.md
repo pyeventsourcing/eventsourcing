@@ -708,7 +708,7 @@ class SnapshottingPolicy(object):
 
 In the application class below, the ```EventSourcedRepository``` is constructed with
 an event sourced snapshot strategy. The application also has a policy to persist
-snapshots whever they are taken.
+snapshots whenever they are taken.
 
 ```python
 from eventsourcing.application.policies import PersistencePolicy
@@ -1054,12 +1054,8 @@ with Application(datastore) as app:
 
 Make sure you have a Cassandra server available on localhost at port 9042.
 
-Install the library with the 'cassandra' option. It's worth making sure
-you are using the latest version of pip, otherwise it can take a long time
-to build the Cassandra driver.
-
+Install the library with the 'cassandra' option.
 ```
-    pip install -U pip
     pip install eventsourcing[cassandra]
 ```
 
@@ -1078,7 +1074,7 @@ cassandra_datastore.setup_connection()
 cassandra_datastore.setup_tables()
 ```
 
-The Cassandra application class is similar way to the application above. Please note,
+The Cassandra application class below is similar to the application classes above. Please note,
 it isn't necessary to pass the Cassandra datastore object into the Cassandra active
 record strategy. Investigate the ```CassandraSettings``` to learn how to configure
 away from default settings.
