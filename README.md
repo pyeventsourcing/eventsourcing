@@ -12,6 +12,7 @@ A library for event sourcing in Python.
 Use pip to install the [latest distribution](https://pypi.python.org/pypi/eventsourcing) from
 the Python Package Index.
 
+    pip install -U pip
     pip install eventsourcing
 
 If you want to use SQLAlchemy, then please install with 'sqlalchemy'.
@@ -176,7 +177,7 @@ class ValueChanged(DomainEvent):
         self.name = name
         self.value = value
 
-    
+
 class Discarded(DomainEvent):
     """Published when an entity is discarded."""
 ```
@@ -1049,10 +1050,20 @@ with Application(datastore) as app:
 ```
 
 
-### Step 8: Using Cassandra (alternative database management system)
+### Step 8: Using Cassandra
 
-Firstly, make sure you have a Cassandra server available on localhost at port 9042. Then setup the
-connection and the database tables, using the library classes for Cassandra.
+Make sure you have a Cassandra server available on localhost at port 9042.
+
+Install the library with the 'cassandra' option. It's worth making sure
+you are using the latest version of pip, otherwise it can take a long time
+to build the Cassandra driver.
+
+```
+    pip install -U pip
+    pip install eventsourcing[cassandra]
+```
+
+Setup the connection and the database tables, using the library classes for Cassandra.
 
 ```python
 from eventsourcing.infrastructure.cassandra.datastore import CassandraSettings, CassandraDatastore
@@ -1067,10 +1078,10 @@ cassandra_datastore.setup_connection()
 cassandra_datastore.setup_tables()
 ```
 
-An application can be composed in a similar way to the SQLAlchemy application. Please note,
-it isn't necessary to pass the Cassandra datastore object into the Cassandra active record strategy.
-
-Investigate the ```CassandraSettings``` to learn how to configure away from default settings.
+The Cassandra application class is similar way to the application above. Please note,
+it isn't necessary to pass the Cassandra datastore object into the Cassandra active
+record strategy. Investigate the ```CassandraSettings``` to learn how to configure
+away from default settings.
 
 ```python
 from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy
@@ -1094,16 +1105,16 @@ class CassandraApplication(object):
             mutator=mutate,
         )
         self.persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
-        
+
     def create_example(self, foo):
         return create_new_example(foo=foo)
-        
+
     def close(self):
         self.persistence_policy.close()
 
     def __enter__(self):
         return self
-        
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 ```
