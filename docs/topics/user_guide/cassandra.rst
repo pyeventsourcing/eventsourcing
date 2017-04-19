@@ -6,7 +6,7 @@ Make sure you have a Cassandra server available on localhost at port 9042.
 
 Install the library with the 'cassandra' option.
 
-..
+::
 
     pip install eventsourcing[cassandra]
 
