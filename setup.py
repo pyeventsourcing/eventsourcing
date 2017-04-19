@@ -6,10 +6,12 @@ try:
 except ImportError:
     install_requires_singledispatch = ['singledispatch']
 
+from eventsourcing import __version__
+
 
 setup(
     name='eventsourcing',
-    version='2.1.2',
+    version=__version__,
     description='Event sourcing in Python',
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
