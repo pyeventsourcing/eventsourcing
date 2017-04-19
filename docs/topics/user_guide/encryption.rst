@@ -3,7 +3,7 @@ Application-level encryption
 ============================
 
 To enable encryption, pass in a cipher strategy object when constructing
-the sequenced item mapper, and set ```always_encrypt``` to a True value.
+the sequenced item mapper, and set ``always_encrypt`` to a True value.
 
 Setup infrastructure using library classes.
 

@@ -200,7 +200,7 @@ that can handle the three types of events defined above.
             raise NotImplementedError(type(event))
 
 
-The example entity class does not depend on the library, except for the ```publish()``` function.
+The example entity class does not depend on the library, except for the ``publish()`` function.
 In particular, it doesn't inherit from a "magical" entity base class. It just publishes events that it has
 applied to itself. The library does however contain domain entity classes that you can use to build your
 domain model. For example see the ``TimestampedVersionedEntity`` class, which is also a timestamped,

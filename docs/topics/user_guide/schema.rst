@@ -4,9 +4,10 @@ Alternative database schema
 
 Let's say we want the database table to look like stored events, rather than sequenced items.
 
-It's easy to do. Just define a new sequenced item class, e.g. ```StoredEvent``` below.
+It's easy to do. Just define a new sequenced item class, e.g. ``StoredEvent`` below.
 
 .. code:: python
+
     from collections import namedtuple
 
     StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'event_type', 'state'])
@@ -113,6 +114,7 @@ Set up the database.
 Then you can use the application as before, and your events will be stored as "stored events".
 
 .. code:: python
+
     with Application(datastore) as app:
 
         entity = app.create_example(foo='bar1')

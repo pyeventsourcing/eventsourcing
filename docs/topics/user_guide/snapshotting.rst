@@ -61,7 +61,7 @@ Let's introduce a snapshotting policy, so that a snapshot is automatically taken
             unsubscribe(predicate=self.requires_snapshot, handler=self.take_snapshot)
 
 
-In the application class below, the ```EventSourcedRepository``` is constructed with
+In the application class below, the ``EventSourcedRepository`` is constructed with
 an event sourced snapshot strategy. The application also has a policy to persist
 snapshots whenever they are taken.
 

@@ -5,11 +5,11 @@ Aggregates in domain driven design
 Let's say we want to separate the sequence of events from entities, and instead have
 an aggregate that controls a set of entities.
 
-We can define some "aggregate events" which have ```aggregate_id``` and
-```aggregate_version```. And we can rework the entity class to function as a root
+We can define some "aggregate events" which have ``aggregate_id`` and
+``aggregate_version``. And we can rework the entity class to function as a root
 entity of the aggregate.
 
-In the example below, the aggregate class has a list of pending events, and a ```save()```
+In the example below, the aggregate class has a list of pending events, and a ``save()``
 method that publishes all pending events. The other operations append events to the list
 of pending events, rather than publishing them individually.
 
@@ -217,7 +217,7 @@ Define an application class that uses the model and infrastructure.
 
 
 The application can be used to create new aggregates, aggregates can be used to
-create new entities. Batches of events are published and stored when the ```save()```
+create new entities. Batches of events are published and stored when the ``save()``
 method is called.
 
 

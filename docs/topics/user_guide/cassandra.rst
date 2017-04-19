@@ -29,7 +29,7 @@ Setup the connection and the database tables, using the library classes for Cass
 
 The Cassandra application class below is similar to the application classes above. Please note,
 it isn't necessary to pass the Cassandra datastore object into the Cassandra active
-record strategy. Investigate the ```CassandraSettings``` to learn how to configure
+record strategy. Investigate the ``CassandraSettings`` to learn how to configure
 away from default settings.
 
 .. code:: python
