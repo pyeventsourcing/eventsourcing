@@ -1,158 +1,8 @@
-Event Sourcing in Python
-========================
+User Guide
+==========
 
-|Build Status| |Coverage Status| |Gitter chat|
-
-A library for event sourcing in Python.
-
-Install
--------
-
-Use pip to install the `latest
-distribution <https://pypi.python.org/pypi/eventsourcing>`__ from the
-Python Package Index.
-
-::
-
-    pip install eventsourcing
-
-If you want to use SQLAlchemy, then please install with 'sqlalchemy'.
-
-::
-
-    pip install eventsourcing[sqlalchemy]
-
-Similarly, if you want to use Cassandra, then please install with
-'cassandra'.
-
-::
-
-    pip install eventsourcing[cassandra]
-
-If you want to run the test suite, then please install with the 'test'
-optional extra.
-
-::
-
-    pip install eventsourcing[test]
-
-After installing with 'test', and installing Cassandra locally, the test
-suite should pass.
-
-::
-
-    python -m unittest discover eventsourcing.tests -v
-
-Please register any `issues on
-GitHub <https://github.com/johnbywater/eventsourcing/issues>`__.
-
-There is also a `mailing
-list <https://groups.google.com/forum/#!forum/eventsourcing-users>`__.
-And a `room on
-Gitter <https://gitter.im/eventsourcing-in-python/eventsourcing>`__
-
-Overview
---------
-
-What is event sourcing? One definition suggests the state of an event
-sourced application is determined by a sequence of events. Another
-definition has event sourcing as a persistence mechanism for domain
-driven design. In any case, it is common for the state of a software
-application to be distributed or partitioned across a set of entities or
-aggregates in a domain model.
-
-Therefore, this library provides mechanisms useful in event sourced
-applications: a style for coding entity behaviours that emit events; and
-a way for the events of an entity to be stored and replayed to obtain
-the entities on demand.
-
-This document provides instructions for installing the package,
-highlights the main features of the library, includes a detailed example
-of usage, describes the design of the software, and has some background
-information about the project.
-
-Features
---------
-
-**Event store** — appends and retrieves domain events. The event store
-uses a "sequenced item mapper" and an "active record strategy" to map
-domain events to a database in ways that can be easily substituted.
-
-**Persistence policy** — subscribes to receive published domain events.
-Appends received domain events to an event store whenever a domain event
-is published. Domain events are typically published by the methods of an
-entity.
-
-**Event player** — reconstitutes entities by replaying events,
-optionally with snapshotting. An event player is used by an entity
-repository to determine the state of an entity. The event player
-retrieves domain events from the event store.
-
-**Sequenced item mapper** — maps between domain events and "sequenced
-items", the archetype persistence model used by the library to store
-domain events. The library supports two different kinds of sequenced
-item: items that are sequenced by an increasing series of integers; and
-items that are sequenced in time. They support two different kinds of
-domain events: events of versioned entities (e.g. an aggregate in domain
-driven design), and unversioned timestamped events (e.g. entries in a
-log).
-
-**Active record strategy** — maps between "sequenced items" and database
-records (ORM). Support can be added for a new database schema by
-introducing a new active record strategy.
-
-**Snapshotting** — avoids replaying an entire event stream to obtain the
-state of an entity. A snapshot strategy is included which reuses the
-capabilities of this library by implementing snapshots as time-sequenced
-domain events. It can easily be substituted with one that uses a
-dedicated table for snapshots.
-
-**Application-level encryption** — encrypts and decrypts stored events,
-using a cipher strategy passed as an option to the sequenced item
-mapper. Can be used to encrypt some events, or all events, or not
-applied at all (the default). Included is a cipher strategy which uses a
-standard AES cipher, by default in CBC mode with 128 bit blocksize and a
-16 byte encryption key, and which generates a unique 16 byte
-initialization vector for each encryption. In this cipher strategy, data
-is compressed before it is encrypted, which can mean application
-performance is improved when encryption is enabled.
-
-**Optimistic concurrency control** — can be used to ensure a distributed
-or horizontally scaled application doesn't become inconsistent due to
-concurrent method execution. Leverages any optimistic concurrency
-controls in the database adapted by the stored event repository. For
-example the Cassandra database, which implements the Paxos protocol, can
-accomplish linearly-scalable distributed optimistic concurrency control,
-guaranteeing sequential consistency of the events of an entity, across
-concurent application threads. It is also possible to serialize calls to
-the methods of an entity, but that is out of the scope of this package —
-if you wish to do that, perhaps something like
-`Zookeeper <https://zookeeper.apache.org/>`__ might help.
-
-**Abstract base classes** — suggest how to structure an event sourced
-application. The library has base classes for application objects,
-domain entities, entity repositories, domain events of various types,
-mapping strategies, snapshotting strategies, cipher strategies, test
-cases, etc. They are well factored, relatively simple, and can be easily
-extended for your own purposes. If you wanted to create a domain model
-that is entirely stand-alone (recommended by purists for maximum
-longevity), you might start by copying the library classes.
-
-**Synchronous publish-subscribe mechanism** — propagates events from
-publishers to subscribers. Stable and deterministic, with handlers
-called in the order they are registered, and with which calls to publish
-events do not return until all event subscribers have returned. In
-general, subscribers are policies of the application, which may execute
-further commands whenever a particular kind of event is received.
-Publishers of domain events are typically methods of domain entities.
-
-**Worked examples** — a simple worked example application (see below)
-with an example entity class, with example domain events, an example
-factory method, an example mutator function, and an example database
-table.
-
-Usage
------
+.. toctree::
+   :maxdepth: 1
 
 This section describes how to write an event sourced application.
 
@@ -172,8 +22,8 @@ Install the library with the 'sqlalchemy' and 'crypto' options.
 
     pip install eventsourcing[sqlalchemy,crypto]
 
-Step 1: Domain model
-~~~~~~~~~~~~~~~~~~~~
+Domain model
+~~~~~~~~~~~~
 
 Let's start with the domain model. Because the state of an event sourced
 application is determined by a sequence of events, we need to define
@@ -209,7 +59,7 @@ pulled up to a layer supertype called ``DomainEvent``.
         def __init__(self, **kwargs):
             super(Created, self).__init__(entity_version=0, **kwargs)
 
-        
+
     class ValueChanged(DomainEvent):
         """Published when an attribute value is changed."""
         def __init__(self, name, value, **kwargs):
@@ -217,7 +67,7 @@ pulled up to a layer supertype called ``DomainEvent``.
             self.name = name
             self.value = value
 
-        
+
     class Discarded(DomainEvent):
         """Published when an entity is discarded."""
 
@@ -287,10 +137,10 @@ of events.
         @property
         def foo(self):
             return self._foo
-        
+
         @foo.setter
         def foo(self, value):
-            assert not self._is_discarded    
+            assert not self._is_discarded
             # Instantiate a domain event.
             event = ValueChanged(
                 entity_id=self.id,
@@ -336,7 +186,7 @@ of events.
             entity = Example(**event.__dict__)
             entity._version += 1
             return entity
-            
+
         # Handle "value changed" events by setting the named value.
         elif isinstance(event, ValueChanged):
             assert not entity.is_discarded
@@ -344,7 +194,7 @@ of events.
             entity._version += 1
             entity._last_modified_on = event.timestamp
             return entity
-            
+
         # Handle "discarded" events by returning 'None'.
         elif isinstance(event, Discarded):
             assert not entity.is_discarded
@@ -661,16 +511,16 @@ events.
                 mutator=mutate,
             )
             self.persistence_policy = PersistencePolicy(self.event_store)
-            
+
         def create_example(self, foo):
             return create_new_example(foo=foo)
-            
+
         def close(self):
             self.persistence_policy.close()
 
         def __enter__(self):
             return self
-            
+
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.close()
 
@@ -686,19 +536,19 @@ Python ``KeyError`` exception instead of returning an entity.
     with Application(datastore) as app:
 
         entity2 = app.create_example(foo='bar3')
-        
+
         assert entity2.id in app.example_repository
-        
+
         assert app.example_repository[entity2.id].foo == 'bar3'
-        
+
         entity2.foo = 'bar4'
-        
+
         assert app.example_repository[entity2.id].foo == 'bar4'
 
-        # Discard the entity.    
+        # Discard the entity.
         entity2.discard()
         assert entity2.id not in app.example_repository
-        
+
         try:
             app.example_repository[entity2.id]
         except KeyError:
@@ -741,16 +591,16 @@ the sequenced item mapper, and set ``always_encrypt`` to a True value.
                 mutator=mutate,
             )
             self.persistence_policy = PersistencePolicy(self.event_store)
-            
+
         def create_example(self, foo):
             return create_new_example(foo=foo)
-            
+
         def close(self):
             self.persistence_policy.close()
 
         def __enter__(self):
             return self
-            
+
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.close()
 
@@ -774,14 +624,14 @@ events are replayed.
         # Without encryption, application state is visible in the database.
         item1 = app.event_store.active_record_strategy.get_item(entity1.id, 0)
         assert 'bar1' in item1.data
-        
-        # With encryption enabled, application state is not visible in the database. 
+
+        # With encryption enabled, application state is not visible in the database.
         item2 = app.event_store.active_record_strategy.get_item(entity3.id, 0)
         assert 'secret info' not in item2.data
-        
+
         # Events are decrypted inside the application.
         retrieved_entity = app.example_repository[entity3.id]
-        assert 'secret info' in retrieved_entity.foo    
+        assert 'secret info' in retrieved_entity.foo
 
 Step 5: Optimistic concurrency control
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -801,10 +651,10 @@ attempt to update your object will raise a concurrency exception.
 
         a = app.example_repository[entity1.id]
         b = app.example_repository[entity1.id]
-        
+
         # Change the entity using instance 'a'.
         a.foo = 'bar6'
-        
+
         # Because 'a' has been changed since 'b' was obtained,
         # 'b' cannot be updated unless it is firstly refreshed.
         try:
@@ -813,15 +663,15 @@ attempt to update your object will raise a concurrency exception.
             pass
         else:
             raise Exception("Failed to control concurrency of 'b'.")
-          
+
         # Refresh object 'b', so that 'b' has the current state of the entity.
         b = app.example_repository[entity1.id]
         assert b.foo == 'bar6'
 
         # Changing the entity using instance 'b' now works because 'b' is up to date.
-        b.foo = 'bar7'    
+        b.foo = 'bar7'
         assert app.example_repository[entity1.id].foo == 'bar7'
-        
+
         # Now 'a' does not have the current state of the entity, and cannot be changed.
         try:
             a.foo = 'bar8'
@@ -894,16 +744,16 @@ Then redefine the application class to use the two new classes.
                 mutator=mutate,
             )
             self.persistence_policy = PersistencePolicy(self.event_store)
-            
+
         def create_example(self, foo):
             return create_new_example(foo=foo)
-            
+
         def close(self):
             self.persistence_policy.close()
 
         def __enter__(self):
             return self
-            
+
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.close()
 
@@ -927,19 +777,19 @@ Then you can use the application as before.
     with Application(datastore) as app:
 
         entity4 = app.create_example(foo='bar9')
-        
+
         assert entity4.id in app.example_repository
-        
+
         assert app.example_repository[entity4.id].foo == 'bar9'
-        
+
         entity4.foo = 'bar10'
-        
+
         assert app.example_repository[entity4.id].foo == 'bar10'
 
-        # Discard the entity.    
+        # Discard the entity.
         entity4.discard()
         assert entity4.id not in app.example_repository
-        
+
         try:
             app.example_repository[entity4.id]
         except KeyError:
@@ -1031,7 +881,7 @@ mutator is capable of mutating the aggregate's entities.
 
         def count_entities(self):
             return len(self._entities)
-            
+
         def create_new_entity(self):
             assert not self._is_discarded
             event = EntityCreated(
@@ -1047,7 +897,7 @@ mutator is capable of mutating the aggregate's entities.
             event = AggregateDiscarded(aggregate_id=self.id, aggregate_version=self.version)
             mutate(self, event)
             self._pending_events.append(event)
-            
+
         def save(self):
             publish(self._pending_events[:])
             self._pending_events = []
@@ -1061,7 +911,7 @@ mutator is capable of mutating the aggregate's entities.
             aggregate = ExampleAggregateRoot(**event.__dict__)
             aggregate._version += 1
             return aggregate
-            
+
         # Handle "entity created" events by adding a new entity to the aggregate's dict of entities.
         elif isinstance(event, EntityCreated):
             assert not aggregate.is_discarded
@@ -1070,7 +920,7 @@ mutator is capable of mutating the aggregate's entities.
             aggregate._version += 1
             aggregate._last_modified_on = event.timestamp
             return aggregate
-            
+
         # Handle "discarded" events by returning 'None'.
         elif isinstance(event, AggregateDiscarded):
             assert not aggregate.is_discarded
@@ -1100,19 +950,19 @@ mutator is capable of mutating the aggregate's entities.
                 mutator=mutate,
             )
             self.persistence_policy = PersistencePolicy(self.event_store)
-            
+
         def create_example_aggregate(self):
             event = AggregateCreated(aggregate_id=uuid.uuid4())
             aggregate = mutate(aggregate=None, event=event)
             aggregate._pending_events.append(event)
             return aggregate
-            
+
         def close(self):
             self.persistence_policy.close()
 
         def __enter__(self):
             return self
-            
+
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.close()
 
@@ -1128,38 +978,38 @@ mutator is capable of mutating the aggregate's entities.
 
         # Check the aggregate has zero entities.
         assert aggregate1.count_entities() == 0
-        
+
         # Check the aggregate has zero entities.
         assert aggregate1.count_entities() == 0
-        
+
         # Ask the aggregate to create an entity within itself.
         aggregate1.create_new_entity()
 
         # Check the aggregate has one entity.
         assert aggregate1.count_entities() == 1
-        
+
         # Check the aggregate in the repo still has zero entities.
         assert app.aggregate_repository[aggregate1.id].count_entities() == 0
-        
+
         # Call save().
         aggregate1.save()
-        
+
         # Check the aggregate in the repo now has one entity.
         assert app.aggregate_repository[aggregate1.id].count_entities() == 1
-        
+
         # Create two more entities within the aggregate.
         aggregate1.create_new_entity()
         aggregate1.create_new_entity()
-        
+
         # Save both "entity created" events in one atomic transaction.
         aggregate1.save()
-        
+
         # Check the aggregate in the repo now has three entities.
         assert app.aggregate_repository[aggregate1.id].count_entities() == 3
-        
+
         # Discard the aggregate, but don't call save() yet.
         aggregate1.discard()
-        
+
         # Check the aggregate still exists in the repo.
         assert aggregate1.id in app.aggregate_repository
 
@@ -1204,87 +1054,3 @@ optimistic concurrency controls the database system may afford.
    :alt: UML Class Diagram
 
    UML Class Diagram
-
-Background
-----------
-
-Although the event sourcing patterns are each quite simple, and they can
-be reproduced in code for each project, they do suggest cohesive
-mechanisms, for example applying and publishing the events generated
-within domain entities, storing and retrieving selections of the events
-in a highly scalable manner, replaying the stored events for a
-particular entity to obtain the current state, and projecting views of
-the event stream that are persisted in other models. Quoting from the
-"Cohesive Mechanism" pages in Eric Evan's Domain Driven Design book:
-
-*"Therefore: Partition a conceptually COHESIVE MECHANISM into a separate
-lightweight framework. Particularly watch for formalisms for
-well-documented categories of algorithms. Expose the capabilities of the
-framework with an INTENTION-REVEALING INTERFACE. Now the other elements
-of the domain can focus on expressing the problem ("what"), delegating
-the intricacies of the solution ("how") to the framework."*
-
-The example usage (see above) introduces the "interface". The
-"intricacies" can be found in the source code.
-
-Inspiration:
-
--  Martin Fowler's article on event sourcing
-
-   -  http://martinfowler.com/eaaDev/EventSourcing.html
-
--  Greg Young's discussions about event sourcing, and EventStore system
-
-   -  https://www.youtube.com/watch?v=JHGkaShoyNs
-   -  https://www.youtube.com/watch?v=LDW0QWie21s
-   -  https://dl.dropboxusercontent.com/u/9162958/CQRS/Events%20as%20a%20Storage%20Mechanism%20CQRS.pdf
-   -  https://geteventstore.com/
-
--  Robert Smallshire's brilliant example code on Bitbucket
-
-   -  https://bitbucket.org/sixty-north/d5-kanban-python/src
-
--  Various professional projects that called for this approach, across
-   which I didn't want to rewrite the same things each time
-
-See also:
-
--  'Evaluation of using NoSQL databases in an event sourcing system' by
-   Johan Rothsberg
-
-   -  http://www.diva-portal.se/smash/get/diva2:877307/FULLTEXT01.pdf
-
--  Wikipedia page on Object-relational impedance mismatch
-
-   -  https://en.wikipedia.org/wiki/Object-relational\_impedance\_mismatch
-
-Upgrade notes
--------------
-
-Upgrading from 1.x to 2.x
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Version 2 departs from version 1 by using sequenced items as the
-persistence model (was stored events in version 1). This makes version 2
-incompatible with version 1. However, with a little bit of code it would
-be possible to rewrite all existing stored events from version 1 into
-the version 2 sequenced items, since the attribute values are broadly
-the same. If you need help with this, please get in touch.
-
-Project
--------
-
-This project is hosted on GitHub.
-
--  https://github.com/johnbywater/eventsourcing
-
-Questions, requests and any other issues can be registered here:
-
--  https://github.com/johnbywater/eventsourcing/issues
-
-.. |Build Status| image:: https://secure.travis-ci.org/johnbywater/eventsourcing.png?branch=master
-   :target: https://travis-ci.org/johnbywater/eventsourcing
-.. |Coverage Status| image:: https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=master#123
-   :target: https://coveralls.io/github/johnbywater/eventsourcing?branch=master
-.. |Gitter chat| image:: https://badges.gitter.im/gitterHQ/services.png
-   :target: https://gitter.im/eventsourcing-in-python/eventsourcing

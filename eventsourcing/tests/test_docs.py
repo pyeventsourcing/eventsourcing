@@ -17,7 +17,6 @@ class TestDocs(TestCase):
         path = join(base_dir, 'README.md')
         self.check_code_snippets_in_file(path)
 
-    @expectedFailure
     def test_code_snippets_in_docs(self):
         for path in glob(join(base_dir, 'docs', '*', '*.rst')):
             print("Testing code snippets in {}".format(path))

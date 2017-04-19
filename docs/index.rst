@@ -3,15 +3,16 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to eventsourcing's documentation!
-=========================================
+========================
+Event Sourcing in Python
+========================
 
 .. toctree::
    :maxdepth: 1
    :caption: Topics:
 
    topics/installing
-   topics/tutorial
+   topics/user_guide/index
    topics/wsgi
 
 .. toctree::
@@ -20,11 +21,9 @@ Welcome to eventsourcing's documentation!
 
    ref/modules
 
-Event Sourcing in Python
-------------------------
 
 Overview
-~~~~~~~~
+========
 
 What is event sourcing? One definition suggests the state of an event
 sourced application is determined by a sequence of events. Another
