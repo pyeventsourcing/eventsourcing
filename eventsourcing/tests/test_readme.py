@@ -10,9 +10,11 @@ import eventsourcing
 
 
 class TestDocs(TestCase):
-    def test_code_snippets(self):
+    def test_code_snippets_in_readme(self):
         path = join(dirname(dirname(eventsourcing.__file__)), 'README.md')
         self.check_code_snippets_in_file(path)
+
+    def test_code_snippets_in_docs(self):
         for path in glob(join(dirname(dirname(eventsourcing.__file__)), 'docs', '*', '*.rst')):
             print("Testing code snippets in {}".format(path))
             self.check_code_snippets_in_file(path)
