@@ -1,6 +1,6 @@
 """
 :mod:`eventsourcing.application.policies` Module
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Persistance Policies
 

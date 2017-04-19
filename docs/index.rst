@@ -9,20 +9,6 @@ Event Sourcing in Python
 
 A library for event sourcing in Python.
 
-.. toctree::
-   :maxdepth: 2
-
-   topics/installing
-   topics/user_guide/index
-   topics/design
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Reference:
-
-   ref/modules
-
-
 Overview
 ========
 
@@ -39,6 +25,20 @@ entity to be stored and replayed to obtain the entities on demand.
 Documentation provides instructions for installing the package, highlights the main features of
 the library, includes a detailed example of usage, describes the design of the software, and has
 some background information about the project.
+
+.. toctree::
+   :maxdepth: 3
+
+   topics/installing
+   topics/user_guide/index
+   topics/design
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Reference:
+
+   ref/modules
+
 
 Features
 ========
