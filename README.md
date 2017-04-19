@@ -658,8 +658,7 @@ module ```eventsourcing.example.application```.
 To enable snapshotting, pass in a snapshotting strategy object when constructing
 an entity repository.
 
-The snapshotting strategy object depends on infrastructure. There are several
-options, but here we will simply use a separate table for snapshots.
+Firstly setup a dedicated table for snapshots.
 
 ```python
 class SnapshotTable(Base):
@@ -675,10 +674,9 @@ class SnapshotTable(Base):
 
 
 datastore.setup_tables()
-
 ```
 
-We can also introduce a snapshotting policy, so that a snapshot is automatically taken every five events.
+Let's introduce a snapshotting policy, so that a snapshot is automatically taken every five events.
 
 ```python
 from eventsourcing.infrastructure.eventplayer import EventPlayer
@@ -707,8 +705,9 @@ class SnapshottingPolicy(object):
         unsubscribe(predicate=self.requires_snapshot, handler=self.take_snapshot)
 ```
 
-The application also needs a policy to persist snapshots that are taken.
-
+In the application class below, the ```EventSourcedRepository``` is constructed with
+an event sourced snapshot strategy. The application also has a policy to persist
+snapshots whever they are taken.
 
 ```python
 from eventsourcing.application.policies import PersistencePolicy
@@ -716,40 +715,44 @@ from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrate
 from eventsourcing.domain.model.snapshot import Snapshot
 
 
-class ApplicationWithSnapshotting(object):
+class SnapshottedApplication(object):
 
     def __init__(self, datastore):
         self.event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=datastore,
                 active_record_class=SequencedItemTable,
-                sequenced_item_class=SequencedItem,
+                sequenced_item_class=SequencedItem
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='entity_id',
-                position_attr_name='entity_version',
+                position_attr_name='entity_version'
             )
         )
         self.snapshot_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 datastore=datastore,
                 active_record_class=SnapshotTable,
-                sequenced_item_class=SequencedItem,
+                sequenced_item_class=SequencedItem
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='entity_id',
-                position_attr_name='entity_version',
+                position_attr_name='entity_version'
             )
         )
+
+        # Construct a snapshot strategy.
         self.snapshot_strategy = EventSourcedSnapshotStrategy(
-            event_store=self.snapshot_store,
+            event_store=self.snapshot_store
         )
+
+        # Construct the repository with the snapshot strategy.
         self.example_repository = EventSourcedRepository(
             event_store=self.event_store,
-            snapshot_strategy=self.snapshot_strategy,
             mutator=mutate,
+            snapshot_strategy=self.snapshot_strategy
         )
         self.entity_persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
         self.snapshot_persistence_policy = PersistencePolicy(self.snapshot_store, event_type=Snapshot)
@@ -770,10 +773,10 @@ class ApplicationWithSnapshotting(object):
         self.close()
 ```
 
-Now snapshots of example entities will be taken every five events, except for the initial event and discarded events.
+Now snapshots of example entities will be taken every five events.
 
 ```python
-with ApplicationWithSnapshotting(datastore) as app:
+with SnapshottedApplication(datastore) as app:
 
     entity = app.create_example(foo='bar1')
     
@@ -785,18 +788,18 @@ with ApplicationWithSnapshotting(datastore) as app:
     entity.foo = 'bar3'
     entity.foo = 'bar4'
 
-    assert app.example_repository.event_player.get_snapshot(entity.id) is None
+    assert app.snapshot_strategy.get_snapshot(entity.id) is None
 
     entity.foo = 'bar5'
 
-    assert app.example_repository.event_player.get_snapshot(entity.id) is not None
+    assert app.snapshot_strategy.get_snapshot(entity.id) is not None
 
     entity.foo = 'bar6'
     entity.foo = 'bar7'
     
     assert app.example_repository[entity.id].foo == 'bar7'
     
-    assert app.example_repository.event_player.get_snapshot(entity.id).state['_foo'] == 'bar5'
+    assert app.snapshot_strategy.get_snapshot(entity.id).state['_foo'] == 'bar5'
 
     # Discard the entity.    
     entity.discard()
@@ -862,8 +865,9 @@ to the database. The values are decrypted before domain events are replayed.
 from eventsourcing.domain.services.aes_cipher import AESCipher
 
 aes_key = '0123456789abcdef'
+cipher = AESCipher(aes_key)
 
-with EncryptedApplication(datastore, cipher=AESCipher(aes_key)) as app:
+with EncryptedApplication(datastore, cipher=cipher) as app:
 
     secret_entity = app.create_example(foo='secret info')
 
@@ -883,9 +887,9 @@ with EncryptedApplication(datastore, cipher=AESCipher(aes_key)) as app:
 
 ### Step 6: Optimistic concurrency control
 
-With the application above, because of the unique constraint
-on the SQLAlchemy table, it isn't possible to branch the
-evolution of an entity and store two events at the same version.
+Because of the unique constraint on the sequenced item table, it isn't
+possible to branch the evolution of an entity and store two events
+at the same version.
 
 Hence, if the entity you are working on has been updated elsewhere,
 an attempt to update your object will raise a concurrency exception.
@@ -968,7 +972,7 @@ class StoredEventTable(Base):
     state = Column(Text())
 ```
 
-Then redefine the application class to use the two new classes.
+Then redefine the application class to use the new sequenced item and active record classes.
 
 ```python
 class Application(object):
@@ -1045,15 +1049,14 @@ with Application(datastore) as app:
 ```
 
 
-### Step 8: Using Cassandra
+### Step 8: Using Cassandra (alternative database management system)
 
-Using Cassandra is very similar to using SQLAlchemy. Please note, it isn't necessary to pass
-the Cassandra datastore object into the active record strategy object.
+Firstly, make sure you have a Cassandra server available on localhost at port 9042. Then setup the
+connection and the database tables, using the library classes for Cassandra.
 
 ```python
 from eventsourcing.infrastructure.cassandra.datastore import CassandraSettings, CassandraDatastore
 from eventsourcing.infrastructure.cassandra.activerecords import CqlIntegerSequencedItem
-from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy
 
 cassandra_datastore = CassandraDatastore(
     settings=CassandraSettings(),
@@ -1062,9 +1065,18 @@ cassandra_datastore = CassandraDatastore(
 
 cassandra_datastore.setup_connection()
 cassandra_datastore.setup_tables()
+```
+
+An application can be composed in a similar way to the SQLAlchemy application. Please note,
+it isn't necessary to pass the Cassandra datastore object into the Cassandra active record strategy.
+
+Investigate the ```CassandraSettings``` to learn how to configure away from default settings.
+
+```python
+from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy
 
 
-class ApplicationWithCassandra(object):
+class CassandraApplication(object):
     def __init__(self):
         self.event_store = EventStore(
             active_record_strategy=CassandraActiveRecordStrategy(
@@ -1094,9 +1106,12 @@ class ApplicationWithCassandra(object):
         
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+```
 
+The Cassandra application can be used in exactly the same way as the SQLAlchemy application.
 
-with ApplicationWithCassandra() as app:
+```python
+with CassandraApplication() as app:
 
     entity = app.create_example(foo='bar1')
     
@@ -1168,7 +1183,7 @@ class AggregateDiscarded(AggregateEvent):
         super(AggregateDiscarded, self).__init__(**kwargs)
 
 
-class ExampleAggregateRoot():
+class AggregateRoot():
     """Example root entity."""
     def __init__(self, aggregate_id, aggregate_version=0, timestamp=None):
         self._id = aggregate_id
@@ -1228,7 +1243,7 @@ def mutate_aggregate_event(aggregate, event):
 
     # Handle "created" events by instantiating the aggregate class.
     if isinstance(event, AggregateCreated):
-        aggregate = ExampleAggregateRoot(**event.__dict__)
+        aggregate = AggregateRoot(**event.__dict__)
         aggregate._version += 1
         return aggregate
         
