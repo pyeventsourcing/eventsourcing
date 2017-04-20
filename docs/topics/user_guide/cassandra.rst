@@ -13,6 +13,9 @@ Install the library with the 'cassandra' option.
 
 Setup the connection and the database tables, using the library classes for Cassandra.
 
+With the ``CassandraDatastore``, the table classes need to be provided, otherwise the
+tables won't be created.
+
 .. code:: python
 
     from eventsourcing.infrastructure.cassandra.datastore import CassandraSettings, CassandraDatastore
@@ -27,9 +30,11 @@ Setup the connection and the database tables, using the library classes for Cass
     cassandra_datastore.setup_tables()
 
 
-The Cassandra application class below is similar to the application classes above. Please note,
-it isn't necessary to pass the Cassandra datastore object into the Cassandra active
-record strategy. Investigate the ``CassandraSettings`` to learn how to configure
+The Cassandra application class below is similar to the example application class.
+One difference is the Cassandra datastore object is not passed into the Cassandra
+active record strategy.
+
+You may investigate the ``CassandraSettings`` to learn how to configure
 away from default settings.
 
 .. code:: python
@@ -77,7 +82,7 @@ away from default settings.
             self.close()
 
 
-The Cassandra application can be used in exactly the same way as the SQLAlchemy application.
+The Cassandra application can be used in exactly the same way as the example application.
 
 .. code:: python
 
