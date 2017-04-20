@@ -2,9 +2,8 @@
 Installation
 ============
 
-Use pip to install the `latest
-distribution <https://pypi.python.org/pypi/eventsourcing>`__ from the
-Python Package Index.
+Use pip to install the distribution from the
+`Python Package Index <https://pypi.python.org/pypi/eventsourcing>`__.
 
 ::
 

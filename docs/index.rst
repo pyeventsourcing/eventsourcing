@@ -78,10 +78,9 @@ horizontally scaled application doesn't become inconsistent due to concurrent
 method execution. Leverages any optimistic concurrency controls in the database
 adapted by the stored event repository. For example the Cassandra database, which implements
 the Paxos protocol, can accomplish linearly-scalable distributed optimistic concurrency
-control, guaranteeing sequential consistency of the events of an entity, across concurent
-application threads. It is also possible to serialize calls to the methods of an
+control, guaranteeing sequential consistency of the events of an entity. It is also possible to serialize calls to the methods of an
 entity, but that is out of the scope of this package — if you wish to do that,
-perhaps something like [Zookeeper](https://zookeeper.apache.org/) might help.
+perhaps something like `Zookeeper <https://zookeeper.apache.org/>`__ might help.
 
 **Snapshotting** — avoids replaying an entire event stream to
 obtain the state of an entity. A snapshot strategy is included which reuses
@@ -125,39 +124,32 @@ framework with an INTENTION-REVEALING INTERFACE. Now the other elements
 of the domain can focus on expressing the problem ("what"), delegating
 the intricacies of the solution ("how") to the framework."*
 
-The example usage (see above) introduces the "interface". The
-"intricacies" can be found in the source code.
-
 Inspiration:
 
--  Martin Fowler's article on event sourcing
+-  Martin Fowler's `article on event sourcing <http://martinfowler.com/eaaDev/EventSourcing.html>`__
 
-   -  http://martinfowler.com/eaaDev/EventSourcing.html
+-  Greg Young's `discussions about event sourcing <https://www.youtube.com/watch?v=JHGkaShoyNs>`__,
+   and `EventStore system <https://geteventstore.com/>`__
 
--  Greg Young's discussions about event sourcing, and EventStore system
+-  Robert Smallshire's `brilliant example on Bitbucket <https://bitbucket.org/sixty-north/d5-kanban-python/src>`__
 
-   -  https://www.youtube.com/watch?v=JHGkaShoyNs
-   -  https://www.youtube.com/watch?v=LDW0QWie21s
-   -  https://dl.dropboxusercontent.com/u/9162958/CQRS/Events%20as%20a%20Storage%20Mechanism%20CQRS.pdf
-   -  https://geteventstore.com/
-
--  Robert Smallshire's brilliant example code on Bitbucket
-
-   -  https://bitbucket.org/sixty-north/d5-kanban-python/src
-
--  Various professional projects that called for this approach, across
+-  Various professional projects that called for this approach, for
    which I didn't want to rewrite the same things each time
 
 See also:
 
--  'Evaluation of using NoSQL databases in an event sourcing system' by
+-  `Evaluation of using NoSQL databases in an event sourcing system
+   <http://www.diva-portal.se/smash/get/diva2:877307/FULLTEXT01.pdf>`__ by
    Johan Rothsberg
 
-   -  http://www.diva-portal.se/smash/get/diva2:877307/FULLTEXT01.pdf
+-  `Object-relational impedance mismatch
+   <https://en.wikipedia.org/wiki/Object-relational\_impedance\_mismatch>`__
+   page on Wikipedia
 
--  Wikipedia page on Object-relational impedance mismatch
+-  `An introduction to event storming
+   <https://techbeacon.com/introduction-event-storming-easy-way-achieve-domain-driven-design>`__
+   by a Steven Lowe, principal consultant developer at ThoughtWorks.
 
-   -  https://en.wikipedia.org/wiki/Object-relational\_impedance\_mismatch
 
 Upgrade notes
 =============
@@ -175,9 +167,7 @@ the same. If you need help with this, please get in touch.
 Project
 =======
 
-This project is hosted on GitHub.
-
--  https://github.com/johnbywater/eventsourcing
+This project is `hosted on GitHub <https://github.com/johnbywater/eventsourcing>`__.
 
 Questions, requests and any other issues can be registered here:
 
