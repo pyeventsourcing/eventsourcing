@@ -104,7 +104,6 @@ Set up the database.
     datastore = SQLAlchemyDatastore(
         base=Base,
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-        tables=(StoredEventTable,),
     )
 
     datastore.setup_connection()

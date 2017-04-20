@@ -29,14 +29,14 @@ Firstly setup a dedicated table for snapshots.
 
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-        tables=(SqlIntegerSequencedItem,),
     )
 
     datastore.setup_connection()
     datastore.setup_tables()
 
 
-Let's introduce a snapshotting policy, so that a snapshot is automatically taken every event.
+Let's introduce a snapshotting policy, so that a snapshot is automatically
+taken at a regular intervals.
 
 .. code:: python
 
@@ -45,25 +45,27 @@ Let's introduce a snapshotting policy, so that a snapshot is automatically taken
 
 
     class SnapshottingPolicy(object):
-        def __init__(self, event_player):
+        def __init__(self, event_player, frequency):
             assert isinstance(event_player, EventPlayer)
             self.event_player = event_player
-            subscribe(predicate=self.requires_snapshot, handler=self.take_snapshot)
+            self.frequency = frequency
+            subscribe(predicate=self.triggers_snapshot, handler=self.take_snapshot)
 
-        @staticmethod
-        def requires_snapshot(event):
-            return isinstance(event, AggregateEvent)
+        def close(self):
+            unsubscribe(predicate=self.triggers_snapshot, handler=self.take_snapshot)
+
+        def triggers_snapshot(self, event):
+            return isinstance(event, AggregateEvent) and not (event.entity_version + 1) % self.frequency
 
         def take_snapshot(self, event):
             self.event_player.take_snapshot(event.entity_id)
 
-        def close(self):
-            unsubscribe(predicate=self.requires_snapshot, handler=self.take_snapshot)
 
 
 In the application class below, the ``EventSourcedRepository`` is constructed with
 an event sourced snapshot strategy. The application also has a policy to persist
-snapshots whenever they are taken.
+snapshots whenever they are taken. The snapshotting policy is configured to take
+a snapshot after each new event.
 
 .. code:: python
 
@@ -118,9 +120,22 @@ snapshots whenever they are taken.
                 mutator=Example.mutate,
                 snapshot_strategy=self.snapshot_strategy
             )
-            self.entity_persistence_policy = PersistencePolicy(self.event_store, event_type=AggregateEvent)
-            self.snapshot_persistence_policy = PersistencePolicy(self.snapshot_store, event_type=Snapshot)
-            self.snapshotting_policy = SnapshottingPolicy(self.example_repository.event_player)
+
+            # Construct the persistence policies.
+            self.entity_persistence_policy = PersistencePolicy(
+                event_store=self.event_store,
+                event_type=AggregateEvent
+            )
+            self.snapshot_persistence_policy = PersistencePolicy(
+                event_store=self.snapshot_store,
+                event_type=Snapshot
+            )
+
+            # Construct the snapshotting policy.
+            self.snapshotting_policy = SnapshottingPolicy(
+                event_player=self.example_repository.event_player,
+                frequency=1
+            )
 
         def create_new_example(self, foo):
             return create_new_example(foo=foo)
@@ -137,13 +152,18 @@ snapshots whenever they are taken.
             self.close()
 
 
-Now snapshots of example entities will be taken every five events.
+Now snapshots of the example entity will be taken after every
+event it publishes, including after both its created and discarded
+events.
 
 .. code:: python
 
     with SnapshottedApplication(datastore) as app:
 
         entity = app.create_new_example(foo='bar1')
+
+        snapshot = app.snapshot_strategy.get_snapshot(entity.id)
+        assert snapshot.state['_foo'] == 'bar1'
 
         assert entity.id in app.example_repository
 
@@ -177,4 +197,3 @@ Now snapshots of example entities will be taken every five events.
             pass
         else:
             raise Exception('KeyError was not raised')
-
