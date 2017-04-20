@@ -2,9 +2,7 @@
 Example Application
 ===================
 
-
-All the examples in this guide follow the layered architecture: application, domain,
-infrastructure. In this section, an application class is developed that has minimal
+In this section, an application class is developed that has minimal
 dependencies on the library.
 
 A stand-alone domain model is developed without library classes, that both shows

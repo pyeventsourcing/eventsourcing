@@ -4,6 +4,9 @@ User Guide
 
 This guide describes how to write an event sourced application.
 
+All the examples in this guide follow the layered architecture: application, domain,
+infrastructure.
+
 To create a working program, simply copy all the code snippets from
 a section into a Python file. The code snippets are tested automatically,
 and so should work. Please feel free to experiment by making variations.
