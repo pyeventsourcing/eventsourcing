@@ -29,11 +29,12 @@ mean application performance is improved when encryption is enabled.
 **Optimistic concurrency control** — can be used to ensure a distributed or
 horizontally scaled application doesn't become inconsistent due to concurrent
 method execution. Leverages any optimistic concurrency controls in the database
-adapted by the stored event repository. For example the Cassandra database, which implements
-the Paxos protocol, can accomplish linearly-scalable distributed optimistic concurrency
-control, guaranteeing sequential consistency of the events of an entity. It is also possible to serialize calls to the methods of an
-entity, but that is out of the scope of this package — if you wish to do that,
-perhaps something like `Zookeeper <https://zookeeper.apache.org/>`__ might help.
+adapted by the active record strategy. For example the Cassandra database, which
+implements the Paxos protocol, can accomplish linearly-scalable distributed
+optimistic concurrency control, guaranteeing sequential consistency of the events
+of an entity. It is also possible to serialize calls to the methods of an entity,
+but that is out of the scope of this package — if you wish to do that, perhaps
+something like `Zookeeper <https://zookeeper.apache.org/>`__ might help.
 
 **Snapshotting** — avoids replaying an entire event stream to
 obtain the state of an entity. A snapshot strategy is included which reuses
