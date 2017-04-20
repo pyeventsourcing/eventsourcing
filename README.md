@@ -6,7 +6,4 @@
 
 A library for event sourcing in Python.
 
-Please refer to the documentation [link required] for installation and usage guides.
-
-
-
+Please refer to [the documentation](http://eventsourcing.readthedocs.io/) for installation and usage guides.
