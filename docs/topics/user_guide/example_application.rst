@@ -3,23 +3,37 @@ Example Application
 ===================
 
 
-This example follows the layered architecture: application, domain, and
-infrastructure. Let's start with the domain model.
+All the examples in this guide follow the layered architecture: application, domain,
+infrastructure. In this section, an application class is developed that has minimal
+dependencies on the library.
+
+A stand-alone domain model is developed without library classes, that both shows
+how event sourcing in Python can work, and also provides an introduction
+to how the library classes work.
+
+And all the infrastructure is declared explicitly to show the components that are
+involved.
+
+Later examples in this guide make more use of library classes, which
+are only slightly more sophisticated than the code snippets included here.
+
 
 Domain model
 ============
 
-The state of an event sourced application is determined by a
-sequence of events, so we need to define some events. Also, events
-result from commands, so we also need to define an entity.
+Let's start with the domain model.
 
+The state of an event sourced application is determined by a
+sequence of events. So we need to define some events.
 
 Domain events
 -------------
 
-For the sake of simplicity in this example, let's assume things in our
-domain can be "created", "changed", and "discarded". With that in mind,
-let's define some domain event classes.
+The question is: "what happened?" In general, you can use event storming to
+provide an answer. In this example, for the sake of general familiarity, let's
+assume we have a domain in which things can be "created", "changed", and
+"discarded". With that understanding in mind, we can begin to write some
+domain event classes.
 
 In the example below, the common attributes of a domain event, such as the entity ID
 and version, and the timestamp of the event, have been pulled up to a layer supertype
@@ -67,9 +81,7 @@ called ``DomainEvent``.
 
 Please note, the domain event classes above do not depend on the library. The library does
 however contain a collection of different kinds of domain event classes that you can use
-in your models, for example see ``AggregateEvent``. The domain event classes in the
-library are slightly more sophisticated than the code in this example.
-
+in your models, for example see ``VersionedEntityEvent``.
 
 Domain entity
 -------------
