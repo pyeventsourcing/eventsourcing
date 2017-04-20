@@ -1,11 +1,10 @@
 from math import floor
-from time import time
 from uuid import uuid4
 
 import six
 
 from eventsourcing.domain.model.timebucketedlog import start_new_timebucketedlog
-from eventsourcing.example.domainmodel import Example, register_new_example
+from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
@@ -45,7 +44,7 @@ class PerformanceTestCase(WithExampleApplication):
                 # Setup a number of entities, with different lengths of event history.
                 payload = 3
                 # payload = str([uuid4().hex for _ in six.moves.range(100000)])
-                example = register_new_example(a=1, b=payload)
+                example = create_new_example(a=1, b=payload)
                 self.entities[i] = example
 
                 # Beat a number of times.
@@ -60,8 +59,8 @@ class PerformanceTestCase(WithExampleApplication):
                 # Get the last n events from the repo.
                 def last_n(n):
                     n = min(n, num_beats + 1)
-                    assert isinstance(app.example_repo.event_player.event_store, EventStore)
-                    ars = app.example_repo.event_player.event_store.active_record_strategy
+                    assert isinstance(app.example_repository.event_player.event_store, EventStore)
+                    ars = app.example_repository.event_player.event_store.active_record_strategy
                     assert isinstance(ars, AbstractActiveRecordStrategy)
 
                     start_last_n = utc_now()
@@ -88,7 +87,7 @@ class PerformanceTestCase(WithExampleApplication):
                 # Get the entity by replaying all events (which it must since there isn't a snapshot).
                 start_replay = utc_now()
                 for _ in six.moves.range(repetitions):
-                    example = app.example_repo[example.id]
+                    example = app.example_repository[example.id]
                     assert isinstance(example, Example)
                     heartbeats = example.count_heartbeats()
                     assert heartbeats == num_beats, (heartbeats, num_beats)
@@ -98,7 +97,7 @@ class PerformanceTestCase(WithExampleApplication):
                       "".format(num_beats, time_replaying, num_beats / time_replaying, time_replaying / num_beats))
 
                 # Take snapshot, and beat heart a few more times.
-                app.example_repo.event_player.take_snapshot(example.id)
+                app.example_repository.event_player.take_snapshot(example.id)
 
                 extra_beats = 4
                 for _ in six.moves.range(extra_beats):
@@ -108,7 +107,7 @@ class PerformanceTestCase(WithExampleApplication):
                 # Get the entity using snapshot and replaying events since the snapshot.
                 start_replay = utc_now()
                 for _ in six.moves.range(repetitions):
-                    example = app.example_repo[example.id]
+                    example = app.example_repository[example.id]
                 time_replaying = (utc_now() - start_replay) / repetitions
 
                 events_per_second = (extra_beats + 1) / time_replaying  # +1 for the snapshot event
@@ -123,7 +122,7 @@ class PerformanceTestCase(WithExampleApplication):
         with self.construct_application() as app:
             example_id = uuid4()
             log = start_new_timebucketedlog(example_id, bucket_size='year')
-            log_reader = get_timebucketedlog_reader(log, app.timestamp_entity_event_store)
+            log_reader = get_timebucketedlog_reader(log, app.timestamp_sequenced_event_store)
 
             # Write a load of messages.
             start_write = utc_now()

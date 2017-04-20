@@ -1,6 +1,6 @@
 """
 :mod:`eventsourcing.application.policies` Module
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Persistance Policies
 
@@ -37,21 +37,32 @@ class CombinedPersistencePolicy(object):
     Persists both timestamped and versioned entity events, whenever they are published.
     """
 
-    def __init__(self, timestamped_entity_event_store, versioned_entity_event_store, snapshot_store):
-        self.timestamped_entity_event_policy = PersistencePolicy(
-            event_store=timestamped_entity_event_store,
-            event_type=TimestampedEntityEvent,
-        )
-        self.versioned_entity_event_policy = PersistencePolicy(
-            event_store=versioned_entity_event_store,
-            event_type=VersionedEntityEvent,
-        )
-        self.snapshot_policy = PersistencePolicy(
-            event_store=snapshot_store,
-            event_type=Snapshot,
-        )
+    def __init__(self, integer_sequenced_event_store=None, timestamp_sequenced_event_store=None, snapshot_store=None):
+        self.versioned_entity_event_policy = None
+        if integer_sequenced_event_store is not None:
+            self.versioned_entity_event_policy = PersistencePolicy(
+                event_store=integer_sequenced_event_store,
+                event_type=VersionedEntityEvent,
+            )
+
+        self.timestamped_entity_event_policy = None
+        if timestamp_sequenced_event_store is not None:
+            self.timestamped_entity_event_policy = PersistencePolicy(
+                event_store=timestamp_sequenced_event_store,
+                event_type=TimestampedEntityEvent,
+            )
+
+        self.snapshot_policy = None
+        if snapshot_store is not None:
+            self.snapshot_policy = PersistencePolicy(
+                event_store=snapshot_store,
+                event_type=Snapshot,
+            )
 
     def close(self):
-        self.snapshot_policy.close()
-        self.timestamped_entity_event_policy.close()
-        self.versioned_entity_event_policy.close()
+        if self.snapshot_policy:
+            self.snapshot_policy.close()
+        if self.timestamped_entity_event_policy:
+            self.timestamped_entity_event_policy.close()
+        if self.versioned_entity_event_policy:
+            self.versioned_entity_event_policy.close()

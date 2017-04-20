@@ -24,46 +24,55 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         """
         Constructs an event store using the given stored event repository.
 
-        :param: sequenced_item_repository:  Repository containing sequenced items.
+        :param sequenced_item_repository:  Repository containing sequenced items.
 
         :param always_encrypt:  Optional encryption of persisted state.
 
         :param cipher:  Used to encrypt and decrypt stored events.
 
         """
-        assert isinstance(integer_sequenced_active_record_strategy, AbstractActiveRecordStrategy), \
-            type(integer_sequenced_active_record_strategy)
-
-        assert isinstance(timestamp_sequenced_active_record_strategy, AbstractActiveRecordStrategy), \
-            type(integer_sequenced_active_record_strategy)
-
-        assert isinstance(snapshot_active_record_strategy, AbstractActiveRecordStrategy), \
-            type(snapshot_active_record_strategy)
+        # assert isinstance(integer_sequenced_active_record_strategy, AbstractActiveRecordStrategy), \
+        #     type(integer_sequenced_active_record_strategy)
+        #
+        # assert isinstance(timestamp_sequenced_active_record_strategy, AbstractActiveRecordStrategy), \
+        #     type(integer_sequenced_active_record_strategy)
+        #
+        # assert isinstance(snapshot_active_record_strategy, AbstractActiveRecordStrategy), \
+        #     type(snapshot_active_record_strategy)
 
         self.integer_sequenced_active_record_strategy = integer_sequenced_active_record_strategy
         self.timestamp_sequenced_active_record_strategy = timestamp_sequenced_active_record_strategy
         self.snapshot_active_record_strategy = snapshot_active_record_strategy
-        self.version_entity_event_store = self.construct_event_store(
-            event_sequence_id_attr='entity_id',
-            event_position_attr='entity_version',
-            active_record_strategy=self.integer_sequenced_active_record_strategy,
-            always_encrypt=always_encrypt,
-            cipher=cipher,
-        )
-        self.timestamp_entity_event_store = self.construct_event_store(
-            event_sequence_id_attr='entity_id',
-            event_position_attr='timestamp',
-            active_record_strategy=self.timestamp_sequenced_active_record_strategy,
-            always_encrypt=always_encrypt,
-            cipher=cipher,
-        )
-        self.snapshot_store = self.construct_event_store(
-            event_sequence_id_attr='entity_id',
-            event_position_attr='entity_version',
-            active_record_strategy=self.snapshot_active_record_strategy,
-            always_encrypt=always_encrypt,
-            cipher=cipher,
-        )
+
+        self.integer_sequenced_event_store = None
+        if self.integer_sequenced_active_record_strategy:
+            self.integer_sequenced_event_store = self.construct_event_store(
+                event_sequence_id_attr='entity_id',
+                event_position_attr='entity_version',
+                active_record_strategy=self.integer_sequenced_active_record_strategy,
+                always_encrypt=always_encrypt,
+                cipher=cipher,
+            )
+
+        self.timestamp_sequenced_event_store = None
+        if self.timestamp_sequenced_active_record_strategy:
+            self.timestamp_sequenced_event_store = self.construct_event_store(
+                event_sequence_id_attr='entity_id',
+                event_position_attr='timestamp',
+                active_record_strategy=self.timestamp_sequenced_active_record_strategy,
+                always_encrypt=always_encrypt,
+                cipher=cipher,
+            )
+
+        self.snapshot_store = None
+        if self.snapshot_active_record_strategy:
+            self.snapshot_store = self.construct_event_store(
+                event_sequence_id_attr='entity_id',
+                event_position_attr='entity_version',
+                active_record_strategy=self.snapshot_active_record_strategy,
+                always_encrypt=always_encrypt,
+                cipher=cipher,
+            )
 
     def construct_event_store(self, event_sequence_id_attr, event_position_attr, active_record_strategy,
                               always_encrypt=False, cipher=None):
@@ -111,8 +120,8 @@ class EventSourcedApplication(ReadOnlyEventSourcingApplication):
 
     def construct_persistence_policy(self):
         return CombinedPersistencePolicy(
-            versioned_entity_event_store=self.version_entity_event_store,
-            timestamped_entity_event_store=self.timestamp_entity_event_store,
+            integer_sequenced_event_store=self.integer_sequenced_event_store,
+            timestamp_sequenced_event_store=self.timestamp_sequenced_event_store,
             snapshot_store=self.snapshot_store,
         )
 

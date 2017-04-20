@@ -37,27 +37,27 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertIsInstance(app.integer_sequenced_active_record_strategy, AbstractActiveRecordStrategy)
 
             # Check there's an event store for version entity events.
-            self.assertIsInstance(app.version_entity_event_store, EventStore)
-            self.assertEqual(app.version_entity_event_store.active_record_strategy,
+            self.assertIsInstance(app.integer_sequenced_event_store, EventStore)
+            self.assertEqual(app.integer_sequenced_event_store.active_record_strategy,
                              app.integer_sequenced_active_record_strategy)
 
             # Check there's an event store for timestamp entity events.
-            self.assertIsInstance(app.timestamp_entity_event_store, EventStore)
-            self.assertEqual(app.timestamp_entity_event_store.active_record_strategy,
+            self.assertIsInstance(app.timestamp_sequenced_event_store, EventStore)
+            self.assertEqual(app.timestamp_sequenced_event_store.active_record_strategy,
                              app.timestamp_sequenced_active_record_strategy)
 
             # Check there's a persistence policy.
             self.assertIsInstance(app.persistence_policy, CombinedPersistencePolicy)
 
             # Check there's an example repository.
-            self.assertIsInstance(app.example_repo, ExampleRepository)
+            self.assertIsInstance(app.example_repository, ExampleRepository)
 
             # Register a new example.
-            example1 = app.register_new_example(a=10, b=20)
+            example1 = app.create_new_example(a=10, b=20)
             self.assertIsInstance(example1, Example)
 
             # Check the example is available in the repo.
-            entity1 = app.example_repo[example1.id]
+            entity1 = app.example_repository[example1.id]
             self.assertEqual(10, entity1.a)
             self.assertEqual(20, entity1.b)
             self.assertEqual(example1, entity1)
@@ -69,21 +69,21 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(50, entity1.a)
 
             # Check the new value is available in the repo.
-            entity1 = app.example_repo[example1.id]
+            entity1 = app.example_repository[example1.id]
             self.assertEqual(50, entity1.a)
 
             # Take a snapshot of the entity.
-            snapshot1 = app.example_repo.event_player.take_snapshot(entity1.id)
+            snapshot1 = app.example_repository.event_player.take_snapshot(entity1.id)
             self.assertEqual(snapshot1.entity_id, entity1.id)
             self.assertEqual(snapshot1.entity_version, entity1.version - 1)
 
             # Take another snapshot of the entity (should be the same event).
             sleep(0.0001)
-            snapshot2 = app.example_repo.event_player.take_snapshot(entity1.id)
+            snapshot2 = app.example_repository.event_player.take_snapshot(entity1.id)
             self.assertEqual(snapshot1, snapshot2)
 
             # Check the snapshot exists.
-            snapshot2 = app.example_repo.event_player.snapshot_strategy.get_snapshot(entity1.id)
+            snapshot2 = app.example_repository.event_player.snapshot_strategy.get_snapshot(entity1.id)
             self.assertIsInstance(snapshot2, Snapshot)
             self.assertEqual(snapshot1, snapshot2)
 
@@ -94,38 +94,38 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(100, entity1.a)
 
             # Check the new value is available in the repo.
-            entity1 = app.example_repo[example1.id]
+            entity1 = app.example_repository[example1.id]
             self.assertEqual(100, entity1.a)
 
             # Check the old value is available in the repo.
-            entity1_v1 = app.example_repo.get_entity(entity1.id, lte=0)
+            entity1_v1 = app.example_repository.get_entity(entity1.id, lte=0)
             self.assertEqual(entity1_v1.a, 10)
-            entity1_v2 = app.example_repo.get_entity(entity1.id, lte=1)
+            entity1_v2 = app.example_repository.get_entity(entity1.id, lte=1)
             self.assertEqual(entity1_v2.a, 50)
-            entity1_v3 = app.example_repo.get_entity(entity1.id, lte=2)
+            entity1_v3 = app.example_repository.get_entity(entity1.id, lte=2)
             self.assertEqual(entity1_v3.a, 100)
 
             # Take another snapshot of the entity.
-            snapshot4 = app.example_repo.event_player.take_snapshot(entity1.id)
+            snapshot4 = app.example_repository.event_player.take_snapshot(entity1.id)
 
             # Check the new snapshot is not equal to the first.
             self.assertNotEqual(snapshot1, snapshot4)
 
             # Check the new value still available in the repo.
-            self.assertEqual(100, app.example_repo[example1.id].a)
+            self.assertEqual(100, app.example_repository[example1.id].a)
 
             # Remove all the stored items and check the new value is still available (must be in snapshot).
             self.assertEqual(len(list(app.integer_sequenced_active_record_strategy.all_records())), 3)
             for record in app.integer_sequenced_active_record_strategy.all_records():
                 self.integer_sequence_active_record_strategy.delete_record(record)
             self.assertFalse(list(app.integer_sequenced_active_record_strategy.all_records()))
-            self.assertEqual(100, app.example_repo[example1.id].a)
+            self.assertEqual(100, app.example_repository[example1.id].a)
 
             # Check only some of the old values are available in the repo.
-            entity1_v1 = app.example_repo.get_entity(entity1.id, lte=0)
+            entity1_v1 = app.example_repository.get_entity(entity1.id, lte=0)
             self.assertEqual(entity1_v1, None)
-            entity1_v3 = app.example_repo.get_entity(entity1.id, lte=1)
+            entity1_v3 = app.example_repository.get_entity(entity1.id, lte=1)
             self.assertEqual(entity1_v3.a, 50)
-            entity1_v3 = app.example_repo.get_entity(entity1.id, lte=2)
+            entity1_v3 = app.example_repository.get_entity(entity1.id, lte=2)
             self.assertEqual(entity1_v3.a, 100)
 

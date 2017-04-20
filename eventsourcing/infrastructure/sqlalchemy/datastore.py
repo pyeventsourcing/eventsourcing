@@ -21,7 +21,7 @@ class SQLAlchemySettings(DatastoreSettings):
 
 class SQLAlchemyDatastore(Datastore):
 
-    def __init__(self, base, **kwargs):
+    def __init__(self, base=Base, **kwargs):
         super(SQLAlchemyDatastore, self).__init__(**kwargs)
         self._db_session = None
         self._engine = None

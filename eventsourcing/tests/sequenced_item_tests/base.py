@@ -514,8 +514,8 @@ class WithPersistencePolicy(WithActiveRecordStrategies):
             )
         )
         self.persistence_policy = CombinedPersistencePolicy(
-            versioned_entity_event_store=self.versioned_entity_event_store,
-            timestamped_entity_event_store=self.timestamped_entity_event_store,
+            integer_sequenced_event_store=self.versioned_entity_event_store,
+            timestamp_sequenced_event_store=self.timestamped_entity_event_store,
             snapshot_store=self.snapshot_store
         )
 

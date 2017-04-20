@@ -1,5 +1,6 @@
-Installing
-==========
+============
+Installation
+============
 
 Use pip to install the `latest
 distribution <https://pypi.python.org/pypi/eventsourcing>`__ from the
