@@ -1,6 +1,10 @@
 Using with Web Frameworks/WSGI
 ==============================
 
+https://github.com/johnbywater/eventsourcing/issues/53
+
+How do you encorporate this into web frameworks?
+
 It's a good question. You can do it in the wsgi file. If you have test cases,
 you can do it there too. Also if you have any workers (e.g. celery workers) you
 can do it when they are initialised. I suggest having a factory method that
@@ -55,3 +59,24 @@ encapsulated, so it is hidden and "just works". I guess we've got some more
 work to do with Django. I keep thinking it would be great to have something
 that doesn't break the Django admin view, but that's a different (much bigger)
 topic.
+
+For example - using http://uwsgi-docs.readthedocs.io/en/latest/PythonDecorators.html#uwsgidecorators.postfork
+and using a middle ware or borg/singleton/module initialization in the wsgi.py
+
+
+.. code:: python
+    # ... other stuff up here to setup settings, wrappers etc.
+
+    from django.core.wsgi import get_wsgi_application  # noqa
+    from uwsgidecorators import postfork
+    from eventsourcedapp import ev_app  # Import module - app isn't initiallized
+
+    application = get_wsgi_application()
+    app = get_wsgi_application()
+
+    @postfork
+    def setup_ev_app():
+        ev_app.setup()
+
+
+where ev_app.setup() does some of that module magic to actually setup the app and, and sets up the cleanup somehow.

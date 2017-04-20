@@ -19,11 +19,18 @@ class TestDocs(TestCase):
         self.check_code_snippets_in_file(path)
 
     def test_code_snippets_in_docs(self):
+
+        skipped = [
+            'wsgi.rst'
+        ]
+
         self._out = ''
         docs_path = os.path.join(base_dir, 'docs')
         file_paths = []
         for dirpath, _, filenames in os.walk(docs_path):
             for name in filenames:
+                if name in skipped:
+                    continue
                 if name.endswith('.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
