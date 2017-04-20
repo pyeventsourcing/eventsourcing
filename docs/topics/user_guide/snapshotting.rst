@@ -29,7 +29,6 @@ Firstly setup a dedicated table for snapshots.
 
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-        tables=(SqlIntegerSequencedItem,),
     )
 
     datastore.setup_connection()

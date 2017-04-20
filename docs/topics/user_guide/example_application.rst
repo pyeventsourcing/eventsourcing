@@ -316,7 +316,6 @@ and ``setup_tables()``.
     datastore = SQLAlchemyDatastore(
         base=Base,
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-        tables=(SequencedItemTable,),
     )
 
     datastore.setup_connection()

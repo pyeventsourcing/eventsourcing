@@ -21,7 +21,6 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
         return SQLAlchemyDatastore(
             base=Base,
             settings=SQLAlchemySettings(uri=uri),
-            tables=(SqlIntegerSequencedItem, SqlTimestampSequencedItem),
         )
 
 

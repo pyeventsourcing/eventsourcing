@@ -93,7 +93,6 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
         return SQLAlchemyDatastore(
             base=Base,
             settings=SQLAlchemySettings(),
-            tables=(SqlStoredEvent,),
         )
 
     def test(self):
