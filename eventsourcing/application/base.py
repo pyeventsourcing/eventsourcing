@@ -41,7 +41,10 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         #     type(snapshot_active_record_strategy)
 
         self.integer_sequenced_active_record_strategy = integer_sequenced_active_record_strategy
+        self.timestamp_sequenced_active_record_strategy = timestamp_sequenced_active_record_strategy
+        self.snapshot_active_record_strategy = snapshot_active_record_strategy
 
+        self.integer_sequenced_event_store = None
         if self.integer_sequenced_active_record_strategy:
             self.integer_sequenced_event_store = self.construct_event_store(
                 event_sequence_id_attr='entity_id',
@@ -50,11 +53,8 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
                 always_encrypt=always_encrypt,
                 cipher=cipher,
             )
-        else:
-            self.integer_sequenced_event_store = None
 
-        self.timestamp_sequenced_active_record_strategy = timestamp_sequenced_active_record_strategy
-
+        self.timestamp_sequenced_event_store = None
         if self.timestamp_sequenced_active_record_strategy:
             self.timestamp_sequenced_event_store = self.construct_event_store(
                 event_sequence_id_attr='entity_id',
@@ -63,11 +63,8 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
                 always_encrypt=always_encrypt,
                 cipher=cipher,
             )
-        else:
-            self.timestamp_sequenced_event_store = None
 
-        self.snapshot_active_record_strategy = snapshot_active_record_strategy
-
+        self.snapshot_store = None
         if self.snapshot_active_record_strategy:
             self.snapshot_store = self.construct_event_store(
                 event_sequence_id_attr='entity_id',
@@ -76,8 +73,6 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
                 always_encrypt=always_encrypt,
                 cipher=cipher,
             )
-        else:
-            self.snapshot_store = None
 
     def construct_event_store(self, event_sequence_id_attr, event_position_attr, active_record_strategy,
                               always_encrypt=False, cipher=None):

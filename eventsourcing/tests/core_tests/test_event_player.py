@@ -132,7 +132,9 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         )
 
         # Take a snapshot with a non-existent ID.
-        self.assertIsNone(event_player.take_snapshot(uuid4()))
+        unregistered_id = uuid4()
+        self.assertIsNone(event_player.take_snapshot(unregistered_id))
+        event_player.get_snapshot(unregistered_id)
 
         # Create a new entity.
         registered_example = create_new_example(a=123, b=234)
@@ -202,3 +204,15 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
             lt=version2,
         )
         self.assertEqual(retrieved_example.a, 999)
+
+        # Discard the entity.
+        registered_example = event_player.replay_entity(registered_example.id)
+        registered_example.discard()
+
+        # Take another snapshot.
+        snapshot3 = event_player.take_snapshot(retrieved_example.id)
+        self.assertIsNone(snapshot3.state)
+        self.assertIsNone(entity_from_snapshot(snapshot3))
+
+
+

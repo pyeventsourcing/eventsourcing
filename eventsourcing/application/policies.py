@@ -38,29 +38,26 @@ class CombinedPersistencePolicy(object):
     """
 
     def __init__(self, integer_sequenced_event_store=None, timestamp_sequenced_event_store=None, snapshot_store=None):
+        self.versioned_entity_event_policy = None
         if integer_sequenced_event_store is not None:
             self.versioned_entity_event_policy = PersistencePolicy(
                 event_store=integer_sequenced_event_store,
                 event_type=VersionedEntityEvent,
             )
-        else:
-            self.versioned_entity_event_policy = None
 
+        self.timestamped_entity_event_policy = None
         if timestamp_sequenced_event_store is not None:
             self.timestamped_entity_event_policy = PersistencePolicy(
                 event_store=timestamp_sequenced_event_store,
                 event_type=TimestampedEntityEvent,
             )
-        else:
-            self.timestamped_entity_event_policy = None
 
+        self.snapshot_policy = None
         if snapshot_store is not None:
             self.snapshot_policy = PersistencePolicy(
                 event_store=snapshot_store,
                 event_type=Snapshot,
             )
-        else:
-            self.snapshot_policy = None
 
     def close(self):
         if self.snapshot_policy:

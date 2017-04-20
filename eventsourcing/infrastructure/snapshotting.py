@@ -52,7 +52,10 @@ def entity_from_snapshot(snapshot):
     """Deserialises a domain entity from a snapshot object.
     """
     assert isinstance(snapshot, AbstractSnapshop), type(snapshot)
-    return deserialize_domain_entity(snapshot.topic, snapshot.state)
+    if snapshot.state is None:
+        return None
+    else:
+        return deserialize_domain_entity(snapshot.topic, snapshot.state)
 
 
 def take_snapshot(entity_id, entity, last_event_version):
