@@ -21,6 +21,7 @@ setup(
         'python-dateutil',
         'singledispatch',
         'six',
+        'sphinx_rtd_theme'
     ] + install_requires_singledispatch,
     extras_require={
         'cassandra': [
