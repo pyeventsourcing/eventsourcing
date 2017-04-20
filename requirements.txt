@@ -7,3 +7,4 @@ six==1.10.0
 SQLAlchemy==1.1.6
 sqlalchemy-utils==0.32.13
 requests==2.13.0
+sphinx_rtd_theme
