@@ -274,8 +274,9 @@ receive the events that will be published, so we can see what happened.
 Infrastructure
 ==============
 
-Since the application state is determined by a sequence of events, the events of the
-application must somehow be stored, and the entities somehow retrieved.
+Since the application state is determined by a sequence of events, the
+application must somehow be able both to persist the events, and then
+recover the entities.
 
 Database table
 --------------
