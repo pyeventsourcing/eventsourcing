@@ -19,10 +19,8 @@ are only slightly more sophisticated than the code snippets included here.
 Domain model
 ============
 
-Let's start with the domain model.
-
-The state of an event sourced application is determined by a
-sequence of events. So we need to define some events.
+Let's start with the domain model. Since the state of an event sourced application
+is determined by a sequence of events, so we need to define some events.
 
 Domain events
 -------------
