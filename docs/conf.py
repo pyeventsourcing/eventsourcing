@@ -1,10 +1,13 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import sys
-from pathlib import Path
+from os.path import abspath, dirname
 
-sys.path.append(str(Path(__file__).absolute().parent.parent))
+sys.path.append(str(dirname(dirname(abspath(__file__)))))
+
+from eventsourcing import __version__
+
 #
 # eventsourcing documentation build configuration file, created by
 # sphinx-quickstart on Wed Apr 12 16:45:44 2017.
@@ -63,7 +66,6 @@ author = 'John Bywater'
 # built documents.
 #
 # The short X.Y version.
-from eventsourcing import __version__
 version = __version__
 # The full version, including alpha/beta/rc tags.
 release = __version__
