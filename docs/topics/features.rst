@@ -2,27 +2,21 @@
 Features
 ========
 
-**Event store** — appends and retrieves domain events. The event store uses a
+**Generic event store** — appends and retrieves domain events. The event store uses a
 "sequenced item mapper" and an "active record strategy" to map domain events
 to a database in ways that can be easily substituted.
 
-**Persistence policy** — subscribes to receive published domain events.
-Appends received domain events to an event store whenever a domain event is
-published. Domain events are typically published by the methods of an entity.
-
-**Event player** — reconstitutes entities by replaying events, optionally with
-snapshotting. An event player is used by an entity repository to determine the
-state of an entity. The event player retrieves domain events from the event store.
-
-**Sequenced item mapper** — maps between domain events and "sequenced items", the archetype
+The sequenced item mapper maps between domain events and "sequenced items", the archetype
 persistence model used by the library to store domain events. The library supports two
 different kinds of sequenced item: items that are sequenced by an increasing series
 of integers; and items that are sequenced in time. They support two different kinds of
 domain events: events of versioned entities (e.g. an aggregate in domain driven design),
 and unversioned timestamped events (e.g. entries in a log).
 
-**Active record strategy** — maps between "sequenced items" and database records (ORM).
-Support can be added for a new database schema by introducing a new active record strategy.
+An active record strategy maps between "sequenced items" and active records (ORM).
+Support can be added for a new database management system by introducing a new active
+record strategy. The database schema can be varied by using an alternative active record
+class.
 
 **Application-level encryption** — encrypts and decrypts stored events, using a cipher
 strategy passed as an option to the sequenced item mapper. Can be used to encrypt some
@@ -52,12 +46,6 @@ domain events of various types, mapping strategies, snapshotting strategies, cip
 test cases, etc. They are well factored, relatively simple, and can be easily extended for your own
 purposes. If you wanted to create a domain model that is entirely stand-alone (recommended by
 purists for maximum longevity), you might start by copying the library classes.
-
-**Synchronous publish-subscribe mechanism** — propagates events from publishers to subscribers.
-Stable and deterministic, with handlers called in the order they are registered, and with which
-calls to publish events do not return until all event subscribers have returned. In general,
-subscribers are policies of the application, which may execute further commands whenever a
-particular kind of event is received. Publishers of domain events are typically methods of domain entities.
 
 **Worked examples** — a simple worked example application with an example
 entity class, with example domain events, an example factory method, an example mutator function,
