@@ -384,11 +384,12 @@ inform the sequenced item mapper which domain event attributes should be used fo
 sequence ID and position fields of a sequenced item. It isn't necessary to
 provide the ``sequence_id_attr_name`` arg, if the name of the domain event
 attribute holding the sequence ID value is equal to the name of the first field
-of the sequenced item class - for example if both are called 'aggregate_id'. Similarly,
-it isn't necessary to provide a value for the ``position_attr_name`` arg, if the name
-of the domain event attribute which indicates the position of the event in a sequence
-is equal to the name of the second field of the sequence item class - for example if both
-are called 'aggregate_version' (see below).
+of the sequenced item class - for example if both are called 'entity_id', or
+'aggregate_id'. Similarly, it isn't necessary to provide a value for the
+``position_attr_name`` arg, if the name of the domain event attribute which
+indicates the position of the event in a sequence is equal to the name of the
+second field of the sequence item class - for example if both are called
+'entity_version', or 'aggregate_version'.
 
 
 .. code:: python
