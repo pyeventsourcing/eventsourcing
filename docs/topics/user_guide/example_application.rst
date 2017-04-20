@@ -25,15 +25,16 @@ is determined by a sequence of events, so we need to define some events.
 Domain events
 -------------
 
-The question is: "what happened?" In general, you can use event storming to
-provide an answer. In this example, for the sake of general familiarity, let's
-assume we have a domain in which things can be "created", "changed", and
-"discarded". With that understanding in mind, we can begin to write some
-domain event classes.
+The question is: "what happened?" You can use event storming to
+provide answers in your domain. In this example, for the sake of general
+familiarity let's assume we have a domain in which things can be "created",
+"changed", and "discarded". With that understanding in mind, we can begin
+to write some domain event classes.
 
-In the example below, the common attributes of a domain event, such as the entity ID
-and version, and the timestamp of the event, have been pulled up to a layer supertype
-called ``DomainEvent``.
+In the example below, there are three domain event classes: ``Created``,
+``ValueChanged``, and ``Discarded``. The common attributes of the domain
+event classes - the entity ID, entity version, and the timestamp of the
+event - have been pulled up to a layer supertype ``DomainEvent``.
 
 .. code:: python
 
