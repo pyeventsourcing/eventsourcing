@@ -25,9 +25,11 @@ of mutating the aggregate's entities.
     from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
     from eventsourcing.example.domainmodel import Example
 
-    class AggregateEvent(object):
-        """Layer supertype."""
 
+    class AggregateEvent(object):
+        """
+        Layer supertype.
+        """
         def __init__(self, aggregate_id, aggregate_version, timestamp=None, **kwargs):
             self.aggregate_id = aggregate_id
             self.aggregate_version = aggregate_version
@@ -36,25 +38,33 @@ of mutating the aggregate's entities.
 
 
     class AggregateCreated(AggregateEvent):
-        """Published when an aggregate is created."""
+        """
+        Published when an aggregate is created.
+        """
         def __init__(self, aggregate_version=0, **kwargs):
             super(AggregateCreated, self).__init__(aggregate_version=aggregate_version, **kwargs)
 
 
     class EntityCreated(AggregateEvent):
-        """Published when an entity is created."""
+        """
+        Published when an entity is created.
+        """
         def __init__(self, entity_id, **kwargs):
             super(EntityCreated, self).__init__(entity_id=entity_id, **kwargs)
 
 
     class AggregateDiscarded(AggregateEvent):
-        """Published when an aggregate is discarded."""
+        """
+        Published when an aggregate is discarded.
+        """
         def __init__(self, **kwargs):
             super(AggregateDiscarded, self).__init__(**kwargs)
 
 
     class AggregateRoot():
-        """Example root entity."""
+        """
+        Example root entity of aggregate.
+        """
         def __init__(self, aggregate_id, aggregate_version=0, timestamp=None):
             self._id = aggregate_id
             self._version = aggregate_version
@@ -121,7 +131,9 @@ of mutating the aggregate's entities.
 
 
     def mutate_aggregate_event(aggregate, event):
-        """Mutator function for example aggregate root."""
+        """
+        Mutator function for example aggregate root.
+        """
 
         # Handle "created" events by instantiating the aggregate class.
         if isinstance(event, AggregateCreated):
