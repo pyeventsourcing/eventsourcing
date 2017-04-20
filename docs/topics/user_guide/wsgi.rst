@@ -65,6 +65,7 @@ and using a middle ware or borg/singleton/module initialization in the wsgi.py
 
 
 .. code:: python
+
     # ... other stuff up here to setup settings, wrappers etc.
 
     from django.core.wsgi import get_wsgi_application  # noqa
