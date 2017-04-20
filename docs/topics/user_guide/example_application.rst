@@ -83,12 +83,12 @@ be used to create new entities.
 
 All the methods follow a similar pattern. Each constructs an event that represents the result
 of the operation. Each uses a "mutator function" function ``mutate()`` to apply the event
-to the entity. Then each publishes the event for the benefit of any subscribers.
+to the entity. Each publishes the event for the benefit of any subscribers.
 
 When replaying a sequence of events, for example when reconsistuting an entity from its
-domain events, the mutator function is also successively to apply every event to an evolving
-initial state. For the sake of simplicity in this example, we'll use an if-else block
-that can handle the three types of events defined above.
+domain events, the mutator function is called several times in order to apply every event
+to an evolving initial state. For the sake of simplicity in this example, we'll use an
+if-else block that can handle the three types of events defined above.
 
 .. code:: python
 
@@ -481,7 +481,7 @@ unsubscribing itself from receiving further domain events.
 
     from eventsourcing.application.policies import PersistencePolicy
 
-    class Application(object):
+    class ExampleApplication(object):
 
         def __init__(self, datastore):
             self.event_store = EventStore(
@@ -523,7 +523,7 @@ exception instead of returning an entity.
 
 .. code:: python
 
-    with Application(datastore) as app:
+    with ExampleApplication(datastore) as app:
 
         entity = app.create_example(foo='bar1')
 
