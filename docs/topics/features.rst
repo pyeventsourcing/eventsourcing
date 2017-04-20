@@ -38,8 +38,7 @@ something like `Zookeeper <https://zookeeper.apache.org/>`__ might help.
 
 **Snapshotting** — avoids replaying an entire event stream to
 obtain the state of an entity. A snapshot strategy is included which reuses
-the capabilities of this library by implementing snapshots as time-sequenced domain
-events. It can easily be substituted with one that uses a dedicated table for snapshots.
+the capabilities of this library by implementing snapshots as events.
 
 **Abstract base classes** — suggest how to structure an event sourced application.
 The library has base classes for application objects, domain entities, entity repositories,
