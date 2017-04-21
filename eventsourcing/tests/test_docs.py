@@ -8,24 +8,28 @@ from unittest.case import TestCase
 import eventsourcing
 
 
-base_dir = dirname(dirname(eventsourcing.__file__))
+base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
 
 class TestDocs(TestCase):
-
     def test_code_snippets_in_readme(self):
         self._out = ''
         path = join(base_dir, 'README.md')
+        if not os.path.exists(path):
+            self.skipTest("Skipped test, README file not found: {}".format(path))
         self.check_code_snippets_in_file(path)
 
     def test_code_snippets_in_docs(self):
-
         skipped = [
             'wsgi.rst'
         ]
 
         self._out = ''
         docs_path = os.path.join(base_dir, 'docs')
+
+        if not os.path.exists(docs_path):
+            self.skipTest("Skipped test, docs folder not found: {}".format(docs_path))
+
         file_paths = []
         for dirpath, _, filenames in os.walk(docs_path):
             for name in filenames:
@@ -63,10 +67,6 @@ class TestDocs(TestCase):
 
     def check_code_snippets_in_file(self, doc_path):
         # Extract lines of Python code from the README.md file.
-
-        if not os.path.exists(doc_path):
-            self.skipTest("Skipped test because usage instructions in README file are "
-                          "not available for testing once this package is installed")
 
         lines = []
         num_code_lines = 0
