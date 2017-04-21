@@ -11,7 +11,7 @@ from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedIt
 
 class AbstractEventStore(six.with_metaclass(ABCMeta)):
     @abstractmethod
-    def append(self, domain_event):
+    def append(self, domain_event_or_events):
         """
         Put domain event in event store for later retrieval.
         """
@@ -51,19 +51,20 @@ class EventStore(AbstractEventStore):
         self.active_record_strategy = active_record_strategy
         self.sequenced_item_mapper = sequenced_item_mapper
 
-    def append(self, domain_event):
-        # Serialize the domain event as a sequenced item.
-        sequenced_item = self.to_sequenced_item(domain_event)
+    def append(self, domain_event_or_events):
+        # Convert the domain event(s) to sequenced item(s).
+        if isinstance(domain_event_or_events, (list, tuple)):
+            sequenced_item_or_items = [self.to_sequenced_item(e) for e in domain_event_or_events]
+        else:
+            sequenced_item_or_items = self.to_sequenced_item(domain_event_or_events)
 
-        # Append to the item to the sequence.
+        # Append to the sequenced item(s) to the sequence.
         try:
-            self.active_record_strategy.append_item(sequenced_item)
+            self.active_record_strategy.append(sequenced_item_or_items)
         except SequencedItemError as e:
             raise ConcurrencyError(e)
 
     def to_sequenced_item(self, domain_event):
-        if isinstance(domain_event, (list, tuple)):
-            return [self.to_sequenced_item(e) for e in domain_event]
         return self.sequenced_item_mapper.to_sequenced_item(domain_event)
 
     def get_domain_events(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,

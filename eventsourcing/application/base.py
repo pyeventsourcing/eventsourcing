@@ -9,11 +9,12 @@ from abc import ABCMeta
 
 from six import with_metaclass
 
-from eventsourcing.application.policies import CombinedPersistencePolicy
-from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.domain.model.events import VersionedEntityEvent, TimestampedEntityEvent
+from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
+from eventsourcing.infrastructure.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 
 class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
@@ -64,9 +65,9 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
                 cipher=cipher,
             )
 
-        self.snapshot_store = None
+        self.snapshot_event_store = None
         if self.snapshot_active_record_strategy:
-            self.snapshot_store = self.construct_event_store(
+            self.snapshot_event_store = self.construct_event_store(
                 event_sequence_id_attr='entity_id',
                 event_position_attr='entity_version',
                 active_record_strategy=self.snapshot_active_record_strategy,
@@ -116,17 +117,39 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
 class EventSourcedApplication(ReadOnlyEventSourcingApplication):
     def __init__(self, **kwargs):
         super(EventSourcedApplication, self).__init__(**kwargs)
-        self.persistence_policy = self.construct_persistence_policy()
+        self.entity_persistence_policy = self.construct_entity_persistence_policy()
+        self.snapshot_persistence_policy = self.construct_snapshot_persistence_policy()
+        self.log_persistence_policy = self.construct_log_persistence_policy()
 
-    def construct_persistence_policy(self):
-        return CombinedPersistencePolicy(
-            integer_sequenced_event_store=self.integer_sequenced_event_store,
-            timestamp_sequenced_event_store=self.timestamp_sequenced_event_store,
-            snapshot_store=self.snapshot_store,
-        )
+    def construct_entity_persistence_policy(self):
+        if self.integer_sequenced_event_store:
+            return PersistencePolicy(
+                event_store=self.integer_sequenced_event_store,
+                event_type=VersionedEntityEvent,
+            )
+
+    def construct_snapshot_persistence_policy(self):
+        if self.snapshot_event_store:
+            return PersistencePolicy(
+                event_store=self.snapshot_event_store,
+                event_type=Snapshot,
+            )
+
+    def construct_log_persistence_policy(self):
+        if self.timestamp_sequenced_event_store:
+            return PersistencePolicy(
+                event_store=self.timestamp_sequenced_event_store,
+                event_type=TimestampedEntityEvent,
+            )
 
     def close(self):
-        if self.persistence_policy is not None:
-            self.persistence_policy.close()
-            self.persistence_policy = None
+        if self.entity_persistence_policy is not None:
+            self.entity_persistence_policy.close()
+            self.entity_persistence_policy = None
+        if self.snapshot_persistence_policy is not None:
+            self.snapshot_persistence_policy.close()
+            self.snapshot_persistence_policy = None
+        if self.log_persistence_policy is not None:
+            self.log_persistence_policy.close()
+            self.log_persistence_policy = None
         super(EventSourcedApplication, self).close()

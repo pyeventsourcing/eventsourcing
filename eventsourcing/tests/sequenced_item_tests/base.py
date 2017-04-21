@@ -5,14 +5,15 @@ from uuid import uuid4
 
 import six
 
-from eventsourcing.application.policies import CombinedPersistencePolicy
+from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.events import TimestampedEntityEvent, VersionedEntityEvent, topic_from_domain_class
+from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import SequencedItemError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
-from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 
@@ -75,7 +76,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data1,
         )
-        self.active_record_strategy.append_item(item1)
+        self.active_record_strategy.append(item1)
 
         # Append an item to a different sequence.
         data2 = json.dumps({'name': 'value2'})
@@ -85,7 +86,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data2,
         )
-        self.active_record_strategy.append_item(item2)
+        self.active_record_strategy.append(item2)
 
         # Check the get_item() method returns item at position.
         retrieved_item = self.active_record_strategy.get_item(sequence_id1, position1)
@@ -118,7 +119,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.assertNotEqual(item1.topic, item3.topic)
         self.assertNotEqual(item1.data, item3.data)
         with self.assertRaises(SequencedItemError):
-            self.active_record_strategy.append_item(item3)
+            self.active_record_strategy.append(item3)
 
         # Append a second and third item at the next positions.
         item4 = SequencedItem(
@@ -133,7 +134,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC2,
             data=data3,
         )
-        self.active_record_strategy.append_item([item4, item5])
+        self.active_record_strategy.append([item4, item5])
 
         # Check there are three items.
         retrieved_items = self.active_record_strategy.get_items(sequence_id1)
@@ -257,8 +258,8 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
 class WithActiveRecordStrategies(AbstractDatastoreTestCase):
     def __init__(self, *args, **kwargs):
         super(WithActiveRecordStrategies, self).__init__(*args, **kwargs)
-        self._integer_sequence_strategy = None
-        self._timestamp_sequence_strategy = None
+        self._integer_sequenced_active_record_strategy = None
+        self._timestamp_sequenced_active_record_strategy = None
         self._snapshot_strategy = None
 
     def setUp(self):
@@ -268,24 +269,25 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
             self.datastore.setup_tables()
 
     def tearDown(self):
-        self._timestamp_sequence_strategy = None
-        self._integer_sequence_strategy = None
+        self._timestamp_sequenced_active_record_strategy = None
+        self._integer_sequenced_active_record_strategy = None
         if self.datastore is not None:
             self.datastore.drop_tables()
             self.datastore.drop_connection()
         super(WithActiveRecordStrategies, self).tearDown()
 
     @property
-    def integer_sequence_active_record_strategy(self):
-        if self._integer_sequence_strategy is None:
-            self._integer_sequence_strategy = self.construct_integer_sequenced_active_record_strategy()
-        return self._integer_sequence_strategy
+    def integer_sequenced_active_record_strategy(self):
+        if self._integer_sequenced_active_record_strategy is None:
+            self._integer_sequenced_active_record_strategy = self.construct_integer_sequenced_active_record_strategy()
+        return self._integer_sequenced_active_record_strategy
 
     @property
-    def timestamp_sequence_active_record_strategy(self):
-        if self._timestamp_sequence_strategy is None:
-            self._timestamp_sequence_strategy = self.construct_timestamp_sequenced_active_record_strategy()
-        return self._timestamp_sequence_strategy
+    def timestamp_sequenced_active_record_strategy(self):
+        if self._timestamp_sequenced_active_record_strategy is None:
+            self._timestamp_sequenced_active_record_strategy = \
+                self.construct_timestamp_sequenced_active_record_strategy()
+        return self._timestamp_sequenced_active_record_strategy
 
     @property
     def snapshot_active_record_strategy(self):
@@ -346,7 +348,6 @@ class TimestampSequencedItemTestCase(ActiveRecordStrategyTestCase):
 
 
 class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
-
     ENTITY_ID1 = uuid4()
 
     @property
@@ -366,7 +367,7 @@ class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
 
     def construct_iterator(self, is_ascending, page_size, gt=None, lte=None, limit=None):
         return self.iterator_cls(
-            active_record_strategy=self.integer_sequence_active_record_strategy,
+            active_record_strategy=self.integer_sequenced_active_record_strategy,
             sequence_id=self.entity_id,
             page_size=page_size,
             gt=gt,
@@ -388,13 +389,13 @@ class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
                 )
             )
             self.sequenced_items.append(sequenced_item)
-            self.integer_sequence_active_record_strategy.append_item(sequenced_item)
+            self.integer_sequenced_active_record_strategy.append(sequenced_item)
 
     def test(self):
         self.setup_sequenced_items()
 
-        assert isinstance(self.integer_sequence_active_record_strategy, AbstractActiveRecordStrategy)
-        stored_events = self.integer_sequence_active_record_strategy.get_items(
+        assert isinstance(self.integer_sequenced_active_record_strategy, AbstractActiveRecordStrategy)
+        stored_events = self.integer_sequenced_active_record_strategy.get_items(
             sequence_id=self.entity_id
         )
         stored_events = list(stored_events)
@@ -481,24 +482,24 @@ class ThreadedSequencedItemIteratorTestCase(SequencedItemIteratorTestCase):
         return ThreadedSequencedItemIterator
 
 
-class WithPersistencePolicy(WithActiveRecordStrategies):
+class WithPersistencePolicies(WithActiveRecordStrategies):
     """
-    Base class for test cases that required a persistence subscriber.
+    Base class for test cases that need persistence policies.
     """
 
     def setUp(self):
-        super(WithPersistencePolicy, self).setUp()
+        super(WithPersistencePolicies, self).setUp()
         # Setup the persistence subscriber.
-        self.versioned_entity_event_store = EventStore(
-            active_record_strategy=self.integer_sequence_active_record_strategy,
+        self.integer_sequenced_event_store = EventStore(
+            active_record_strategy=self.integer_sequenced_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='entity_id',
                 position_attr_name='entity_version'
             )
         )
-        self.timestamped_entity_event_store = EventStore(
-            active_record_strategy=self.timestamp_sequence_active_record_strategy,
+        self.timestamp_sequenced_event_store = EventStore(
+            active_record_strategy=self.timestamp_sequenced_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='entity_id',
@@ -513,13 +514,34 @@ class WithPersistencePolicy(WithActiveRecordStrategies):
                 position_attr_name='entity_version'
             )
         )
-        self.persistence_policy = CombinedPersistencePolicy(
-            integer_sequenced_event_store=self.versioned_entity_event_store,
-            timestamp_sequenced_event_store=self.timestamped_entity_event_store,
-            snapshot_store=self.snapshot_store
-        )
+
+        self.integer_sequenced_event_policy = None
+        if self.integer_sequenced_event_store is not None:
+            self.integer_sequenced_event_policy = PersistencePolicy(
+                event_store=self.integer_sequenced_event_store,
+                event_type=VersionedEntityEvent,
+            )
+
+        self.timestamp_sequenced_event_policy = None
+        if self.timestamp_sequenced_event_store is not None:
+            self.timestamp_sequenced_event_policy = PersistencePolicy(
+                event_store=self.timestamp_sequenced_event_store,
+                event_type=TimestampedEntityEvent,
+            )
+
+        self.snapshot_policy = None
+        if self.snapshot_store is not None:
+            self.snapshot_policy = PersistencePolicy(
+                event_store=self.snapshot_store,
+                event_type=Snapshot,
+            )
 
     def tearDown(self):
         # Close the persistence subscriber.
-        self.persistence_policy.close()
-        super(WithPersistencePolicy, self).tearDown()
+        if self.snapshot_policy:
+            self.snapshot_policy.close()
+        if self.timestamp_sequenced_event_policy:
+            self.timestamp_sequenced_event_policy.close()
+        if self.integer_sequenced_event_store:
+            self.integer_sequenced_event_policy.close()
+        super(WithPersistencePolicies, self).tearDown()
