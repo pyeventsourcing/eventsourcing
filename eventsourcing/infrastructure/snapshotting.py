@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
 import six
+from copy import deepcopy
 
 from eventsourcing.domain.model.events import publish, topic_from_domain_class
 from eventsourcing.domain.model.snapshot import AbstractSnapshop, Snapshot
@@ -33,7 +34,17 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
         return get_snapshot(entity_id, self.event_store, lt=lt, lte=lte)
 
     def take_snapshot(self, entity_id, entity, last_event_version):
-        return take_snapshot(entity_id, entity, last_event_version)
+        # Create the snapshot event.
+        snapshot = Snapshot(
+            entity_id=entity_id,
+            entity_version=last_event_version,
+            topic=topic_from_domain_class(entity.__class__),
+            state=None if entity is None else deepcopy(entity.__dict__)
+        )
+        publish(snapshot)
+
+        # Return the event.
+        return snapshot
 
 
 def get_snapshot(entity_id, event_store, lt=None, lte=None):

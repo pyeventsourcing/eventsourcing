@@ -8,14 +8,14 @@ from eventsourcing.domain.model.events import VersionedEntityEvent, publish, sub
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError, ConcurrencyError
-from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
+from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
     WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 
 
-class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicy):
+class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
         example1 = create_new_example(a=1, b=2)
@@ -37,7 +37,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertNotEqual(example1, example2)
 
         # Setup the repo.
-        repo = ExampleRepository(self.versioned_entity_event_store)
+        repo = ExampleRepository(self.integer_sequenced_event_store)
 
         # Check the example entities can be retrieved from the example repository.
         entity1 = repo[example1.id]

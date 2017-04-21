@@ -143,9 +143,9 @@ class VersionedEntity(DomainEntity):
         """
         if self._version != event.entity_version:
             raise EntityVersionConsistencyError(
-                ("Event version '{}' not equal to entity version '{}', "
-                 "event type: '{}', entity type: '{}', entity ID: '{}'"
-                 "".format(event.entity_version, self._version,
+                ("Event originated from entity at version {}, but entity is currently at version {}. "
+                 "Event type: '{}', entity type: '{}', entity ID: '{}'"
+                 "".format(self._version, event.entity_version,
                            type(event).__name__, type(self).__name__, self._id)
                  )
             )
