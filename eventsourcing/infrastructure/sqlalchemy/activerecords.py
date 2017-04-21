@@ -93,14 +93,11 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 
         return events
 
-    def all_items(self):
-        return map(self.from_active_record, self.all_records())
-
     def add_record_to_session(self, active_record):
-        if isinstance(active_record, list):
-            [self.add_record_to_session(r) for r in active_record]
-        else:
-            self.datastore.db_session.add(active_record)
+        """
+        Adds active record to session.
+        """
+        self.datastore.db_session.add(active_record)
 
     def to_active_record(self, sequenced_item):
         """
@@ -113,6 +110,12 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         orm_kwargs = {f: sequenced_item[i] for i, f in enumerate(self.field_names)}
         return self.active_record_class(**orm_kwargs)
 
+    def all_items(self):
+        """
+        Returns all items across all sequences.
+        """
+        return map(self.from_active_record, self.all_records())
+
     def from_active_record(self, active_record):
         """
         Returns a sequenced item, from given active record.
@@ -121,10 +124,16 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         return self.sequenced_item_class(*item_args)
 
     def all_records(self, *args, **kwargs):
+        """
+        Returns all records in the table.
+        """
         query = self.datastore.db_session.query(self.active_record_class)
         return query.filter_by(*args, **kwargs)
 
     def delete_record(self, record):
+        """
+        Permanently removes record from table.
+        """
         try:
             self.datastore.db_session.delete(record)
             self.datastore.db_session.commit()
