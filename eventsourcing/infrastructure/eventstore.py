@@ -57,7 +57,7 @@ class EventStore(AbstractEventStore):
 
         # Append to the item to the sequence.
         try:
-            self.active_record_strategy.append_item(sequenced_item)
+            self.active_record_strategy.append(sequenced_item)
         except SequencedItemError as e:
             raise ConcurrencyError(e)
 

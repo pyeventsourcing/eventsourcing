@@ -76,7 +76,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data1,
         )
-        self.active_record_strategy.append_item(item1)
+        self.active_record_strategy.append(item1)
 
         # Append an item to a different sequence.
         data2 = json.dumps({'name': 'value2'})
@@ -86,7 +86,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data2,
         )
-        self.active_record_strategy.append_item(item2)
+        self.active_record_strategy.append(item2)
 
         # Check the get_item() method returns item at position.
         retrieved_item = self.active_record_strategy.get_item(sequence_id1, position1)
@@ -119,7 +119,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.assertNotEqual(item1.topic, item3.topic)
         self.assertNotEqual(item1.data, item3.data)
         with self.assertRaises(SequencedItemError):
-            self.active_record_strategy.append_item(item3)
+            self.active_record_strategy.append(item3)
 
         # Append a second and third item at the next positions.
         item4 = SequencedItem(
@@ -134,7 +134,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC2,
             data=data3,
         )
-        self.active_record_strategy.append_item([item4, item5])
+        self.active_record_strategy.append([item4, item5])
 
         # Check there are three items.
         retrieved_items = self.active_record_strategy.get_items(sequence_id1)
@@ -389,7 +389,7 @@ class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
                 )
             )
             self.sequenced_items.append(sequenced_item)
-            self.integer_sequenced_active_record_strategy.append_item(sequenced_item)
+            self.integer_sequenced_active_record_strategy.append(sequenced_item)
 
     def test(self):
         self.setup_sequenced_items()
