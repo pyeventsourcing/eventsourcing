@@ -10,7 +10,7 @@ from abc import ABCMeta
 from six import with_metaclass
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.events import VersionedEntityEvent
+from eventsourcing.domain.model.events import VersionedEntityEvent, TimestampedEntityEvent
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
@@ -119,6 +119,7 @@ class EventSourcedApplication(ReadOnlyEventSourcingApplication):
         super(EventSourcedApplication, self).__init__(**kwargs)
         self.entity_persistence_policy = self.construct_entity_persistence_policy()
         self.snapshot_persistence_policy = self.construct_snapshot_persistence_policy()
+        self.log_persistence_policy = self.construct_log_persistence_policy()
 
     def construct_entity_persistence_policy(self):
         if self.integer_sequenced_event_store:
@@ -138,6 +139,15 @@ class EventSourcedApplication(ReadOnlyEventSourcingApplication):
         else:
             return None
 
+    def construct_log_persistence_policy(self):
+        if self.timestamp_sequenced_event_store:
+            return PersistencePolicy(
+                event_store=self.timestamp_sequenced_event_store,
+                event_type=TimestampedEntityEvent,
+            )
+        else:
+            return None
+
     def close(self):
         if self.entity_persistence_policy is not None:
             self.entity_persistence_policy.close()
@@ -145,4 +155,7 @@ class EventSourcedApplication(ReadOnlyEventSourcingApplication):
         if self.snapshot_persistence_policy is not None:
             self.snapshot_persistence_policy.close()
             self.snapshot_persistence_policy = None
+        if self.log_persistence_policy is not None:
+            self.log_persistence_policy.close()
+            self.log_persistence_policy = None
         super(EventSourcedApplication, self).close()

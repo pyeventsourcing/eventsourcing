@@ -22,7 +22,7 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 
 @notquick()
 class PerformanceTestCase(WithExampleApplication):
-    def test(self):
+    def test_entity_performance(self):
         """
         Reports on the performance of Example entity and repo.
 
@@ -144,7 +144,6 @@ class PerformanceTestCase(WithExampleApplication):
 
             # Page back through the log in reverse chronological order.
             previous_position = None
-            next_position = None
             count_pages = 0
             total_time_to_read = 0
             total_num_reads = 0
