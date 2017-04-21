@@ -127,8 +127,6 @@ class EventSourcedApplication(ReadOnlyEventSourcingApplication):
                 event_store=self.integer_sequenced_event_store,
                 event_type=VersionedEntityEvent,
             )
-        else:
-            return None
 
     def construct_snapshot_persistence_policy(self):
         if self.snapshot_event_store:
@@ -136,8 +134,6 @@ class EventSourcedApplication(ReadOnlyEventSourcingApplication):
                 event_store=self.snapshot_event_store,
                 event_type=Snapshot,
             )
-        else:
-            return None
 
     def construct_log_persistence_policy(self):
         if self.timestamp_sequenced_event_store:
@@ -145,8 +141,6 @@ class EventSourcedApplication(ReadOnlyEventSourcingApplication):
                 event_store=self.timestamp_sequenced_event_store,
                 event_type=TimestampedEntityEvent,
             )
-        else:
-            return None
 
     def close(self):
         if self.entity_persistence_policy is not None:
