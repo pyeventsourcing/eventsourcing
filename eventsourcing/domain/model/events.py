@@ -316,3 +316,9 @@ def resolve_attr(obj, path):
     head, _, tail = path.partition('.')
     head_obj = getattr(obj, head)
     return resolve_attr(head_obj, tail)
+
+
+def reconstruct_object(obj_class, obj_state):
+    obj = object.__new__(obj_class)
+    obj.__dict__.update(obj_state)
+    return obj

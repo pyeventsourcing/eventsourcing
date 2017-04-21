@@ -16,11 +16,16 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         super(SQLAlchemyActiveRecordStrategy, self).__init__(*args, **kwargs)
         self.datastore = datastore
 
-    def append_item(self, sequenced_item):
-        active_record = self.to_active_record(sequenced_item)
+    def append(self, sequenced_item_or_items):
+        # Convert sequenced item(s) to active_record(s).
+        if isinstance(sequenced_item_or_items, list):
+            active_records = [self.to_active_record(i) for i in sequenced_item_or_items]
+        else:
+            active_records = [self.to_active_record(sequenced_item_or_items)]
         try:
-            # Write stored event into the transaction.
-            self.add_record_to_session(active_record)
+            # Add active record(s) to the transaction.
+            for active_record in active_records:
+                self.add_record_to_session(active_record)
 
             # Commit the transaction.
             self.datastore.db_session.commit()
@@ -28,7 +33,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         except IntegrityError as e:
             # Roll back the transaction.
             self.datastore.db_session.rollback()
-            self.raise_sequenced_item_error(sequenced_item, e)
+            self.raise_sequenced_item_error(sequenced_item_or_items, e)
         finally:
             # Begin new transaction.
             self.datastore.db_session.close()
@@ -88,29 +93,28 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 
         return events
 
-    def all_items(self):
-        return map(self.from_active_record, self.all_records())
-
     def add_record_to_session(self, active_record):
-        if isinstance(active_record, list):
-            [self.add_record_to_session(r) for r in active_record]
-        else:
-            self.datastore.db_session.add(active_record)
+        """
+        Adds active record to session.
+        """
+        self.datastore.db_session.add(active_record)
 
     def to_active_record(self, sequenced_item):
         """
         Returns an active record, from given sequenced item.
         """
-        # Recurse if it's a list.
-        if isinstance(sequenced_item, list):
-            return [self.to_active_record(i) for i in sequenced_item]
-
         # Check we got a sequenced item.
         assert isinstance(sequenced_item, self.sequenced_item_class), (self.sequenced_item_class, type(sequenced_item))
 
         # Construct and return an ORM object.
         orm_kwargs = {f: sequenced_item[i] for i, f in enumerate(self.field_names)}
         return self.active_record_class(**orm_kwargs)
+
+    def all_items(self):
+        """
+        Returns all items across all sequences.
+        """
+        return map(self.from_active_record, self.all_records())
 
     def from_active_record(self, active_record):
         """
@@ -120,10 +124,16 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         return self.sequenced_item_class(*item_args)
 
     def all_records(self, *args, **kwargs):
+        """
+        Returns all records in the table.
+        """
         query = self.datastore.db_session.query(self.active_record_class)
         return query.filter_by(*args, **kwargs)
 
     def delete_record(self, record):
+        """
+        Permanently removes record from table.
+        """
         try:
             self.datastore.db_session.delete(record)
             self.datastore.db_session.commit()

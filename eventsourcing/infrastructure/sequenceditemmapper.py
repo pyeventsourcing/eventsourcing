@@ -5,7 +5,7 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.domain.model.events import resolve_domain_topic, topic_from_domain_class
+from eventsourcing.domain.model.events import reconstruct_object, resolve_domain_topic, topic_from_domain_class
 from eventsourcing.domain.services.cipher import AbstractCipher
 from eventsourcing.infrastructure.sequenceditem import SequencedItemFieldNames
 from eventsourcing.infrastructure.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
@@ -14,11 +14,15 @@ from eventsourcing.infrastructure.transcoding import ObjectJSONDecoder, ObjectJS
 class AbstractSequencedItemMapper(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def to_sequenced_item(self, domain_event):
-        """Serializes a domain event."""
+        """
+        Returns sequenced item for given domain event.
+        """
 
     @abstractmethod
-    def from_sequenced_item(self, serialized_event):
-        """Deserializes domain events."""
+    def from_sequenced_item(self, sequenced_item):
+        """
+        Return domain event from given sequenced item.
+        """
 
 
 class SequencedItemMapper(AbstractSequencedItemMapper):
@@ -56,7 +60,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         # Identify the position in the sequence.
         position = getattr(domain_event, self.position_attr_name)
-        topic = self.topic_from_domain_class(domain_event.__class__)
+        topic = topic_from_domain_class(domain_event.__class__)
 
         # Serialise event attributes to JSON, optionally encrypted.
         is_encrypted = self.is_encrypted(domain_event.__class__)
@@ -75,25 +79,15 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         assert isinstance(sequenced_item, self.sequenced_item_class), (self.sequenced_item_class, type(sequenced_item))
 
         # Get the domain event class from the topic.
-        domain_event_class = self.class_from_topic(getattr(sequenced_item, self.field_names.topic))
+        topic = getattr(sequenced_item, self.field_names.topic)
+        domain_event_class = resolve_domain_topic(topic)
 
         # Deserialize, optionally with decryption.
         is_encrypted = self.is_encrypted(domain_event_class)
         event_attrs = self.deserialize_event_attrs(getattr(sequenced_item, self.field_names.data), is_encrypted)
 
         # Reconstruct the domain event object.
-        return self.reconstruct_object(domain_event_class, event_attrs)
-
-    def reconstruct_object(self, obj_class, obj_state):
-        obj = object.__new__(obj_class)
-        obj.__dict__.update(obj_state)
-        return obj
-
-    def topic_from_domain_class(self, domain_class):
-        return topic_from_domain_class(domain_class)
-
-    def class_from_topic(self, topic):
-        return resolve_domain_topic(topic)
+        return reconstruct_object(domain_event_class, event_attrs)
 
     def serialize_event_attrs(self, event_attrs, is_encrypted=False):
         event_data = json.dumps(
@@ -120,20 +114,3 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
     def is_encrypted(self, domain_event_class):
         return self.always_encrypt or getattr(domain_event_class, '__always_encrypt__', False)
-
-
-def deserialize_domain_entity(entity_topic, entity_attrs):
-    """
-    Return a new domain entity object from a given topic (a string) and attributes (a dict).
-    """
-    # Get the domain entity class from the entity topic.
-    domain_class = resolve_domain_topic(entity_topic)
-
-    # Instantiate the domain entity class.
-    entity = object.__new__(domain_class)
-
-    # Set the attributes.
-    entity.__dict__.update(entity_attrs)
-
-    # Return a new domain entity object.
-    return entity

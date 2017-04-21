@@ -8,10 +8,10 @@ from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrate
 
 class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
 
-    def append_item(self, sequenced_item):
-        if isinstance(sequenced_item, list):
+    def append(self, sequenced_item_or_items):
+        if isinstance(sequenced_item_or_items, list):
             with BatchQuery() as b:
-                for i in sequenced_item:
+                for i in sequenced_item_or_items:
                     assert isinstance(i, self.sequenced_item_class), (type(i), self.sequenced_item_class)
                     self.active_record_class.batch(b).create(
                         s=i.sequence_id,
@@ -20,11 +20,11 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
                         d=i.data,
                     )
         else:
-            active_record = self.to_active_record(sequenced_item)
+            active_record = self.to_active_record(sequenced_item_or_items)
             try:
                 active_record.save()
             except LWTException as e:
-                self.raise_sequenced_item_error(sequenced_item, e)
+                self.raise_sequenced_item_error(sequenced_item_or_items, e)
 
     def get_item(self, sequence_id, eq):
         query = self.filter(s=sequence_id, p__eq=eq)
@@ -89,8 +89,6 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Returns an active record instance, from given sequenced item.
         """
-        if isinstance(sequenced_item, list):
-            return [self.to_active_record(i) for i in sequenced_item]
         assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
         return self.active_record_class(
             s=sequenced_item.sequence_id,

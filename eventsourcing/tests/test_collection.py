@@ -8,7 +8,7 @@ from eventsourcing.domain.model.entity import EntityIsDiscarded
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepository
-from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
+from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 
@@ -105,11 +105,11 @@ class TestCollection(TestCase):
         self.assertRaises(EntityIsDiscarded, getattr, collection, 'items')
 
 
-class TestCollectionRepo(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicy):
+class TestCollectionRepo(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
 
     def test(self):
 
-        repo = CollectionRepository(event_store=self.versioned_entity_event_store)
+        repo = CollectionRepository(event_store=self.integer_sequenced_event_store)
 
         # Check unknown collections are not found in the repo.
         with self.assertRaises(RepositoryKeyError):

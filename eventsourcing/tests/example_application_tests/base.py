@@ -1,12 +1,12 @@
 from time import sleep
 
-from eventsourcing.application.policies import CombinedPersistencePolicy
+from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.eventstore import AbstractEventStore, EventStore
+from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies
 
 
@@ -14,8 +14,8 @@ class WithExampleApplication(WithActiveRecordStrategies):
     def construct_application(self):
         cipher = self.construct_cipher()
         app = ExampleApplication(
-            integer_sequenced_active_record_strategy=self.integer_sequence_active_record_strategy,
-            timestamp_sequenced_active_record_strategy=self.timestamp_sequence_active_record_strategy,
+            integer_sequenced_active_record_strategy=self.integer_sequenced_active_record_strategy,
+            timestamp_sequenced_active_record_strategy=self.timestamp_sequenced_active_record_strategy,
             snapshot_active_record_strategy=self.snapshot_active_record_strategy,
             always_encrypt=bool(cipher),
             cipher=cipher,
@@ -47,7 +47,7 @@ class ExampleApplicationTestCase(WithExampleApplication):
                              app.timestamp_sequenced_active_record_strategy)
 
             # Check there's a persistence policy.
-            self.assertIsInstance(app.persistence_policy, CombinedPersistencePolicy)
+            self.assertIsInstance(app.entity_persistence_policy, PersistencePolicy)
 
             # Check there's an example repository.
             self.assertIsInstance(app.example_repository, ExampleRepository)
@@ -117,7 +117,7 @@ class ExampleApplicationTestCase(WithExampleApplication):
             # Remove all the stored items and check the new value is still available (must be in snapshot).
             self.assertEqual(len(list(app.integer_sequenced_active_record_strategy.all_records())), 3)
             for record in app.integer_sequenced_active_record_strategy.all_records():
-                self.integer_sequence_active_record_strategy.delete_record(record)
+                self.integer_sequenced_active_record_strategy.delete_record(record)
             self.assertFalse(list(app.integer_sequenced_active_record_strategy.all_records()))
             self.assertEqual(100, app.example_repository[example1.id].a)
 
@@ -128,4 +128,3 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(entity1_v3.a, 50)
             entity1_v3 = app.example_repository.get_entity(entity1.id, lte=2)
             self.assertEqual(entity1_v3.a, 100)
-

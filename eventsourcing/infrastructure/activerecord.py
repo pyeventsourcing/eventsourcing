@@ -14,7 +14,7 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
 
     @abstractmethod
-    def append_item(self, sequenced_item):
+    def append(self, sequenced_item_or_items):
         """
         Writes sequenced item into the datastore.
         """
