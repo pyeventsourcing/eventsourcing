@@ -11,7 +11,7 @@ from singledispatch import singledispatch
 from eventsourcing.domain.model.collection import Collection
 from eventsourcing.domain.model.entity import AttributeChanged, Created, Discarded, AbstractEntityRepository, \
     AggregateRoot, attribute, entity_mutator
-from eventsourcing.domain.model.events import publish, AggregateEvent
+from eventsourcing.domain.model.events import publish, TimestampedVersionedEntityEvent
 from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 
 # Use a private code point to terminate the strings.
@@ -491,11 +491,11 @@ class SuffixTreeNodeChildCollection(AggregateRoot):
 
     class Discarded(Discarded): pass
 
-    class ChildNodeAdded(AggregateEvent): pass
+    class ChildNodeAdded(TimestampedVersionedEntityEvent): pass
 
-    class ChildNodeRemoved(AggregateEvent): pass
+    class ChildNodeRemoved(TimestampedVersionedEntityEvent): pass
 
-    class ChildNodeSwitched(AggregateEvent): pass
+    class ChildNodeSwitched(TimestampedVersionedEntityEvent): pass
 
     def __init__(self, *args, **kwargs):
         super(SuffixTreeNodeChildCollection, self).__init__(*args, **kwargs)
@@ -566,7 +566,7 @@ class SuffixTreeEdge(AggregateRoot):
     class AttributeChanged(AttributeChanged):
         pass
 
-    class Shortened(AggregateEvent):
+    class Shortened(TimestampedVersionedEntityEvent):
         @property
         def label(self):
             return self.__dict__['label']

@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from eventsourcing.domain.model.entity import Created, Discarded, entity_mutator, singledispatch, AggregateRoot, \
     AggregateRepository
-from eventsourcing.domain.model.events import publish, AggregateEvent
+from eventsourcing.domain.model.events import publish, TimestampedVersionedEntityEvent
 
 
 class Collection(AggregateRoot):
@@ -16,12 +16,12 @@ class Collection(AggregateRoot):
         def __init__(self, **kwargs):
             super(Collection.Discarded, self).__init__(**kwargs)
 
-    class ItemAdded(AggregateEvent):
+    class ItemAdded(TimestampedVersionedEntityEvent):
         @property
         def item(self):
             return self.__dict__['item']
 
-    class ItemRemoved(AggregateEvent):
+    class ItemRemoved(TimestampedVersionedEntityEvent):
         @property
         def item(self):
             return self.__dict__['item']
