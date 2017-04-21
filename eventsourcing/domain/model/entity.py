@@ -265,15 +265,3 @@ class AbstractEntityRepository(with_metaclass(ABCMeta)):
         """
         Returns True or False, according to whether or not entity exists.
         """
-
-
-class AggregateRoot(TimestampedVersionedEntity):
-    """
-    For aggregates in Domain Driven Design.
-    """
-
-
-class AggregateRepository(AbstractEntityRepository):
-    """
-    For aggregate repositories in Domain Driven Design.
-    """
