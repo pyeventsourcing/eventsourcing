@@ -219,12 +219,6 @@ class TimestampedVersionedEntityEvent(EventWithTimestamp, VersionedEntityEvent):
 #         return timestamp_from_uuid(self.__dict__['domain_event_id'])
 
 
-class AggregateEvent(TimestampedVersionedEntityEvent):
-    """
-    For events of DDD aggregates.
-    """
-
-
 _event_handlers = OrderedDict()
 
 

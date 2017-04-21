@@ -55,7 +55,7 @@ taken at a regular intervals.
             unsubscribe(predicate=self.triggers_snapshot, handler=self.take_snapshot)
 
         def triggers_snapshot(self, event):
-            return isinstance(event, AggregateEvent) and not (event.entity_version + 1) % self.frequency
+            return isinstance(event, TimestampedVersionedEntityEvent) and not (event.entity_version + 1) % self.frequency
 
         def take_snapshot(self, event):
             self.event_player.take_snapshot(event.entity_id)
@@ -78,7 +78,7 @@ a snapshot after each new event.
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
     from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
     from eventsourcing.example.domainmodel import Example, create_new_example
-    from eventsourcing.domain.model.events import AggregateEvent
+    from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent
 
 
     class SnapshottedApplication(object):
@@ -124,7 +124,7 @@ a snapshot after each new event.
             # Construct the persistence policies.
             self.entity_persistence_policy = PersistencePolicy(
                 event_store=self.event_store,
-                event_type=AggregateEvent
+                event_type=TimestampedVersionedEntityEvent
             )
             self.snapshot_persistence_policy = PersistencePolicy(
                 event_store=self.snapshot_store,
