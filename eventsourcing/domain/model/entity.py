@@ -11,7 +11,7 @@ from abc import ABCMeta, abstractmethod
 from inspect import isfunction
 from six import with_metaclass
 
-from eventsourcing.domain.model.events import publish, QualnameABCMeta, AggregateEvent
+from eventsourcing.domain.model.events import publish, QualnameABCMeta, TimestampedVersionedEntityEvent
 
 
 class EntityIDConsistencyError(ConsistencyError):
@@ -30,12 +30,12 @@ class EntityIsDiscarded(AssertionError):
     pass
 
 
-class Created(AggregateEvent):
+class Created(TimestampedVersionedEntityEvent):
     def __init__(self, entity_version=0, **kwargs):
         super(Created, self).__init__(entity_version=entity_version, **kwargs)
 
 
-class AttributeChanged(AggregateEvent):
+class AttributeChanged(TimestampedVersionedEntityEvent):
     @property
     def name(self):
         return self.__dict__['name']
@@ -45,7 +45,7 @@ class AttributeChanged(AggregateEvent):
         return self.__dict__['value']
 
 
-class Discarded(AggregateEvent):
+class Discarded(TimestampedVersionedEntityEvent):
     pass
 
 
@@ -265,15 +265,3 @@ class AbstractEntityRepository(with_metaclass(ABCMeta)):
         """
         Returns True or False, according to whether or not entity exists.
         """
-
-
-class AggregateRoot(TimestampedVersionedEntity):
-    """
-    For aggregates in Domain Driven Design.
-    """
-
-
-class AggregateRepository(AbstractEntityRepository):
-    """
-    For aggregate repositories in Domain Driven Design.
-    """

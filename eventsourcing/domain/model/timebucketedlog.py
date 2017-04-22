@@ -5,7 +5,7 @@ from uuid import UUID, uuid5
 import six
 from dateutil.relativedelta import relativedelta
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, AggregateRoot, AttributeChanged, Created
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, AttributeChanged, Created
 from eventsourcing.domain.model.events import TimestampedEntityEvent, publish
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.utils.time import utc_timezone
@@ -29,7 +29,7 @@ BUCKET_SIZES = {
 }
 
 
-class Timebucketedlog(AggregateRoot):
+class Timebucketedlog(TimestampedVersionedEntity):
     class Started(Created):
         pass
 

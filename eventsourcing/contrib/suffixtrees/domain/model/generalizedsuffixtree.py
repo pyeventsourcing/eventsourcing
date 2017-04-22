@@ -10,15 +10,15 @@ from singledispatch import singledispatch
 
 from eventsourcing.domain.model.collection import Collection
 from eventsourcing.domain.model.entity import AttributeChanged, Created, Discarded, AbstractEntityRepository, \
-    AggregateRoot, attribute, entity_mutator
-from eventsourcing.domain.model.events import publish, AggregateEvent
+    TimestampedVersionedEntity, attribute, entity_mutator
+from eventsourcing.domain.model.events import publish, TimestampedVersionedEntityEvent
 from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 
 # Use a private code point to terminate the strings.
 STRING_ID_END = '\uEFFF'
 
 
-class GeneralizedSuffixTree(AggregateRoot):
+class GeneralizedSuffixTree(TimestampedVersionedEntity):
     """A suffix tree for string matching. Uses Ukkonen's algorithm
     for construction.
 
@@ -431,7 +431,7 @@ class GeneralizedSuffixTree(AggregateRoot):
                 self._canonize_suffix(suffix, string)
 
 
-class SuffixTreeNode(AggregateRoot):
+class SuffixTreeNode(TimestampedVersionedEntity):
     """A node in the suffix tree.
     """
 
@@ -481,7 +481,7 @@ class StringidCollection(Collection):
         pass
 
 
-class SuffixTreeNodeChildCollection(AggregateRoot):
+class SuffixTreeNodeChildCollection(TimestampedVersionedEntity):
     """A collecton of child nodes in the suffix tree.
     """
 
@@ -491,11 +491,11 @@ class SuffixTreeNodeChildCollection(AggregateRoot):
 
     class Discarded(Discarded): pass
 
-    class ChildNodeAdded(AggregateEvent): pass
+    class ChildNodeAdded(TimestampedVersionedEntityEvent): pass
 
-    class ChildNodeRemoved(AggregateEvent): pass
+    class ChildNodeRemoved(TimestampedVersionedEntityEvent): pass
 
-    class ChildNodeSwitched(AggregateEvent): pass
+    class ChildNodeSwitched(TimestampedVersionedEntityEvent): pass
 
     def __init__(self, *args, **kwargs):
         super(SuffixTreeNodeChildCollection, self).__init__(*args, **kwargs)
@@ -556,7 +556,7 @@ def child_node_child_collection_switched_mutator(event, self):
     return self
 
 
-class SuffixTreeEdge(AggregateRoot):
+class SuffixTreeEdge(TimestampedVersionedEntity):
     """An edge in the suffix tree.
     """
 
@@ -566,7 +566,7 @@ class SuffixTreeEdge(AggregateRoot):
     class AttributeChanged(AttributeChanged):
         pass
 
-    class Shortened(AggregateEvent):
+    class Shortened(TimestampedVersionedEntityEvent):
         @property
         def label(self):
             return self.__dict__['label']

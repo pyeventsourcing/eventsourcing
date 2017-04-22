@@ -1,11 +1,11 @@
 import uuid
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, AggregateRoot, AttributeChanged, Created, \
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, AttributeChanged, Created, \
     Discarded, attribute, entity_mutator, singledispatch
-from eventsourcing.domain.model.events import AggregateEvent, publish
+from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish
 
 
-class Example(AggregateRoot):
+class Example(TimestampedVersionedEntity):
     """
     An example event sourced domain model entity.
     """
@@ -19,7 +19,7 @@ class Example(AggregateRoot):
     class Discarded(Discarded):
         pass
 
-    class Heartbeat(AggregateEvent):
+    class Heartbeat(TimestampedVersionedEntityEvent):
         pass
 
     def __init__(self, foo='', a='', b='', **kwargs):
