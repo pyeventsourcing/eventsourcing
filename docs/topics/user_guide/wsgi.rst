@@ -76,14 +76,19 @@ eventsourcing application class.
         application = None
 
 
-Flask
+uWSGI
 =====
 
 Uwsgi has a ``@postfork`` `decorator
 <http://uwsgi-docs.readthedocs.io/en/latest/PythonDecorators.html#uwsgidecorators.postfork>`__
 that can be used with Django and Flask and other frameworks.
 
-Example Flask application.
+
+
+Flask
+=====
+
+Example Flask application, using the uWSGI ``postfork`` decorator.
 
 .. code:: python
 
