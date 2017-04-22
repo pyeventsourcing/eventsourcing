@@ -1,83 +1,160 @@
-Using with Web Frameworks/WSGI
-==============================
+Using with Web Frameworks/WSGI/Message Queue Workers
+====================================================
 
-https://github.com/johnbywater/eventsourcing/issues/53
+Typically, you will need one (and only one) instance of your application
+object for each request handling process. That is because if your eventsourcing
+application object has any policies that subscribe to events, it is necessary
+to avoid constructing more than one eventsourcing application object per process.
+Otherwise duplicate policies will exist, event handlers will be subscribed more
+times than they should be, and commands that should be executed once per event
+will be executed several times by mistake. For example, if your application has
+a persistence policy and more than one object has been constructed in the same
+process, then attempts to persist events will be duplicated, which won't work.
 
-How do you encorporate this into web frameworks?
+Connections to databases are out of scope of the eventsourcing application class,
+and should be setup in a normal way. The documentation for your Web or worker
+framework probably describes how and when to setup database connections, and
+your database documentation may also have some suggestion.
 
-It's a good question. You can do it in the wsgi file. If you have test cases,
-you can do it there too. Also if you have any workers (e.g. celery workers) you
-can do it when they are initialised. I suggest having a factory method that
-constructs and returns the application instance, and then calling that method
-from the wsgi file, so you have an eventsourcing application object as a module
-level variable, just like the wsgi application object.
+In general, if your request handling process will have been forked (e.g. in
+preforked Web or worker tier), then connections to databases can be setup after
+child processes are forked. It is commonly recommended to make use of any
+"postfork" hook or decorator or signal intended for this purpose.
 
-The "rule" is that you only need one application instance per process.
-Otherwise, there will be more than one attempt to store each event, which won't
-work. I'm not going to use the word "singleton" because some get triggered by
-it, but it's just like imported Python modules or Python strings: you need only
-one instance per process.
+Typically, your eventsourcing application object will be constructed
+after a child process has been forked, after a database connection
+has been setup, and before any requests are handled. Request handlers
+can then use the already constructed object.
 
-The application object, in itself, is thread-safe because it is stateless. From
-experience, the difficulty some have had is the publish-subscribe functions it
-uses are at the level of the module, so that entity methods can publish events
-without having any other dependencies. So if you wanted (for some reason, e.g.
-in a test suite) to instantiate the application twice in the same process then
-you simply need to close it first: to unsubscribe handlers and to close
-database connections. Closing connections to services like databases and
-message brokers is only polite, and can save resources. Unsubscribing before
-resubscribing is essential to avoid trying to save each event more than once
-(which will immediately cause concurrency exceptions to be raised).
+One arrangement is to have a module in your eventsourcing application
+with a module-level variable ``application``, and two module-level functions
+``init_application()`` and ``get_application()``. The function
+``init_application()`` can be called from a suitable hook or signal and
+you can call ``get_application()`` from any functions that handle requests.
+You can arrange these functions to make sure the ``init_application()`` is
+called only once, and to make sure that ``init_application()`` is called
+before ``get_application()`` is called.
 
-The context manager aspect is only a convenient way of closing things at the
-end. You can equally put the object in a try/finally block and call close().
-The 'with' context manager Python syntax is just a nice way to say that.
+If you have a test suite, you may wish to setup and teardown the application
+for each test. In that case, you will also need a ```close_application()```
+function that closes the application object, unsubscribing any handlers,
+and resets the module level variable.
 
-Since you will need to use the eventsourcing application object in the view
-methods, it's not good enough just to instantiate the application at the edge
-of your system: the views also need to have the object. So you could somehow
-pass the eventsourcing application object into the stack for each request, or
-you could code your factory method so that it can be called many times and each
-time will return the same object. If you do it like that, make sure that if the
-application has been closed, the factory will create a new instance and not
-just return a closed instance. You could call the factory function in each view
-method that needs it, or you could make it a property of a base view class (if
-you have one).
-
-You could perhaps do it with some middleware, I didn't ever try doing it with
-middleware.
-
-Also, if your process forks after it loads the code, you will want to open the
-application object in the child processes, after they have been forked. You
-also need to avoid race conditions, so just doing it lazily from multi-threaded
-requests often isn't good enough. Celery has a signal for it
-(worker_process_init). There are various things in Django which provide similar
-comfort. This can sometimes be a "tricky" area because sometimes Django
-developers don't really have a very good understanding of the processes in
-their services. Perhaps it would be better if the complexity was somehow
-encapsulated, so it is hidden and "just works". I guess we've got some more
-work to do with Django. I keep thinking it would be great to have something
-that doesn't break the Django admin view, but that's a different (much bigger)
-topic.
-
-For example - using http://uwsgi-docs.readthedocs.io/en/latest/PythonDecorators.html#uwsgidecorators.postfork
-and using a middle ware or borg/singleton/module initialization in the wsgi.py
+If doesn't matter if you don't close your application at the end of the process
+lifetime, but in order to conserve resources you may wish to pay attention to
+closing database connections, and any other connections that have been opened
+by the process. Again, closing database connections is out of the scope of the
+eventsourcing application class.
 
 
 .. code:: python
 
-    # ... other stuff up here to setup settings, wrappers etc.
+    class Application(object):
+        """My eventsourcing application."""
+
+    application = None
+
+    def construct_application():
+        return Application()
+
+    def init_application():
+        global application
+        if application is not None:
+            raise AssertionError("Application is already constructed")
+        application = construct_application()
+
+    def get_application():
+        if application is None:
+            raise AssertionError("init_application() must be called first")
+        return application
+
+    def close_application():
+        global application
+        if application is not None:
+            application.close()
+        application = None
+
+
+Celery has a ``worker_process_init`` `signal
+<http://docs.celeryproject.org/en/latest/userguide/signals.html#worker-process-init>`__.
+Uwsgi has a ``@postfork`` `decorator
+<http://uwsgi-docs.readthedocs.io/en/latest/PythonDecorators.html#uwsgidecorators.postfork>`__
+that can be used with Django and Flask and other frameworks.
+
+
+
+
+Example Flask application.
+
+.. code:: python
+
+    from flask import Flask
+    from uwsgidecorators import postfork
+
+    @postfork
+    def init_process():
+        # Setup database connection for this process.
+        # ...
+
+        # Construct application for this process.
+        init_application()
+
+    from flask import Flask
+    app = Flask(__name__)
+
+    @app.route('/')
+    def hello_world():
+        # Use eventsourcing application to construct response to request.
+        app = get_application()
+        return "Hello World"
+
+
+Example Celery worker.
+
+.. code:: python
+
+    from celery import Celery
+    from celery.signals import worker_process_init
+
+    app = Celery()
+
+    @worker_process_init.connect
+    def init_process(sender=None, conf=None, **kwargs):
+        # Setup database connection for this process.
+        # ...
+
+        # Construct eventsourcing application for this process.
+        init_application()
+
+    @app.task
+    def hello_world():
+        # Use eventsourcing application to construct response to request.
+        app = get_application()
+        return "Hello World"
+
+
+Example .wsgi file for a Django project.
+
+.. code:: python
 
     from django.core.wsgi import get_wsgi_application  # noqa
     from uwsgidecorators import postfork
-    from eventsourcedapp import ev_app  # Import module - app isn't initiallized
 
     application = get_wsgi_application()
-    app = get_wsgi_application()
 
     @postfork
-    def setup_ev_app():
-        ev_app.setup()
+    def on_postfork():
+        # Construct application for this process.
+        init_application()
 
 
-where ev_app.setup() does some of that module magic to actually setup the app and, and sets up the cleanup somehow.
+Example Django view.
+
+.. code:: python
+    from django.http import HttpResponse
+
+    def hello_world(request):
+        # Use eventsourcing application to construct response to request.
+        app = get_application()
+        html = "<html><body>Hello world</body></html>"
+        return HttpResponse(html)
