@@ -151,6 +151,7 @@ Example .wsgi file for a Django project.
 Example Django view.
 
 .. code:: python
+
     from django.http import HttpResponse
 
     def hello_world(request):
