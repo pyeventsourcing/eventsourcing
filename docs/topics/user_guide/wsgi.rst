@@ -1,3 +1,4 @@
+====================================================
 Using with Web Frameworks/WSGI/Message Queue Workers
 ====================================================
 
@@ -75,14 +76,12 @@ eventsourcing application class.
         application = None
 
 
-Celery has a ``worker_process_init`` `signal
-<http://docs.celeryproject.org/en/latest/userguide/signals.html#worker-process-init>`__.
+Flask
+=====
+
 Uwsgi has a ``@postfork`` `decorator
 <http://uwsgi-docs.readthedocs.io/en/latest/PythonDecorators.html#uwsgidecorators.postfork>`__
 that can be used with Django and Flask and other frameworks.
-
-
-
 
 Example Flask application.
 
@@ -109,6 +108,43 @@ Example Flask application.
         return "Hello World"
 
 
+Django
+======
+
+Example .wsgi file for a Django project, using the uWSGI ``postfork`` decorator.
+
+.. code:: python
+
+    from django.core.wsgi import get_wsgi_application
+    from uwsgidecorators import postfork
+
+    application = get_wsgi_application()
+
+    @postfork
+    def on_postfork():
+        # Construct application for this process.
+        init_application()
+
+
+Example Django view.
+
+.. code:: python
+
+    from django.http import HttpResponse
+
+    def hello_world(request):
+        # Use eventsourcing application to construct response to request.
+        app = get_application()
+        html = "<html><body>Hello world</body></html>"
+        return HttpResponse(html)
+
+
+Celery
+======
+
+Celery has a ``worker_process_init`` `signal
+<http://docs.celeryproject.org/en/latest/userguide/signals.html#worker-process-init>`__.
+
 Example Celery worker.
 
 .. code:: python
@@ -131,31 +167,3 @@ Example Celery worker.
         # Use eventsourcing application to construct response to request.
         app = get_application()
         return "Hello World"
-
-
-Example .wsgi file for a Django project.
-
-.. code:: python
-
-    from django.core.wsgi import get_wsgi_application  # noqa
-    from uwsgidecorators import postfork
-
-    application = get_wsgi_application()
-
-    @postfork
-    def on_postfork():
-        # Construct application for this process.
-        init_application()
-
-
-Example Django view.
-
-.. code:: python
-
-    from django.http import HttpResponse
-
-    def hello_world(request):
-        # Use eventsourcing application to construct response to request.
-        app = get_application()
-        html = "<html><body>Hello world</body></html>"
-        return HttpResponse(html)
