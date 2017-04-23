@@ -109,11 +109,10 @@ after child workers have been forked.
 
     @postfork
     def init_process():
-        # Setup database connection for this process.
+        # Setup database connection.
         database = {}
-        # Construct application for this process.
+        # Construct eventsourcing application.
         init_application()
-
 
 
 Django views can then use ``get_application()`` to construct the response.
@@ -170,9 +169,9 @@ for the Celery worker process.
 
     @worker_process_init.connect
     def init_process(sender=None, conf=None, **kwargs):
-        # Setup database connection for this process.
+        # Setup database connection.
         database = {}
-        # Construct application for this process.
+        # Construct eventsourcing application.
         init_application()
 
 
