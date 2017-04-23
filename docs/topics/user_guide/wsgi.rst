@@ -8,10 +8,11 @@ that subscribe to events, constructing more than one instance of the
 application in a process will result in for example multiple attempt
 to store an event, which won't work.
 
-One arrangement is to have a module with a module-level variable
-``application``, and two module-level functions ``init_application()``
-and ``get_application()``. The function ``init_application()`` will construct
-the application object and can be called from a suitable hook or signal and.
+One arrangement is to have a module with a module-level variable and two
+module-level functions ``init_application()`` and ``get_application()``.
+The function ``init_application()`` will construct the application object
+and can be called from a suitable hook or signal.
+
 Then calls to ``get_application()`` can be made from any functions that handle
 requests, if they require the application's services. These functions can be
 written to ensure ``init_application()`` raises an exception if it is called
