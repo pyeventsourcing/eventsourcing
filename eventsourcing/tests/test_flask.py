@@ -1,16 +1,14 @@
+import os
+import platform
+import sys
 import unittest
-from os.path import abspath, dirname, join, basename
+from os.path import abspath, dirname, join
 from subprocess import Popen
 from tempfile import NamedTemporaryFile
-
 from time import sleep
-
-import os
 from unittest.case import skipIf
 
 import requests
-import sys
-
 from requests.exceptions import ConnectionError
 from requests.models import Response
 
@@ -62,12 +60,12 @@ class TestFlaskApp(unittest.TestCase):
             self.fail("Couldn't get response from app, (Python executable {})".format(sys.executable))
 
 
-@skipIf('pypy' in basename(sys.executable), 'uwsgi needs special plugin for pypy')
+@skipIf(platform.python_implementation() == 'PyPy', 'uWSGI needs special plugin to run with PyPy')
 class TestFlaskWsgi(TestFlaskApp):
     port = 9001
 
     def start_app(self):
-        # Make up a DB URI.
+        # Make up a DB URI using a named temporary file.
         self.tempfile = NamedTemporaryFile()
         uri = 'sqlite:///{}'.format(self.tempfile.name)
 
@@ -83,14 +81,15 @@ class TestFlaskWsgi(TestFlaskApp):
         path_to_uwsgi = join(path_to_virtualenv, 'bin', 'uwsgi')
         assert os.path.exists(path_to_uwsgi), path_to_uwsgi
         cmd = [path_to_uwsgi]
-        # if path_to_virtualenv is not None:
-        #     cmd += ['-H', path_to_virtualenv]
+        if path_to_virtualenv is not None:
+            cmd += ['-H', path_to_virtualenv]
         cmd += ['--master']
         cmd += ['--processes', '4']
         cmd += ['--threads', '2']
         cmd += ['--wsgi-file', path_to_flaskwsgi]
         cmd += ['--http', ':{}'.format(self.port)]
+        pythonpath = ':'.join(os.getenv('PYTHONPATH', '').split(':') + [path_to_eventsourcing])
         return Popen(cmd, env={
-            'PYTHONPATH': ':'.join(os.getenv('PYTHONPATH', '').split(':') + [path_to_eventsourcing]),
+            'PYTHONPATH': pythonpath,
             'DB_URI': uri
         })
