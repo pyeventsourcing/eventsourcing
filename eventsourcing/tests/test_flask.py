@@ -1,11 +1,13 @@
 import unittest
-from os.path import abspath, dirname, join
+from os.path import abspath, dirname, join, basename
 from subprocess import Popen
 from tempfile import NamedTemporaryFile
 
 from time import sleep
 
 import os
+from unittest.case import skipIf
+
 import requests
 import sys
 
@@ -60,6 +62,7 @@ class TestFlaskApp(unittest.TestCase):
             self.fail("Couldn't get response from app")
 
 
+@skipIf('pypy' in basename(sys.executable), 'uwsgi needs special plugin for pypy')
 class TestFlaskWsgi(TestFlaskApp):
     port = 9001
 
@@ -80,8 +83,8 @@ class TestFlaskWsgi(TestFlaskApp):
         path_to_uwsgi = join(path_to_virtualenv, 'bin', 'uwsgi')
         assert os.path.exists(path_to_uwsgi), path_to_uwsgi
         cmd = [path_to_uwsgi]
-        if path_to_virtualenv is not None:
-            cmd += ['-H', path_to_virtualenv]
+        # if path_to_virtualenv is not None:
+        #     cmd += ['-H', path_to_virtualenv]
         cmd += ['--master']
         cmd += ['--processes', '4']
         cmd += ['--threads', '2']
