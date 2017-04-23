@@ -73,16 +73,16 @@ connections.
 
 Typically your eventsourcing application object will be constructed after
 a database connection has been setup, and before any requests are handled.
-Requests handlers ("views") can then safely use the already constructed
-application object without any risk of race conditions causing the
-application to be constructed more than once.
+Requests handlers ("views" or "tasks") can then safely use the already
+constructed application object without any risk of race conditions causing
+the application to be constructed more than once.
 
-Making connections to databases is out of scope of the eventsourcing
+Setting up connections to databases is out of scope of the eventsourcing
 application classes, and should be setup in a normal way. The documentation
-for your Web or worker framework may describe when to make a
-database connection, and your database documentation may also have some
-suggestions. It is recommended to make use of any hook or decorator or signals
-intended for this purpose. See below for suggestions.
+for your Web or worker framework may describe when to setup database connections,
+and your database documentation may also have some suggestions. It is recommended
+to make use of any hooks or decorators or signals intended for this purpose. See
+below for some suggestions.
 
 
 Web Tier
