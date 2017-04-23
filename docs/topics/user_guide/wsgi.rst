@@ -83,44 +83,16 @@ with Flask.
 uWSGI
 -----
 
-uWSGI has a ``@postfork`` `decorator
+uWSGI has a `postfork decorator
 <http://uwsgi-docs.readthedocs.io/en/latest/PythonDecorators.html#uwsgidecorators.postfork>`__
 that can be used with Django and Flask and other frameworks.
-
-
-Flask
-"""""
-
-Flask application can use ``init_application()`` and ``get_application()``.
-
-.. code:: python
-
-    from flask import Flask
-    from uwsgidecorators import postfork
-
-    # Use uwsgi decorator to initialise the process.
-    @postfork
-    def init_process():
-        # Setup database connection for this process.
-        database = {}
-        # Construct application for this process.
-        init_application(database)
-
-    from flask import Flask
-    app = Flask(__name__)
-
-    # Use Flask app to route request to view.
-    @app.route('/')
-    def hello_world():
-        # Use eventsourcing application to construct response.
-        app = get_application()
-        return "Hello World, {}".format(app)
 
 
 Django
 """"""
 
-Django WSGI file can use ``init_application()``.
+Django WSGI file can use ``init_application()`` after the database
+connection is setup, however that happens.
 
 .. code:: python
 
@@ -147,8 +119,40 @@ Django views can use ``get_application()``.
     def hello_world(request):
         # Use eventsourcing application to construct response.
         app = get_application()
-        html = "<html><body>Hello world, {}</body></html>".format(app)
+        html = "<html><body>Hello World, {}</body></html>".format(app)
         return HttpResponse(html)
+
+
+Flask
+"""""
+
+Flask application module can use ``init_application()`` after the database
+connection is setup, however that happens. View functions can then use
+``get_application()``.
+
+.. code:: python
+
+    from flask import Flask
+    from uwsgidecorators import postfork
+
+    # Use uwsgi decorator to initialise the process.
+    @postfork
+    def init_process():
+        # Setup database connection for this process.
+        database = {}
+        # Construct application for this process.
+        init_application(database)
+
+    from flask import Flask
+    app = Flask(__name__)
+
+    # Use Flask app to route request to view.
+    @app.route('/')
+    def hello_world():
+        # Use eventsourcing application to construct response.
+        app = get_application()
+        return "Hello World, {}".format(app)
+
 
 
 Worker Tier
@@ -160,8 +164,14 @@ This section contains suggestions for using the Celery distributed task queue.
 Celery
 ------
 
-Celery has a ``worker_process_init`` `signal
+Celery has a `worker_process_init signal decorator
 <http://docs.celeryproject.org/en/latest/userguide/signals.html#worker-process-init>`__.
+
+
+Celery task module can use ``init_application()`` after the event sourcing
+application's database connection has been setup, however that happens.
+Celery tasks can then use ``get_application()``.
+
 
 .. code:: python
 
