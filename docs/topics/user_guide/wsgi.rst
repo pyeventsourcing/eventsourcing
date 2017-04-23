@@ -8,17 +8,19 @@ that subscribe to events, constructing more than one instance of the
 application will cause, for example, multiple attempts to store an event,
 which won't work.
 
-One arrangement is to have a module with a variable and two
-functions. The first function constructs the application object and
-assigns it to the "global" variable, and can be called from a
-suitable hook or signal (see below). A second function returns the
-global variable, and can called from request handler functions
-requiring the application's services.
+One arrangement is to have a module with a variable and two functions
+(see below). The first function constructs the application object and
+assigns it to the variable, and can be called from a suitable hook or
+signal designed for setting things up before any requests are handled.
+A second function returns the application object assigned to the variable,
+and can be called by any request or task handlers that depend on the
+application's services.
 
-The functions below have been written so that ``init_example_application()``
-will raise an exception if it is called more than once, and also
-``get_example_application()`` will raise an exeception unless
-``init_example_application()`` has been called.
+Although the first function must be called only once, the second function
+may be called many times. The example functions below have been written
+relatively strictly, so that ``init_example_application()`` will raise
+an exception if it has already been called, and ``get_example_application()``
+will raise an exeception if ``init_example_application()`` has not been called.
 
 Please note, if your eventsourcing application depends on receiving a
 database session object when it is constructed, for example if you are
@@ -36,18 +38,18 @@ the signature of your ``init_example_application()`` and
         """
 
 
-    def construct_example_application():
-        return ExampleApplication()
+    def construct_example_application(**kwargs):
+        return ExampleApplication(**kwargs)
 
 
     application = None
 
 
-    def init_example_application():
+    def init_example_application(**kwargs):
         global application
         if application is not None:
             raise AssertionError("init_example_application() has already been called")
-        application = construct_example_application()
+        application = construct_example_application(**kwargs)
 
 
     def get_example_application():
@@ -158,7 +160,7 @@ Similarly, Flask views can use ``get_example_application()`` to construct the re
         return "Hello World, {}".format(id(app))
 
 
-In both cases, you will need to setup tables before running the application.
+In both cases, database tables must be created before running the application.
 
 Worker Tier
 ===========
