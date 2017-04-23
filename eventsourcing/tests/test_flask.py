@@ -41,7 +41,7 @@ class TestFlaskApp(unittest.TestCase):
         sleep(1)
         self.app.kill()
         sleep(1)
-        self.app.wait(timeout=1)
+        self.app.wait()
         super(TestFlaskApp, self).tearDown()
 
     def test(self):
@@ -88,6 +88,6 @@ class TestFlaskWsgi(TestFlaskApp):
         cmd += ['--wsgi-file', path_to_flaskwsgi]
         cmd += ['--http', ':{}'.format(self.port)]
         return Popen(cmd, env={
-            'PYTHONPATH': ':'.join([os.getenv('PYTHONPATH'), path_to_eventsourcing]),
+            'PYTHONPATH': ':'.join(os.getenv('PYTHONPATH', '').split(':') + [path_to_eventsourcing]),
             'DB_URI': uri
         })
