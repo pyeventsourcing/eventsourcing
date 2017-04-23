@@ -8,8 +8,10 @@ All the examples in this guide follow the layered architecture:
 application, domain, infrastructure. To create a working program,
 simply copy all the code snippets from a section into a Python file.
 
-The code snippets are tested automatically, and so should work. Please
-feel free to experiment by making variations.
+Please feel free to experiment by making variations. The code snippets
+are tested automatically by the library's test suite, so that you can
+expect everything you see to work as described.
+
 
 .. toctree::
    :maxdepth: 3
