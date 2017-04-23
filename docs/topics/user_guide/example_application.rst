@@ -9,7 +9,7 @@ A stand-alone domain model is developed without library classes, that both shows
 how event sourcing in Python can work, and also provides an introduction
 to how the library classes work.
 
-And all the infrastructure is declared explicitly to show the components that are
+All the infrastructure is declared explicitly to show the components that are
 involved.
 
 Later examples in this guide make more use of library classes, which
