@@ -31,7 +31,6 @@ the signature of your ``init_example_application()`` and
 .. code:: python
 
     # Your eventsourcing application.
-
     class ExampleApplication(object):
         """
         My eventsourcing application.
