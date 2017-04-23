@@ -11,10 +11,9 @@ from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDa
 
 class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 
-    def __init__(self, datastore, *args, **kwargs):
-        assert isinstance(datastore, SQLAlchemyDatastore)
+    def __init__(self, session, *args, **kwargs):
         super(SQLAlchemyActiveRecordStrategy, self).__init__(*args, **kwargs)
-        self.datastore = datastore
+        self.session = session
 
     def append(self, sequenced_item_or_items):
         # Convert sequenced item(s) to active_record(s).
@@ -28,15 +27,15 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
                 self.add_record_to_session(active_record)
 
             # Commit the transaction.
-            self.datastore.db_session.commit()
+            self.session.commit()
 
         except IntegrityError as e:
             # Roll back the transaction.
-            self.datastore.db_session.rollback()
+            self.session.rollback()
             self.raise_sequenced_item_error(sequenced_item_or_items, e)
         finally:
             # Begin new transaction.
-            self.datastore.db_session.close()
+            self.session.close()
 
     def get_item(self, sequence_id, eq):
         try:
@@ -47,7 +46,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
             events = six.moves.map(self.from_active_record, query)
             events = list(events)
         finally:
-            self.datastore.db_session.close()
+            self.session.close()
 
         try:
             return events[0]
@@ -86,7 +85,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
             events = list(events)
 
         finally:
-            self.datastore.db_session.close()
+            self.session.close()
 
         if results_ascending != query_ascending:
             events.reverse()
@@ -97,7 +96,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Adds active record to session.
         """
-        self.datastore.db_session.add(active_record)
+        self.session.add(active_record)
 
     def to_active_record(self, sequenced_item):
         """
@@ -127,7 +126,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Returns all records in the table.
         """
-        query = self.datastore.db_session.query(self.active_record_class)
+        query = self.session.query(self.active_record_class)
         return query.filter_by(*args, **kwargs)
 
     def delete_record(self, record):
@@ -135,11 +134,11 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         Permanently removes record from table.
         """
         try:
-            self.datastore.db_session.delete(record)
-            self.datastore.db_session.commit()
+            self.session.delete(record)
+            self.session.commit()
         finally:
             # Begin new transaction.
-            self.datastore.db_session.close()
+            self.session.close()
 
 
 class SqlIntegerSequencedItem(Base):

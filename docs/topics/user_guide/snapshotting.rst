@@ -86,7 +86,7 @@ a snapshot after each new event.
         def __init__(self, datastore):
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    datastore=datastore,
+                    session=datastore.db_session,
                     active_record_class=SqlIntegerSequencedItem,
                     sequenced_item_class=SequencedItem
                 ),
@@ -98,7 +98,7 @@ a snapshot after each new event.
             )
             self.snapshot_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    datastore=datastore,
+                    session=datastore.db_session,
                     active_record_class=SnapshotTable,
                     sequenced_item_class=SequencedItem
                 ),

@@ -21,17 +21,28 @@ will raise an exception if it is called more than once, and also
 ``get_application()`` will raise an exeception unless ``init_application()``
 has been called.
 
+Please note, if your eventsourcing application depends on receiving a
+database session object when it is constructed, for example if you are
+using the SQLAlchemy library classes, you can add such an argument to
+the signature of your ``init_application()`` and ``construct_application()``
+functions.
+
 .. code:: python
 
+    # Your eventsourcing application.
+
     class Application(object):
-        """My eventsourcing application."""
+        """
+        My eventsourcing application.
+        """
+
+    def construct_application():
+        return Application()
+
 
     application = None
 
-    def construct_application(datastore):
-        return Application(datastore)
-
-    def init_application(datastore):
+    def init_application():
         global application
         if application is not None:
             raise AssertionError("init_application() has already been called")
@@ -62,9 +73,9 @@ connections.
 
 Typically your eventsourcing application object will be constructed after
 a database connection has been setup, and before any requests are handled.
-Requests handlers can then safely use the already constructed application
-object without any risk of race conditions causing the application to be
-constructed more than once.
+Requests handlers ("views") can then safely use the already constructed
+application object without any risk of race conditions causing the
+application to be constructed more than once.
 
 Making connections to databases is out of scope of the eventsourcing
 application classes, and should be setup in a normal way. The documentation
@@ -77,26 +88,20 @@ intended for this purpose. See below for suggestions.
 Web Tier
 ========
 
-This section contains suggestions for using uWSGI in prefork mode with Django, and
-with Flask.
+This section contains suggestions for using uWSGI ``@postfork`` decorator.
 
 uWSGI
 -----
 
 uWSGI has a `postfork decorator
 <http://uwsgi-docs.readthedocs.io/en/latest/PythonDecorators.html#uwsgidecorators.postfork>`__
-that can be used with Django and Flask and other frameworks.
+that can be used with Django and Flask and other frameworks if you are running in prefork mode.
 
-
-Django
-""""""
-
-Django WSGI file can use ``init_application()`` after the database
-connection is setup, however that happens.
+Your ``wsgi.py`` file can have a module-level function decorated with the ``@postfork``
+decorator that initialises your eventsourcing application for the Web application process.
 
 .. code:: python
 
-    from django.core.wsgi import get_wsgi_application
     from uwsgidecorators import postfork
 
     @postfork
@@ -104,13 +109,11 @@ connection is setup, however that happens.
         # Setup database connection for this process.
         database = {}
         # Construct application for this process.
-        init_application(database)
-
-    application = get_wsgi_application()
+        init_application()
 
 
 
-Django views can use ``get_application()``.
+Django views can then use ``get_application()`` to construct the response.
 
 .. code:: python
 
@@ -123,27 +126,12 @@ Django views can use ``get_application()``.
         return HttpResponse(html)
 
 
-Flask
-"""""
-
-Flask application module can use ``init_application()`` after the database
-connection is setup, however that happens. View functions can then use
-``get_application()``.
+Similarly, Flask views can use ``get_application()`` to construct the response.
 
 .. code:: python
 
     from flask import Flask
-    from uwsgidecorators import postfork
 
-    # Use uwsgi decorator to initialise the process.
-    @postfork
-    def init_process():
-        # Setup database connection for this process.
-        database = {}
-        # Construct application for this process.
-        init_application(database)
-
-    from flask import Flask
     app = Flask(__name__)
 
     # Use Flask app to route request to view.
@@ -167,25 +155,30 @@ Celery
 Celery has a `worker_process_init signal decorator
 <http://docs.celeryproject.org/en/latest/userguide/signals.html#worker-process-init>`__.
 
-
-Celery task module can use ``init_application()`` after the event sourcing
-application's database connection has been setup, however that happens.
-Celery tasks can then use ``get_application()``.
+Your Celery tasks or config module can have a module-level function decorated with
+the ``@worker-process-init`` decorator that initialises your eventsourcing application
+for the Celery worker process.
 
 
 .. code:: python
 
-    from celery import Celery
     from celery.signals import worker_process_init
-
-    app = Celery()
 
     @worker_process_init.connect
     def init_process(sender=None, conf=None, **kwargs):
         # Setup database connection for this process.
         database = {}
         # Construct application for this process.
-        init_application(database)
+        init_application()
+
+
+Celery tasks can then use ``get_application()`` to complete the task.
+
+.. code:: python
+
+    from celery import Celery
+
+    app = Celery()
 
     # Use Celery app to route the task to the worker.
     @app.task
