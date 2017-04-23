@@ -10,7 +10,7 @@ simply copy all the code snippets from a section into a Python file.
 
 Please feel free to experiment by making variations. The code snippets
 are tested automatically by the library's test suite, so that you can
-expect everything you see to work as described.
+expect everything to work.
 
 
 .. toctree::
