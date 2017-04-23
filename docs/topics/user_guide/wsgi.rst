@@ -88,17 +88,20 @@ intended for this purpose. See below for suggestions.
 Web Tier
 ========
 
-This section contains suggestions for using uWSGI ``@postfork`` decorator.
+This section contains suggestions for uWSGI users.
 
 uWSGI
 -----
 
 uWSGI has a `postfork decorator
 <http://uwsgi-docs.readthedocs.io/en/latest/PythonDecorators.html#uwsgidecorators.postfork>`__
-that can be used with Django and Flask and other frameworks if you are running in prefork mode.
+that can be used with Django and Flask and other frameworks. The ``@postfork``
+may be appropriate if you are running uWSGI in prefork mode. Other decorators are
+available.
 
 Your ``wsgi.py`` file can have a module-level function decorated with the ``@postfork``
-decorator that initialises your eventsourcing application for the Web application process.
+decorator that initialises your eventsourcing application for the Web application process
+after child workers have been forked.
 
 .. code:: python
 
@@ -146,14 +149,15 @@ Similarly, Flask views can use ``get_application()`` to construct the response.
 Worker Tier
 ===========
 
-This section contains suggestions for using the Celery distributed task queue.
-
+This section contains suggestions for Celery users.
 
 Celery
 ------
 
 Celery has a `worker_process_init signal decorator
-<http://docs.celeryproject.org/en/latest/userguide/signals.html#worker-process-init>`__.
+<http://docs.celeryproject.org/en/latest/userguide/signals.html#worker-process-init>`__,
+which may be appropriate if you are running Celery workers in prefork mode. Other decorators
+are available.
 
 Your Celery tasks or config module can have a module-level function decorated with
 the ``@worker-process-init`` decorator that initialises your eventsourcing application
