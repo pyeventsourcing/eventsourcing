@@ -9,65 +9,65 @@ application in a process will result in, for example, multiple attempts
 to store an event, which won't work.
 
 One arrangement (see below) is to have a module with a module-level
-variable and two module-level functions ``init_application()`` and
-``get_application()``. The function ``init_application()`` will
+variable and two module-level functions ``init_example_application()`` and
+``get_example_application()``. The function ``init_example_application()`` will
 construct the application object and can be called from a suitable
-hook or signal. Then calls to ``get_application()`` can be made from
+hook or signal. Then calls to ``get_example_application()`` can be made from
 functions that handle requests, if they require the application's
 services.
 
-The functions below have been written so that ``init_application()``
+The functions below have been written so that ``init_example_application()``
 will raise an exception if it is called more than once, and also
-``get_application()`` will raise an exeception unless ``init_application()``
+``get_example_application()`` will raise an exeception unless ``init_example_application()``
 has been called.
 
 Please note, if your eventsourcing application depends on receiving a
 database session object when it is constructed, for example if you are
 using the SQLAlchemy library classes, you can add such an argument to
-the signature of your ``init_application()`` and ``construct_application()``
+the signature of your ``init_example_application()`` and ``construct_example_application()``
 functions.
 
 .. code:: python
 
     # Your eventsourcing application.
 
-    class Application(object):
+    class ExampleApplication(object):
         """
         My eventsourcing application.
         """
 
 
-    def construct_application():
-        return Application()
+    def construct_example_application():
+        return ExampleApplication()
 
 
     application = None
 
 
-    def init_application():
+    def init_example_application():
         global application
         if application is not None:
-            raise AssertionError("init_application() has already been called")
-        application = construct_application()
+            raise AssertionError("init_example_application() has already been called")
+        application = construct_example_application()
 
 
-    def get_application():
+    def get_example_application():
         if application is None:
-            raise AssertionError("init_application() must be called first")
+            raise AssertionError("init_example_application() must be called first")
         return application
 
 
 In your test suite, you may need or wish to setup the application more
-than once. In that case, you will also need a ``close_application()``
+than once. In that case, you will also need a ``close_example_application()``
 function that closes the application object, unsubscribing any handlers,
-and resetting the module level variable so that ``init_application()`` can be
+and resetting the module level variable so that ``init_example_application()`` can be
 called again. If doesn't really matter if you don't close your application at
 the end of the process lifetime, however you may wish to close database
 connections.
 
 .. code:: python
 
-    def close_application():
+    def close_example_application():
         global application
         if application is not None:
             application.close()
@@ -115,10 +115,10 @@ after child workers have been forked.
         # Setup database connection.
         database = {}
         # Construct eventsourcing application.
-        init_application()
+        init_example_application()
 
 
-Django views can then use ``get_application()`` to construct the response.
+Django views can then use ``get_example_application()`` to construct the response.
 
 .. code:: python
 
@@ -126,12 +126,12 @@ Django views can then use ``get_application()`` to construct the response.
 
     def hello_world(request):
         # Use eventsourcing application to construct response.
-        app = get_application()
-        html = "<html><body>Hello World, {}</body></html>".format(app)
+        app = get_example_application()
+        html = "<html><body>Hello World, {}</body></html>".format(id(app))
         return HttpResponse(html)
 
 
-Similarly, Flask views can use ``get_application()`` to construct the response.
+Similarly, Flask views can use ``get_example_application()`` to construct the response.
 
 .. code:: python
 
@@ -143,10 +143,11 @@ Similarly, Flask views can use ``get_application()`` to construct the response.
     @app.route('/')
     def hello_world():
         # Use eventsourcing application to construct response.
-        app = get_application()
-        return "Hello World, {}".format(app)
+        app = get_example_application()
+        return "Hello World, {}".format(id(app))
 
 
+In both cases, you will need to setup tables before running the application.
 
 Worker Tier
 ===========
@@ -175,10 +176,10 @@ for the Celery worker process.
         # Setup database connection.
         database = {}
         # Construct eventsourcing application.
-        init_application()
+        init_example_application()
 
 
-Celery tasks can then use ``get_application()`` to complete the task.
+Celery tasks can then use ``get_example_application()`` to complete the task.
 
 .. code:: python
 
@@ -190,5 +191,5 @@ Celery tasks can then use ``get_application()`` to complete the task.
     @app.task
     def hello_world():
         # Use eventsourcing app to complete the task.
-        app = get_application()
-        return "Hello World, {}".format(app)
+        app = get_example_application()
+        return "Hello World, {}".format(id(app))

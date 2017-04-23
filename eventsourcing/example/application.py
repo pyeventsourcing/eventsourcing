@@ -30,28 +30,28 @@ class ExampleApplication(EventSourcedApplication):
         return create_new_example(foo=foo, a=a, b=b)
 
 
-def construct_application(**kwargs):
+def construct_example_application(**kwargs):
     return ExampleApplication(**kwargs)
 
 
 application = None
 
 
-def init_application(**kwargs):
+def init_example_application(**kwargs):
     global application
     if application is not None:
-        raise AssertionError("init_application() has already been called")
-    application = construct_application(**kwargs)
+        raise AssertionError("init_example_application() has already been called")
+    application = construct_example_application(**kwargs)
 
 
-def get_application():
+def get_example_application():
     if application is None:
-        raise AssertionError("init_application() must be called first")
+        raise AssertionError("init_example_application() must be called first")
     assert isinstance(application, ExampleApplication)
     return application
 
 
-def close_application():
+def close_example_application():
     global application
     if application is not None:
         application.close()

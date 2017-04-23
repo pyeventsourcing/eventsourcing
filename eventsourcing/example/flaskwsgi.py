@@ -2,7 +2,7 @@ import os
 from uwsgidecorators import postfork
 
 import eventsourcing.example.flaskapp
-from eventsourcing.example.flaskapp import init_application_with_sqlalchemy
+from eventsourcing.example.flaskapp import init_example_application_with_sqlalchemy
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 
 application = eventsourcing.example.flaskapp.application
@@ -15,4 +15,4 @@ def init_process():
         settings=SQLAlchemySettings(uri=os.getenv('DB_URI')),
     )
     datastore.setup_connection()
-    init_application_with_sqlalchemy(datastore.db_session)
+    init_example_application_with_sqlalchemy(datastore.db_session)
