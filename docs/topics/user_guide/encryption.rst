@@ -32,7 +32,7 @@ Define a factory that uses library classes to construct an application object.
         active_record_strategy = SQLAlchemyActiveRecordStrategy(
             active_record_class=SqlIntegerSequencedItem,
             sequenced_item_class=SequencedItem,
-            datastore=datastore
+            session=datastore.db_session
         )
         app = ExampleApplication(
             integer_sequenced_active_record_strategy=active_record_strategy,

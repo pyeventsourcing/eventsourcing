@@ -11,7 +11,7 @@ def construct_integer_sequenced_active_record_strategy(datastore):
     return SQLAlchemyActiveRecordStrategy(
         active_record_class=SqlIntegerSequencedItem,
         sequenced_item_class=SequencedItem,
-        datastore=datastore,
+        session=datastore.db_session,
     )
 
 
@@ -19,7 +19,7 @@ def construct_timestamp_sequenced_active_record_strategy(datastore):
     return SQLAlchemyActiveRecordStrategy(
         active_record_class=SqlTimestampSequencedItem,
         sequenced_item_class=SequencedItem,
-        datastore=datastore,
+        session=datastore.db_session,
     )
 
 
@@ -27,7 +27,7 @@ def construct_snapshot_active_record_strategy(datastore):
     return SQLAlchemyActiveRecordStrategy(
         active_record_class=SqlSnapshot,
         sequenced_item_class=SequencedItem,
-        datastore=datastore,
+        session=datastore.db_session,
     )
 
 

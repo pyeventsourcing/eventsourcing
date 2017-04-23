@@ -194,7 +194,7 @@ Define an application class that uses the model and infrastructure.
         def __init__(self, datastore):
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    datastore=datastore,
+                    session=datastore.db_session,
                     active_record_class=SqlIntegerSequencedItem,
                     sequenced_item_class=SequencedItem,
                 ),

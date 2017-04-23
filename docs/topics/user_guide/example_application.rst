@@ -400,7 +400,7 @@ second field of the sequence item class - for example if both are called
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
     active_record_strategy = SQLAlchemyActiveRecordStrategy(
-        datastore=datastore,
+        session=datastore.db_session,
         active_record_class=SequencedItemTable,
         sequenced_item_class=SequencedItem
     )
@@ -509,7 +509,7 @@ unsubscribing itself from receiving further domain events.
         def __init__(self, datastore):
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    datastore=datastore,
+                    session=datastore.db_session,
                     active_record_class=SequencedItemTable,
                     sequenced_item_class=SequencedItem,
                 ),
