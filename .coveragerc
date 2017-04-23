@@ -2,7 +2,8 @@
 source = eventsourcing
 omit =
     */python?.?/*
+    */flaskapp.py
+    */flaskwsgi.py
     */test_?.py
     */tests/*
     */contrib/*
-
