@@ -7,12 +7,20 @@ from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatast
 
 class TestExampleApplicationSingleInstanceFunctions(SQLAlchemyDatastoreTestCase):
     def setUp(self):
+        super(TestExampleApplicationSingleInstanceFunctions, self).setUp()
+        # Setup the database.
         self.datastore.setup_connection()
         self.datastore.setup_tables()
 
+
     def tearDown(self):
+        # Teardown single instance.
+        close_example_application()
+
+        # Teardown the database.
         self.datastore.drop_tables()
         self.datastore.drop_connection()
+        super(TestExampleApplicationSingleInstanceFunctions, self).tearDown()
 
     def test(self):
         self.datastore.setup_connection()
