@@ -31,7 +31,7 @@ Define a factory that uses library classes to construct an application object.
     from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
     from eventsourcing.infrastructure.sequenceditem import SequencedItem
 
-    def construct_application(datastore):
+    def construct_example_application(datastore):
         active_record_strategy = SQLAlchemyActiveRecordStrategy(
             active_record_class=SqlIntegerSequencedItem,
             sequenced_item_class=SequencedItem,
@@ -49,7 +49,7 @@ Use the application to get two instances of the same entity, and try to change t
 
     from eventsourcing.exceptions import ConcurrencyError
 
-    with construct_application(datastore) as app:
+    with construct_example_application(datastore) as app:
 
         entity = app.create_new_example(foo='bar1')
 

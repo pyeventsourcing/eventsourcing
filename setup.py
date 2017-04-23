@@ -37,6 +37,8 @@ setup(
             'sqlalchemy',
             'sqlalchemy-utils',
             'requests',
+            'flask',
+            'uwsgi',
         ],
         'sqlalchemy': [
             'sqlalchemy',
