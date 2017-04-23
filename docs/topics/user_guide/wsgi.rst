@@ -76,9 +76,9 @@ you may wish to close any database or other connections to network services.
 
 
 Typically, your eventsourcing application object will be constructed after
-a database connection has been setup, and before any requests are handled.
-Requests handlers ("views" or "tasks") can then safely use the already
-constructed application object without any risk of race conditions causing
+its database connection has been setup, and before any requests are handled.
+Request handlers ("views" or "tasks") can then safely use the already
+constructed application object without risk of a race condition causing
 the application to be constructed more than once.
 
 Setting up connections to databases is out of scope of the eventsourcing
@@ -86,8 +86,8 @@ application classes, and should be setup in a normal way. The documentation
 for your Web or worker framework may describe when to setup database connections,
 and your database documentation may also have some suggestions. It is recommended
 to make use of any hooks or decorators or signals intended for the purpose of setting
-up the database connection also to be used to construct the application once for the
-process. See below for some suggestions.
+up the database connection also to construct the application once for the process.
+See below for some suggestions.
 
 
 Web Tier
