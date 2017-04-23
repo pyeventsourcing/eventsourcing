@@ -222,5 +222,5 @@ class TestEncryptionPerformance(WithEncryption, TestCassandraPerformance):
 
 
 @notquick()
-class TestSQLAlchemfreyPerformance(WithSQLAlchemyActiveRecordStrategies, PerformanceTestCase):
+class TestSQLAlchemyPerformance(WithSQLAlchemyActiveRecordStrategies, PerformanceTestCase):
     pass
