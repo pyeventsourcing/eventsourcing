@@ -5,7 +5,7 @@ Using with Web Frameworks and Task Queue Workers
 In general, you need one and only one instance of your application
 for each process. If your eventsourcing application object has policies
 that subscribe to events, constructing more than one instance of the
-application in a process will result in for example multiple attempt
+application in a process will result in, for example, multiple attempts
 to store an event, which won't work.
 
 One arrangement (see below) is to have a module with a module-level
@@ -16,10 +16,10 @@ hook or signal. Then calls to ``get_application()`` can be made from
 functions that handle requests, if they require the application's
 services.
 
-The functions can be written so that ``init_application()`` raises an
-exception if it is called more than once, and also ``get_application()``
-raises an exeception unless ``init_application()`` has been called already.
-
+The functions below have been written so that ``init_application()``
+will raise an exception if it is called more than once, and also
+``get_application()`` will raise an exeception unless ``init_application()``
+has been called.
 
 .. code:: python
 
@@ -34,7 +34,7 @@ raises an exeception unless ``init_application()`` has been called already.
     def init_application(datastore):
         global application
         if application is not None:
-            raise AssertionError("Application is already constructed")
+            raise AssertionError("init_application() has already been called")
         application = construct_application(datastore)
 
     def get_application():
@@ -43,34 +43,13 @@ raises an exeception unless ``init_application()`` has been called already.
         return application
 
 
-
-If your process model involves pre-forking child workers, typically your
-eventsourcing application object will be constructed after a database
-connection has been setup, and before any requests are handled. Request
-handlers can then safely use the already constructed application object
-without any risk of race conditions leading to duplicate event handler
-subscriptions that may occur if the application is constructed during
-the handling of a request.
-
-Making connections to databases is out of scope of the eventsourcing
-application classes, and should be setup in a normal way. The documentation
-for your Web or worker framework may describe when to make a
-database connection, and your database documentation may also have some
-suggestions. It is commonly recommended to make use of any "postfork" hook or
-decorator or signal intended for this purpose. See below for suggestions.
-
-If doesn't really matter if you don't close your application at the end of the
-process lifetime, but to conserve network service resources you may wish to pay
-attention to closing database connections, and any other connections that have
-been opened by the process. Closing database connections is out of the
-scope of the eventsourcing application class.
-
-If you have a test suite, you may wish to setup and teardown the application
-for each test. In that case, you will also need a ```close_application()```
+In your test suite, you may need or wish to setup the application more
+than once. In that case, you will also need a ``close_application()``
 function that closes the application object, unsubscribing any handlers,
 and resetting the module level variable so that ``init_application()`` can be
-called again.
-
+called again. If doesn't really matter if you don't close your application at
+the end of the process lifetime, however you may wish to close database
+connections.
 
 .. code:: python
 
@@ -81,11 +60,25 @@ called again.
         application = None
 
 
+Typically your eventsourcing application object will be constructed after
+a database connection has been setup, and before any requests are handled.
+Requests handlers can then safely use the already constructed application
+object without any risk of race conditions causing the application to be
+constructed more than once.
+
+Making connections to databases is out of scope of the eventsourcing
+application classes, and should be setup in a normal way. The documentation
+for your Web or worker framework may describe when to make a
+database connection, and your database documentation may also have some
+suggestions. It is recommended to make use of any hook or decorator or signals
+intended for this purpose. See below for suggestions.
+
 
 Web Tier
 ========
 
-This section contains suggestions for using uWSGI with Django and with Flask.
+This section contains suggestions for using uWSGI in prefork mode with Django, and
+with Flask.
 
 uWSGI
 -----
