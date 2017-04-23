@@ -61,7 +61,7 @@ class TestFlaskApp(unittest.TestCase):
 
 
 class TestFlaskWsgi(TestFlaskApp):
-    port = 9090
+    port = 9001
 
     def start_app(self):
         # Make up a DB URI.
