@@ -2,12 +2,6 @@
 Using with Web Frameworks and Task Queue Workers
 ================================================
 
-.. Todo: Write more about using the Django database connection
-   to get db_session needed by SQLAlchemy library classes,
-   in both Web and worker tier (Celery has an integration
-   with Django, and this needs to work with that too).
-
-
 In general, you need one and only one instance of your application
 for each process. If your eventsourcing application object has policies
 that subscribe to events, constructing more than one instance of the
