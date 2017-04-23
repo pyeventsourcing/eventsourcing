@@ -12,7 +12,6 @@ class TestExampleApplicationSingleInstanceFunctions(SQLAlchemyDatastoreTestCase)
         self.datastore.setup_connection()
         self.datastore.setup_tables()
 
-
     def tearDown(self):
         # Teardown single instance.
         close_example_application()
