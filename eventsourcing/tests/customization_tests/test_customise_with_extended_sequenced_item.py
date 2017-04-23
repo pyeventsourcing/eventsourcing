@@ -44,10 +44,10 @@ class ExtendedSequencedItemMapper(SequencedItemMapper):
 
 # Define an application object.
 class ExampleApplicationWithExtendedSequencedItemType(object):
-    def __init__(self, datastore):
+    def __init__(self, session):
         self.event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                datastore=datastore,
+                session=session,
                 active_record_class=SqlExtendedIntegerSequencedItem,
                 sequenced_item_class=ExtendedSequencedItem,
             ),
@@ -90,7 +90,7 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
         )
 
     def test(self):
-        with ExampleApplicationWithExtendedSequencedItemType(self.datastore) as app:
+        with ExampleApplicationWithExtendedSequencedItemType(self.datastore.db_session) as app:
             # Create entity.
             entity1 = create_new_example(a='a', b='b')
             self.assertIsInstance(entity1.id, UUID)

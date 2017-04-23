@@ -9,7 +9,7 @@ A stand-alone domain model is developed without library classes, that both shows
 how event sourcing in Python can work, and also provides an introduction
 to how the library classes work.
 
-And all the infrastructure is declared explicitly to show the components that are
+All the infrastructure is declared explicitly to show the components that are
 involved.
 
 Later examples in this guide make more use of library classes, which
@@ -25,11 +25,11 @@ is determined by a sequence of events, so we need to define some events.
 Domain events
 -------------
 
-The question is: "what happened?" You can use event storming to
-provide answers in your domain. In this example, for the sake of general
-familiarity let's assume we have a domain in which things can be "created",
+The question is, what happened? You may wish to use a technique such as "event storming"
+to provide answers in your domain. In this example, for the sake of general
+familiarity, let's assume we have a domain in which things can be "created",
 "changed", and "discarded". With that understanding in mind, we can begin
-to write some domain event classes.
+to name some domain event classes.
 
 In the example below, there are three domain event classes: ``Created``,
 ``ValueChanged``, and ``Discarded``. The common attributes of the domain
@@ -400,7 +400,7 @@ second field of the sequence item class - for example if both are called
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
     active_record_strategy = SQLAlchemyActiveRecordStrategy(
-        datastore=datastore,
+        session=datastore.db_session,
         active_record_class=SequencedItemTable,
         sequenced_item_class=SequencedItem
     )
@@ -509,7 +509,7 @@ unsubscribing itself from receiving further domain events.
         def __init__(self, datastore):
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    datastore=datastore,
+                    session=datastore.db_session,
                     active_record_class=SequencedItemTable,
                     sequenced_item_class=SequencedItem,
                 ),

@@ -6,7 +6,7 @@ from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrate
 
 class ExampleApplication(EventSourcedApplication):
     """
-    Abstract example event sourced application.
+    Example event sourced application.
 
     This application has an Example repository, and a factory method to construct new Example entities.
 
@@ -20,6 +20,7 @@ class ExampleApplication(EventSourcedApplication):
             self.snapshot_strategy = EventSourcedSnapshotStrategy(
                 event_store=self.snapshot_event_store,
             )
+        assert self.integer_sequenced_event_store is not None
         self.example_repository = ExampleRepository(
             event_store=self.integer_sequenced_event_store,
             snapshot_strategy=self.snapshot_strategy,
@@ -27,3 +28,31 @@ class ExampleApplication(EventSourcedApplication):
 
     def create_new_example(self, foo='', a='', b=''):
         return create_new_example(foo=foo, a=a, b=b)
+
+
+def construct_example_application(**kwargs):
+    return ExampleApplication(**kwargs)
+
+
+application = None
+
+
+def init_example_application(**kwargs):
+    global application
+    if application is not None:
+        raise AssertionError("init_example_application() has already been called")
+    application = construct_example_application(**kwargs)
+
+
+def get_example_application():
+    if application is None:
+        raise AssertionError("init_example_application() must be called first")
+    assert isinstance(application, ExampleApplication)
+    return application
+
+
+def close_example_application():
+    global application
+    if application is not None:
+        application.close()
+    application = None
