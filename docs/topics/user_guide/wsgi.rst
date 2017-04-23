@@ -2,24 +2,24 @@
 Using with Web Frameworks and Task Queue Workers
 ================================================
 
-In general, you need one and only one instance of your application
-for each process. If your eventsourcing application object has policies
+In general, you will need one and only one instance of your application
+in each process. If your eventsourcing application object has policies
 that subscribe to events, constructing more than one instance of the
-application in a process will result in, for example, multiple attempts
-to store an event, which won't work.
+application will cause, for example, multiple attempts to store an event,
+which won't work.
 
-One arrangement (see below) is to have a module with a module-level
-variable and two module-level functions ``init_example_application()`` and
-``get_example_application()``. The function ``init_example_application()`` will
-construct the application object and can be called from a suitable
-hook or signal. Then calls to ``get_example_application()`` can be made from
-functions that handle requests, if they require the application's
-services.
+One arrangement is to have a module with a variable and two
+functions perhaps called ``init_example_application()`` and
+``get_example_application()`` (see below). The function
+``init_example_application()`` will construct the application
+object and can be called from a suitable hook or signal. Then
+calls to ``get_example_application()`` can be made from functions
+that handle requests, if they require the application's services.
 
 The functions below have been written so that ``init_example_application()``
 will raise an exception if it is called more than once, and also
-``get_example_application()`` will raise an exeception unless ``init_example_application()``
-has been called.
+``get_example_application()`` will raise an exeception unless
+``init_example_application()`` has been called.
 
 Please note, if your eventsourcing application depends on receiving a
 database session object when it is constructed, for example if you are
@@ -91,7 +91,9 @@ below for some suggestions.
 Web Tier
 ========
 
-This section contains suggestions for uWSGI users.
+This section contains suggestions for uWSGI users. The fragments of code in this section
+are merely suggestive. For a working example Flask application and WSGI file, please
+refer to the modules ``flaskapp`` and ``flaskwsgi`` in ``eventsourcing.example.app``.
 
 uWSGI
 -----
