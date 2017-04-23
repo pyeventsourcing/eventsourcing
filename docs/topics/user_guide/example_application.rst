@@ -25,11 +25,11 @@ is determined by a sequence of events, so we need to define some events.
 Domain events
 -------------
 
-The question is: "what happened?" You can use event storming to
-provide answers in your domain. In this example, for the sake of general
-familiarity let's assume we have a domain in which things can be "created",
+The question is, what happened? You may wish to use a technique such as "event storming"
+to provide answers in your domain. In this example, for the sake of general
+familiarity, let's assume we have a domain in which things can be "created",
 "changed", and "discarded". With that understanding in mind, we can begin
-to write some domain event classes.
+to name some domain event classes.
 
 In the example below, there are three domain event classes: ``Created``,
 ``ValueChanged``, and ``Discarded``. The common attributes of the domain
