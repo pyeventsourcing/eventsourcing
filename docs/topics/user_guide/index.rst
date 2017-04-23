@@ -9,8 +9,8 @@ application, domain, infrastructure. To create a working program,
 simply copy all the code snippets from a section into a Python file.
 
 Please feel free to experiment by making variations. The code snippets
-are tested automatically by the library's test suite, so that you can
-expect everything to work.
+are tested automatically by the library's test suite, so everything should
+just work.
 
 
 .. toctree::
