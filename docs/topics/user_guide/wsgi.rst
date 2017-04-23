@@ -1,6 +1,6 @@
-================================================
-Using with Web Frameworks and Task Queue Workers
-================================================
+=====================================
+Web Frameworks and Task Queue Workers
+=====================================
 
 In general, you will need one and only one instance of your application
 in each process. If your eventsourcing application object has policies
@@ -9,12 +9,11 @@ application will cause, for example, multiple attempts to store an event,
 which won't work.
 
 One arrangement is to have a module with a variable and two
-functions perhaps called ``init_example_application()`` and
-``get_example_application()`` (see below). The function
-``init_example_application()`` will construct the application
-object and can be called from a suitable hook or signal. Then
-calls to ``get_example_application()`` can be made from functions
-that handle requests, if they require the application's services.
+functions. The first function constructs the application object and
+assigns it to the "global" variable, and can be called from a
+suitable hook or signal (see below). A second function returns the
+global variable, and can called from request handler functions
+requiring the application's services.
 
 The functions below have been written so that ``init_example_application()``
 will raise an exception if it is called more than once, and also
@@ -24,8 +23,8 @@ will raise an exception if it is called more than once, and also
 Please note, if your eventsourcing application depends on receiving a
 database session object when it is constructed, for example if you are
 using the SQLAlchemy library classes, you can add such an argument to
-the signature of your ``init_example_application()`` and ``construct_example_application()``
-functions.
+the signature of your ``init_example_application()`` and
+``construct_example_application()`` functions.
 
 .. code:: python
 
@@ -57,13 +56,13 @@ functions.
         return application
 
 
-In your test suite, you may need or wish to setup the application more
-than once. In that case, you will also need a ``close_example_application()``
-function that closes the application object, unsubscribing any handlers,
-and resetting the module level variable so that ``init_example_application()`` can be
-called again. If doesn't really matter if you don't close your application at
-the end of the process lifetime, however you may wish to close database
-connections.
+As an aside, if you will use these function also in your test suite, and your
+test suite needs to setup the application more than once, you will also need
+a ``close_example_application()`` function that closes the application object,
+unsubscribing any handlers, and resetting the module level variable so that
+``init_example_application()`` can be called again. If doesn't really matter
+if you don't close your application at the end of the process lifetime, however
+you may wish to close any database or other connections to network services.
 
 .. code:: python
 
@@ -74,7 +73,7 @@ connections.
         application = None
 
 
-Typically your eventsourcing application object will be constructed after
+Typically, your eventsourcing application object will be constructed after
 a database connection has been setup, and before any requests are handled.
 Requests handlers ("views" or "tasks") can then safely use the already
 constructed application object without any risk of race conditions causing
@@ -84,8 +83,9 @@ Setting up connections to databases is out of scope of the eventsourcing
 application classes, and should be setup in a normal way. The documentation
 for your Web or worker framework may describe when to setup database connections,
 and your database documentation may also have some suggestions. It is recommended
-to make use of any hooks or decorators or signals intended for this purpose. See
-below for some suggestions.
+to make use of any hooks or decorators or signals intended for the purpose of setting
+up the database connection also to be used to construct the application once for the
+process. See below for some suggestions.
 
 
 Web Tier
@@ -120,6 +120,9 @@ after child workers have been forked.
         init_example_application()
 
 
+Django
+------
+
 Django views can then use ``get_example_application()`` to construct the response.
 
 .. code:: python
@@ -132,6 +135,9 @@ Django views can then use ``get_example_application()`` to construct the respons
         html = "<html><body>Hello World, {}</body></html>".format(id(app))
         return HttpResponse(html)
 
+
+Flask
+-----
 
 Similarly, Flask views can use ``get_example_application()`` to construct the response.
 
