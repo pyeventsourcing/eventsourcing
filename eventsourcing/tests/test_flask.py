@@ -29,6 +29,7 @@ class TestFlaskApp(unittest.TestCase):
     port = 5001
 
     def setUp(self):
+        super(TestFlaskApp, self).setUp()
         self.app = self.start_app()
 
     def start_app(self):
@@ -41,6 +42,7 @@ class TestFlaskApp(unittest.TestCase):
         self.app.kill()
         sleep(1)
         self.app.wait(timeout=1)
+        super(TestFlaskApp, self).tearDown()
 
     def test(self):
         max_retries = 100
@@ -63,8 +65,8 @@ class TestFlaskWsgi(TestFlaskApp):
 
     def start_app(self):
         # Make up a DB URI.
-        tempfile = NamedTemporaryFile(delete=False)
-        uri = 'sqlite:///{}'.format(tempfile.name)
+        self.tempfile = NamedTemporaryFile()
+        uri = 'sqlite:///{}'.format(self.tempfile.name)
 
         # Setup tables.
         datastore = SQLAlchemyDatastore(
