@@ -59,7 +59,7 @@ class TestFlaskApp(unittest.TestCase):
                 self.assertIn('Hello There!', response.text)
                 break
         else:
-            self.fail("Couldn't get response from app")
+            self.fail("Couldn't get response from app, (Python executable {})".format(sys.executable))
 
 
 @skipIf('pypy' in basename(sys.executable), 'uwsgi needs special plugin for pypy')
