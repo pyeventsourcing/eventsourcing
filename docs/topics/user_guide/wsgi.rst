@@ -91,9 +91,12 @@ process. See below for some suggestions.
 Web Tier
 ========
 
-This section contains suggestions for uWSGI users. The fragments of code in this section
-are merely suggestive. For a working example Flask application and WSGI file, please
-refer to the modules ``flaskapp`` and ``flaskwsgi`` in ``eventsourcing.example.app``.
+This section contains suggestions for uWSGI users.
+
+*Please note, the fragments of code in this section are merely suggestive, and unlike the
+code snippets in the other sections of the user guide, these code fragments do not
+form a working program. For a working example using Flask and uWSGI, please refer
+to the modules ``flaskapp`` and ``flaskwsgi`` in ``eventsourcing.example.app``.
 
 uWSGI
 -----
