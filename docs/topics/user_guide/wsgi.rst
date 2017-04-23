@@ -36,17 +36,20 @@ functions.
         My eventsourcing application.
         """
 
+
     def construct_application():
         return Application()
 
 
     application = None
 
+
     def init_application():
         global application
         if application is not None:
             raise AssertionError("init_application() has already been called")
-        application = construct_application(datastore)
+        application = construct_application()
+
 
     def get_application():
         if application is None:

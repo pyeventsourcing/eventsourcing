@@ -29,7 +29,7 @@ class EventSourcedRepository(AbstractEntityRepository):
         # self._use_cache = use_cache
 
         # Check we got an event store.
-        assert isinstance(event_store, AbstractEventStore)
+        assert isinstance(event_store, AbstractEventStore), type(event_store)
         self.event_store = event_store
 
         # Instantiate an event player for this repo.
