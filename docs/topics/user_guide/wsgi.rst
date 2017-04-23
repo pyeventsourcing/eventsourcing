@@ -2,21 +2,28 @@
 Using with Web Frameworks and Task Queue Workers
 ================================================
 
+.. Todo: Write more about using the Django database connection
+   to get db_session needed by SQLAlchemy library classes,
+   in both Web and worker tier (Celery has an integration
+   with Django, and this needs to work with that too).
+
+
 In general, you need one and only one instance of your application
 for each process. If your eventsourcing application object has policies
 that subscribe to events, constructing more than one instance of the
 application in a process will result in for example multiple attempt
 to store an event, which won't work.
 
-One arrangement is to have a module somewhere in your application packages
-with a module-level variable ``application``, and two module-level functions
-``init_application()`` and ``get_application()``. The function
-``init_application()`` will construct the application object and can be
-called from a suitable hook or signal and. Then calls to ``get_application()``
-can be made from any functions that handle requests that require the application's
-services. These functions can be arranged strictly to make sure the ``init_application()``
-is called only once, and to ensure ``init_application()`` was called
-before ``get_application()``.
+One arrangement is to have a module with a module-level variable
+``application``, and two module-level functions ``init_application()``
+and ``get_application()``. The function ``init_application()`` will construct
+the application object and can be called from a suitable hook or signal and.
+Then calls to ``get_application()`` can be made from any functions that handle
+requests, if they require the application's services. These functions can be
+written to ensure ``init_application()`` raises an exception if it is called
+more than once, and to ensure a call to ``get_application()```` will raise
+an exeception unless ``init_application()`` has previously been called.
+
 
 .. code:: python
 
@@ -39,33 +46,22 @@ before ``get_application()``.
             raise AssertionError("init_application() must be called first")
         return application
 
-..    def close_application():
-        global application
-        if application is not None:
-            application.close()
-        application = None
 
 
-If your process model involves forking child workers, typically your
-eventsourcing application object will be constructed during the
-intitialisation of the child process, after a database connection
-has been setup, and before any requests are handled. Request handlers
-can then use the already constructed object without risk of race
-conditions leading to duplicate event handler subscriptions.
+If your process model involves pre-forking child workers, typically your
+eventsourcing application object will be constructed after a database
+connection has been setup, and before any requests are handled. Request
+handlers can then safely use the already constructed application object
+without any risk of race conditions leading to duplicate event handler
+subscriptions that may occur if the application is constructed during
+the handling of a request.
 
 Making connections to databases is out of scope of the eventsourcing
 application classes, and should be setup in a normal way. The documentation
 for your Web or worker framework may describe when to make a
 database connection, and your database documentation may also have some
-suggestions.
-
-It is commonly recommended to make use of any "postfork" hook or
-decorator or signal intended for this purpose.
-
-.. If you have a test suite, you may wish to setup and teardown the application
-for each test. In that case, you will also need a ```close_application()```
-function that closes the application object, unsubscribing any handlers,
-and resets the module level variable.
+suggestions. It is commonly recommended to make use of any "postfork" hook or
+decorator or signal intended for this purpose. See below for suggestions.
 
 If doesn't matter if you don't close your application at the end of the
 process lifetime, but to conserve resources you may wish to pay attention
@@ -73,10 +69,26 @@ to closing database connections, and any other connections that have been opened
 by the process. Again, closing database connections is out of the scope of the
 eventsourcing application class.
 
+If you have a test suite, you may need to setup and teardown the application
+for each test. In that case, you will also need a ```close_application()```
+function that closes the application object, unsubscribing any handlers,
+and resetting the module level variable so that ``init_application()`` can be called.
+
+
+.. code:: python
+
+    def close_application():
+        global application
+        if application is not None:
+            application.close()
+        application = None
+
+
 
 Web Tier
 ========
 
+This section contains suggestions for using uWSGI with Django and with Flask.
 
 uWSGI
 -----
@@ -152,12 +164,14 @@ Django views can use ``get_application()``.
 Worker Tier
 ===========
 
+This section contains suggestions for using the Celery distributed task queue.
+
+
 Celery
 ------
 
 Celery has a ``worker_process_init`` `signal
 <http://docs.celeryproject.org/en/latest/userguide/signals.html#worker-process-init>`__.
-
 
 .. code:: python
 
@@ -179,3 +193,4 @@ Celery has a ``worker_process_init`` `signal
         # Use eventsourcing app to complete the task.
         app = get_application()
         return "Hello World, {}".format(app)
+
