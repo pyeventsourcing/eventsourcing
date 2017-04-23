@@ -2,7 +2,12 @@
 User Guide
 ==========
 
-This guide describes how to write an event sourced application.
+This guide describes how to write an event sourced application
+using classes in this library. At first a stand-alone domain
+model is developed, and an application with minimal dependencies
+on the library infrastructure classes for storing events. In later
+sections, more use is made of library classes, in order to introduce
+the other capabilities of the library.
 
 All the examples in this guide follow the layered architecture:
 application, domain, infrastructure. To create a working program,
