@@ -8,16 +8,17 @@ that subscribe to events, constructing more than one instance of the
 application in a process will result in for example multiple attempt
 to store an event, which won't work.
 
-One arrangement is to have a module with a module-level variable and two
-module-level functions ``init_application()`` and ``get_application()``.
-The function ``init_application()`` will construct the application object
-and can be called from a suitable hook or signal.
+One arrangement (see below) is to have a module with a module-level
+variable and two module-level functions ``init_application()`` and
+``get_application()``. The function ``init_application()`` will
+construct the application object and can be called from a suitable
+hook or signal. Then calls to ``get_application()`` can be made from
+functions that handle requests, if they require the application's
+services.
 
-Then calls to ``get_application()`` can be made from any functions that handle
-requests, if they require the application's services. These functions can be
-written to ensure ``init_application()`` raises an exception if it is called
-more than once, and to ensure a call to ``get_application()```` will raise
-an exeception unless ``init_application()`` has previously been called.
+The functions can be written so that ``init_application()`` raises an
+exception if it is called more than once, and also ``get_application()``
+raises an exeception unless ``init_application()`` has been called already.
 
 
 .. code:: python
@@ -58,16 +59,17 @@ database connection, and your database documentation may also have some
 suggestions. It is commonly recommended to make use of any "postfork" hook or
 decorator or signal intended for this purpose. See below for suggestions.
 
-If doesn't matter if you don't close your application at the end of the
-process lifetime, but to conserve resources you may wish to pay attention
-to closing database connections, and any other connections that have been opened
-by the process. Again, closing database connections is out of the scope of the
-eventsourcing application class.
+If doesn't really matter if you don't close your application at the end of the
+process lifetime, but to conserve network service resources you may wish to pay
+attention to closing database connections, and any other connections that have
+been opened by the process. Closing database connections is out of the
+scope of the eventsourcing application class.
 
-If you have a test suite, you may need to setup and teardown the application
+If you have a test suite, you may wish to setup and teardown the application
 for each test. In that case, you will also need a ```close_application()```
 function that closes the application object, unsubscribing any handlers,
-and resetting the module level variable so that ``init_application()`` can be called.
+and resetting the module level variable so that ``init_application()`` can be
+called again.
 
 
 .. code:: python
@@ -188,4 +190,3 @@ Celery has a ``worker_process_init`` `signal
         # Use eventsourcing app to complete the task.
         app = get_application()
         return "Hello World, {}".format(app)
-
