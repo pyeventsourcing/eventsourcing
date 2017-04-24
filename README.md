@@ -21,7 +21,7 @@ Similarly, if you want to use Cassandra, then please install with 'cassandra'.
 
     pip install eventsourcing[cassandra]
 
-# Documentation
+## Documentation
 
 Please refer to [the documentation](http://eventsourcing.readthedocs.io/) for installation and usage guides.
 
