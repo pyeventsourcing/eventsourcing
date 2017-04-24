@@ -28,7 +28,6 @@ class AbstractSnapshotStrategy(six.with_metaclass(ABCMeta)):
         """
 
 
-
 class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
     """Snapshot strategy that uses an event sourced snapshot.
     """
