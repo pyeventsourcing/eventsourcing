@@ -28,8 +28,9 @@ def build_and_test(cwd):
         rebuild_virtualenv(cwd, tmpcwd, python_executable)
 
         # Install from dist folder.
-        subprocess.check_call(['bin/pip', 'install', '-r', '../requirements.txt'], cwd=tmpcwd)
-        subprocess.check_call(['bin/pip', 'install', '-U', '../dist/eventsourcing-%s.tar.gz' % get_version()], cwd=tmpcwd)
+        subprocess.check_call(['bin/pip', 'install', '-U', 'pip'], cwd=tmpcwd)
+        subprocess.check_call(['bin/pip', 'install', '-U', '../dist/eventsourcing-%s.tar.gz[test]' % get_version()],
+                              cwd=tmpcwd)
 
         # Check installed tests all pass.
         test_installation(tmpcwd)
