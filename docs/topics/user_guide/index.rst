@@ -3,7 +3,7 @@ User Guide
 ==========
 
 This guide describes how to write an event sourced application
-using classes in this library.
+in Python, using classes in this library.
 
 At first a stand-alone domain model is developed, and an application
 with minimal dependencies on the library infrastructure classes for
