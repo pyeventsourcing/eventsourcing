@@ -45,8 +45,8 @@ event - have been pulled up to a layer supertype ``DomainEvent``.
         """
         Layer supertype.
         """
-        def __init__(self, entity_id, originator_version, timestamp=None, **kwargs):
-            self.entity_id = entity_id
+        def __init__(self, originator_id, originator_version, timestamp=None, **kwargs):
+            self.originator_id = originator_id
             self.originator_version = originator_version
             self.timestamp = timestamp or time.time()
             self.__dict__.update(kwargs)
@@ -110,8 +110,8 @@ if-else block that can handle the three types of events defined above.
         """
         Example domain entity.
         """
-        def __init__(self, entity_id, originator_version=0, foo='', timestamp=None):
-            self._id = entity_id
+        def __init__(self, originator_id, originator_version=0, foo='', timestamp=None):
+            self._id = originator_id
             self._version = originator_version
             self._is_discarded = False
             self._created_on = timestamp
@@ -148,7 +148,7 @@ if-else block that can handle the three types of events defined above.
 
             # Instantiate a domain event.
             event = ValueChanged(
-                entity_id=self.id,
+                originator_id=self.id,
                 originator_version=self.version,
                 name='foo',
                 value=value,
@@ -164,7 +164,7 @@ if-else block that can handle the three types of events defined above.
             assert not self._is_discarded
 
             # Instantiate a domain event.
-            event = Discarded(entity_id=self.id, originator_version=self.version)
+            event = Discarded(originator_id=self.id, originator_version=self.version)
 
             # Apply the event to self.
             mutate(self, event)
@@ -181,7 +181,7 @@ if-else block that can handle the three types of events defined above.
         entity_id = uuid.uuid4()
 
         # Instantiate a domain event.
-        event = Created(entity_id=entity_id, foo=foo)
+        event = Created(originator_id=entity_id, foo=foo)
 
         # Mutate the event to construct the entity.
         entity = mutate(None, event)
@@ -257,7 +257,7 @@ receive the events that will be published, so we can see what happened.
     # Check the received events.
     assert len(received_events) == 1, received_events
     assert isinstance(received_events[0], Created)
-    assert received_events[0].entity_id == entity.id
+    assert received_events[0].originator_id == entity.id
     assert received_events[0].originator_version == 0
     assert received_events[0].foo == 'bar1'
 
@@ -384,7 +384,7 @@ inform the sequenced item mapper which domain event attributes should be used fo
 sequence ID and position fields of a sequenced item. It isn't necessary to
 provide the ``sequence_id_attr_name`` arg, if the name of the domain event
 attribute holding the sequence ID value is equal to the name of the first field
-of the sequenced item class - for example if both are called 'entity_id', or
+of the sequenced item class - for example if both are called 'originator_id', or
 'aggregate_id'. Similarly, it isn't necessary to provide a value for the
 ``position_attr_name`` arg, if the name of the domain event attribute which
 indicates the position of the event in a sequence is equal to the name of the
@@ -407,7 +407,7 @@ second field of the sequence item class - for example if both are called
 
     sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=SequencedItem,
-        sequence_id_attr_name='entity_id',
+        sequence_id_attr_name='originator_id',
         position_attr_name='originator_version'
     )
 
@@ -459,7 +459,7 @@ The entity can now be retrieved from the repository, using its dictionary-like i
 Remember that we can always get the sequenced items directly from the active record
 strategy. A sequenced item is tuple containing a serialised representation of the domain event. In the library, a
 ``SequencedItem`` is a Python tuple with four fields: ``sequence_id``, ``position``,
-``topic``, and ``data``. By default, an event's ``entity_id`` attribute is mapped to the ``sequence_id`` field,
+``topic``, and ``data``. By default, an event's ``originator_id`` attribute is mapped to the ``sequence_id`` field,
 and the event's ``originator_version`` attribute is mapped to the ``position`` field. The ``topic`` field of a
 sequenced item is used to identify the event class, and the ``data`` field represents the state of the event (a
 JSON string).
@@ -515,7 +515,7 @@ unsubscribing itself from receiving further domain events.
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
                     sequenced_item_class=SequencedItem,
-                    sequence_id_attr_name='entity_id',
+                    sequence_id_attr_name='originator_id',
                     position_attr_name='originator_version',
                 )
             )

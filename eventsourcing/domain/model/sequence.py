@@ -17,7 +17,7 @@ class Sequence(TimestampedVersionedEntity):
 
 
 def start_sequence(name):
-    event = Sequence.Started(entity_id=name)
+    event = Sequence.Started(originator_id=name)
     entity = Sequence.mutate(event=event)
     publish(event)
     return entity

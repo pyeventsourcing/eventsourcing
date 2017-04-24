@@ -94,13 +94,13 @@ class EventWithEntityID(DomainEvent):
     For events that have an entity ID attribute.
     """
 
-    def __init__(self, entity_id, **kwargs):
+    def __init__(self, originator_id, **kwargs):
         super(EventWithEntityID, self).__init__(**kwargs)
-        self.__dict__['entity_id'] = entity_id
+        self.__dict__['originator_id'] = originator_id
 
     @property
-    def entity_id(self):
-        return self.__dict__['entity_id']
+    def originator_id(self):
+        return self.__dict__['originator_id']
 
 
 class EventWithTimestamp(DomainEvent):
@@ -196,15 +196,15 @@ class TimestampedVersionedEntityEvent(EventWithTimestamp, VersionedEntityEvent):
 #     That's why this class has been deprecated :-).
 #     """
 #
-#     def __init__(self, entity_id, originator_version, domain_event_id=None, **kwargs):
+#     def __init__(self, originator_id, originator_version, domain_event_id=None, **kwargs):
 #         super(OldDomainEvent, self).__init__(**kwargs)
-#         self.__dict__['entity_id'] = entity_id
+#         self.__dict__['originator_id'] = originator_id
 #         self.__dict__['originator_version'] = originator_version
 #         self.__dict__['domain_event_id'] = domain_event_id or create_timesequenced_event_id()
 #
 #     @property
-#     def entity_id(self):
-#         return self.__dict__['entity_id']
+#     def originator_id(self):
+#         return self.__dict__['originator_id']
 #
 #     @property
 #     def originator_version(self):

@@ -54,7 +54,7 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
         """
         # Create the snapshot event.
         snapshot = Snapshot(
-            entity_id=entity_id,
+            originator_id=entity_id,
             originator_version=last_event_version,
             topic=topic_from_domain_class(entity.__class__),
             state=None if entity is None else deepcopy(entity.__dict__)

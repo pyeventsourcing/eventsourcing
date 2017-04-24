@@ -494,7 +494,7 @@ class WithPersistencePolicies(WithActiveRecordStrategies):
             active_record_strategy=self.integer_sequenced_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
+                sequence_id_attr_name='originator_id',
                 position_attr_name='originator_version'
             )
         )
@@ -502,7 +502,7 @@ class WithPersistencePolicies(WithActiveRecordStrategies):
             active_record_strategy=self.timestamp_sequenced_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
+                sequence_id_attr_name='originator_id',
                 position_attr_name='timestamp'
             )
         )
@@ -510,7 +510,7 @@ class WithPersistencePolicies(WithActiveRecordStrategies):
             active_record_strategy=self.snapshot_active_record_strategy,
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
+                sequence_id_attr_name='originator_id',
                 position_attr_name='originator_version'
             )
         )

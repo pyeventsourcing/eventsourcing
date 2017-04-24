@@ -11,7 +11,7 @@ def subscribe_to(event_class):
         # event and saves a projection of a Todo model object
         @subscribe_to(Todo.Created)
         def new_todo_projection(event):
-            todo = TodoProjection(id=event.entity_id, title=event.title)
+            todo = TodoProjection(id=event.originator_id, title=event.title)
             todo.save()
     """
 

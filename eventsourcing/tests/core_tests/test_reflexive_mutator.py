@@ -30,7 +30,7 @@ class TestReflexiveMutator(TestCase):
     def test(self):
         # Create an entity.
         entity_id = uuid4()
-        created = ExampleWithReflexiveMutator.Created(entity_id=entity_id, a=1, b=2)
+        created = ExampleWithReflexiveMutator.Created(originator_id=entity_id, a=1, b=2)
         entity = ExampleWithReflexiveMutator.mutate(event=created)
         self.assertIsInstance(entity, ExampleWithReflexiveMutator)
         self.assertEqual(entity.id, entity_id)

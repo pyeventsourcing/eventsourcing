@@ -58,7 +58,7 @@ taken at a regular intervals.
             return isinstance(event, TimestampedVersionedEntityEvent) and not (event.originator_version + 1) % self.frequency
 
         def take_snapshot(self, event):
-            self.event_player.take_snapshot(event.entity_id)
+            self.event_player.take_snapshot(event.originator_id)
 
 
 
@@ -92,7 +92,7 @@ a snapshot after each new event.
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
                     sequenced_item_class=SequencedItem,
-                    sequence_id_attr_name='entity_id',
+                    sequence_id_attr_name='originator_id',
                     position_attr_name='originator_version'
                 )
             )
@@ -104,7 +104,7 @@ a snapshot after each new event.
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
                     sequenced_item_class=SequencedItem,
-                    sequence_id_attr_name='entity_id',
+                    sequence_id_attr_name='originator_id',
                     position_attr_name='originator_version'
                 )
             )

@@ -48,7 +48,7 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         self.integer_sequenced_event_store = None
         if self.integer_sequenced_active_record_strategy:
             self.integer_sequenced_event_store = self.construct_event_store(
-                event_sequence_id_attr='entity_id',
+                event_sequence_id_attr='originator_id',
                 event_position_attr='originator_version',
                 active_record_strategy=self.integer_sequenced_active_record_strategy,
                 always_encrypt=always_encrypt,
@@ -58,7 +58,7 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         self.timestamp_sequenced_event_store = None
         if self.timestamp_sequenced_active_record_strategy:
             self.timestamp_sequenced_event_store = self.construct_event_store(
-                event_sequence_id_attr='entity_id',
+                event_sequence_id_attr='originator_id',
                 event_position_attr='timestamp',
                 active_record_strategy=self.timestamp_sequenced_active_record_strategy,
                 always_encrypt=always_encrypt,
@@ -68,7 +68,7 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         self.snapshot_event_store = None
         if self.snapshot_active_record_strategy:
             self.snapshot_event_store = self.construct_event_store(
-                event_sequence_id_attr='entity_id',
+                event_sequence_id_attr='originator_id',
                 event_position_attr='originator_version',
                 active_record_strategy=self.snapshot_active_record_strategy,
                 always_encrypt=always_encrypt,

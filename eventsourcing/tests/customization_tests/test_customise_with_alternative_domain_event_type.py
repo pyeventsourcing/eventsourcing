@@ -33,7 +33,7 @@ class ExampleEntity(TimeuuidedVersionedEntity):
 
     def finish(self):
         event = ExampleEntity.Finished(
-            entity_id=self.id,
+            originator_id=self.id,
             originator_version=self.version,
         )
         self._apply(event)
@@ -49,7 +49,7 @@ class ExampleEntity(TimeuuidedVersionedEntity):
 
     @classmethod
     def start(cls):
-        event = ExampleEntity.Started(entity_id=uuid4())
+        event = ExampleEntity.Started(originator_id=uuid4())
         entity = ExampleEntity.mutate(None, event)
         publish(event)
         return entity
@@ -68,7 +68,7 @@ class ExampleApplicationWithTimeuuidSequencedItems(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
+                sequence_id_attr_name='originator_id',
                 position_attr_name='event_id',
             )
         )

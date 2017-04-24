@@ -30,7 +30,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
+                sequence_id_attr_name='originator_id',
                 position_attr_name='originator_version'
             )
         )
@@ -51,7 +51,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         self.assertEqual(0, len(entity_events))
 
         # Store a domain event.
-        event1 = Example.Created(entity_id=entity_id1, a=1, b=2)
+        event1 = Example.Created(originator_id=entity_id1, a=1, b=2)
         event_store.append(event1)
 
         # Check there is one event in the event store.
@@ -65,7 +65,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         self.assertEqual(1, len(entity_events))
 
         # Store another domain event.
-        event1 = Example.AttributeChanged(entity_id=entity_id1, a=1, b=2, originator_version=1)
+        event1 = Example.AttributeChanged(originator_id=entity_id1, a=1, b=2, originator_version=1)
         event_store.append(event1)
 
         # Check there are two events in the event store.
@@ -87,7 +87,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         self.assertEqual(entity_event, None)
 
         # Store a domain event.
-        event1 = Example.Created(entity_id=entity_id1, a=1, b=2)
+        event1 = Example.Created(originator_id=entity_id1, a=1, b=2)
         event_store.append(event1)
 
         # Check there is an event.
@@ -104,16 +104,16 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
 
         # Store a domain event.
         entity_id1 = uuid4()
-        event1 = Example.Created(entity_id=entity_id1, a=1, b=2)
+        event1 = Example.Created(originator_id=entity_id1, a=1, b=2)
         event_store.append(event1)
 
         # Store another domain event for the same entity.
-        event1 = Example.AttributeChanged(entity_id=entity_id1, a=1, b=2, originator_version=1)
+        event1 = Example.AttributeChanged(originator_id=entity_id1, a=1, b=2, originator_version=1)
         event_store.append(event1)
 
         # Store a domain event for a different entity.
         entity_id2 = uuid4()
-        event1 = Example.Created(entity_id=entity_id2, a=1, b=2)
+        event1 = Example.Created(originator_id=entity_id2, a=1, b=2)
         event_store.append(event1)
 
         # Check there are three domain events in total.

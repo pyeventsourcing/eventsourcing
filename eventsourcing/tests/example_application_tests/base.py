@@ -74,7 +74,7 @@ class ExampleApplicationTestCase(WithExampleApplication):
 
             # Take a snapshot of the entity.
             snapshot1 = app.example_repository.event_player.take_snapshot(entity1.id)
-            self.assertEqual(snapshot1.entity_id, entity1.id)
+            self.assertEqual(snapshot1.originator_id, entity1.id)
             self.assertEqual(snapshot1.originator_version, entity1.version - 1)
 
             # Take another snapshot of the entity (should be the same event).

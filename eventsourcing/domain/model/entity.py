@@ -37,8 +37,8 @@ class Discarded(TimestampedVersionedEntityEvent):
 
 class DomainEntity(with_metaclass(QualnameABCMeta)):
 
-    def __init__(self, entity_id):
-        self._id = entity_id
+    def __init__(self, originator_id):
+        self._id = originator_id
         self._is_discarded = False
 
     def _assert_not_discarded(self):
@@ -56,10 +56,10 @@ class DomainEntity(with_metaclass(QualnameABCMeta)):
         """
         Checks the event's entity ID matches this entity's ID.
         """
-        if self._id != event.entity_id:
+        if self._id != event.originator_id:
             raise MismatchedOriginatorIDError(
                 "Entity ID '{}' not equal to event's entity ID '{}'"
-                "".format(self.id, event.entity_id)
+                "".format(self.id, event.originator_id)
             )
 
     def __eq__(self, other):
@@ -68,14 +68,14 @@ class DomainEntity(with_metaclass(QualnameABCMeta)):
     def _change_attribute(self, name, value):
         self._assert_not_discarded()
         event_class = getattr(self, 'AttributeChanged', AttributeChanged)
-        event = event_class(name=name, value=value, entity_id=self._id, originator_version=self._version)
+        event = event_class(name=name, value=value, originator_id=self._id, originator_version=self._version)
         self._apply(event)
         publish(event)
 
     def discard(self):
         self._assert_not_discarded()
         event_class = getattr(self, 'Discarded', Discarded)
-        event = event_class(entity_id=self._id, originator_version=self._version)
+        event = event_class(originator_id=self._id, originator_version=self._version)
         self._apply(event)
         publish(event)
 
@@ -186,7 +186,7 @@ def created_mutator(event, cls):
     if not isinstance(cls, type):
         msg = ("Mutator for Created event requires entity type not instance: {} "
                "(event entity id: {}, event type: {})"
-               "".format(type(cls), event.entity_id, type(event)))
+               "".format(type(cls), event.originator_id, type(event)))
         raise MutatorRequiresTypeNotInstance(msg)
     assert issubclass(cls, TimestampedVersionedEntity), cls
     try:

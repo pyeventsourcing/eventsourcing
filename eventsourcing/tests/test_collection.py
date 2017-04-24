@@ -46,7 +46,7 @@ class TestCollection(TestCase):
         self.assertEqual(len(self.published_events), 1)
         last_event = self.published_events[-1]
         self.assertIsInstance(last_event, Collection.Created)
-        self.assertEqual(last_event.entity_id, collection_id)
+        self.assertEqual(last_event.originator_id, collection_id)
 
         # Add item to collection.
         collection.add_item(item1)
@@ -60,7 +60,7 @@ class TestCollection(TestCase):
         self.assertEqual(len(self.published_events), 2)
         last_event = self.published_events[-1]
         self.assertIsInstance(last_event, Collection.ItemAdded)
-        self.assertEqual(last_event.entity_id, collection_id)
+        self.assertEqual(last_event.originator_id, collection_id)
         self.assertEqual(last_event.item, item1)
 
         # Add another item.
@@ -75,7 +75,7 @@ class TestCollection(TestCase):
         self.assertEqual(len(self.published_events), 3)
         last_event = self.published_events[-1]
         self.assertIsInstance(last_event, Collection.ItemAdded)
-        self.assertEqual(last_event.entity_id, collection_id)
+        self.assertEqual(last_event.originator_id, collection_id)
         self.assertEqual(last_event.item, item2)
 
         # Remove item1 from the collection.
@@ -90,7 +90,7 @@ class TestCollection(TestCase):
         self.assertEqual(len(self.published_events), 4)
         last_event = self.published_events[-1]
         self.assertIsInstance(last_event, Collection.ItemRemoved)
-        self.assertEqual(last_event.entity_id, collection_id)
+        self.assertEqual(last_event.originator_id, collection_id)
         self.assertEqual(last_event.item, item1)
 
         # Discard the collection.
@@ -100,7 +100,7 @@ class TestCollection(TestCase):
         self.assertEqual(len(self.published_events), 5)
         last_event = self.published_events[-1]
         self.assertIsInstance(last_event, Collection.Discarded)
-        self.assertEqual(last_event.entity_id, collection_id)
+        self.assertEqual(last_event.originator_id, collection_id)
 
         self.assertRaises(EntityIsDiscarded, getattr, collection, 'items')
 

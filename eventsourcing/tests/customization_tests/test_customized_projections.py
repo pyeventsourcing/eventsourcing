@@ -26,7 +26,7 @@ class TestGetAllEventFromSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithEx
             # Project the events into a set of entity IDs.
             def mutate(state, event):
                 assert isinstance(state, set)
-                state.add(event.entity_id)
+                state.add(event.originator_id)
                 return state
 
             all_entity_ids = reduce(mutate, domain_events, set())

@@ -19,7 +19,7 @@ class AbstractSnapshop(six.with_metaclass(ABCMeta)):
         """
 
     @abstractproperty
-    def entity_id(self):
+    def originator_id(self):
         """
         ID of the snapshotted entity.
         """
@@ -32,9 +32,9 @@ class AbstractSnapshop(six.with_metaclass(ABCMeta)):
 
 
 class Snapshot(EventWithTimestamp, EventWithEntityVersion, EventWithEntityID, AbstractSnapshop):
-    def __init__(self, entity_id, originator_version, topic, state):
+    def __init__(self, originator_id, originator_version, topic, state):
         super(Snapshot, self).__init__(
-            entity_id=entity_id,
+            originator_id=originator_id,
             originator_version=originator_version,
             topic=topic,
             state=state,

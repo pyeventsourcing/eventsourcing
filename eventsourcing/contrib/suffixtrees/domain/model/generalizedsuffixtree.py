@@ -507,7 +507,7 @@ class SuffixTreeNodeChildCollection(TimestampedVersionedEntity):
 
     def add_child(self, child_node_id, edge_len):
         event = SuffixTreeNodeChildCollection.ChildNodeAdded(
-            entity_id=self.id,
+            originator_id=self.id,
             originator_version=self.version,
             child_node_id=child_node_id,
             edge_len=edge_len,
@@ -517,7 +517,7 @@ class SuffixTreeNodeChildCollection(TimestampedVersionedEntity):
 
     def switch_child(self, old_node_id, new_node_id, new_edge_len):
         event = SuffixTreeNodeChildCollection.ChildNodeSwitched(
-            entity_id=self.id,
+            originator_id=self.id,
             originator_version=self.version,
             old_node_id=old_node_id,
             new_node_id=new_node_id,
@@ -615,7 +615,7 @@ class SuffixTreeEdge(TimestampedVersionedEntity):
     def shorten(self, label, dest_node_id):
         self._assert_not_discarded()
         event = SuffixTreeEdge.Shortened(
-            entity_id=self._id,
+            originator_id=self._id,
             originator_version=self._version,
             label=label,
             dest_node_id=dest_node_id,
@@ -697,7 +697,7 @@ def register_new_node(suffix_node_id=None, string_id=None, is_leaf=False, is_roo
 
     # Instantiate a Created event.
     created_event = SuffixTreeNode.Created(
-        entity_id=node_id,
+        originator_id=node_id,
         suffix_node_id=suffix_node_id,
         string_id=string_id,
         is_leaf=is_leaf,
@@ -722,7 +722,7 @@ def register_new_node_child_collection(node_id):
     """Factory method, registers new node child collection.
     """
     event = SuffixTreeNodeChildCollection.Created(
-        entity_id=node_id,
+        originator_id=node_id,
     )
     entity = SuffixTreeNodeChildCollection.mutate(event=event)
     publish(event)
@@ -733,7 +733,7 @@ def register_new_stringid_collection(node_id):
     """Factory method, registers new collection of string IDs.
     """
     event = StringidCollection.Created(
-        entity_id=node_id,
+        originator_id=node_id,
     )
     entity = StringidCollection.mutate(event=event)
     publish(event)
@@ -752,7 +752,7 @@ def register_new_edge(edge_id, label, source_node_id, dest_node_id):
     """Factory method, registers new edge.
     """
     event = SuffixTreeEdge.Created(
-        entity_id=edge_id,
+        originator_id=edge_id,
         label=label,
         source_node_id=source_node_id,
         dest_node_id=dest_node_id,
@@ -773,7 +773,7 @@ def register_new_suffix_tree(case_insensitive=False):
     assert isinstance(root_node, SuffixTreeNode)
 
     event = GeneralizedSuffixTree.Created(
-        entity_id=suffix_tree_id,
+        originator_id=suffix_tree_id,
         root_node_id=root_node.id,
         case_insensitive=case_insensitive,
     )

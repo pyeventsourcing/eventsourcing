@@ -67,8 +67,8 @@ resulting from executing a command cannot be stored then none of them will be st
         """
         Published when an entity is created.
         """
-        def __init__(self, entity_id, **kwargs):
-            super(EntityCreated, self).__init__(entity_id=entity_id, **kwargs)
+        def __init__(self, originator_id, **kwargs):
+            super(EntityCreated, self).__init__(originator_id=originator_id, **kwargs)
 
 
     class AggregateDiscarded(AggregateEvent):
@@ -118,7 +118,7 @@ resulting from executing a command cannot be stored then none of them will be st
         def create_new_entity(self):
             assert not self._is_discarded
             event = EntityCreated(
-                entity_id=uuid.uuid4(),
+                originator_id=uuid.uuid4(),
                 aggregate_id=self.id,
                 aggregate_version=self.version,
             )
@@ -140,8 +140,8 @@ resulting from executing a command cannot be stored then none of them will be st
         """
         Example domain entity.
         """
-        def __init__(self, entity_id):
-            self._id = entity_id
+        def __init__(self, originator_id):
+            self._id = originator_id
 
         @property
         def id(self):
@@ -162,7 +162,7 @@ resulting from executing a command cannot be stored then none of them will be st
         # Handle "entity created" events by adding a new entity to the aggregate's dict of entities.
         elif isinstance(event, EntityCreated):
             assert not aggregate.is_discarded
-            entity = Example(entity_id=event.entity_id)
+            entity = Example(originator_id=event.originator_id)
             aggregate._entities[entity.id] = entity
             aggregate._version += 1
             aggregate._last_modified_on = event.timestamp

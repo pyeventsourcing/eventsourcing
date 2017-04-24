@@ -56,7 +56,7 @@
 #
 # def start_notification_log(log_name, timebucket_size=None, sequence_size=None):
 #     event = NotificationLog.Started(
-#         entity_id=log_name,
+#         originator_id=log_name,
 #         name=log_name,
 #         bucket_size=timebucket_size,
 #         sequence_size=sequence_size,

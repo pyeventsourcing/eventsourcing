@@ -56,7 +56,7 @@ class AggregateRoot(TimestampedVersionedEntity):
 
     def __init__(self, originator_id, originator_version=0, **kwargs):
         super(AggregateRoot, self).__init__(
-            entity_id=originator_id, originator_version=originator_version, **kwargs
+            originator_id=originator_id, originator_version=originator_version, **kwargs
         )
         self._pending_events = []
 

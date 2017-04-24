@@ -63,19 +63,19 @@ class TestEntityEvent(unittest.TestCase):
             Event()
 
         # Check any kind of ID is acceptable.
-        event = Event(entity_id='1')
-        self.assertEqual(event.entity_id, '1')
+        event = Event(originator_id='1')
+        self.assertEqual(event.originator_id, '1')
 
-        event = Event(entity_id=1)
-        self.assertEqual(event.entity_id, 1)
+        event = Event(originator_id=1)
+        self.assertEqual(event.originator_id, 1)
 
-        event = Event(entity_id=uuid4())
-        self.assertIsInstance(event.entity_id, UUID)
+        event = Event(originator_id=uuid4())
+        self.assertIsInstance(event.originator_id, UUID)
 
         # Check the ID value can't be reassigned.
         with self.assertRaises(AttributeError):
             # noinspection PyPropertyAccess
-            event.entity_id = '2'
+            event.originator_id = '2'
 
 
 class TestTimestampEvent(unittest.TestCase):
@@ -140,18 +140,18 @@ class TestVersionEntityEvent(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             # noinspection PyArgumentList
-            Event(entity_id='1')
+            Event(originator_id='1')
 
         with self.assertRaises(TypeError):
             Event(originator_version=1)
 
-        event1 = Event(entity_id='1', originator_version=0)
+        event1 = Event(originator_id='1', originator_version=0)
 
-        event2 = Event(entity_id='1', originator_version=1)
+        event2 = Event(originator_id='1', originator_version=1)
 
         # Check the event attributes.
-        self.assertEqual(event1.entity_id, '1')
-        self.assertEqual(event2.entity_id, '1')
+        self.assertEqual(event1.originator_id, '1')
+        self.assertEqual(event2.originator_id, '1')
         self.assertEqual(event1.originator_version, 0)
         self.assertEqual(event2.originator_version, 1)
 
@@ -175,12 +175,12 @@ class TestTimestampEntityEvent(unittest.TestCase):
         time1 = time()
 
         # Construct events.
-        event1 = Event(entity_id='1')
-        event2 = Event(entity_id='1')
+        event1 = Event(originator_id='1')
+        event2 = Event(originator_id='1')
 
         # Check the entity IDs.
-        self.assertEqual(event1.entity_id, '1')
-        self.assertEqual(event2.entity_id, '1')
+        self.assertEqual(event1.originator_id, '1')
+        self.assertEqual(event2.originator_id, '1')
 
         # Check the event timestamps.
         self.assertLess(time1, event1.timestamp)
@@ -202,15 +202,15 @@ class TestTimeSequencedEvent(unittest.TestCase):
         class Event2(TimestampedEntityEvent):
             pass
 
-        # Check subclass can be instantiated with 'entity_id' parameter.
+        # Check subclass can be instantiated with 'originator_id' parameter.
         ID1 = uuid4()
         ID2 = uuid4()
         VALUE1 = 'a string'
         VALUE2 = 'another string'
         event1 = Event(
-            entity_id=ID1,
+            originator_id=ID1,
         )
-        self.assertEqual(event1.entity_id, ID1)
+        self.assertEqual(event1.originator_id, ID1)
 
         # Check event has a domain event ID, and a timestamp.
         self.assertTrue(event1.timestamp)
@@ -219,14 +219,14 @@ class TestTimeSequencedEvent(unittest.TestCase):
         # Check subclass can be instantiated with 'timestamp' parameter.
         DOMAIN_EVENT_ID1 = create_timesequenced_event_id()
         event2 = Event(
-            entity_id=ID1,
+            originator_id=ID1,
             timestamp=DOMAIN_EVENT_ID1,
         )
         self.assertEqual(event2.timestamp, DOMAIN_EVENT_ID1)
 
         # Check subclass can be instantiated with other parameters.
         event3 = Event(
-            entity_id=ID1,
+            originator_id=ID1,
             an_attribute=VALUE1,
         )
         self.assertEqual(event3.an_attribute, VALUE1)
@@ -240,7 +240,7 @@ class TestTimeSequencedEvent(unittest.TestCase):
         self.assertTrue(event3 == event3)
         self.assertFalse(event3 != event3)
         event4 = Event(
-            entity_id=ID1,
+            originator_id=ID1,
             timestamp=event3.timestamp,
             an_attribute=VALUE1,
         )
@@ -248,7 +248,7 @@ class TestTimeSequencedEvent(unittest.TestCase):
 
         # Check domain events with same domain event ID have the same timestamp.
         event5 = Event(
-            entity_id=event1.entity_id,
+            originator_id=event1.originator_id,
             timestamp=event1.timestamp,
             an_attribute=VALUE1,
         )
@@ -256,31 +256,31 @@ class TestTimeSequencedEvent(unittest.TestCase):
 
         # Check it's not equal to different type with same values.
         self.assertFalse(event3 == Event2(
-            entity_id=event3.entity_id,
+            originator_id=event3.originator_id,
             an_attribute=event3.an_attribute,
         ))
         self.assertTrue(event3 != Event2(
-            entity_id=ID1,
+            originator_id=ID1,
             an_attribute=VALUE1,
         ))
 
         # Check it's not equal to same type with different values.
-        # - different entity_id
-        self.assertNotEqual(event3.entity_id, ID2)
+        # - different originator_id
+        self.assertNotEqual(event3.originator_id, ID2)
         self.assertEqual(event3.an_attribute, VALUE1)
         self.assertFalse(event2 == Event(
-            entity_id=ID2,
+            originator_id=ID2,
             an_attribute=VALUE1,
         ))
         # - different attribute value
         self.assertTrue(event2 != Event(
-            entity_id=ID1,
+            originator_id=ID1,
             an_attribute=VALUE2,
         ))
 
         # Check domain events with different domain event IDs have different timestamps.
         event4 = Event(
-            entity_id=ID1,
+            originator_id=ID1,
             an_attribute=VALUE1,
         )
         self.assertNotEqual(event2.timestamp, event4.timestamp)
@@ -294,7 +294,7 @@ class TestEvents(unittest.TestCase):
 
     def test_event_attributes(self):
         entity_id1 = uuid4()
-        event = Example.Created(entity_id=entity_id1, a=1, b=2)
+        event = Example.Created(originator_id=entity_id1, a=1, b=2)
 
         # Check constructor keyword args lead to read-only attributes.
         self.assertEqual(1, event.a)
@@ -306,7 +306,7 @@ class TestEvents(unittest.TestCase):
         self.assertIsInstance(event.timestamp, float)
 
         # Check timestamp value can be given to domain events.
-        event1 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
+        event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
         self.assertEqual(3, event1.timestamp)
 
     def test_publish_subscribe_unsubscribe(self):
@@ -359,15 +359,15 @@ class TestEvents(unittest.TestCase):
 
     def test_hash(self):
         entity_id1 = uuid4()
-        event1 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
-        event2 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
+        event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
+        event2 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
         self.assertEqual(hash(event1), hash(event2))
 
     def test_equality_comparison(self):
         entity_id1 = uuid4()
-        event1 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
-        event2 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
-        event3 = Example.Created(entity_id=entity_id1, a=3, b=2, timestamp=3)
+        event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
+        event2 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
+        event3 = Example.Created(originator_id=entity_id1, a=3, b=2, timestamp=3)
         self.assertEqual(event1, event2)
         self.assertNotEqual(event1, event3)
         self.assertNotEqual(event2, event3)
@@ -375,15 +375,15 @@ class TestEvents(unittest.TestCase):
 
     def test_repr(self):
         entity_id1 = uuid4()
-        event1 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
+        event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
         self.assertEqual(
-            "Example.Created(a=1, b=2, entity_id={}, originator_version=0, timestamp=3)".format(repr(entity_id1)),
+            "Example.Created(a=1, b=2, originator_id={}, originator_version=0, timestamp=3)".format(repr(entity_id1)),
             repr(event1)
         )
 
     def test_subscribe_to_decorator(self):
         entity_id1 = uuid4()
-        event = Example.Created(entity_id=entity_id1, a=1, b=2)
+        event = Example.Created(originator_id=entity_id1, a=1, b=2)
         handler = mock.Mock()
 
         # Check we can assert there are no event handlers subscribed.

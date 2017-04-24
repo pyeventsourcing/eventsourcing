@@ -158,7 +158,7 @@ class SqlIntegerSequencedItem(Base):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Unique constraint includes 'entity_id' which is a good value
+    # Unique constraint includes 'originator_id' which is a good value
     # to partition on, because all events for an entity will be in the same
     # partition, which may help performance.
     __table_args__ = UniqueConstraint('sequence_id', 'position',

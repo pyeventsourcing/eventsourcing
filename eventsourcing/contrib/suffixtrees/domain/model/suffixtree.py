@@ -320,7 +320,7 @@ def register_new_node(suffix_node_id=None):
     """Factory method, registers new node.
     """
     node_id = uuid4().hex
-    event = Node.Created(entity_id=node_id, suffix_node_id=suffix_node_id)
+    event = Node.Created(originator_id=node_id, suffix_node_id=suffix_node_id)
     entity = Node.mutate(event=event)
     publish(event)
     return entity
@@ -336,7 +336,7 @@ def register_new_edge(edge_id, first_char_index, last_char_index, source_node_id
     """Factory method, registers new edge.
     """
     event = Edge.Created(
-        entity_id=edge_id,
+        originator_id=edge_id,
         first_char_index=first_char_index,
         last_char_index=last_char_index,
         source_node_id=source_node_id,
@@ -355,7 +355,7 @@ def register_new_suffix_tree(case_insensitive=False):
 
     suffix_tree_id = uuid4().hex
     event = SuffixTree.Created(
-        entity_id=suffix_tree_id,
+        originator_id=suffix_tree_id,
         root_node_id=root_node.id,
         case_insensitive=case_insensitive,
     )

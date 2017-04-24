@@ -84,7 +84,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         with self.assertRaises(MismatchedOriginatorIDError):
             entity2._validate_originator(
                 VersionedEntityEvent(
-                    entity_id=uuid4(),
+                    originator_id=uuid4(),
                     originator_version=0
                 )
             )
@@ -92,7 +92,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         with self.assertRaises(MismatchedOriginatorVersionError):
             entity2._validate_originator(
                 VersionedEntityEvent(
-                    entity_id=entity2.id,
+                    originator_id=entity2.id,
                     originator_version=0,
                 )
         )
@@ -100,13 +100,13 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         # Should validate event with correct entity ID and version.
         entity2._validate_originator(
             VersionedEntityEvent(
-                entity_id=entity2.id,
+                originator_id=entity2.id,
                 originator_version=entity2.version,
             )
         )
 
         # Check an entity cannot be reregistered with the ID of a discarded entity.
-        replacement_event = Example.Created(entity_id=entity1.id, a=11, b=12)
+        replacement_event = Example.Created(originator_id=entity1.id, a=11, b=12)
         with self.assertRaises(ConcurrencyError):
             publish(event=replacement_event)
 
@@ -136,7 +136,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Pretend we decorated an object.
         entity_id = uuid4()
-        o = TimestampedVersionedEntity(entity_id=entity_id, originator_version=0)
+        o = TimestampedVersionedEntity(originator_id=entity_id, originator_version=0)
         o.__dict__['_<lambda>'] = 'value1'
 
         # Call the property's getter function.
@@ -171,7 +171,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         subscribe(*subscription)
         entity_id = uuid4()
         try:
-            aaa = Aaa(entity_id=entity_id, originator_version=1, a=1)
+            aaa = Aaa(originator_id=entity_id, originator_version=1, a=1)
             self.assertEqual(aaa.a, 1)
             aaa.a = 'value1'
             self.assertEqual(aaa.a, 'value1')
@@ -187,7 +187,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertEqual(published_event.name, '_a')
         self.assertEqual(published_event.value, 'value1')
         self.assertTrue(published_event.originator_version, 1)
-        self.assertEqual(published_event.entity_id, entity_id)
+        self.assertEqual(published_event.originator_id, entity_id)
 
     def test_static_mutator_method(self):
         self.assertRaises(NotImplementedError, TimestampedVersionedEntity._mutator, 1, 2)
