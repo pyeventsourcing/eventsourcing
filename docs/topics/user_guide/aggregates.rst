@@ -2,22 +2,39 @@
 Aggregates in domain driven design
 ==================================
 
-Let's say we want to separate the sequence of events from entities, and instead have
-an aggregate that controls a set of entities.
+Eric Evans' book Domain Driven Design describes an abstraction called
+"aggregate".
 
-We can define some "aggregate events" which have ``aggregate_id`` and
-``aggregate_version``. And we can rework the entity class to function as a root
-entity of the aggregate.
+.. pull-quote::
 
-In the example below, the aggregate class has a list of pending events, and a ``save()``
-method that publishes all pending events. The other operations append events to the list
-of pending events, rather than publishing them individually.
+    An aggregate is a cluster of associated objects that we treat as a unit
+    for the purpose of data changes. Each aggregate has a root and a boundary.
 
-The library supports appending multiple events to the event store in
-a single atomic transaction.
+Therefore,
 
-The entity factory is now a method of the aggregate, and the aggregate's mutator is capable
-of mutating the aggregate's entities.
+    Cluster the entities and value objects into aggregates and define
+    boundaries around each. Choose one entity to be the root of each
+    aggregate, and control all access to the objects inside the boundary
+    through the root. Allow external objects to hold references to the
+    root only.
+
+Hence to make an event sourced aggregate, we must have a set of events and a
+mutator function that pertains to a cluster of objects within the aggregate
+boundary. We must have an entity that can function as the root of the aggregate,
+with identity distinguishable across the application, and methods that will
+exclusively operate on the cluster of objects within the aggregate boundary.
+
+The example below demonstrates a stand-alone aggregate domain model, with events
+that pertain to all the objects of the aggregate, an aggregate root entity with
+methods that operate all its objects, a mutator function that can mutate the
+objects of an aggregate, and a factory method to create new aggregates.
+
+Rather than publishing events immediately and individually during the execution
+of a command, the operations of the aggregate root class below appends events to
+an internal list of pending events. A ``save()`` method can then publish all pending
+events as a single list. The library supports appending a list of events to the event
+store in a single atomic transaction, so that if some of the events resulting from
+executing a command cannot be stored then none of them will be stored.
 
 .. code:: python
 
