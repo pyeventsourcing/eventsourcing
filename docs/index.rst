@@ -42,14 +42,14 @@ Please register questions, requests and any other `issues on GitHub
    topics/release_notes
 
 
-Reference
-=========
+..  Reference
+..  =========
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+..  * :ref:`genindex`
+..  * :ref:`modindex`
+..  * :ref:`search`
 
-.. toctree::
-   :maxdepth: 1
+.. .. toctree::
+..    :maxdepth: 1
 
-   ref/modules
+..    ref/modules
