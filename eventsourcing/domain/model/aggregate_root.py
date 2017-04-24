@@ -1,52 +1,8 @@
 from eventsourcing.domain.model.entity import MismatchedOriginatorIDError, MismatchedOriginatorVersionError, \
-    MutatorRequiresTypeNotInstance, TimestampedVersionedEntity, entity_mutator, singledispatch
-from eventsourcing.domain.model.events import DomainEvent, EventWithTimestamp, publish
+    MutatorRequiresTypeNotInstance, TimestampedVersionedEntity, entity_mutator, singledispatch, Created, \
+    AttributeChanged, Discarded
+from eventsourcing.domain.model.events import publish
 
-
-class AggregateEvent(EventWithTimestamp, DomainEvent):
-    """
-    Aggregate event supertype.
-    """
-
-    def __init__(self, originator_id, originator_version, **kwargs):
-        super(AggregateEvent, self).__init__(**kwargs)
-        self.__dict__['originator_id'] = originator_id
-        self.__dict__['originator_version'] = originator_version
-
-    @property
-    def originator_id(self):
-        return self.__dict__['originator_id']
-
-    @property
-    def originator_version(self):
-        return self.__dict__['originator_version']
-
-
-class AggregateCreated(AggregateEvent):
-    """
-    Published when an aggregate is created.
-    """
-
-    def __init__(self, originator_version=0, **kwargs):
-        super(AggregateCreated, self).__init__(originator_version=originator_version, **kwargs)
-
-
-class AttributeChanged(AggregateEvent):
-    """
-    Published when an aggregate is created.
-    """
-
-    def __init__(self, originator_version=0, **kwargs):
-        super(AttributeChanged, self).__init__(originator_version=originator_version, **kwargs)
-
-
-class AggregateDiscarded(AggregateEvent):
-    """
-    Published when an aggregate is discarded.
-    """
-
-    def __init__(self, **kwargs):
-        super(AggregateDiscarded, self).__init__(**kwargs)
 
 
 class AggregateRoot(TimestampedVersionedEntity):
@@ -92,7 +48,7 @@ class AggregateRoot(TimestampedVersionedEntity):
 
     def discard(self):
         assert not self._is_discarded
-        event = AggregateDiscarded(originator_id=self.id, originator_version=self.version)
+        event = Discarded(originator_id=self.id, originator_version=self.version)
         self._apply(event)
         self._pending_events.append(event)
 
@@ -110,9 +66,8 @@ def aggregate_mutator(event, self):
     return entity_mutator(event, self)
 
 
-@aggregate_mutator.register(AggregateCreated)
+@aggregate_mutator.register(Created)
 def created_mutator(event, cls):
-    assert isinstance(event, AggregateCreated), event
     if not isinstance(cls, type):
         msg = ("Mutator for Created event requires entity type not instance: {} "
                "(event entity id: {}, event type: {})"
@@ -137,7 +92,7 @@ def attribute_changed_mutator(event, self):
     return self
 
 
-@aggregate_mutator.register(AggregateDiscarded)
+@aggregate_mutator.register(Discarded)
 def discarded_mutator(event, self):
     assert isinstance(self, TimestampedVersionedEntity), self
     self._validate_originator(event)

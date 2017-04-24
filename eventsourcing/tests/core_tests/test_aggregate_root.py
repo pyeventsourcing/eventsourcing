@@ -4,10 +4,10 @@ from uuid import uuid4
 import mock
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.aggregate_root import AggregateCreated, AggregateEvent, AggregateRoot, \
-    aggregate_mutator
+from eventsourcing.domain.model.aggregate_root import AggregateRoot, aggregate_mutator
 from eventsourcing.domain.model.entity import MismatchedOriginatorIDError, MismatchedOriginatorVersionError, \
-    attribute, singledispatch
+    attribute, singledispatch, Created
+from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent
 from eventsourcing.exceptions import MutatorRequiresTypeNotInstance
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -20,7 +20,7 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
     WithSQLAlchemyActiveRecordStrategies
 
 
-class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
+class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
     def setUp(self):
         super(TestExampleAggregateRoot, self).setUp()
         self.app = ExampleDDDApplication(self.datastore)
@@ -99,11 +99,11 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies, WithPersist
 
         # Check a different created event fails to validate IDs.
         with self.assertRaises(MismatchedOriginatorIDError):
-            aggregate._validate_originator_id(AggregateCreated(originator_id=uuid4()))
+            aggregate._validate_originator_id(Created(originator_id=uuid4()))
 
         # Check another created event fails to validate versions.
         with self.assertRaises(MismatchedOriginatorVersionError):
-            aggregate._validate_originator_version(AggregateCreated(originator_id=aggregate.id))
+            aggregate._validate_originator_version(Created(originator_id=aggregate.id))
 
     def test_mutator_errors(self):
         with self.assertRaises(NotImplementedError):
@@ -111,14 +111,14 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies, WithPersist
 
         # Check the guard condition raises exception.
         with self.assertRaises(MutatorRequiresTypeNotInstance):
-            aggregate_mutator(mock.Mock(spec=AggregateCreated), 'not a class')
+            aggregate_mutator(mock.Mock(spec=Created), 'not a class')
 
         # Check the instantiation type error.
         with self.assertRaises(TypeError):
-            aggregate_mutator(mock.Mock(spec=AggregateCreated), AggregateRoot)  # needs more than the mock obj has
+            aggregate_mutator(mock.Mock(spec=Created), AggregateRoot)  # needs more than the mock obj has
 
 
-class EntityCreated(AggregateEvent):
+class EntityCreated(TimestampedVersionedEntityEvent):
     """
     Published when an entity is created.
     """
@@ -205,7 +205,7 @@ class ExampleDDDApplication(object):
             event_store=self.event_store,
             mutator=ExampleAggregateRoot.mutate,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store, event_type=AggregateEvent)
+        self.persistence_policy = PersistencePolicy(self.event_store, event_type=TimestampedVersionedEntityEvent)
 
     def create_example_aggregate(self):
         """
@@ -213,7 +213,7 @@ class ExampleDDDApplication(object):
 
         :rtype: ExampleAggregateRoot 
         """
-        event = AggregateCreated(originator_id=uuid.uuid4())
+        event = Created(originator_id=uuid.uuid4())
         aggregate = ExampleAggregateRoot.mutate(event=event)
         aggregate._pending_events.append(event)
         return aggregate

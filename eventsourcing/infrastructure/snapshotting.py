@@ -11,18 +11,17 @@ from eventsourcing.infrastructure.sequenceditemmapper import reconstruct_object
 
 class AbstractSnapshotStrategy(six.with_metaclass(ABCMeta)):
     @abstractmethod
-    def get_snapshot(self, stored_entity_id, lt=None, lte=None):
-        """Returns pre-existing snapshot for stored entity ID from given
-        event store, optionally until a particular domain event ID.
+    def get_snapshot(self, entity_id, lt=None, lte=None):
+        """
+        Gets the last snapshot for entity, optionally until a particular version number.
 
-        :rtype: AbstractSnapshop
+        :rtype: Snapshot
         """
 
     @abstractmethod
     def take_snapshot(self, entity_id, entity, last_event_version):
         """
-        Takes a snapshot of given 'entity_id', using state of given
-        'entity', pegged at 'last_event_version'.
+        Takes a snapshot of entity, using given ID, state and version number.
         
         :rtype: AbstractSnapshop
         """
@@ -38,7 +37,7 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
 
     def get_snapshot(self, entity_id, lt=None, lte=None):
         """
-        Gets the last snapshot for entity.
+        Gets the last snapshot for entity, optionally until a particular version number.
 
         :rtype: Snapshot
         """

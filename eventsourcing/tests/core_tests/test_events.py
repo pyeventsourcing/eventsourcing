@@ -3,8 +3,8 @@ from time import time
 from uuid import UUID, uuid4
 
 from eventsourcing.domain.model.decorators import subscribe_to
-from eventsourcing.domain.model.events import DomainEvent, EventWithEntityID, EventHandlersNotEmptyError, \
-    EventWithEntityVersion, EventWithTimestamp, TimestampedEntityEvent, VersionedEntityEvent, _event_handlers, \
+from eventsourcing.domain.model.events import DomainEvent, EntityEvent, EventHandlersNotEmptyError, \
+    EventWithVersion, EventWithTimestamp, TimestampedEntityEvent, VersionedEntityEvent, _event_handlers, \
     all_events, assert_event_handlers_empty, create_timesequenced_event_id, publish, resolve_domain_topic, subscribe, \
     unsubscribe
 from eventsourcing.example.domainmodel import Example
@@ -54,7 +54,7 @@ class TestAbstractDomainEvent(unittest.TestCase):
 class TestEntityEvent(unittest.TestCase):
     def test(self):
         # Check base class can be sub-classed.
-        class Event(EventWithEntityID):
+        class Event(EntityEvent):
             pass
 
         # Check can't instantiate without an ID.
@@ -103,7 +103,7 @@ class TestTimestampEvent(unittest.TestCase):
 class TestVersionEvent(unittest.TestCase):
     def test(self):
         # Check base class can be sub-classed.
-        class Event(EventWithEntityVersion):
+        class Event(EventWithVersion):
             pass
 
         # Check event can be instantiated with a version.

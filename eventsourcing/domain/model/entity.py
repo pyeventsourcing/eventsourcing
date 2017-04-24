@@ -58,26 +58,12 @@ class DomainEntity(with_metaclass(QualnameABCMeta)):
         """
         if self._id != event.originator_id:
             raise MismatchedOriginatorIDError(
-                "Entity ID '{}' not equal to event's entity ID '{}'"
+                "'{}' not equal to event originator ID '{}'"
                 "".format(self.id, event.originator_id)
             )
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
-
-    def _change_attribute(self, name, value):
-        self._assert_not_discarded()
-        event_class = getattr(self, 'AttributeChanged', AttributeChanged)
-        event = event_class(name=name, value=value, originator_id=self._id, originator_version=self._version)
-        self._apply(event)
-        publish(event)
-
-    def discard(self):
-        self._assert_not_discarded()
-        event_class = getattr(self, 'Discarded', Discarded)
-        event = event_class(originator_id=self._id, originator_version=self._version)
-        self._apply(event)
-        publish(event)
 
     def _apply(self, event):
         self.mutate(event=event, entity=self)
@@ -135,6 +121,21 @@ class VersionedEntity(DomainEntity):
                            type(event).__name__, type(self).__name__, self._id)
                  )
             )
+
+    def _change_attribute(self, name, value):
+        self._assert_not_discarded()
+        event_class = getattr(self, 'AttributeChanged', AttributeChanged)
+        event = event_class(name=name, value=value, originator_id=self._id, originator_version=self._version)
+        self._apply(event)
+        publish(event)
+
+    def discard(self):
+        self._assert_not_discarded()
+        event_class = getattr(self, 'Discarded', Discarded)
+        event = event_class(originator_id=self._id, originator_version=self._version)
+        self._apply(event)
+        publish(event)
+
 
 
 class TimestampedEntity(DomainEntity):

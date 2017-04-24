@@ -89,13 +89,13 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
             "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
 
 
-class EventWithEntityID(DomainEvent):
+class EntityEvent(DomainEvent):
     """
-    For events that have an entity ID attribute.
+    For events of objects with an ID (entities).
     """
 
     def __init__(self, originator_id, **kwargs):
-        super(EventWithEntityID, self).__init__(**kwargs)
+        super(EntityEvent, self).__init__(**kwargs)
         self.__dict__['originator_id'] = originator_id
 
     @property
@@ -105,7 +105,7 @@ class EventWithEntityID(DomainEvent):
 
 class EventWithTimestamp(DomainEvent):
     """
-    For events that have an timestamp attribute.
+    For events that have an timestamp value.
     """
 
     def __init__(self, timestamp=None, **kwargs):
@@ -117,15 +117,15 @@ class EventWithTimestamp(DomainEvent):
         return self.__dict__['timestamp']
 
 
-class EventWithEntityVersion(DomainEvent):
+class EventWithVersion(DomainEvent):
     """
-    For events that have an entity version number.
+    For events that have an originator version number.
     """
 
     def __init__(self, originator_version, **kwargs):
         if not isinstance(originator_version, six.integer_types):
             raise TypeError("Version must be an integer: {}".format(originator_version))
-        super(EventWithEntityVersion, self).__init__(**kwargs)
+        super(EventWithVersion, self).__init__(**kwargs)
         self.__dict__['originator_version'] = originator_version
 
     @property
@@ -146,19 +146,19 @@ class EventWithTimeuuid(DomainEvent):
         return self.__dict__['event_id']
 
 
-class TimestampedEntityEvent(EventWithTimestamp, EventWithEntityID):
+class TimestampedEntityEvent(EventWithTimestamp, EntityEvent):
     """
     For events of timestamp-based entities (e.g. a log).
     """
 
 
-class VersionedEntityEvent(EventWithEntityVersion, EventWithEntityID):
+class VersionedEntityEvent(EventWithVersion, EntityEvent):
     """
     For events of versioned entities.
     """
 
 
-class TimeuuidedEntityEvent(EventWithTimeuuid, EventWithEntityID):
+class TimeuuidedEntityEvent(EventWithTimeuuid, EntityEvent):
     """
     For events of entities.
     """
@@ -168,55 +168,6 @@ class TimestampedVersionedEntityEvent(EventWithTimestamp, VersionedEntityEvent):
     """
     For events of version-based entities, that are also timestamped.
     """
-# class OldDomainEvent(DomainEvent):
-#     """
-#     Original domain event.
-#
-#     Due to the origins of the project, this design ended
-#     up as a confusion of time-sequenced and integer-sequenced
-#     events. It was used for both time-sequenced streams, such
-#     as time-bucketed logs and snapshots, where the entity
-#     version number appeared as the code smell known as "refused
-#     bequest". It was also used for integer sequenced streams,
-#     such as versioned domain entities, where the timestamp-based
-#     implementation threatened inconsistency due to network issues.
-#     The "solution" to the timestamp-based integer sequencing was
-#     to have a second table controlling consistency of integer
-#     sequenced. But working across two tables without cross-table
-#     transaction support (e.g. in Cassandra) is a dead-end. Now,
-#     integer sequenced domain events don't essentially require
-#     to know what time they happened.
-#
-#     Therefore it must be much better to have two separate types
-#     of domain event: time-sequenced events, and integer-sequenced
-#     events. Domain entities and notification logs can have integer-
-#     sequenced events, and snapshots and time-bucketed logs can
-#     have time-sequenced events.
-#
-#     That's why this class has been deprecated :-).
-#     """
-#
-#     def __init__(self, originator_id, originator_version, domain_event_id=None, **kwargs):
-#         super(OldDomainEvent, self).__init__(**kwargs)
-#         self.__dict__['originator_id'] = originator_id
-#         self.__dict__['originator_version'] = originator_version
-#         self.__dict__['domain_event_id'] = domain_event_id or create_timesequenced_event_id()
-#
-#     @property
-#     def originator_id(self):
-#         return self.__dict__['originator_id']
-#
-#     @property
-#     def originator_version(self):
-#         return self.__dict__['originator_version']
-#
-#     @property
-#     def domain_event_id(self):
-#         return self.__dict__['domain_event_id']
-#
-#     @property
-#     def timestamp(self):
-#         return timestamp_from_uuid(self.__dict__['domain_event_id'])
 
 
 _event_handlers = OrderedDict()
