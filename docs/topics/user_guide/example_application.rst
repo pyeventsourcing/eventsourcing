@@ -45,9 +45,9 @@ event - have been pulled up to a layer supertype ``DomainEvent``.
         """
         Layer supertype.
         """
-        def __init__(self, entity_id, entity_version, timestamp=None, **kwargs):
+        def __init__(self, entity_id, originator_version, timestamp=None, **kwargs):
             self.entity_id = entity_id
-            self.entity_version = entity_version
+            self.originator_version = originator_version
             self.timestamp = timestamp or time.time()
             self.__dict__.update(kwargs)
 
@@ -57,7 +57,7 @@ event - have been pulled up to a layer supertype ``DomainEvent``.
         Published when an entity is created.
         """
         def __init__(self, **kwargs):
-            super(Created, self).__init__(entity_version=0, **kwargs)
+            super(Created, self).__init__(originator_version=0, **kwargs)
 
 
     class ValueChanged(DomainEvent):
@@ -110,9 +110,9 @@ if-else block that can handle the three types of events defined above.
         """
         Example domain entity.
         """
-        def __init__(self, entity_id, entity_version=0, foo='', timestamp=None):
+        def __init__(self, entity_id, originator_version=0, foo='', timestamp=None):
             self._id = entity_id
-            self._version = entity_version
+            self._version = originator_version
             self._is_discarded = False
             self._created_on = timestamp
             self._last_modified_on = timestamp
@@ -149,7 +149,7 @@ if-else block that can handle the three types of events defined above.
             # Instantiate a domain event.
             event = ValueChanged(
                 entity_id=self.id,
-                entity_version=self.version,
+                originator_version=self.version,
                 name='foo',
                 value=value,
             )
@@ -164,7 +164,7 @@ if-else block that can handle the three types of events defined above.
             assert not self._is_discarded
 
             # Instantiate a domain event.
-            event = Discarded(entity_id=self.id, entity_version=self.version)
+            event = Discarded(entity_id=self.id, originator_version=self.version)
 
             # Apply the event to self.
             mutate(self, event)
@@ -258,7 +258,7 @@ receive the events that will be published, so we can see what happened.
     assert len(received_events) == 1, received_events
     assert isinstance(received_events[0], Created)
     assert received_events[0].entity_id == entity.id
-    assert received_events[0].entity_version == 0
+    assert received_events[0].originator_version == 0
     assert received_events[0].foo == 'bar1'
 
     # Check the value of property 'foo'.
@@ -276,7 +276,7 @@ receive the events that will be published, so we can see what happened.
     # Check the received events.
     assert len(received_events) == 2, received_events
     assert isinstance(received_events[1], ValueChanged)
-    assert received_events[1].entity_version == 1
+    assert received_events[1].originator_version == 1
     assert received_events[1].name == 'foo'
     assert received_events[1].value == 'bar2'
 
@@ -389,7 +389,7 @@ of the sequenced item class - for example if both are called 'entity_id', or
 ``position_attr_name`` arg, if the name of the domain event attribute which
 indicates the position of the event in a sequence is equal to the name of the
 second field of the sequence item class - for example if both are called
-'entity_version', or 'aggregate_version'.
+'originator_version', or 'aggregate_version'.
 
 
 .. code:: python
@@ -408,7 +408,7 @@ second field of the sequence item class - for example if both are called
     sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=SequencedItem,
         sequence_id_attr_name='entity_id',
-        position_attr_name='entity_version'
+        position_attr_name='originator_version'
     )
 
     event_store = EventStore(
@@ -460,7 +460,7 @@ Remember that we can always get the sequenced items directly from the active rec
 strategy. A sequenced item is tuple containing a serialised representation of the domain event. In the library, a
 ``SequencedItem`` is a Python tuple with four fields: ``sequence_id``, ``position``,
 ``topic``, and ``data``. By default, an event's ``entity_id`` attribute is mapped to the ``sequence_id`` field,
-and the event's ``entity_version`` attribute is mapped to the ``position`` field. The ``topic`` field of a
+and the event's ``originator_version`` attribute is mapped to the ``position`` field. The ``topic`` field of a
 sequenced item is used to identify the event class, and the ``data`` field represents the state of the event (a
 JSON string).
 
@@ -516,7 +516,7 @@ unsubscribing itself from receiving further domain events.
                 sequenced_item_mapper=SequencedItemMapper(
                     sequenced_item_class=SequencedItem,
                     sequence_id_attr_name='entity_id',
-                    position_attr_name='entity_version',
+                    position_attr_name='originator_version',
                 )
             )
             self.example_repository = EventSourcedRepository(

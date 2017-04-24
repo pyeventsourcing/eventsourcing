@@ -12,8 +12,8 @@
 #         super(PythonObjectsStoredEventRepository, self).__init__(*args, **kwargs)
 #         self._by_id = {}
 #         self._by_stored_entity_id = {}
-#         self._entity_versions = defaultdict(lambda: defaultdict(lambda: itertools.chain([0], itertools.cycle([1]))))
-#         self._event_id_by_entity_version_id = {}
+#         self._originator_versions = defaultdict(lambda: defaultdict(lambda: itertools.chain([0], itertools.cycle([1]))))
+#         self._event_id_by_originator_version_id = {}
 #
 #     def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3,
 #                                 artificial_failure_rate=0):
@@ -23,13 +23,13 @@
 #
 #         # Put the event in the various dicts.
 #         stored_entity_id = new_stored_event.entity_id
-#         if self.always_write_entity_version and new_version_number is not None:
-#             versions = self._entity_versions[stored_entity_id]
+#         if self.always_write_originator_version and new_version_number is not None:
+#             versions = self._originator_versions[stored_entity_id]
 #             if next(versions[new_version_number]) != 0:
 #                 raise ConcurrencyError("New version {} for entity {} already exists"
 #                                        "".format(new_version_number, stored_entity_id))
-#             entity_version_id = self.make_entity_version_id(stored_entity_id, new_version_number)
-#             self._event_id_by_entity_version_id[entity_version_id] = new_stored_event.event_id
+#             originator_version_id = self.make_originator_version_id(stored_entity_id, new_version_number)
+#             self._event_id_by_originator_version_id[originator_version_id] = new_stored_event.event_id
 #
 #         # Remove entity if it's a discarded event.
 #         if new_stored_event.event_topic.endswith('Discarded'):
@@ -45,22 +45,22 @@
 #             # Index by event ID.
 #             self._by_id[new_stored_event.event_id] = new_stored_event
 #
-#     def get_entity_version(self, stored_entity_id, version_number):
-#         versions = self._entity_versions[stored_entity_id]
+#     def get_originator_version(self, stored_entity_id, version_number):
+#         versions = self._originator_versions[stored_entity_id]
 #         if version_number not in versions:
-#             self.raise_entity_version_not_found(stored_entity_id, version_number)
-#         entity_version_id = self.make_entity_version_id(stored_entity_id, version_number)
+#             self.raise_originator_version_not_found(stored_entity_id, version_number)
+#         originator_version_id = self.make_originator_version_id(stored_entity_id, version_number)
 #         return EntityVersion(
-#             entity_version_id=entity_version_id,
-#             event_id=self._event_id_by_entity_version_id[entity_version_id]
+#             originator_version_id=originator_version_id,
+#             event_id=self._event_id_by_originator_version_id[originator_version_id]
 #         )
 #
 #     def remove_entity(self, stored_entity_id):
 #         if stored_entity_id in self._by_stored_entity_id:
 #             for stored_event in self._by_stored_entity_id.pop(stored_entity_id):
 #                 del (self._by_id[stored_event.event_id])
-#         if self.always_write_entity_version:
-#             del (self._entity_versions[stored_entity_id])
+#         if self.always_write_originator_version:
+#             del (self._originator_versions[stored_entity_id])
 #
 #     def get_stored_events(self, stored_entity_id, after=None, until=None, limit=None, query_ascending=True,
 #                           results_ascending=True, include_after_when_ascending=False,

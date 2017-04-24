@@ -34,7 +34,7 @@ class ExampleEntity(TimeuuidedVersionedEntity):
     def finish(self):
         event = ExampleEntity.Finished(
             entity_id=self.id,
-            entity_version=self.version,
+            originator_version=self.version,
         )
         self._apply(event)
         publish(event)

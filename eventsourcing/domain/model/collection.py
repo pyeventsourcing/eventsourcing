@@ -42,7 +42,7 @@ class Collection(TimestampedVersionedEntity):
         self._assert_not_discarded()
         event = self.ItemAdded(
             entity_id=self.id,
-            entity_version=self._version,
+            originator_version=self._version,
             item=item,
         )
         self._apply(event)
@@ -52,7 +52,7 @@ class Collection(TimestampedVersionedEntity):
         self._assert_not_discarded()
         event = self.ItemRemoved(
             entity_id=self.id,
-            entity_version=self._version,
+            originator_version=self._version,
             item=item,
         )
         self._apply(event)

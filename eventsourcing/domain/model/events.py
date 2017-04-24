@@ -122,15 +122,15 @@ class EventWithEntityVersion(DomainEvent):
     For events that have an entity version number.
     """
 
-    def __init__(self, entity_version, **kwargs):
-        if not isinstance(entity_version, six.integer_types):
-            raise TypeError("Version must be an integer: {}".format(entity_version))
+    def __init__(self, originator_version, **kwargs):
+        if not isinstance(originator_version, six.integer_types):
+            raise TypeError("Version must be an integer: {}".format(originator_version))
         super(EventWithEntityVersion, self).__init__(**kwargs)
-        self.__dict__['entity_version'] = entity_version
+        self.__dict__['originator_version'] = originator_version
 
     @property
-    def entity_version(self):
-        return self.__dict__['entity_version']
+    def originator_version(self):
+        return self.__dict__['originator_version']
 
 
 class EventWithTimeuuid(DomainEvent):
@@ -196,10 +196,10 @@ class TimestampedVersionedEntityEvent(EventWithTimestamp, VersionedEntityEvent):
 #     That's why this class has been deprecated :-).
 #     """
 #
-#     def __init__(self, entity_id, entity_version, domain_event_id=None, **kwargs):
+#     def __init__(self, entity_id, originator_version, domain_event_id=None, **kwargs):
 #         super(OldDomainEvent, self).__init__(**kwargs)
 #         self.__dict__['entity_id'] = entity_id
-#         self.__dict__['entity_version'] = entity_version
+#         self.__dict__['originator_version'] = originator_version
 #         self.__dict__['domain_event_id'] = domain_event_id or create_timesequenced_event_id()
 #
 #     @property
@@ -207,8 +207,8 @@ class TimestampedVersionedEntityEvent(EventWithTimestamp, VersionedEntityEvent):
 #         return self.__dict__['entity_id']
 #
 #     @property
-#     def entity_version(self):
-#         return self.__dict__['entity_version']
+#     def originator_version(self):
+#         return self.__dict__['originator_version']
 #
 #     @property
 #     def domain_event_id(self):

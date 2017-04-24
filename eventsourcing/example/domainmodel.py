@@ -45,7 +45,7 @@ class Example(TimestampedVersionedEntity):
         self._assert_not_discarded()
         events = []
         while number_of_beats > 0:
-            event = self.Heartbeat(entity_id=self._id, entity_version=self._version)
+            event = self.Heartbeat(entity_id=self._id, originator_version=self._version)
             events.append(event)
             self._apply(event)
             number_of_beats -= 1

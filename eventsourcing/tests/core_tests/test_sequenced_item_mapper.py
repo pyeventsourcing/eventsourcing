@@ -36,10 +36,10 @@ class TestSequencedItemMapper(TestCase):
         mapper = SequencedItemMapper(
             sequenced_item_class=SequencedItem,
             sequence_id_attr_name='entity_id',
-            position_attr_name='entity_version'
+            position_attr_name='originator_version'
         )
         entity_id1 = uuid4()
-        event1 = Event1(entity_id=entity_id1, entity_version=101)
+        event1 = Event1(entity_id=entity_id1, originator_version=101)
 
         # Check to_sequenced_item() method results in a sequenced item.
         sequenced_item = mapper.to_sequenced_item(event1)
@@ -61,7 +61,7 @@ class TestSequencedItemMapper(TestCase):
         domain_event = mapper.from_sequenced_item(sequenced_item_copy)
         self.assertIsInstance(domain_event, Event1)
         self.assertEqual(domain_event.entity_id, event1.entity_id)
-        self.assertEqual(domain_event.entity_version, event1.entity_version)
+        self.assertEqual(domain_event.originator_version, event1.originator_version)
 
     def test_with_timestamped_entity_event(self):
         # Setup the mapper, and create an event.
@@ -110,7 +110,7 @@ class TestSequencedItemMapper(TestCase):
         # Create an event with dates and datetimes.
         event3 = Event3(
             entity_id='entity3',
-            entity_version=303,
+            originator_version=303,
             a=datetime.datetime(2017, 3, 22, 9, 12, 14),
             b=datetime.date(2017, 3, 22),
             c=uuid4(),
@@ -150,7 +150,7 @@ class TestSequencedItemMapper(TestCase):
         # Create an event with dates and datetimes.
         event3 = Event3(
             entity_id='entity3',
-            entity_version=303,
+            originator_version=303,
             a=Decimal(1.0),
         )
 

@@ -17,8 +17,8 @@ from eventsourcing.domain.model.events import publish, QualnameABCMeta, Timestam
 
 
 class Created(TimestampedVersionedEntityEvent):
-    def __init__(self, entity_version=0, **kwargs):
-        super(Created, self).__init__(entity_version=entity_version, **kwargs)
+    def __init__(self, originator_version=0, **kwargs):
+        super(Created, self).__init__(originator_version=originator_version, **kwargs)
 
 
 class AttributeChanged(TimestampedVersionedEntityEvent):
@@ -68,14 +68,14 @@ class DomainEntity(with_metaclass(QualnameABCMeta)):
     def _change_attribute(self, name, value):
         self._assert_not_discarded()
         event_class = getattr(self, 'AttributeChanged', AttributeChanged)
-        event = event_class(name=name, value=value, entity_id=self._id, entity_version=self._version)
+        event = event_class(name=name, value=value, entity_id=self._id, originator_version=self._version)
         self._apply(event)
         publish(event)
 
     def discard(self):
         self._assert_not_discarded()
         event_class = getattr(self, 'Discarded', Discarded)
-        event = event_class(entity_id=self._id, entity_version=self._version)
+        event = event_class(entity_id=self._id, originator_version=self._version)
         self._apply(event)
         publish(event)
 
@@ -107,9 +107,9 @@ class WithReflexiveMutator(DomainEntity):
 
 class VersionedEntity(DomainEntity):
 
-    def __init__(self, entity_version=None, **kwargs):
+    def __init__(self, originator_version=None, **kwargs):
         super(VersionedEntity, self).__init__(**kwargs)
-        self._version = entity_version
+        self._version = originator_version
 
     @property
     def version(self):
@@ -127,11 +127,11 @@ class VersionedEntity(DomainEntity):
         """
         Checks the event's entity version matches this entity's version.
         """
-        if self._version != event.entity_version:
+        if self._version != event.originator_version:
             raise MismatchedOriginatorVersionError(
                 ("Event originated from entity at version {}, but entity is currently at version {}. "
                  "Event type: '{}', entity type: '{}', entity ID: '{}'"
-                 "".format(self._version, event.entity_version,
+                 "".format(self._version, event.originator_version,
                            type(event).__name__, type(self).__name__, self._id)
                  )
             )

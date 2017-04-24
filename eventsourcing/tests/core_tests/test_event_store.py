@@ -31,7 +31,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='entity_id',
-                position_attr_name='entity_version'
+                position_attr_name='originator_version'
             )
         )
         return event_store
@@ -65,7 +65,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         self.assertEqual(1, len(entity_events))
 
         # Store another domain event.
-        event1 = Example.AttributeChanged(entity_id=entity_id1, a=1, b=2, entity_version=1)
+        event1 = Example.AttributeChanged(entity_id=entity_id1, a=1, b=2, originator_version=1)
         event_store.append(event1)
 
         # Check there are two events in the event store.
@@ -108,7 +108,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         event_store.append(event1)
 
         # Store another domain event for the same entity.
-        event1 = Example.AttributeChanged(entity_id=entity_id1, a=1, b=2, entity_version=1)
+        event1 = Example.AttributeChanged(entity_id=entity_id1, a=1, b=2, originator_version=1)
         event_store.append(event1)
 
         # Store a domain event for a different entity.

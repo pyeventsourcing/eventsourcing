@@ -29,7 +29,7 @@ class TestPersistencePolicy(unittest.TestCase):
 
         # Publish a versioned entity event.
         entity_id = uuid4()
-        domain_event1 = VersionedEntityEvent(entity_id=entity_id, entity_version=0)
+        domain_event1 = VersionedEntityEvent(entity_id=entity_id, originator_version=0)
         publish(domain_event1)
 
         # Check the append method has been called once with the domain event.

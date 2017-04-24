@@ -85,7 +85,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
             entity2._validate_originator(
                 VersionedEntityEvent(
                     entity_id=uuid4(),
-                    entity_version=0
+                    originator_version=0
                 )
             )
         # Should fail to validate event with wrong entity version.
@@ -93,7 +93,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
             entity2._validate_originator(
                 VersionedEntityEvent(
                     entity_id=entity2.id,
-                    entity_version=0,
+                    originator_version=0,
                 )
         )
 
@@ -101,7 +101,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         entity2._validate_originator(
             VersionedEntityEvent(
                 entity_id=entity2.id,
-                entity_version=entity2.version,
+                originator_version=entity2.version,
             )
         )
 
@@ -136,7 +136,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Pretend we decorated an object.
         entity_id = uuid4()
-        o = TimestampedVersionedEntity(entity_id=entity_id, entity_version=0)
+        o = TimestampedVersionedEntity(entity_id=entity_id, originator_version=0)
         o.__dict__['_<lambda>'] = 'value1'
 
         # Call the property's getter function.
@@ -171,7 +171,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         subscribe(*subscription)
         entity_id = uuid4()
         try:
-            aaa = Aaa(entity_id=entity_id, entity_version=1, a=1)
+            aaa = Aaa(entity_id=entity_id, originator_version=1, a=1)
             self.assertEqual(aaa.a, 1)
             aaa.a = 'value1'
             self.assertEqual(aaa.a, 'value1')
@@ -186,7 +186,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertIsInstance(published_event, AttributeChanged)
         self.assertEqual(published_event.name, '_a')
         self.assertEqual(published_event.value, 'value1')
-        self.assertTrue(published_event.entity_version, 1)
+        self.assertTrue(published_event.originator_version, 1)
         self.assertEqual(published_event.entity_id, entity_id)
 
     def test_static_mutator_method(self):

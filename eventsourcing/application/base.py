@@ -49,7 +49,7 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         if self.integer_sequenced_active_record_strategy:
             self.integer_sequenced_event_store = self.construct_event_store(
                 event_sequence_id_attr='entity_id',
-                event_position_attr='entity_version',
+                event_position_attr='originator_version',
                 active_record_strategy=self.integer_sequenced_active_record_strategy,
                 always_encrypt=always_encrypt,
                 cipher=cipher,
@@ -69,7 +69,7 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         if self.snapshot_active_record_strategy:
             self.snapshot_event_store = self.construct_event_store(
                 event_sequence_id_attr='entity_id',
-                event_position_attr='entity_version',
+                event_position_attr='originator_version',
                 active_record_strategy=self.snapshot_active_record_strategy,
                 always_encrypt=always_encrypt,
                 cipher=cipher,

@@ -134,5 +134,5 @@
 #         assert isinstance(current_sequence, Sequence)
 #         sequence_number = int(current_sequence.name.split('::')[-1])
 #         event = self.sequence_repo.event_player.get_most_recent_event(current_sequence.name)
-#         sequence_count = event.entity_version
+#         sequence_count = event.originator_version
 #         return (sequence_number * self.notification_log.sequence_size) + sequence_count

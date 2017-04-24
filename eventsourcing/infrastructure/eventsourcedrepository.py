@@ -95,7 +95,7 @@ class EventSourcedRepository(AbstractEntityRepository):
             gt = None
         else:
             initial_state = entity_from_snapshot(snapshot)
-            gt = snapshot.entity_version
+            gt = snapshot.originator_version
 
         # Replay domain events.
         return self.event_player.replay_entity(entity_id, gt=gt, lte=lte, initial_state=initial_state)

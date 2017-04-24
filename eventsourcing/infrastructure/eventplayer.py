@@ -103,17 +103,17 @@ class EventPlayer(object):
             # taken before or at the entity version of the last event. Please
             # note, the snapshot might have a smaller version number than
             # the last event if events occurred since the last snapshot was taken.
-            last_version = last_event.entity_version
+            last_version = last_event.originator_version
             last_snapshot = self.get_snapshot(entity_id, lte=last_version)
 
-            if last_snapshot and last_snapshot.entity_version == last_version:
+            if last_snapshot and last_snapshot.originator_version == last_version:
                 # If up-to-date snapshot exists, there's nothing to do.
                 snapshot = last_snapshot
             else:
                 # Otherwise recover entity and take snapshot.
                 if last_snapshot:
                     initial_state = entity_from_snapshot(last_snapshot)
-                    gt = last_snapshot.entity_version
+                    gt = last_snapshot.originator_version
                 else:
                     initial_state = None
                     gt = None

@@ -108,8 +108,8 @@ class TestVersionEvent(unittest.TestCase):
 
         # Check event can be instantiated with a version.
         version1 = 1
-        event = Event(entity_version=version1)
-        self.assertEqual(event.entity_version, version1)
+        event = Event(originator_version=version1)
+        self.assertEqual(event.originator_version, version1)
 
         # Check event can't be instantiated without a version.
         with self.assertRaises(TypeError):
@@ -118,12 +118,12 @@ class TestVersionEvent(unittest.TestCase):
 
         # Check version must be an integer.
         with self.assertRaises(TypeError):
-            event = Event(entity_version='1')
+            event = Event(originator_version='1')
 
         # Check the version value can't be reassigned.
         with self.assertRaises(AttributeError):
             # noinspection PyPropertyAccess
-            event.entity_version = 2
+            event.originator_version = 2
 
 
 class TestVersionEntityEvent(unittest.TestCase):
@@ -143,17 +143,17 @@ class TestVersionEntityEvent(unittest.TestCase):
             Event(entity_id='1')
 
         with self.assertRaises(TypeError):
-            Event(entity_version=1)
+            Event(originator_version=1)
 
-        event1 = Event(entity_id='1', entity_version=0)
+        event1 = Event(entity_id='1', originator_version=0)
 
-        event2 = Event(entity_id='1', entity_version=1)
+        event2 = Event(entity_id='1', originator_version=1)
 
         # Check the event attributes.
         self.assertEqual(event1.entity_id, '1')
         self.assertEqual(event2.entity_id, '1')
-        self.assertEqual(event1.entity_version, 0)
-        self.assertEqual(event2.entity_version, 1)
+        self.assertEqual(event1.originator_version, 0)
+        self.assertEqual(event2.originator_version, 1)
 
         # Check the events are not equal to each other, whilst being equal to themselves.
         self.assertEqual(event1, event1)
@@ -377,7 +377,7 @@ class TestEvents(unittest.TestCase):
         entity_id1 = uuid4()
         event1 = Example.Created(entity_id=entity_id1, a=1, b=2, timestamp=3)
         self.assertEqual(
-            "Example.Created(a=1, b=2, entity_id={}, entity_version=0, timestamp=3)".format(repr(entity_id1)),
+            "Example.Created(a=1, b=2, entity_id={}, originator_version=0, timestamp=3)".format(repr(entity_id1)),
             repr(event1)
         )
 

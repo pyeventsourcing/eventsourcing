@@ -32,7 +32,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='entity_id',
-                position_attr_name='entity_version',
+                position_attr_name='originator_version',
             ),
         )
 
@@ -46,7 +46,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='entity_id',
-                position_attr_name='entity_version',
+                position_attr_name='originator_version',
             ),
         )
         self.entity_persistence_policy = None
@@ -81,7 +81,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         self.integer_sequenced_event_store.append(event3)
 
         # Discard entity3.
-        event4 = Example.Discarded(entity_id=entity_id3, entity_version=1)
+        event4 = Example.Discarded(entity_id=entity_id3, originator_version=1)
         self.integer_sequenced_event_store.append(event4)
 
         # Check the entities can be replayed.
@@ -100,7 +100,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
 
         # Check it works for "short" entities (should be faster, but the main thing is that it still works).
         # - just use a trivial mutate that always instantiates the 'Example'.
-        event5 = Example.AttributeChanged(entity_id=entity_id1, entity_version=1, name='a', value=10)
+        event5 = Example.AttributeChanged(entity_id=entity_id1, originator_version=1, name='a', value=10)
         self.integer_sequenced_event_store.append(event5)
 
         recovered1 = event_player.replay_entity(entity_id1)
@@ -145,7 +145,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         snapshot1 = event_player.take_snapshot(registered_example.id)
 
         # Check the snapshot is pegged to the last applied version.
-        self.assertEqual(snapshot1.entity_version, 0)
+        self.assertEqual(snapshot1.originator_version, 0)
 
         # Replay from this snapshot.
         entity_from_snapshot1 = entity_from_snapshot(snapshot1)
