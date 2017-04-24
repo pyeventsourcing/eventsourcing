@@ -300,3 +300,8 @@ method is called.
 
         # Check the aggregate no longer exists in the repo.
         assert aggregate.id not in app.aggregate_repository
+
+
+The library has a slightly more sophisticated ``AggregateRoot`` class
+that can be extended in the same way as the library's ``DomainEntity`` class,
+from which it derives.
