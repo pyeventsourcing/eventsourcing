@@ -99,11 +99,11 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies, WithPersist
 
         # Check a different created event fails to validate IDs.
         with self.assertRaises(MismatchedOriginatorIDError):
-            aggregate._validate_originator_id(AggregateCreated(aggregate_id=uuid4()))
+            aggregate._validate_originator_id(AggregateCreated(originator_id=uuid4()))
 
         # Check another created event fails to validate versions.
         with self.assertRaises(MismatchedOriginatorVersionError):
-            aggregate._validate_originator_version(AggregateCreated(aggregate_id=aggregate.id))
+            aggregate._validate_originator_version(AggregateCreated(originator_id=aggregate.id))
 
     def test_mutator_errors(self):
         with self.assertRaises(NotImplementedError):
@@ -158,8 +158,8 @@ class ExampleAggregateRoot(AggregateRoot):
         assert not self._is_discarded
         event = EntityCreated(
             entity_id=uuid.uuid4(),
-            aggregate_id=self.id,
-            aggregate_version=self.version,
+            originator_id=self.id,
+            originator_version=self.version,
         )
         self._apply(event)
         self._pending_events.append(event)
@@ -197,8 +197,8 @@ class ExampleDDDApplication(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 SequencedItem,
-                sequence_id_attr_name='aggregate_id',
-                position_attr_name='aggregate_version',
+                sequence_id_attr_name='originator_id',
+                position_attr_name='originator_version',
             )
         )
         self.aggregate_repository = EventSourcedRepository(
@@ -213,7 +213,7 @@ class ExampleDDDApplication(object):
 
         :rtype: ExampleAggregateRoot 
         """
-        event = AggregateCreated(aggregate_id=uuid.uuid4())
+        event = AggregateCreated(originator_id=uuid.uuid4())
         aggregate = ExampleAggregateRoot.mutate(event=event)
         aggregate._pending_events.append(event)
         return aggregate

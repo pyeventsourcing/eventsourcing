@@ -8,18 +8,18 @@ class AggregateEvent(EventWithTimestamp, DomainEvent):
     Aggregate event supertype.
     """
 
-    def __init__(self, aggregate_id, aggregate_version, **kwargs):
+    def __init__(self, originator_id, originator_version, **kwargs):
         super(AggregateEvent, self).__init__(**kwargs)
-        self.__dict__['aggregate_id'] = aggregate_id
-        self.__dict__['aggregate_version'] = aggregate_version
+        self.__dict__['originator_id'] = originator_id
+        self.__dict__['originator_version'] = originator_version
 
     @property
-    def aggregate_id(self):
-        return self.__dict__['aggregate_id']
+    def originator_id(self):
+        return self.__dict__['originator_id']
 
     @property
-    def aggregate_version(self):
-        return self.__dict__['aggregate_version']
+    def originator_version(self):
+        return self.__dict__['originator_version']
 
 
 class AggregateCreated(AggregateEvent):
@@ -27,8 +27,8 @@ class AggregateCreated(AggregateEvent):
     Published when an aggregate is created.
     """
 
-    def __init__(self, aggregate_version=0, **kwargs):
-        super(AggregateCreated, self).__init__(aggregate_version=aggregate_version, **kwargs)
+    def __init__(self, originator_version=0, **kwargs):
+        super(AggregateCreated, self).__init__(originator_version=originator_version, **kwargs)
 
 
 class AttributeChanged(AggregateEvent):
@@ -36,8 +36,8 @@ class AttributeChanged(AggregateEvent):
     Published when an aggregate is created.
     """
 
-    def __init__(self, aggregate_version=0, **kwargs):
-        super(AttributeChanged, self).__init__(aggregate_version=aggregate_version, **kwargs)
+    def __init__(self, originator_version=0, **kwargs):
+        super(AttributeChanged, self).__init__(originator_version=originator_version, **kwargs)
 
 
 class AggregateDiscarded(AggregateEvent):
@@ -54,9 +54,9 @@ class AggregateRoot(TimestampedVersionedEntity):
     Example root entity of aggregate.
     """
 
-    def __init__(self, aggregate_id, aggregate_version=0, **kwargs):
+    def __init__(self, originator_id, originator_version=0, **kwargs):
         super(AggregateRoot, self).__init__(
-            entity_id=aggregate_id, entity_version=aggregate_version, **kwargs
+            entity_id=originator_id, entity_version=originator_version, **kwargs
         )
         self._pending_events = []
 
@@ -64,21 +64,21 @@ class AggregateRoot(TimestampedVersionedEntity):
         """
         Checks the event's entity ID matches this entity's ID.
         """
-        if self._id != event.aggregate_id:
+        if self._id != event.originator_id:
             raise MismatchedOriginatorIDError(
                 "Aggregate root ID '{}' not equal to event's aggregate ID '{}'"
-                "".format(self.id, event.aggregate_id)
+                "".format(self.id, event.originator_id)
             )
 
     def _validate_originator_version(self, event):
         """
         Checks the event's entity version matches this entity's version.
         """
-        if self._version != event.aggregate_version:
+        if self._version != event.originator_version:
             raise MismatchedOriginatorVersionError(
                 ("Event originated from aggregate at version {}, but aggregate is currently at version {}. "
                  "Event type: '{}', aggregate type: '{}', aggregate ID: '{}'"
-                 "".format(self._version, event.aggregate_version,
+                 "".format(self._version, event.originator_version,
                            type(event).__name__, type(self).__name__, self._id)
                  )
             )
@@ -86,13 +86,13 @@ class AggregateRoot(TimestampedVersionedEntity):
     def _change_attribute(self, name, value):
         self._assert_not_discarded()
         event_class = getattr(self, 'AttributeChanged', AttributeChanged)
-        event = event_class(name=name, value=value, aggregate_id=self._id, aggregate_version=self._version)
+        event = event_class(name=name, value=value, originator_id=self._id, originator_version=self._version)
         self._apply(event)
         self._pending_events.append(event)
 
     def discard(self):
         assert not self._is_discarded
-        event = AggregateDiscarded(aggregate_id=self.id, aggregate_version=self.version)
+        event = AggregateDiscarded(originator_id=self.id, originator_version=self.version)
         self._apply(event)
         self._pending_events.append(event)
 
@@ -116,7 +116,7 @@ def created_mutator(event, cls):
     if not isinstance(cls, type):
         msg = ("Mutator for Created event requires entity type not instance: {} "
                "(event entity id: {}, event type: {})"
-               "".format(type(cls), event.aggregate_id, type(event)))
+               "".format(type(cls), event.originator_id, type(event)))
         raise MutatorRequiresTypeNotInstance(msg)
     assert issubclass(cls, AggregateRoot), cls
     try:
