@@ -21,20 +21,21 @@ Therefore,
 Hence to make an event sourced aggregate, we must have a set of events and a
 mutator function that pertains to a cluster of objects within the aggregate
 boundary. We must have an entity that can function as the root of the aggregate,
-with identity distinguishable across the application, and methods that will
-exclusively operate on the cluster of objects within the aggregate boundary.
+with identity distinguishable across the application, and with methods that
+exclusively operate on the objects of the aggregate.
 
-The example below demonstrates a stand-alone aggregate domain model, with events
-that pertain to all the objects of the aggregate, an aggregate root entity with
-methods that operate all its objects, a mutator function that can mutate the
-objects of an aggregate, and a factory method to create new aggregates.
+The example below demonstrates a stand-alone domain model aggregate, with domain
+events that pertain to the objects of the aggregate, a mutator function that can
+mutate the objects of the aggregate, an aggregate root entity with methods that
+operate all the objects of the aggregate, and a factory method the creates new
+aggregates.
 
 Rather than publishing events immediately and individually during the execution
-of a command, the operations of the aggregate root class below appends events to
-an internal list of pending events. A ``save()`` method can then publish all pending
-events as a single list. The library supports appending a list of events to the event
-store in a single atomic transaction, so that if some of the events resulting from
-executing a command cannot be stored then none of them will be stored.
+of a command, the operations of the aggregate root class below append events to
+an internal list of pending events. Its ``save()`` method can then publish all
+pending events as a single list. The library supports appending a list of events
+to the event store in a single atomic transaction, so that if some of the events
+resulting from executing a command cannot be stored then none of them will be stored.
 
 .. code:: python
 
