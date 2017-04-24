@@ -3,8 +3,7 @@ from copy import deepcopy
 
 import six
 
-from eventsourcing.domain.model.events import publish, resolve_domain_topic, topic_from_domain_class, \
-    reconstruct_object
+from eventsourcing.domain.model.events import publish, resolve_domain_topic, topic_from_domain_class
 from eventsourcing.domain.model.snapshot import AbstractSnapshop, Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import reconstruct_object
@@ -15,12 +14,19 @@ class AbstractSnapshotStrategy(six.with_metaclass(ABCMeta)):
     def get_snapshot(self, stored_entity_id, lt=None, lte=None):
         """Returns pre-existing snapshot for stored entity ID from given
         event store, optionally until a particular domain event ID.
+
+        :rtype: AbstractSnapshop
         """
 
     @abstractmethod
     def take_snapshot(self, entity_id, entity, last_event_version):
-        """Creates snapshot from given entity, with given domain event ID.
         """
+        Takes a snapshot of given 'entity_id', using state of given
+        'entity', pegged at 'last_event_version'.
+        
+        :rtype: AbstractSnapshop
+        """
+
 
 
 class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
@@ -43,7 +49,7 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
 
     def take_snapshot(self, entity_id, entity, last_event_version):
         """
-        Takes a snapshot of the entity.
+        Takes a snapshot by instantiating and publishing a Snapshot domain event.
 
         :rtype: Snapshot
         """
