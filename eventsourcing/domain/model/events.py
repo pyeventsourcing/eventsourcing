@@ -59,7 +59,7 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
         """
         Inhibits event attributes from being updated by assignment.
         """
-        raise AttributeError("OldDomainEvent attributes are read-only")
+        raise AttributeError("DomainEvent attributes are read-only")
 
     def __eq__(self, rhs):
         """

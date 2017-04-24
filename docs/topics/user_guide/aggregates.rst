@@ -184,7 +184,6 @@ Setup infrastructure using library classes.
 .. code:: python
 
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem
 
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
@@ -203,21 +202,19 @@ Define an application class that uses the model and infrastructure.
 
     from eventsourcing.application.policies import PersistencePolicy
     from eventsourcing.domain.model.events import publish
-    from eventsourcing.infrastructure.sequenceditem import SequencedItem
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
     from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem
 
 
-    class DDDApplication(object):
+    class ExampleDDDApplication(object):
         def __init__(self, datastore):
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
                     session=datastore.db_session,
                     active_record_class=SqlIntegerSequencedItem,
-                    sequenced_item_class=SequencedItem,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
-                    SequencedItem,
                     sequence_id_attr_name='aggregate_id',
                     position_attr_name='aggregate_version',
                 )
@@ -252,7 +249,7 @@ method is called.
 
 .. code:: python
 
-    with DDDApplication(datastore) as app:
+    with ExampleDDDApplication(datastore) as app:
 
         # Create a new aggregate.
         aggregate = app.create_example_aggregate()
