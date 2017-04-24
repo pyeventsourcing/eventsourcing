@@ -18,12 +18,32 @@ class ConsistencyError(EventSourcingError):
     """Raised when applying an event stream to a versioned entity."""
 
 
+class MismatchedOriginatorError(ConsistencyError):
+    """Raised when applying an event to an inappropriate object."""
+
+
+class MismatchedOriginatorIDError(MismatchedOriginatorError):
+    """Raised when applying an event to the wrong entity or aggregate."""
+
+
+class MismatchedOriginatorVersionError(MismatchedOriginatorError):
+    """Raised when applying an event to the wrong version of an entity or aggregate."""
+
+
+class MutatorRequiresTypeNotInstance(ConsistencyError):
+    """Raised when mutator function received a class rather than an entity."""
+
+
+class EntityIsDiscarded(AssertionError):
+    """Raised when access to a recently discarded entity object is attempted."""
+
+
 class ProgrammingError(EventSourcingError):
     """Raised when programming errors are encountered."""
 
 
 class RepositoryKeyError(KeyError, EventSourcingError):
-    """Raised when access an entity that does not exist."""
+    """Raised when using entity repository's dictionary like interface  to get an entity that does not exist."""
 
 
 class SequenceFullError(EventSourcingError):

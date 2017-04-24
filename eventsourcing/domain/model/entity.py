@@ -1,4 +1,6 @@
-from eventsourcing.exceptions import ConsistencyError, ProgrammingError
+from eventsourcing.exceptions import ProgrammingError, MismatchedOriginatorIDError, \
+    MismatchedOriginatorVersionError, \
+    MutatorRequiresTypeNotInstance, EntityIsDiscarded
 from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
@@ -12,22 +14,6 @@ from inspect import isfunction
 from six import with_metaclass
 
 from eventsourcing.domain.model.events import publish, QualnameABCMeta, TimestampedVersionedEntityEvent
-
-
-class EntityIDConsistencyError(ConsistencyError):
-    pass
-
-
-class EntityVersionConsistencyError(ConsistencyError):
-    pass
-
-
-class CreatedMutatorRequiresTypeNotInstance(ConsistencyError):
-    pass
-
-
-class EntityIsDiscarded(AssertionError):
-    pass
 
 
 class Created(TimestampedVersionedEntityEvent):
@@ -71,7 +57,7 @@ class DomainEntity(with_metaclass(QualnameABCMeta)):
         Checks the event's entity ID matches this entity's ID.
         """
         if self._id != event.entity_id:
-            raise EntityIDConsistencyError(
+            raise MismatchedOriginatorIDError(
                 "Entity ID '{}' not equal to event's entity ID '{}'"
                 "".format(self.id, event.entity_id)
             )
@@ -142,7 +128,7 @@ class VersionedEntity(DomainEntity):
         Checks the event's entity version matches this entity's version.
         """
         if self._version != event.entity_version:
-            raise EntityVersionConsistencyError(
+            raise MismatchedOriginatorVersionError(
                 ("Event originated from entity at version {}, but entity is currently at version {}. "
                  "Event type: '{}', entity type: '{}', entity ID: '{}'"
                  "".format(self._version, event.entity_version,
@@ -201,7 +187,7 @@ def created_mutator(event, cls):
         msg = ("Mutator for Created event requires entity type not instance: {} "
                "(event entity id: {}, event type: {})"
                "".format(type(cls), event.entity_id, type(event)))
-        raise CreatedMutatorRequiresTypeNotInstance(msg)
+        raise MutatorRequiresTypeNotInstance(msg)
     assert issubclass(cls, TimestampedVersionedEntity), cls
     try:
         self = cls(**event.__dict__)

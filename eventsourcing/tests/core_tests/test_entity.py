@@ -2,8 +2,8 @@ from uuid import uuid4
 
 import mock
 
-from eventsourcing.domain.model.entity import AttributeChanged, Created, CreatedMutatorRequiresTypeNotInstance, \
-    EntityIDConsistencyError, EntityVersionConsistencyError, TimestampedVersionedEntity, attribute, created_mutator
+from eventsourcing.domain.model.entity import AttributeChanged, Created, MutatorRequiresTypeNotInstance, \
+    MismatchedOriginatorIDError, MismatchedOriginatorVersionError, TimestampedVersionedEntity, attribute, created_mutator
 from eventsourcing.domain.model.events import VersionedEntityEvent, publish, subscribe, unsubscribe, DomainEvent
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.example.domainmodel import Example, create_new_example
@@ -81,7 +81,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertRaises(AssertionError, entity1.discard)
 
         # Should fail to validate event with wrong entity ID.
-        with self.assertRaises(EntityIDConsistencyError):
+        with self.assertRaises(MismatchedOriginatorIDError):
             entity2._validate_originator(
                 VersionedEntityEvent(
                     entity_id=uuid4(),
@@ -89,7 +89,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
                 )
             )
         # Should fail to validate event with wrong entity version.
-        with self.assertRaises(EntityVersionConsistencyError):
+        with self.assertRaises(MismatchedOriginatorVersionError):
             entity2._validate_originator(
                 VersionedEntityEvent(
                     entity_id=entity2.id,
@@ -194,12 +194,12 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
     def test_created_mutator_errors(self):
         # Check the guard condition raises exception.
-        with self.assertRaises(CreatedMutatorRequiresTypeNotInstance):
+        with self.assertRaises(MutatorRequiresTypeNotInstance):
             created_mutator(mock.Mock(spec=Created), 'not a class')
 
         # Check the instantiation type error.
         with self.assertRaises(TypeError):
-            created_mutator(mock.Mock(spec=Created), TimestampedVersionedEntity)
+            created_mutator(mock.Mock(spec=Created), TimestampedVersionedEntity)  # needs more than the mock obj has
 
 
 class CustomValueObject(object):
