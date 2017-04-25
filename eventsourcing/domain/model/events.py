@@ -176,6 +176,32 @@ class TimestampedVersionedEntityEvent(EventWithTimestamp, VersionedEntityEvent):
     For events of version-based entities, that are also timestamped.
     """
 
+class Created(TimestampedVersionedEntityEvent):
+    """
+    Can be published when an entity is created.
+    """
+    def __init__(self, originator_version=0, **kwargs):
+        super(Created, self).__init__(originator_version=originator_version, **kwargs)
+
+
+class AttributeChanged(TimestampedVersionedEntityEvent):
+    """
+    Can be published when an attribute of an entity is created.
+    """
+    @property
+    def name(self):
+        return self.__dict__['name']
+
+    @property
+    def value(self):
+        return self.__dict__['value']
+
+
+class Discarded(TimestampedVersionedEntityEvent):
+    """
+    Can be published when an entity is discarded.
+    """
+
 
 _event_handlers = OrderedDict()
 
