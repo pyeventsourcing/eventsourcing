@@ -1,5 +1,6 @@
+import sys
 import time
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from unittest.case import TestCase
 from uuid import uuid1
 
@@ -19,5 +20,6 @@ class TestUtils(TestCase):
         self.assertEqual(timestamp_from_uuid(uuid.hex), timestamp_from_uuid(uuid))
 
     def test_utc(self):
-        self.assertEqual(utc_timezone.utcoffset(datetime.now()), timedelta(0))
-        self.assertEqual(utc_timezone.dst(datetime.now()), timedelta(0))
+        now = datetime.now(tz=utc_timezone)
+        self.assertEqual(utc_timezone.utcoffset(now), timedelta(0))
+        self.assertEqual(utc_timezone.dst(now), timedelta(0) if sys.version[0] == 2 else None)
