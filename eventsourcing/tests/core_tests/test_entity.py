@@ -189,10 +189,10 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertTrue(published_event.originator_version, 1)
         self.assertEqual(published_event.originator_id, entity_id)
 
-    def test_static_mutator_method(self):
-        self.assertRaises(NotImplementedError, TimestampedVersionedEntity._mutator, 1, 2)
+    def test_mutator_errors(self):
+        with self.assertRaises(NotImplementedError):
+            TimestampedVersionedEntity.mutate(1, 2)
 
-    def test_created_mutator_errors(self):
         # Check the guard condition raises exception.
         with self.assertRaises(MutatorRequiresTypeNotInstance):
             created_mutator(mock.Mock(spec=Created), 'not a class')

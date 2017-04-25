@@ -1,21 +1,15 @@
 import uuid
-from uuid import uuid4
-
-import mock
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.aggregate_root import AggregateRoot, aggregate_mutator
-from eventsourcing.domain.model.entity import MismatchedOriginatorIDError, MismatchedOriginatorVersionError, \
-    attribute, singledispatch, Created
+from eventsourcing.domain.model.aggregate_root import AggregateRoot
+from eventsourcing.domain.model.entity import Created, attribute, entity_mutator, singledispatch
 from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent
-from eventsourcing.exceptions import MutatorRequiresTypeNotInstance
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     SqlIntegerSequencedItem
-from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 
@@ -51,35 +45,35 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         self.assertEqual(self.app.aggregate_repository[aggregate.id].foo, 'bar')
 
         # Check the aggregate has zero entities.
-        self.assertEqual(aggregate.count_entities(), 0)
+        self.assertEqual(aggregate.count_examples(), 0)
 
         # Check the aggregate has zero entities.
-        self.assertEqual(aggregate.count_entities(), 0)
+        self.assertEqual(aggregate.count_examples(), 0)
 
         # Ask the aggregate to create an entity within itself.
-        aggregate.create_new_entity()
+        aggregate.create_new_example()
 
         # Check the aggregate has one entity.
-        self.assertEqual(aggregate.count_entities(), 1)
+        self.assertEqual(aggregate.count_examples(), 1)
 
         # Check the aggregate in the repo still has zero entities.
-        self.assertEqual(self.app.aggregate_repository[aggregate.id].count_entities(), 0)
+        self.assertEqual(self.app.aggregate_repository[aggregate.id].count_examples(), 0)
 
         # Call save().
         aggregate.save()
 
         # Check the aggregate in the repo now has one entity.
-        self.assertEqual(self.app.aggregate_repository[aggregate.id].count_entities(), 1)
+        self.assertEqual(self.app.aggregate_repository[aggregate.id].count_examples(), 1)
 
         # Create two more entities within the aggregate.
-        aggregate.create_new_entity()
-        aggregate.create_new_entity()
+        aggregate.create_new_example()
+        aggregate.create_new_example()
 
         # Save both "entity created" events in one atomic transaction.
         aggregate.save()
 
         # Check the aggregate in the repo now has three entities.
-        self.assertEqual(self.app.aggregate_repository[aggregate.id].count_entities(), 3)
+        self.assertEqual(self.app.aggregate_repository[aggregate.id].count_examples(), 3)
 
         # Discard the aggregate, but don't call save() yet.
         aggregate.discard()
@@ -93,38 +87,42 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         # Check the aggregate no longer exists in the repo.
         self.assertNotIn(aggregate.id, self.app.aggregate_repository)
 
-    def test_mismatched_originator_errors(self):
-        # Create a new aggregate.
-        aggregate = self.app.create_example_aggregate()
 
-        # Check a different created event fails to validate IDs.
-        with self.assertRaises(MismatchedOriginatorIDError):
-            aggregate._validate_originator_id(Created(originator_id=uuid4()))
+class ExampleAggregateRoot(AggregateRoot):
+    def __init__(self, foo='', **kwargs):
+        super(ExampleAggregateRoot, self).__init__(**kwargs)
+        self._entities = {}
+        self._foo = foo
 
-        # Check another created event fails to validate versions.
-        with self.assertRaises(MismatchedOriginatorVersionError):
-            aggregate._validate_originator_version(Created(originator_id=aggregate.id))
+    @attribute
+    def foo(self):
+        """Event sourced attribute foo."""
 
-    def test_mutator_errors(self):
-        with self.assertRaises(NotImplementedError):
-            aggregate_mutator(1, 2)
+    def create_new_example(self):
+        assert not self._is_discarded
+        event = ExampleCreated(
+            entity_id=uuid.uuid4(),
+            originator_id=self.id,
+            originator_version=self.version,
+        )
+        self._apply(event)
+        self._publish(event)
 
-        # Check the guard condition raises exception.
-        with self.assertRaises(MutatorRequiresTypeNotInstance):
-            aggregate_mutator(mock.Mock(spec=Created), 'not a class')
+    def count_examples(self):
+        return len(self._entities)
 
-        # Check the instantiation type error.
-        with self.assertRaises(TypeError):
-            aggregate_mutator(mock.Mock(spec=Created), AggregateRoot)  # needs more than the mock obj has
+    @staticmethod
+    def _mutator(event, initial):
+        return example_aggregate_mutator(event, initial)
 
 
-class EntityCreated(TimestampedVersionedEntityEvent):
+class ExampleCreated(TimestampedVersionedEntityEvent):
     """
-    Published when an entity is created.
+    Published when an entity is created by an aggregate.
     """
 
     def __init__(self, entity_id, **kwargs):
-        super(EntityCreated, self).__init__(entity_id=entity_id, **kwargs)
+        super(ExampleCreated, self).__init__(entity_id=entity_id, **kwargs)
 
     @property
     def entity_id(self):
@@ -144,40 +142,12 @@ class Example(object):
         return self._id
 
 
-class ExampleAggregateRoot(AggregateRoot):
-    def __init__(self, foo='', **kwargs):
-        super(ExampleAggregateRoot, self).__init__(**kwargs)
-        self._entities = {}
-        self._foo = foo
-
-    @attribute
-    def foo(self):
-        """Event sourced attribute foo."""
-
-    def create_new_entity(self):
-        assert not self._is_discarded
-        event = EntityCreated(
-            entity_id=uuid.uuid4(),
-            originator_id=self.id,
-            originator_version=self.version,
-        )
-        self._apply(event)
-        self._pending_events.append(event)
-
-    def count_entities(self):
-        return len(self._entities)
-
-    @staticmethod
-    def _mutator(event, initial):
-        return example_aggregate_mutator(event, initial)
-
-
 @singledispatch
 def example_aggregate_mutator(event, self):
-    return aggregate_mutator(event, self)
+    return entity_mutator(event, self)
 
 
-@aggregate_mutator.register(EntityCreated)
+@example_aggregate_mutator.register(ExampleCreated)
 def entity_created_mutator(event, self):
     assert not self._is_discarded
     entity = Example(entity_id=event.entity_id)

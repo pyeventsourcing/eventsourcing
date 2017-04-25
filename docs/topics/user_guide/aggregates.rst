@@ -63,12 +63,12 @@ resulting from executing a command cannot be stored then none of them will be st
             super(AggregateCreated, self).__init__(aggregate_version=aggregate_version, **kwargs)
 
 
-    class EntityCreated(AggregateEvent):
+    class ExampleCreated(AggregateEvent):
         """
         Published when an entity is created.
         """
         def __init__(self, originator_id, **kwargs):
-            super(EntityCreated, self).__init__(originator_id=originator_id, **kwargs)
+            super(ExampleCreated, self).__init__(originator_id=originator_id, **kwargs)
 
 
     class AggregateDiscarded(AggregateEvent):
@@ -112,12 +112,12 @@ resulting from executing a command cannot be stored then none of them will be st
         def last_modified_on(self):
             return self._last_modified_on
 
-        def count_entities(self):
+        def count_examples(self):
             return len(self._entities)
 
-        def create_new_entity(self):
+        def create_new_example(self):
             assert not self._is_discarded
-            event = EntityCreated(
+            event = ExampleCreated(
                 originator_id=uuid.uuid4(),
                 aggregate_id=self.id,
                 aggregate_version=self.version,
@@ -160,7 +160,7 @@ resulting from executing a command cannot be stored then none of them will be st
             return aggregate
 
         # Handle "entity created" events by adding a new entity to the aggregate's dict of entities.
-        elif isinstance(event, EntityCreated):
+        elif isinstance(event, ExampleCreated):
             assert not aggregate.is_discarded
             entity = Example(originator_id=event.originator_id)
             aggregate._entities[entity.id] = entity
@@ -259,35 +259,35 @@ method is called.
         assert aggregate.id in app.aggregate_repository, aggregate.id
 
         # Check the aggregate has zero entities.
-        assert aggregate.count_entities() == 0
+        assert aggregate.count_examples() == 0
 
         # Check the aggregate has zero entities.
-        assert aggregate.count_entities() == 0
+        assert aggregate.count_examples() == 0
 
         # Ask the aggregate to create an entity within itself.
-        aggregate.create_new_entity()
+        aggregate.create_new_example()
 
         # Check the aggregate has one entity.
-        assert aggregate.count_entities() == 1
+        assert aggregate.count_examples() == 1
 
         # Check the aggregate in the repo still has zero entities.
-        assert app.aggregate_repository[aggregate.id].count_entities() == 0
+        assert app.aggregate_repository[aggregate.id].count_examples() == 0
 
         # Call save().
         aggregate.save()
 
         # Check the aggregate in the repo now has one entity.
-        assert app.aggregate_repository[aggregate.id].count_entities() == 1
+        assert app.aggregate_repository[aggregate.id].count_examples() == 1
 
         # Create two more entities within the aggregate.
-        aggregate.create_new_entity()
-        aggregate.create_new_entity()
+        aggregate.create_new_example()
+        aggregate.create_new_example()
 
         # Save both "entity created" events in one atomic transaction.
         aggregate.save()
 
         # Check the aggregate in the repo now has three entities.
-        assert app.aggregate_repository[aggregate.id].count_entities() == 3
+        assert app.aggregate_repository[aggregate.id].count_examples() == 3
 
         # Discard the aggregate, but don't call save() yet.
         aggregate.discard()

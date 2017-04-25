@@ -101,6 +101,13 @@ class VersionedEntity(DomainEntity):
     def version(self):
         return self._version
 
+    def discard(self):
+        self._assert_not_discarded()
+        event_class = getattr(self, 'Discarded', Discarded)
+        event = event_class(originator_id=self._id, originator_version=self._version)
+        self._apply(event)
+        self._publish(event)
+
     def _increment_version(self):
         if self._version is not None:
             self._version += 1
@@ -127,15 +134,10 @@ class VersionedEntity(DomainEntity):
         event_class = getattr(self, 'AttributeChanged', AttributeChanged)
         event = event_class(name=name, value=value, originator_id=self._id, originator_version=self._version)
         self._apply(event)
-        publish(event)
+        self._publish(event)
 
-    def discard(self):
-        self._assert_not_discarded()
-        event_class = getattr(self, 'Discarded', Discarded)
-        event = event_class(originator_id=self._id, originator_version=self._version)
-        self._apply(event)
+    def _publish(self, event):
         publish(event)
-
 
 
 class TimestampedEntity(DomainEntity):
