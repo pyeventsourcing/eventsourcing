@@ -16,8 +16,8 @@ Later examples in this guide make more use of library classes, which
 are only slightly more sophisticated than the code snippets included here.
 
 
-Domain model
-============
+Domain
+======
 
 Let's start with the domain model. Since the state of an event sourced application
 is determined by a sequence of events, so we need to define some events.
@@ -32,8 +32,7 @@ With that in mind, we can begin to write some domain event classes.
 
 In the example below, there are three domain event classes: ``Created``,
 ``AttributeChanged``, and ``Discarded``. The common attributes of the domain
-event classes - the entity ID, entity version, and the timestamp of the
-event - have been pulled up to a layer supertype ``DomainEvent``.
+event classes have been pulled up to a layer supertype ``DomainEvent``.
 
 .. code:: python
 
