@@ -1,18 +1,12 @@
+from abc import ABCMeta, abstractmethod
+from inspect import isfunction
+
+from six import with_metaclass
+
+from eventsourcing.domain.model.events import QualnameABCMeta, TimestampedVersionedEntityEvent, mutator, publish
 from eventsourcing.exceptions import EntityIsDiscarded, MismatchedOriginatorIDError, \
     MismatchedOriginatorVersionError, MutatorRequiresTypeNotInstance, ProgrammingError
 from eventsourcing.utils.time import timestamp_from_uuid
-
-try:
-    # Python 3.4+
-    from functools import singledispatch
-except ImportError:
-    from singledispatch import singledispatch
-
-from abc import ABCMeta, abstractmethod
-from inspect import isfunction
-from six import with_metaclass
-
-from eventsourcing.domain.model.events import publish, QualnameABCMeta, TimestampedVersionedEntityEvent
 
 
 class Created(TimestampedVersionedEntityEvent):
@@ -69,11 +63,11 @@ class DomainEntity(with_metaclass(QualnameABCMeta)):
     @classmethod
     def mutate(cls, entity=None, event=None):
         initial = entity if entity is not None else cls
-        return cls._mutator(event, initial)
+        return cls._mutator(initial, event)
 
     @staticmethod
-    def _mutator(event, initial):
-        return entity_mutator(event, initial)
+    def _mutator(initial, event):
+        return entity_mutator(initial, event)
 
 
 class WithReflexiveMutator(DomainEntity):
@@ -82,7 +76,7 @@ class WithReflexiveMutator(DomainEntity):
     calls to mutate an entity with an event to the event itself.
     
     This is an alternative to using an independent mutator function
-    implemented with singledispatch or an if-else block.
+    implemented with the @mutator decorator, or an if-else block.
     """
 
     @classmethod
@@ -176,13 +170,13 @@ class TimeuuidedVersionedEntity(TimeuuidedEntity, VersionedEntity):
     pass
 
 
-@singledispatch
-def entity_mutator(event, _):
+@mutator
+def entity_mutator(_, event):
     raise NotImplementedError("Event type not supported: {}".format(type(event)))
 
 
 @entity_mutator.register(Created)
-def created_mutator(event, cls):
+def created_mutator(cls, event):
     assert isinstance(event, Created), event
     if not isinstance(cls, type):
         msg = ("Mutator for Created event requires entity type not instance: {} "
@@ -199,7 +193,7 @@ def created_mutator(event, cls):
 
 
 @entity_mutator.register(AttributeChanged)
-def attribute_changed_mutator(event, self):
+def attribute_changed_mutator(self, event):
     assert isinstance(self, TimestampedVersionedEntity), self
     self._validate_originator(event)
     setattr(self, event.name, event.value)
@@ -209,7 +203,7 @@ def attribute_changed_mutator(event, self):
 
 
 @entity_mutator.register(Discarded)
-def discarded_mutator(event, self):
+def discarded_mutator(self, event):
     assert isinstance(self, TimestampedVersionedEntity), self
     self._validate_originator(event)
     self._is_discarded = True

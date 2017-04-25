@@ -2,11 +2,10 @@ import uuid
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.aggregate_root import AggregateRoot
-from eventsourcing.domain.model.entity import Created, attribute, entity_mutator, singledispatch
-from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent
+from eventsourcing.domain.model.entity import Created, attribute, entity_mutator
+from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, mutator
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     SqlIntegerSequencedItem
@@ -112,8 +111,8 @@ class ExampleAggregateRoot(AggregateRoot):
         return len(self._entities)
 
     @staticmethod
-    def _mutator(event, initial):
-        return example_aggregate_mutator(event, initial)
+    def _mutator(initial, event):
+        return example_aggregate_mutator(initial, event)
 
 
 class ExampleCreated(TimestampedVersionedEntityEvent):
@@ -142,13 +141,13 @@ class Example(object):
         return self._id
 
 
-@singledispatch
-def example_aggregate_mutator(event, self):
-    return entity_mutator(event, self)
+@mutator
+def example_aggregate_mutator(self, event):
+    return entity_mutator(self, event)
 
 
 @example_aggregate_mutator.register(ExampleCreated)
-def entity_created_mutator(event, self):
+def entity_created_mutator(self, event):
     assert not self._is_discarded
     entity = Example(entity_id=event.entity_id)
     self._entities[entity.id] = entity
