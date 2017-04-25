@@ -50,9 +50,8 @@ Infrastructure
 --------------
 
 Snapshots will be not be stored in the entity's sequence of events,
-but in a dedicated table for snapshots.
-
-Let's setup a dedicated table for snapshots.
+but in a dedicated table for snapshots. So let's setup a dedicated table
+for snapshots.
 
 .. code:: python
 
@@ -85,11 +84,14 @@ Let's setup a dedicated table for snapshots.
 Application object
 ------------------
 
-In the application class below extends the library class ``ApplicationWithPersistencePolicies``.
+The application class below extends the library class ``ApplicationWithPersistencePolicies``.
 
-The ``EventSourcedRepository`` is constructed with an event sourced snapshot strategy.
-The application also has a policy to persist snapshots whenever they are taken. The snapshotting policy is
-configured to take a snapshot after each new event.
+The ``EventSourcedRepository`` is constructed with a snapshot strategy. An ``EventSourcedSnapshotStrategy``
+is constructed using the ``snapshot_store`` provided by the supertype.
+
+The snapshotting policy is configured to take a snapshot every other event. The supertype has policy
+to persist snapshots whenever they are taken.
+
 
 .. code:: python
 
