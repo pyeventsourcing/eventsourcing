@@ -10,7 +10,7 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy, entity_from_snapshot
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
-    SqlIntegerSequencedItem, SqlSnapshot
+    IntegerSequencedItemRecord, SnapshotRecord
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 
 
@@ -26,7 +26,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         self.integer_sequenced_event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 session=self.datastore.db_session,
-                active_record_class=SqlIntegerSequencedItem,
+                active_record_class=IntegerSequencedItemRecord,
                 sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
@@ -40,7 +40,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         self.snapshot_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 session=self.datastore.db_session,
-                active_record_class=SqlSnapshot,
+                active_record_class=SnapshotRecord,
                 sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(

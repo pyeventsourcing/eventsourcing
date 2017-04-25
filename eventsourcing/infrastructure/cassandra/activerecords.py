@@ -111,7 +111,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         return self.active_record_class.objects.filter(*args, **kwargs)
 
 
-class CqlIntegerSequencedItem(Model):
+class IntegerSequencedItemRecord(Model):
     """Stores integer-sequenced items in Cassandra."""
 
     _if_not_exists = True
@@ -131,7 +131,7 @@ class CqlIntegerSequencedItem(Model):
     d = columns.Text(required=True)
 
 
-class CqlTimestampSequencedItem(Model):
+class TimestampSequencedItemRecord(Model):
     """Stores timestamp-sequenced items in Cassandra."""
 
     _if_not_exists = True
@@ -171,7 +171,7 @@ class CqlTimeuuidSequencedItem(Model):
     d = columns.Text(required=True)
 
 
-class CqlSnapshot(Model):
+class SnapshotRecord(Model):
     """Stores snapshots in Cassandra."""
 
     _if_not_exists = True

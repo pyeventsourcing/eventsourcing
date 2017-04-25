@@ -14,7 +14,7 @@ from requests.models import Response
 
 import eventsourcing
 from eventsourcing.example import flaskapp
-from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem
+from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 
 path_to_virtualenv = None
@@ -73,7 +73,7 @@ class TestFlaskWsgi(TestFlaskApp):
         # Setup tables.
         datastore = SQLAlchemyDatastore(
             settings=SQLAlchemySettings(uri=uri),
-            tables=(SqlIntegerSequencedItem,),
+            tables=(IntegerSequencedItemRecord,),
         )
         datastore.setup_connection()
         datastore.setup_tables()

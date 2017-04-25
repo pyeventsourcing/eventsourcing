@@ -10,7 +10,7 @@ from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
-    SqlIntegerSequencedItem
+    IntegerSequencedItemRecord
 from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
@@ -25,7 +25,7 @@ ExtendedSequencedItem = namedtuple('ExtendedSequencedItem',
 
 
 # Extend the database table definition to support the extra fields.
-class SqlExtendedIntegerSequencedItem(SqlIntegerSequencedItem):
+class ExtendedIntegerSequencedItemRecord(IntegerSequencedItemRecord):
     # Timestamp of the event.
     timestamp = Column(Float())
 
@@ -48,7 +48,7 @@ class ExampleApplicationWithExtendedSequencedItemType(object):
         self.event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 session=session,
-                active_record_class=SqlExtendedIntegerSequencedItem,
+                active_record_class=ExtendedIntegerSequencedItemRecord,
                 sequenced_item_class=ExtendedSequencedItem,
             ),
             sequenced_item_mapper=ExtendedSequencedItemMapper(
@@ -87,7 +87,7 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
         return SQLAlchemyDatastore(
             base=Base,
             settings=SQLAlchemySettings(),
-            tables=(SqlExtendedIntegerSequencedItem,)
+            tables=(ExtendedIntegerSequencedItemRecord,)
         )
 
     def test(self):

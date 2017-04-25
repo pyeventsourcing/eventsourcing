@@ -5,8 +5,8 @@ Application-level encryption
 To enable encryption, pass in a cipher strategy object when constructing
 the sequenced item mapper, and set ``always_encrypt`` to a True value.
 
-Cipher
-------
+Cipher strategy
+---------------
 
 This example uses the AES cipher strategy provided by this library. Alternatively,
 you can craft your own cipher strategy object.
@@ -33,11 +33,11 @@ Setup infrastructure using library classes.
 .. code:: python
 
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
 
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-        tables=(SqlIntegerSequencedItem,),
+        tables=(IntegerSequencedItemRecord,),
     )
 
     datastore.setup_connection()
@@ -54,8 +54,7 @@ Define a factory that uses library classes to construct an application object.
 
     def construct_example_application(datastore, always_encrypt=False, cipher=None):
         active_record_strategy = SQLAlchemyActiveRecordStrategy(
-            active_record_class=SqlIntegerSequencedItem,
-            sequenced_item_class=SequencedItem,
+            active_record_class=IntegerSequencedItemRecord,
             session=datastore.db_session
         )
         app = ExampleApplication(
@@ -86,7 +85,7 @@ Run the code
         retrieved_entity = app.example_repository[secret_entity.id]
         assert 'secret info' in retrieved_entity.foo
 
-    # Create a new example entity using an unencrypted application.
+    # Create a new example entity using an unencrypted application object.
     unencrypted_app = construct_example_application(datastore)
     with unencrypted_app as app:
         entity = app.create_new_example(foo='bar')

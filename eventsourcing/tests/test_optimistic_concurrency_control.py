@@ -205,12 +205,12 @@
 #         uri = 'sqlite:///' + temp_file_name
 #         datastore = SQLAlchemyDatastore(
 #             settings=SQLAlchemySettings(uri=uri),
-#             tables=(SqlStoredEvent,),
+#             tables=(StoredEventRecord,),
 #         )
 #         datastore.setup_connection()
 #         repo = SQLAlchemyStoredEventRepository(
 #             datastore=datastore,
-#             stored_event_table=SqlStoredEvent,
+#             stored_event_table=StoredEventRecord,
 #             always_check_expected_version=True,
 #             always_write_originator_version=True,
 #         )

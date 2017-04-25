@@ -11,81 +11,57 @@ Install the library with the 'cassandra' option.
     pip install eventsourcing[cassandra]
 
 
+Infrastructure
+--------------
+
 Setup the connection and the database tables, using the library classes for Cassandra.
 
 .. code:: python
 
     from eventsourcing.infrastructure.cassandra.datastore import CassandraSettings, CassandraDatastore
-    from eventsourcing.infrastructure.cassandra.activerecords import CqlIntegerSequencedItem
+    from eventsourcing.infrastructure.cassandra.activerecords import IntegerSequencedItemRecord
 
     cassandra_datastore = CassandraDatastore(
         settings=CassandraSettings(),
-        tables=(CqlIntegerSequencedItem,),
+        tables=(IntegerSequencedItemRecord,),
     )
 
     cassandra_datastore.setup_connection()
     cassandra_datastore.setup_tables()
 
 
-The Cassandra application class below is similar to the example application class.
-One difference is the Cassandra datastore object is not passed into the Cassandra
-active record strategy.
+Application object
+------------------
 
-You may investigate the ``CassandraSettings`` to learn how to configure
-away from default settings.
+Define a factory that uses library classes for Cassandra to construct an application
+object. Investigate the library class ``CassandraSettings`` for information about
+configuring away from default settings.
 
 .. code:: python
 
+    from eventsourcing.example.application import ExampleApplication
     from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy
-    from eventsourcing.application.policies import PersistencePolicy
-    from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-    from eventsourcing.infrastructure.eventstore import EventStore
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
-    from eventsourcing.infrastructure.sequenceditem import SequencedItem
-    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-    from eventsourcing.example.domainmodel import Example, create_new_example
-    from eventsourcing.domain.model.events import VersionedEntityEvent
+
+    def construct_application():
+        active_record_strategy = CassandraActiveRecordStrategy(
+            active_record_class=IntegerSequencedItemRecord,
+        )
+        app = ExampleApplication(
+            integer_sequenced_active_record_strategy=active_record_strategy,
+        )
+        return app
 
 
-    class CassandraApplication(object):
-        def __init__(self):
-            self.event_store = EventStore(
-                active_record_strategy=CassandraActiveRecordStrategy(
-                    active_record_class=CqlIntegerSequencedItem,
-                    sequenced_item_class=SequencedItem,
-                ),
-                sequenced_item_mapper=SequencedItemMapper(
-                    sequenced_item_class=SequencedItem,
-                    sequence_id_attr_name='originator_id',
-                    position_attr_name='originator_version',
-                )
-            )
-            self.example_repository = EventSourcedRepository(
-                event_store=self.event_store,
-                mutator=Example.mutate,
-            )
-            self.persistence_policy = PersistencePolicy(self.event_store, event_type=VersionedEntityEvent)
+Run the code
+------------
 
-        def create_example(self, foo):
-            return create_new_example(foo=foo)
-
-        def close(self):
-            self.persistence_policy.close()
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            self.close()
-
-
-The Cassandra application can be used in exactly the same way as the example application.
+The example application can be used in the same way as before.
 
 .. code:: python
 
-    with CassandraApplication() as app:
+    with construct_application() as app:
 
-        entity = app.create_example(foo='bar1')
+        entity = app.create_new_example(foo='bar1')
 
         assert entity.id in app.example_repository
 

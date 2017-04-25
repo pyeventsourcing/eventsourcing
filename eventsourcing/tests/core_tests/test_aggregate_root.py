@@ -8,7 +8,7 @@ from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepo
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
-    SqlIntegerSequencedItem
+    IntegerSequencedItemRecord
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 
@@ -161,7 +161,7 @@ class ExampleDDDApplication(object):
         event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 session=datastore.db_session,
-                active_record_class=SqlIntegerSequencedItem,
+                active_record_class=IntegerSequencedItemRecord,
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequence_id_attr_name='originator_id',

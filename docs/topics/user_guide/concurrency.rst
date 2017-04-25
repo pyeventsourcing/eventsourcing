@@ -17,11 +17,11 @@ Setup infrastructure using library classes.
 .. code:: python
 
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
 
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-        tables=(SqlIntegerSequencedItem,),
+        tables=(IntegerSequencedItemRecord,),
     )
 
     datastore.setup_connection()
@@ -38,7 +38,7 @@ Define a factory that uses library classes to construct an application object.
 
     def construct_example_application(datastore):
         active_record_strategy = SQLAlchemyActiveRecordStrategy(
-            active_record_class=SqlIntegerSequencedItem,
+            active_record_class=IntegerSequencedItemRecord,
             sequenced_item_class=SequencedItem,
             session=datastore.db_session
         )

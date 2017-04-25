@@ -14,12 +14,12 @@ Firstly setup a dedicated table for snapshots.
 
     from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
     from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemySettings, SQLAlchemyDatastore
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
     from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
     from sqlalchemy_utils import UUIDType
 
 
-    class SqlSnapshot(Base):
+    class SnapshotRecord(Base):
         __tablename__ = 'snapshot'
 
         id = Column(Integer(), Sequence('snapshot_id_seq'), primary_key=True)
@@ -32,7 +32,7 @@ Firstly setup a dedicated table for snapshots.
 
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-        tables=(SqlIntegerSequencedItem, SqlSnapshot,),
+        tables=(IntegerSequencedItemRecord, SnapshotRecord,),
     )
 
     datastore.setup_connection()
@@ -96,11 +96,9 @@ a snapshot after each new event.
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
                     session=datastore.db_session,
-                    active_record_class=SqlIntegerSequencedItem,
-                    sequenced_item_class=SequencedItem
+                    active_record_class=IntegerSequencedItemRecord,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
-                    sequenced_item_class=SequencedItem,
                     sequence_id_attr_name='originator_id',
                     position_attr_name='originator_version'
                 )
@@ -108,7 +106,7 @@ a snapshot after each new event.
             self.snapshot_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
                     session=datastore.db_session,
-                    active_record_class=SqlSnapshot,
+                    active_record_class=SnapshotRecord,
                     sequenced_item_class=SequencedItem
                 ),
                 sequenced_item_mapper=SequencedItemMapper(

@@ -140,7 +140,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
             self.session.close()
 
 
-class SqlIntegerSequencedItem(Base):
+class IntegerSequencedItemRecord(Base):
     __tablename__ = 'integer_sequenced_items'
 
     id = Column(Integer, Sequence('integer_sequened_item_id_seq'), primary_key=True)
@@ -162,7 +162,7 @@ class SqlIntegerSequencedItem(Base):
                                       name='integer_sequenced_item_uc'),
 
 
-class SqlTimestampSequencedItem(Base):
+class TimestampSequencedItemRecord(Base):
     # Explicit table name.
     __tablename__ = 'timestamp_sequenced_items'
 
@@ -185,7 +185,7 @@ class SqlTimestampSequencedItem(Base):
     data = Column(Text())
 
 
-class SqlSnapshot(Base):
+class SnapshotRecord(Base):
     __tablename__ = 'snapshots'
 
     id = Column(Integer, Sequence('snapshot_seq'), primary_key=True)

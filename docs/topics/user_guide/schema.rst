@@ -27,7 +27,7 @@ Then define a suitable active record class.
 
     Base = declarative_base()
 
-    class SqlStoredEvent(Base):
+    class StoredEventRecord(Base):
         # Explicit table name.
         __tablename__ = 'stored_events'
 
@@ -73,7 +73,7 @@ Then redefine the application class to use the new sequenced item and active rec
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
                     session=datastore.db_session,
-                    active_record_class=SqlStoredEvent,
+                    active_record_class=StoredEventRecord,
                     sequenced_item_class=StoredEvent,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
@@ -110,7 +110,7 @@ Set up the database.
     datastore = SQLAlchemyDatastore(
         base=Base,
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-        tables=(SqlStoredEvent,),
+        tables=(StoredEventRecord,),
     )
 
     datastore.setup_connection()

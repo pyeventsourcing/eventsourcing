@@ -23,7 +23,7 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'event_type', 'state'])
 
 
-class SqlStoredEvent(Base):
+class StoredEventRecord(Base):
     # Explicit table name.
     __tablename__ = 'stored_events'
 
@@ -54,7 +54,7 @@ class ExampleApplicationWithAlternativeSequencedItemType(object):
         self.event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 session=db_session,
-                active_record_class=SqlStoredEvent,
+                active_record_class=StoredEventRecord,
                 sequenced_item_class=StoredEvent,
             ),
             sequenced_item_mapper=SequencedItemMapper(
@@ -93,7 +93,7 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
         return SQLAlchemyDatastore(
             base=Base,
             settings=SQLAlchemySettings(),
-            tables=(SqlStoredEvent,)
+            tables=(StoredEventRecord,)
 
         )
 

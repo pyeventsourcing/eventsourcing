@@ -2,7 +2,7 @@ from flask import Flask
 
 from eventsourcing.example.application import get_example_application, init_example_application
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
-    SqlIntegerSequencedItem
+    IntegerSequencedItemRecord
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 
 application = Flask(__name__)
@@ -18,7 +18,7 @@ def hello():
 
 def init_example_application_with_sqlalchemy(session):
     active_record_strategy = SQLAlchemyActiveRecordStrategy(
-        active_record_class=SqlIntegerSequencedItem,
+        active_record_class=IntegerSequencedItemRecord,
         session=session,
     )
     init_example_application(
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     uri = 'sqlite:///:memory:'
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri=uri),
-        tables=(SqlIntegerSequencedItem,)
+        tables=(IntegerSequencedItemRecord,)
     )
     datastore.setup_connection()
     datastore.setup_tables()
