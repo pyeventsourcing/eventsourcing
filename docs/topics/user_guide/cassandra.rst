@@ -16,6 +16,9 @@ Infrastructure
 
 Setup the connection and the database tables, using the library classes for Cassandra.
 
+Investigate the library class ``CassandraSettings`` for information about
+configuring away from default settings.
+
 .. code:: python
 
     from eventsourcing.infrastructure.cassandra.datastore import CassandraSettings, CassandraDatastore
@@ -34,8 +37,7 @@ Application object
 ------------------
 
 Define a factory that uses library classes for Cassandra to construct an application
-object. Investigate the library class ``CassandraSettings`` for information about
-configuring away from default settings.
+object.
 
 .. code:: python
 
