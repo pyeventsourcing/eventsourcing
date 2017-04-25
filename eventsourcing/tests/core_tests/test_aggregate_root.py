@@ -159,23 +159,24 @@ def entity_created_mutator(event, self):
 
 class ExampleDDDApplication(object):
     def __init__(self, datastore):
-        self.event_store = EventStore(
+        event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 session=datastore.db_session,
                 active_record_class=SqlIntegerSequencedItem,
-                sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
-                SequencedItem,
                 sequence_id_attr_name='originator_id',
                 position_attr_name='originator_version',
             )
         )
         self.aggregate_repository = EventSourcedRepository(
-            event_store=self.event_store,
             mutator=ExampleAggregateRoot.mutate,
+            event_store=event_store,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store, event_type=TimestampedVersionedEntityEvent)
+        self.persistence_policy = PersistencePolicy(
+            event_type=TimestampedVersionedEntityEvent,
+            event_store=event_store,
+        )
 
     def create_example_aggregate(self):
         """
