@@ -293,8 +293,10 @@ recover the entities.
 Database table
 --------------
 
-Let's start by setting up a simple database. We can use SQLAlchemy to define a
-database table that stores integer-sequenced items.
+Let's start by setting up a simple database table that can store sequences
+of items. We can use SQLAlchemy to define a database table that stores
+items in sequences, with a single identity for each sequence, and with
+each item positioned in its sequenced by an integer index number.
 
 .. code:: python
 
@@ -303,10 +305,10 @@ database table that stores integer-sequenced items.
     from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
     from sqlalchemy_utils import UUIDType
 
-    Base = declarative_base()
+    ActiveRecord = declarative_base()
 
 
-    class SequencedItemTable(Base):
+    class SequencedItemRecord(ActiveRecord):
         __tablename__ = 'sequenced_items'
 
         id = Column(Integer(), Sequence('integer_sequened_item_id_seq'), primary_key=True)
@@ -328,27 +330,27 @@ database table that stores integer-sequenced items.
                                           name='integer_sequenced_item_uc'),
 
 
-Now create the database table. The SQLAlchemy objects can be adapted with a ``Datastore`` from the
-library, which provides a common interface for the operations ``setup_connection()``
-and ``setup_tables()``.
+Now create the database table. For convenience, the SQLAlchemy objects can be adapted
+with the ``SQLAlchemyDatastore`` class, which provides a simple interface for the
+two operations we require: ``setup_connection()`` and ``setup_tables()``.
 
 .. code:: python
 
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
 
     datastore = SQLAlchemyDatastore(
-        base=Base,
+        base=ActiveRecord,
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-        tables=(SequencedItemTable,),
+        tables=(SequencedItemRecord,),
     )
 
     datastore.setup_connection()
     datastore.setup_tables()
 
 
-This example uses an SQLite in memory relational database. You can
-change ``uri`` to any valid connection string. Here are some example
-connection strings: for an SQLite file; for a PostgreSQL database; and
+As you can see from the ``uri`` argument above, this example is using SQLite to manage
+an in memory relational database. You can change ``uri`` to any valid connection string.
+Here are some example connection strings: for an SQLite file; for a PostgreSQL database; and
 for a MySQL database. See SQLAlchemy's create_engine() documentation for details.
 
 ::
@@ -363,37 +365,21 @@ for a MySQL database. See SQLAlchemy's create_engine() documentation for details
 Event store
 -----------
 
-To support different kinds of sequences, and to allow for different schemas
-for storing events, the event store has been factored to use a "sequenced
-item mapper" to map domain events to sequenced items, and an "active record
-strategy" to write sequenced items into a database table. The details
-have been made explicit so they can be easily replaced.
+To support different kinds of sequences in the domain model, and to allow for
+different database schemas, the library has an event store that uses
+a "sequenced item mapper" for mapping domain events to "sequenced items" - this
+library's archetype persistence model for storing events. The sequenced item
+mapper derives the values of sequenced item fields from the attributes of domain
+events.
 
-The sequenced item mapper derives the values of sequenced item fields from
-the attributes of domain events. The active record strategy uses an active
-record class to access rows in a database table. Hence you you could vary the
-field types and indexes used in the database table by passing in an alternative
-active record class. You can use alternative field names in the database
-table by using an alternative sequenced item class, along with a suitable active
-record class, reusing the sequenced item mapper and the active record strategy.
+The event store then uses an "active record strategy" to persist the sequenced items
+into a particular database management system. The active record strategy uses an
+active record class to manipulate records in particular database table.
 
-You can extend or replace the persistence model by extending the sequenced item
-mapper and sequenced item class, and using them along with a suitable active
-record class. A new database system or service can be adapted with a new active
-record strategy.
-
-In the code below, the args ``sequence_id_attr_name`` and ``position_attr_name``
-inform the sequenced item mapper which domain event attributes should be used for the
-sequence ID and position fields of a sequenced item. It isn't necessary to
-provide the ``sequence_id_attr_name`` arg, if the name of the domain event
-attribute holding the sequence ID value is equal to the name of the first field
-of the sequenced item class - for example if both are called 'originator_id', or
-'aggregate_id'. Similarly, it isn't necessary to provide a value for the
-``position_attr_name`` arg, if the name of the domain event attribute which
-indicates the position of the event in a sequence is equal to the name of the
-second field of the sequence item class - for example if both are called
-'originator_version', or 'aggregate_version'.
-
+Hence you can use a different database table by substituting an alternative active
+record class. You can use a different database management system by substituting an
+alternative active record strategy. The persistence model can also be changed
+by substituting an alternative sequenced item type.
 
 .. code:: python
 
@@ -404,7 +390,7 @@ second field of the sequence item class - for example if both are called
 
     active_record_strategy = SQLAlchemyActiveRecordStrategy(
         session=datastore.db_session,
-        active_record_class=SequencedItemTable,
+        active_record_class=SequencedItemRecord,
         sequenced_item_class=SequencedItem
     )
 
@@ -418,6 +404,16 @@ second field of the sequence item class - for example if both are called
         active_record_strategy=active_record_strategy,
         sequenced_item_mapper=sequenced_item_mapper
     )
+
+
+In the code above, the ``sequence_id_attr_name`` value given to the sequenced item
+mapper is the name of the domain events attribute that will be used as the ID
+of the mapped sequenced item, The ``position_attr_name`` argument informs the
+sequenced item mapper which event attribute should be used to position the item
+in the sequence. The values ``originator_id`` and ``originator_version`` correspond
+to attributes of the domain event classes we defined in the domain model section above.
+
+
 
 Entity repository
 -----------------
@@ -459,13 +455,18 @@ The entity can now be retrieved from the repository, using its dictionary-like i
     retrieved_entity = example_repository[entity.id]
     assert retrieved_entity.foo == 'bar2'
 
+
+Sequenced items
+---------------
+
 Remember that we can always get the sequenced items directly from the active record
-strategy. A sequenced item is tuple containing a serialised representation of the domain event. In the library, a
-``SequencedItem`` is a Python tuple with four fields: ``sequence_id``, ``position``,
-``topic``, and ``data``. By default, an event's ``originator_id`` attribute is mapped to the ``sequence_id`` field,
-and the event's ``originator_version`` attribute is mapped to the ``position`` field. The ``topic`` field of a
-sequenced item is used to identify the event class, and the ``data`` field represents the state of the event (a
-JSON string).
+strategy. A sequenced item is tuple containing a serialised representation of the
+domain event. In the library, a ``SequencedItem`` is a Python tuple with four fields:
+``sequence_id``, ``position``, ``topic``, and ``data``. In this example, an event's
+``originator_id`` attribute is mapped to the ``sequence_id`` field, and the event's
+``originator_version`` attribute is mapped to the ``position`` field. The ``topic``
+field of a sequenced item is used to identify the event class, and the ``data`` field
+represents the state of the event (a JSON string).
 
 .. code:: python
 
@@ -492,16 +493,22 @@ Application
 ===========
 
 Although we can do everything at the module level, an application object brings
-everything together. In the example below, the application has an event store,
+it all together.
+
+
+Application object
+------------------
+
+In the example below, the class ``ExampleApplication`` has an event store,
 and an entity repository.
 
-Most importantly, the application has a persistence policy. The persistence
-policy firstly subscribes to receive events when they are published, and it
-uses the event store to store all the events that it receives.
+The application also has a persistence policy. The persistence policy
+subscribes to receive events whenever they are published, and uses an event
+store to store events whenever they are received.
 
 As a convenience, it is useful to make the application function as a Python
 context manager, so that the application can close the persistence policy,
-unsubscribing itself from receiving further domain events.
+and unsubscribe from receiving further domain events.
 
 .. code:: python
 
@@ -513,7 +520,7 @@ unsubscribing itself from receiving further domain events.
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
                     session=datastore.db_session,
-                    active_record_class=SequencedItemTable,
+                    active_record_class=SequencedItemRecord,
                     sequenced_item_class=SequencedItem,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
@@ -540,11 +547,16 @@ unsubscribing itself from receiving further domain events.
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.close()
 
-After instantiating the application, we can create more example entities
-and expect they will be available in the repository immediately.
 
-Please note, a discarded entity can not be retrieved from the repository.
-The repository's dictionary-like interface will raise a Python ``KeyError``
+Run the code
+------------
+
+After instantiating the application, we can create example entities
+and expect they will be immediately available in the repository.
+
+Please note, an entity that has been discarded by using its ``discard()`` method
+cannot subsequently be retrieved from the repository using its ID. In particular,
+the repository's dictionary-like interface will raise a Python ``KeyError``
 exception instead of returning an entity.
 
 .. code:: python
@@ -575,5 +587,5 @@ exception instead of returning an entity.
 
 Congratulations. You have created yourself an event sourced application.
 
-A slightly more developed example application can be found in the library
+A more developed ``ExampleApplication`` class can be found in the library
 module ``eventsourcing.example.application``.
