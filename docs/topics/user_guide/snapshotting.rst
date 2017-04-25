@@ -16,7 +16,7 @@ Firstly setup a dedicated table for snapshots.
     from sqlalchemy_utils import UUIDType
 
 
-    class SnapshotTable(Base):
+    class SqlSnapshot(Base):
         __tablename__ = 'snapshot'
 
         id = Column(Integer(), Sequence('snapshot_id_seq'), primary_key=True)
@@ -29,6 +29,7 @@ Firstly setup a dedicated table for snapshots.
 
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
+        tables=(SqlIntegerSequencedItem, SqlSnapshot,),
     )
 
     datastore.setup_connection()
@@ -99,7 +100,7 @@ a snapshot after each new event.
             self.snapshot_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
                     session=datastore.db_session,
-                    active_record_class=SnapshotTable,
+                    active_record_class=SqlSnapshot,
                     sequenced_item_class=SequencedItem
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
