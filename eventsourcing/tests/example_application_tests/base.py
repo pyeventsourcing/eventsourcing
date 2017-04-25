@@ -33,18 +33,12 @@ class ExampleApplicationTestCase(WithExampleApplication):
         """
 
         with self.construct_application() as app:
-            # Check there's a stored event repo.
-            self.assertIsInstance(app.integer_sequenced_active_record_strategy, AbstractActiveRecordStrategy)
 
             # Check there's an event store for version entity events.
             self.assertIsInstance(app.integer_sequenced_event_store, EventStore)
-            self.assertEqual(app.integer_sequenced_event_store.active_record_strategy,
-                             app.integer_sequenced_active_record_strategy)
 
             # Check there's an event store for timestamp entity events.
             self.assertIsInstance(app.timestamp_sequenced_event_store, EventStore)
-            self.assertEqual(app.timestamp_sequenced_event_store.active_record_strategy,
-                             app.timestamp_sequenced_active_record_strategy)
 
             # Check there's a persistence policy.
             self.assertIsInstance(app.entity_persistence_policy, PersistencePolicy)
@@ -74,8 +68,8 @@ class ExampleApplicationTestCase(WithExampleApplication):
 
             # Take a snapshot of the entity.
             snapshot1 = app.example_repository.event_player.take_snapshot(entity1.id)
-            self.assertEqual(snapshot1.entity_id, entity1.id)
-            self.assertEqual(snapshot1.entity_version, entity1.version - 1)
+            self.assertEqual(snapshot1.originator_id, entity1.id)
+            self.assertEqual(snapshot1.originator_version, entity1.version - 1)
 
             # Take another snapshot of the entity (should be the same event).
             sleep(0.0001)
@@ -115,10 +109,11 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(100, app.example_repository[example1.id].a)
 
             # Remove all the stored items and check the new value is still available (must be in snapshot).
-            self.assertEqual(len(list(app.integer_sequenced_active_record_strategy.all_records())), 3)
-            for record in app.integer_sequenced_active_record_strategy.all_records():
-                self.integer_sequenced_active_record_strategy.delete_record(record)
-            self.assertFalse(list(app.integer_sequenced_active_record_strategy.all_records()))
+            record_strategy = self.integer_sequenced_active_record_strategy
+            self.assertEqual(len(list(record_strategy.all_records())), 3)
+            for record in record_strategy.all_records():
+                record_strategy.delete_record(record)
+            self.assertFalse(list(record_strategy.all_records()))
             self.assertEqual(100, app.example_repository[example1.id].a)
 
             # Check only some of the old values are available in the repo.

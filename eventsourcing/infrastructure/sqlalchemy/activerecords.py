@@ -6,11 +6,10 @@ from sqlalchemy.sql.sqltypes import BigInteger, Float, Integer, String, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDatastore
+from eventsourcing.infrastructure.sqlalchemy.datastore import Base
 
 
 class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
-
     def __init__(self, session, *args, **kwargs):
         super(SQLAlchemyActiveRecordStrategy, self).__init__(*args, **kwargs)
         self.session = session
@@ -158,15 +157,12 @@ class SqlIntegerSequencedItem(Base):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Unique constraint includes 'entity_id' which is a good value
-    # to partition on, because all events for an entity will be in the same
-    # partition, which may help performance.
+    # Unique constraint includes 'sequence_id' and 'position'.
     __table_args__ = UniqueConstraint('sequence_id', 'position',
                                       name='integer_sequenced_item_uc'),
 
 
 class SqlTimestampSequencedItem(Base):
-
     # Explicit table name.
     __tablename__ = 'timestamp_sequenced_items'
 
@@ -206,8 +202,6 @@ class SqlSnapshot(Base):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Unique constraint includes 'sequence_id' which is a good value
-    # to partition on, because all events for an entity will be in the same
-    # partition, which may help performance.
+    # Unique constraint includes 'sequence_id' and 'position'.
     __table_args__ = UniqueConstraint('sequence_id', 'position',
                                       name='snapshot_uc'),

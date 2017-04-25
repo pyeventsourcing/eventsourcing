@@ -1,14 +1,46 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 try:
     from functools import singledispatch
-    install_requires_singledispatch = []
+
+    singledispatch_requires = []
 except ImportError:
-    install_requires_singledispatch = ['singledispatch']
+    singledispatch_requires = ['singledispatch']
 
 from eventsourcing import __version__
 
+install_requires = singledispatch_requires + [
+    'python-dateutil<=2.6.99999',
+    'singledispatch==3.4.0.3',
+    'six<=1.10.99999',
+    'sphinx_rtd_theme'
+]
 
+sqlalchemy_requires = [
+    'sqlalchemy<=1.1.99999',
+    'sqlalchemy-utils<=0.32.99999',
+]
+
+cassandra_requires = [
+    'cassandra-driver<=3.9.99999'
+]
+
+crypto_requires = ['PyCrypto<=2.6.99999']
+
+test_requires = sqlalchemy_requires + cassandra_requires + crypto_requires + [
+    'mock<=2.0.99999',
+    'PyCrypto<=2.6.99999',
+    'requests<=2.13.99999',
+    'flask<=0.12.99999',
+    'uwsgi<=2.0.99999',
+]
+
+long_description = """
+This package provides generic support for event sourcing in Python.
+
+An extensive
+`README file is available on GitHub <https://github.com/johnbywater/eventsourcing/blob/master/README.md>`_.
+"""
 setup(
     name='eventsourcing',
     version=__version__,
@@ -17,41 +49,15 @@ setup(
     author_email='john.bywater@appropriatesoftware.net',
     url='https://github.com/johnbywater/eventsourcing',
     packages=find_packages(),
-    install_requires=[
-        'python-dateutil',
-        'singledispatch',
-        'six',
-        'sphinx_rtd_theme'
-    ] + install_requires_singledispatch,
+    install_requires=install_requires,
     extras_require={
-        'cassandra': [
-            'cassandra-driver',
-        ],
-        'crypto': [
-            'PyCrypto',
-        ],
-        'test': [
-            'cassandra-driver',
-            'mock',
-            'PyCrypto',
-            'sqlalchemy',
-            'sqlalchemy-utils',
-            'requests',
-            'flask',
-            'uwsgi',
-        ],
-        'sqlalchemy': [
-            'sqlalchemy',
-            'sqlalchemy-utils',
-        ],
+        'cassandra': cassandra_requires,
+        'crypto': crypto_requires,
+        'test': test_requires,
+        'sqlalchemy': sqlalchemy_requires,
     },
     zip_safe=False,
-    long_description="""
-This package provides generic support for event sourcing in Python.
-
-An extensive
-`README file is available on GitHub <https://github.com/johnbywater/eventsourcing/blob/master/README.md>`_.
-""",
+    long_description=long_description,
     keywords=['event sourcing', 'event store', 'domain driven design', 'ddd', 'cqrs', 'cqs'],
     classifiers=[
         'Development Status :: 4 - Beta',

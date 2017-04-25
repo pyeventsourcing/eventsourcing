@@ -1,4 +1,4 @@
-from eventsourcing.domain.model.sequence import SequenceRepository, Sequence
+from eventsourcing.domain.model.sequence import Sequence, SequenceRepository
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
 

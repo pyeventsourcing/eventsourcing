@@ -14,13 +14,13 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
 from eventsourcing.utils.time import timestamp_from_uuid
 
+
 # This test has events with TimeUUID value as the 'event ID'. How easy is it to customize
 # the infrastructure to support that? We just need to make a model that uses these events,
 # define a suitable database table, and configure the other components. It's easy.
 
 # Firstly, define and entity that uses events with TimeUUIDs.
 class ExampleEntity(TimeuuidedVersionedEntity):
-
     def __init__(self, **kwargs):
         super(ExampleEntity, self).__init__(**kwargs)
         self._is_finished = False
@@ -33,8 +33,8 @@ class ExampleEntity(TimeuuidedVersionedEntity):
 
     def finish(self):
         event = ExampleEntity.Finished(
-            entity_id=self.id,
-            entity_version=self.version,
+            originator_id=self.id,
+            originator_version=self.version,
         )
         self._apply(event)
         publish(event)
@@ -49,7 +49,7 @@ class ExampleEntity(TimeuuidedVersionedEntity):
 
     @classmethod
     def start(cls):
-        event = ExampleEntity.Started(entity_id=uuid4())
+        event = ExampleEntity.Started(originator_id=uuid4())
         entity = ExampleEntity.mutate(None, event)
         publish(event)
         return entity
@@ -68,7 +68,7 @@ class ExampleApplicationWithTimeuuidSequencedItems(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='entity_id',
+                sequence_id_attr_name='originator_id',
                 position_attr_name='event_id',
             )
         )
@@ -110,7 +110,6 @@ class TestDomainEventsWithTimeUUIDs(AbstractDatastoreTestCase):
 
     def test(self):
         with ExampleApplicationWithTimeuuidSequencedItems() as app:
-
             # Create entity.
             entity1 = app.start_entity()
             self.assertIsInstance(entity1._initial_event_id, UUID)

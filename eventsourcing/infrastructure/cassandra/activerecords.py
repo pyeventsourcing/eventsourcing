@@ -1,13 +1,12 @@
 import six
 from cassandra.cqlengine.functions import Token
 from cassandra.cqlengine.models import Model, columns
-from cassandra.cqlengine.query import LWTException, BatchQuery
+from cassandra.cqlengine.query import BatchQuery, LWTException
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 
 
 class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
-
     def append(self, sequenced_item_or_items):
         if isinstance(sequenced_item_or_items, list):
             with BatchQuery() as b:

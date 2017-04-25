@@ -1,7 +1,7 @@
 import uuid
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, AttributeChanged, Created, \
-    Discarded, attribute, entity_mutator, singledispatch
+from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, Discarded, \
+    TimestampedVersionedEntity, attribute, entity_mutator, singledispatch
 from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish
 
 
@@ -45,7 +45,7 @@ class Example(TimestampedVersionedEntity):
         self._assert_not_discarded()
         events = []
         while number_of_beats > 0:
-            event = self.Heartbeat(entity_id=self._id, entity_version=self._version)
+            event = self.Heartbeat(originator_id=self._id, originator_version=self._version)
             events.append(event)
             self._apply(event)
             number_of_beats -= 1
@@ -84,7 +84,7 @@ def create_new_example(foo='', a='', b=''):
     :rtype: Example
     """
     entity_id = uuid.uuid4()
-    event = Example.Created(entity_id=entity_id, foo=foo, a=a, b=b)
+    event = Example.Created(originator_id=entity_id, foo=foo, a=a, b=b)
     entity = Example.mutate(event=event)
     publish(event=event)
     return entity

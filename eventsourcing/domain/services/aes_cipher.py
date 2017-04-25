@@ -8,7 +8,6 @@ from eventsourcing.domain.services.cipher import AbstractCipher
 
 
 class AESCipher(AbstractCipher):
-
     BLOCK_SIZE = 16
 
     def __init__(self, aes_key):
@@ -70,4 +69,4 @@ class AESCipher(AbstractCipher):
 
     @staticmethod
     def _unpad(s):
-        return s[:-ord(s[len(s)-1:])]
+        return s[:-ord(s[len(s) - 1:])]

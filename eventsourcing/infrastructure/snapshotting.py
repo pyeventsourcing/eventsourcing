@@ -3,8 +3,7 @@ from copy import deepcopy
 
 import six
 
-from eventsourcing.domain.model.events import publish, resolve_domain_topic, topic_from_domain_class, \
-    reconstruct_object
+from eventsourcing.domain.model.events import publish, resolve_domain_topic, topic_from_domain_class
 from eventsourcing.domain.model.snapshot import AbstractSnapshop, Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import reconstruct_object
@@ -12,14 +11,19 @@ from eventsourcing.infrastructure.sequenceditemmapper import reconstruct_object
 
 class AbstractSnapshotStrategy(six.with_metaclass(ABCMeta)):
     @abstractmethod
-    def get_snapshot(self, stored_entity_id, lt=None, lte=None):
-        """Returns pre-existing snapshot for stored entity ID from given
-        event store, optionally until a particular domain event ID.
+    def get_snapshot(self, entity_id, lt=None, lte=None):
+        """
+        Gets the last snapshot for entity, optionally until a particular version number.
+
+        :rtype: Snapshot
         """
 
     @abstractmethod
     def take_snapshot(self, entity_id, entity, last_event_version):
-        """Creates snapshot from given entity, with given domain event ID.
+        """
+        Takes a snapshot of entity, using given ID, state and version number.
+        
+        :rtype: AbstractSnapshop
         """
 
 
@@ -33,7 +37,7 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
 
     def get_snapshot(self, entity_id, lt=None, lte=None):
         """
-        Gets the last snapshot for entity.
+        Gets the last snapshot for entity, optionally until a particular version number.
 
         :rtype: Snapshot
         """
@@ -43,14 +47,14 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
 
     def take_snapshot(self, entity_id, entity, last_event_version):
         """
-        Takes a snapshot of the entity.
+        Takes a snapshot by instantiating and publishing a Snapshot domain event.
 
         :rtype: Snapshot
         """
         # Create the snapshot event.
         snapshot = Snapshot(
-            entity_id=entity_id,
-            entity_version=last_event_version,
+            originator_id=entity_id,
+            originator_version=last_event_version,
             topic=topic_from_domain_class(entity.__class__),
             state=None if entity is None else deepcopy(entity.__dict__)
         )

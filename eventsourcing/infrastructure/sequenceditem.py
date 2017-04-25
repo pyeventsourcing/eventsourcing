@@ -4,7 +4,6 @@ SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic',
 
 
 class SequencedItemFieldNames(object):
-
     def __init__(self, sequenced_item_class):
         self._field_names = sequenced_item_class._fields
 

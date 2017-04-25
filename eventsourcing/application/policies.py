@@ -13,6 +13,7 @@ class PersistencePolicy(object):
     """
     Stores events of given type to given event store, whenever they are published.
     """
+
     def __init__(self, event_store, event_type=None):
         assert isinstance(event_store, AbstractEventStore), type(event_store)
         self.event_store = event_store

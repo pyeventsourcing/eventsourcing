@@ -7,7 +7,6 @@ from unittest.case import TestCase
 
 import eventsourcing
 
-
 base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
 

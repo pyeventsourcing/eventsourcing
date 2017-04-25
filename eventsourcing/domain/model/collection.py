@@ -2,9 +2,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from uuid import uuid4
 
-from eventsourcing.domain.model.entity import Created, Discarded, entity_mutator, singledispatch, TimestampedVersionedEntity, \
-    AbstractEntityRepository
-from eventsourcing.domain.model.events import publish, TimestampedVersionedEntityEvent
+from eventsourcing.domain.model.entity import AbstractEntityRepository, Created, Discarded, \
+    TimestampedVersionedEntity, entity_mutator, singledispatch
+from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish
 
 
 class Collection(TimestampedVersionedEntity):
@@ -41,8 +41,8 @@ class Collection(TimestampedVersionedEntity):
     def add_item(self, item):
         self._assert_not_discarded()
         event = self.ItemAdded(
-            entity_id=self.id,
-            entity_version=self._version,
+            originator_id=self.id,
+            originator_version=self._version,
             item=item,
         )
         self._apply(event)
@@ -51,8 +51,8 @@ class Collection(TimestampedVersionedEntity):
     def remove_item(self, item):
         self._assert_not_discarded()
         event = self.ItemRemoved(
-            entity_id=self.id,
-            entity_version=self._version,
+            originator_id=self.id,
+            originator_version=self._version,
             item=item,
         )
         self._apply(event)
@@ -65,7 +65,7 @@ class Collection(TimestampedVersionedEntity):
 
 def register_new_collection(collection_id=None):
     collection_id = uuid4().hex if collection_id is None else collection_id
-    event = Collection.Created(entity_id=collection_id)
+    event = Collection.Created(originator_id=collection_id)
     entity = Collection.mutate(event=event)
     publish(event)
     return entity

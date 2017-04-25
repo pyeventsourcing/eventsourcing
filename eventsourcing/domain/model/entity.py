@@ -1,4 +1,5 @@
-from eventsourcing.exceptions import ConsistencyError, ProgrammingError
+from eventsourcing.exceptions import EntityIsDiscarded, MismatchedOriginatorIDError, \
+    MismatchedOriginatorVersionError, MutatorRequiresTypeNotInstance, ProgrammingError
 from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
@@ -14,25 +15,9 @@ from six import with_metaclass
 from eventsourcing.domain.model.events import publish, QualnameABCMeta, TimestampedVersionedEntityEvent
 
 
-class EntityIDConsistencyError(ConsistencyError):
-    pass
-
-
-class EntityVersionConsistencyError(ConsistencyError):
-    pass
-
-
-class CreatedMutatorRequiresTypeNotInstance(ConsistencyError):
-    pass
-
-
-class EntityIsDiscarded(AssertionError):
-    pass
-
-
 class Created(TimestampedVersionedEntityEvent):
-    def __init__(self, entity_version=0, **kwargs):
-        super(Created, self).__init__(entity_version=entity_version, **kwargs)
+    def __init__(self, originator_version=0, **kwargs):
+        super(Created, self).__init__(originator_version=originator_version, **kwargs)
 
 
 class AttributeChanged(TimestampedVersionedEntityEvent):
@@ -50,9 +35,8 @@ class Discarded(TimestampedVersionedEntityEvent):
 
 
 class DomainEntity(with_metaclass(QualnameABCMeta)):
-
-    def __init__(self, entity_id):
-        self._id = entity_id
+    def __init__(self, originator_id):
+        self._id = originator_id
         self._is_discarded = False
 
     def _assert_not_discarded(self):
@@ -70,28 +54,14 @@ class DomainEntity(with_metaclass(QualnameABCMeta)):
         """
         Checks the event's entity ID matches this entity's ID.
         """
-        if self._id != event.entity_id:
-            raise EntityIDConsistencyError(
-                "Entity ID '{}' not equal to event's entity ID '{}'"
-                "".format(self.id, event.entity_id)
+        if self._id != event.originator_id:
+            raise MismatchedOriginatorIDError(
+                "'{}' not equal to event originator ID '{}'"
+                "".format(self.id, event.originator_id)
             )
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
-
-    def _change_attribute(self, name, value):
-        self._assert_not_discarded()
-        event_class = getattr(self, 'AttributeChanged', AttributeChanged)
-        event = event_class(name=name, value=value, entity_id=self._id, entity_version=self._version)
-        self._apply(event)
-        publish(event)
-
-    def discard(self):
-        self._assert_not_discarded()
-        event_class = getattr(self, 'Discarded', Discarded)
-        event = event_class(entity_id=self._id, entity_version=self._version)
-        self._apply(event)
-        publish(event)
 
     def _apply(self, event):
         self.mutate(event=event, entity=self)
@@ -114,20 +84,27 @@ class WithReflexiveMutator(DomainEntity):
     This is an alternative to using an independent mutator function
     implemented with singledispatch or an if-else block.
     """
+
     @classmethod
     def mutate(cls, entity=None, event=None):
         return event.apply(entity or cls)
 
 
 class VersionedEntity(DomainEntity):
-
-    def __init__(self, entity_version=None, **kwargs):
+    def __init__(self, originator_version=None, **kwargs):
         super(VersionedEntity, self).__init__(**kwargs)
-        self._version = entity_version
+        self._version = originator_version
 
     @property
     def version(self):
         return self._version
+
+    def discard(self):
+        self._assert_not_discarded()
+        event_class = getattr(self, 'Discarded', Discarded)
+        event = event_class(originator_id=self._id, originator_version=self._version)
+        self._apply(event)
+        self._publish(event)
 
     def _increment_version(self):
         if self._version is not None:
@@ -141,14 +118,24 @@ class VersionedEntity(DomainEntity):
         """
         Checks the event's entity version matches this entity's version.
         """
-        if self._version != event.entity_version:
-            raise EntityVersionConsistencyError(
+        if self._version != event.originator_version:
+            raise MismatchedOriginatorVersionError(
                 ("Event originated from entity at version {}, but entity is currently at version {}. "
                  "Event type: '{}', entity type: '{}', entity ID: '{}'"
-                 "".format(self._version, event.entity_version,
+                 "".format(self._version, event.originator_version,
                            type(event).__name__, type(self).__name__, self._id)
                  )
             )
+
+    def _change_attribute(self, name, value):
+        self._assert_not_discarded()
+        event_class = getattr(self, 'AttributeChanged', AttributeChanged)
+        event = event_class(name=name, value=value, originator_id=self._id, originator_version=self._version)
+        self._apply(event)
+        self._publish(event)
+
+    def _publish(self, event):
+        publish(event)
 
 
 class TimestampedEntity(DomainEntity):
@@ -200,8 +187,8 @@ def created_mutator(event, cls):
     if not isinstance(cls, type):
         msg = ("Mutator for Created event requires entity type not instance: {} "
                "(event entity id: {}, event type: {})"
-               "".format(type(cls), event.entity_id, type(event)))
-        raise CreatedMutatorRequiresTypeNotInstance(msg)
+               "".format(type(cls), event.originator_id, type(event)))
+        raise MutatorRequiresTypeNotInstance(msg)
     assert issubclass(cls, TimestampedVersionedEntity), cls
     try:
         self = cls(**event.__dict__)

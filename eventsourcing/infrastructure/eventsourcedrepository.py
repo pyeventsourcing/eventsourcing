@@ -6,7 +6,6 @@ from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 
 
 class EventSourcedRepository(AbstractEntityRepository):
-
     # If the entity won't have very many events, marking the entity as
     # "short" by setting __is_short__ value equal to True will mean
     # the fastest path for getting all the events is used. If you set
@@ -95,13 +94,13 @@ class EventSourcedRepository(AbstractEntityRepository):
             gt = None
         else:
             initial_state = entity_from_snapshot(snapshot)
-            gt = snapshot.entity_version
+            gt = snapshot.originator_version
 
         # Replay domain events.
         return self.event_player.replay_entity(entity_id, gt=gt, lte=lte, initial_state=initial_state)
 
-    # def fastforward(self, stale_entity, lt=None, lte=None):
-    #     """
-    #     Mutates an instance of an entity, according to the events that have occurred since its version.
-    #     """
-    #     return self.event_player.fastforward(stale_entity, lt=lt, lte=lte)
+        # def fastforward(self, stale_entity, lt=None, lte=None):
+        #     """
+        #     Mutates an instance of an entity, according to the events that have occurred since its version.
+        #     """
+        #     return self.event_player.fastforward(stale_entity, lt=lt, lte=lte)

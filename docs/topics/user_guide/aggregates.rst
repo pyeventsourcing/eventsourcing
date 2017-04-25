@@ -2,22 +2,40 @@
 Aggregates in domain driven design
 ==================================
 
-Let's say we want to separate the sequence of events from entities, and instead have
-an aggregate that controls a set of entities.
+Eric Evans' book Domain Driven Design describes an abstraction called
+"aggregate":
 
-We can define some "aggregate events" which have ``aggregate_id`` and
-``aggregate_version``. And we can rework the entity class to function as a root
-entity of the aggregate.
+.. pull-quote::
 
-In the example below, the aggregate class has a list of pending events, and a ``save()``
-method that publishes all pending events. The other operations append events to the list
-of pending events, rather than publishing them individually.
+    An aggregate is a cluster of associated objects that we treat as a unit
+    for the purpose of data changes. Each aggregate has a root and a boundary.
 
-The library supports appending multiple events to the event store in
-a single atomic transaction.
+Therefore,
 
-The entity factory is now a method of the aggregate, and the aggregate's mutator is capable
-of mutating the aggregate's entities.
+    Cluster the entities and value objects into aggregates and define
+    boundaries around each. Choose one entity to be the root of each
+    aggregate, and control all access to the objects inside the boundary
+    through the root. Allow external objects to hold references to the
+    root only.
+
+Hence to make an event sourced aggregate, we must have a set of events and a
+mutator function that pertains to a cluster of objects within the aggregate
+boundary. We must have an entity that can function as the root of the aggregate,
+with identity distinguishable across the application, and with methods that
+exclusively operate on the objects of the aggregate.
+
+The example below demonstrates a stand-alone domain model aggregate, with domain
+events that pertain to the objects of the aggregate, a mutator function that can
+mutate the objects of the aggregate, an aggregate root entity with methods that
+operate on all the objects of the aggregate, and a factory method the creates new
+aggregates.
+
+Rather than publishing events immediately and individually during the execution
+of a command, the operations of the aggregate root class below append events to
+an internal list of pending events. Its ``save()`` method can then publish all
+pending events as a single list. The library supports appending a list of events
+to the event store in a single atomic transaction, so that if some of the events
+resulting from executing a command cannot be stored then none of them will be stored.
 
 .. code:: python
 
@@ -45,12 +63,12 @@ of mutating the aggregate's entities.
             super(AggregateCreated, self).__init__(aggregate_version=aggregate_version, **kwargs)
 
 
-    class EntityCreated(AggregateEvent):
+    class ExampleCreated(AggregateEvent):
         """
         Published when an entity is created.
         """
-        def __init__(self, entity_id, **kwargs):
-            super(EntityCreated, self).__init__(entity_id=entity_id, **kwargs)
+        def __init__(self, originator_id, **kwargs):
+            super(ExampleCreated, self).__init__(originator_id=originator_id, **kwargs)
 
 
     class AggregateDiscarded(AggregateEvent):
@@ -94,13 +112,13 @@ of mutating the aggregate's entities.
         def last_modified_on(self):
             return self._last_modified_on
 
-        def count_entities(self):
+        def count_examples(self):
             return len(self._entities)
 
-        def create_new_entity(self):
+        def create_new_example(self):
             assert not self._is_discarded
-            event = EntityCreated(
-                entity_id=uuid.uuid4(),
+            event = ExampleCreated(
+                originator_id=uuid.uuid4(),
                 aggregate_id=self.id,
                 aggregate_version=self.version,
             )
@@ -122,8 +140,8 @@ of mutating the aggregate's entities.
         """
         Example domain entity.
         """
-        def __init__(self, entity_id):
-            self._id = entity_id
+        def __init__(self, originator_id):
+            self._id = originator_id
 
         @property
         def id(self):
@@ -142,9 +160,9 @@ of mutating the aggregate's entities.
             return aggregate
 
         # Handle "entity created" events by adding a new entity to the aggregate's dict of entities.
-        elif isinstance(event, EntityCreated):
+        elif isinstance(event, ExampleCreated):
             assert not aggregate.is_discarded
-            entity = Example(entity_id=event.entity_id)
+            entity = Example(originator_id=event.originator_id)
             aggregate._entities[entity.id] = entity
             aggregate._version += 1
             aggregate._last_modified_on = event.timestamp
@@ -166,7 +184,6 @@ Setup infrastructure using library classes.
 .. code:: python
 
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem
 
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
@@ -185,21 +202,19 @@ Define an application class that uses the model and infrastructure.
 
     from eventsourcing.application.policies import PersistencePolicy
     from eventsourcing.domain.model.events import publish
-    from eventsourcing.infrastructure.sequenceditem import SequencedItem
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
     from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem
 
 
-    class DDDApplication(object):
+    class ExampleDDDApplication(object):
         def __init__(self, datastore):
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
                     session=datastore.db_session,
                     active_record_class=SqlIntegerSequencedItem,
-                    sequenced_item_class=SequencedItem,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
-                    SequencedItem,
                     sequence_id_attr_name='aggregate_id',
                     position_attr_name='aggregate_version',
                 )
@@ -234,7 +249,7 @@ method is called.
 
 .. code:: python
 
-    with DDDApplication(datastore) as app:
+    with ExampleDDDApplication(datastore) as app:
 
         # Create a new aggregate.
         aggregate = app.create_example_aggregate()
@@ -244,35 +259,35 @@ method is called.
         assert aggregate.id in app.aggregate_repository, aggregate.id
 
         # Check the aggregate has zero entities.
-        assert aggregate.count_entities() == 0
+        assert aggregate.count_examples() == 0
 
         # Check the aggregate has zero entities.
-        assert aggregate.count_entities() == 0
+        assert aggregate.count_examples() == 0
 
         # Ask the aggregate to create an entity within itself.
-        aggregate.create_new_entity()
+        aggregate.create_new_example()
 
         # Check the aggregate has one entity.
-        assert aggregate.count_entities() == 1
+        assert aggregate.count_examples() == 1
 
         # Check the aggregate in the repo still has zero entities.
-        assert app.aggregate_repository[aggregate.id].count_entities() == 0
+        assert app.aggregate_repository[aggregate.id].count_examples() == 0
 
         # Call save().
         aggregate.save()
 
         # Check the aggregate in the repo now has one entity.
-        assert app.aggregate_repository[aggregate.id].count_entities() == 1
+        assert app.aggregate_repository[aggregate.id].count_examples() == 1
 
         # Create two more entities within the aggregate.
-        aggregate.create_new_entity()
-        aggregate.create_new_entity()
+        aggregate.create_new_example()
+        aggregate.create_new_example()
 
         # Save both "entity created" events in one atomic transaction.
         aggregate.save()
 
         # Check the aggregate in the repo now has three entities.
-        assert app.aggregate_repository[aggregate.id].count_entities() == 3
+        assert app.aggregate_repository[aggregate.id].count_examples() == 3
 
         # Discard the aggregate, but don't call save() yet.
         aggregate.discard()
@@ -285,3 +300,8 @@ method is called.
 
         # Check the aggregate no longer exists in the repo.
         assert aggregate.id not in app.aggregate_repository
+
+
+The library has a slightly more sophisticated ``AggregateRoot`` class
+that can be extended in the same way as the library's ``DomainEntity`` class,
+from which it derives.

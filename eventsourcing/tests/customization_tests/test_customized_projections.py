@@ -4,16 +4,15 @@ from eventsourcing.tests.example_application_tests.base import WithExampleApplic
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 
+
 # This tests using all the domain events in the application to project
 # something other than an entity. It's not really customization.
 
 # Todo: Support stopping and resuming when iterating over all events.
 
 class TestGetAllEventFromSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithExampleApplication):
-
     def test(self):
         with self.construct_application() as app:
-
             # Create three domain entities.
             entity1 = app.create_new_example('a1', 'b1')
             entity2 = app.create_new_example('a2', 'b2')
@@ -26,7 +25,7 @@ class TestGetAllEventFromSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithEx
             # Project the events into a set of entity IDs.
             def mutate(state, event):
                 assert isinstance(state, set)
-                state.add(event.entity_id)
+                state.add(event.originator_id)
                 return state
 
             all_entity_ids = reduce(mutate, domain_events, set())

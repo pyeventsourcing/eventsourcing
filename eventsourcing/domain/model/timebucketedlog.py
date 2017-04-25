@@ -5,7 +5,8 @@ from uuid import UUID, uuid5
 import six
 from dateutil.relativedelta import relativedelta
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, AttributeChanged, Created
+from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, \
+    TimestampedVersionedEntity
 from eventsourcing.domain.model.events import TimestampedEntityEvent, publish
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.utils.time import utc_timezone
@@ -57,7 +58,7 @@ class Timebucketedlog(TimestampedVersionedEntity):
         assert isinstance(message, six.string_types)
         bucket_id = make_timebucket_id(self.name, time(), self.bucket_size)
         event = MessageLogged(
-            entity_id=bucket_id,
+            originator_id=bucket_id,
             message=message,
         )
         publish(event)
@@ -84,7 +85,7 @@ def start_new_timebucketedlog(name, bucket_size=None):
         raise ValueError("Bucket size '{}' not supported, must be one of: {}"
                          "".format(bucket_size, BUCKET_SIZES.keys()))
     event = Timebucketedlog.Started(
-        entity_id=name,
+        originator_id=name,
         name=name,
         bucket_size=bucket_size
     )
@@ -94,16 +95,16 @@ def start_new_timebucketedlog(name, bucket_size=None):
 
 
 class MessageLogged(TimestampedEntityEvent):
-    def __init__(self, message, entity_id):
-        super(MessageLogged, self).__init__(entity_id=entity_id, message=message)
+    def __init__(self, message, originator_id):
+        super(MessageLogged, self).__init__(originator_id=originator_id, message=message)
 
     @property
     def message(self):
         return self.__dict__['message']
 
     @property
-    def entity_id(self):
-        return self.__dict__['entity_id']
+    def originator_id(self):
+        return self.__dict__['originator_id']
 
 
 def make_timebucket_id(log_id, timestamp, bucket_size):

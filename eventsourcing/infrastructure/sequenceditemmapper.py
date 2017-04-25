@@ -7,7 +7,7 @@ import six
 
 from eventsourcing.domain.model.events import reconstruct_object, resolve_domain_topic, topic_from_domain_class
 from eventsourcing.domain.services.cipher import AbstractCipher
-from eventsourcing.infrastructure.sequenceditem import SequencedItemFieldNames
+from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 from eventsourcing.infrastructure.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 
@@ -33,7 +33,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     SEQUENCE_ID_FIELD_INDEX = 0
     POSITION_FIELD_INDEX = 1
 
-    def __init__(self, sequenced_item_class, sequence_id_attr_name=None, position_attr_name=None,
+    def __init__(self, sequenced_item_class=SequencedItem, sequence_id_attr_name=None, position_attr_name=None,
                  json_encoder_class=ObjectJSONEncoder, json_decoder_class=ObjectJSONDecoder,
                  always_encrypt=False, cipher=None):
         self.sequenced_item_class = sequenced_item_class

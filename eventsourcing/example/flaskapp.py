@@ -5,8 +5,8 @@ from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActi
     SqlIntegerSequencedItem
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 
-
 application = Flask(__name__)
+
 
 @application.route("/")
 def hello():

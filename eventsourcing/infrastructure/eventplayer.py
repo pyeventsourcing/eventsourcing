@@ -1,9 +1,5 @@
 from functools import reduce
 
-from copy import deepcopy
-
-from eventsourcing.domain.model.entity import TimestampedVersionedEntity
-from eventsourcing.domain.model.snapshot import AbstractSnapshop
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.infrastructure.snapshotting import AbstractSnapshotStrategy, entity_from_snapshot
 
@@ -107,24 +103,22 @@ class EventPlayer(object):
             # taken before or at the entity version of the last event. Please
             # note, the snapshot might have a smaller version number than
             # the last event if events occurred since the last snapshot was taken.
-            last_snapshot = self.get_snapshot(entity_id, lte=last_event.entity_version)
+            last_version = last_event.originator_version
+            last_snapshot = self.get_snapshot(entity_id, lte=last_version)
 
-            if last_snapshot and last_snapshot.entity_version == last_event.entity_version:
+            if last_snapshot and last_snapshot.originator_version == last_version:
                 # If up-to-date snapshot exists, there's nothing to do.
                 snapshot = last_snapshot
             else:
                 # Otherwise recover entity and take snapshot.
                 if last_snapshot:
-                    # Recover entity by applying to snapshotted state the
-                    # events that occurred since snapshot was taken.
                     initial_state = entity_from_snapshot(last_snapshot)
-                    gt = last_snapshot.entity_version
-                    entity = self.replay_entity(entity_id, gt=gt, lt=lt, lte=lte, initial_state=initial_state)
+                    gt = last_snapshot.originator_version
                 else:
-                    # Recover entity from scratch.
-                    entity = self.replay_entity(entity_id, lt=lt, lte=lte)
-                # Take snapshot of recovered entity.
-                snapshot = self.snapshot_strategy.take_snapshot(entity_id, entity, last_event.entity_version)
+                    initial_state = None
+                    gt = None
+                entity = self.replay_entity(entity_id, gt=gt, lte=last_version, initial_state=initial_state)
+                snapshot = self.snapshot_strategy.take_snapshot(entity_id, entity, last_version)
 
         return snapshot
 
@@ -140,18 +134,3 @@ class EventPlayer(object):
         Returns the most recent event for the given entity ID.
         """
         return self.event_store.get_most_recent_event(entity_id, lt=lt, lte=lte)
-
-    # def fastforward(self, stale_entity, lt=None, lte=None):
-    #     assert isinstance(stale_entity, TimestampedVersionedEntity)
-    #
-    #     # Replay the events since the entity version.
-    #     fresh_entity = self.replay_entity(
-    #         entity_id=stale_entity.id,
-    #         gt=stale_entity.version,
-    #         lt=lt,
-    #         lte=lte,
-    #         initial_state=stale_entity,
-    #     )
-    #
-    #     # Return the fresh instance.
-    #     return fresh_entity

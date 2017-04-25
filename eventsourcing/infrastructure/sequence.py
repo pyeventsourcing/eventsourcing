@@ -9,12 +9,12 @@ from eventsourcing.infrastructure.eventplayer import EventPlayer
 def append_item_to_sequence(name, item, event_player, max_size=None):
     assert isinstance(event_player, EventPlayer)
     last_event = event_player.event_store.get_most_recent_event(name)
-    next_version = last_event.entity_version + 1
+    next_version = last_event.originator_version + 1
     if max_size and max_size < next_version:
         raise SequenceFullError
     event = Sequence.Appended(
-        entity_id=name,
-        entity_version=next_version,
+        originator_id=name,
+        originator_version=next_version,
         item=item,
     )
     publish(event)
@@ -77,4 +77,4 @@ class SequenceReader(object):
 
     def __len__(self):
         events = self.event_player.get_domain_events(self.sequence.id, is_ascending=False, limit=1)
-        return events[0].entity_version
+        return events[0].originator_version

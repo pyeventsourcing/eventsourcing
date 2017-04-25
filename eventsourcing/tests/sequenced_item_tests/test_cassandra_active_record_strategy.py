@@ -1,5 +1,5 @@
 from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, \
-    CqlIntegerSequencedItem, CqlTimestampSequencedItem, CqlSnapshot
+    CqlIntegerSequencedItem, CqlSnapshot, CqlTimestampSequencedItem
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \

@@ -1,4 +1,5 @@
 import os
+
 from uwsgidecorators import postfork
 
 import eventsourcing.example.flaskapp
