@@ -22,4 +22,5 @@ class TestUtils(TestCase):
     def test_utc(self):
         now = datetime.now(tz=utc_timezone)
         self.assertEqual(utc_timezone.utcoffset(now), timedelta(0))
-        self.assertEqual(utc_timezone.dst(now), timedelta(0) if sys.version[0] == 2 else None)
+        expected_dst = None if hasattr(datetime, 'timezone') else timedelta(0)
+        self.assertEqual(utc_timezone.dst(now), expected_dst)
