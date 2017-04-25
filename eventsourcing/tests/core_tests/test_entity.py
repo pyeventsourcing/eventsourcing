@@ -2,12 +2,13 @@ from uuid import uuid4
 
 import mock
 
-from eventsourcing.domain.model.entity import AttributeChanged, Created, MutatorRequiresTypeNotInstance, \
-    MismatchedOriginatorIDError, MismatchedOriginatorVersionError, TimestampedVersionedEntity, attribute, created_mutator
-from eventsourcing.domain.model.events import VersionedEntityEvent, publish, subscribe, unsubscribe, DomainEvent
-from eventsourcing.example.infrastructure import ExampleRepository
+from eventsourcing.domain.model.entity import AttributeChanged, Created, TimestampedVersionedEntity, attribute, \
+    created_mutator
+from eventsourcing.domain.model.events import DomainEvent, VersionedEntityEvent, publish, subscribe, unsubscribe
 from eventsourcing.example.domainmodel import Example, create_new_example
-from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError, ConcurrencyError
+from eventsourcing.example.infrastructure import ExampleRepository
+from eventsourcing.exceptions import ConcurrencyError, MismatchedOriginatorIDError, MismatchedOriginatorVersionError, \
+    MutatorRequiresTypeNotInstance, ProgrammingError, RepositoryKeyError
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
     WithCassandraActiveRecordStrategies
@@ -95,7 +96,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
                     originator_id=entity2.id,
                     originator_version=0,
                 )
-        )
+            )
 
         # Should validate event with correct entity ID and version.
         entity2._validate_originator(

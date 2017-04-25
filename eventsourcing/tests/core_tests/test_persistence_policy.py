@@ -2,7 +2,7 @@ import unittest
 from uuid import uuid4
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.events import VersionedEntityEvent, publish, TimestampedEntityEvent
+from eventsourcing.domain.model.events import TimestampedEntityEvent, VersionedEntityEvent, publish
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 try:

@@ -10,7 +10,7 @@ from abc import ABCMeta
 from six import with_metaclass
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.events import VersionedEntityEvent, TimestampedEntityEvent
+from eventsourcing.domain.model.events import TimestampedEntityEvent, VersionedEntityEvent
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper

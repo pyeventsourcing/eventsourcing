@@ -10,7 +10,6 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 
 
 class TestEventStore(SQLAlchemyDatastoreTestCase):
-
     def setUp(self):
         super(TestEventStore, self).setUp()
         if self.datastore is not None:
@@ -120,4 +119,3 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         domain_events = event_store.all_domain_events()
         domain_events = list(domain_events)
         self.assertEqual(len(domain_events), 3)
-

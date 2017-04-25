@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractproperty
 
 import six
 
-from eventsourcing.domain.model.events import EntityEvent, EventWithVersion, EventWithTimestamp
+from eventsourcing.domain.model.events import EntityEvent, EventWithTimestamp, EventWithVersion
 
 
 class AbstractSnapshop(six.with_metaclass(ABCMeta)):

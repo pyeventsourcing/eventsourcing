@@ -5,7 +5,6 @@ from eventsourcing.tests.base import AbstractTestCase
 
 
 class AbstractDatastoreTestCase(AbstractTestCase):
-
     def __init__(self, *args, **kwargs):
         super(AbstractDatastoreTestCase, self).__init__(*args, **kwargs)
         self._datastore = None
@@ -31,9 +30,7 @@ class AbstractDatastoreTestCase(AbstractTestCase):
 
 
 class DatastoreTestCase(AbstractDatastoreTestCase):
-
     def test(self):
-
         # Check the stored event class doesn't function before the connection is setup.
         with self.assertRaises(DatastoreConnectionError):
             self.list_records()
@@ -95,4 +92,3 @@ class DatastoreTestCase(AbstractDatastoreTestCase):
         self.datastore.drop_tables()
         self.datastore.drop_connection()
         super(DatastoreTestCase, self).tearDown()
-

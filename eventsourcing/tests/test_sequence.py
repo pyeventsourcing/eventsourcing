@@ -1,14 +1,14 @@
 from uuid import uuid4
 
-from eventsourcing.domain.model.sequence import Sequence, start_sequence
+from eventsourcing.domain.model.sequence import Sequence
 from eventsourcing.exceptions import SequenceFullError
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
 from eventsourcing.infrastructure.sequence import SequenceReader, append_item_to_sequence
+from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
     WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
-from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 
 
 class SequenceTestCase(WithPersistencePolicies):

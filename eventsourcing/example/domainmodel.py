@@ -1,7 +1,7 @@
 import uuid
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, AttributeChanged, Created, \
-    Discarded, attribute, entity_mutator, singledispatch
+from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, Discarded, \
+    TimestampedVersionedEntity, attribute, entity_mutator, singledispatch
 from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish
 
 

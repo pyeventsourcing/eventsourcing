@@ -8,7 +8,6 @@ from eventsourcing.infrastructure.datastore import Datastore, DatastoreConnectio
 
 Base = declarative_base()
 
-
 DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///:memory:'
 
 
@@ -20,7 +19,6 @@ class SQLAlchemySettings(DatastoreSettings):
 
 
 class SQLAlchemyDatastore(Datastore):
-
     def __init__(self, base=Base, **kwargs):
         super(SQLAlchemyDatastore, self).__init__(**kwargs)
         self._db_session = None

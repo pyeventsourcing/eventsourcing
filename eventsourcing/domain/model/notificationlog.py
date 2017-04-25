@@ -1,6 +1,7 @@
 # from singledispatch import singledispatch
 #
-# from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, Created, entity_mutator
+# from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, Created,
+# entity_mutator
 # from eventsourcing.domain.model.events import publish
 # from eventsourcing.exceptions import RepositoryKeyError
 #

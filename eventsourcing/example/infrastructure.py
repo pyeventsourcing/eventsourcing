@@ -1,4 +1,4 @@
-from eventsourcing.example.domainmodel import Example, AbstractExampleRepository
+from eventsourcing.example.domainmodel import AbstractExampleRepository, Example
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
 
@@ -8,4 +8,3 @@ class ExampleRepository(EventSourcedRepository, AbstractExampleRepository):
     """
     __page_size__ = 1000
     mutator = Example.mutate
-

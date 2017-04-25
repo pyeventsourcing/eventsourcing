@@ -1,6 +1,5 @@
-from eventsourcing.exceptions import ProgrammingError, MismatchedOriginatorIDError, \
-    MismatchedOriginatorVersionError, \
-    MutatorRequiresTypeNotInstance, EntityIsDiscarded
+from eventsourcing.exceptions import EntityIsDiscarded, MismatchedOriginatorIDError, \
+    MismatchedOriginatorVersionError, MutatorRequiresTypeNotInstance, ProgrammingError
 from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
@@ -36,7 +35,6 @@ class Discarded(TimestampedVersionedEntityEvent):
 
 
 class DomainEntity(with_metaclass(QualnameABCMeta)):
-
     def __init__(self, originator_id):
         self._id = originator_id
         self._is_discarded = False
@@ -86,13 +84,13 @@ class WithReflexiveMutator(DomainEntity):
     This is an alternative to using an independent mutator function
     implemented with singledispatch or an if-else block.
     """
+
     @classmethod
     def mutate(cls, entity=None, event=None):
         return event.apply(entity or cls)
 
 
 class VersionedEntity(DomainEntity):
-
     def __init__(self, originator_version=None, **kwargs):
         super(VersionedEntity, self).__init__(**kwargs)
         self._version = originator_version

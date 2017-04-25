@@ -12,7 +12,6 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 
 
 class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
-
     def setUp(self):
         super(TestEventSourcedRepository, self).setUp()
         if self.datastore is not None:

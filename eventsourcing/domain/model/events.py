@@ -137,6 +137,7 @@ class EventWithTimeuuid(DomainEvent):
     """
     For events that have an UUIDv1 event ID.
     """
+
     def __init__(self, event_id=None, **kwargs):
         super(EventWithTimeuuid, self).__init__(**kwargs)
         self.__dict__['event_id'] = event_id or uuid1()

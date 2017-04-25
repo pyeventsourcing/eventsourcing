@@ -14,7 +14,6 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 
 
 class TestCollection(TestCase):
-
     def setUp(self):
         assert_event_handlers_empty()
         self.published_events = []
@@ -106,9 +105,7 @@ class TestCollection(TestCase):
 
 
 class TestCollectionRepo(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
-
     def test(self):
-
         repo = CollectionRepository(event_store=self.integer_sequenced_event_store)
 
         # Check unknown collections are not found in the repo.

@@ -1,13 +1,11 @@
+import datetime
 from unittest.case import TestCase
 from uuid import uuid1
-
-import datetime
 
 from eventsourcing.utils.time import timestamp_from_uuid, utc_timezone
 
 
 class TestUtils(TestCase):
-
     def test_timestamp_from_uuid(self):
         until = utc_now()
         uuid = uuid1()

@@ -12,7 +12,8 @@
 #         super(PythonObjectsStoredEventRepository, self).__init__(*args, **kwargs)
 #         self._by_id = {}
 #         self._by_stored_entity_id = {}
-#         self._originator_versions = defaultdict(lambda: defaultdict(lambda: itertools.chain([0], itertools.cycle([1]))))
+#         self._originator_versions = defaultdict(lambda: defaultdict(lambda: itertools.chain([0], itertools.cycle([
+# 1]))))
 #         self._event_id_by_originator_version_id = {}
 #
 #     def write_version_and_event(self, new_stored_event, new_version_number=None, max_retries=3,

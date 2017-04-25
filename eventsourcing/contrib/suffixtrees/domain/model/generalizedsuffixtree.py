@@ -9,9 +9,9 @@ import six
 from singledispatch import singledispatch
 
 from eventsourcing.domain.model.collection import Collection
-from eventsourcing.domain.model.entity import AttributeChanged, Created, Discarded, AbstractEntityRepository, \
+from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, Discarded, \
     TimestampedVersionedEntity, attribute, entity_mutator
-from eventsourcing.domain.model.events import publish, TimestampedVersionedEntityEvent
+from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish
 from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 
 # Use a private code point to terminate the strings.
@@ -74,7 +74,7 @@ class GeneralizedSuffixTree(TimestampedVersionedEntity):
         """
         # Todo: Something that shows the actual tree.
         return ('GeneralizedSuffixTree(id={0.id}, root_node_id={0.root_node_id}, case_insensitive={'
-               '0.case_insensitive})'.format(self))
+                '0.case_insensitive})'.format(self))
 
     def add_string(self, string, string_id):
         assert isinstance(string, six.string_types)

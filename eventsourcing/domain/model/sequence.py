@@ -1,10 +1,9 @@
-from eventsourcing.domain.model.entity import TimestampedVersionedEntity, AbstractEntityRepository, Created
-from eventsourcing.domain.model.events import publish, TimestampedVersionedEntityEvent
+from eventsourcing.domain.model.entity import AbstractEntityRepository, Created, TimestampedVersionedEntity
+from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish
 from eventsourcing.exceptions import RepositoryKeyError
 
 
 class Sequence(TimestampedVersionedEntity):
-
     class Started(Created):
         """Occurs when sequence is started."""
 
@@ -24,7 +23,6 @@ def start_sequence(name):
 
 
 class SequenceRepository(AbstractEntityRepository):
-
     def get_or_create(self, sequence_name):
         """
         Gets or creates a log.

@@ -4,7 +4,6 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem
 
 
 class TestIntegerSequencedItem(TestCase):
-
     def test(self):
         sequence_id = 'sequence1'
         position = 0
@@ -26,7 +25,6 @@ class TestIntegerSequencedItem(TestCase):
 
 
 class TestTimeSequencedItem(TestCase):
-
     def test(self):
         sequence_id = 'sequence1'
         position = 0

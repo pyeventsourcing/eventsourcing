@@ -2,9 +2,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from uuid import uuid4
 
-from eventsourcing.domain.model.entity import Created, Discarded, entity_mutator, singledispatch, TimestampedVersionedEntity, \
-    AbstractEntityRepository
-from eventsourcing.domain.model.events import publish, TimestampedVersionedEntityEvent
+from eventsourcing.domain.model.entity import AbstractEntityRepository, Created, Discarded, \
+    TimestampedVersionedEntity, entity_mutator, singledispatch
+from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish
 
 
 class Collection(TimestampedVersionedEntity):

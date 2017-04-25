@@ -16,7 +16,6 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 
 
 class TimebucketedlogTestCase(WithPersistencePolicies):
-
     def setUp(self):
         super(TimebucketedlogTestCase, self).setUp()
         self.log_repo = TimebucketedlogRepo(self.timestamp_sequenced_event_store)

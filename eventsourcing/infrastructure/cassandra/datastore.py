@@ -37,7 +37,6 @@ class CassandraSettings(DatastoreSettings):
 
 
 class CassandraDatastore(Datastore):
-
     def __init__(self, tables, *args, **kwargs):
         super(CassandraDatastore, self).__init__(*args, **kwargs)
         assert isinstance(tables, tuple), tables
