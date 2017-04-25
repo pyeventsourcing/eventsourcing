@@ -14,6 +14,7 @@ Setup infrastructure using library classes.
 
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
+        tables=(SqlIntegerSequencedItem,),
     )
 
     datastore.setup_connection()

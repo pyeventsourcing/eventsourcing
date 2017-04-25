@@ -87,6 +87,7 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
         return SQLAlchemyDatastore(
             base=Base,
             settings=SQLAlchemySettings(),
+            tables=(SqlExtendedIntegerSequencedItem,)
         )
 
     def test(self):
