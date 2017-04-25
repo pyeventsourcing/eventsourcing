@@ -148,9 +148,9 @@ to persist snapshots whenever they are taken.
 Run the code
 ------------
 
-Now snapshots of the example entity will be taken after every
-event it publishes, including after both its created and discarded
-events.
+The application object can be used in the same way as before. Now
+snapshots of an example entity will be taken every second
+event.
 
 .. code:: python
 
