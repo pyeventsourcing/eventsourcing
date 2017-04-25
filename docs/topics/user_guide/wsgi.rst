@@ -1,5 +1,5 @@
 =====================================
-Web Frameworks and Task Queue Workers
+Web frameworks and task queue workers
 =====================================
 
 In general, you will need one and only one instance of your application
