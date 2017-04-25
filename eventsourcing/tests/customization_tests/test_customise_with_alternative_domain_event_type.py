@@ -40,7 +40,7 @@ class ExampleEntity(TimeuuidedVersionedEntity):
         publish(event)
 
     @staticmethod
-    def _mutator(event, initial):
+    def _mutator(initial, event):
         if isinstance(event, ExampleEntity.Started):
             return ExampleEntity(**event.__dict__)
         elif isinstance(event, ExampleEntity.Finished):
