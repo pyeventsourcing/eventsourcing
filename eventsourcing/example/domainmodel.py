@@ -1,8 +1,8 @@
 import uuid
 
 from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, Discarded, \
-    TimestampedVersionedEntity, attribute, entity_mutator, singledispatch
-from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish
+    TimestampedVersionedEntity, attribute, entity_mutator
+from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish, mutator
 
 
 class Example(TimestampedVersionedEntity):
@@ -55,17 +55,17 @@ class Example(TimestampedVersionedEntity):
         return self._count_heartbeats
 
     @staticmethod
-    def _mutator(event, initial):
-        return example_mutator(event, initial)
+    def _mutator(initial, event):
+        return example_mutator(initial, event)
 
 
-@singledispatch
-def example_mutator(event, initial):
-    return entity_mutator(event, initial)
+@mutator
+def example_mutator(initial, event, ):
+    return entity_mutator(initial, event)
 
 
 @example_mutator.register(Example.Heartbeat)
-def heartbeat_mutator(event, self):
+def heartbeat_mutator(self, event):
     self._validate_originator(event)
     assert isinstance(self, Example), self
     self._count_heartbeats += 1
