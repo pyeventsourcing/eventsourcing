@@ -25,14 +25,13 @@ is determined by a sequence of events, so we need to define some events.
 Domain events
 -------------
 
-The question is, what happened? You may wish to use a technique such as "event storming"
-to provide answers in your domain. In this example, for the sake of general
-familiarity, let's assume we have a domain in which things can be "created",
-"changed", and "discarded". With that understanding in mind, we can begin
-to name some domain event classes.
+You may wish to use a technique such as "event storming" to identify or decide what
+happens in your domain. In this example, for the sake of general familiarity, let's
+assume we have a domain in which things can be "created", "changed", and "discarded".
+With that in mind, we can begin to write some domain event classes.
 
 In the example below, there are three domain event classes: ``Created``,
-``ValueChanged``, and ``Discarded``. The common attributes of the domain
+``AttributeChanged``, and ``Discarded``. The common attributes of the domain
 event classes - the entity ID, entity version, and the timestamp of the
 event - have been pulled up to a layer supertype ``DomainEvent``.
 
@@ -45,10 +44,9 @@ event - have been pulled up to a layer supertype ``DomainEvent``.
         """
         Layer supertype.
         """
-        def __init__(self, originator_id, originator_version, timestamp=None, **kwargs):
+        def __init__(self, originator_id, originator_version, **kwargs):
             self.originator_id = originator_id
             self.originator_version = originator_version
-            self.timestamp = timestamp or time.time()
             self.__dict__.update(kwargs)
 
 
@@ -60,12 +58,12 @@ event - have been pulled up to a layer supertype ``DomainEvent``.
             super(Created, self).__init__(originator_version=0, **kwargs)
 
 
-    class ValueChanged(DomainEvent):
+    class AttributeChanged(DomainEvent):
         """
         Published when an attribute value is changed.
         """
         def __init__(self, name, value, **kwargs):
-            super(ValueChanged, self).__init__(**kwargs)
+            super(AttributeChanged, self).__init__(**kwargs)
             self.name = name
             self.value = value
 
@@ -78,7 +76,8 @@ event - have been pulled up to a layer supertype ``DomainEvent``.
 
 Please note, the domain event classes above do not depend on the library. The library does
 however contain a collection of different kinds of domain event classes that you can use
-in your models, for example see ``TimestampedVersionedEntityEvent``.
+in your models, for example see ``VersionedEntityEvent``, ``TimestampedVersionedEntityEvent``,
+``Created``, ``AttributeChanged``, ``Discarded``.
 
 Domain entity
 -------------
@@ -86,7 +85,7 @@ Domain entity
 Now, let's use the event classes above to define a domain entity.
 
 The ``Example`` entity class below has an entity ID, a version number, and a
-timestamp. It also has a property ``foo``, and a ``discard()`` method to use
+timestamp. It also has an attribute ``foo``, and a ``discard()`` method to use
 when the entity is discarded. The factory method ``create_new_example()`` can
 be used to create new entities.
 
@@ -94,7 +93,7 @@ All the methods follow a similar pattern. Each constructs an event that represen
 of the operation. Each uses a "mutator function" function ``mutate()`` to apply the event
 to the entity. Each publishes the event for the benefit of any subscribers.
 
-When replaying a sequence of events, for example when reconsistuting an entity from its
+When replaying a sequence of events, for example when reconstituting an entity from its
 domain events, the mutator function is called several times in order to apply every event
 to an evolving initial state. For the sake of simplicity in this example, we'll use an
 if-else block that can handle the three types of events defined above.
@@ -147,7 +146,7 @@ if-else block that can handle the three types of events defined above.
             assert not self._is_discarded
 
             # Instantiate a domain event.
-            event = ValueChanged(
+            event = AttributeChanged(
                 originator_id=self.id,
                 originator_version=self.version,
                 name='foo',
@@ -204,11 +203,10 @@ if-else block that can handle the three types of events defined above.
             return entity
 
         # Handle "value changed" events by setting the named value.
-        elif isinstance(event, ValueChanged):
+        elif isinstance(event, AttributeChanged):
             assert not entity.is_discarded
             setattr(entity, '_' + event.name, event.value)
             entity._version += 1
-            entity._last_modified_on = event.timestamp
             return entity
 
         # Handle "discarded" events by returning 'None'.
@@ -224,16 +222,13 @@ if-else block that can handle the three types of events defined above.
 The example entity class does not depend on the library, except for the ``publish()`` function.
 In particular, it doesn't inherit from a "magical" entity base class. It just publishes events that it has
 applied to itself. The library does however contain domain entity classes that you can use to build your
-domain model. For example see the ``TimestampedVersionedEntity`` class, which is also a timestamped,
-versioned entity. The library classes are slightly more refined than the code in this example.
+domain model, for example the ``TimestampedVersionedEntity`` and ``AggregateRoot`` classes.
 
 
 Run the code
 ------------
 
-With this stand-alone code, we can create a new example entity object. We can update its property
-``foo``, and we can discard the entity using the ``discard()`` method. Let's firstly subscribe to
-receive the events that will be published, so we can see what happened.
+Let's firstly subscribe to receive the events that will be published, so we can see what happened.
 
 .. code:: python
 
@@ -244,6 +239,12 @@ receive the events that will be published, so we can see what happened.
 
     # Subscribe to receive published events.
     subscribe(lambda e: received_events.append(e))
+
+
+With this stand-alone code, we can create a new example entity object. We can update its property
+``foo``, and we can discard the entity using the ``discard()`` method.
+
+.. code:: python
 
     # Create a new entity using the factory.
     entity = create_new_example(foo='bar1')
@@ -275,7 +276,7 @@ receive the events that will be published, so we can see what happened.
 
     # Check the received events.
     assert len(received_events) == 2, received_events
-    assert isinstance(received_events[1], ValueChanged)
+    assert isinstance(received_events[1], AttributeChanged)
     assert received_events[1].originator_version == 1
     assert received_events[1].name == 'foo'
     assert received_events[1].value == 'bar2'
@@ -477,7 +478,7 @@ JSON string).
 
     assert sequenced_items[1].sequence_id == entity.id
     assert sequenced_items[1].position == 1
-    assert 'ValueChanged' in sequenced_items[1].topic
+    assert 'AttributeChanged' in sequenced_items[1].topic
     assert 'bar2' in sequenced_items[1].data
 
 Similar to the support for storing events in SQLAlchemy, there
