@@ -12,9 +12,6 @@ to how the library classes work.
 All the infrastructure is declared explicitly to show the components that are
 involved.
 
-Later examples in this guide make more use of library classes, which
-are more developed than the code snippets included here.
-
 
 Domain
 ======
