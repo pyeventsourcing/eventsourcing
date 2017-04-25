@@ -3,29 +3,10 @@ from inspect import isfunction
 
 from six import with_metaclass
 
-from eventsourcing.domain.model.events import QualnameABCMeta, TimestampedVersionedEntityEvent, mutator, publish
+from eventsourcing.domain.model.events import AttributeChanged, Created, Discarded, QualnameABCMeta, mutator, publish
 from eventsourcing.exceptions import EntityIsDiscarded, MismatchedOriginatorIDError, \
     MismatchedOriginatorVersionError, MutatorRequiresTypeNotInstance, ProgrammingError
 from eventsourcing.utils.time import timestamp_from_uuid
-
-
-class Created(TimestampedVersionedEntityEvent):
-    def __init__(self, originator_version=0, **kwargs):
-        super(Created, self).__init__(originator_version=originator_version, **kwargs)
-
-
-class AttributeChanged(TimestampedVersionedEntityEvent):
-    @property
-    def name(self):
-        return self.__dict__['name']
-
-    @property
-    def value(self):
-        return self.__dict__['value']
-
-
-class Discarded(TimestampedVersionedEntityEvent):
-    pass
 
 
 class DomainEntity(with_metaclass(QualnameABCMeta)):

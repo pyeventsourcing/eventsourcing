@@ -13,11 +13,11 @@ All the infrastructure is declared explicitly to show the components that are
 involved.
 
 Later examples in this guide make more use of library classes, which
-are only slightly more sophisticated than the code snippets included here.
+are more developed than the code snippets included here.
 
 
-Domain model
-============
+Domain
+======
 
 Let's start with the domain model. Since the state of an event sourced application
 is determined by a sequence of events, so we need to define some events.
@@ -25,16 +25,14 @@ is determined by a sequence of events, so we need to define some events.
 Domain events
 -------------
 
-The question is, what happened? You may wish to use a technique such as "event storming"
-to provide answers in your domain. In this example, for the sake of general
-familiarity, let's assume we have a domain in which things can be "created",
-"changed", and "discarded". With that understanding in mind, we can begin
-to name some domain event classes.
+You may wish to use a technique such as "event storming" to identify or decide what
+happens in your domain. In this example, for the sake of general familiarity, let's
+assume we have a domain in which things can be "created", "changed", and "discarded".
+With that in mind, we can begin to write some domain event classes.
 
 In the example below, there are three domain event classes: ``Created``,
-``ValueChanged``, and ``Discarded``. The common attributes of the domain
-event classes - the entity ID, entity version, and the timestamp of the
-event - have been pulled up to a layer supertype ``DomainEvent``.
+``AttributeChanged``, and ``Discarded``. The common attributes of the domain
+event classes have been pulled up to a layer supertype ``DomainEvent``.
 
 .. code:: python
 
@@ -45,10 +43,9 @@ event - have been pulled up to a layer supertype ``DomainEvent``.
         """
         Layer supertype.
         """
-        def __init__(self, originator_id, originator_version, timestamp=None, **kwargs):
+        def __init__(self, originator_id, originator_version, **kwargs):
             self.originator_id = originator_id
             self.originator_version = originator_version
-            self.timestamp = timestamp or time.time()
             self.__dict__.update(kwargs)
 
 
@@ -60,12 +57,12 @@ event - have been pulled up to a layer supertype ``DomainEvent``.
             super(Created, self).__init__(originator_version=0, **kwargs)
 
 
-    class ValueChanged(DomainEvent):
+    class AttributeChanged(DomainEvent):
         """
         Published when an attribute value is changed.
         """
         def __init__(self, name, value, **kwargs):
-            super(ValueChanged, self).__init__(**kwargs)
+            super(AttributeChanged, self).__init__(**kwargs)
             self.name = name
             self.value = value
 
@@ -78,7 +75,8 @@ event - have been pulled up to a layer supertype ``DomainEvent``.
 
 Please note, the domain event classes above do not depend on the library. The library does
 however contain a collection of different kinds of domain event classes that you can use
-in your models, for example see ``TimestampedVersionedEntityEvent``.
+in your models, for example see ``VersionedEntityEvent``, ``TimestampedVersionedEntityEvent``,
+``Created``, ``AttributeChanged``, ``Discarded``.
 
 Domain entity
 -------------
@@ -86,7 +84,7 @@ Domain entity
 Now, let's use the event classes above to define a domain entity.
 
 The ``Example`` entity class below has an entity ID, a version number, and a
-timestamp. It also has a property ``foo``, and a ``discard()`` method to use
+timestamp. It also has an attribute ``foo``, and a ``discard()`` method to use
 when the entity is discarded. The factory method ``create_new_example()`` can
 be used to create new entities.
 
@@ -94,7 +92,7 @@ All the methods follow a similar pattern. Each constructs an event that represen
 of the operation. Each uses a "mutator function" function ``mutate()`` to apply the event
 to the entity. Each publishes the event for the benefit of any subscribers.
 
-When replaying a sequence of events, for example when reconsistuting an entity from its
+When replaying a sequence of events, for example when reconstituting an entity from its
 domain events, the mutator function is called several times in order to apply every event
 to an evolving initial state. For the sake of simplicity in this example, we'll use an
 if-else block that can handle the three types of events defined above.
@@ -147,7 +145,7 @@ if-else block that can handle the three types of events defined above.
             assert not self._is_discarded
 
             # Instantiate a domain event.
-            event = ValueChanged(
+            event = AttributeChanged(
                 originator_id=self.id,
                 originator_version=self.version,
                 name='foo',
@@ -204,11 +202,10 @@ if-else block that can handle the three types of events defined above.
             return entity
 
         # Handle "value changed" events by setting the named value.
-        elif isinstance(event, ValueChanged):
+        elif isinstance(event, AttributeChanged):
             assert not entity.is_discarded
             setattr(entity, '_' + event.name, event.value)
             entity._version += 1
-            entity._last_modified_on = event.timestamp
             return entity
 
         # Handle "discarded" events by returning 'None'.
@@ -224,16 +221,13 @@ if-else block that can handle the three types of events defined above.
 The example entity class does not depend on the library, except for the ``publish()`` function.
 In particular, it doesn't inherit from a "magical" entity base class. It just publishes events that it has
 applied to itself. The library does however contain domain entity classes that you can use to build your
-domain model. For example see the ``TimestampedVersionedEntity`` class, which is also a timestamped,
-versioned entity. The library classes are slightly more refined than the code in this example.
+domain model, for example the ``TimestampedVersionedEntity`` and ``AggregateRoot`` classes.
 
 
 Run the code
 ------------
 
-With this stand-alone code, we can create a new example entity object. We can update its property
-``foo``, and we can discard the entity using the ``discard()`` method. Let's firstly subscribe to
-receive the events that will be published, so we can see what happened.
+Let's firstly subscribe to receive the events that will be published, so we can see what happened.
 
 .. code:: python
 
@@ -244,6 +238,12 @@ receive the events that will be published, so we can see what happened.
 
     # Subscribe to receive published events.
     subscribe(lambda e: received_events.append(e))
+
+
+With this stand-alone code, we can create a new example entity object. We can update its property
+``foo``, and we can discard the entity using the ``discard()`` method.
+
+.. code:: python
 
     # Create a new entity using the factory.
     entity = create_new_example(foo='bar1')
@@ -275,7 +275,7 @@ receive the events that will be published, so we can see what happened.
 
     # Check the received events.
     assert len(received_events) == 2, received_events
-    assert isinstance(received_events[1], ValueChanged)
+    assert isinstance(received_events[1], AttributeChanged)
     assert received_events[1].originator_version == 1
     assert received_events[1].name == 'foo'
     assert received_events[1].value == 'bar2'
@@ -292,8 +292,10 @@ recover the entities.
 Database table
 --------------
 
-Let's start by setting up a simple database. We can use SQLAlchemy to define a
-database table that stores integer-sequenced items.
+Let's start by setting up a simple database table that can store sequences
+of items. We can use SQLAlchemy to define a database table that stores
+items in sequences, with a single identity for each sequence, and with
+each item positioned in its sequenced by an integer index number.
 
 .. code:: python
 
@@ -302,10 +304,10 @@ database table that stores integer-sequenced items.
     from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
     from sqlalchemy_utils import UUIDType
 
-    Base = declarative_base()
+    ActiveRecord = declarative_base()
 
 
-    class SequencedItemTable(Base):
+    class SequencedItemRecord(ActiveRecord):
         __tablename__ = 'sequenced_items'
 
         id = Column(Integer(), Sequence('integer_sequened_item_id_seq'), primary_key=True)
@@ -327,27 +329,27 @@ database table that stores integer-sequenced items.
                                           name='integer_sequenced_item_uc'),
 
 
-Now create the database table. The SQLAlchemy objects can be adapted with a ``Datastore`` from the
-library, which provides a common interface for the operations ``setup_connection()``
-and ``setup_tables()``.
+Now create the database table. For convenience, the SQLAlchemy objects can be adapted
+with the ``SQLAlchemyDatastore`` class, which provides a simple interface for the
+two operations we require: ``setup_connection()`` and ``setup_tables()``.
 
 .. code:: python
 
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
 
     datastore = SQLAlchemyDatastore(
-        base=Base,
+        base=ActiveRecord,
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-        tables=(SequencedItemTable,),
+        tables=(SequencedItemRecord,),
     )
 
     datastore.setup_connection()
     datastore.setup_tables()
 
 
-This example uses an SQLite in memory relational database. You can
-change ``uri`` to any valid connection string. Here are some example
-connection strings: for an SQLite file; for a PostgreSQL database; and
+As you can see from the ``uri`` argument above, this example is using SQLite to manage
+an in memory relational database. You can change ``uri`` to any valid connection string.
+Here are some example connection strings: for an SQLite file; for a PostgreSQL database; and
 for a MySQL database. See SQLAlchemy's create_engine() documentation for details.
 
 ::
@@ -362,37 +364,21 @@ for a MySQL database. See SQLAlchemy's create_engine() documentation for details
 Event store
 -----------
 
-To support different kinds of sequences, and to allow for different schemas
-for storing events, the event store has been factored to use a "sequenced
-item mapper" to map domain events to sequenced items, and an "active record
-strategy" to write sequenced items into a database table. The details
-have been made explicit so they can be easily replaced.
+To support different kinds of sequences in the domain model, and to allow for
+different database schemas, the library has an event store that uses
+a "sequenced item mapper" for mapping domain events to "sequenced items" - this
+library's archetype persistence model for storing events. The sequenced item
+mapper derives the values of sequenced item fields from the attributes of domain
+events.
 
-The sequenced item mapper derives the values of sequenced item fields from
-the attributes of domain events. The active record strategy uses an active
-record class to access rows in a database table. Hence you you could vary the
-field types and indexes used in the database table by passing in an alternative
-active record class. You can use alternative field names in the database
-table by using an alternative sequenced item class, along with a suitable active
-record class, reusing the sequenced item mapper and the active record strategy.
+The event store then uses an "active record strategy" to persist the sequenced items
+into a particular database management system. The active record strategy uses an
+active record class to manipulate records in particular database table.
 
-You can extend or replace the persistence model by extending the sequenced item
-mapper and sequenced item class, and using them along with a suitable active
-record class. A new database system or service can be adapted with a new active
-record strategy.
-
-In the code below, the args ``sequence_id_attr_name`` and ``position_attr_name``
-inform the sequenced item mapper which domain event attributes should be used for the
-sequence ID and position fields of a sequenced item. It isn't necessary to
-provide the ``sequence_id_attr_name`` arg, if the name of the domain event
-attribute holding the sequence ID value is equal to the name of the first field
-of the sequenced item class - for example if both are called 'originator_id', or
-'aggregate_id'. Similarly, it isn't necessary to provide a value for the
-``position_attr_name`` arg, if the name of the domain event attribute which
-indicates the position of the event in a sequence is equal to the name of the
-second field of the sequence item class - for example if both are called
-'originator_version', or 'aggregate_version'.
-
+Hence you can use a different database table by substituting an alternative active
+record class. You can use a different database management system by substituting an
+alternative active record strategy. The persistence model can also be changed
+by substituting an alternative sequenced item type.
 
 .. code:: python
 
@@ -403,7 +389,7 @@ second field of the sequence item class - for example if both are called
 
     active_record_strategy = SQLAlchemyActiveRecordStrategy(
         session=datastore.db_session,
-        active_record_class=SequencedItemTable,
+        active_record_class=SequencedItemRecord,
         sequenced_item_class=SequencedItem
     )
 
@@ -417,6 +403,16 @@ second field of the sequence item class - for example if both are called
         active_record_strategy=active_record_strategy,
         sequenced_item_mapper=sequenced_item_mapper
     )
+
+
+In the code above, the ``sequence_id_attr_name`` value given to the sequenced item
+mapper is the name of the domain events attribute that will be used as the ID
+of the mapped sequenced item, The ``position_attr_name`` argument informs the
+sequenced item mapper which event attribute should be used to position the item
+in the sequence. The values ``originator_id`` and ``originator_version`` correspond
+to attributes of the domain event classes we defined in the domain model section above.
+
+
 
 Entity repository
 -----------------
@@ -458,13 +454,18 @@ The entity can now be retrieved from the repository, using its dictionary-like i
     retrieved_entity = example_repository[entity.id]
     assert retrieved_entity.foo == 'bar2'
 
+
+Sequenced items
+---------------
+
 Remember that we can always get the sequenced items directly from the active record
-strategy. A sequenced item is tuple containing a serialised representation of the domain event. In the library, a
-``SequencedItem`` is a Python tuple with four fields: ``sequence_id``, ``position``,
-``topic``, and ``data``. By default, an event's ``originator_id`` attribute is mapped to the ``sequence_id`` field,
-and the event's ``originator_version`` attribute is mapped to the ``position`` field. The ``topic`` field of a
-sequenced item is used to identify the event class, and the ``data`` field represents the state of the event (a
-JSON string).
+strategy. A sequenced item is tuple containing a serialised representation of the
+domain event. In the library, a ``SequencedItem`` is a Python tuple with four fields:
+``sequence_id``, ``position``, ``topic``, and ``data``. In this example, an event's
+``originator_id`` attribute is mapped to the ``sequence_id`` field, and the event's
+``originator_version`` attribute is mapped to the ``position`` field. The ``topic``
+field of a sequenced item is used to identify the event class, and the ``data`` field
+represents the state of the event (a JSON string).
 
 .. code:: python
 
@@ -479,7 +480,7 @@ JSON string).
 
     assert sequenced_items[1].sequence_id == entity.id
     assert sequenced_items[1].position == 1
-    assert 'ValueChanged' in sequenced_items[1].topic
+    assert 'AttributeChanged' in sequenced_items[1].topic
     assert 'bar2' in sequenced_items[1].data
 
 Similar to the support for storing events in SQLAlchemy, there
@@ -491,16 +492,22 @@ Application
 ===========
 
 Although we can do everything at the module level, an application object brings
-everything together. In the example below, the application has an event store,
+it all together.
+
+
+Application object
+------------------
+
+In the example below, the class ``ExampleApplication`` has an event store,
 and an entity repository.
 
-Most importantly, the application has a persistence policy. The persistence
-policy firstly subscribes to receive events when they are published, and it
-uses the event store to store all the events that it receives.
+The application also has a persistence policy. The persistence policy
+subscribes to receive events whenever they are published, and uses an event
+store to store events whenever they are received.
 
 As a convenience, it is useful to make the application function as a Python
 context manager, so that the application can close the persistence policy,
-unsubscribing itself from receiving further domain events.
+and unsubscribe from receiving further domain events.
 
 .. code:: python
 
@@ -512,7 +519,7 @@ unsubscribing itself from receiving further domain events.
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
                     session=datastore.db_session,
-                    active_record_class=SequencedItemTable,
+                    active_record_class=SequencedItemRecord,
                     sequenced_item_class=SequencedItem,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
@@ -539,11 +546,16 @@ unsubscribing itself from receiving further domain events.
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.close()
 
-After instantiating the application, we can create more example entities
-and expect they will be available in the repository immediately.
 
-Please note, a discarded entity can not be retrieved from the repository.
-The repository's dictionary-like interface will raise a Python ``KeyError``
+Run the code
+------------
+
+After instantiating the application, we can create example entities
+and expect they will be immediately available in the repository.
+
+Please note, an entity that has been discarded by using its ``discard()`` method
+cannot subsequently be retrieved from the repository using its ID. In particular,
+the repository's dictionary-like interface will raise a Python ``KeyError``
 exception instead of returning an entity.
 
 .. code:: python
@@ -574,5 +586,5 @@ exception instead of returning an entity.
 
 Congratulations. You have created yourself an event sourced application.
 
-A slightly more developed example application can be found in the library
+A more developed ``ExampleApplication`` class can be found in the library
 module ``eventsourcing.example.application``.
