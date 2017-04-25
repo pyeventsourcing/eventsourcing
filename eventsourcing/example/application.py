@@ -1,16 +1,12 @@
-from eventsourcing.application.base import EventSourcedApplication
+from eventsourcing.application.base import ApplicationWithPersistencePolicies
 from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
 
-class ExampleApplication(EventSourcedApplication):
+class ExampleApplication(ApplicationWithPersistencePolicies):
     """
-    Example event sourced application.
-
-    This application has an Example repository, and a factory method to construct new Example entities.
-
-    It doesn't have a stored event repository.
+    Example event sourced application with entity factory and repository.
     """
 
     def __init__(self, **kwargs):
@@ -27,32 +23,51 @@ class ExampleApplication(EventSourcedApplication):
         )
 
     def create_new_example(self, foo='', a='', b=''):
+        """Entity object factory."""
         return create_new_example(foo=foo, a=a, b=b)
 
 
 def construct_example_application(**kwargs):
+    """Application object factory."""
     return ExampleApplication(**kwargs)
 
 
-application = None
+# "Global" variable for single instance of application.
+_application = None
 
 
 def init_example_application(**kwargs):
-    global application
-    if application is not None:
+    """
+    Constructs single global instance of application.
+    
+    To be called when initialising a worker process.
+    """
+    global _application
+    if _application is not None:
         raise AssertionError("init_example_application() has already been called")
-    application = construct_example_application(**kwargs)
+    _application = construct_example_application(**kwargs)
 
 
 def get_example_application():
-    if application is None:
+    """
+    Returns single global instance of application.
+
+    To be called when handling a worker request, if required.
+    """
+    if _application is None:
         raise AssertionError("init_example_application() must be called first")
-    assert isinstance(application, ExampleApplication)
-    return application
+    assert isinstance(_application, ExampleApplication)
+    return _application
 
 
 def close_example_application():
-    global application
-    if application is not None:
-        application.close()
-    application = None
+    """
+    Shuts down single global instance of application.
+    
+    To be called when tearing down, perhaps between tests, in order to allow a
+    subsequent call to init_example_application().
+    """
+    global _application
+    if _application is not None:
+        _application.close()
+    _application = None

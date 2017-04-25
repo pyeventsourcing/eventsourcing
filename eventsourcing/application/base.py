@@ -17,60 +17,38 @@ from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 
-class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
+class ApplicationWithEventStores(with_metaclass(ABCMeta)):
     def __init__(self, integer_sequenced_active_record_strategy=None,
                  timestamp_sequenced_active_record_strategy=None,
                  snapshot_active_record_strategy=None,
                  always_encrypt=False, cipher=None):
-        """
-        Constructs an event store using the given stored event repository.
-
-        :param sequenced_item_repository:  Repository containing sequenced items.
-
-        :param always_encrypt:  Optional encryption of persisted state.
-
-        :param cipher:  Used to encrypt and decrypt stored events.
-
-        """
-        # assert isinstance(integer_sequenced_active_record_strategy, AbstractActiveRecordStrategy), \
-        #     type(integer_sequenced_active_record_strategy)
-        #
-        # assert isinstance(timestamp_sequenced_active_record_strategy, AbstractActiveRecordStrategy), \
-        #     type(integer_sequenced_active_record_strategy)
-        #
-        # assert isinstance(snapshot_active_record_strategy, AbstractActiveRecordStrategy), \
-        #     type(snapshot_active_record_strategy)
-
-        self.integer_sequenced_active_record_strategy = integer_sequenced_active_record_strategy
-        self.timestamp_sequenced_active_record_strategy = timestamp_sequenced_active_record_strategy
-        self.snapshot_active_record_strategy = snapshot_active_record_strategy
 
         self.integer_sequenced_event_store = None
-        if self.integer_sequenced_active_record_strategy:
+        if integer_sequenced_active_record_strategy:
             self.integer_sequenced_event_store = self.construct_event_store(
                 event_sequence_id_attr='originator_id',
                 event_position_attr='originator_version',
-                active_record_strategy=self.integer_sequenced_active_record_strategy,
+                active_record_strategy=integer_sequenced_active_record_strategy,
                 always_encrypt=always_encrypt,
                 cipher=cipher,
             )
 
         self.timestamp_sequenced_event_store = None
-        if self.timestamp_sequenced_active_record_strategy:
+        if timestamp_sequenced_active_record_strategy:
             self.timestamp_sequenced_event_store = self.construct_event_store(
                 event_sequence_id_attr='originator_id',
                 event_position_attr='timestamp',
-                active_record_strategy=self.timestamp_sequenced_active_record_strategy,
+                active_record_strategy=timestamp_sequenced_active_record_strategy,
                 always_encrypt=always_encrypt,
                 cipher=cipher,
             )
 
         self.snapshot_event_store = None
-        if self.snapshot_active_record_strategy:
+        if snapshot_active_record_strategy:
             self.snapshot_event_store = self.construct_event_store(
                 event_sequence_id_attr='originator_id',
                 event_position_attr='originator_version',
-                active_record_strategy=self.snapshot_active_record_strategy,
+                active_record_strategy=snapshot_active_record_strategy,
                 always_encrypt=always_encrypt,
                 cipher=cipher,
             )
@@ -114,9 +92,9 @@ class ReadOnlyEventSourcingApplication(with_metaclass(ABCMeta)):
         self.close()
 
 
-class EventSourcedApplication(ReadOnlyEventSourcingApplication):
+class ApplicationWithPersistencePolicies(ApplicationWithEventStores):
     def __init__(self, **kwargs):
-        super(EventSourcedApplication, self).__init__(**kwargs)
+        super(ApplicationWithPersistencePolicies, self).__init__(**kwargs)
         self.entity_persistence_policy = self.construct_entity_persistence_policy()
         self.snapshot_persistence_policy = self.construct_snapshot_persistence_policy()
         self.log_persistence_policy = self.construct_log_persistence_policy()
@@ -152,4 +130,4 @@ class EventSourcedApplication(ReadOnlyEventSourcingApplication):
         if self.log_persistence_policy is not None:
             self.log_persistence_policy.close()
             self.log_persistence_policy = None
-        super(EventSourcedApplication, self).close()
+        super(ApplicationWithPersistencePolicies, self).close()

@@ -1,6 +1,6 @@
 import datetime
 
-from eventsourcing.application.base import EventSourcedApplication
+from eventsourcing.application.base import ApplicationWithPersistencePolicies
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import GeneralizedSuffixTree, \
     register_new_suffix_tree
 from eventsourcing.contrib.suffixtrees.domain.services.generalizedsuffixtree import find_substring_edge, \
@@ -9,7 +9,7 @@ from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.genera
     GeneralizedSuffixTreeRepo, NodeChildCollectionRepo, NodeRepo, StringidCollectionRepo
 
 
-class SuffixTreeApplication(EventSourcedApplication):
+class SuffixTreeApplication(ApplicationWithPersistencePolicies):
     def __init__(self, **kwargs):
         super(SuffixTreeApplication, self).__init__(**kwargs)
         self.suffix_tree_repo = GeneralizedSuffixTreeRepo(self.event_store)
