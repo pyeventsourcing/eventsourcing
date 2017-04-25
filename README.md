@@ -8,7 +8,7 @@ A library for event sourcing in Python.
 
 ## Installation
 
-Use pip to install the [latest distribution](https://pypi.python.org/pypi/eventsourcing) from
+Use pip to install the [stable distribution](https://pypi.python.org/pypi/eventsourcing) from
 the Python Package Index.
 
     pip install eventsourcing
