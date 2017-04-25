@@ -3,7 +3,7 @@ Aggregates in domain driven design
 ==================================
 
 Eric Evans' book Domain Driven Design describes an abstraction called
-"aggregate".
+"aggregate":
 
 .. pull-quote::
 
@@ -27,7 +27,7 @@ exclusively operate on the objects of the aggregate.
 The example below demonstrates a stand-alone domain model aggregate, with domain
 events that pertain to the objects of the aggregate, a mutator function that can
 mutate the objects of the aggregate, an aggregate root entity with methods that
-operate all the objects of the aggregate, and a factory method the creates new
+operate on all the objects of the aggregate, and a factory method the creates new
 aggregates.
 
 Rather than publishing events immediately and individually during the execution
