@@ -6,12 +6,11 @@ from time import sleep
 from uuid import uuid4
 
 import six
-from singledispatch import singledispatch
 
 from eventsourcing.domain.model.collection import Collection
 from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, Discarded, \
     TimestampedVersionedEntity, attribute, entity_mutator
-from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish
+from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish, mutator
 from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 
 # Use a private code point to terminate the strings.
@@ -527,17 +526,17 @@ class SuffixTreeNodeChildCollection(TimestampedVersionedEntity):
         publish(event)
 
     @staticmethod
-    def _mutator(event, initial):
-        return suffix_tree_node_child_collection_mutator(event, initial)
+    def _mutator(initial, event):
+        return suffix_tree_node_child_collection_mutator(initial, event)
 
 
-@singledispatch
-def suffix_tree_node_child_collection_mutator(event, initial):
-    return entity_mutator(event, initial)
+@mutator
+def suffix_tree_node_child_collection_mutator(initial, event):
+    return entity_mutator(initial, event)
 
 
 @suffix_tree_node_child_collection_mutator.register(SuffixTreeNodeChildCollection.ChildNodeAdded)
-def child_node_child_collection_added_mutator(event, self):
+def child_node_child_collection_added_mutator(self, event):
     assert isinstance(self, SuffixTreeNodeChildCollection), self
     self._child_node_ids[event.child_node_id] = event.edge_len
     self._increment_version()
@@ -545,7 +544,7 @@ def child_node_child_collection_added_mutator(event, self):
 
 
 @suffix_tree_node_child_collection_mutator.register(SuffixTreeNodeChildCollection.ChildNodeSwitched)
-def child_node_child_collection_switched_mutator(event, self):
+def child_node_child_collection_switched_mutator(self, event):
     assert isinstance(self, SuffixTreeNodeChildCollection), self
     try:
         del (self._child_node_ids[event.old_node_id])
@@ -624,17 +623,17 @@ class SuffixTreeEdge(TimestampedVersionedEntity):
         publish(event)
 
     @staticmethod
-    def _mutator(event, initial):
-        return suffix_tree_edge_mutator(event, initial)
+    def _mutator(initial, event):
+        return suffix_tree_edge_mutator(initial, event)
 
 
-@singledispatch
-def suffix_tree_edge_mutator(event, initial):
-    return entity_mutator(event, initial)
+@mutator
+def suffix_tree_edge_mutator(initial, event):
+    return entity_mutator(initial, event)
 
 
 @suffix_tree_edge_mutator.register(SuffixTreeEdge.Shortened)
-def suffix_tree_edge_shortened_mutator(event, self):
+def suffix_tree_edge_shortened_mutator(self, event):
     assert isinstance(event, SuffixTreeEdge.Shortened), event
     assert isinstance(self, SuffixTreeEdge), type(self)
     self._validate_originator(event)

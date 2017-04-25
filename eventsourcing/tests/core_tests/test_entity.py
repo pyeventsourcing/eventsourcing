@@ -196,11 +196,11 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Check the guard condition raises exception.
         with self.assertRaises(MutatorRequiresTypeNotInstance):
-            created_mutator(mock.Mock(spec=Created), 'not a class')
+            created_mutator('not a class', mock.Mock(spec=Created))
 
         # Check the instantiation type error.
         with self.assertRaises(TypeError):
-            created_mutator(mock.Mock(spec=Created), TimestampedVersionedEntity)  # needs more than the mock obj has
+            created_mutator(TimestampedVersionedEntity, mock.Mock(spec=Created))  # needs more than the mock obj has
 
 
 class CustomValueObject(object):

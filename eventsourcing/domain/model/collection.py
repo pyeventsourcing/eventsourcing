@@ -3,8 +3,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from uuid import uuid4
 
 from eventsourcing.domain.model.entity import AbstractEntityRepository, Created, Discarded, \
-    TimestampedVersionedEntity, entity_mutator, singledispatch
-from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish
+    TimestampedVersionedEntity, entity_mutator
+from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, mutator, publish
 
 
 class Collection(TimestampedVersionedEntity):
@@ -59,8 +59,8 @@ class Collection(TimestampedVersionedEntity):
         publish(event)
 
     @staticmethod
-    def _mutator(event, initial):
-        return collection_mutator(event, initial)
+    def _mutator(initial, event):
+        return collection_mutator(initial, event)
 
 
 def register_new_collection(collection_id=None):
@@ -71,24 +71,24 @@ def register_new_collection(collection_id=None):
     return entity
 
 
-@singledispatch
-def collection_mutator(event, initial):
-    return entity_mutator(event, initial)
+@mutator
+def collection_mutator(initial, event):
+    return entity_mutator(initial, event)
 
 
 @collection_mutator.register(Collection.ItemAdded)
-def collection_item_added_mutator(event, entity):
-    assert isinstance(entity, Collection)
-    entity._items.add(event.item)
-    entity._increment_version()
-    return entity
+def collection_item_added_mutator(self, event):
+    assert isinstance(self, Collection)
+    self._items.add(event.item)
+    self._increment_version()
+    return self
 
 
 @collection_mutator.register(Collection.ItemRemoved)
-def collection_item_removed_mutator(event, entity):
-    entity._items.remove(event.item)
-    entity._increment_version()
-    return entity
+def collection_item_removed_mutator(self, event):
+    self._items.remove(event.item)
+    self._increment_version()
+    return self
 
 
 class AbstractCollectionRepository(AbstractEntityRepository):
