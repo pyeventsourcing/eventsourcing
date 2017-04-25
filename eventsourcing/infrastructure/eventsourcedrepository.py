@@ -77,14 +77,14 @@ class EventSourcedRepository(AbstractEntityRepository):
     # def add_cache(self, entity_id, entity):
     #     self._cache[entity_id] = entity
 
-    def get_entity(self, entity_id, lte=None):
+    def get_entity(self, entity_id, lt=None, lte=None):
         """
-        Returns entity with given ID, optionally as it was until the given domain event ID.
+        Returns entity with given ID, optionally until position.
         """
 
         # Get a snapshot (None if none exist).
         if self._snapshot_strategy is not None:
-            snapshot = self._snapshot_strategy.get_snapshot(entity_id, lte=lte)
+            snapshot = self._snapshot_strategy.get_snapshot(entity_id, lt=lt, lte=lte)
         else:
             snapshot = None
 
@@ -97,10 +97,4 @@ class EventSourcedRepository(AbstractEntityRepository):
             gt = snapshot.originator_version
 
         # Replay domain events.
-        return self.event_player.replay_entity(entity_id, gt=gt, lte=lte, initial_state=initial_state)
-
-        # def fastforward(self, stale_entity, lt=None, lte=None):
-        #     """
-        #     Mutates an instance of an entity, according to the events that have occurred since its version.
-        #     """
-        #     return self.event_player.fastforward(stale_entity, lt=lt, lte=lte)
+        return self.event_player.replay_entity(entity_id, gt=gt, lt=lt, lte=lte, initial_state=initial_state)
