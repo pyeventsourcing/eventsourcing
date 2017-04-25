@@ -25,10 +25,10 @@ something goes wrong).
    :maxdepth: 3
 
    example_application
+   aggregates
    encryption
    concurrency
    snapshotting
-   aggregates
    schema
    cassandra
    wsgi
