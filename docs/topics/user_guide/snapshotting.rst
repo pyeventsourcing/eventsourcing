@@ -5,6 +5,9 @@ Snapshotting
 To enable snapshotting, pass in a snapshotting strategy object when constructing
 an entity repository.
 
+Infrastructure
+--------------
+
 Firstly setup a dedicated table for snapshots.
 
 .. code:: python
@@ -36,6 +39,9 @@ Firstly setup a dedicated table for snapshots.
     datastore.setup_tables()
 
 
+Snapshotting Policy
+-------------------
+
 Let's introduce a snapshotting policy, so that a snapshot is automatically
 taken at a regular intervals.
 
@@ -62,6 +68,8 @@ taken at a regular intervals.
             self.event_player.take_snapshot(event.originator_id)
 
 
+Application object
+------------------
 
 In the application class below, the ``EventSourcedRepository`` is constructed with
 an event sourced snapshot strategy. The application also has a policy to persist
@@ -152,6 +160,9 @@ a snapshot after each new event.
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.close()
 
+
+Run the code
+------------
 
 Now snapshots of the example entity will be taken after every
 event it publishes, including after both its created and discarded

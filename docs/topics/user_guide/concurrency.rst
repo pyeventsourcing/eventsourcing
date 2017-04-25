@@ -8,6 +8,10 @@ at the same version. Hence, if the entity you are working on has been
 updated elsewhere, an attempt to update your object will raise a concurrency
 exception.
 
+
+Application and infrastructure
+------------------------------
+
 Setup infrastructure using library classes.
 
 .. code:: python
@@ -43,6 +47,9 @@ Define a factory that uses library classes to construct an application object.
         )
         return app
 
+
+Run the code
+------------
 
 Use the application to get two instances of the same entity, and try to change them independently.
 

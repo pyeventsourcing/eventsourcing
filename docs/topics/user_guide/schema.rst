@@ -4,6 +4,9 @@ Alternative database schema
 
 Let's say we want the database table to look like stored events, rather than sequenced items.
 
+Stored event model
+------------------
+
 It's easy to do. Just define a new sequenced item class, e.g. ``StoredEvent`` below.
 
 .. code:: python
@@ -45,6 +48,10 @@ Then define a suitable active record class.
 
         # State of the item (serialized dict, possibly encrypted).
         state = Column(Text())
+
+
+Application and infrastructure
+------------------------------
 
 Then redefine the application class to use the new sequenced item and active record classes.
 
@@ -109,6 +116,9 @@ Set up the database.
     datastore.setup_connection()
     datastore.setup_tables()
 
+
+Run the code
+------------
 
 Then you can use the application as before, and your events will be stored as "stored events".
 

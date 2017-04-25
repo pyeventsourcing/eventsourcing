@@ -5,6 +5,29 @@ Application-level encryption
 To enable encryption, pass in a cipher strategy object when constructing
 the sequenced item mapper, and set ``always_encrypt`` to a True value.
 
+Cipher
+------
+
+This example uses the AES cipher strategy provided by this library. Alternatively,
+you can craft your own cipher strategy object.
+
+With encryption enabled, event attribute values are encrypted inside the application
+before they are mapped to the database. The values are decrypted before domain events
+are replayed.
+
+
+.. code:: python
+
+    from eventsourcing.domain.services.aes_cipher import AESCipher
+
+    # Construct the cipher strategy.
+    aes_key = '0123456789abcdef'
+    cipher = AESCipher(aes_key)
+
+
+Application and infrastructure
+------------------------------
+
 Setup infrastructure using library classes.
 
 .. code:: python
@@ -43,20 +66,10 @@ Define a factory that uses library classes to construct an application object.
         return app
 
 
-This example uses the AES cipher strategy provided by this library. Alternatively,
-you can craft your own cipher strategy object.
-
-With encryption enabled, event attribute values are encrypted inside the application
-before they are mapped to the database. The values are decrypted before domain events
-are replayed.
+Run the code
+------------
 
 .. code:: python
-
-    from eventsourcing.domain.services.aes_cipher import AESCipher
-
-    # Construct the cipher strategy.
-    aes_key = '0123456789abcdef'
-    cipher = AESCipher(aes_key)
 
     # Create a new example entity using an encrypted application.
     encrypted_app = construct_example_application(datastore, always_encrypt=True, cipher=cipher)
