@@ -9,7 +9,7 @@ strategy object.
 To automatically generate snapshots, you could perhaps define a policy
 to take snapshots whenever a particular condition occurs.
 
-Snapshotting Policy
+Snapshotting policy
 -------------------
 
 Let's define a snapshotting policy, so that a snapshot is automatically
