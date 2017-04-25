@@ -27,7 +27,6 @@ entity. The default value of ``2`` is effective in the example below.
     from eventsourcing.infrastructure.eventplayer import EventPlayer
 
 
-
     class ExampleSnapshottingPolicy(object):
         def __init__(self, event_player, period=2):
             assert isinstance(event_player, EventPlayer)
@@ -57,22 +56,9 @@ for snapshots.
 
 .. code:: python
 
-    from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord, SnapshotRecord
     from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord, SQLAlchemySettings, SQLAlchemyDatastore
-    from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
-    from sqlalchemy_utils import UUIDType
 
-
-    class SnapshotRecord(ActiveRecord):
-        __tablename__ = 'snapshot'
-
-        id = Column(Integer(), Sequence('snapshot_id_seq'), primary_key=True)
-        sequence_id = Column(UUIDType(), index=True)
-        position = Column(BigInteger(), index=True)
-        topic = Column(String(255))
-        data = Column(Text())
-        __table_args__ = UniqueConstraint('sequence_id', 'position', name='snapshot_uc'),
 
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
