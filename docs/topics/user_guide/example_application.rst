@@ -338,10 +338,12 @@ and ``setup_tables()``.
     datastore = SQLAlchemyDatastore(
         base=Base,
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
+        tables=(SequencedItemTable,),
     )
 
     datastore.setup_connection()
     datastore.setup_tables()
+
 
 This example uses an SQLite in memory relational database. You can
 change ``uri`` to any valid connection string. Here are some example

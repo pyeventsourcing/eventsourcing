@@ -3,7 +3,8 @@ from tempfile import NamedTemporaryFile
 from sqlalchemy.exc import OperationalError
 
 from eventsourcing.infrastructure.datastore import DatastoreTableError
-from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem
+from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem, SqlTimestampSequencedItem, \
+    SqlSnapshot
 from eventsourcing.infrastructure.sqlalchemy.datastore import Base, DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
     SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
@@ -21,6 +22,7 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
         return SQLAlchemyDatastore(
             base=Base,
             settings=SQLAlchemySettings(uri=uri),
+            tables=(SqlIntegerSequencedItem, SqlTimestampSequencedItem, SqlSnapshot),
         )
 
 

@@ -31,6 +31,7 @@ if __name__ == "__main__":
     uri = 'sqlite:///:memory:'
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri=uri),
+        tables=(SqlIntegerSequencedItem,)
     )
     datastore.setup_connection()
     datastore.setup_tables()
