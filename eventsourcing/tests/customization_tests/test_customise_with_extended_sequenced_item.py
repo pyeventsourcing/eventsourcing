@@ -11,7 +11,7 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
     IntegerSequencedItemRecord
-from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord, SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 # This module explores extending the sequenced item class with some more fields. How easy is it?
@@ -85,7 +85,7 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
 
     def construct_datastore(self):
         return SQLAlchemyDatastore(
-            base=Base,
+            base=ActiveRecord,
             settings=SQLAlchemySettings(),
             tables=(ExtendedIntegerSequencedItemRecord,)
         )

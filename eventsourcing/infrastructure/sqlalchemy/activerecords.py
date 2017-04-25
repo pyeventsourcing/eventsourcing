@@ -6,7 +6,7 @@ from sqlalchemy.sql.sqltypes import BigInteger, Float, Integer, String, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.sqlalchemy.datastore import Base
+from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord
 
 
 class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
@@ -140,7 +140,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
             self.session.close()
 
 
-class IntegerSequencedItemRecord(Base):
+class IntegerSequencedItemRecord(ActiveRecord):
     __tablename__ = 'integer_sequenced_items'
 
     id = Column(Integer, Sequence('integer_sequened_item_id_seq'), primary_key=True)
@@ -162,7 +162,7 @@ class IntegerSequencedItemRecord(Base):
                                       name='integer_sequenced_item_uc'),
 
 
-class TimestampSequencedItemRecord(Base):
+class TimestampSequencedItemRecord(ActiveRecord):
     # Explicit table name.
     __tablename__ = 'timestamp_sequenced_items'
 
@@ -185,7 +185,7 @@ class TimestampSequencedItemRecord(Base):
     data = Column(Text())
 
 
-class SnapshotRecord(Base):
+class SnapshotRecord(ActiveRecord):
     __tablename__ = 'snapshots'
 
     id = Column(Integer, Sequence('snapshot_seq'), primary_key=True)

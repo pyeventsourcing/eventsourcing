@@ -22,8 +22,10 @@ entity. The default value of ``2`` is effective in the example below.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.eventplayer import EventPlayer
     from eventsourcing.domain.model.events import subscribe, unsubscribe
+    from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent
+    from eventsourcing.infrastructure.eventplayer import EventPlayer
+
 
 
     class ExampleSnapshottingPolicy(object):
@@ -56,13 +58,13 @@ for snapshots.
 .. code:: python
 
     from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
-    from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemySettings, SQLAlchemyDatastore
     from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
+    from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord, SQLAlchemySettings, SQLAlchemyDatastore
     from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
     from sqlalchemy_utils import UUIDType
 
 
-    class SnapshotRecord(Base):
+    class SnapshotRecord(ActiveRecord):
         __tablename__ = 'snapshot'
 
         id = Column(Integer(), Sequence('snapshot_id_seq'), primary_key=True)
@@ -96,7 +98,6 @@ to persist snapshots whenever they are taken.
 .. code:: python
 
     from eventsourcing.application.base import ApplicationWithPersistencePolicies
-    from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent
     from eventsourcing.example.domainmodel import Example, create_new_example
     from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
     from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy

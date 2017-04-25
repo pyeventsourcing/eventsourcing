@@ -11,7 +11,7 @@ from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
-from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord, SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 # This test replaces the default SequencedItem class with a StoredEvent class.
@@ -23,7 +23,7 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'event_type', 'state'])
 
 
-class StoredEventRecord(Base):
+class StoredEventRecord(ActiveRecord):
     # Explicit table name.
     __tablename__ = 'stored_events'
 
@@ -91,7 +91,7 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
 
     def construct_datastore(self):
         return SQLAlchemyDatastore(
-            base=Base,
+            base=ActiveRecord,
             settings=SQLAlchemySettings(),
             tables=(StoredEventRecord,)
 
