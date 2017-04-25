@@ -264,5 +264,5 @@ method is called.
 
 
 The library has a slightly more sophisticated ``AggregateRoot`` class
-that can be extended in the same way as the library's ``DomainEntity`` class,
+that can be extended in the same way as the library's ``TimestampedVersionedEntity`` class,
 from which it derives.
