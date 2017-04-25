@@ -1,8 +1,9 @@
 import time
+from datetime import timedelta, datetime
 from unittest.case import TestCase
 from uuid import uuid1
 
-from eventsourcing.utils.time import timestamp_from_uuid
+from eventsourcing.utils.time import timestamp_from_uuid, utc_timezone
 
 
 class TestUtils(TestCase):
@@ -16,3 +17,7 @@ class TestUtils(TestCase):
 
         # Check timestamp_from_uuid() works with hex strings, as well as UUID objects.
         self.assertEqual(timestamp_from_uuid(uuid.hex), timestamp_from_uuid(uuid))
+
+    def test_utc(self):
+        self.assertEqual(utc_timezone.utcoffset(datetime.now()), timedelta(0))
+        self.assertEqual(utc_timezone.dst(datetime.now()), timedelta(0))
