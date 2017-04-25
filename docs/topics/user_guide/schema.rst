@@ -24,7 +24,7 @@ Then define a suitable active record class.
 
     Base = declarative_base()
 
-    class StoredEventTable(Base):
+    class SqlStoredEvent(Base):
         # Explicit table name.
         __tablename__ = 'stored_events'
 
@@ -66,7 +66,7 @@ Then redefine the application class to use the new sequenced item and active rec
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
                     session=datastore.db_session,
-                    active_record_class=StoredEventTable,
+                    active_record_class=SqlStoredEvent,
                     sequenced_item_class=StoredEvent,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
@@ -99,11 +99,11 @@ Set up the database.
 .. code:: python
 
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SqlIntegerSequencedItem
 
     datastore = SQLAlchemyDatastore(
         base=Base,
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
+        tables=(SqlStoredEvent,),
     )
 
     datastore.setup_connection()

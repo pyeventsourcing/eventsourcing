@@ -13,9 +13,6 @@ Install the library with the 'cassandra' option.
 
 Setup the connection and the database tables, using the library classes for Cassandra.
 
-With the ``CassandraDatastore``, the table classes need to be provided, otherwise the
-tables won't be created.
-
 .. code:: python
 
     from eventsourcing.infrastructure.cassandra.datastore import CassandraSettings, CassandraDatastore

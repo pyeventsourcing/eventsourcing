@@ -19,18 +19,21 @@ class SQLAlchemySettings(DatastoreSettings):
 
 
 class SQLAlchemyDatastore(Datastore):
-    def __init__(self, base=Base, **kwargs):
+    def __init__(self, base=Base, tables=None, **kwargs):
         super(SQLAlchemyDatastore, self).__init__(**kwargs)
         self._db_session = None
         self._engine = None
         self._base = base
+        self._tables = tables
 
     def setup_connection(self):
         assert isinstance(self.settings, SQLAlchemySettings), self.settings
         self._engine = create_engine(self.settings.uri, strategy='threadlocal')
 
     def setup_tables(self):
-        self._base.metadata.create_all(self._engine)
+        if self._tables is not None:
+            for table in self._tables:
+                table.__table__.create(self._engine, checkfirst=True)
 
     def drop_connection(self):
         if self._db_session:
@@ -39,7 +42,9 @@ class SQLAlchemyDatastore(Datastore):
             self._engine = None
 
     def drop_tables(self):
-        self._base.metadata.drop_all(self._engine)
+        if self._tables is not None:
+            for table in self._tables:
+                table.__table__.drop(self._engine, checkfirst=True)
 
     @property
     def db_session(self):
