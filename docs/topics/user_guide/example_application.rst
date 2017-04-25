@@ -1,5 +1,5 @@
 ===================
-Example Application
+Example application
 ===================
 
 In this section, an application class is developed that has minimal
