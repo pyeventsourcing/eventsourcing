@@ -25,7 +25,7 @@ something goes wrong).
    :maxdepth: 3
 
    example_application
-   aggregates_id_ddd
+   aggregates_in_ddd
    encryption
    concurrency
    snapshotting

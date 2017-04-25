@@ -18,94 +18,70 @@ Therefore,
     through the root. Allow external objects to hold references to the
     root only.**
 
-From this, it seems to make an event sourced aggregate, we must have a set
-of events and a mutator function that pertain to a cluster of objects within
-a boundary. We must have an entity that can function as the root of the
-aggregate, with identity distinguishable across the application, and with
-methods that exclusively operate on the objects of the aggregate.
+From this, it appears that an event sourced aggregate must have a set of
+events and a mutator function that pertain to a cluster of objects within
+a boundary. It must also have an entity that can function as the root of the
+cluster of objects, with identity distinguishable across the application,
+and with methods that exclusively operate on the objects of the aggregate.
 
-Since one command may result in several events, rather than publishing events
-individually during the execution of a command, the operations of the aggregate
-can instead append events to an internal list of pending events. A ``save()``
-method can then publish all pending events as a single list.
-
-The library supportsappending a list of events to the event store in a single
-atomic transaction, so that if some of the events resulting from executing a
-command cannot be stored then none of them will be stored.
+Since one command may result in several events, it is also important never
+to persist only some events that result from executing a command. And so
+events must be appended to the event store in a single atomic transaction,
+so that if some of the events resulting from executing a command cannot be
+stored then none of them will be stored.
 
 
-Let's define an aggregate using events from the library.
+Aggregate root
+--------------
 
-The example below aggregate, with domain events that pertain
- to the objects
- of the
-aggregate, a mutator function that can
-mutate the objects of the aggregate, an aggregate root entity with methods that
-operate on all the objects of the aggregate, and a factory method the creates new
-aggregates.
+To avoid duplicating code from previous examples, let's define an aggregate
+root using classes from the library. The example aggregate root class below
+has domain events that pertain to example objects in the aggregate, and methods
+that can operate on the objects of the aggregate. There is a mutator
+function, and a factory method that creates new aggregates.
 
 
 .. code:: python
 
+    from eventsourcing.domain.model.entity import TimestampedVersionedEntity
     from eventsourcing.domain.model.events import Created, Discarded, TimestampedVersionedEntityEvent
     from eventsourcing.infrastructure.eventstore import EventStore
     from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
     from eventsourcing.example.domainmodel import Example
 
 
-    class AggregateRoot(object):
+    class ExampleAggregateRoot(TimestampedVersionedEntity):
         """
-        Example root entity of aggregate.
+        Root entity of example aggregate.
         """
-        def __init__(self, originator_id, originator_version=0, timestamp=None):
-            self._id = originator_id
-            self._version = originator_version
-            self._is_discarded = False
-            self._created_on = timestamp
-            self._last_modified_on = timestamp
+        class Created(Created):
+            """Published when aggregate is created."""
+
+        class Discarded(Discarded):
+            """Published when aggregate is discarded."""
+
+        class ExampleCreated(TimestampedVersionedEntityEvent):
+            """Published when an "example" object in the aggregate is created."""
+
+        def __init__(self, **kwargs):
+            super(ExampleAggregateRoot, self).__init__(**kwargs)
             self._pending_events = []
-            self._entities = {}
-
-        @property
-        def id(self):
-            return self._id
-
-        @property
-        def version(self):
-            return self._version
-
-        @property
-        def is_discarded(self):
-            return self._is_discarded
-
-        @property
-        def created_on(self):
-            return self._created_on
-
-        @property
-        def last_modified_on(self):
-            return self._last_modified_on
+            self._examples = {}
 
         def count_examples(self):
-            return len(self._entities)
+            return len(self._examples)
 
         def create_new_example(self):
             assert not self._is_discarded
-            event = ExampleCreated(
+            event = ExampleAggregateRoot.ExampleCreated(
                 example_id=uuid.uuid4(),
                 originator_id=self.id,
                 originator_version=self.version,
             )
             mutate_aggregate(self, event)
-            self._pending_events.append(event)
+            self._publish(event)
 
-        def discard(self):
-            assert not self._is_discarded
-            event = Discarded(
-                originator_id=self.id,
-                originator_version=self.version
-            )
-            mutate_aggregate(self, event)
+        def _publish(self, event):
             self._pending_events.append(event)
 
         def save(self):
@@ -113,23 +89,9 @@ aggregates.
             self._pending_events = []
 
 
-
-    class ExampleCreated(TimestampedVersionedEntityEvent):
-        """
-        Published when an entity is created.
-        """
-        def __init__(self, example_id, **kwargs):
-            super(ExampleCreated, self).__init__(**kwargs)
-            self.__dict__['example_id'] = example_id
-
-        @property
-        def example_id(self):
-            return self.__dict__['example_id']
-
-
     class Example(object):
         """
-        Example domain entity.
+        Example domain entity in the example aggregate boundary.
         """
         def __init__(self, example_id):
             self._id = example_id
@@ -141,27 +103,27 @@ aggregates.
 
     def mutate_aggregate(aggregate, event):
         """
-        Mutator function for example aggregate root.
+        Mutator function for example aggregate.
         """
 
         # Handle "created" events by instantiating the aggregate class.
-        if isinstance(event, Created):
-            aggregate = AggregateRoot(**event.__dict__)
+        if isinstance(event, ExampleAggregateRoot.Created):
+            aggregate = ExampleAggregateRoot(**event.__dict__)
             aggregate._version += 1
             return aggregate
 
         # Handle "entity created" events by adding a new entity to the aggregate's dict of entities.
-        elif isinstance(event, ExampleCreated):
-            assert not aggregate.is_discarded
+        elif isinstance(event, ExampleAggregateRoot.ExampleCreated):
+            aggregate._assert_not_discarded()
             entity = Example(example_id=event.example_id)
-            aggregate._entities[entity.id] = entity
+            aggregate._examples[entity.id] = entity
             aggregate._version += 1
             aggregate._last_modified_on = event.timestamp
             return aggregate
 
         # Handle "discarded" events by returning 'None'.
-        elif isinstance(event, Discarded):
-            assert not aggregate.is_discarded
+        elif isinstance(event, ExampleAggregateRoot.Discarded):
+            aggregate._assert_not_discarded()
             aggregate._version += 1
             aggregate._is_discarded = True
             return None
@@ -169,6 +131,8 @@ aggregates.
             raise NotImplementedError(type(event))
 
 
+Application and infrastructure
+------------------------------
 
 Setup infrastructure using library classes.
 
@@ -215,10 +179,13 @@ Define an application class that uses the model and infrastructure.
                 event_store=self.event_store,
                 mutator=mutate_aggregate,
             )
-            self.persistence_policy = PersistencePolicy(self.event_store, event_type=TimestampedVersionedEntityEvent)
+            self.persistence_policy = PersistencePolicy(
+                event_store=self.event_store,
+                event_type=TimestampedVersionedEntityEvent
+            )
 
         def create_example_aggregate(self):
-            event = Created(originator_id=uuid.uuid4())
+            event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4())
             aggregate = mutate_aggregate(aggregate=None, event=event)
             aggregate._pending_events.append(event)
             return aggregate
@@ -233,9 +200,11 @@ Define an application class that uses the model and infrastructure.
             self.close()
 
 
+Run the code
+------------
 
-The application can be used to create new aggregates, aggregates can be used to
-create new entities. Batches of events are published and stored when the ``save()``
+The application can be used to create new aggregates, and aggregates can be used to
+create new entities. Events are published in batches when the aggregate's ``save()``
 method is called.
 
 
@@ -268,9 +237,6 @@ method is called.
         # Call save().
         aggregate.save()
 
-        # Check the aggregate now has one entity.
-        assert aggregate.count_examples() == 1
-
         # Check the aggregate in the repo now has one entity.
         assert app.aggregate_repository[aggregate.id].count_examples() == 1
 
@@ -280,9 +246,6 @@ method is called.
 
         # Save both "entity created" events in one atomic transaction.
         aggregate.save()
-
-        # Check the aggregate now has three entities.
-        assert aggregate.count_examples() == 3, aggregate.count_examples()
 
         # Check the aggregate in the repo now has three entities.
         assert app.aggregate_repository[aggregate.id].count_examples() == 3
