@@ -1,4 +1,3 @@
-import sys
 import time
 from datetime import datetime, timedelta
 from unittest.case import TestCase
