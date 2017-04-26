@@ -370,7 +370,7 @@ events.
 
 The event store then uses an "active record strategy" to persist the sequenced items
 into a particular database management system. The active record strategy uses an
-active record class to manipulate records in particular database table.
+active record class to manipulate records in a particular database table.
 
 Hence you can use a different database table by substituting an alternative active
 record class. You can use a different database management system by substituting an
