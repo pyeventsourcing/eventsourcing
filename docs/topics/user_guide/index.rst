@@ -1,5 +1,5 @@
 ==========
-User Guide
+User guide
 ==========
 
 This guide describes how to write an event sourced application
