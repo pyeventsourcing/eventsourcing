@@ -26,7 +26,7 @@ class TestExampleApplicationSingleInstanceFunctions(SQLAlchemyDatastoreTestCase)
         self.datastore.setup_tables()
         active_record_strategy = SQLAlchemyActiveRecordStrategy(
             active_record_class=IntegerSequencedItemRecord,
-            session=self.datastore.db_session,
+            session=self.datastore.session,
         )
 
         # Can't get the single instance before it has been constructed.

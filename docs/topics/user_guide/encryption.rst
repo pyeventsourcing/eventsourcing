@@ -52,10 +52,10 @@ Define a factory that uses library classes to construct an application object.
     from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
     from eventsourcing.infrastructure.sequenceditem import SequencedItem
 
-    def construct_example_application(datastore, always_encrypt=False, cipher=None):
+    def construct_example_application(session, always_encrypt=False, cipher=None):
         active_record_strategy = SQLAlchemyActiveRecordStrategy(
             active_record_class=IntegerSequencedItemRecord,
-            session=datastore.db_session
+            session=session
         )
         app = ExampleApplication(
             integer_sequenced_active_record_strategy=active_record_strategy,
@@ -71,7 +71,7 @@ Run the code
 .. code:: python
 
     # Create a new example entity using an encrypted application.
-    encrypted_app = construct_example_application(datastore, always_encrypt=True, cipher=cipher)
+    encrypted_app = construct_example_application(datastore.session, always_encrypt=True, cipher=cipher)
 
     with encrypted_app as app:
         secret_entity = app.create_new_example(foo='secret info')
@@ -86,7 +86,7 @@ Run the code
         assert 'secret info' in retrieved_entity.foo
 
     # Create a new example entity using an unencrypted application object.
-    unencrypted_app = construct_example_application(datastore)
+    unencrypted_app = construct_example_application(datastore.session)
     with unencrypted_app as app:
         entity = app.create_new_example(foo='bar')
 

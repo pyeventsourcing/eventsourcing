@@ -69,10 +69,10 @@ Then redefine the application class to use the new sequenced item and active rec
 
 
     class Application(object):
-        def __init__(self, datastore):
+        def __init__(self, session):
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    session=datastore.db_session,
+                    session=session,
                     active_record_class=StoredEventRecord,
                     sequenced_item_class=StoredEvent,
                 ),
@@ -124,7 +124,7 @@ Then you can use the application as before, and your events will be stored as "s
 
 .. code:: python
 
-    with Application(datastore) as app:
+    with Application(datastore.session) as app:
 
         entity = app.create_example(foo='bar1')
 

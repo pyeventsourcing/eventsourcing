@@ -385,7 +385,7 @@ by substituting an alternative sequenced item type.
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
     active_record_strategy = SQLAlchemyActiveRecordStrategy(
-        session=datastore.db_session,
+        session=datastore.session,
         active_record_class=SequencedItemRecord,
         sequenced_item_class=SequencedItem
     )
@@ -512,10 +512,10 @@ and unsubscribe from receiving further domain events.
 
 
     class ExampleApplication(object):
-        def __init__(self, datastore):
+        def __init__(self, session):
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    session=datastore.db_session,
+                    session=session,
                     active_record_class=SequencedItemRecord,
                     sequenced_item_class=SequencedItem,
                 ),
@@ -557,7 +557,7 @@ exception instead of returning an entity.
 
 .. code:: python
 
-    with ExampleApplication(datastore) as app:
+    with ExampleApplication(datastore.session) as app:
 
         entity = app.create_example(foo='bar1')
 

@@ -92,15 +92,15 @@ to persist snapshots whenever they are taken.
 
     class SnapshottedApplication(ApplicationWithPersistencePolicies):
 
-        def __init__(self, datastore):
+        def __init__(self, session):
             # Construct event stores and persistence policies.
             integer_sequenced_active_record_strategy = SQLAlchemyActiveRecordStrategy(
                 active_record_class=IntegerSequencedItemRecord,
-                session=datastore.db_session,
+                session=session,
             )
             snapshot_active_record_strategy = SQLAlchemyActiveRecordStrategy(
                 active_record_class=SnapshotRecord,
-                session=datastore.db_session,
+                session=datastore.session,
             )
             super(SnapshottedApplication, self).__init__(
                 integer_sequenced_active_record_strategy=integer_sequenced_active_record_strategy,
@@ -141,7 +141,7 @@ event.
 
 .. code:: python
 
-    with SnapshottedApplication(datastore) as app:
+    with SnapshottedApplication(datastore.session) as app:
 
         # Create an entity.
         entity = app.create_new_example(foo='bar1')

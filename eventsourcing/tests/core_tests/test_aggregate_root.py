@@ -160,7 +160,7 @@ class ExampleDDDApplication(object):
     def __init__(self, datastore):
         event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                session=datastore.db_session,
+                session=datastore.session,
                 active_record_class=IntegerSequencedItemRecord,
             ),
             sequenced_item_mapper=SequencedItemMapper(

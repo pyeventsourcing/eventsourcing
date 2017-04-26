@@ -25,7 +25,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         # Setup an event store for versioned entity events.
         self.integer_sequenced_event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                session=self.datastore.db_session,
+                session=self.datastore.session,
                 active_record_class=IntegerSequencedItemRecord,
                 sequenced_item_class=SequencedItem,
             ),
@@ -39,7 +39,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         # Setup an event store for snapshots.
         self.snapshot_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                session=self.datastore.db_session,
+                session=self.datastore.session,
                 active_record_class=SnapshotRecord,
                 sequenced_item_class=SequencedItem,
             ),

@@ -18,4 +18,4 @@ def init_process():
         tables=(IntegerSequencedItemRecord,)
     )
     datastore.setup_connection()
-    init_example_application_with_sqlalchemy(datastore.db_session)
+    init_example_application_with_sqlalchemy(datastore.session)

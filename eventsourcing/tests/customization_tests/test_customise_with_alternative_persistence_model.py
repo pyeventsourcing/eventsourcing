@@ -50,10 +50,10 @@ class StoredEventRecord(ActiveRecord):
 
 
 class ExampleApplicationWithAlternativeSequencedItemType(object):
-    def __init__(self, db_session):
+    def __init__(self, session):
         self.event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                session=db_session,
+                session=session,
                 active_record_class=StoredEventRecord,
                 sequenced_item_class=StoredEvent,
             ),
@@ -98,7 +98,7 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
         )
 
     def test(self):
-        with ExampleApplicationWithAlternativeSequencedItemType(self.datastore.db_session) as app:
+        with ExampleApplicationWithAlternativeSequencedItemType(self.datastore.session) as app:
             # Create entity.
             entity1 = create_new_example(a='a', b='b')
             self.assertIsInstance(entity1.id, UUID)

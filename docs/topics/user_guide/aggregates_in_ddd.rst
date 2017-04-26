@@ -164,10 +164,10 @@ Define an application class that uses the model and infrastructure.
 
 
     class ExampleDDDApplication(object):
-        def __init__(self, datastore):
+        def __init__(self, session):
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    session=datastore.db_session,
+                    session=session,
                     active_record_class=IntegerSequencedItemRecord,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
@@ -210,7 +210,7 @@ method is called.
 
 .. code:: python
 
-    with ExampleDDDApplication(datastore) as app:
+    with ExampleDDDApplication(datastore.session) as app:
 
         # Create a new aggregate.
         aggregate = app.create_example_aggregate()

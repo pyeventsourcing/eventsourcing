@@ -91,7 +91,7 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
         )
 
     def test(self):
-        with ExampleApplicationWithExtendedSequencedItemType(self.datastore.db_session) as app:
+        with ExampleApplicationWithExtendedSequencedItemType(self.datastore.session) as app:
             # Create entity.
             entity1 = create_new_example(a='a', b='b')
             self.assertIsInstance(entity1.id, UUID)

@@ -35,7 +35,7 @@ if __name__ == "__main__":
     )
     datastore.setup_connection()
     datastore.setup_tables()
-    init_example_application_with_sqlalchemy(datastore.db_session)
+    init_example_application_with_sqlalchemy(datastore.session)
 
     # Run the application.
     application.run(host='0.0.0.0', port=5001)

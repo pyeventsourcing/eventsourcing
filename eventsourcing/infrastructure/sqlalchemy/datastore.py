@@ -21,7 +21,7 @@ class SQLAlchemySettings(DatastoreSettings):
 class SQLAlchemyDatastore(Datastore):
     def __init__(self, base=ActiveRecord, tables=None, **kwargs):
         super(SQLAlchemyDatastore, self).__init__(**kwargs)
-        self._db_session = None
+        self._session = None
         self._engine = None
         self._base = base
         self._tables = tables
@@ -36,8 +36,8 @@ class SQLAlchemyDatastore(Datastore):
                 table.__table__.create(self._engine, checkfirst=True)
 
     def drop_connection(self):
-        if self._db_session:
-            self._db_session.close()
+        if self._session:
+            self._session.close()
         if self._engine:
             self._engine = None
 
@@ -47,10 +47,10 @@ class SQLAlchemyDatastore(Datastore):
                 table.__table__.drop(self._engine, checkfirst=True)
 
     @property
-    def db_session(self):
+    def session(self):
         if self._engine is None:
             raise DatastoreConnectionError("Need to call setup_connection() first")
-        if self._db_session is None:
+        if self._session is None:
             session_factory = sessionmaker(bind=self._engine)
-            self._db_session = scoped_session(session_factory)
-        return self._db_session
+            self._session = scoped_session(session_factory)
+        return self._session

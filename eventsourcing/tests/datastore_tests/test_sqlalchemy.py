@@ -29,18 +29,18 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
 class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, DatastoreTestCase):
     def list_records(self):
         try:
-            query = self.datastore.db_session.query(IntegerSequencedItemRecord)
+            query = self.datastore.session.query(IntegerSequencedItemRecord)
             return list(query)
         except OperationalError as e:
-            self.datastore.db_session.rollback()
+            self.datastore.session.rollback()
             raise DatastoreTableError(e)
 
     def create_record(self):
         try:
             record = IntegerSequencedItemRecord()
-            self.datastore.db_session.add(record)
-            self.datastore.db_session.commit()
+            self.datastore.session.add(record)
+            self.datastore.session.commit()
         except OperationalError as e:
-            self.datastore.db_session.rollback()
+            self.datastore.session.rollback()
             raise DatastoreTableError(e)
         return record
