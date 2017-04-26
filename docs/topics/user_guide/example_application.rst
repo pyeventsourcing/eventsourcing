@@ -414,7 +414,7 @@ to attributes of the domain event classes we defined in the domain model section
 Entity repository
 -----------------
 
-It is common pattern to retrieve entities from a repository. An event sourced
+It is common to retrieve entities from a repository. An event sourced
 repository for the ``example`` entity class can be constructed directly using the
 ``EventSourcedRepository`` library class. The repository is given the mutator function
 ``mutate()`` and the event store, so that it can make an event player.
