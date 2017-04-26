@@ -11,7 +11,9 @@ Domain
 Use the library's example domain model entity ``Example``, and factory ``create_new_example``.
 
 .. code:: python
+
     from eventsourcing.example.domainmodel import create_new_example, Example
+
 
 Infrastructure
 ==============
