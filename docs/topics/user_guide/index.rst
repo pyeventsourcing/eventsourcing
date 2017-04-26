@@ -21,11 +21,10 @@ so please expect everything to work as presented (raise an issue if
 something goes wrong).
 
 
-Contents
---------
-
 .. toctree::
    :maxdepth: 3
+   :caption: Contents
+
 
    quick_start
    example_application
