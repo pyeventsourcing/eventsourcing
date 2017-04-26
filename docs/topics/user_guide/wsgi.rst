@@ -32,9 +32,7 @@ the signature of your ``init_example_application()`` and
 
     # Your eventsourcing application.
     class ExampleApplication(object):
-        """
-        My eventsourcing application.
-        """
+        pass
 
 
     def construct_example_application(**kwargs):

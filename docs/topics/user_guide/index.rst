@@ -24,6 +24,7 @@ something goes wrong).
 .. toctree::
    :maxdepth: 3
 
+   quick_start
    example_application
    snapshotting
    aggregates_in_ddd
