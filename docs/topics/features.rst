@@ -18,6 +18,10 @@ Support can be added for a new database management system by introducing a new a
 record strategy. The database schema can be varied by using an alternative active record
 class.
 
+**Snapshotting** — avoids replaying an entire event stream to
+obtain the state of an entity. A snapshot strategy is included which reuses
+the capabilities of this library by implementing snapshots as events.
+
 **Application-level encryption** — encrypts and decrypts stored events, using a cipher
 strategy passed as an option to the sequenced item mapper. Can be used to encrypt some
 events, or all events, or not applied at all (the default). Included is a cipher strategy
@@ -35,10 +39,6 @@ optimistic concurrency control, guaranteeing sequential consistency of the event
 of an entity. It is also possible to serialize calls to the methods of an entity,
 but that is out of the scope of this package — if you wish to do that, perhaps
 something like `Zookeeper <https://zookeeper.apache.org/>`__ might help.
-
-**Snapshotting** — avoids replaying an entire event stream to
-obtain the state of an entity. A snapshot strategy is included which reuses
-the capabilities of this library by implementing snapshots as events.
 
 **Abstract base classes** — suggest how to structure an event sourced application.
 The library has base classes for application objects, domain entities, entity repositories,
