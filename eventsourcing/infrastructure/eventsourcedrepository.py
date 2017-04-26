@@ -88,7 +88,8 @@ class EventSourcedRepository(AbstractEntityRepository):
         else:
             snapshot = None
 
-        # Decide the initial state, and after when we need to get the events.
+        # Decide the initial state of the entity, and the
+        # version of the last item applied to the entity.
         if snapshot is None:
             initial_state = None
             gt = None
@@ -98,3 +99,6 @@ class EventSourcedRepository(AbstractEntityRepository):
 
         # Replay domain events.
         return self.event_player.replay_entity(entity_id, gt=gt, lt=lt, lte=lte, initial_state=initial_state)
+
+    def take_snapshot(self, entity_id, lt=None, lte=None):
+        return self.event_player.take_snapshot(entity_id, lt, lte)

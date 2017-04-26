@@ -67,17 +67,17 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(50, entity1.a)
 
             # Take a snapshot of the entity.
-            snapshot1 = app.example_repository.event_player.take_snapshot(entity1.id)
+            snapshot1 = app.example_repository.take_snapshot(entity1.id)
             self.assertEqual(snapshot1.originator_id, entity1.id)
             self.assertEqual(snapshot1.originator_version, entity1.version - 1)
 
             # Take another snapshot of the entity (should be the same event).
             sleep(0.0001)
-            snapshot2 = app.example_repository.event_player.take_snapshot(entity1.id)
+            snapshot2 = app.example_repository.take_snapshot(entity1.id)
             self.assertEqual(snapshot1, snapshot2)
 
             # Check the snapshot exists.
-            snapshot2 = app.example_repository.event_player.snapshot_strategy.get_snapshot(entity1.id)
+            snapshot2 = app.snapshot_strategy.get_snapshot(entity1.id)
             self.assertIsInstance(snapshot2, Snapshot)
             self.assertEqual(snapshot1, snapshot2)
 
@@ -100,7 +100,7 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(entity1_v3.a, 100)
 
             # Take another snapshot of the entity.
-            snapshot4 = app.example_repository.event_player.take_snapshot(entity1.id)
+            snapshot4 = app.example_repository.take_snapshot(entity1.id)
 
             # Check the new snapshot is not equal to the first.
             self.assertNotEqual(snapshot1, snapshot4)

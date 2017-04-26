@@ -3,56 +3,22 @@ Snapshotting
 ============
 
 To enable snapshots to be used when recovering an entity from a
-repository, construct the repository object with a snapshot
-strategy object.
+repository, construct an entity repository that has a snapshot
+strategy object (see below).
 
-To automatically generate snapshots, you could perhaps define a policy
-to take snapshots whenever a particular condition occurs.
+It is recommended to store snapshots in a dedicated table.
 
-Policy
-------
-
-Let's define a snapshotting policy, so that a snapshot is automatically
-taken every few events.
-
-The class ``ExampleSnapshottingPolicy`` below will take a snapshot of
-an entity every ``period`` number of events, so that there will never
-be more than ``period`` number of events to replay when recovering the
-entity. The default value of ``2`` is effective in the example below.
-
-.. code:: python
-
-    from eventsourcing.domain.model.events import subscribe, unsubscribe
-    from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent
-    from eventsourcing.infrastructure.eventplayer import EventPlayer
-
-
-    class ExampleSnapshottingPolicy(object):
-        def __init__(self, event_player, period=2):
-            assert isinstance(event_player, EventPlayer)
-            self.event_player = event_player
-            self.period = period
-            subscribe(predicate=self.triggers_snapshot, handler=self.take_snapshot)
-
-        def close(self):
-            unsubscribe(predicate=self.triggers_snapshot, handler=self.take_snapshot)
-
-        def triggers_snapshot(self, event):
-            return isinstance(
-                event, TimestampedVersionedEntityEvent
-            ) and not (
-                event.originator_version + 1) % self.period
-
-        def take_snapshot(self, event):
-            self.event_player.take_snapshot(event.originator_id)
+To automatically generate snapshots, you could perhaps also
+define a snapshotting policy, to take snapshots whenever a
+particular condition occurs.
 
 
 Infrastructure
 --------------
 
-Snapshots will be not be stored in the entity's sequence of events,
+It is recommended not to store snapshots within the entity's sequence of events,
 but in a dedicated table for snapshots. So let's setup a dedicated table
-for snapshots.
+for snapshots, as well as a table for the events of the entity.
 
 .. code:: python
 
@@ -68,18 +34,57 @@ for snapshots.
     datastore.setup_connection()
     datastore.setup_tables()
 
+Policy
+------
+
+Now let's define a snapshotting policy object, so that a snapshot
+of example entities is automatically taken every few events.
+
+The class ``ExampleSnapshottingPolicy`` below will take a snapshot of
+an entity every ``period`` number of events, so that there will never
+be more than ``period`` number of events to replay when recovering the
+entity. The default value of ``2`` is effective in the example below.
+
+.. code:: python
+
+    from eventsourcing.domain.model.events import subscribe, unsubscribe
+    from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent
+    from eventsourcing.infrastructure.eventplayer import EventPlayer
+
+
+    class ExampleSnapshottingPolicy(object):
+        def __init__(self, example_repository, period=2):
+            self.example_repository = example_repository
+            self.period = period
+            subscribe(predicate=self.triggers_snapshot, handler=self.take_snapshot)
+
+        def close(self):
+            unsubscribe(predicate=self.triggers_snapshot, handler=self.take_snapshot)
+
+        def triggers_snapshot(self, event):
+            return isinstance(event, TimestampedVersionedEntityEvent
+            ) and not (event.originator_version + 1) % self.period
+
+        def take_snapshot(self, event):
+            self.example_repository.take_snapshot(event.originator_id)
+
 
 Application object
 ------------------
 
-The application class below extends the library class ``ApplicationWithPersistencePolicies``.
+The application class below extends the library class ``ApplicationWithPersistencePolicies``,
+which constructs the event stores and persistence policies we need. The supertype has policy
+to persist snapshots whenever they are taken, as well as a policy to persist the events of
+the entity whenever they are published.
 
-The ``EventSourcedRepository`` is constructed with a snapshot strategy. An ``EventSourcedSnapshotStrategy``
-is constructed using the ``snapshot_store`` provided by the supertype.
+Below, the example entity repository ``example_repository`` is constructed from library class
+``EventSourcedRepository`` with a snapshot strategy, the integer sequenced event
+store, and a mutator function. The snapshot strategy is constructed from library class
+``EventSourcedSnapshotStrategy`` with an event store for snapshots that is provided by the
+supertype.
 
-The snapshotting policy is configured to take a snapshot every other event. The supertype has policy
-to persist snapshots whenever they are taken.
-
+The application's snapshotting policy is constructed with the example repository, which
+it needs to take snapshots.
 
 .. code:: python
 
@@ -121,7 +126,7 @@ to persist snapshots whenever they are taken.
 
             # Construct the snapshotting policy.
             self.snapshotting_policy = ExampleSnapshottingPolicy(
-                event_player=self.example_repository.event_player,
+                example_repository=self.example_repository,
             )
 
         def create_new_example(self, foo):
