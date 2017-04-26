@@ -2,28 +2,28 @@
 Installation
 ============
 
-Use pip to install the distribution from the
+Use pip to install the library from the
 `Python Package Index <https://pypi.python.org/pypi/eventsourcing>`__.
 
 ::
 
+    pip install -U pip
     pip install eventsourcing
 
-If you want to use SQLAlchemy, then please install with 'sqlalchemy'.
+If you want to use SQLAlchemy, then please install the library  with the 'sqlalchemy' option.
 
 ::
 
     pip install eventsourcing[sqlalchemy]
 
-Similarly, if you want to use Cassandra, then please install with
-'cassandra'.
+Similarly, if you want to use Cassandra, then please install the library with the
+'cassandra' option.
 
 ::
 
     pip install eventsourcing[cassandra]
 
-If you want to run the test suite, then please install with the 'test'
-optional extra.
+If you want to run the test suite, then please install with the 'test' option.
 
 ::
 
@@ -43,4 +43,3 @@ There is also a `mailing
 list <https://groups.google.com/forum/#!forum/eventsourcing-users>`__.
 And a `room on
 Gitter <https://gitter.im/eventsourcing-in-python/eventsourcing>`__
-

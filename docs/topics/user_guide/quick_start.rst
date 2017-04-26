@@ -5,10 +5,19 @@ Quick start
 This section show how to write a working event sourced
 application, using only a few lines of code.
 
+Firstly, please use pip to install the library
+with the 'sqlalchemy' option.
+
+::
+
+    pip install -U pip
+    pip install eventsourcing[sqlalchemy]
+
+
 Domain
 ======
 
-Use the library's example domain model entity ``Example``, and factory ``create_new_example``.
+Use the example entity class ``Example``, and its factory ``create_new_example``.
 
 .. code:: python
 
