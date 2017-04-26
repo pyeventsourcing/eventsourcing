@@ -2,8 +2,8 @@
 User guide
 ==========
 
-This guide describes how to write an event sourced application
-in Python, using classes in this library.
+This guide describes how to write an event sourced application,
+using classes in this library.
 
 In the first section, a stand-alone event sourced domain model is
 developed, along with an application object that has minimal
@@ -20,6 +20,9 @@ are extracted and executed by a test case in the library's test suite,
 so please expect everything to work as presented (raise an issue if
 something goes wrong).
 
+
+Contents
+--------
 
 .. toctree::
    :maxdepth: 3
