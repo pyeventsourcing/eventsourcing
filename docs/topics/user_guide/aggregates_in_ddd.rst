@@ -36,17 +36,15 @@ Aggregate root
 
 To avoid duplicating code from previous examples, let's define an aggregate
 root using classes from the library. The example aggregate root class below
-has domain events that pertain to example objects in the aggregate, and methods
-that can operate on the objects of the aggregate. There is a mutator
-function, and a factory method that creates new aggregates.
-
+has domain event ``ExampleCreated`` for when example objects in the aggregate
+are created, and a method ``count_examples()`` that can operates on all the
+objects of the aggregate.
 
 .. code:: python
 
     from eventsourcing.domain.model.entity import TimestampedVersionedEntity
     from eventsourcing.infrastructure.eventstore import EventStore
     from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
-    from eventsourcing.example.domainmodel import Example
 
 
     class ExampleAggregateRoot(TimestampedVersionedEntity):
@@ -64,6 +62,17 @@ function, and a factory method that creates new aggregates.
 
         class ExampleCreated(Event):
             """Published when an "example" object in the aggregate is created."""
+
+        class Example(object):
+            """
+            Example entity, exists only within the example aggregate boundary.
+            """
+            def __init__(self, example_id):
+                self._id = example_id
+
+            @property
+            def id(self):
+                return self._id
 
         def __init__(self, **kwargs):
             super(ExampleAggregateRoot, self).__init__(**kwargs)
@@ -91,17 +100,17 @@ function, and a factory method that creates new aggregates.
             self._pending_events = []
 
 
-    class Example(object):
-        """
-        Example domain entity in the example aggregate boundary.
-        """
-        def __init__(self, example_id):
-            self._id = example_id
+.. code:: python
 
-        @property
-        def id(self):
-            return self._id
+    def create_example_aggregate():
+        event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4())
+        aggregate = mutate_aggregate(aggregate=None, event=event)
+        aggregate._pending_events.append(event)
+        return aggregate
 
+We'll also need a mutator function.
+
+.. code:: python
 
     def mutate_aggregate(aggregate, event):
         """
@@ -117,7 +126,7 @@ function, and a factory method that creates new aggregates.
         # Handle "entity created" events by adding a new entity to the aggregate's dict of entities.
         elif isinstance(event, ExampleAggregateRoot.ExampleCreated):
             aggregate._assert_not_discarded()
-            entity = Example(example_id=event.example_id)
+            entity = ExampleAggregateRoot.Example(example_id=event.example_id)
             aggregate._examples[entity.id] = entity
             aggregate._version += 1
             aggregate._last_modified_on = event.timestamp
@@ -154,6 +163,9 @@ Setup infrastructure using library classes.
 
 Define an application class that uses the model and infrastructure.
 
+A factory method that creates new aggregates is defined as a method
+of the application class ``create_example_aggregate``.
+
 .. code:: python
 
     import uuid
@@ -187,10 +199,7 @@ Define an application class that uses the model and infrastructure.
             )
 
         def create_example_aggregate(self):
-            event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4())
-            aggregate = mutate_aggregate(aggregate=None, event=event)
-            aggregate._pending_events.append(event)
-            return aggregate
+            return create_example_aggregate()
 
         def close(self):
             self.persistence_policy.close()
