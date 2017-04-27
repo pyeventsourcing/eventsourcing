@@ -510,16 +510,13 @@ uses an event store to store events whenever they are received.
     class PersistencePolicy(object):
         def __init__(self, event_store):
             self.event_store = event_store
-            subscribe(self.store_event, self.is_event)
+            subscribe(self.store_event)
 
-        def is_event(self, event):
-            return isinstance(event, DomainEvent)
+        def close(self):
+            unsubscribe(self.store_event)
 
         def store_event(self, event):
             self.event_store.append(event)
-
-        def close(self):
-            unsubscribe(self.store_event, self.is_event)
 
 
 

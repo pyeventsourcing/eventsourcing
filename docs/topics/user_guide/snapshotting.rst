@@ -73,12 +73,12 @@ entity. The default value of ``2`` is effective in the example below.
         def __init__(self, example_repository, period=2):
             self.example_repository = example_repository
             self.period = period
-            subscribe(predicate=self.triggers_snapshot, handler=self.take_snapshot)
+            subscribe(predicate=self.trigger, handler=self.take_snapshot)
 
         def close(self):
-            unsubscribe(predicate=self.triggers_snapshot, handler=self.take_snapshot)
+            unsubscribe(predicate=self.trigger, handler=self.take_snapshot)
 
-        def triggers_snapshot(self, event):
+        def trigger(self, event):
             return isinstance(event, Example.Event) and not (event.originator_version + 1) % self.period
 
         def take_snapshot(self, event):
@@ -87,9 +87,8 @@ entity. The default value of ``2`` is effective in the example below.
 
 Because the event's ``originator_version`` is passed to the method ``take_snapshot()``,
 with the argument ``lte``, the snapshot will reflect the entity as it existed just after
-the event was applied. Even if a different thread operates on the same entity after
-the event was published and before the snapshot is taken, the resulting snapshot
-is the same as it would have been otherwise.
+the event was applied. Even if a different thread operates on the same entity before the
+snapshot is taken, the resulting snapshot is the same as it would have been otherwise.
 
 
 Application object
