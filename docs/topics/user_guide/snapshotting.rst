@@ -95,9 +95,9 @@ Application object
 ------------------
 
 The application class below extends the library class ``ApplicationWithPersistencePolicies``,
-which constructs the event stores and persistence policies we need. The supertype has policy
-to persist snapshots whenever they are taken, as well as a policy to persist the events of
-the entity whenever they are published.
+which constructs the event stores and persistence policies we need. The supertype has a policy
+to persist snapshots whenever they are taken. It als has as a policy to persist the events of
+entities whenever they are published.
 
 Below, the example entity repository ``example_repository`` is constructed from library class
 ``EventSourcedRepository`` with a snapshot strategy, the integer sequenced event
