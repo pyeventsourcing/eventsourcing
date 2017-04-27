@@ -36,7 +36,7 @@ for snapshots, as well as a table for the events of the entity.
 .. code:: python
 
     from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord, SnapshotRecord
-    from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord, SQLAlchemySettings, SQLAlchemyDatastore
+    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 
 
     datastore = SQLAlchemyDatastore(
@@ -96,7 +96,7 @@ Application object
 
 The application class below extends the library class ``ApplicationWithPersistencePolicies``,
 which constructs the event stores and persistence policies we need. The supertype has a policy
-to persist snapshots whenever they are taken. It als has as a policy to persist the events of
+to persist snapshots whenever they are taken. It also has as a policy to persist the events of
 entities whenever they are published.
 
 Below, the example entity repository ``example_repository`` is constructed from library class
