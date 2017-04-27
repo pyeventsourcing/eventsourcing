@@ -40,11 +40,16 @@ has domain event ``ExampleCreated`` for when example objects in the aggregate
 are created, and a method ``count_examples()`` that can operates on all the
 objects of the aggregate.
 
+The method of the aggregate, and the factory below, are similar to previous
+examples. But instead of immediately publishing events using the ``publish()``
+function, they only append the events to the internal list of pending events
+using the aggregate's method ``_publish()``. The aggregate then has a ``save()``
+method which is used to publish all the pending events in a single list using
+the function ``publish()``.
+
 .. code:: python
 
     from eventsourcing.domain.model.entity import TimestampedVersionedEntity
-    from eventsourcing.infrastructure.eventstore import EventStore
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
 
 
     class ExampleAggregateRoot(TimestampedVersionedEntity):
@@ -100,15 +105,31 @@ objects of the aggregate.
             self._pending_events = []
 
 
+As before, we'll also need a factory and a mutator function. The factory function here
+works in the same way as before.
+
 .. code:: python
 
     def create_example_aggregate():
+        """
+        Factory function for example aggregate.
+        """
+        # Construct event.
         event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4())
+
+        # Mutate aggregate.
         aggregate = mutate_aggregate(aggregate=None, event=event)
-        aggregate._pending_events.append(event)
+
+        # Publish event to internal list only.
+        aggregate._publish(event)
+
+        # Return the new aggregate object.
         return aggregate
 
-We'll also need a mutator function.
+
+The mutator function ``mutate_aggregate()`` handles the event type ``ExampleCreated``
+by constructing an object class ``Example`` that it adds to the aggregate's internal
+collection of examples.
 
 .. code:: python
 
@@ -116,7 +137,6 @@ We'll also need a mutator function.
         """
         Mutator function for example aggregate.
         """
-
         # Handle "created" events by constructing the aggregate object.
         if isinstance(event, ExampleAggregateRoot.Created):
             aggregate = ExampleAggregateRoot(**event.__dict__)
@@ -161,10 +181,8 @@ Setup infrastructure using library classes.
     datastore.setup_tables()
 
 
-Define an application class that uses the model and infrastructure.
+Now, let's define an application class that uses the domain and infrastructure code developed above.
 
-A factory method that creates new aggregates is defined as a method
-of the application class ``create_example_aggregate``.
 
 .. code:: python
 
@@ -173,8 +191,10 @@ of the application class ``create_example_aggregate``.
 
     from eventsourcing.application.policies import PersistencePolicy
     from eventsourcing.domain.model.events import publish
-    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
     from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
+    from eventsourcing.infrastructure.eventstore import EventStore
+    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
 
 
     class ExampleDDDApplication(object):
@@ -198,17 +218,11 @@ of the application class ``create_example_aggregate``.
                 event_type=ExampleAggregateRoot.Event
             )
 
-        def create_example_aggregate(self):
-            return create_example_aggregate()
-
-        def close(self):
-            self.persistence_policy.close()
-
         def __enter__(self):
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
-            self.close()
+            self.persistence_policy.close()
 
 
 Run the code
@@ -224,7 +238,7 @@ method is called.
     with ExampleDDDApplication(datastore.session) as app:
 
         # Create a new aggregate.
-        aggregate = app.create_example_aggregate()
+        aggregate = create_example_aggregate()
         aggregate.save()
 
         # Check it exists in the repository.
@@ -274,6 +288,5 @@ method is called.
         assert aggregate.id not in app.aggregate_repository
 
 
-The library has a slightly more sophisticated ``AggregateRoot`` class
-that can be extended in the same way as the library's ``TimestampedVersionedEntity`` class,
-from which it derives.
+The library has a ``AggregateRoot`` class that is slightly more developed
+than the code in this example.
