@@ -74,7 +74,29 @@ Please note, the domain event classes above do not depend on the library. The li
 however contain a collection of different kinds of domain event classes that you can use
 in your models, for example see ``Created``, ``AttributeChanged``, ``Discarded`` in
 ``eventsourcing.domain.model.events``, their supertype ``DomainEvent``, and the inner
-classes on various entity classes. The library classes are more developed than the examples here.
+classes on various entity classes. The library classes are more developed than the
+examples here.
+
+Since we are dealing with events, let's define a simple publish-subscribe mechanism.
+
+.. code:: python
+
+    subscribers = []
+
+    def publish(event):
+        for subscriber in subscribers:
+            subscriber(event)
+
+
+    def subscribe(subscriber):
+        subscribers.append(subscriber)
+
+
+    def unsubscribe(subscriber):
+        subscribers.remove(subscriber)
+
+
+
 
 Domain entity
 -------------
@@ -146,8 +168,7 @@ discarded.
             publish(event)
 
 
-The factory ``create_new_example()`` below, which works in the same way as the methods of
-the entity, can be used to create new entities.
+The factory ``create_new_example()`` can be used to create new entities.
 
 .. code:: python
 
@@ -174,31 +195,10 @@ the entity, can be used to create new entities.
         return entity
 
 
-The entity methods and the factory follow a similar pattern. Each constructs an event that
+The entity methods and factory follow a similar pattern. Each constructs an event that
 represents the result of the operation. Each uses a "mutator function" function ``mutate()``
 to apply the event to the entity. Each publishes the event for the benefit of any subscribers
-using a function ``publish()`` that we can define now, accompanied by the ``subscribe()`` and
-an ``unsubscribe()`` functions that will be used below.
-
-
-.. code:: python
-
-    subscribers = []
-
-    def publish(event):
-        for subscriber in subscribers:
-            subscriber(event)
-
-
-    def subscribe(subscriber):
-        subscribers.append(subscriber)
-
-
-    def unsubscribe(subscriber):
-        subscribers.remove(subscriber)
-
-
-
+using the function ``publish()``.
 
 When replaying a sequence of events, for example when reconstructing an entity from its
 domain events, the mutator function is called many times in order to apply each event in
