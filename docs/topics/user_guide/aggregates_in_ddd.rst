@@ -40,7 +40,7 @@ has domain event ``ExampleCreated`` for when example objects in the aggregate
 are created, and a method ``count_examples()`` that can operate on all the
 objects of the aggregate.
 
-The method of the aggregate, and the factory below, are similar to previous
+The methods of the aggregate, and the factory below, are similar to previous
 examples. But instead of immediately publishing events using the ``publish()``
 function, they only append the events to the internal list of pending events
 using the aggregate's method ``_publish()``. The aggregate then has a ``save()``
