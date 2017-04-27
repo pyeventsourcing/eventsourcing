@@ -395,24 +395,20 @@ active record class to manipulate records in a particular database table.
 
 Hence you can use a different database table by substituting an alternative active
 record class. You can use a different database management system by substituting an
-alternative active record strategy. The persistence model can also be changed
-by substituting an alternative sequenced item type.
+alternative active record strategy.
 
 .. code:: python
 
     from eventsourcing.infrastructure.eventstore import EventStore
     from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
-    from eventsourcing.infrastructure.sequenceditem import SequencedItem
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
     active_record_strategy = SQLAlchemyActiveRecordStrategy(
         session=datastore.session,
         active_record_class=SequencedItemRecord,
-        sequenced_item_class=SequencedItem
     )
 
     sequenced_item_mapper = SequencedItemMapper(
-        sequenced_item_class=SequencedItem,
         sequence_id_attr_name='originator_id',
         position_attr_name='originator_version'
     )
@@ -550,14 +546,12 @@ and unsubscribe from receiving further domain events.
             # Construct event store.
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    session=session,
                     active_record_class=SequencedItemRecord,
-                    sequenced_item_class=SequencedItem
+                    session=session,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
-                    sequenced_item_class=SequencedItem,
-                    sequence_id_attr_name='originator_id',
                     position_attr_name='originator_version'
+                    sequence_id_attr_name='originator_id',
                 )
             )
             # Construct persistence policy.
