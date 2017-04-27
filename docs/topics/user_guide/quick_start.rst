@@ -91,4 +91,4 @@ Use the application to create, read, update, and delete "example" entities.
 
         # Delete.
         example.discard()
-        assert entity.id not in app.example_repository
+        assert example.id not in app.example_repository

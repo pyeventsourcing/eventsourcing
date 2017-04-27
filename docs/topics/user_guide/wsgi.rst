@@ -87,8 +87,8 @@ up the database connection also to construct the application once for the proces
 See below for some suggestions.
 
 
-Web tier
-========
+Web frameworks
+==============
 
 This section contains suggestions for uWSGI users.
 
@@ -159,8 +159,8 @@ Similarly, Flask views can use ``get_example_application()`` to construct the re
 
 In both cases, database tables must be created before running the application.
 
-Worker tier
-===========
+Task queue workers
+==================
 
 This section contains suggestions for Celery users.
 
