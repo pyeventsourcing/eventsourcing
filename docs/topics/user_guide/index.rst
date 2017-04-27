@@ -25,7 +25,6 @@ to work as presented - raise an issue if something goes wrong.
    :caption: Contents
 
 
-   quick_start
    example_application
    snapshotting
    aggregates_in_ddd

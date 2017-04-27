@@ -34,6 +34,7 @@ Please register questions, requests and any other `issues on GitHub
    :maxdepth: 2
    :caption: Contents
 
+   topics/quick_start
    topics/installing
    topics/features
    topics/user_guide/index
