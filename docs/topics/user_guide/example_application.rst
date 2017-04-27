@@ -313,7 +313,7 @@ Database table
 Let's start by setting up a simple database table that can store sequences
 of items. We can use SQLAlchemy to define a database table that stores
 items in sequences, with a single identity for each sequence, and with
-each item positioned in its sequenced by an integer index number.
+each item positioned in its sequence by an integer index number.
 
 .. code:: python
 
