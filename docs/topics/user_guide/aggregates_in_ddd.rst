@@ -37,7 +37,7 @@ Aggregate root
 To avoid duplicating code from previous examples, let's define an aggregate
 root using classes from the library. The example aggregate root class below
 has domain event ``ExampleCreated`` for when example objects in the aggregate
-are created, and a method ``count_examples()`` that can operates on all the
+are created, and a method ``count_examples()`` that can operate on all the
 objects of the aggregate.
 
 The method of the aggregate, and the factory below, are similar to previous
@@ -165,7 +165,7 @@ collection of examples.
 Application and infrastructure
 ------------------------------
 
-Setup infrastructure using library classes.
+Setup a database table using library classes.
 
 .. code:: python
 
@@ -181,8 +181,8 @@ Setup infrastructure using library classes.
     datastore.setup_tables()
 
 
-Now, let's define an application class that uses the domain and infrastructure code developed above.
-
+Define an application class that uses the domain model code above, and infrastructure
+and policy classes from the library.
 
 .. code:: python
 
