@@ -14,11 +14,11 @@ particular condition occurs.
 
 
 Domain
-------
+======
 
 To avoid duplicating code from the previous section, let's
-use the library's example entity class ``Example``, and its
-factory ``create_new_example``.
+use the example entity class ``Example``, and its
+factory ``create_new_example``, from the library.
 
 
 .. code:: python
@@ -27,7 +27,7 @@ factory ``create_new_example``.
 
 
 Infrastructure
---------------
+==============
 
 It is recommended not to store snapshots within the entity's sequence of events,
 but in a dedicated table for snapshots. So let's setup a dedicated table
@@ -48,11 +48,15 @@ for snapshots, as well as a table for the events of the entity.
     datastore.setup_tables()
 
 
+Application
+===========
+
+
 Policy
 ------
 
-Now let's define a snapshotting policy object, so that a snapshot
-of example entities is automatically taken every few events.
+Now let's define a snapshotting policy object, so that snapshots
+of example entities are taken every so many events.
 
 The class ``ExampleSnapshottingPolicy`` below will take a snapshot of
 the example entities every ``period`` number of events, so that there will
@@ -150,7 +154,7 @@ it needs to take snapshots.
 
 
 Run the code
-------------
+============
 
 The application object can be used in the same way as before. Now
 snapshots of an example entity will be taken every second

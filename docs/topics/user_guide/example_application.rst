@@ -541,7 +541,7 @@ and unsubscribe from receiving further domain events.
 
 
 Run the code
-------------
+============
 
 After instantiating the application, we can create example entities
 and expect they will be immediately available in the repository.
