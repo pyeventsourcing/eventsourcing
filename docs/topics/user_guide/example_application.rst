@@ -82,7 +82,7 @@ examples here.
 Publish-subscribe
 -----------------
 
-Since we are dealing with events, let's define a simple publish-subscribe mechanism.
+Since we are dealing with events, let's define a simple publish-subscribe mechanism for them.
 
 .. code:: python
 
@@ -107,9 +107,9 @@ Domain entity
 
 Now, let's define a domain entity that publishes the event classes defined above.
 
-The ``Example`` entity class below has an ID and a version number. It also
-has a property ``foo`` with a "setter", and a method ``discard()`` to use
-when the entity is needed no longer.
+The entity class ``Example`` below has an ID and a version number. It also
+has a property ``foo`` with a "setter" method, and a method ``discard()`` to use
+when the entity is no longer needed.
 
 The entity methods follow a similar pattern. At some point, each
 constructs an event that represents the result of the operation.
