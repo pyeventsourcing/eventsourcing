@@ -3,11 +3,9 @@ Example application
 ===================
 
 In this section, an event sourced application is developed that has minimal
-dependencies on the library.
-
-A stand-alone domain model is developed without library classes, which shows
-how event sourcing in Python can work. The stand-alone code examples here are
-simplified versions of the library classes.
+dependencies on the library. A stand-alone domain model is developed without
+library classes, which shows how event sourcing in Python can work. The
+stand-alone code examples here are simplified versions of the library classes.
 
 All the infrastructure classes from library are used explicitly to show the
 different components involved, so you can understand how to make variations.
@@ -103,9 +101,15 @@ Domain entity
 
 Now, let's define a domain entity that publishes the event classes defined above.
 
-The ``Example`` entity class below has an entity ID, and a version number. It also
-has an attribute ``foo``, and a method ``discard()`` to use when the entity is
-discarded.
+The ``Example`` entity class below has an ID and a version number. It also
+has a property ``foo`` with a "setter", and a method ``discard()`` to use
+when the entity is needed no longer.
+
+The entity methods follow a similar pattern. At some point, each
+constructs an event that represents the result of the operation.
+Then each uses a "mutator function" ``mutate()`` (see below) to
+apply the event to the entity. Finally, each publishes the event
+for the benefit of any subscribers, by using the function ``publish()``.
 
 .. code:: python
 
@@ -168,15 +172,12 @@ discarded.
             publish(event)
 
 
-The entity methods follow a similar pattern. Each constructs an event that
-represents the result of the operation. Each uses a "mutator function" function
-``mutate()`` (see below) to apply the event to the entity. Each publishes the
-event for the benefit of any subscribers using the function ``publish()``.
-
-The factory ``create_new_example()`` can be used to create new entities. It works
-in a similar way to the entity methods, creating new entities by firstly
-constructing a ``Created`` event, then using the ``mutate()`` function
-to apply the event to the entity, and then publishing the event for others.
+A factory can be used to create new "example" entities. The function
+``create_new_example()`` below works in a similar way to the entity
+methods, creating new entities by firstly constructing a ``Created``
+event, then using the ``mutate()`` function to construct the entity
+object, and finally publishing the event for others before returning
+the new entity object to the caller.
 
 .. code:: python
 
@@ -208,6 +209,12 @@ domain events, the mutator function is called many times in order to apply each 
 the sequence to an evolving initial state. For the sake of simplicity in this example,
 we'll use an if-else block that can handle the three types of events published by the
 example entity.
+
+The mutator function ``mutate()`` below handles ``Created`` events by constructing
+an object. It handles ``AttributeChanged`` events by setting a value, and it handles
+``Discarded`` events by marking the entity as discarded. Each handler increases the
+version of the entity, so that the version of the entity is always one bigger than
+the originator version of the last event that was applied.
 
 .. code:: python
 
