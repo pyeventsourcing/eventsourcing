@@ -168,7 +168,15 @@ discarded.
             publish(event)
 
 
-The factory ``create_new_example()`` can be used to create new entities.
+The entity methods follow a similar pattern. Each constructs an event that
+represents the result of the operation. Each uses a "mutator function" function
+``mutate()`` (see below) to apply the event to the entity. Each publishes the
+event for the benefit of any subscribers using the function ``publish()``.
+
+The factory ``create_new_example()`` can be used to create new entities. It works
+in a similar way to the entity methods, creating new entities by firstly
+constructing a ``Created`` event, then using the ``mutate()`` function
+to apply the event to the entity, and then publishing the event for others.
 
 .. code:: python
 
@@ -176,7 +184,7 @@ The factory ``create_new_example()`` can be used to create new entities.
         """
         Factory for Example entities.
         """
-        # Create an entity ID.
+        # Construct an entity ID.
         entity_id = uuid.uuid4()
 
         # Construct a 'Created' event object.
@@ -195,11 +203,6 @@ The factory ``create_new_example()`` can be used to create new entities.
         return entity
 
 
-The entity methods and factory follow a similar pattern. Each constructs an event that
-represents the result of the operation. Each uses a "mutator function" function ``mutate()``
-to apply the event to the entity. Each publishes the event for the benefit of any subscribers
-using the function ``publish()``.
-
 When replaying a sequence of events, for example when reconstructing an entity from its
 domain events, the mutator function is called many times in order to apply each event in
 the sequence to an evolving initial state. For the sake of simplicity in this example,
@@ -211,7 +214,7 @@ example entity.
 
     def mutate(entity, event):
         """
-        Mutator for Example entities.
+        Mutator function for Example entities.
         """
         # Handle "created" events by constructing the entity object.
         if isinstance(event, Created):
@@ -550,8 +553,8 @@ and unsubscribe from receiving further domain events.
                     session=session,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
-                    position_attr_name='originator_version'
                     sequence_id_attr_name='originator_id',
+                    position_attr_name='originator_version'
                 )
             )
             # Construct persistence policy.
