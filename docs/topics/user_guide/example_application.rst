@@ -5,9 +5,10 @@ Example application
 In this section, an application class is developed that has minimal
 dependencies on the library.
 
-A stand-alone domain model is developed without library classes, that both shows
-how event sourcing in Python can work, and also provides an introduction
-to how the library classes work.
+A stand-alone domain model is developed without library classes, which shows
+how event sourcing in Python can work.
+
+The stand-alone examples here are simplified versions of the library classes.
 
 All the infrastructure is declared explicitly to show the components that are
 involved.
@@ -73,8 +74,8 @@ event classes have been pulled up to a layer supertype ``DomainEvent``.
 Please note, the domain event classes above do not depend on the library. The library does
 however contain a collection of different kinds of domain event classes that you can use
 in your models, for example see ``Created``, ``AttributeChanged``, ``Discarded`` in
-``eventsourcing.domain.model.events``, their supertype ``DomainEvent`` and the inner
-classes on various entity classes.
+``eventsourcing.domain.model.events``, their supertype ``DomainEvent``, and the inner
+classes on various entity classes. The library classes are more developed than the examples here.
 
 Domain entity
 -------------
@@ -148,7 +149,7 @@ discarded.
             publish(event)
 
 
-All the methods follow a similar pattern. Each constructs an event that represents the result
+The entity methods follow a similar pattern. Each constructs an event that represents the result
 of the operation. Each uses a "mutator function" function ``mutate()`` to apply the event
 to the entity. Each publishes the event for the benefit of any subscribers.
 
@@ -168,7 +169,7 @@ new entities.
         event = Created(
             originator_id=entity_id,
             foo=foo
-            )
+        )
 
         # Mutate the event to construct the entity.
         entity = mutate(None, event)
@@ -216,9 +217,11 @@ if-else block that can handle the three types of events published by the example
 
 
 The example entity class does not depend on the library, except for the ``publish()`` function.
-In particular, it doesn't inherit from a "magical" entity base class. It just publishes events that it has
-applied to itself. The library does however contain domain entity classes that you can use to build your
-domain model, for example the ``AggregateRoot`` class in ``eventsourcing.domain.model.aggregate``.
+In particular, it doesn't inherit from a "magical" entity base class that makes everything work.
+The example here just publishes events that it has applied to itself. The library does however
+contain domain entity classes that you can use to build your domain model, for example the
+``AggregateRoot`` class in ``eventsourcing.domain.model.aggregate``. The library classes are
+more developed than the examples here.
 
 
 Run the code
