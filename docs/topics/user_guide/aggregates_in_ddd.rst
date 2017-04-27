@@ -34,18 +34,14 @@ stored then none of them will be stored.
 Aggregate root
 --------------
 
-To avoid duplicating code from previous examples, let's define an aggregate
-root using classes from the library. The example aggregate root class below
-has domain event ``ExampleCreated`` for when example objects in the aggregate
-are created, and a method ``count_examples()`` that can operate on all the
-objects of the aggregate.
+Let's define an aggregate root using class ``TimestampedVersionedEntity``
+from the library. The ``Example`` class used in the previous
+section on snapshotting also derives from ``TimestampedVersionedEntity``.
 
-The methods of the aggregate, and the factory below, are similar to previous
-examples. But instead of immediately publishing events using the ``publish()``
-function, they only append the events to the internal list of pending events
-using the aggregate's method ``_publish()``. The aggregate then has a ``save()``
-method which is used to publish all the pending events in a single list using
-the function ``publish()``.
+The example aggregate root class below defines (as as inner class) the
+domain event class ``ExampleCreated`` which will be published by the aggregate
+when creating "example" objects, and a method ``count_examples()`` that
+can operate on all the "example" objects of the aggregate.
 
 .. code:: python
 
@@ -105,6 +101,13 @@ the function ``publish()``.
             self._pending_events = []
 
 
+The methods of the aggregate, and the factory below, are similar to previous
+examples. But instead of immediately publishing events using the ``publish()``
+function, the events are appended to an internal list of pending events
+using the aggregate's method ``_publish()``. The aggregate then has a ``save()``
+method which is used to publish all the pending events in a single list using
+the function ``publish()``.
+
 As before, we'll also need a factory and a mutator function. The factory function here
 works in the same way as before.
 
@@ -127,7 +130,8 @@ works in the same way as before.
         return aggregate
 
 
-The mutator function ``mutate_aggregate()`` handles the event type ``ExampleCreated``
+The mutator function ``mutate_aggregate()`` below handles events ``Created`` and
+``Discarded`` similarly to the previous examples. It also handles ``ExampleCreated``,
 by constructing an object class ``Example`` that it adds to the aggregate's internal
 collection of examples.
 
