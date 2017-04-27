@@ -44,7 +44,6 @@ function, and a factory method that creates new aggregates.
 .. code:: python
 
     from eventsourcing.domain.model.entity import TimestampedVersionedEntity
-    from eventsourcing.domain.model.events import Created, Discarded, TimestampedVersionedEntityEvent
     from eventsourcing.infrastructure.eventstore import EventStore
     from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
     from eventsourcing.example.domainmodel import Example
@@ -54,13 +53,16 @@ function, and a factory method that creates new aggregates.
         """
         Root entity of example aggregate.
         """
-        class Created(Created):
+        class Event(TimestampedVersionedEntity.Event):
+            """Layer supertype."""
+
+        class Created(Event, TimestampedVersionedEntity.Created):
             """Published when aggregate is created."""
 
-        class Discarded(Discarded):
+        class Discarded(Event, TimestampedVersionedEntity.Discarded):
             """Published when aggregate is discarded."""
 
-        class ExampleCreated(TimestampedVersionedEntityEvent):
+        class ExampleCreated(Event):
             """Published when an "example" object in the aggregate is created."""
 
         def __init__(self, **kwargs):
@@ -181,7 +183,7 @@ Define an application class that uses the model and infrastructure.
             )
             self.persistence_policy = PersistencePolicy(
                 event_store=self.event_store,
-                event_type=TimestampedVersionedEntityEvent
+                event_type=ExampleAggregateRoot.Event
             )
 
         def create_example_aggregate(self):

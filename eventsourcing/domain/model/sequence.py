@@ -1,13 +1,16 @@
 from eventsourcing.domain.model.entity import AbstractEntityRepository, Created, TimestampedVersionedEntity
-from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish
+from eventsourcing.domain.model.events import publish
 from eventsourcing.exceptions import RepositoryKeyError
 
 
 class Sequence(TimestampedVersionedEntity):
-    class Started(Created):
+    class Event(TimestampedVersionedEntity.Event):
+        """Layer supertype."""
+
+    class Started(Event, TimestampedVersionedEntity.Created):
         """Occurs when sequence is started."""
 
-    class Appended(TimestampedVersionedEntityEvent):
+    class ItemAppended(Event):
         """Occurs when item is appended."""
 
     @property

@@ -65,7 +65,6 @@ Then redefine the application class to use the new sequenced item and active rec
     from eventsourcing.infrastructure.sequenceditem import SequencedItem
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
     from eventsourcing.example.domainmodel import Example, create_new_example
-    from eventsourcing.domain.model.events import VersionedEntityEvent
 
 
     class Application(object):
@@ -86,7 +85,7 @@ Then redefine the application class to use the new sequenced item and active rec
                 event_store=self.event_store,
                 mutator=Example.mutate,
             )
-            self.persistence_policy = PersistencePolicy(self.event_store, event_type=VersionedEntityEvent)
+            self.persistence_policy = PersistencePolicy(self.event_store, event_type=Example.Event)
 
         def create_example(self, foo):
             return create_new_example(foo=foo)

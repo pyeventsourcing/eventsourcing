@@ -67,19 +67,17 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
         """
         raise AttributeError("DomainEvent attributes are read-only")
 
-    def __eq__(self, rhs):
+    def __eq__(self, other):
         """
         Tests for equality of type and attribute values.
         """
-        if type(self) is not type(rhs):
-            return NotImplemented
-        return self.__dict__ == rhs.__dict__
+        return (other is not None) and (self.__dict__ == other.__dict__) and (type(self) == type(other))
 
-    def __ne__(self, rhs):
+    def __ne__(self, other):
         """
         Negates the equality test.
         """
-        return not (self == rhs)
+        return not (self == other)
 
     def __hash__(self):
         """
@@ -95,13 +93,9 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
             "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
 
 
-class EntityEvent(DomainEvent):
-    """
-    For events of objects with an ID (entities).
-    """
-
+class EventWithOriginatorID(DomainEvent):
     def __init__(self, originator_id, **kwargs):
-        super(EntityEvent, self).__init__(**kwargs)
+        super(EventWithOriginatorID, self).__init__(**kwargs)
         self.__dict__['originator_id'] = originator_id
 
     @property
@@ -123,7 +117,7 @@ class EventWithTimestamp(DomainEvent):
         return self.__dict__['timestamp']
 
 
-class EventWithVersion(DomainEvent):
+class EventWithOriginatorVersion(DomainEvent):
     """
     For events that have an originator version number.
     """
@@ -131,7 +125,7 @@ class EventWithVersion(DomainEvent):
     def __init__(self, originator_version, **kwargs):
         if not isinstance(originator_version, six.integer_types):
             raise TypeError("Version must be an integer: {}".format(originator_version))
-        super(EventWithVersion, self).__init__(**kwargs)
+        super(EventWithOriginatorVersion, self).__init__(**kwargs)
         self.__dict__['originator_version'] = originator_version
 
     @property
@@ -153,38 +147,13 @@ class EventWithTimeuuid(DomainEvent):
         return self.__dict__['event_id']
 
 
-class TimestampedEntityEvent(EventWithTimestamp, EntityEvent):
-    """
-    For events of timestamp-based entities (e.g. a log).
-    """
-
-
-class VersionedEntityEvent(EventWithVersion, EntityEvent):
-    """
-    For events of versioned entities.
-    """
-
-
-class TimeuuidedEntityEvent(EventWithTimeuuid, EntityEvent):
-    """
-    For events of entities.
-    """
-
-
-class TimestampedVersionedEntityEvent(EventWithTimestamp, VersionedEntityEvent):
-    """
-    For events of version-based entities, that are also timestamped.
-    """
-
-class Created(TimestampedVersionedEntityEvent):
+class Created(DomainEvent):
     """
     Can be published when an entity is created.
     """
-    def __init__(self, originator_version=0, **kwargs):
-        super(Created, self).__init__(originator_version=originator_version, **kwargs)
 
 
-class AttributeChanged(TimestampedVersionedEntityEvent):
+class AttributeChanged(DomainEvent):
     """
     Can be published when an attribute of an entity is created.
     """
@@ -197,9 +166,9 @@ class AttributeChanged(TimestampedVersionedEntityEvent):
         return self.__dict__['value']
 
 
-class Discarded(TimestampedVersionedEntityEvent):
+class Discarded(DomainEvent):
     """
-    Can be published when an entity is discarded.
+    Published when something is discarded.
     """
 
 

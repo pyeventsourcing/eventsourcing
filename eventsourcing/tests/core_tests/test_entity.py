@@ -3,8 +3,8 @@ from uuid import uuid4
 import mock
 
 from eventsourcing.domain.model.entity import AttributeChanged, Created, TimestampedVersionedEntity, attribute, \
-    created_mutator
-from eventsourcing.domain.model.events import DomainEvent, VersionedEntityEvent, publish, subscribe, unsubscribe
+    created_mutator, VersionedEntity
+from eventsourcing.domain.model.events import DomainEvent, publish, subscribe, unsubscribe
 from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.exceptions import ConcurrencyError, MismatchedOriginatorIDError, MismatchedOriginatorVersionError, \
@@ -22,6 +22,14 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         example1 = create_new_example(a=1, b=2)
         self.assertIsInstance(example1, Example)
 
+        # Check the instance is equal to itself.
+        self.assertEqual(example1, example1)
+
+        # Check the instance is equal to a clone of itself.
+        clone = object.__new__(type(example1))
+        clone.__dict__.update(example1.__dict__)
+        self.assertEqual(example1, clone)
+
         # Check the properties of the Example class.
         self.assertEqual(1, example1.a)
         self.assertEqual(2, example1.b)
@@ -33,8 +41,16 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertTrue(example1.last_modified_on)
         self.assertEqual(example1.created_on, example1.last_modified_on)
 
+        # Check a different type with the same values is not "equal" to the first.
+        class Subclass(Example): pass
+        other = object.__new__(Subclass)
+        other.__dict__.update(example1.__dict__)
+        self.assertEqual(example1.__dict__, other.__dict__)
+        self.assertNotEqual(example1, other)
+
         # Check a second instance with the same values is not "equal" to the first.
         example2 = create_new_example(a=1, b=2)
+        self.assertEqual(type(example1), type(example2))
         self.assertNotEqual(example1, example2)
 
         # Setup the repo.
@@ -84,7 +100,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         # Should fail to validate event with wrong entity ID.
         with self.assertRaises(MismatchedOriginatorIDError):
             entity2._validate_originator(
-                VersionedEntityEvent(
+                VersionedEntity.Event(
                     originator_id=uuid4(),
                     originator_version=0
                 )
@@ -92,7 +108,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         # Should fail to validate event with wrong entity version.
         with self.assertRaises(MismatchedOriginatorVersionError):
             entity2._validate_originator(
-                VersionedEntityEvent(
+                VersionedEntity.Event(
                     originator_id=entity2.id,
                     originator_version=0,
                 )
@@ -100,7 +116,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Should validate event with correct entity ID and version.
         entity2._validate_originator(
-            VersionedEntityEvent(
+            VersionedEntity.Event(
                 originator_id=entity2.id,
                 originator_version=entity2.version,
             )

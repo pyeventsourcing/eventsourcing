@@ -6,8 +6,8 @@ import six
 from dateutil.relativedelta import relativedelta
 
 from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, \
-    TimestampedVersionedEntity
-from eventsourcing.domain.model.events import TimestampedEntityEvent, publish
+    TimestampedVersionedEntity, TimestampedEntity
+from eventsourcing.domain.model.events import publish, EventWithTimestamp, EventWithOriginatorID
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.utils.time import utc_timezone
 
@@ -31,10 +31,13 @@ BUCKET_SIZES = {
 
 
 class Timebucketedlog(TimestampedVersionedEntity):
-    class Started(Created):
+    class Event(TimestampedVersionedEntity.Event):
+        """Layer supertype."""
+
+    class Started(Event, TimestampedVersionedEntity.Created):
         pass
 
-    class BucketSizeChanged(AttributeChanged):
+    class BucketSizeChanged(Event, TimestampedVersionedEntity.AttributeChanged):
         pass
 
     def __init__(self, name, bucket_size=None, **kwargs):
@@ -94,17 +97,13 @@ def start_new_timebucketedlog(name, bucket_size=None):
     return entity
 
 
-class MessageLogged(TimestampedEntityEvent):
+class MessageLogged(TimestampedEntity.Event):
     def __init__(self, message, originator_id):
         super(MessageLogged, self).__init__(originator_id=originator_id, message=message)
 
     @property
     def message(self):
         return self.__dict__['message']
-
-    @property
-    def originator_id(self):
-        return self.__dict__['originator_id']
 
 
 def make_timebucket_id(log_id, timestamp, bucket_size):

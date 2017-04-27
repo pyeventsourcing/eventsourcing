@@ -101,4 +101,4 @@ class EventSourcedRepository(AbstractEntityRepository):
         return self.event_player.replay_entity(entity_id, gt=gt, lt=lt, lte=lte, initial_state=initial_state)
 
     def take_snapshot(self, entity_id, lt=None, lte=None):
-        return self.event_player.take_snapshot(entity_id, lt, lte)
+        return self.event_player.take_snapshot(entity_id, lt=lt, lte=lte)

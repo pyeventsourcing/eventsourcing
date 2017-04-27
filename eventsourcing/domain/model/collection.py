@@ -2,26 +2,26 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from uuid import uuid4
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, Created, Discarded, \
-    TimestampedVersionedEntity, entity_mutator
-from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, mutator, publish
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, mutate_entity
+from eventsourcing.domain.model.events import mutator, publish
 
 
 class Collection(TimestampedVersionedEntity):
-    class Created(Created):
-        def __init__(self, **kwargs):
-            super(Collection.Created, self).__init__(**kwargs)
+    class Event(TimestampedVersionedEntity.Event):
+        """Layer supertype."""
 
-    class Discarded(Discarded):
-        def __init__(self, **kwargs):
-            super(Collection.Discarded, self).__init__(**kwargs)
+    class Created(Event, TimestampedVersionedEntity.Created):
+        """Published when collection is created."""
 
-    class ItemAdded(TimestampedVersionedEntityEvent):
+    class Discarded(Event, TimestampedVersionedEntity.Discarded):
+        """Published when collection is discarded."""
+
+    class ItemAdded(Event):
         @property
         def item(self):
             return self.__dict__['item']
 
-    class ItemRemoved(TimestampedVersionedEntityEvent):
+    class ItemRemoved(Event):
         @property
         def item(self):
             return self.__dict__['item']
@@ -73,7 +73,7 @@ def register_new_collection(collection_id=None):
 
 @mutator
 def collection_mutator(initial, event):
-    return entity_mutator(initial, event)
+    return mutate_entity(initial, event)
 
 
 @collection_mutator.register(Collection.ItemAdded)

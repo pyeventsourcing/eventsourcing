@@ -12,7 +12,7 @@ def append_item_to_sequence(name, item, event_player, max_size=None):
     next_version = last_event.originator_version + 1
     if max_size and max_size < next_version:
         raise SequenceFullError
-    event = Sequence.Appended(
+    event = Sequence.ItemAppended(
         originator_id=name,
         originator_version=next_version,
         item=item,

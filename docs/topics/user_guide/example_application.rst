@@ -72,27 +72,22 @@ event classes have been pulled up to a layer supertype ``DomainEvent``.
 
 Please note, the domain event classes above do not depend on the library. The library does
 however contain a collection of different kinds of domain event classes that you can use
-in your models, for example see ``VersionedEntityEvent``, ``TimestampedVersionedEntityEvent``,
-``Created``, ``AttributeChanged``, ``Discarded``.
+in your models, for example see ``Created``, ``AttributeChanged``, ``Discarded`` in
+``eventsourcing.domain.model.events``, and their common supertype
+``TimestampedVersionedEntityEvent``,
 
 Domain entity
 -------------
 
-Now, let's use the event classes above to define a domain entity.
+Now, let's define a domain entity that publishes the event classes defined above.
 
-The ``Example`` entity class below has an entity ID, a version number, and a
-timestamp. It also has an attribute ``foo``, and a ``discard()`` method to use
-when the entity is discarded. The factory method ``create_new_example()`` can
-be used to create new entities.
+The ``Example`` entity class below has an entity ID, and a version number. It also
+has an attribute ``foo``, and a ``discard()`` method to use when the entity is
+discarded. The factory method ``create_new_example()`` can be used to create new entities.
 
 All the methods follow a similar pattern. Each constructs an event that represents the result
 of the operation. Each uses a "mutator function" function ``mutate()`` to apply the event
 to the entity. Each publishes the event for the benefit of any subscribers.
-
-When replaying a sequence of events, for example when reconstituting an entity from its
-domain events, the mutator function is called several times in order to apply every event
-to an evolving initial state. For the sake of simplicity in this example, we'll use an
-if-else block that can handle the three types of events defined above.
 
 .. code:: python
 
@@ -188,6 +183,14 @@ if-else block that can handle the three types of events defined above.
         return entity
 
 
+When replaying a sequence of events, for example when reconstituting an entity from its
+domain events, the mutator function is called several times in order to apply every event
+to an evolving initial state. For the sake of simplicity in this example, we'll use an
+if-else block that can handle the three types of events published by the example entity.
+
+.. code:: python
+
+
     def mutate(entity, event):
         """
         Mutator for Example entities.
@@ -218,7 +221,7 @@ if-else block that can handle the three types of events defined above.
 The example entity class does not depend on the library, except for the ``publish()`` function.
 In particular, it doesn't inherit from a "magical" entity base class. It just publishes events that it has
 applied to itself. The library does however contain domain entity classes that you can use to build your
-domain model, for example the ``TimestampedVersionedEntity`` and ``AggregateRoot`` classes.
+domain model, for example the ``AggregateRoot`` class in ``eventsourcing.domain.model.aggregate``.
 
 
 Run the code
@@ -285,6 +288,7 @@ Infrastructure
 Since the application state is determined by a sequence of events, the
 application must somehow be able both to persist the events, and then
 recover the entities.
+
 
 Database table
 --------------
@@ -410,7 +414,6 @@ in the sequence. The values ``originator_id`` and ``originator_version`` corresp
 to attributes of the domain event classes we defined in the domain model section above.
 
 
-
 Entity repository
 -----------------
 
@@ -428,6 +431,7 @@ repository for the ``example`` entity class can be constructed directly using th
         event_store=event_store,
         mutator=mutate
     )
+
 
 Run the code
 ------------

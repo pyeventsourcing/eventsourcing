@@ -13,6 +13,19 @@ define a snapshotting policy, to take snapshots whenever a
 particular condition occurs.
 
 
+Domain
+------
+
+To avoid duplicating code from the previous section, let's
+use the library's example entity class ``Example``, and its
+factory ``create_new_example``.
+
+
+.. code:: python
+
+    from eventsourcing.example.domainmodel import Example, create_new_example
+
+
 Infrastructure
 --------------
 
@@ -34,6 +47,7 @@ for snapshots, as well as a table for the events of the entity.
     datastore.setup_connection()
     datastore.setup_tables()
 
+
 Policy
 ------
 
@@ -41,14 +55,13 @@ Now let's define a snapshotting policy object, so that a snapshot
 of example entities is automatically taken every few events.
 
 The class ``ExampleSnapshottingPolicy`` below will take a snapshot of
-an entity every ``period`` number of events, so that there will never
-be more than ``period`` number of events to replay when recovering the
+the example entities every ``period`` number of events, so that there will
+never be more than ``period`` number of events to replay when recovering the
 entity. The default value of ``2`` is effective in the example below.
 
 .. code:: python
 
     from eventsourcing.domain.model.events import subscribe, unsubscribe
-    from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent
     from eventsourcing.infrastructure.eventplayer import EventPlayer
 
 
@@ -62,11 +75,11 @@ entity. The default value of ``2`` is effective in the example below.
             unsubscribe(predicate=self.triggers_snapshot, handler=self.take_snapshot)
 
         def triggers_snapshot(self, event):
-            return isinstance(event, TimestampedVersionedEntityEvent
+            return isinstance(event, Example.Event
             ) and not (event.originator_version + 1) % self.period
 
         def take_snapshot(self, event):
-            self.example_repository.take_snapshot(event.originator_id)
+            self.example_repository.take_snapshot(event.originator_id, lte=event.originator_version)
 
 
 Application object
@@ -89,7 +102,6 @@ it needs to take snapshots.
 .. code:: python
 
     from eventsourcing.application.base import ApplicationWithPersistencePolicies
-    from eventsourcing.example.domainmodel import Example, create_new_example
     from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
     from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
     from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
