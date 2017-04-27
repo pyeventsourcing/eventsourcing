@@ -82,12 +82,8 @@ Domain entity
 Now, let's define a domain entity that publishes the event classes defined above.
 
 The ``Example`` entity class below has an entity ID, and a version number. It also
-has an attribute ``foo``, and a ``discard()`` method to use when the entity is
-discarded. The factory method ``create_new_example()`` can be used to create new entities.
-
-All the methods follow a similar pattern. Each constructs an event that represents the result
-of the operation. Each uses a "mutator function" function ``mutate()`` to apply the event
-to the entity. Each publishes the event for the benefit of any subscribers.
+has an attribute ``foo``, and a method ``discard()`` to use when the entity is
+discarded.
 
 .. code:: python
 
@@ -151,6 +147,15 @@ to the entity. Each publishes the event for the benefit of any subscribers.
             # Publish the event for others.
             publish(event)
 
+
+All the methods follow a similar pattern. Each constructs an event that represents the result
+of the operation. Each uses a "mutator function" function ``mutate()`` to apply the event
+to the entity. Each publishes the event for the benefit of any subscribers.
+
+The factory ``create_new_example()`` below, which works in the same way, can be used to create
+new entities.
+
+.. code:: python
 
     def create_new_example(foo):
         """
