@@ -77,16 +77,17 @@ class DomainEntity(with_metaclass(QualnameABCMeta)):
         self._apply(event)
         self._publish(event)
 
-    def _construct_attribute_changed_event(self, name, value):
+    def _construct_attribute_changed_event(self, name, value, **kwargs):
         event = self.AttributeChanged(
             name=name,
             value=value,
             originator_id=self._id,
+            **kwargs
         )
         return event
 
-    def _construct_discarded_event(self):
-        return self.Discarded(originator_id=self._id)
+    def _construct_discarded_event(self, **kwargs):
+        return self.Discarded(originator_id=self._id, **kwargs)
 
     def _assert_not_discarded(self):
         if self._is_discarded:
@@ -152,19 +153,18 @@ class VersionedEntity(DomainEntity):
                  )
             )
 
-    def _construct_attribute_changed_event(self, name, value):
-        event = self.AttributeChanged(
+    def _construct_attribute_changed_event(self, name, value, **kwargs):
+        return super(VersionedEntity, self)._construct_attribute_changed_event(
             name=name,
             value=value,
-            originator_id=self._id,
             originator_version=self._version,
+            **kwargs
         )
-        return event
 
-    def _construct_discarded_event(self):
-        return self.Discarded(
-            originator_id=self._id,
+    def _construct_discarded_event(self, **kwargs):
+        return super(VersionedEntity, self)._construct_discarded_event(
             originator_version=self._version,
+            **kwargs
         )
 
 
