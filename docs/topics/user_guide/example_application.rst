@@ -6,9 +6,8 @@ In this section, an application class is developed that has minimal
 dependencies on the library.
 
 A stand-alone domain model is developed without library classes, which shows
-how event sourcing in Python can work.
-
-The stand-alone examples here are simplified versions of the library classes.
+how event sourcing in Python can work. The stand-alone examples here are
+simplified versions of the library classes.
 
 All the infrastructure is declared explicitly to show the components that are
 involved.
