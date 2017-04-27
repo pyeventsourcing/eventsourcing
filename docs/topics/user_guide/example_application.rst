@@ -10,6 +10,8 @@ stand-alone code examples here are simplified versions of the library classes.
 All the infrastructure classes from library are used explicitly to show the
 different components involved, so you can understand how to make variations.
 
+.. contents:: :local:
+
 
 Domain
 ======
@@ -75,6 +77,10 @@ in your models, for example see ``Created``, ``AttributeChanged``, ``Discarded``
 classes on various entity classes. The library classes are more developed than the
 examples here.
 
+
+Publish-subscribe
+-----------------
+
 Since we are dealing with events, let's define a simple publish-subscribe mechanism.
 
 .. code:: python
@@ -92,7 +98,6 @@ Since we are dealing with events, let's define a simple publish-subscribe mechan
 
     def unsubscribe(subscriber):
         subscribers.remove(subscriber)
-
 
 
 
@@ -175,7 +180,7 @@ for the benefit of any subscribers, by using the function ``publish()``.
 A factory can be used to create new "example" entities. The function
 ``create_new_example()`` below works in a similar way to the entity
 methods, creating new entities by firstly constructing a ``Created``
-event, then using the ``mutate()`` function to construct the entity
+event, then using the function ``mutate()`` (see below) to construct the entity
 object, and finally publishing the event for others before returning
 the new entity object to the caller.
 
@@ -204,17 +209,26 @@ the new entity object to the caller.
         return entity
 
 
+The example entity class does not depend on the library. In particular, it doesn't
+inherit from a "magical" entity base class that makes everything work. The example
+here just publishes events that it has applied to itself. The library does however
+contain domain entity classes that you can use to build your domain model, for
+example the ``AggregateRoot`` class in ``eventsourcing.domain.model.aggregate``.
+The library classes are more developed than the examples here.
+
+
+Mutator function
+----------------
+
+The mutator function ``mutate()`` defined here handles ``Created`` events by constructing
+an object. It handles ``AttributeChanged`` events by setting an attribute value, and it
+handles ``Discarded`` events by marking the entity as discarded. Each handler increases the
+version of the entity, so that the version of the entity is always one plus the
+the originator version of the last event that was applied.
+
 When replaying a sequence of events, for example when reconstructing an entity from its
 domain events, the mutator function is called many times in order to apply each event in
-the sequence to an evolving initial state. For the sake of simplicity in this example,
-we'll use an if-else block that can handle the three types of events published by the
-example entity.
-
-The mutator function ``mutate()`` below handles ``Created`` events by constructing
-an object. It handles ``AttributeChanged`` events by setting a value, and it handles
-``Discarded`` events by marking the entity as discarded. Each handler increases the
-version of the entity, so that the version of the entity is always one bigger than
-the originator version of the last event that was applied.
+the sequence to an evolving initial state.
 
 .. code:: python
 
@@ -246,12 +260,10 @@ the originator version of the last event that was applied.
             raise NotImplementedError(type(event))
 
 
-The example entity class does not depend on the library, except for the ``publish()`` function.
-In particular, it doesn't inherit from a "magical" entity base class that makes everything work.
-The example here just publishes events that it has applied to itself. The library does however
-contain domain entity classes that you can use to build your domain model, for example the
-``AggregateRoot`` class in ``eventsourcing.domain.model.aggregate``. The library classes are
-more developed than the examples here.
+For the sake of simplicity in this example, we'll use an if-else block to structure
+the mutator function. The library has a decorator ``@mutator`` that makes it easy to
+use singledispatch as way of structuring mutator functions, which are called with the
+event argument last because that's how ``functools.reduce()`` works.
 
 
 Run the code
