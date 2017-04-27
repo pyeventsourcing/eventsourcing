@@ -64,16 +64,16 @@ The example application can be used in the same way as before.
     with construct_application() as app:
 
         # Create.
-        entity = app.create_new_example(foo='bar')
+        example = app.create_new_example(foo='bar')
 
         # Read.
-        assert entity.id in app.example_repository
-        assert app.example_repository[entity.id].foo == 'bar'
+        assert example.id in app.example_repository
+        assert app.example_repository[example.id].foo == 'bar'
 
         # Update.
-        entity.foo = 'baz'
-        assert app.example_repository[entity.id].foo == 'baz'
+        example.foo = 'baz'
+        assert app.example_repository[example.id].foo == 'baz'
 
         # Delete.
-        entity.discard()
-        assert entity.id not in app.example_repository
+        example.discard()
+        assert example.id not in app.example_repository

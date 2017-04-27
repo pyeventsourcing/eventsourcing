@@ -118,7 +118,7 @@ discarded.
         def foo(self, value):
             assert not self._is_discarded
 
-            # Construct an event object.
+            # Construct an 'AttributeChanged' event object.
             event = AttributeChanged(
                 originator_id=self.id,
                 originator_version=self.version,
@@ -135,7 +135,7 @@ discarded.
         def discard(self):
             assert not self._is_discarded
 
-            # Construct an event object.
+            # Construct a 'Discarded' event object.
             event = Discarded(
                 originator_id=self.id,
                 originator_version=self.version
@@ -164,13 +164,13 @@ new entities.
         # Create an entity ID.
         entity_id = uuid.uuid4()
 
-        # Construct an event object.
+        # Construct a 'Created' event object.
         event = Created(
             originator_id=entity_id,
             foo=foo
         )
 
-        # Mutate the event to construct the entity.
+        # Use the mutator function to construct the entity object.
         entity = mutate(None, event)
 
         # Publish the event for others.
@@ -193,7 +193,7 @@ example entity.
         """
         Mutator for Example entities.
         """
-        # Handle "created" events by instantiating the entity class.
+        # Handle "created" events by constructing the entity object.
         if isinstance(event, Created):
             entity = Example(**event.__dict__)
             entity._version += 1
@@ -564,17 +564,6 @@ and unsubscribe from receiving further domain events.
 Run the code
 ============
 
-After instantiating the application, the entity above is available.
-
-.. code:: python
-
-    with ExampleApplication(datastore.session) as app:
-
-        # Read the entity from events published above.
-        assert entity.id in app.example_repository
-        assert app.example_repository[entity.id].foo == 'baz'
-
-
 With the application object, we can create more example entities
 and expect they will be available immediately in the repository.
 
@@ -586,19 +575,19 @@ exception instead of returning an entity.
     with ExampleApplication(datastore.session) as app:
 
         # Create a new entity.
-        entity2 = create_new_example(foo='bar')
+        example = create_new_example(foo='bar')
 
         # Read.
-        assert entity2.id in app.example_repository
-        assert app.example_repository[entity2.id].foo == 'bar'
+        assert example.id in app.example_repository
+        assert app.example_repository[example.id].foo == 'bar'
 
         # Update.
-        entity2.foo = 'baz'
-        assert app.example_repository[entity2.id].foo == 'baz'
+        example.foo = 'baz'
+        assert app.example_repository[example.id].foo == 'baz'
 
         # Delete.
-        entity2.discard()
-        assert entity2.id not in app.example_repository
+        example.discard()
+        assert example.id not in app.example_repository
 
 
 

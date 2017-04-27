@@ -108,7 +108,7 @@ function, and a factory method that creates new aggregates.
         Mutator function for example aggregate.
         """
 
-        # Handle "created" events by instantiating the aggregate class.
+        # Handle "created" events by constructing the aggregate object.
         if isinstance(event, ExampleAggregateRoot.Created):
             aggregate = ExampleAggregateRoot(**event.__dict__)
             aggregate._version += 1
