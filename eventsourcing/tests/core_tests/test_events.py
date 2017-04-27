@@ -3,10 +3,9 @@ from time import time
 from uuid import UUID, uuid4
 
 from eventsourcing.domain.model.decorators import subscribe_to
-from eventsourcing.domain.model.events import DomainEvent, EntityEvent, EventHandlersNotEmptyError, \
-    EventWithTimestamp, EventWithVersion, TimestampedEntityEvent, VersionedEntityEvent, _event_handlers, \
-    all_events, assert_event_handlers_empty, create_timesequenced_event_id, publish, resolve_domain_topic, \
-    subscribe, unsubscribe
+from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmptyError, EventWithOriginatorVersion, \
+    EventWithTimestamp, _event_handlers, all_events, assert_event_handlers_empty, create_timesequenced_event_id, \
+    publish, resolve_domain_topic, subscribe, unsubscribe, EventWithOriginatorID
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.exceptions import TopicResolutionError
 
@@ -51,10 +50,10 @@ class TestAbstractDomainEvent(unittest.TestCase):
         self.assertNotEqual(event2, SubclassEvent(name='value'))
 
 
-class TestEntityEvent(unittest.TestCase):
+class TestEventWithOriginatorID(unittest.TestCase):
     def test(self):
         # Check base class can be sub-classed.
-        class Event(EntityEvent):
+        class Event(EventWithOriginatorID):
             pass
 
         # Check can't instantiate without an ID.
@@ -78,32 +77,10 @@ class TestEntityEvent(unittest.TestCase):
             event.originator_id = '2'
 
 
-class TestTimestampEvent(unittest.TestCase):
+class TestEventWithOriginatorVersion(unittest.TestCase):
     def test(self):
         # Check base class can be sub-classed.
-        class Event(EventWithTimestamp):
-            pass
-
-        # Check event can be instantiated with a timestamp.
-        time1 = time()
-        event = Event(timestamp=time1)
-        self.assertEqual(event.timestamp, time1)
-
-        # Check event can be instantiated without a timestamp.
-        event = Event()
-        self.assertGreater(event.timestamp, time1)
-        self.assertLess(event.timestamp, time())
-
-        # Check the timestamp value can't be reassigned.
-        with self.assertRaises(AttributeError):
-            # noinspection PyPropertyAccess
-            event.timestamp = time()
-
-
-class TestVersionEvent(unittest.TestCase):
-    def test(self):
-        # Check base class can be sub-classed.
-        class Event(EventWithVersion):
+        class Event(EventWithOriginatorVersion):
             pass
 
         # Check event can be instantiated with a version.
@@ -126,11 +103,33 @@ class TestVersionEvent(unittest.TestCase):
             event.originator_version = 2
 
 
-class TestVersionEntityEvent(unittest.TestCase):
+class TestEventWithTimestamp(unittest.TestCase):
+    def test(self):
+        # Check base class can be sub-classed.
+        class Event(EventWithTimestamp):
+            pass
+
+        # Check event can be instantiated with a timestamp.
+        time1 = time()
+        event = Event(timestamp=time1)
+        self.assertEqual(event.timestamp, time1)
+
+        # Check event can be instantiated without a timestamp.
+        event = Event()
+        self.assertGreater(event.timestamp, time1)
+        self.assertLess(event.timestamp, time())
+
+        # Check the timestamp value can't be reassigned.
+        with self.assertRaises(AttributeError):
+            # noinspection PyPropertyAccess
+            event.timestamp = time()
+
+
+class TestEventWithOriginatorVersionAndID(unittest.TestCase):
     # noinspection PyArgumentList
     def test(self):
         # Check base class can be sub-classed.
-        class Event(VersionedEntityEvent):
+        class Event(EventWithOriginatorVersion, EventWithOriginatorID):
             pass
 
         # Check construction requires both an ID and version.
@@ -161,10 +160,10 @@ class TestVersionEntityEvent(unittest.TestCase):
         self.assertNotEqual(event1, event2)
 
 
-class TestTimestampEntityEvent(unittest.TestCase):
+class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
     def test(self):
         # Check base class can be sub-classed.
-        class Event(TimestampedEntityEvent):
+        class Event(EventWithTimestamp, EventWithOriginatorID):
             pass
 
         # Check construction requires an ID.
@@ -193,13 +192,13 @@ class TestTimestampEntityEvent(unittest.TestCase):
         self.assertNotEqual(event1, event2)
 
 
-class TestTimeSequencedEvent(unittest.TestCase):
+class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
     def test(self):
         # Check base class can be sub-classed.
-        class Event(TimestampedEntityEvent):
+        class Event(EventWithTimestamp, EventWithOriginatorID):
             pass
 
-        class Event2(TimestampedEntityEvent):
+        class Event2(EventWithTimestamp, EventWithOriginatorID):
             pass
 
         # Check subclass can be instantiated with 'originator_id' parameter.
@@ -287,7 +286,7 @@ class TestTimeSequencedEvent(unittest.TestCase):
         self.assertNotEqual(event2.timestamp, event4.timestamp)
 
 
-# Todo: Review and reduce. This is the original test case, much but not all of which is covered by the new tests.
+# Todo: Review and reduce. This is the original test case, much but not all of which is covered by the new tests above.
 class TestEvents(unittest.TestCase):
     def tearDown(self):
         _event_handlers.clear()
@@ -377,7 +376,8 @@ class TestEvents(unittest.TestCase):
         entity_id1 = uuid4()
         event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
         self.assertEqual(
-            "Example.Created(a=1, b=2, originator_id={}, originator_version=0, timestamp=3)".format(repr(entity_id1)),
+            "Example.Created(a=1, b=2, originator_id={}, originator_version=0, timestamp=3)".format(
+                repr(entity_id1)),
             repr(event1)
         )
 

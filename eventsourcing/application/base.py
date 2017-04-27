@@ -10,7 +10,7 @@ from abc import ABCMeta
 from six import with_metaclass
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.events import TimestampedEntityEvent, VersionedEntityEvent
+from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
@@ -103,7 +103,7 @@ class ApplicationWithPersistencePolicies(ApplicationWithEventStores):
         if self.integer_sequenced_event_store:
             return PersistencePolicy(
                 event_store=self.integer_sequenced_event_store,
-                event_type=VersionedEntityEvent,
+                event_type=VersionedEntity.Event,
             )
 
     def construct_snapshot_persistence_policy(self):
@@ -117,7 +117,7 @@ class ApplicationWithPersistencePolicies(ApplicationWithEventStores):
         if self.timestamp_sequenced_event_store:
             return PersistencePolicy(
                 event_store=self.timestamp_sequenced_event_store,
-                event_type=TimestampedEntityEvent,
+                event_type=TimestampedEntity.Event,
             )
 
     def close(self):

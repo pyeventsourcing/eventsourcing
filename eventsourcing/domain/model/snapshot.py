@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractproperty
 
 import six
 
-from eventsourcing.domain.model.events import EntityEvent, EventWithTimestamp, EventWithVersion
+from eventsourcing.domain.model.events import EventWithOriginatorVersion, EventWithTimestamp, EventWithOriginatorID
 
 
 class AbstractSnapshop(six.with_metaclass(ABCMeta)):
@@ -31,7 +31,7 @@ class AbstractSnapshop(six.with_metaclass(ABCMeta)):
         """
 
 
-class Snapshot(EventWithTimestamp, EventWithVersion, EntityEvent, AbstractSnapshop):
+class Snapshot(EventWithTimestamp, EventWithOriginatorVersion, EventWithOriginatorID, AbstractSnapshop):
     def __init__(self, originator_id, originator_version, topic, state):
         super(Snapshot, self).__init__(
             originator_id=originator_id,

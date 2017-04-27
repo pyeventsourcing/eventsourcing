@@ -6,11 +6,14 @@ from eventsourcing.example.domainmodel import Example
 
 
 class ExampleWithReflexiveMutator(WithReflexiveMutator, Example):
-    class Created(Example.Created):
+    class Event(Example.Event):
+        """Layer supertype."""
+
+    class Created(Event, Example.Created):
         def apply(self, cls):
             return cls(**self.__dict__)
 
-    class AttributeChanged(Example.AttributeChanged):
+    class AttributeChanged(Event, Example.AttributeChanged):
         def apply(self, entity):
             entity._validate_originator(self)
             setattr(entity, self.name, self.value)
@@ -18,7 +21,7 @@ class ExampleWithReflexiveMutator(WithReflexiveMutator, Example):
             entity._increment_version()
             return entity
 
-    class Discarded(Example.Discarded):
+    class Discarded(Event, Example.Discarded):
         def apply(self, entity):
             entity._validate_originator(self)
             entity._is_discarded = True

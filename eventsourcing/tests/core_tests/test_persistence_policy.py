@@ -2,7 +2,8 @@ import unittest
 from uuid import uuid4
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.events import TimestampedEntityEvent, VersionedEntityEvent, publish
+from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
+from eventsourcing.domain.model.events import publish
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 try:
@@ -16,7 +17,7 @@ class TestPersistencePolicy(unittest.TestCase):
         self.event_store = mock.Mock(spec=AbstractEventStore)
         self.persistence_policy = PersistencePolicy(
             event_store=self.event_store,
-            event_type=VersionedEntityEvent
+            event_type=VersionedEntity.Event
         )
 
     def tearDown(self):
@@ -29,14 +30,14 @@ class TestPersistencePolicy(unittest.TestCase):
 
         # Publish a versioned entity event.
         entity_id = uuid4()
-        domain_event1 = VersionedEntityEvent(originator_id=entity_id, originator_version=0)
+        domain_event1 = VersionedEntity.Event(originator_id=entity_id, originator_version=0)
         publish(domain_event1)
 
         # Check the append method has been called once with the domain event.
         self.event_store.append.assert_called_once_with(domain_event1)
 
         # Publish a timestamped entity event (should be ignored).
-        domain_event2 = TimestampedEntityEvent(originator_id=entity_id)
+        domain_event2 = TimestampedEntity.Event(originator_id=entity_id)
         publish(domain_event2)
 
         # Check the append() has still only been called once with the first domain event.

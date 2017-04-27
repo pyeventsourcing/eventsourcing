@@ -6,7 +6,9 @@ from uuid import uuid4
 import six
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.events import TimestampedEntityEvent, VersionedEntityEvent, topic_from_domain_class
+from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
+from eventsourcing.domain.model.events import topic_from_domain_class, EventWithOriginatorVersion, \
+    EventWithOriginatorID, EventWithTimestamp
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import SequencedItemError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
@@ -314,33 +316,33 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
         raise NotImplementedError
 
 
-class ExampleVersionEntityEvent1(VersionedEntityEvent):
+class VersionedEventExample1(EventWithOriginatorVersion, EventWithOriginatorID):
     pass
 
 
-class ExampleVersionEntityEvent2(VersionedEntityEvent):
+class VersionedEventExample2(EventWithOriginatorVersion, EventWithOriginatorID):
     pass
 
 
-class ExampleTimestampEntityEvent1(TimestampedEntityEvent):
+class TimestampedEventExample1(EventWithTimestamp, EventWithOriginatorID):
     pass
 
 
-class ExampleTimestampEntityEvent2(TimestampedEntityEvent):
+class TimestampedEventExample2(EventWithTimestamp, EventWithOriginatorID):
     pass
 
 
 class IntegerSequencedItemTestCase(ActiveRecordStrategyTestCase):
-    EXAMPLE_EVENT_TOPIC1 = topic_from_domain_class(ExampleVersionEntityEvent1)
-    EXAMPLE_EVENT_TOPIC2 = topic_from_domain_class(ExampleVersionEntityEvent2)
+    EXAMPLE_EVENT_TOPIC1 = topic_from_domain_class(VersionedEventExample1)
+    EXAMPLE_EVENT_TOPIC2 = topic_from_domain_class(VersionedEventExample2)
 
     def construct_positions(self):
         return 0, 1, 2
 
 
 class TimestampSequencedItemTestCase(ActiveRecordStrategyTestCase):
-    EXAMPLE_EVENT_TOPIC1 = topic_from_domain_class(ExampleTimestampEntityEvent1)
-    EXAMPLE_EVENT_TOPIC2 = topic_from_domain_class(ExampleTimestampEntityEvent2)
+    EXAMPLE_EVENT_TOPIC1 = topic_from_domain_class(TimestampedEventExample1)
+    EXAMPLE_EVENT_TOPIC2 = topic_from_domain_class(TimestampedEventExample2)
 
     def construct_positions(self):
         t1 = time()
@@ -519,14 +521,14 @@ class WithPersistencePolicies(WithActiveRecordStrategies):
         if self.integer_sequenced_event_store is not None:
             self.integer_sequenced_event_policy = PersistencePolicy(
                 event_store=self.integer_sequenced_event_store,
-                event_type=VersionedEntityEvent,
+                event_type=VersionedEntity.Event,
             )
 
         self.timestamp_sequenced_event_policy = None
         if self.timestamp_sequenced_event_store is not None:
             self.timestamp_sequenced_event_policy = PersistencePolicy(
                 event_store=self.timestamp_sequenced_event_store,
-                event_type=TimestampedEntityEvent,
+                event_type=TimestampedEntity.Event,
             )
 
         self.snapshot_policy = None

@@ -4,17 +4,17 @@ from time import sleep, time
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain.model.events import DomainEvent, TimestampedEntityEvent, VersionedEntityEvent, \
-    topic_from_domain_class
+from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
+from eventsourcing.domain.model.events import DomainEvent, topic_from_domain_class
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 
-class Event1(VersionedEntityEvent):
+class Event1(VersionedEntity.Event):
     pass
 
 
-class Event2(TimestampedEntityEvent):
+class Event2(TimestampedEntity.Event):
     pass
 
 

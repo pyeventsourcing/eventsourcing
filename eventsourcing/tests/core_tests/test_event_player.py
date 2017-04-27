@@ -1,7 +1,8 @@
 from uuid import uuid4
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.events import VersionedEntityEvent, assert_event_handlers_empty
+from eventsourcing.domain.model.entity import VersionedEntity
+from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.infrastructure.eventplayer import EventPlayer
@@ -116,7 +117,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
     def test_take_snapshot(self):
         self.entity_persistence_policy = PersistencePolicy(
             event_store=self.integer_sequenced_event_store,
-            event_type=VersionedEntityEvent,
+            event_type=VersionedEntity.Event,
         )
         self.snapshot_persistence_policy = PersistencePolicy(
             event_store=self.snapshot_store,
@@ -142,7 +143,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         registered_example = create_new_example(a=123, b=234)
 
         # Take a snapshot of the new entity (no previous snapshots).
-        snapshot1 = event_player.take_snapshot(registered_example.id)
+        snapshot1 = event_player.take_snapshot(registered_example.id, lt=registered_example.version)
 
         # Check the snapshot is pegged to the last applied version.
         self.assertEqual(snapshot1.originator_version, 0)
@@ -179,7 +180,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         self.assertEqual(retrieved_example.a, 9999)
 
         # Take another snapshot.
-        snapshot2 = event_player.take_snapshot(retrieved_example.id)
+        snapshot2 = event_player.take_snapshot(retrieved_example.id, lt=retrieved_example.version)
 
         # Replay from this snapshot.
         initial_state = entity_from_snapshot(snapshot2)
@@ -218,6 +219,6 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         registered_example.discard()
 
         # Take snapshot of discarded entity.
-        snapshot3 = event_player.take_snapshot(retrieved_example.id)
+        snapshot3 = event_player.take_snapshot(registered_example.id)
         self.assertIsNone(snapshot3.state)
         self.assertIsNone(entity_from_snapshot(snapshot3))

@@ -1,8 +1,8 @@
 import uuid
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, Discarded, \
-    TimestampedVersionedEntity, attribute, entity_mutator
-from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, publish, mutator
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, attribute, \
+    mutate_entity
+from eventsourcing.domain.model.events import mutator, publish
 
 
 class Example(TimestampedVersionedEntity):
@@ -10,17 +10,20 @@ class Example(TimestampedVersionedEntity):
     An example event sourced domain model entity.
     """
 
-    class Created(Created):
-        pass
+    class Event(TimestampedVersionedEntity.Event):
+        """Layer supertype."""
 
-    class AttributeChanged(AttributeChanged):
-        pass
+    class Created(Event, TimestampedVersionedEntity.Created):
+        """Published when an Example is created."""
 
-    class Discarded(Discarded):
-        pass
+    class AttributeChanged(Event, TimestampedVersionedEntity.AttributeChanged):
+        """Published when an Example is created."""
 
-    class Heartbeat(TimestampedVersionedEntityEvent):
-        pass
+    class Discarded(Event, TimestampedVersionedEntity.Discarded):
+        """Published when an Example is discarded."""
+
+    class Heartbeat(Event, TimestampedVersionedEntity.Event):
+        """Published when a heartbeat in the entity occurs (see below)."""
 
     def __init__(self, foo='', a='', b='', **kwargs):
         super(Example, self).__init__(**kwargs)
@@ -61,7 +64,7 @@ class Example(TimestampedVersionedEntity):
 
 @mutator
 def example_mutator(initial, event, ):
-    return entity_mutator(initial, event)
+    return mutate_entity(initial, event)
 
 
 @example_mutator.register(Example.Heartbeat)

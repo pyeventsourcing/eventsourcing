@@ -1,14 +1,14 @@
 import uuid
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.aggregate_root import AggregateRoot
-from eventsourcing.domain.model.entity import Created, attribute, entity_mutator
-from eventsourcing.domain.model.events import TimestampedVersionedEntityEvent, mutator
+from eventsourcing.domain.model.aggregate import AggregateRoot
+from eventsourcing.domain.model.entity import attribute, mutate_entity
+from eventsourcing.domain.model.events import mutator
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
-    IntegerSequencedItemRecord
+from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord, \
+    SQLAlchemyActiveRecordStrategy
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 
@@ -88,6 +88,28 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
 
 
 class ExampleAggregateRoot(AggregateRoot):
+    class Event(AggregateRoot.Event):
+        """Layer supertype."""
+
+    class Created(Event, AggregateRoot.Created):
+        """Published when an ExampleAggregateRoot is created."""
+
+    class AttributeChanged(Event, AggregateRoot.AttributeChanged):
+        """Published when an ExampleAggregateRoot is changed."""
+
+    class Discarded(Event, AggregateRoot.Discarded):
+        """Published when an ExampleAggregateRoot is discarded."""
+
+    class ExampleCreated(Event):
+        """Published when an example entity is created within the aggregate."""
+
+        def __init__(self, entity_id, **kwargs):
+            super(ExampleAggregateRoot.ExampleCreated, self).__init__(entity_id=entity_id, **kwargs)
+
+        @property
+        def entity_id(self):
+            return self.__dict__['entity_id']
+
     def __init__(self, foo='', **kwargs):
         super(ExampleAggregateRoot, self).__init__(**kwargs)
         self._entities = {}
@@ -99,7 +121,7 @@ class ExampleAggregateRoot(AggregateRoot):
 
     def create_new_example(self):
         assert not self._is_discarded
-        event = ExampleCreated(
+        event = ExampleAggregateRoot.ExampleCreated(
             entity_id=uuid.uuid4(),
             originator_id=self.id,
             originator_version=self.version,
@@ -112,20 +134,7 @@ class ExampleAggregateRoot(AggregateRoot):
 
     @staticmethod
     def _mutator(initial, event):
-        return example_aggregate_mutator(initial, event)
-
-
-class ExampleCreated(TimestampedVersionedEntityEvent):
-    """
-    Published when an entity is created by an aggregate.
-    """
-
-    def __init__(self, entity_id, **kwargs):
-        super(ExampleCreated, self).__init__(entity_id=entity_id, **kwargs)
-
-    @property
-    def entity_id(self):
-        return self.__dict__['entity_id']
+        return mutate_example_aggregate(initial, event)
 
 
 class Example(object):
@@ -142,12 +151,12 @@ class Example(object):
 
 
 @mutator
-def example_aggregate_mutator(self, event):
-    return entity_mutator(self, event)
+def mutate_example_aggregate(self, event):
+    return mutate_entity(self, event)
 
 
-@example_aggregate_mutator.register(ExampleCreated)
-def entity_created_mutator(self, event):
+@mutate_example_aggregate.register(ExampleAggregateRoot.ExampleCreated)
+def _(self, event):
     assert not self._is_discarded
     entity = Example(entity_id=event.entity_id)
     self._entities[entity.id] = entity
@@ -173,7 +182,7 @@ class ExampleDDDApplication(object):
             event_store=event_store,
         )
         self.persistence_policy = PersistencePolicy(
-            event_type=TimestampedVersionedEntityEvent,
+            event_type=ExampleAggregateRoot.Event,
             event_store=event_store,
         )
 
@@ -183,7 +192,7 @@ class ExampleDDDApplication(object):
 
         :rtype: ExampleAggregateRoot 
         """
-        event = Created(originator_id=uuid.uuid4())
+        event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4())
         aggregate = ExampleAggregateRoot.mutate(event=event)
         aggregate._pending_events.append(event)
         return aggregate
