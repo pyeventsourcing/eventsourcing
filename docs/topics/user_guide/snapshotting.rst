@@ -79,11 +79,17 @@ entity. The default value of ``2`` is effective in the example below.
             unsubscribe(predicate=self.triggers_snapshot, handler=self.take_snapshot)
 
         def triggers_snapshot(self, event):
-            return isinstance(event, Example.Event
-            ) and not (event.originator_version + 1) % self.period
+            return isinstance(event, Example.Event) and not (event.originator_version + 1) % self.period
 
         def take_snapshot(self, event):
             self.example_repository.take_snapshot(event.originator_id, lte=event.originator_version)
+
+
+Because the event's ``originator_version`` is passed to the method ``take_snapshot()``,
+with the argument ``lte``, the snapshot will reflect the entity as it existed just after
+the event was applied. Even if a different thread operates on the same entity after
+the event was published and before the snapshot is taken, the resulting snapshot
+is the same as it would have been otherwise.
 
 
 Application object
@@ -209,20 +215,28 @@ event.
         else:
             raise Exception('KeyError was not raised')
 
+        # Get historical snapshots.
+        snapshot = app.snapshot_strategy.get_snapshot(entity.id, lte=2)
+        assert snapshot.state['_version'] == 2  # one behind
+        assert snapshot.state['_foo'] == 'bar2'
+
+        snapshot = app.snapshot_strategy.get_snapshot(entity.id, lte=3)
+        assert snapshot.state['_version'] == 4
+        assert snapshot.state['_foo'] == 'bar4'
+
         # Get historical entities.
-        entity = app.example_repository.get_entity(entity.id, lt=3)
+        entity = app.example_repository.get_entity(entity.id, lte=0)
+        assert entity.version == 1
+        assert entity.foo == 'bar1', entity.foo
+
+        entity = app.example_repository.get_entity(entity.id, lte=1)
+        assert entity.version == 2
+        assert entity.foo == 'bar2', entity.foo
+
+        entity = app.example_repository.get_entity(entity.id, lte=2)
         assert entity.version == 3
         assert entity.foo == 'bar3', entity.foo
 
-        entity = app.example_repository.get_entity(entity.id, lt=4)
+        entity = app.example_repository.get_entity(entity.id, lte=3)
         assert entity.version == 4
         assert entity.foo == 'bar4', entity.foo
-
-        # Get historical snapshots.
-        snapshot = app.snapshot_strategy.get_snapshot(entity.id, lt=3)
-        assert snapshot.state['_version'] == 2
-        assert snapshot.state['_foo'] == 'bar2'
-
-        snapshot = app.snapshot_strategy.get_snapshot(entity.id, lt=4)
-        assert snapshot.state['_version'] == 4
-        assert snapshot.state['_foo'] == 'bar4'

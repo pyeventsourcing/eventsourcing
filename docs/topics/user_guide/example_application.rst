@@ -118,7 +118,7 @@ discarded.
         def foo(self, value):
             assert not self._is_discarded
 
-            # Instantiate a domain event.
+            # Construct an event object.
             event = AttributeChanged(
                 originator_id=self.id,
                 originator_version=self.version,
@@ -135,7 +135,7 @@ discarded.
         def discard(self):
             assert not self._is_discarded
 
-            # Instantiate a domain event.
+            # Construct an event object.
             event = Discarded(
                 originator_id=self.id,
                 originator_version=self.version
@@ -164,7 +164,7 @@ new entities.
         # Create an entity ID.
         entity_id = uuid.uuid4()
 
-        # Instantiate a domain event.
+        # Construct an event object.
         event = Created(
             originator_id=entity_id,
             foo=foo
@@ -180,10 +180,11 @@ new entities.
         return entity
 
 
-When replaying a sequence of events, for example when reconstituting an entity from its
-domain events, the mutator function is called several times in order to apply every event
-to an evolving initial state. For the sake of simplicity in this example, we'll use an
-if-else block that can handle the three types of events published by the example entity.
+When replaying a sequence of events, for example when reconstructing an entity from its
+domain events, the mutator function is called many times in order to apply each event in
+the sequence to an evolving initial state. For the sake of simplicity in this example,
+we'll use an if-else block that can handle the three types of events published by the
+example entity.
 
 .. code:: python
 
