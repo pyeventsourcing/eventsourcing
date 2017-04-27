@@ -2,28 +2,28 @@
 Example application
 ===================
 
-In this section, an application class is developed that has minimal
+In this section, an event sourced application is developed that has minimal
 dependencies on the library.
 
 A stand-alone domain model is developed without library classes, which shows
-how event sourcing in Python can work. The stand-alone examples here are
+how event sourcing in Python can work. The stand-alone code examples here are
 simplified versions of the library classes.
 
-All the infrastructure is declared explicitly to show the components that are
-involved.
+All the infrastructure classes from library are used explicitly to show the
+different components involved, so you can understand how to make variations.
 
 
 Domain
 ======
 
-Let's start with the domain model. Since the state of an event sourced application
-is determined by a sequence of events, so we need to define some events.
+Let's start with the domain model. If the state of an event sourced application
+is determined by a sequence of events, then we need to define some events.
 
 Domain events
 -------------
 
 You may wish to use a technique such as "event storming" to identify or decide what
-happens in your domain. In this example, for the sake of general familiarity, let's
+happens in your domain. In this example, for the sake of general familiarity let's
 assume we have a domain in which things can be "created", "changed", and "discarded".
 With that in mind, we can begin to write some domain event classes.
 
@@ -89,8 +89,6 @@ discarded.
 
     import uuid
 
-    from eventsourcing.domain.model.events import publish
-
 
     class Example(object):
         """
@@ -148,12 +146,8 @@ discarded.
             publish(event)
 
 
-The entity methods follow a similar pattern. Each constructs an event that represents the result
-of the operation. Each uses a "mutator function" function ``mutate()`` to apply the event
-to the entity. Each publishes the event for the benefit of any subscribers.
-
-The factory ``create_new_example()`` below, which works in the same way, can be used to create
-new entities.
+The factory ``create_new_example()`` below, which works in the same way as the methods of
+the entity, can be used to create new entities.
 
 .. code:: python
 
@@ -178,6 +172,32 @@ new entities.
 
         # Return the new entity.
         return entity
+
+
+The entity methods and the factory follow a similar pattern. Each constructs an event that
+represents the result of the operation. Each uses a "mutator function" function ``mutate()``
+to apply the event to the entity. Each publishes the event for the benefit of any subscribers
+using a function ``publish()`` that we can define now, accompanied by the ``subscribe()`` and
+an ``unsubscribe()`` functions that will be used below.
+
+
+.. code:: python
+
+    subscribers = []
+
+    def publish(event):
+        for subscriber in subscribers:
+            subscriber(event)
+
+
+    def subscribe(subscriber):
+        subscribers.append(subscriber)
+
+
+    def unsubscribe(subscriber):
+        subscribers.remove(subscriber)
+
+
 
 
 When replaying a sequence of events, for example when reconstructing an entity from its
@@ -230,8 +250,6 @@ Run the code
 Let's firstly subscribe to receive the events that will be published, so we can see what happened.
 
 .. code:: python
-
-    from eventsourcing.domain.model.events import subscribe
 
     # A list of received events.
     received_events = []
@@ -503,8 +521,6 @@ uses an event store to store events whenever they are received.
 
 
 .. code:: python
-
-    from eventsourcing.domain.model.events import subscribe, unsubscribe
 
 
     class PersistencePolicy(object):
