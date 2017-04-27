@@ -73,8 +73,8 @@ event classes have been pulled up to a layer supertype ``DomainEvent``.
 Please note, the domain event classes above do not depend on the library. The library does
 however contain a collection of different kinds of domain event classes that you can use
 in your models, for example see ``Created``, ``AttributeChanged``, ``Discarded`` in
-``eventsourcing.domain.model.events``, and their common supertype
-``TimestampedVersionedEntityEvent``,
+``eventsourcing.domain.model.events``, their supertype ``DomainEvent`` and the inner
+classes on various entity classes.
 
 Domain entity
 -------------
