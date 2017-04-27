@@ -77,16 +77,17 @@ Use the application to create, read, update, and delete "example" entities.
 .. code:: python
 
     with construct_application(datastore.session) as app:
+
         # Create.
         entity = create_new_example(foo='bar')
 
         # Read.
         assert entity.id in app.example_repository
-        app.example_repository[entity.id].foo == 'bar'
+        assert app.example_repository[entity.id].foo == 'bar'
 
         # Update.
         entity.foo = 'baz'
-        app.example_repository[entity.id].foo == 'baz'
+        assert app.example_repository[entity.id].foo == 'baz'
 
         # Delete.
         entity.discard()

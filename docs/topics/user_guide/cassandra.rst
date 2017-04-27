@@ -63,23 +63,17 @@ The example application can be used in the same way as before.
 
     with construct_application() as app:
 
-        entity = app.create_new_example(foo='bar1')
+        # Create.
+        entity = app.create_new_example(foo='bar')
 
+        # Read.
         assert entity.id in app.example_repository
+        assert app.example_repository[entity.id].foo == 'bar'
 
-        assert app.example_repository[entity.id].foo == 'bar1'
+        # Update.
+        entity.foo = 'baz'
+        assert app.example_repository[entity.id].foo == 'baz'
 
-        entity.foo = 'bar2'
-
-        assert app.example_repository[entity.id].foo == 'bar2'
-
-        # Discard the entity.
+        # Delete.
         entity.discard()
         assert entity.id not in app.example_repository
-
-        try:
-            app.example_repository[entity.id]
-        except KeyError:
-            pass
-        else:
-            raise Exception('KeyError was not raised')

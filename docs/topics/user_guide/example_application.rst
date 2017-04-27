@@ -246,7 +246,7 @@ With this stand-alone code, we can create a new example entity object. We can up
 .. code:: python
 
     # Create a new entity using the factory.
-    entity = create_new_example(foo='bar1')
+    entity = create_new_example(foo='bar')
 
     # Check the entity has an ID.
     assert entity.id
@@ -259,16 +259,16 @@ With this stand-alone code, we can create a new example entity object. We can up
     assert isinstance(received_events[0], Created)
     assert received_events[0].originator_id == entity.id
     assert received_events[0].originator_version == 0
-    assert received_events[0].foo == 'bar1'
+    assert received_events[0].foo == 'bar'
 
     # Check the value of property 'foo'.
-    assert entity.foo == 'bar1'
+    assert entity.foo == 'bar'
 
     # Update property 'foo'.
-    entity.foo = 'bar2'
+    entity.foo = 'baz'
 
     # Check the new value of 'foo'.
-    assert entity.foo == 'bar2'
+    assert entity.foo == 'baz'
 
     # Check the version number has increased.
     assert entity.version == 2
@@ -278,8 +278,7 @@ With this stand-alone code, we can create a new example entity object. We can up
     assert isinstance(received_events[1], AttributeChanged)
     assert received_events[1].originator_version == 1
     assert received_events[1].name == 'foo'
-    assert received_events[1].value == 'bar2'
-
+    assert received_events[1].value == 'baz'
 
 
 Infrastructure
@@ -453,7 +452,7 @@ The entity can now be retrieved from the repository, using its dictionary-like i
 .. code:: python
 
     retrieved_entity = example_repository[entity.id]
-    assert retrieved_entity.foo == 'bar2'
+    assert retrieved_entity.foo == 'baz'
 
 
 Sequenced items
@@ -477,12 +476,12 @@ represents the state of the event (a JSON string).
     assert sequenced_items[0].sequence_id == entity.id
     assert sequenced_items[0].position == 0
     assert 'Created' in sequenced_items[0].topic
-    assert 'bar1' in sequenced_items[0].data
+    assert 'bar' in sequenced_items[0].data
 
     assert sequenced_items[1].sequence_id == entity.id
     assert sequenced_items[1].position == 1
     assert 'AttributeChanged' in sequenced_items[1].topic
-    assert 'bar2' in sequenced_items[1].data
+    assert 'baz' in sequenced_items[1].data
 
 Similar to the support for storing events in SQLAlchemy, there
 are classes in the library for Cassandra. Support for other
@@ -493,18 +492,39 @@ Application
 ===========
 
 Although we can do everything at the module level, an application object brings
-it all together.
+it all together. In the example below, the class ``ExampleApplication`` has an
+event store, and an entity repository. The application also has a persistence policy.
+
+Persistence Policy
+------------------
+
+The persistence policy subscribes to receive events whenever they are published. It
+uses an event store to store events whenever they are received.
+
+
+.. code:: python
+
+    from eventsourcing.domain.model.events import subscribe, unsubscribe
+
+
+    class PersistencePolicy(object):
+        def __init__(self, event_store):
+            self.event_store = event_store
+            subscribe(self.store_event, self.is_event)
+
+        def is_event(self, event):
+            return isinstance(event, DomainEvent)
+
+        def store_event(self, event):
+            self.event_store.append(event)
+
+        def close(self):
+            unsubscribe(self.store_event, self.is_event)
+
 
 
 Application object
 ------------------
-
-In the example below, the class ``ExampleApplication`` has an event store,
-and an entity repository.
-
-The application also has a persistence policy. The persistence policy
-subscribes to receive events whenever they are published, and uses an event
-store to store events whenever they are received.
 
 As a convenience, it is useful to make the application function as a Python
 context manager, so that the application can close the persistence policy,
@@ -512,80 +532,81 @@ and unsubscribe from receiving further domain events.
 
 .. code:: python
 
-    from eventsourcing.application.policies import PersistencePolicy
-
-
     class ExampleApplication(object):
         def __init__(self, session):
+            # Construct event store.
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
                     session=session,
                     active_record_class=SequencedItemRecord,
-                    sequenced_item_class=SequencedItem,
+                    sequenced_item_class=SequencedItem
                 ),
                 sequenced_item_mapper=SequencedItemMapper(
                     sequenced_item_class=SequencedItem,
                     sequence_id_attr_name='originator_id',
-                    position_attr_name='originator_version',
+                    position_attr_name='originator_version'
                 )
             )
+            # Construct persistence policy.
+            self.persistence_policy = PersistencePolicy(
+                event_store=self.event_store
+            )
+            # Construct example repository.
             self.example_repository = EventSourcedRepository(
                 event_store=self.event_store,
-                mutator=mutate,
+                mutator=mutate
             )
-            self.persistence_policy = PersistencePolicy(self.event_store, event_type=DomainEvent)
-
-        def create_example(self, foo):
-            return create_new_example(foo=foo)
-
-        def close(self):
-            self.persistence_policy.close()
 
         def __enter__(self):
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
-            self.close()
+            self.persistence_policy.close()
 
 
 Run the code
 ============
 
-After instantiating the application, we can create example entities
-and expect they will be immediately available in the repository.
+After instantiating the application, the entity above is available.
+
+.. code:: python
+
+    with ExampleApplication(datastore.session) as app:
+
+        # Read the entity from events published above.
+        assert entity.id in app.example_repository
+        assert app.example_repository[entity.id].foo == 'baz'
+
+
+With the application object, we can create more example entities
+and expect they will be available immediately in the repository.
 
 Please note, an entity that has been discarded by using its ``discard()`` method
 cannot subsequently be retrieved from the repository using its ID. In particular,
 the repository's dictionary-like interface will raise a Python ``KeyError``
 exception instead of returning an entity.
 
-.. code:: python
-
     with ExampleApplication(datastore.session) as app:
 
-        entity = app.create_example(foo='bar1')
+        # Create a new entity.
+        entity2 = create_new_example(foo='bar')
 
-        assert entity.id in app.example_repository
+        # Read.
+        assert entity2.id in app.example_repository
+        assert app.example_repository[entity2.id].foo == 'bar'
 
-        assert app.example_repository[entity.id].foo == 'bar1'
+        # Update.
+        entity2.foo = 'baz'
+        assert app.example_repository[entity2.id].foo == 'baz'
 
-        entity.foo = 'bar2'
+        # Delete.
+        entity2.discard()
+        assert entity2.id not in app.example_repository
 
-        assert app.example_repository[entity.id].foo == 'bar2'
-
-        # Discard the entity.
-        entity.discard()
-        assert entity.id not in app.example_repository
-
-        try:
-            app.example_repository[entity.id]
-        except KeyError:
-            pass
-        else:
-            raise Exception('KeyError was not raised')
 
 
 Congratulations. You have created yourself an event sourced application.
 
 A more developed ``ExampleApplication`` class can be found in the library
-module ``eventsourcing.example.application``.
+module ``eventsourcing.example.application``. It is used in later sections
+of this guide.
