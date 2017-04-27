@@ -100,12 +100,10 @@ to the entity. Each publishes the event for the benefit of any subscribers.
         """
         Example domain entity.
         """
-        def __init__(self, originator_id, originator_version=0, foo='', timestamp=None):
+        def __init__(self, originator_id, originator_version=0, foo=''):
             self._id = originator_id
             self._version = originator_version
             self._is_discarded = False
-            self._created_on = timestamp
-            self._last_modified_on = timestamp
             self._foo = foo
 
         @property
@@ -115,18 +113,6 @@ to the entity. Each publishes the event for the benefit of any subscribers.
         @property
         def version(self):
             return self._version
-
-        @property
-        def is_discarded(self):
-            return self._is_discarded
-
-        @property
-        def created_on(self):
-            return self._created_on
-
-        @property
-        def last_modified_on(self):
-            return self._last_modified_on
 
         @property
         def foo(self):
@@ -154,7 +140,10 @@ to the entity. Each publishes the event for the benefit of any subscribers.
             assert not self._is_discarded
 
             # Instantiate a domain event.
-            event = Discarded(originator_id=self.id, originator_version=self.version)
+            event = Discarded(
+                originator_id=self.id,
+                originator_version=self.version
+            )
 
             # Apply the event to self.
             mutate(self, event)
@@ -171,7 +160,10 @@ to the entity. Each publishes the event for the benefit of any subscribers.
         entity_id = uuid.uuid4()
 
         # Instantiate a domain event.
-        event = Created(originator_id=entity_id, foo=foo)
+        event = Created(
+            originator_id=entity_id,
+            foo=foo
+            )
 
         # Mutate the event to construct the entity.
         entity = mutate(None, event)
@@ -203,14 +195,14 @@ if-else block that can handle the three types of events published by the example
 
         # Handle "value changed" events by setting the named value.
         elif isinstance(event, AttributeChanged):
-            assert not entity.is_discarded
+            assert not entity._is_discarded
             setattr(entity, '_' + event.name, event.value)
             entity._version += 1
             return entity
 
         # Handle "discarded" events by returning 'None'.
         elif isinstance(event, Discarded):
-            assert not entity.is_discarded
+            assert not entity._is_discarded
             entity._version += 1
             entity._is_discarded = True
             return None
