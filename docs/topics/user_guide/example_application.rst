@@ -26,7 +26,7 @@ assume we have a domain in which things can be "created", "changed", and "discar
 With that in mind, we can begin to write some domain event classes.
 
 In the example below, there are three domain event classes: ``Created``,
-``AttributeChanged``, and ``Discarded``. The common attributes of the domain
+``AttributeChanged``, and ``Discarded``. The common aspects of the domain
 event classes have been pulled up to a layer supertype ``DomainEvent``.
 
 .. code:: python
