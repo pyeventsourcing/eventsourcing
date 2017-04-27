@@ -572,6 +572,8 @@ cannot subsequently be retrieved from the repository using its ID. In particular
 the repository's dictionary-like interface will raise a Python ``KeyError``
 exception instead of returning an entity.
 
+.. code:: python
+
     with ExampleApplication(datastore.session) as app:
 
         # Create a new entity.
