@@ -65,29 +65,22 @@ class DomainEntity(with_metaclass(QualnameABCMeta)):
     def _mutator(initial, event):
         return mutate_entity(initial, event)
 
-    def _change_attribute(self, name, value):
+    def _change_attribute(self, name, value, **kwargs):
         self._assert_not_discarded()
-        event = self._construct_attribute_changed_event(name, value)
-        self._apply(event)
-        self._publish(event)
-
-    def discard(self):
-        self._assert_not_discarded()
-        event = self._construct_discarded_event()
-        self._apply(event)
-        self._publish(event)
-
-    def _construct_attribute_changed_event(self, name, value, **kwargs):
         event = self.AttributeChanged(
             name=name,
             value=value,
             originator_id=self._id,
             **kwargs
         )
-        return event
+        self._apply(event)
+        self._publish(event)
 
-    def _construct_discarded_event(self, **kwargs):
-        return self.Discarded(originator_id=self._id, **kwargs)
+    def discard(self, **kwargs):
+        self._assert_not_discarded()
+        event = self.Discarded(originator_id=self._id, **kwargs)
+        self._apply(event)
+        self._publish(event)
 
     def _assert_not_discarded(self):
         if self._is_discarded:
@@ -146,26 +139,21 @@ class VersionedEntity(DomainEntity):
         """
         if self._version != event.originator_version:
             raise MismatchedOriginatorVersionError(
-                ("Event originated from entity at version {}, but entity is currently at version {}. "
+                ("Event originated from entity at version {}, "
+                 "but entity is currently at version {}. "
                  "Event type: '{}', entity type: '{}', entity ID: '{}'"
                  "".format(self._version, event.originator_version,
                            type(event).__name__, type(self).__name__, self._id)
                  )
             )
 
-    def _construct_attribute_changed_event(self, name, value, **kwargs):
-        return super(VersionedEntity, self)._construct_attribute_changed_event(
-            name=name,
-            value=value,
-            originator_version=self._version,
-            **kwargs
-        )
+    def _change_attribute(self, name, value, **kwargs):
+        return super(VersionedEntity, self)._change_attribute(
+            name, value, originator_version=self._version, **kwargs)
 
-    def _construct_discarded_event(self, **kwargs):
-        return super(VersionedEntity, self)._construct_discarded_event(
-            originator_version=self._version,
-            **kwargs
-        )
+    def discard(self, **kwargs):
+        return super(VersionedEntity, self).discard(
+            originator_version=self._version, **kwargs)
 
 
 class TimestampedEntity(DomainEntity):
