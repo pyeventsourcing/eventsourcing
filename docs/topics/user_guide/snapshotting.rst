@@ -124,7 +124,7 @@ it needs in order to take snapshots.
             )
             snapshot_active_record_strategy = SQLAlchemyActiveRecordStrategy(
                 active_record_class=SnapshotRecord,
-                session=datastore.session,
+                session=session,
             )
             super(SnapshottedApplication, self).__init__(
                 integer_sequenced_active_record_strategy=integer_sequenced_active_record_strategy,
