@@ -2,10 +2,14 @@
 Everything
 ==========
 
-In this example, an application is developed that includes many of
-the aspects introduced in previous sections. The application below
-has aggregates that publish their event in batches, events are stored
-using Cassandra with application level encryption and snapshotting.
+In this example, an application is developed that includes all of
+the aspects introduced in previous sections. The application has
+aggregates with a root entity that controls a cluster of entities
+and value objects, and which publishes events in batches. Aggregate
+events are stored using Cassandra, with application level encryption,
+and with snapshotting at regular intervals. The tests at the bottom
+demonstrate that it works.
+
 
 Domain
 ======
@@ -163,8 +167,8 @@ Infrastructure
 Application
 ===========
 
-Cipher
-------
+Cipher strategy
+---------------
 
 .. code:: python
 
@@ -256,10 +260,6 @@ Application object
             self.snapshotting_policy.close()
 
 
-    def construct_application(**kwargs):
-        return EverythingApplication(**kwargs)
-
-
 Run the code
 ============
 
@@ -269,7 +269,7 @@ Run the code
     from eventsourcing.exceptions import ConcurrencyError
 
 
-    with construct_application(cipher=cipher, always_encrypt=True) as app:
+    with EverythingApplication(cipher=cipher, always_encrypt=True) as app:
 
         ## Check encryption.
 
