@@ -71,7 +71,7 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
         """
         Tests for equality of type and attribute values.
         """
-        return (other is not None) and (self.__dict__ == other.__dict__) and (type(self) == type(other))
+        return type(self) == type(other) and self.__dict__ == other.__dict__
 
     def __ne__(self, other):
         """

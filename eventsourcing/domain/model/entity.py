@@ -28,7 +28,7 @@ class DomainEntity(with_metaclass(QualnameABCMeta)):
         self._is_discarded = False
 
     def __eq__(self, other):
-        return (other is not None) and (self.__dict__ == other.__dict__) and (type(self) == type(other))
+        return type(self) == type(other) and self.__dict__ == other.__dict__
 
     def __ne__(self, other):
         return not self.__eq__(other)
