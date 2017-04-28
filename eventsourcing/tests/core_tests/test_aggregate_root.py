@@ -2,8 +2,8 @@ import uuid
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.aggregate import AggregateRoot
-from eventsourcing.domain.model.entity import attribute, mutate_entity
-from eventsourcing.domain.model.events import mutator
+from eventsourcing.domain.model.entity import mutate_entity
+from eventsourcing.domain.model.decorators import mutator, attribute
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper

@@ -1,3 +1,8 @@
+"""
+:mod:`eventsourcing.domain.model.events`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+"""
 import importlib
 import itertools
 import time
@@ -10,11 +15,6 @@ from six import with_metaclass
 
 from eventsourcing.exceptions import TopicResolutionError
 
-try:
-    # Python 3.4+
-    from functools import singledispatch, update_wrapper
-except ImportError:
-    from singledispatch import singledispatch
 
 
 class QualnameABCMeta(ABCMeta):
@@ -281,18 +281,3 @@ def reconstruct_object(obj_class, obj_state):
     obj = object.__new__(obj_class)
     obj.__dict__.update(obj_state)
     return obj
-
-
-def mutator(func):
-    """Like singledispatch, but dispatches on type of last arg,
-    which fits better with reduce().
-    """
-
-    wrapped = singledispatch(func)
-
-    def wrapper(*args, **kw):
-        return wrapped.dispatch(args[-1].__class__)(*args, **kw)
-
-    wrapper.register = wrapped.register
-
-    return wrapper

@@ -1,3 +1,8 @@
+"""
+:mod:`eventsourcing.domain.services.aes_cipher`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+"""
 import base64
 import zlib
 

@@ -1,8 +1,6 @@
 """
-:mod:`eventsourcing.application.base` Module
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Base application classes.
+:mod:`eventsourcing.application.base`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
 from abc import ABCMeta

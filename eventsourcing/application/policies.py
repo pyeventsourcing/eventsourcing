@@ -1,8 +1,6 @@
 """
-:mod:`eventsourcing.application.policies` Module
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Application Policies
+:mod:`eventsourcing.application.policies`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
 from eventsourcing.domain.model.events import subscribe, unsubscribe

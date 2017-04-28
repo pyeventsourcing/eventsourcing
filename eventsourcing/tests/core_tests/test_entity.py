@@ -2,8 +2,9 @@ from uuid import uuid4
 
 import mock
 
-from eventsourcing.domain.model.entity import AttributeChanged, Created, TimestampedVersionedEntity, attribute, \
-    created_mutator, VersionedEntity
+from eventsourcing.domain.model.entity import AttributeChanged, Created, TimestampedVersionedEntity, created_mutator, VersionedEntity
+
+from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.events import DomainEvent, publish, subscribe, unsubscribe
 from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository

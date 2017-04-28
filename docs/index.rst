@@ -1,8 +1,3 @@
-.. eventsourcing documentation master file, created by
-   sphinx-quickstart on Wed Apr 12 16:45:44 2017.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 ========================
 Event Sourcing in Python
 ========================
@@ -30,6 +25,7 @@ Please register questions, requests and any other `issues on GitHub
 <https://github.com/johnbywater/eventsourcing/issues>`__.
 
 
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents
@@ -46,12 +42,19 @@ Please register questions, requests and any other `issues on GitHub
 Reference
 =========
 
-..  * :ref:`genindex`
-..  * :ref:`modindex`
-
 * :ref:`search`
+* :ref:`genindex`
+* :ref:`modindex`
 
-.. .. toctree::
-..    :maxdepth: 1
 
-..    ref/modules
+Modules
+=======
+
+.. toctree::
+   :maxdepth: 1
+
+   ref/modules
+
+
+
+

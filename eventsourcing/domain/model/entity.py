@@ -1,12 +1,17 @@
+"""
+:mod:`eventsourcing.domain.model.entity`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+"""
 from abc import ABCMeta, abstractmethod
-from inspect import isfunction
 
 from six import with_metaclass
 
+from eventsourcing.domain.model.decorators import mutator
 from eventsourcing.domain.model.events import AttributeChanged, Created, Discarded, DomainEvent, \
-    EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, mutator, publish, QualnameABC
+    EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, QualnameABC, publish
 from eventsourcing.exceptions import EntityIsDiscarded, MismatchedOriginatorIDError, \
-    MismatchedOriginatorVersionError, MutatorRequiresTypeNotInstance, ProgrammingError
+    MismatchedOriginatorVersionError, MutatorRequiresTypeNotInstance
 from eventsourcing.utils.time import timestamp_from_uuid
 
 
@@ -258,29 +263,6 @@ def discarded_mutator(self, event):
     if isinstance(event, VersionedEntity.Discarded):
         self._increment_version()
     return None
-
-
-def attribute(getter):
-    """
-    When used as a method decorator, returns a property object
-    with the method as the getter and a setter defined to call
-    instance method _change_attribute(), which publishes an
-    AttributeChanged event.
-    """
-    if isfunction(getter):
-        def setter(self, value):
-            assert isinstance(self, DomainEntity), type(self)
-            name = '_' + getter.__name__
-            self._change_attribute(name=name, value=value)
-
-        def new_getter(self):
-            assert isinstance(self, DomainEntity), type(self)
-            name = '_' + getter.__name__
-            return getattr(self, name)
-
-        return property(fget=new_getter, fset=setter)
-    else:
-        raise ProgrammingError("Expected a function, got: {}".format(repr(getter)))
 
 
 class AbstractEntityRepository(with_metaclass(ABCMeta)):

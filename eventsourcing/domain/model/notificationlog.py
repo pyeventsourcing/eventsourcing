@@ -1,5 +1,3 @@
-# from singledispatch import singledispatch
-#
 # from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, Created,
 # entity_mutator
 # from eventsourcing.domain.model.events import publish
@@ -33,7 +31,7 @@
 #         return notification_log_mutator(event, initial)
 #
 #
-# @singledispatch
+# @mutator
 # def notification_log_mutator(event, initial):
 #     return entity_mutator(event, initial)
 #

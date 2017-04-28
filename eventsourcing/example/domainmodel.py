@@ -1,8 +1,8 @@
 import uuid
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, attribute, \
-    mutate_entity
-from eventsourcing.domain.model.events import mutator, publish
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, mutate_entity
+from eventsourcing.domain.model.events import publish
+from eventsourcing.domain.model.decorators import mutator, attribute
 
 
 class Example(TimestampedVersionedEntity):
