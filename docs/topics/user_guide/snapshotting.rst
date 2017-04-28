@@ -4,11 +4,10 @@ Snapshotting
 
 To enable snapshots to be used when recovering an entity from a
 repository, construct an entity repository that has a snapshot
-strategy object (see below).
+strategy object (see below). It is recommended to store snapshots
+in a dedicated table.
 
-It is recommended to store snapshots in a dedicated table.
-
-To automatically generate snapshots, you could perhaps also
+To automatically generate snapshots, you could perhaps
 define a snapshotting policy, to take snapshots whenever a
 particular condition occurs.
 
