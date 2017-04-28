@@ -287,9 +287,6 @@ def mutator(func):
     def wrapper(*args, **kw):
         return wrapped.dispatch(args[-1].__class__)(*args, **kw)
 
-    def register(cls, func=None):
-        return wrapped.register(cls, func)
-
-    wrapper.register = register
+    wrapper.register = wrapped.register
 
     return wrapper
