@@ -14,4 +14,4 @@
 
 """
 
-__version__ = '2.1.2dev'
+__version__ = '3.0.0dev'
