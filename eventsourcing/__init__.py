@@ -165,6 +165,10 @@ Infrastructure Layer
     :undoc-members:
 
 
+==================
+Exceptions classes
+==================
+
 :mod:`eventsourcing.exceptions`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
