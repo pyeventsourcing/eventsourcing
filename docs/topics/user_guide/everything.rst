@@ -5,7 +5,6 @@ Everything
 Domain
 ======
 
-Todo: Alternative schema.
 
 Infrastructure
 ==============
