@@ -11,7 +11,7 @@ python:
 
 install:
 - pip install -U pip
-- pip install .[test]
+- pip install -e .[test]
 - pip install python-coveralls
 
 env:
