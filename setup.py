@@ -41,6 +41,15 @@ This package provides generic support for event sourcing in Python.
 An extensive
 `README file is available on GitHub <https://github.com/johnbywater/eventsourcing/blob/master/README.md>`_.
 """
+
+packages = find_packages(
+    exclude=[
+        "docs",
+        "eventsourcing.contrib*",
+        "eventsourcing.tests*"
+    ]
+)
+
 setup(
     name='eventsourcing',
     version=__version__,
@@ -48,7 +57,7 @@ setup(
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
     url='https://github.com/johnbywater/eventsourcing',
-    packages=find_packages(),
+    packages=packages,
     install_requires=install_requires,
     extras_require={
         'cassandra': cassandra_requires,
