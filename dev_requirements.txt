@@ -1,0 +1,12 @@
+python-dateutil<=2.6.99999
+singledispatch==3.4.0.3
+six<=1.10.99999
+sphinx_rtd_theme
+sqlalchemy<=1.1.99999
+sqlalchemy-utils<=0.32.99999
+cassandra-driver<=3.9.99999
+mock<=2.0.99999
+PyCrypto<=2.6.99999
+requests<=2.13.99999
+flask<=0.12.99999
+uwsgi<=2.0.99999
