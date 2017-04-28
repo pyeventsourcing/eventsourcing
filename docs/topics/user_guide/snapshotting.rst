@@ -66,7 +66,6 @@ entity. The default value of ``2`` is effective in the example below.
 .. code:: python
 
     from eventsourcing.domain.model.events import subscribe, unsubscribe
-    from eventsourcing.infrastructure.eventplayer import EventPlayer
 
 
     class ExampleSnapshottingPolicy(object):
