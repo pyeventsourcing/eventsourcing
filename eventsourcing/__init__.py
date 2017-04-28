@@ -80,7 +80,7 @@ Domain Layer
 
 
 :mod:`eventsourcing.domain.services.aes_cipher`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.domain.services.aes_cipher
     :members:
@@ -121,7 +121,7 @@ Infrastructure Layer
 
 
 :mod:`eventsourcing.infrastructure.transcoding`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.infrastructure.transcoding
     :members:
@@ -130,7 +130,7 @@ Infrastructure Layer
 
 
 :mod:`eventsourcing.infrastructure.eventplayer`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.infrastructure.eventplayer
     :members:
