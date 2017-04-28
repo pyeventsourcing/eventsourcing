@@ -32,4 +32,5 @@ to work as presented - raise an issue if something goes wrong.
    concurrency
    schema
    cassandra
+   everything
    wsgi

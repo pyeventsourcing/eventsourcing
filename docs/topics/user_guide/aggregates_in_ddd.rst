@@ -64,17 +64,6 @@ can operate on all the "example" objects of the aggregate.
         class ExampleCreated(Event):
             """Published when an "example" object in the aggregate is created."""
 
-        class Example(object):
-            """
-            Example entity, exists only within the example aggregate boundary.
-            """
-            def __init__(self, example_id):
-                self._id = example_id
-
-            @property
-            def id(self):
-                return self._id
-
         def __init__(self, **kwargs):
             super(ExampleAggregateRoot, self).__init__(**kwargs)
             self._pending_events = []
@@ -99,6 +88,18 @@ can operate on all the "example" objects of the aggregate.
         def save(self):
             publish(self._pending_events[:])
             self._pending_events = []
+
+
+    class Example(object):
+        """
+        Example entity, exists only within the example aggregate boundary.
+        """
+        def __init__(self, example_id):
+            self._id = example_id
+
+        @property
+        def id(self):
+            return self._id
 
 
 The methods of the aggregate, and the factory below, are similar to previous
@@ -147,11 +148,12 @@ collection of examples.
             aggregate._version += 1
             return aggregate
 
-        # Handle "entity created" events by adding a new entity to the aggregate's dict of entities.
+        # Handle "example entity created" events by adding a new entity
+        # to the aggregate's dict of entities.
         elif isinstance(event, ExampleAggregateRoot.ExampleCreated):
             aggregate._assert_not_discarded()
-            entity = ExampleAggregateRoot.Example(example_id=event.example_id)
-            aggregate._examples[entity.id] = entity
+            entity = Example(example_id=event.example_id)
+            aggregate._examples[str(entity.id)] = entity
             aggregate._version += 1
             aggregate._last_modified_on = event.timestamp
             return aggregate

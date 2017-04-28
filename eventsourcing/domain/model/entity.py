@@ -4,13 +4,13 @@ from inspect import isfunction
 from six import with_metaclass
 
 from eventsourcing.domain.model.events import AttributeChanged, Created, Discarded, DomainEvent, \
-    EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, QualnameABCMeta, mutator, publish
+    EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, mutator, publish, QualnameABC
 from eventsourcing.exceptions import EntityIsDiscarded, MismatchedOriginatorIDError, \
     MismatchedOriginatorVersionError, MutatorRequiresTypeNotInstance, ProgrammingError
 from eventsourcing.utils.time import timestamp_from_uuid
 
 
-class DomainEntity(with_metaclass(QualnameABCMeta)):
+class DomainEntity(QualnameABC):
     class Event(EventWithOriginatorID, DomainEvent):
         """Layer supertype."""
 

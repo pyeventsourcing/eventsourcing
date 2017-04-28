@@ -46,7 +46,13 @@ def create_timesequenced_event_id():
     return uuid1().hex
 
 
-class DomainEvent(with_metaclass(QualnameABCMeta)):
+class QualnameABC(with_metaclass(QualnameABCMeta)):
+    """
+    Base class that introduces __qualname__ for objects in Python 2.7.
+    """
+
+
+class DomainEvent(QualnameABC):
     """
     Base class for domain events.
 
