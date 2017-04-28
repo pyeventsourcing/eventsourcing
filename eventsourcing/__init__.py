@@ -1,6 +1,6 @@
 """
 =================
-Application Layer
+Application layer
 =================
 
 :mod:`eventsourcing.application.base`
@@ -22,7 +22,7 @@ Application Layer
 
 
 ============
-Domain Layer
+Domain layer
 ============
 
 :mod:`eventsourcing.domain.model.events`
@@ -89,7 +89,7 @@ Domain Layer
 
 
 ====================
-Infrastructure Layer
+Infrastructure layer
 ====================
 
 
@@ -102,19 +102,19 @@ Infrastructure Layer
     :undoc-members:
 
 
-:mod:`eventsourcing.infrastructure.datastore`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:mod:`eventsourcing.infrastructure.activerecord`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: eventsourcing.infrastructure.datastore
+.. automodule:: eventsourcing.infrastructure.activerecord
     :members:
     :show-inheritance:
     :undoc-members:
 
 
-:mod:`eventsourcing.infrastructure.activerecord`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:mod:`eventsourcing.infrastructure.datastore`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: eventsourcing.infrastructure.activerecord
+.. automodule:: eventsourcing.infrastructure.datastore
     :members:
     :show-inheritance:
     :undoc-members:
@@ -165,9 +165,46 @@ Infrastructure Layer
     :undoc-members:
 
 
-==================
-Exceptions classes
-==================
+:mod:`eventsourcing.infrastructure.cassandra.activerecords`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.cassandra.activerecords
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.infrastructure.cassandra.datastore`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.cassandra.datastore
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.infrastructure.sqlalchemy.activerecords`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.sqlalchemy.activerecords
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.infrastructure.sqlalchemy.datastore`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.sqlalchemy.datastore
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+
+=================
+Exception classes
+=================
 
 .. automodule:: eventsourcing.exceptions
     :members:
@@ -175,9 +212,9 @@ Exceptions classes
     :undoc-members:
 
 
-=======
-Example
-=======
+===================
+Example application
+===================
 
 .. automodule:: eventsourcing.example.application
     :members:
