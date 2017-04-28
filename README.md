@@ -29,6 +29,4 @@ Please refer to [the documentation](http://eventsourcing.readthedocs.io/) for in
 ## Project
 
 This project is [hosted on GitHub](https://github.com/johnbywater/eventsourcing).
-
-Please [register your questions, requests and any other issues](https://github.com/johnbywater/eventsourcing/issues)
- on GitHub.
+Please [register your questions, requests and any other issues](https://github.com/johnbywater/eventsourcing/issues).
