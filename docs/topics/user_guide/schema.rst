@@ -119,7 +119,9 @@ Set up the database.
 Run the code
 ------------
 
-Then you can use the application as before, and your events will be stored as "stored events".
+Then you can use the application to create, read, update,
+and discard. And your events will be stored as "stored
+events" rather than "sequenced items".
 
 .. code:: python
 

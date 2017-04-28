@@ -2,8 +2,6 @@
 Using Cassandra
 ===============
 
-Make sure you have a Cassandra server available on localhost at port 9042.
-
 Install the library with the 'cassandra' option.
 
 ::
@@ -15,9 +13,10 @@ Infrastructure
 --------------
 
 Setup the connection and the database tables, using the library classes for Cassandra.
-
-Investigate the library class ``CassandraSettings`` for information about
+Please investigate the library class ``CassandraSettings`` for information about
 configuring away from default settings.
+
+If you are using default settings, make sure you have a Cassandra server available at port 9042.
 
 .. code:: python
 
@@ -57,7 +56,7 @@ object.
 Run the code
 ------------
 
-The example application can be used in the same way as before.
+The application can be used to create, read, update, and delete entities in Cassandra.
 
 .. code:: python
 

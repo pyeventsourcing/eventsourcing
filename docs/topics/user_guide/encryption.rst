@@ -68,6 +68,11 @@ Define a factory that uses library classes to construct an application object.
 Run the code
 ------------
 
+Now construct an encrypted application with the cipher. Create an
+"example" with some "secret information". Check the information
+is not visible in the database, as it is when the application is not
+encrypted.
+
 .. code:: python
 
     # Create a new example entity using an encrypted application.
@@ -78,7 +83,7 @@ Run the code
 
         # With encryption enabled, application state is not visible in the database.
         event_store = app.integer_sequenced_event_store
-        item2 = event_store.active_record_strategy.get_item(secret_entity.id, 0)
+        item2 = event_store.active_record_strategy.get_item(secret_entity.id, eq=0)
         assert 'secret info' not in item2.data
 
         # Events are decrypted inside the application.
