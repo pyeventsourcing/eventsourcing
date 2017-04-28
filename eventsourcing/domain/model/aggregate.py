@@ -1,8 +1,3 @@
-"""
-:mod:`eventsourcing.domain.model.aggregate`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
 from collections import deque
 
 from eventsourcing.domain.model.entity import TimestampedVersionedEntity

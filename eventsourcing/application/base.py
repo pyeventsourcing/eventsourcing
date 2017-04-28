@@ -1,8 +1,3 @@
-"""
-:mod:`eventsourcing.application.base`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
 from abc import ABCMeta
 
 from six import with_metaclass

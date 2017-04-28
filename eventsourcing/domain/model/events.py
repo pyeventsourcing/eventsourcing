@@ -1,8 +1,3 @@
-"""
-:mod:`eventsourcing.domain.model.events`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
 import importlib
 import itertools
 import time
@@ -111,7 +106,7 @@ class EventWithOriginatorID(DomainEvent):
 
 class EventWithTimestamp(DomainEvent):
     """
-    For events that have an timestamp value.
+    For events that have a timestamp value.
     """
 
     def __init__(self, timestamp=None, **kwargs):

@@ -1,8 +1,3 @@
-"""
-:mod:`eventsourcing.domain.model.snapshot`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
 from abc import ABCMeta, abstractproperty
 
 import six

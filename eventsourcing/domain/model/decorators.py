@@ -1,8 +1,3 @@
-"""
-:mod:`eventsourcing.domain.model.decorators`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
 from inspect import isfunction
 
 try:

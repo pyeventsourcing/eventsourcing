@@ -1,8 +1,3 @@
-"""
-:mod:`eventsourcing.domain.model.entity`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
 from abc import ABCMeta, abstractmethod
 
 from six import with_metaclass

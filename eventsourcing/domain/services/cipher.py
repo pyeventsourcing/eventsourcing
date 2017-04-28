@@ -1,8 +1,3 @@
-"""
-:mod:`eventsourcing.domain.services.cipher`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
 from abc import ABCMeta, abstractmethod
 
 import six

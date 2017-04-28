@@ -1,8 +1,3 @@
-"""
-:mod:`eventsourcing.application.policies`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 

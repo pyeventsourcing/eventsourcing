@@ -3,11 +3,17 @@
 Application Layer
 =================
 
+:mod:`eventsourcing.application.base`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.application.base
     :members:
     :show-inheritance:
     :undoc-members:
+
+
+:mod:`eventsourcing.application.policies`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.application.policies
     :members:
@@ -19,35 +25,62 @@ Application Layer
 Domain Layer
 ============
 
+:mod:`eventsourcing.domain.model.events`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 .. automodule:: eventsourcing.domain.model.events
     :members:
     :show-inheritance:
     :undoc-members:
+
+
+:mod:`eventsourcing.domain.model.entity`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.domain.model.entity
     :members:
     :show-inheritance:
     :undoc-members:
 
+
+:mod:`eventsourcing.domain.model.snapshot`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 .. automodule:: eventsourcing.domain.model.snapshot
     :members:
     :show-inheritance:
     :undoc-members:
+
+
+:mod:`eventsourcing.domain.model.aggregate`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.domain.model.aggregate
     :members:
     :show-inheritance:
     :undoc-members:
 
+
+:mod:`eventsourcing.domain.model.decorators`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 .. automodule:: eventsourcing.domain.model.decorators
     :members:
     :show-inheritance:
     :undoc-members:
 
+
+:mod:`eventsourcing.domain.services.cipher`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 .. automodule:: eventsourcing.domain.services.cipher
     :members:
     :show-inheritance:
     :undoc-members:
+
+
+:mod:`eventsourcing.domain.services.aes_cipher`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.domain.services.aes_cipher
     :members:

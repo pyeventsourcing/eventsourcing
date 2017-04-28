@@ -117,7 +117,7 @@ Mutator function
 
 .. code:: python
 
-    from eventsourcing.domain.model.events import mutator
+    from eventsourcing.domain.model.decorators import mutator
     from eventsourcing.domain.model.entity import mutate_entity
 
     @mutator
