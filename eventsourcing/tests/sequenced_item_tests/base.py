@@ -120,10 +120,10 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.assertEqual(position1, item3.position)
         self.assertNotEqual(item1.topic, item3.topic)
         self.assertNotEqual(item1.data, item3.data)
+        # - check appending item as single item
         with self.assertRaises(SequencedItemError):
             self.active_record_strategy.append(item3)
 
-        # Append a second and third item at the next positions.
         item4 = SequencedItem(
             sequence_id=item1.sequence_id,
             position=position2,
@@ -136,6 +136,15 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC2,
             data=data3,
         )
+        # - check appending item as a list of items (none should be appended)
+        with self.assertRaises(SequencedItemError):
+            self.active_record_strategy.append([item3, item4, item5])
+
+        # Check there is still only one item.
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1)
+        self.assertEqual(len(retrieved_items), 1)
+
+        # Append a second and third item at the next positions.
         self.active_record_strategy.append([item4, item5])
 
         # Check there are three items.

@@ -13,7 +13,6 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             if len(sequenced_item_or_items) == 0:
                 return
             b = BatchQuery()
-            # b = BatchQuery()
             for i in sequenced_item_or_items:
                 assert isinstance(i, self.sequenced_item_class), (type(i), self.sequenced_item_class)
                 self.active_record_class.batch(b).if_not_exists().create(
