@@ -16,6 +16,7 @@ import eventsourcing
 from eventsourcing.example import flaskapp
 from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.tests.base import notquick
 
 path_to_virtualenv = None
 if hasattr(sys, 'real_prefix'):
@@ -26,6 +27,7 @@ path_to_flaskapp = abspath(flaskapp.__file__)
 path_to_flaskwsgi = join(dirname(path_to_flaskapp), 'flaskwsgi.py')
 
 
+@notquick()
 class TestFlaskApp(unittest.TestCase):
     port = 5001
 
@@ -60,7 +62,7 @@ class TestFlaskApp(unittest.TestCase):
         else:
             self.fail("Couldn't get response from app, (Python executable {})".format(sys.executable))
 
-
+@notquick()
 @skipIf(platform.python_implementation() == 'PyPy', 'uWSGI needs special plugin to run with PyPy')
 class TestFlaskWsgi(TestFlaskApp):
     port = 9001
