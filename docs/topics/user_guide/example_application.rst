@@ -7,8 +7,8 @@ dependencies on the library.
 
 A stand-alone domain model is developed without library classes, which shows
 how event sourcing in Python can work. The stand-alone code examples here are
-simplified versions of the library classes. All the infrastructure classes
-from library are used explicitly to show the different components involved,
+simplified versions of the library classes. Infrastructure classes from the
+library are used explicitly to show the different components involved,
 so you can understand how to make variations.
 
 .. contents:: :local:

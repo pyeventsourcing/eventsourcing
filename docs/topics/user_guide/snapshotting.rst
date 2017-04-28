@@ -97,14 +97,14 @@ which constructs the event stores and persistence policies we need. The supertyp
 to persist snapshots whenever they are taken. It also has as a policy to persist the events of
 entities whenever they are published.
 
-Below, the example entity repository ``example_repository`` is constructed from library class
+The example entity repository is constructed from library class
 ``EventSourcedRepository`` with a snapshot strategy, the integer sequenced event
 store, and a mutator function. The snapshot strategy is constructed from library class
 ``EventSourcedSnapshotStrategy`` with an event store for snapshots that is provided by the
 supertype.
 
 The application's snapshotting policy is constructed with the example repository, which
-it needs to take snapshots.
+it needs in order to take snapshots.
 
 .. code:: python
 
