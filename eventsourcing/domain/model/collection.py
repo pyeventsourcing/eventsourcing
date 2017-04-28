@@ -2,8 +2,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from uuid import uuid4
 
+from eventsourcing.domain.model.decorators import mutator
 from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, mutate_entity
-from eventsourcing.domain.model.events import mutator, publish
+from eventsourcing.domain.model.events import publish
 
 
 class Collection(TimestampedVersionedEntity):

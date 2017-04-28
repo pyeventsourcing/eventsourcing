@@ -15,7 +15,8 @@ Aggregate model
 
 .. code:: python
 
-    from eventsourcing.domain.model.entity import attribute, TimestampedVersionedEntity
+    from eventsourcing.domain.model.decorators import attribute
+    from eventsourcing.domain.model.entity import TimestampedVersionedEntity
     from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 
 
