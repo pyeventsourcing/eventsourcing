@@ -169,9 +169,6 @@ Infrastructure Layer
 Exceptions classes
 ==================
 
-:mod:`eventsourcing.exceptions`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 .. automodule:: eventsourcing.exceptions
     :members:
     :show-inheritance:
