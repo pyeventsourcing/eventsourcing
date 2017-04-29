@@ -55,7 +55,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertNotEqual(example1, example2)
 
         # Setup the repo.
-        repo = ExampleRepository(self.integer_sequenced_event_store)
+        repo = ExampleRepository(self.entity_event_store)
 
         # Check the example entities can be retrieved from the example repository.
         entity1 = repo[example1.id]

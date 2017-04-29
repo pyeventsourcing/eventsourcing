@@ -173,6 +173,12 @@ class Discarded(DomainEvent):
     """
 
 
+class Logged(DomainEvent):
+    """
+    Published when something is logged.
+    """
+
+
 _event_handlers = OrderedDict()
 
 

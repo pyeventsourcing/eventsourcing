@@ -41,10 +41,10 @@ class TestCassandraActiveRecordStrategyWithTimestampSequences(CassandraDatastore
 
 
 class WithCassandraActiveRecordStrategies(CassandraDatastoreTestCase, WithActiveRecordStrategies):
-    def construct_integer_sequenced_active_record_strategy(self):
+    def construct_entity_active_record_strategy(self):
         return construct_integer_sequenced_active_record_strategy()
 
-    def construct_timestamp_sequenced_active_record_strategy(self):
+    def construct_log_active_record_strategy(self):
         return construct_timestamp_sequenced_active_record_strategy()
 
     def construct_snapshot_active_record_strategy(self):

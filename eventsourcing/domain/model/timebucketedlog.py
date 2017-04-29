@@ -5,9 +5,8 @@ from uuid import UUID, uuid5
 import six
 from dateutil.relativedelta import relativedelta
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, \
-    TimestampedVersionedEntity, TimestampedEntity
-from eventsourcing.domain.model.events import publish, EventWithTimestamp, EventWithOriginatorID
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
+from eventsourcing.domain.model.events import publish, EventWithTimestamp, EventWithOriginatorID, Logged
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.utils.time import utc_timezone
 
@@ -97,7 +96,7 @@ def start_new_timebucketedlog(name, bucket_size=None):
     return entity
 
 
-class MessageLogged(TimestampedEntity.Event):
+class MessageLogged(EventWithTimestamp, EventWithOriginatorID, Logged):
     def __init__(self, message, originator_id):
         super(MessageLogged, self).__init__(originator_id=originator_id, message=message)
 

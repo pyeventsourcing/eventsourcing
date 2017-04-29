@@ -106,7 +106,7 @@ class TestCollection(TestCase):
 
 class TestCollectionRepo(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
     def test(self):
-        repo = CollectionRepository(event_store=self.integer_sequenced_event_store)
+        repo = CollectionRepository(event_store=self.entity_event_store)
 
         # Check unknown collections are not found in the repo.
         with self.assertRaises(RepositoryKeyError):

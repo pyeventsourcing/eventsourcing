@@ -57,13 +57,13 @@ Construct an event sourced application object, with an example repository.
 
     def construct_application(session):
         app = ApplicationWithPersistencePolicies(
-            integer_sequenced_active_record_strategy=SQLAlchemyActiveRecordStrategy(
+            entity_active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 active_record_class=IntegerSequencedItemRecord,
                 session=session
             )
         )
         app.example_repository = EventSourcedRepository(
-            event_store=app.integer_sequenced_event_store,
+            event_store=app.entity_event_store,
             mutator=Example.mutate,
         )
         return app

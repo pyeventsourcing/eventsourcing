@@ -118,7 +118,7 @@ it needs in order to take snapshots.
 
         def __init__(self, session):
             # Construct event stores and persistence policies.
-            integer_sequenced_active_record_strategy = SQLAlchemyActiveRecordStrategy(
+            entity_active_record_strategy = SQLAlchemyActiveRecordStrategy(
                 active_record_class=IntegerSequencedItemRecord,
                 session=session,
             )
@@ -127,7 +127,7 @@ it needs in order to take snapshots.
                 session=session,
             )
             super(SnapshottedApplication, self).__init__(
-                integer_sequenced_active_record_strategy=integer_sequenced_active_record_strategy,
+                entity_active_record_strategy=entity_active_record_strategy,
                 snapshot_active_record_strategy=snapshot_active_record_strategy,
             )
 
@@ -138,7 +138,7 @@ it needs in order to take snapshots.
 
             # Construct the entity repository, this time with the snapshot strategy.
             self.example_repository = EventSourcedRepository(
-                event_store=self.integer_sequenced_event_store,
+                event_store=self.entity_event_store,
                 mutator=Example.mutate,
                 snapshot_strategy=self.snapshot_strategy
             )
