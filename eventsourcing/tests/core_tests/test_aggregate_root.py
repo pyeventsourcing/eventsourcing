@@ -151,6 +151,9 @@ class Example(object):
 
 @mutator
 def mutate_example_aggregate(self, event):
+    """
+    Mutator function for class ExampleAggregateRoot.
+    """
     return mutate_entity(self, event)
 
 

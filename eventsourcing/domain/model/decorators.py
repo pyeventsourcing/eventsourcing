@@ -1,5 +1,7 @@
 from inspect import isfunction
 
+from six import wraps
+
 try:
     # Python 3.4+
     from functools import singledispatch
@@ -38,19 +40,35 @@ def subscribe_to(event_class):
     return wrap
 
 
-def mutator(func):
+def mutator(arg=None):
     """Like singledispatch, but dispatches on type of last arg,
     which fits better with reduce().
+
+    Can be used directly, invoked with the decorated
+    function. Can also be invoked with the type it
+    handles, to create a decorator that injects the type
+    when the given initial value is None.
     """
 
-    wrapped = singledispatch(func)
+    domain_class = None
 
-    def wrapper(*args, **kw):
-        return wrapped.dispatch(args[-1].__class__)(*args, **kw)
+    def _mutator(func):
+        wrapped = singledispatch(func)
 
-    wrapper.register = wrapped.register
+        @wraps(wrapped)
+        def wrapper(initial, event):
+            initial = initial or domain_class
+            return wrapped.dispatch(type(event))(initial, event)
 
-    return wrapper
+        wrapper.register = wrapped.register
+
+        return wrapper
+
+    if isfunction(arg):
+        return _mutator(arg)
+    else:
+        domain_class = arg
+        return _mutator
 
 
 def attribute(getter):

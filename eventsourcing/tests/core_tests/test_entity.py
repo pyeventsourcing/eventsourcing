@@ -220,6 +220,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
             created_mutator(TimestampedVersionedEntity, mock.Mock(spec=Created))  # needs more than the mock obj has
 
 
+
 class CustomValueObject(object):
     def __init__(self, value):
         self.value = value
