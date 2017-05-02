@@ -288,8 +288,9 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
         self._log_active_record_strategy = None
         self._entity_active_record_strategy = None
         if self.datastore is not None:
-            self.datastore.drop_tables()
-            self.datastore.drop_connection()
+            self.datastore.truncate_tables()
+            # self.datastore.drop_tables()
+            # self.datastore.drop_connection()
         super(WithActiveRecordStrategies, self).tearDown()
 
     @property
