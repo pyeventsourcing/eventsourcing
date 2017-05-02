@@ -16,7 +16,7 @@ help:
 
 
 livehtml:
-	sphinx-autobuild -z topics -z topics/user_guide $(SOURCEDIR) $(BUILDDIR)/html
+	sphinx-autobuild -z topics -z topics/user_guide -z ../eventsourcing $(SOURCEDIR) $(BUILDDIR)/html
 
 
 # Catch-all target: route all unknown targets to Sphinx using the new
