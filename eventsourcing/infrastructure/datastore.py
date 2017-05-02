@@ -28,6 +28,10 @@ class Datastore(six.with_metaclass(ABCMeta)):
     def drop_tables(self):
         """Drops tables used to store events."""
 
+    @abstractmethod
+    def truncate_tables(self):
+        """Truncates tables used to store events."""
+
 
 class DatastoreError(Exception):
     pass

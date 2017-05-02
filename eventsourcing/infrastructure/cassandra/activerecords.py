@@ -2,7 +2,6 @@ import six
 from cassandra.cqlengine.functions import Token
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import BatchQuery, LWTException
-from cassandra.query import BatchType
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 
