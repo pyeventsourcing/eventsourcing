@@ -57,13 +57,13 @@ def attribute(getter):
     """
     When used as a method decorator, returns a property object
     with the method as the getter and a setter defined to call
-    instance method _change_attribute(), which publishes an
+    instance method change_attribute(), which publishes an
     AttributeChanged event.
     """
     if isfunction(getter):
         def setter(self, value):
             name = '_' + getter.__name__
-            self._change_attribute(name=name, value=value)
+            self.change_attribute(name=name, value=value)
 
         def new_getter(self):
             name = '_' + getter.__name__

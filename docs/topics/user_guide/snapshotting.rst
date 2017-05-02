@@ -139,7 +139,7 @@ it needs in order to take snapshots.
             # Construct the entity repository, this time with the snapshot strategy.
             self.example_repository = EventSourcedRepository(
                 event_store=self.entity_event_store,
-                mutator=Example.mutate,
+                mutator=Example._mutate,
                 snapshot_strategy=self.snapshot_strategy
             )
 

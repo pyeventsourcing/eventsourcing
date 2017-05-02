@@ -46,20 +46,17 @@ class Example(TimestampedVersionedEntity):
 
     def beat_heart(self, number_of_beats=1):
         self._assert_not_discarded()
-        events = []
         while number_of_beats > 0:
             event = self.Heartbeat(originator_id=self._id, originator_version=self._version)
-            events.append(event)
-            self._apply(event)
+            self._apply_and_publish(event)
             number_of_beats -= 1
-        publish(events)
 
     def count_heartbeats(self):
         return self._count_heartbeats
 
-    @staticmethod
-    def _mutator(initial, event):
-        return example_mutator(initial, event)
+    @classmethod
+    def _mutate(cls, initial, event):
+        return example_mutator(initial or cls, event)
 
 
 @mutator
@@ -88,6 +85,6 @@ def create_new_example(foo='', a='', b=''):
     """
     entity_id = uuid.uuid4()
     event = Example.Created(originator_id=entity_id, foo=foo, a=a, b=b)
-    entity = Example.mutate(event=event)
+    entity = Example._mutate(initial=None, event=event)
     publish(event=event)
     return entity

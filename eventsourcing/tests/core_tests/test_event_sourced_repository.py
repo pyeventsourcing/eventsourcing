@@ -49,7 +49,7 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
         with self.assertRaises(ValueError):
             EventSourcedRepository(event_store=event_store, mutator=None)
         # ...and isn't if we pass a mutator function as a constructor arg.
-        event_sourced_repo = EventSourcedRepository(event_store=event_store, mutator=Example.mutate)
+        event_sourced_repo = EventSourcedRepository(event_store=event_store, mutator=Example._mutate)
 
         # Check the entity attributes.
         example = event_sourced_repo[entity_id]

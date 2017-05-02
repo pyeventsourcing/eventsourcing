@@ -133,7 +133,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         class UnsupportedEvent(DomainEvent): pass
 
         # Check we get an error when attempting to mutate on the event.
-        self.assertRaises(NotImplementedError, Example.mutate, Example, UnsupportedEvent())
+        self.assertRaises(NotImplementedError, Example._mutate, Example, UnsupportedEvent())
 
     def test_attribute(self):
         # Check we get an error when called with something other than a function.
@@ -209,7 +209,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
     def test_mutator_errors(self):
         with self.assertRaises(NotImplementedError):
-            TimestampedVersionedEntity.mutate(1, 2)
+            TimestampedVersionedEntity._mutate(1, 2)
 
         # Check the guard condition raises exception.
         with self.assertRaises(MutatorRequiresTypeNotInstance):

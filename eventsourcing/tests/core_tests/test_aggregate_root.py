@@ -126,15 +126,14 @@ class ExampleAggregateRoot(AggregateRoot):
             originator_id=self.id,
             originator_version=self.version,
         )
-        self._apply(event)
-        self._publish(event)
+        self._apply_and_publish(event)
 
     def count_examples(self):
         return len(self._entities)
 
-    @staticmethod
-    def _mutator(initial, event):
-        return mutate_example_aggregate(initial, event)
+    @classmethod
+    def _mutate(cls, initial, event):
+        return mutate_example_aggregate(initial or cls, event)
 
 
 class Example(object):
@@ -178,7 +177,7 @@ class ExampleDDDApplication(object):
             )
         )
         self.aggregate_repository = EventSourcedRepository(
-            mutator=ExampleAggregateRoot.mutate,
+            mutator=ExampleAggregateRoot._mutate,
             event_store=event_store,
         )
         self.persistence_policy = PersistencePolicy(
@@ -193,7 +192,7 @@ class ExampleDDDApplication(object):
         :rtype: ExampleAggregateRoot 
         """
         event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4())
-        aggregate = ExampleAggregateRoot.mutate(event=event)
+        aggregate = ExampleAggregateRoot._mutate(initial=None, event=event)
         aggregate._pending_events.append(event)
         return aggregate
 

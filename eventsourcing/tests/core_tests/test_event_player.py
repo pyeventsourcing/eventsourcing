@@ -86,7 +86,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         self.entity_event_store.append(event4)
 
         # Check the entities can be replayed.
-        event_player = EventPlayer(event_store=self.entity_event_store, mutator=Example.mutate)
+        event_player = EventPlayer(event_store=self.entity_event_store, mutator=Example._mutate)
 
         # Check recovered entities have correct attribute values.
         recovered1 = event_player.replay_entity(entity_id1)
@@ -109,7 +109,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
 
         event_player = EventPlayer(
             event_store=self.entity_event_store,
-            mutator=Example.mutate,
+            mutator=Example._mutate,
             is_short=True,
         )
         self.assertEqual(10, event_player.replay_entity(entity_id1).a)
@@ -128,7 +128,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         )
         event_player = EventPlayer(
             event_store=self.entity_event_store,
-            mutator=Example.mutate,
+            mutator=Example._mutate,
             snapshot_strategy=snapshot_strategy
         )
 

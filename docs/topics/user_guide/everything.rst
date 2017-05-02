@@ -63,7 +63,7 @@ Aggregate model
                 originator_id=self.id,
                 originator_version=self.version,
             )
-            self._apply(event)
+            self._apply_and_publish(event)
             self._publish(event)
 
         def _publish(self, event):
@@ -73,9 +73,9 @@ Aggregate model
             publish(self._pending_events[:])
             self._pending_events = []
 
-        @staticmethod
-        def _mutator(initial, event):
-            return mutate_aggregate(initial, event)
+        @classmethod
+        def _mutate(cls, initial, event):
+            return mutate_aggregate(initial or cls, event)
 
 
     class Example(object):
@@ -105,7 +105,7 @@ Aggregate factory
         event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4(), foo=foo)
 
         # Mutate aggregate.
-        aggregate = ExampleAggregateRoot.mutate(event=event)
+        aggregate = mutate_aggregate(ExampleAggregateRoot, event)
 
         # Publish event to internal list only.
         aggregate._publish(event)
@@ -246,7 +246,7 @@ Application object
             # Construct the entity repository, this time with the snapshot strategy.
             self.example_repository = EventSourcedRepository(
                 event_store=self.entity_event_store,
-                mutator=ExampleAggregateRoot.mutate,
+                mutator=ExampleAggregateRoot._mutate,
                 snapshot_strategy=self.snapshot_strategy
             )
 

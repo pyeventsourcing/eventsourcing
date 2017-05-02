@@ -37,7 +37,29 @@ class DomainEntity(QualnameABC):
     def id(self):
         return self._id
 
+    def change_attribute(self, name, value, **kwargs):
+        """
+        Changes given attribute of the entity, by constructing
+        and applying an AttributeChanged event.
+        """
+        self._assert_not_discarded()
+        event = self.AttributeChanged(
+            name=name,
+            value=value,
+            originator_id=self._id,
+            **kwargs
+        )
+        self._apply_and_publish(event)
+
+    def discard(self, **kwargs):
+        self._assert_not_discarded()
+        event = self.Discarded(originator_id=self._id, **kwargs)
+        self._apply_and_publish(event)
+
     def _validate_originator(self, event):
+        """
+        Checks the event originated from (was published by) this entity.
+        """
         self._validate_originator_id(event)
 
     def _validate_originator_id(self, event):
@@ -50,55 +72,60 @@ class DomainEntity(QualnameABC):
                 "".format(self.id, event.originator_id)
             )
 
-    def _apply(self, event):
-        self.mutate(event=event, entity=self)
-
-    def _publish(self, event):
-        publish(event)
-
-    @classmethod
-    def mutate(cls, entity=None, event=None):
-        initial = entity if entity is not None else cls
-        return cls._mutator(initial, event)
-
-    @staticmethod
-    def _mutator(initial, event):
-        return mutate_entity(initial, event)
-
-    def _change_attribute(self, name, value, **kwargs):
-        self._assert_not_discarded()
-        event = self.AttributeChanged(
-            name=name,
-            value=value,
-            originator_id=self._id,
-            **kwargs
-        )
-        self._apply(event)
-        self._publish(event)
-
-    def discard(self, **kwargs):
-        self._assert_not_discarded()
-        event = self.Discarded(originator_id=self._id, **kwargs)
-        self._apply(event)
-        self._publish(event)
-
     def _assert_not_discarded(self):
         if self._is_discarded:
             raise EntityIsDiscarded("Entity is discarded")
 
+    def _apply_and_publish(self, event):
+        """
+        Applies event, by mutating self with event and then publishing event.
+
+        Must be an object method, since subclass AggregateRoot._publish()
+        will append events to a list internal to the entity object, hence
+        it needs to work with an instance rather than the type.
+        """
+        self._mutate(initial=self, event=event)
+        self._publish(event)
+
+    @classmethod
+    def _mutate(cls, initial, event):
+        """
+        Calls a mutator function with given entity and event.
+
+        Passes cls if initial is None, so that Created event
+        handler can construct an entity object with the correct
+        subclass.
+
+        Please override or extend in subclasses that extend or
+        replace the mutate_entity() function, so that the correct
+        mutator function will be invoked.
+        """
+        return mutate_entity(initial or cls, event)
+
+    def _publish(self, event):
+        """
+        Publishes event for subscribers in the application.
+        """
+        publish(event)
+
 
 class WithReflexiveMutator(DomainEntity):
     """
-    Implements an entity mutator function by dispatching all
-    calls to mutate an entity with an event to the event itself.
+    Implements an entity mutator function by dispatching to the
+    event itself all calls to mutate an entity with an event.
     
     This is an alternative to using an independent mutator function
     implemented with the @mutator decorator, or an if-else block.
     """
-
     @classmethod
-    def mutate(cls, entity=None, event=None):
-        return event.apply(entity or cls)
+    def _mutate(cls, initial, event):
+        """
+        Calls the mutate() method of the event.
+
+        Passes cls if initial is None, so that handler of Created
+        events can construct an entity object with the subclass.
+        """
+        return event.mutate(initial or cls)
 
 
 class VersionedEntity(DomainEntity):
@@ -147,8 +174,8 @@ class VersionedEntity(DomainEntity):
                  )
             )
 
-    def _change_attribute(self, name, value, **kwargs):
-        return super(VersionedEntity, self)._change_attribute(
+    def change_attribute(self, name, value, **kwargs):
+        return super(VersionedEntity, self).change_attribute(
             name, value, originator_version=self._version, **kwargs)
 
     def discard(self, **kwargs):

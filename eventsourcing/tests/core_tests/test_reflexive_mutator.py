@@ -10,11 +10,11 @@ class ExampleWithReflexiveMutator(WithReflexiveMutator, Example):
         """Layer supertype."""
 
     class Created(Event, Example.Created):
-        def apply(self, cls):
+        def mutate(self, cls):
             return cls(**self.__dict__)
 
     class AttributeChanged(Event, Example.AttributeChanged):
-        def apply(self, entity):
+        def mutate(self, entity):
             entity._validate_originator(self)
             setattr(entity, self.name, self.value)
             entity._last_modified_on = self.timestamp
@@ -22,7 +22,7 @@ class ExampleWithReflexiveMutator(WithReflexiveMutator, Example):
             return entity
 
     class Discarded(Event, Example.Discarded):
-        def apply(self, entity):
+        def mutate(self, entity):
             entity._validate_originator(self)
             entity._is_discarded = True
             entity._increment_version()
@@ -34,7 +34,7 @@ class TestReflexiveMutator(TestCase):
         # Create an entity.
         entity_id = uuid4()
         created = ExampleWithReflexiveMutator.Created(originator_id=entity_id, a=1, b=2)
-        entity = ExampleWithReflexiveMutator.mutate(event=created)
+        entity = ExampleWithReflexiveMutator._mutate(initial=None, event=created)
         self.assertIsInstance(entity, ExampleWithReflexiveMutator)
         self.assertEqual(entity.id, entity_id)
         self.assertEqual(entity.a, 1)

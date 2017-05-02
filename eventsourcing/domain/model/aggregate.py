@@ -25,9 +25,15 @@ class AggregateRoot(TimestampedVersionedEntity):
         self._pending_events = deque()
 
     def _publish(self, event):
+        """
+        Appends event to internal collection of pending events.
+        """
         self._pending_events.append(event)
 
     def save(self):
+        """
+        Publishes pending events for others in application.
+        """
         batch_of_events = []
         try:
             while True:

@@ -36,13 +36,13 @@ class ExampleEntity(TimeuuidedVersionedEntity):
             originator_id=self.id,
             originator_version=self.version,
         )
-        self._apply(event)
+        self._apply_and_publish(event)
         publish(event)
 
-    @staticmethod
-    def _mutator(initial, event):
+    @classmethod
+    def _mutate(cls, initial, event):
         if isinstance(event, ExampleEntity.Started):
-            return ExampleEntity(**event.__dict__)
+            return cls(**event.__dict__)
         elif isinstance(event, ExampleEntity.Finished):
             initial._is_finished = True
             return initial
@@ -50,7 +50,7 @@ class ExampleEntity(TimeuuidedVersionedEntity):
     @classmethod
     def start(cls):
         event = ExampleEntity.Started(originator_id=uuid4())
-        entity = ExampleEntity.mutate(None, event)
+        entity = ExampleEntity._mutate(None, event)
         publish(event)
         return entity
 
@@ -73,7 +73,7 @@ class ExampleApplicationWithTimeuuidSequencedItems(object):
             )
         )
         self.repository = EventSourcedRepository(
-            mutator=ExampleEntity.mutate,
+            mutator=ExampleEntity._mutate,
             event_store=self.event_store,
         )
         self.persistence_policy = PersistencePolicy(self.event_store)

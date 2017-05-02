@@ -182,17 +182,13 @@ class Logged(DomainEvent):
 _event_handlers = OrderedDict()
 
 
-def all_events(_):
-    return True
-
-
-def subscribe(handler, predicate=all_events):
+def subscribe(handler, predicate=None):
     if predicate not in _event_handlers:
         _event_handlers[predicate] = []
     _event_handlers[predicate].append(handler)
 
 
-def unsubscribe(handler, predicate=all_events):
+def unsubscribe(handler, predicate=None):
     if predicate in _event_handlers:
         handlers = _event_handlers[predicate]
         if handler in handlers:
@@ -204,7 +200,7 @@ def unsubscribe(handler, predicate=all_events):
 def publish(event):
     matching_handlers = []
     for predicate, handlers in _event_handlers.items():
-        if predicate(event):
+        if predicate is None or predicate(event):
             for handler in handlers:
                 if handler not in matching_handlers:
                     matching_handlers.append(handler)

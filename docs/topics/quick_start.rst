@@ -64,7 +64,7 @@ Construct an event sourced application object, with an example repository.
         )
         app.example_repository = EventSourcedRepository(
             event_store=app.entity_event_store,
-            mutator=Example.mutate,
+            mutator=Example._mutate,
         )
         return app
 

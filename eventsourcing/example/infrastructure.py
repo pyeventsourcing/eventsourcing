@@ -7,4 +7,4 @@ class ExampleRepository(EventSourcedRepository, AbstractExampleRepository):
     Event sourced repository for the Example domain model entity.
     """
     __page_size__ = 1000
-    mutator = Example.mutate
+    mutator = Example._mutate
