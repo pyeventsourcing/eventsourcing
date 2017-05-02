@@ -144,7 +144,7 @@ class VersionedEntity(DomainEntity):
     class Discarded(Event, DomainEntity.Discarded):
         """Published when a VersionedEntity is discarded."""
 
-    def __init__(self, originator_version=None, **kwargs):
+    def __init__(self, originator_version, **kwargs):
         super(VersionedEntity, self).__init__(**kwargs)
         self._version = originator_version
 
@@ -196,7 +196,7 @@ class TimestampedEntity(DomainEntity):
     class Discarded(Event, DomainEntity.Discarded):
         """Published when a TimestampedEntity is discarded."""
 
-    def __init__(self, timestamp=None, **kwargs):
+    def __init__(self, timestamp, **kwargs):
         super(TimestampedEntity, self).__init__(**kwargs)
         self._created_on = timestamp
         self._last_modified_on = timestamp
@@ -211,7 +211,7 @@ class TimestampedEntity(DomainEntity):
 
 
 class TimeuuidedEntity(DomainEntity):
-    def __init__(self, event_id=None, **kwargs):
+    def __init__(self, event_id, **kwargs):
         super(TimeuuidedEntity, self).__init__(**kwargs)
         self._initial_event_id = event_id
         self._last_event_id = event_id
@@ -244,12 +244,16 @@ class TimeuuidedVersionedEntity(TimeuuidedEntity, VersionedEntity):
 
 
 @mutator
-def mutate_entity(_, event):
+def mutate_entity(initial, event):
+    """Entity mutator function. Mutates initial state by the event.
+    
+    Different handlers are registered for different types of event.
+    """
     raise NotImplementedError("Event type not supported: {}".format(type(event)))
 
 
 @mutate_entity.register(DomainEntity.Created)
-def created_mutator(cls, event):
+def _(cls, event):
     assert isinstance(event, Created), event
     if not isinstance(cls, type):
         msg = ("Mutator for Created event requires object type: {}".format(type(cls)))
@@ -276,7 +280,7 @@ def _(self, event):
 
 
 @mutate_entity.register(DomainEntity.Discarded)
-def discarded_mutator(self, event):
+def _(self, event):
     assert isinstance(self, DomainEntity), self
     self._validate_originator(event)
     self._is_discarded = True

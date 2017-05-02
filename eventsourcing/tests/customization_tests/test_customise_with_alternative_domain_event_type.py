@@ -1,7 +1,7 @@
 from uuid import UUID, uuid4
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.entity import TimeuuidedVersionedEntity
+from eventsourcing.domain.model.entity import TimeuuidedEntity
 from eventsourcing.domain.model.events import EventWithTimeuuid, publish
 from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, \
     CqlTimeuuidSequencedItem
@@ -20,7 +20,7 @@ from eventsourcing.utils.time import timestamp_from_uuid
 # define a suitable database table, and configure the other components. It's easy.
 
 # Firstly, define and entity that uses events with TimeUUIDs.
-class ExampleEntity(TimeuuidedVersionedEntity):
+class ExampleEntity(TimeuuidedEntity):
     def __init__(self, **kwargs):
         super(ExampleEntity, self).__init__(**kwargs)
         self._is_finished = False
@@ -34,10 +34,8 @@ class ExampleEntity(TimeuuidedVersionedEntity):
     def finish(self):
         event = ExampleEntity.Finished(
             originator_id=self.id,
-            originator_version=self.version,
         )
         self._apply_and_publish(event)
-        publish(event)
 
     @classmethod
     def _mutate(cls, initial, event):
@@ -45,7 +43,7 @@ class ExampleEntity(TimeuuidedVersionedEntity):
             return cls(**event.__dict__)
         elif isinstance(event, ExampleEntity.Finished):
             initial._is_finished = True
-            return initial
+            return None
 
     @classmethod
     def start(cls):
@@ -120,3 +118,6 @@ class TestDomainEventsWithTimeUUIDs(AbstractDatastoreTestCase):
             # Read entity from repo.
             retrieved_obj = app.repository[entity1.id]
             self.assertEqual(retrieved_obj.id, entity1.id)
+
+            retrieved_obj.finish()
+            assert retrieved_obj.id not in app.repository

@@ -1,8 +1,7 @@
 from uuid import uuid4
 
-import mock
-
-from eventsourcing.domain.model.entity import AttributeChanged, Created, TimestampedVersionedEntity, created_mutator, VersionedEntity
+from eventsourcing.domain.model.entity import AttributeChanged, TimestampedVersionedEntity, VersionedEntity, \
+    mutate_entity, DomainEntity
 
 from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.events import DomainEvent, publish, subscribe, unsubscribe
@@ -154,7 +153,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Pretend we decorated an object.
         entity_id = uuid4()
-        o = TimestampedVersionedEntity(originator_id=entity_id, originator_version=0)
+        o = VersionedEntity(originator_id=entity_id, originator_version=0)
         o.__dict__['_<lambda>'] = 'value1'
 
         # Call the property's getter function.
@@ -172,7 +171,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertNotEqual(p.fget, getter)
 
         # Define a class that uses the decorator.
-        class Aaa(TimestampedVersionedEntity):
+        class Aaa(VersionedEntity):
             "An event sourced entity."
 
             def __init__(self, a, *args, **kwargs):
@@ -213,11 +212,14 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Check the guard condition raises exception.
         with self.assertRaises(MutatorRequiresTypeNotInstance):
-            created_mutator('not a class', mock.Mock(spec=Created))
+            mutate_entity('not a class', TimestampedVersionedEntity.Created(originator_id=uuid4()))
 
         # Check the instantiation type error.
         with self.assertRaises(TypeError):
-            created_mutator(TimestampedVersionedEntity, mock.Mock(spec=Created))  # needs more than the mock obj has
+            # DomainEntity.Created doesn't have an originator_version,
+            # so the mutator fails to construct an intance with a type
+            # error from the contructor.
+            mutate_entity(TimestampedVersionedEntity, DomainEntity.Created(originator_id=uuid4()))
 
 
 
