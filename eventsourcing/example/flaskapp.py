@@ -22,7 +22,7 @@ def init_example_application_with_sqlalchemy(session):
         session=session,
     )
     init_example_application(
-        integer_sequenced_active_record_strategy=active_record_strategy
+        entity_active_record_strategy=active_record_strategy
     )
 
 

@@ -44,10 +44,10 @@ class TestSQLAlchemyActiveRecordStrategyWithTimestampSequences(SQLAlchemyDatasto
 
 
 class WithSQLAlchemyActiveRecordStrategies(WithActiveRecordStrategies, SQLAlchemyDatastoreTestCase):
-    def construct_integer_sequenced_active_record_strategy(self):
+    def construct_entity_active_record_strategy(self):
         return construct_integer_sequenced_active_record_strategy(self.datastore)
 
-    def construct_timestamp_sequenced_active_record_strategy(self):
+    def construct_log_active_record_strategy(self):
         return construct_timestamp_sequenced_active_record_strategy(self.datastore)
 
     def construct_snapshot_active_record_strategy(self):

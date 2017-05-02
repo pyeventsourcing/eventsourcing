@@ -3,7 +3,8 @@ from abc import ABCMeta
 from six import with_metaclass
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
+from eventsourcing.domain.model.entity import VersionedEntity
+from eventsourcing.domain.model.events import Logged
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
@@ -11,27 +12,27 @@ from eventsourcing.infrastructure.transcoding import ObjectJSONDecoder, ObjectJS
 
 
 class ApplicationWithEventStores(with_metaclass(ABCMeta)):
-    def __init__(self, integer_sequenced_active_record_strategy=None,
-                 timestamp_sequenced_active_record_strategy=None,
+    def __init__(self, entity_active_record_strategy=None,
+                 log_active_record_strategy=None,
                  snapshot_active_record_strategy=None,
                  always_encrypt=False, cipher=None):
 
-        self.integer_sequenced_event_store = None
-        if integer_sequenced_active_record_strategy:
-            self.integer_sequenced_event_store = self.construct_event_store(
+        self.entity_event_store = None
+        if entity_active_record_strategy:
+            self.entity_event_store = self.construct_event_store(
                 event_sequence_id_attr='originator_id',
                 event_position_attr='originator_version',
-                active_record_strategy=integer_sequenced_active_record_strategy,
+                active_record_strategy=entity_active_record_strategy,
                 always_encrypt=always_encrypt,
                 cipher=cipher,
             )
 
-        self.timestamp_sequenced_event_store = None
-        if timestamp_sequenced_active_record_strategy:
-            self.timestamp_sequenced_event_store = self.construct_event_store(
+        self.log_event_store = None
+        if log_active_record_strategy:
+            self.log_event_store = self.construct_event_store(
                 event_sequence_id_attr='originator_id',
                 event_position_attr='timestamp',
-                active_record_strategy=timestamp_sequenced_active_record_strategy,
+                active_record_strategy=log_active_record_strategy,
                 always_encrypt=always_encrypt,
                 cipher=cipher,
             )
@@ -75,8 +76,9 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
         )
 
     def close(self):
-        self.event_store = None
-        self.integer_sequenced_active_record_strategy = None
+        self.entity_event_store = None
+        self.log_event_store = None
+        self.snapshot_event_store = None
 
     def __enter__(self):
         return self
@@ -93,9 +95,9 @@ class ApplicationWithPersistencePolicies(ApplicationWithEventStores):
         self.log_persistence_policy = self.construct_log_persistence_policy()
 
     def construct_entity_persistence_policy(self):
-        if self.integer_sequenced_event_store:
+        if self.entity_event_store:
             return PersistencePolicy(
-                event_store=self.integer_sequenced_event_store,
+                event_store=self.entity_event_store,
                 event_type=VersionedEntity.Event,
             )
 
@@ -107,10 +109,10 @@ class ApplicationWithPersistencePolicies(ApplicationWithEventStores):
             )
 
     def construct_log_persistence_policy(self):
-        if self.timestamp_sequenced_event_store:
+        if self.log_event_store:
             return PersistencePolicy(
-                event_store=self.timestamp_sequenced_event_store,
-                event_type=TimestampedEntity.Event,
+                event_store=self.log_event_store,
+                event_type=Logged,
             )
 
     def close(self):

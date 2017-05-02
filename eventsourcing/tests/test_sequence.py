@@ -13,7 +13,7 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 
 class SequenceTestCase(WithPersistencePolicies):
     def test(self):
-        repo = SequenceRepo(self.integer_sequenced_event_store)
+        repo = SequenceRepo(self.entity_event_store)
 
         # Start a new sequence.
         name = uuid4()

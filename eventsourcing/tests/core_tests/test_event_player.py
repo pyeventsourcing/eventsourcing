@@ -24,7 +24,7 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         self.datastore.setup_tables()
 
         # Setup an event store for versioned entity events.
-        self.integer_sequenced_event_store = EventStore(
+        self.entity_event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 session=self.datastore.session,
                 active_record_class=IntegerSequencedItemRecord,
@@ -69,24 +69,24 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         # Create entity1.
         entity_id1 = uuid4()
         event1 = Example.Created(originator_id=entity_id1, a=1, b=2)
-        self.integer_sequenced_event_store.append(event1)
+        self.entity_event_store.append(event1)
 
         # Create entity2.
         entity_id2 = uuid4()
         event2 = Example.Created(originator_id=entity_id2, a=2, b=4)
-        self.integer_sequenced_event_store.append(event2)
+        self.entity_event_store.append(event2)
 
         # Create entity3.
         entity_id3 = uuid4()
         event3 = Example.Created(originator_id=entity_id3, a=3, b=6)
-        self.integer_sequenced_event_store.append(event3)
+        self.entity_event_store.append(event3)
 
         # Discard entity3.
         event4 = Example.Discarded(originator_id=entity_id3, originator_version=1)
-        self.integer_sequenced_event_store.append(event4)
+        self.entity_event_store.append(event4)
 
         # Check the entities can be replayed.
-        event_player = EventPlayer(event_store=self.integer_sequenced_event_store, mutator=Example.mutate)
+        event_player = EventPlayer(event_store=self.entity_event_store, mutator=Example._mutate)
 
         # Check recovered entities have correct attribute values.
         recovered1 = event_player.replay_entity(entity_id1)
@@ -102,21 +102,21 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         # Check it works for "short" entities (should be faster, but the main thing is that it still works).
         # - just use a trivial mutate that always instantiates the 'Example'.
         event5 = Example.AttributeChanged(originator_id=entity_id1, originator_version=1, name='a', value=10)
-        self.integer_sequenced_event_store.append(event5)
+        self.entity_event_store.append(event5)
 
         recovered1 = event_player.replay_entity(entity_id1)
         self.assertEqual(10, recovered1.a)
 
         event_player = EventPlayer(
-            event_store=self.integer_sequenced_event_store,
-            mutator=Example.mutate,
+            event_store=self.entity_event_store,
+            mutator=Example._mutate,
             is_short=True,
         )
         self.assertEqual(10, event_player.replay_entity(entity_id1).a)
 
     def test_take_snapshot(self):
         self.entity_persistence_policy = PersistencePolicy(
-            event_store=self.integer_sequenced_event_store,
+            event_store=self.entity_event_store,
             event_type=VersionedEntity.Event,
         )
         self.snapshot_persistence_policy = PersistencePolicy(
@@ -127,8 +127,8 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
             event_store=self.snapshot_store
         )
         event_player = EventPlayer(
-            event_store=self.integer_sequenced_event_store,
-            mutator=Example.mutate,
+            event_store=self.entity_event_store,
+            mutator=Example._mutate,
             snapshot_strategy=snapshot_strategy
         )
 

@@ -6,4 +6,4 @@ class TimebucketedlogRepo(EventSourcedRepository, TimebucketedlogRepository):
     """
     Event sourced repository for the Example domain model entity.
     """
-    mutator = Timebucketedlog.mutate
+    mutator = Timebucketedlog._mutate

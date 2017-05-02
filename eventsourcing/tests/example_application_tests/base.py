@@ -14,8 +14,8 @@ class WithExampleApplication(WithActiveRecordStrategies):
     def construct_application(self):
         cipher = self.construct_cipher()
         app = ExampleApplication(
-            integer_sequenced_active_record_strategy=self.integer_sequenced_active_record_strategy,
-            timestamp_sequenced_active_record_strategy=self.timestamp_sequenced_active_record_strategy,
+            entity_active_record_strategy=self.entity_active_record_strategy,
+            log_active_record_strategy=self.log_active_record_strategy,
             snapshot_active_record_strategy=self.snapshot_active_record_strategy,
             always_encrypt=bool(cipher),
             cipher=cipher,
@@ -34,11 +34,11 @@ class ExampleApplicationTestCase(WithExampleApplication):
 
         with self.construct_application() as app:
 
-            # Check there's an event store for version entity events.
-            self.assertIsInstance(app.integer_sequenced_event_store, EventStore)
+            # Check there's an event store for entity events.
+            self.assertIsInstance(app.entity_event_store, EventStore)
 
-            # Check there's an event store for timestamp entity events.
-            self.assertIsInstance(app.timestamp_sequenced_event_store, EventStore)
+            # Check there's an event store for log events.
+            self.assertIsInstance(app.log_event_store, EventStore)
 
             # Check there's a persistence policy.
             self.assertIsInstance(app.entity_persistence_policy, PersistencePolicy)
@@ -109,7 +109,7 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(100, app.example_repository[example1.id].a)
 
             # Remove all the stored items and check the new value is still available (must be in snapshot).
-            record_strategy = self.integer_sequenced_active_record_strategy
+            record_strategy = self.entity_active_record_strategy
             self.assertEqual(len(list(record_strategy.all_records())), 3)
             for record in record_strategy.all_records():
                 record_strategy.delete_record(record)

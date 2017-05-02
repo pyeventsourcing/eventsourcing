@@ -238,4 +238,4 @@ Example application
 
 """
 
-__version__ = '3.0.0dev'
+__version__ = '3.0.0.dev0'

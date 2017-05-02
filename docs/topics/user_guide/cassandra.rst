@@ -48,7 +48,7 @@ object.
             active_record_class=IntegerSequencedItemRecord,
         )
         app = ExampleApplication(
-            integer_sequenced_active_record_strategy=active_record_strategy,
+            entity_active_record_strategy=active_record_strategy,
         )
         return app
 

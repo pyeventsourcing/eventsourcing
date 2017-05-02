@@ -97,3 +97,13 @@ class CassandraDatastore(Datastore):
         # Avoid warnings about this variable not being set.
         os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
         drop_keyspace(name=self.settings.default_keyspace)
+
+    def truncate_tables(self):
+        # Avoid warnings about this variable not being set.
+        os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
+        for table in self.tables:
+            remaining_objects = table.objects.all().limit(10)
+            while remaining_objects:
+                for obj in remaining_objects:
+                    obj.delete()
+                remaining_objects = table.objects.all().limit(10)

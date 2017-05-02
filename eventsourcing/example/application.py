@@ -16,9 +16,9 @@ class ExampleApplication(ApplicationWithPersistencePolicies):
             self.snapshot_strategy = EventSourcedSnapshotStrategy(
                 event_store=self.snapshot_event_store,
             )
-        assert self.integer_sequenced_event_store is not None
+        assert self.entity_event_store is not None
         self.example_repository = ExampleRepository(
-            event_store=self.integer_sequenced_event_store,
+            event_store=self.entity_event_store,
             snapshot_strategy=self.snapshot_strategy,
         )
 

@@ -46,6 +46,9 @@ class SQLAlchemyDatastore(Datastore):
             for table in self._tables:
                 table.__table__.drop(self._engine, checkfirst=True)
 
+    def truncate_tables(self):
+        self.drop_tables()
+
     @property
     def session(self):
         if self._engine is None:

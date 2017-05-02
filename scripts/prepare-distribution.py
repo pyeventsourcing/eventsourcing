@@ -19,6 +19,7 @@ def build_and_test(cwd):
     tmpcwd34 = os.path.join(cwd, 'tmpve3.4')
 
     # Build distribution.
+    subprocess.check_call([sys.executable, 'setup.py', 'clean', '-all'], cwd=cwd)
     subprocess.check_call([sys.executable, 'setup.py', 'sdist'], cwd=cwd)
     is_uploaded_testpypi = False
 

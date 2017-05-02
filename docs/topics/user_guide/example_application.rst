@@ -73,10 +73,10 @@ event classes have been pulled up to a layer supertype ``DomainEvent``.
 
 Please note, the domain event classes above do not depend on the library. The library does
 however contain a collection of different kinds of domain event classes that you can use
-in your models, for example see ``Created``, ``AttributeChanged``, ``Discarded`` in
-``eventsourcing.domain.model.events``, their supertype ``DomainEvent``, and the inner
-classes on various entity classes. The library classes are more developed than the
-examples here.
+in your models, for example see
+:class:`~eventsourcing.domain.model.events.Created`,
+:class:`~eventsourcing.domain.model.events.AttributeChanged`, and
+:class:`~eventsourcing.domain.model.events.Discarded`.
 
 
 Publish-subscribe
@@ -214,14 +214,14 @@ The example entity class does not depend on the library. In particular, it doesn
 inherit from a "magical" entity base class that makes everything work. The example
 here just publishes events that it has applied to itself. The library does however
 contain domain entity classes that you can use to build your domain model, for
-example the ``AggregateRoot`` class in ``eventsourcing.domain.model.aggregate``.
+example the class :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`.
 The library classes are more developed than the examples here.
 
 
 Mutator function
 ----------------
 
-The mutator function ``mutate()`` defined here handles ``Created`` events by constructing
+The mutator function ``mutate()`` below handles ``Created`` events by constructing
 an object. It handles ``AttributeChanged`` events by setting an attribute value, and it
 handles ``Discarded`` events by marking the entity as discarded. Each handler increases the
 version of the entity, so that the version of the entity is always one plus the
@@ -262,9 +262,10 @@ the sequence to an evolving initial state.
 
 
 For the sake of simplicity in this example, we'll use an if-else block to structure
-the mutator function. The library has a decorator ``@mutator`` that makes it easy to
-use singledispatch as way of structuring mutator functions, which are called with the
-event argument last because that's how ``functools.reduce()`` works.
+the mutator function. The library has a function decorator
+:func:`~eventsourcing.domain.model.decorators.mutator` that allows handlers
+for different types of event to be registered with a default mutator function,
+just like singledispatch.
 
 
 Run the code
@@ -371,8 +372,10 @@ each item positioned in its sequence by an integer index number.
 
 
 Now create the database table. For convenience, the SQLAlchemy objects can be adapted
-with the ``SQLAlchemyDatastore`` class, which provides a simple interface for the
-two operations we require: ``setup_connection()`` and ``setup_tables()``.
+with the class
+:class:`~eventsourcing.infrastructure.sqlalchemy.datastore.SQLAlchemyDatastore`, which
+provides a simple interface for the two operations we require: ``setup_connection()``
+and ``setup_tables()``.
 
 .. code:: python
 
@@ -406,7 +409,8 @@ Event store
 -----------
 
 To support different kinds of sequences in the domain model, and to allow for
-different database schemas, the library has an event store that uses
+different database schemas, the library has an event store class
+:class:`~eventsourcing.infrastructure.eventstore.EventStore` that uses
 a "sequenced item mapper" for mapping domain events to "sequenced items" - this
 library's archetype persistence model for storing events. The sequenced item
 mapper derives the values of sequenced item fields from the attributes of domain
@@ -453,11 +457,10 @@ to attributes of the domain event classes we defined in the domain model section
 Entity repository
 -----------------
 
-It is common to retrieve entities from a repository. An event sourced
-repository for the ``example`` entity class can be constructed directly using the
-``EventSourcedRepository`` library class. The repository is given the mutator function
-``mutate()`` and the event store.
-
+It is common to retrieve entities from a repository. An event sourced repository
+for the ``example`` entity class can be constructed directly using library class
+:class:`~eventsourcing.infrastructure.eventsourcedrepository.EventSourcedRepository`.
+The repository is given the mutator function ``mutate()`` and the event store.
 
 .. code:: python
 
@@ -535,9 +538,8 @@ event store, and an entity repository. The application also has a persistence po
 Persistence Policy
 ------------------
 
-The persistence policy subscribes to receive events whenever they are published. It
+The persistence policy below subscribes to receive events whenever they are published. It
 uses an event store to store events whenever they are received.
-
 
 .. code:: python
 
@@ -554,6 +556,8 @@ uses an event store to store events whenever they are received.
             self.event_store.append(event)
 
 
+A slightly more developed class :class:`~eventsourcing.application.policies.PersistencePolicy`
+is included in the library.
 
 Application object
 ------------------
@@ -593,6 +597,9 @@ and unsubscribe from receiving further domain events.
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.persistence_policy.close()
 
+A more developed class :class:`~eventsourcing.example.application.ExampleApplication`
+can be found in the library module ````. It is used in later sections of this guide.
+
 
 Run the code
 ============
@@ -627,7 +634,3 @@ exception instead of returning an entity.
 
 
 Congratulations. You have created yourself an event sourced application.
-
-A more developed ``ExampleApplication`` class can be found in the library
-module ``eventsourcing.example.application``. It is used in later sections
-of this guide.

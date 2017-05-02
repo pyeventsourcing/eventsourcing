@@ -2,7 +2,6 @@ import six
 from cassandra.cqlengine.functions import Token
 from cassandra.cqlengine.models import Model, columns
 from cassandra.cqlengine.query import BatchQuery, LWTException
-from cassandra.query import BatchType
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 
@@ -10,21 +9,20 @@ from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrate
 class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
     def append(self, sequenced_item_or_items):
         if isinstance(sequenced_item_or_items, list):
-            if len(sequenced_item_or_items) == 0:
-                return
-            b = BatchQuery()
-            for i in sequenced_item_or_items:
-                assert isinstance(i, self.sequenced_item_class), (type(i), self.sequenced_item_class)
-                self.active_record_class.batch(b).if_not_exists().create(
-                    s=i.sequence_id,
-                    p=i.position,
-                    t=i.topic,
-                    d=i.data,
-                )
-            try:
-                b.execute()
-            except LWTException as e:
-                self.raise_sequenced_item_error(sequenced_item_or_items, e)
+            if len(sequenced_item_or_items):
+                b = BatchQuery()
+                for i in sequenced_item_or_items:
+                    assert isinstance(i, self.sequenced_item_class), (type(i), self.sequenced_item_class)
+                    self.active_record_class.batch(b).if_not_exists().create(
+                        s=i.sequence_id,
+                        p=i.position,
+                        t=i.topic,
+                        d=i.data,
+                    )
+                try:
+                    b.execute()
+                except LWTException as e:
+                    self.raise_sequenced_item_error(sequenced_item_or_items, e)
         else:
             active_record = self.to_active_record(sequenced_item_or_items)
             try:

@@ -46,8 +46,7 @@ class Collection(TimestampedVersionedEntity):
             originator_version=self._version,
             item=item,
         )
-        self._apply(event)
-        publish(event)
+        self._apply_and_publish(event)
 
     def remove_item(self, item):
         self._assert_not_discarded()
@@ -56,18 +55,17 @@ class Collection(TimestampedVersionedEntity):
             originator_version=self._version,
             item=item,
         )
-        self._apply(event)
-        publish(event)
+        self._apply_and_publish(event)
 
-    @staticmethod
-    def _mutator(initial, event):
-        return collection_mutator(initial, event)
+    @classmethod
+    def _mutate(cls, initial, event):
+        return collection_mutator(initial or cls, event)
 
 
 def register_new_collection(collection_id=None):
     collection_id = uuid4().hex if collection_id is None else collection_id
     event = Collection.Created(originator_id=collection_id)
-    entity = Collection.mutate(event=event)
+    entity = collection_mutator(Collection, event)
     publish(event)
     return entity
 
