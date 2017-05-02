@@ -144,6 +144,11 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         retrieved_items = self.active_record_strategy.get_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 1)
 
+        # Check adding an empty list does nothing.
+        self.active_record_strategy.append([])
+        retrieved_items = self.active_record_strategy.get_items(sequence_id1)
+        self.assertEqual(len(retrieved_items), 1)
+
         # Append a second and third item at the next positions.
         self.active_record_strategy.append([item4, item5])
 
