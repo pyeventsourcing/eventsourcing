@@ -16,8 +16,9 @@ Domain
 ======
 
 To avoid duplicating code from the previous section, let's
-use the example entity class ``Example``, and its
-factory ``create_new_example``, from the library.
+use the example entity class :class:`~eventsourcing.example.domainmodel.Example`,
+and its factory function :func:`~eventsourcing.example.domainmodel.create_new_example`,
+from the library.
 
 
 .. code:: python
@@ -30,7 +31,9 @@ Infrastructure
 
 It is recommended not to store snapshots within the entity's sequence of events,
 but in a dedicated table for snapshots. So let's setup a dedicated table
-for snapshots, as well as a table for the events of the entity.
+for snapshots using the library class
+:class:`~eventsourcing.infrastructure.sqlalchemy.activerecords.SnapshotRecord`,
+as well as a table for the events of the entity.
 
 .. code:: python
 
@@ -49,7 +52,6 @@ for snapshots, as well as a table for the events of the entity.
 
 Application
 ===========
-
 
 Policy
 ------
@@ -92,16 +94,18 @@ snapshot is taken, the resulting snapshot is the same as it would have been othe
 Application object
 ------------------
 
-The application class below extends the library class ``ApplicationWithPersistencePolicies``,
-which constructs the event stores and persistence policies we need. The supertype has a policy
-to persist snapshots whenever they are taken. It also has as a policy to persist the events of
-entities whenever they are published.
+The application class below extends the library class
+:class:`~eventsourcing.application.base.ApplicationWithPersistencePolicies`,
+which constructs the event stores and persistence policies we need. The supertype
+has a policy to persist snapshots whenever they are taken. It also has as a policy
+to persist the events of entities whenever they are published.
 
 The example entity repository is constructed from library class
-``EventSourcedRepository`` with a snapshot strategy, the integer sequenced event
-store, and a mutator function. The snapshot strategy is constructed from library class
-``EventSourcedSnapshotStrategy`` with an event store for snapshots that is provided by the
-supertype.
+:class:`~eventsourcing.infrastructure.eventsourcedrepository.EventSourcedRepository`
+with a snapshot strategy, the integer sequenced event store, and a mutator function.
+The snapshot strategy is constructed from library class
+:class:`~eventsourcing.infrastructure.snapshotting.EventSourcedSnapshotStrategy`
+with an event store for snapshots that is provided by the supertype.
 
 The application's snapshotting policy is constructed with the example repository, which
 it needs in order to take snapshots.
