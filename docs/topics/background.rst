@@ -13,12 +13,12 @@ the event stream that are persisted in other models. Quoting from the
 
 .. pull-quote::
 
-    **"Therefore: Partition a conceptually COHESIVE MECHANISM into a separate
+    **Therefore: Partition a conceptually COHESIVE MECHANISM into a separate
     lightweight framework. Particularly watch for formalisms for
     well-documented categories of algorithms. Expose the capabilities of the
     framework with an INTENTION-REVEALING INTERFACE. Now the other elements
     of the domain can focus on expressing the problem ("what"), delegating
-    the intricacies of the solution ("how") to the framework."**
+    the intricacies of the solution ("how") to the framework.**
 
 Inspiration:
 
