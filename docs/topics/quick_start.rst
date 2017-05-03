@@ -2,8 +2,9 @@
 Quick start
 ===========
 
-This section show how to write a working event sourced
-application, using only a few lines of code.
+This section shows how to write a very simple event sourced
+application using classes from the library. It shows the
+overall structure that is elaborated in the user guide.
 
 Firstly, please use pip to install the library
 with the 'sqlalchemy' option.
