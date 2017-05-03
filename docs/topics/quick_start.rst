@@ -28,12 +28,15 @@ and its factory :func:`~eventsourcing.example.domainmodel.create_new_example`.
 Infrastructure
 ==============
 
-Setup an SQLite database in memory, using library classes.
+Setup an SQLite database in memory, using library classes
+:class:`~eventsourcing.infrastructure.sqlalchemy.datastore.SQLAlchemyDatastore` with
+:class:`~eventsourcing.infrastructure.sqlalchemy.datastore.SQLAlchemySettings` and
+:class:`~eventsourcing.infrastructure.sqlalchemy.activerecords.SQLAlchemySettings`.
 
 .. code:: python
 
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemySettings
 
     datastore = SQLAlchemyDatastore(
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
@@ -47,7 +50,9 @@ Setup an SQLite database in memory, using library classes.
 Application
 ===========
 
-Construct an event sourced application object, with an example repository.
+Define an application object factory, that constructs an application with library
+class :class:`~eventsourcing.application.base.ApplicationWithPersistencePolicies`
+with an example repository.
 
 .. code:: python
 
