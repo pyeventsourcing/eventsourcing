@@ -16,8 +16,8 @@ Domain
 ======
 
 To avoid duplicating code from the previous section, let's
-use the example entity class :class:`~eventsourcing.example.domainmodel.Example`,
-and its factory function :func:`~eventsourcing.example.domainmodel.create_new_example`,
+use the example entity class :class:`~eventsourcing.example.domainmodel.Example`
+and its factory function :func:`~eventsourcing.example.domainmodel.create_new_example`
 from the library.
 
 
