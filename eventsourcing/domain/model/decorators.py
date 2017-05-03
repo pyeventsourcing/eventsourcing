@@ -1,4 +1,5 @@
 from inspect import isfunction
+from time import sleep
 
 from six import wraps
 
@@ -129,6 +130,40 @@ def attribute(getter):
             name = '_' + getter.__name__
             return getattr(self, name)
 
-        return property(fget=new_getter, fset=setter)
+        return property(fget=new_getter, fset=setter, doc=getter.__doc__)
     else:
         raise ProgrammingError("Expected a function, got: {}".format(repr(getter)))
+
+
+def retry(exc=Exception, max_retries=5, wait=0.5):
+
+    def _retry(func):
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while True:
+                try:
+                    func(*args, **kwargs)
+                except exc as e:
+                    attempts += 1
+                    if attempts < max_retries:
+                        sleep(wait)
+                    else:
+                        raise e
+                else:
+                    break
+        return wrapper
+
+    if isfunction(exc):
+        func = exc
+        exc = Exception
+        return _retry(func=func)
+    else:
+        if not (isinstance(exc, type) and issubclass(exc, Exception)):
+            raise TypeError("'exc' must be an exception class: {}".format(exc))
+        if not isinstance(max_retries, int):
+            raise TypeError("'max' must be an int: {}".format(max_retries))
+        if not isinstance(wait, (float, int)):
+            raise TypeError("'wait' must be a float: {}".format(max_retries))
+        return _retry

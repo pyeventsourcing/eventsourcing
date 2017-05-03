@@ -3,8 +3,10 @@ import os
 import cassandra.cqlengine
 from cassandra import ConsistencyLevel
 from cassandra.auth import PlainTextAuthProvider
+from cassandra.cluster import NoHostAvailable
 from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
 
+from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import DatasourceSettingsError
 from eventsourcing.infrastructure.datastore import Datastore, DatastoreSettings
 
@@ -81,10 +83,11 @@ class CassandraDatastore(Datastore):
         if cassandra.cqlengine.connection.cluster:
             cassandra.cqlengine.connection.cluster.shutdown()
 
+    @retry(NoHostAvailable, max_retries=10, wait=0.5)
     def setup_tables(self):
+
         # Avoid warnings about this variable not being set.
         os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
-
         # Attempt to create the keyspace.
         create_keyspace_simple(
             name=self.settings.default_keyspace,
@@ -93,11 +96,13 @@ class CassandraDatastore(Datastore):
         for table in self.tables:
             sync_table(table)
 
+    @retry(NoHostAvailable, max_retries=10, wait=0.5)
     def drop_tables(self):
         # Avoid warnings about this variable not being set.
         os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
         drop_keyspace(name=self.settings.default_keyspace)
 
+    @retry(NoHostAvailable, max_retries=10, wait=0.5)
     def truncate_tables(self):
         # Avoid warnings about this variable not being set.
         os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
