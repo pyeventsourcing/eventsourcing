@@ -17,7 +17,8 @@ with the 'sqlalchemy' option.
 Domain
 ======
 
-Use the example entity class ``Example``, and its factory ``create_new_example``.
+Import the example entity class :class:`~eventsourcing.example.domainmodel.Example`,
+and its factory :func:`~eventsourcing.example.domainmodel.create_new_example`.
 
 .. code:: python
 
