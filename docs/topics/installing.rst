@@ -7,7 +7,6 @@ Use pip to install the library from the
 
 ::
 
-    pip install -U pip
     pip install eventsourcing
 
 

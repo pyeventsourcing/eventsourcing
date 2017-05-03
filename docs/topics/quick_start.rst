@@ -10,7 +10,6 @@ with the 'sqlalchemy' option.
 
 ::
 
-    pip install -U pip
     pip install eventsourcing[sqlalchemy]
 
 
