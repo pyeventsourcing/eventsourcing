@@ -3,9 +3,9 @@ from time import time
 from uuid import UUID, uuid4
 
 from eventsourcing.domain.model.decorators import subscribe_to
-from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmptyError, EventWithOriginatorVersion, \
-    EventWithTimestamp, _event_handlers, all_events, assert_event_handlers_empty, create_timesequenced_event_id, \
-    publish, resolve_domain_topic, subscribe, unsubscribe, EventWithOriginatorID
+from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmptyError, EventWithOriginatorID, \
+    EventWithOriginatorVersion, EventWithTimestamp, _event_handlers, assert_event_handlers_empty, \
+    create_timesequenced_event_id, publish, resolve_domain_topic, subscribe, unsubscribe
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.exceptions import TopicResolutionError
 
@@ -350,11 +350,6 @@ class TestEvents(unittest.TestCase):
 
         # Check we can assert there are no event handlers subscribed.
         assert_event_handlers_empty()
-
-    def test_all_events(self):
-        self.assertTrue(all_events(True))
-        self.assertTrue(all_events(False))
-        self.assertTrue(all_events(None))
 
     def test_hash(self):
         entity_id1 = uuid4()

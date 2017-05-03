@@ -63,7 +63,7 @@ Aggregate model
                 originator_id=self.id,
                 originator_version=self.version,
             )
-            self._apply(event)
+            self._apply_and_publish(event)
             self._publish(event)
 
         def _publish(self, event):
@@ -73,9 +73,9 @@ Aggregate model
             publish(self._pending_events[:])
             self._pending_events = []
 
-        @staticmethod
-        def _mutator(initial, event):
-            return mutate_aggregate(initial, event)
+        @classmethod
+        def _mutate(cls, initial, event):
+            return mutate_aggregate(initial or cls, event)
 
 
     class Example(object):
@@ -105,7 +105,7 @@ Aggregate factory
         event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4(), foo=foo)
 
         # Mutate aggregate.
-        aggregate = ExampleAggregateRoot.mutate(event=event)
+        aggregate = mutate_aggregate(ExampleAggregateRoot, event)
 
         # Publish event to internal list only.
         aggregate._publish(event)
@@ -226,14 +226,14 @@ Application object
 
         def __init__(self, **kwargs):
             # Construct event stores and persistence policies.
-            integer_sequenced_active_record_strategy = CassandraActiveRecordStrategy(
+            entity_active_record_strategy = CassandraActiveRecordStrategy(
                 active_record_class=IntegerSequencedItemRecord,
             )
             snapshot_active_record_strategy = CassandraActiveRecordStrategy(
                 active_record_class=SnapshotRecord,
             )
             super(EverythingApplication, self).__init__(
-                integer_sequenced_active_record_strategy=integer_sequenced_active_record_strategy,
+                entity_active_record_strategy=entity_active_record_strategy,
                 snapshot_active_record_strategy=snapshot_active_record_strategy,
                 **kwargs
             )
@@ -245,8 +245,8 @@ Application object
 
             # Construct the entity repository, this time with the snapshot strategy.
             self.example_repository = EventSourcedRepository(
-                event_store=self.integer_sequenced_event_store,
-                mutator=ExampleAggregateRoot.mutate,
+                event_store=self.entity_event_store,
+                mutator=ExampleAggregateRoot._mutate,
                 snapshot_strategy=self.snapshot_strategy
             )
 
@@ -277,7 +277,7 @@ Run the code
         secret_aggregate.save()
 
         # With encryption enabled, application state is not visible in the database.
-        event_store = app.integer_sequenced_event_store
+        event_store = app.entity_event_store
 
         item2 = event_store.active_record_strategy.get_item(secret_aggregate.id, eq=0)
         assert 'secret info' not in item2.data

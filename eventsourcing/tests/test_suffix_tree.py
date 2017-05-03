@@ -16,7 +16,7 @@
 #
 #     def setUp(self):
 #         self.app = SuffixTreeApplication(
-#             integer_sequenced_active_record_strategy=self.integer_sequence_active_record_strategy,
+#             entity_active_record_strategy=self.integer_sequence_active_record_strategy,
 #         )
 #
 #     def tearDown(self):

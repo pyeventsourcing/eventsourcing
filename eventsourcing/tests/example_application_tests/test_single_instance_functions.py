@@ -35,13 +35,13 @@ class TestExampleApplicationSingleInstanceFunctions(SQLAlchemyDatastoreTestCase)
 
         # Construct single instance.
         init_example_application(
-            integer_sequenced_active_record_strategy=active_record_strategy
+            entity_active_record_strategy=active_record_strategy
         )
 
         # Can't construct single instance twice.
         with self.assertRaises(AssertionError):
             init_example_application(
-                integer_sequenced_active_record_strategy=active_record_strategy
+                entity_active_record_strategy=active_record_strategy
             )
 
         # Get the single instance.
@@ -58,13 +58,13 @@ class TestExampleApplicationSingleInstanceFunctions(SQLAlchemyDatastoreTestCase)
 
         # Construct single instance.
         init_example_application(
-            integer_sequenced_active_record_strategy=active_record_strategy
+            entity_active_record_strategy=active_record_strategy
         )
 
         # Can't construct single instance twice.
         with self.assertRaises(AssertionError):
             init_example_application(
-                integer_sequenced_active_record_strategy=active_record_strategy
+                entity_active_record_strategy=active_record_strategy
             )
 
         # Get the single instance.

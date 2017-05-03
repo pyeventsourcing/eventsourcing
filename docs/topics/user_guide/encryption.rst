@@ -58,7 +58,7 @@ Define a factory that uses library classes to construct an application object.
             session=session
         )
         app = ExampleApplication(
-            integer_sequenced_active_record_strategy=active_record_strategy,
+            entity_active_record_strategy=active_record_strategy,
             always_encrypt=always_encrypt,
             cipher=cipher,
         )
@@ -82,7 +82,7 @@ encrypted.
         secret_entity = app.create_new_example(foo='secret info')
 
         # With encryption enabled, application state is not visible in the database.
-        event_store = app.integer_sequenced_event_store
+        event_store = app.entity_event_store
         item2 = event_store.active_record_strategy.get_item(secret_entity.id, eq=0)
         assert 'secret info' not in item2.data
 
@@ -96,6 +96,6 @@ encrypted.
         entity = app.create_new_example(foo='bar')
 
         # Without encryption, application state is visible in the database.
-        event_store = app.integer_sequenced_event_store
+        event_store = app.entity_event_store
         item1 = event_store.active_record_strategy.get_item(entity.id, 0)
         assert 'bar' in item1.data

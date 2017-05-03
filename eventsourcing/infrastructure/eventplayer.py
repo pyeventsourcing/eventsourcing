@@ -53,7 +53,8 @@ class EventPlayer(object):
                                                lt=lt,
                                                lte=lte,
                                                limit=limit,
-                                               is_ascending=is_ascending)
+                                               is_ascending=is_ascending
+                                               )
 
         # The events will be replayed in ascending order.
         if not is_ascending:

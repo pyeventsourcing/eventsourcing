@@ -122,7 +122,7 @@ class PerformanceTestCase(WithExampleApplication):
         with self.construct_application() as app:
             example_id = uuid4()
             log = start_new_timebucketedlog(example_id, bucket_size='year')
-            log_reader = get_timebucketedlog_reader(log, app.timestamp_sequenced_event_store)
+            log_reader = get_timebucketedlog_reader(log, app.log_event_store)
 
             # Write a load of messages.
             start_write = time.time()
