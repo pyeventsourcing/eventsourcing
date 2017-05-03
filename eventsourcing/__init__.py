@@ -92,11 +92,64 @@ Domain layer
 Infrastructure layer
 ====================
 
+:mod:`eventsourcing.infrastructure.eventsourcedrepository`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.eventsourcedrepository
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.infrastructure.eventplayer`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.eventplayer
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.infrastructure.snapshotting`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.snapshotting
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
 
 :mod:`eventsourcing.infrastructure.eventstore`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.infrastructure.eventstore
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.infrastructure.sequenceditem`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.sequenceditem
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.infrastructure.sequenceditemmapper`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.sequenceditemmapper
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.infrastructure.transcoding`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.transcoding
     :members:
     :show-inheritance:
     :undoc-members:
@@ -115,51 +168,6 @@ Infrastructure layer
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.infrastructure.datastore
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
-
-:mod:`eventsourcing.infrastructure.transcoding`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: eventsourcing.infrastructure.transcoding
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
-
-:mod:`eventsourcing.infrastructure.eventplayer`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: eventsourcing.infrastructure.eventplayer
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
-
-:mod:`eventsourcing.infrastructure.eventsourcedrepository`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: eventsourcing.infrastructure.eventsourcedrepository
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
-
-:mod:`eventsourcing.infrastructure.snapshotting`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: eventsourcing.infrastructure.snapshotting
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
-
-:mod:`eventsourcing.infrastructure.iterators`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: eventsourcing.infrastructure.iterators
     :members:
     :show-inheritance:
     :undoc-members:
@@ -200,6 +208,14 @@ Infrastructure layer
     :show-inheritance:
     :undoc-members:
 
+
+:mod:`eventsourcing.infrastructure.iterators`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.iterators
+    :members:
+    :show-inheritance:
+    :undoc-members:
 
 
 =================
