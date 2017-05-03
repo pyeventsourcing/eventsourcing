@@ -22,8 +22,8 @@ the library, includes a detailed example of usage, describes the design of the s
 some background information about the project.
 
 This project is `hosted on GitHub <https://github.com/johnbywater/eventsourcing>`__.
-Please `register your issues, questions, and requests
-<https://github.com/johnbywater/eventsourcing/issues>`__.
+Please `register any issues, questions, and requests
+<https://github.com/johnbywater/eventsourcing/issues>`__ on GitHub.
 
 
 .. toctree::
