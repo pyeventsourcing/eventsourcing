@@ -199,8 +199,6 @@ Snapshotting policy
             is_period = not (event.originator_version + 1) % self.period
             is_type = isinstance(event, ExampleAggregateRoot.Event)
             is_trigger = is_type and is_period
-            #if event.originator_version not in [0, 1, 2, 3, 4]:
-            #    raise Exception(event.originator_version, is_period, is_type, type(event))
             return is_trigger
 
         def take_snapshot(self, event):
