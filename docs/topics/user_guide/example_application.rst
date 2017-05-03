@@ -330,14 +330,23 @@ Since the application state is determined by a sequence of events, the
 application must somehow be able both to persist the events, and then
 recover the entities.
 
+Please note, storing and replaying event to persist and reconstruct
+application state is the primary capability and inner core of this
+library. The domain and application and interface layers are offered
+as a supplement to the infrastructural capabilities, and have been
+added to the library partly as a way of shaping and validating the
+infrastructure, partly to demonstrate how the core capabilities may
+be applied, but also as a convenient way of reusing foundational code
+so that attention can remain on the problem domain (framework).
+
 
 Database table
 --------------
 
 Let's start by setting up a simple database table that can store sequences
-of items. We can use SQLAlchemy to define a database table that stores
-items in sequences, with a single identity for each sequence, and with
-each item positioned in its sequence by an integer index number.
+of items. We can use SQLAlchemy directly to define a database table that
+stores items in sequences, with a single identity for each sequence, and
+with each item positioned in its sequence by an integer index number.
 
 .. code:: python
 
@@ -371,7 +380,11 @@ each item positioned in its sequence by an integer index number.
                                           name='integer_sequenced_item_uc'),
 
 
-Now create the database table. For convenience, the SQLAlchemy objects can be adapted
+The library has a class
+:class:`~eventsourcing.infrastructure.sqlalchemy.activerecords.IntegerSequencedItemRecord`
+which is very similar to the above.
+
+Next, create the database table. For convenience, the SQLAlchemy objects can be adapted
 with the class
 :class:`~eventsourcing.infrastructure.sqlalchemy.datastore.SQLAlchemyDatastore`, which
 provides a simple interface for the two operations we require: ``setup_connection()``
@@ -394,7 +407,8 @@ and ``setup_tables()``.
 As you can see from the ``uri`` argument above, this example is using SQLite to manage
 an in memory relational database. You can change ``uri`` to any valid connection string.
 Here are some example connection strings: for an SQLite file; for a PostgreSQL database; and
-for a MySQL database. See SQLAlchemy's create_engine() documentation for details.
+for a MySQL database. See SQLAlchemy's create_engine() documentation for details. You may need
+to install drivers for your database management system.
 
 ::
 
@@ -403,6 +417,14 @@ for a MySQL database. See SQLAlchemy's create_engine() documentation for details
     postgresql://scott:tiger@localhost:5432/mydatabase
 
     mysql://scott:tiger@hostname/dbname
+
+
+
+Similar to the support for storing events in SQLAlchemy, there
+are classes in the library for :doc:`Cassandra </topics/user_guide/cassandra>`.
+The project `djangoevents <https://github.com/ApplauseOSS/djangoevents>`__ has
+support for storing events with this library using the Django ORM.
+Support for other databases such as DynamoDB is forthcoming.
 
 
 Event store
@@ -500,12 +522,14 @@ Sequenced items
 
 Remember that we can always get the sequenced items directly from the active record
 strategy. A sequenced item is tuple containing a serialised representation of the
-domain event. In the library, a ``SequencedItem`` is a Python tuple with four fields:
-``sequence_id``, ``position``, ``topic``, and ``data``. In this example, an event's
-``originator_id`` attribute is mapped to the ``sequence_id`` field, and the event's
-``originator_version`` attribute is mapped to the ``position`` field. The ``topic``
-field of a sequenced item is used to identify the event class, and the ``data`` field
-represents the state of the event (a JSON string).
+domain event. The library class
+:class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem` is a Python namedtuple
+with four fields: ``sequence_id``, ``position``, ``topic``, and ``data``.
+
+In this example, an event's ``originator_id`` attribute is mapped to the ``sequence_id``
+field, and the event's ``originator_version`` attribute is mapped to the ``position``
+field. The ``topic`` field of a sequenced item is used to identify the event class, and
+the ``data`` field represents the state of the event (normally a JSON string).
 
 .. code:: python
 
@@ -523,9 +547,11 @@ represents the state of the event (a JSON string).
     assert 'AttributeChanged' in sequenced_items[1].topic
     assert 'baz' in sequenced_items[1].data
 
-Similar to the support for storing events in SQLAlchemy, there
-are classes in the library for Cassandra. Support for other
-databases is forthcoming.
+
+These are just default names. If it matters in your context that
+the persistence model uses other names, then you can
+:doc:`use a different sequenced item type </topics/user_guide/schema>`
+which either extends or replaces the fields above.
 
 
 Application
@@ -598,7 +624,7 @@ and unsubscribe from receiving further domain events.
             self.persistence_policy.close()
 
 A more developed class :class:`~eventsourcing.example.application.ExampleApplication`
-can be found in the library module ````. It is used in later sections of this guide.
+can be found in the library. It is used in later sections of this guide.
 
 
 Run the code
