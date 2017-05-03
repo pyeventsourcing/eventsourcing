@@ -12,6 +12,8 @@ Eric Evans' book Domain Driven Design describes an abstraction called
 
 Therefore,
 
+.. pull-quote::
+
     **Cluster the entities and value objects into aggregates and define
     boundaries around each. Choose one entity to be the root of each
     aggregate, and control all access to the objects inside the boundary
