@@ -87,15 +87,17 @@ up the database connection also to construct the application once for the proces
 See below for some suggestions.
 
 
+
 Web frameworks
 ==============
 
-This section contains suggestions for uWSGI users.
+This section contains suggestions for Web framework users.
 
 *Please note, the fragments of code in this section are merely suggestive, and unlike the
 code snippets in the other sections of the user guide, do not form a working program. For
-a working example using Flask and uWSGI, please refer to the Python modules* ``flaskapp`` *and*
-``flaskwsgi`` *in the package* ``eventsourcing.example.application``.
+a working example using Flask and uWSGI, please refer to the library modules
+:mod:`eventsourcing.example.flaskapp` and
+:mod:`eventsourcing.example.flaskwsgi`.
 
 uWSGI
 -----
@@ -122,26 +124,10 @@ after child workers have been forked.
         init_example_application()
 
 
-Django
-------
-
-Django views can then use ``get_example_application()`` to construct the response.
-
-.. code:: python
-
-    from django.http import HttpResponse
-
-    def hello_world(request):
-        # Use eventsourcing application to construct response.
-        app = get_example_application()
-        html = "<html><body>Hello World, {}</body></html>".format(id(app))
-        return HttpResponse(html)
-
-
 Flask
 -----
 
-Similarly, Flask views can use ``get_example_application()`` to construct the response.
+Flask views can use ``get_example_application()`` to construct their response.
 
 .. code:: python
 
@@ -157,12 +143,43 @@ Similarly, Flask views can use ``get_example_application()`` to construct the re
         return "Hello World, {}".format(id(app))
 
 
+Django
+------
+
+Similarly, Django views can use ``get_example_application()`` to construct the response.
+
+.. code:: python
+
+    from django.http import HttpResponse
+
+    def hello_world(request):
+        # Use eventsourcing application to construct response.
+        app = get_example_application()
+        html = "<html><body>Hello World, {}</body></html>".format(id(app))
+        return HttpResponse(html)
+
+
 In both cases, database tables must be created before running the application.
+
+
+Applause djangoevents project
+-----------------------------
+
+The excellent project `djangoevents <https://github.com/ApplauseOSS/djangoevents>`__
+by `Applause <https://www.applause.com/>`__ is a Django app that provides a neat
+way of taking an event sourcing approach in a Django project. It allows this library
+to be used seamlessly with Django, by using the Django ORM to store events. Using
+djangoevents is well documented in the README file. It adds some nice enhancements
+to the capabilities of this library, and shows how various components can be
+extended or replaced. Please note, the djangoevents project currently works with
+a previous version of this library.
+
 
 Task queue workers
 ==================
 
 This section contains suggestions for Celery users.
+
 
 Celery
 ------

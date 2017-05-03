@@ -13,7 +13,7 @@ from requests.exceptions import ConnectionError
 from requests.models import Response
 
 import eventsourcing
-from eventsourcing.example import flaskapp
+from eventsourcing.example.interface import flaskapp
 from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.base import notquick

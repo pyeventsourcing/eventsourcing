@@ -129,7 +129,7 @@ Infrastructure layer
 
 
 :mod:`eventsourcing.infrastructure.sequenceditem`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.infrastructure.sequenceditem
     :members:
@@ -138,7 +138,7 @@ Infrastructure layer
 
 
 :mod:`eventsourcing.infrastructure.sequenceditemmapper`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.infrastructure.sequenceditemmapper
     :members:
@@ -232,25 +232,50 @@ Exception classes
 Example application
 ===================
 
+:mod:`eventsourcing.example.interface.flaskwsgi`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.example.interface.flaskwsgi
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.example.interface.flaskapp`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.example.interface.flaskapp
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.example.application`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 .. automodule:: eventsourcing.example.application
     :members:
     :show-inheritance:
     :undoc-members:
+
+
+:mod:`eventsourcing.example.domainmodel`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.example.domainmodel
     :members:
     :show-inheritance:
     :undoc-members:
 
+
+:mod:`eventsourcing.example.infrastructure`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 .. automodule:: eventsourcing.example.infrastructure
     :members:
     :show-inheritance:
     :undoc-members:
 
-.. automodule:: eventsourcing.example.flaskapp
-    :members:
-    :show-inheritance:
-    :undoc-members:
 
 """
 

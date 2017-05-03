@@ -91,3 +91,13 @@ Use the application to get two instances of the same entity, and try to change t
             pass
         else:
             raise Exception("Failed to control concurrency of 'a'.")
+
+Cassandra
+---------
+
+The Cassandra database management system, which implements the Paxos protocol,
+can (allegedly) accomplish linearly-scalable distributed optimistic concurrency
+control, guaranteeing sequential consistency of the events of an entity. It is
+also possible to serialize calls to the methods of an entity, but that is out of
+the scope of this package — if you wish to do that, perhaps something like
+`Zookeeper <https://zookeeper.apache.org/>`__ might help.
