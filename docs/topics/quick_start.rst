@@ -16,8 +16,8 @@ Please use pip to install the library with the 'sqlalchemy' option.
 Domain
 ======
 
-Firstly, import the example entity class :class:`~eventsourcing.example.domainmodel.Example`,
-and its factory :func:`~eventsourcing.example.domainmodel.create_new_example`.
+Firstly, import the example entity class :class:`~eventsourcing.example.domainmodel.Example`
+and its factory function :func:`~eventsourcing.example.domainmodel.create_new_example`.
 
 .. code:: python
 
