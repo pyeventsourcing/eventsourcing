@@ -330,9 +330,9 @@ Since the application state is determined by a sequence of events, the
 application must somehow be able both to persist the events, and then
 recover the entities.
 
-Please note, storing and replaying event to persist and reconstruct
-application state is the primary capability and inner core of this
-library. The domain and application and interface layers are offered
+Please note, storing and replaying events to persist and to reconstruct
+the state of an application is the primary capability of this
+library. The domain and application and interface capabilities are offered
 as a supplement to the infrastructural capabilities, and have been
 added to the library partly as a way of shaping and validating the
 infrastructure, partly to demonstrate how the core capabilities may
