@@ -30,12 +30,12 @@ Please `register your issues, questions, and requests
    :maxdepth: 2
    :caption: Contents
 
+   topics/background
    topics/quick_start
    topics/installing
    topics/features
    topics/user_guide/index
    topics/design
-   topics/background
    topics/release_notes
 
 
