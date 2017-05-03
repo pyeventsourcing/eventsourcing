@@ -53,7 +53,7 @@ class TimebucketedlogReader(with_metaclass(QualnameABCMeta)):
         while True:
             bucket_id = make_timebucket_id(self.log.name, position, self.log.bucket_size)
             for message_logged_event in self.event_store.get_domain_events(
-                entity_id=bucket_id,
+                originator_id=bucket_id,
                 gt=gt,
                 gte=gte,
                 lt=lt,

@@ -74,16 +74,9 @@ class EventPlayer(object):
         Returns domain events for given entity ID.
         """
         # Get entity's domain events from the event store.
-        domain_events = self.event_store.get_domain_events(
-            entity_id=entity_id,
-            gt=gt,
-            gte=gte,
-            lt=lt,
-            lte=lte,
-            limit=limit,
-            page_size=self.page_size,
-            is_ascending=is_ascending,
-        )
+        domain_events = self.event_store.get_domain_events(originator_id=entity_id, gt=gt, gte=gte, lt=lt, lte=lte,
+                                                           limit=limit, is_ascending=is_ascending,
+                                                           page_size=self.page_size)
         return domain_events
 
     def take_snapshot(self, entity_id, lt=None, lte=None):

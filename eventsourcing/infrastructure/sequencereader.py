@@ -3,29 +3,20 @@ import six
 from eventsourcing.domain.model.events import publish
 from eventsourcing.domain.model.sequence import Sequence
 from eventsourcing.exceptions import SequenceFullError
-from eventsourcing.infrastructure.eventplayer import EventPlayer
-
-
-def append_item_to_sequence(name, item, event_player, max_size=None):
-    assert isinstance(event_player, EventPlayer)
-    last_event = event_player.event_store.get_most_recent_event(name)
-    next_version = last_event.originator_version + 1
-    if max_size and max_size < next_version:
-        raise SequenceFullError
-    event = Sequence.ItemAppended(
-        originator_id=name,
-        originator_version=next_version,
-        item=item,
-    )
-    publish(event)
+from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 
 class SequenceReader(object):
-    def __init__(self, sequence, event_player):
+    def __init__(self, sequence, event_store, max_size=None):
         assert isinstance(sequence, Sequence), sequence
-        assert isinstance(event_player, EventPlayer), event_player
+        assert isinstance(event_store, AbstractEventStore), event_store
         self.sequence = sequence
-        self.event_player = event_player
+        self.event_store = event_store
+        self.max_size = max_size
+
+    @property
+    def id(self):
+        return self.sequence.id
 
     def __getitem__(self, item):
         assert isinstance(item, (six.integer_types, slice))
@@ -39,10 +30,7 @@ class SequenceReader(object):
                     raise IndexError("Sequence index out of range: {}".format(item))
             else:
                 index = item
-            event = self.event_player.event_store.get_domain_event(
-                entity_id=self.sequence.id,
-                eq=index + 1,
-            )
+            event = self.event_store.get_domain_event(originator_id=self.sequence.id, eq=index + 1)
             return event.item
         elif isinstance(item, slice):
             assert item.step == None, "Slice step must be 1: {}".format(str(item.step))
@@ -67,14 +55,30 @@ class SequenceReader(object):
             if limit is not None and limit <= 0:
                 return []
 
-            events = self.event_player.event_store.get_domain_events(
-                entity_id=self.sequence.id,
-                gte=start_index + 1,
-                limit=limit
-            )
+            events = self.event_store.get_domain_events(originator_id=self.sequence.id,
+                                                        gte=start_index + 1, limit=limit)
             items = [e.item for e in events]
             return items
 
     def __len__(self):
-        events = self.event_player.get_domain_events(self.sequence.id, is_ascending=False, limit=1)
+        """
+        Counts items in sequence.
+        """
+        events = self.event_store.get_domain_events(originator_id=self.sequence.id, limit=1,
+                                                    is_ascending=False)
         return events[0].originator_version
+
+    def append(self, item):
+        """
+        Appends item to sequence, by publishing an ItemAppended event.
+        """
+        last_event = self.event_store.get_most_recent_event(self.id)
+        next_version = last_event.originator_version + 1
+        if self.max_size and self.max_size < next_version:
+            raise SequenceFullError
+        event = Sequence.ItemAppended(
+            originator_id=self.id,
+            originator_version=next_version,
+            item=item,
+        )
+        publish(event)

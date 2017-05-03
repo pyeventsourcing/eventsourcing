@@ -1,9 +1,8 @@
 from uuid import uuid4
 
-from eventsourcing.domain.model.sequence import Sequence
 from eventsourcing.exceptions import SequenceFullError
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo
-from eventsourcing.infrastructure.sequence import SequenceReader, append_item_to_sequence
+from eventsourcing.infrastructure.sequencereader import SequenceReader
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
     WithCassandraActiveRecordStrategies
@@ -16,95 +15,93 @@ class SequenceTestCase(WithPersistencePolicies):
         repo = SequenceRepo(self.entity_event_store)
 
         # Start a new sequence.
-        name = uuid4()
+        sequence_id = uuid4()
 
-        # Check get_or_create() can create a new sequence.
-        sequence = repo.get_or_create(name)
-        self.assertIsInstance(sequence, Sequence)
-        self.assertEqual(sequence.name, name)
+        # Check get_reader() can create a new sequence.
+        sequence = repo.get_reader(sequence_id)
+        self.assertIsInstance(sequence, SequenceReader)
+        self.assertEqual(sequence.id, sequence_id)
 
-        # Check get_or_create() can return an existing sequence.
-        sequence = repo.get_or_create(name)
-        self.assertIsInstance(sequence, Sequence)
-        self.assertEqual(sequence.name, name)
+        # Check get_reader() can return an existing sequence.
+        sequence = repo.get_reader(sequence_id)
+        self.assertIsInstance(sequence, SequenceReader)
+        self.assertEqual(sequence.id, sequence_id)
 
         # Append some items.
-        append_item_to_sequence(name, 'item1', repo.event_player)
-        append_item_to_sequence(name, 'item2', repo.event_player)
-        append_item_to_sequence(name, 'item3', repo.event_player)
+        sequence.append('item1')
+        sequence.append('item2')
+        sequence.append('item3')
 
         # Check the sequence in the repo.
-        sequence = repo[name]
-        self.assertIsInstance(sequence, Sequence)
-        self.assertEqual(sequence.name, name)
-        self.assertEqual(sequence.version, 1)
+        self.assertIsInstance(sequence, SequenceReader)
+        self.assertEqual(sequence.id, sequence_id)
 
         # Check the sequence indexing.
-        reader = SequenceReader(sequence, repo.event_player)
-        self.assertEqual(reader[0], 'item1')
-        self.assertEqual(reader[-3], 'item1')
-        self.assertEqual(reader[1], 'item2')
-        self.assertEqual(reader[-2], 'item2')
-        self.assertEqual(reader[2], 'item3')
-        self.assertEqual(reader[-1], 'item3')
+        self.assertEqual(sequence[0], 'item1')
+        self.assertEqual(sequence[-3], 'item1')
+        self.assertEqual(sequence[1], 'item2')
+        self.assertEqual(sequence[-2], 'item2')
+        self.assertEqual(sequence[2], 'item3')
+        self.assertEqual(sequence[-1], 'item3')
 
         # Check slices also work.
-        self.assertEqual(reader[0:3], ['item1', 'item2', 'item3'])
-        self.assertEqual(reader[0:2], ['item1', 'item2'])
-        self.assertEqual(reader[0:-1], ['item1', 'item2'])
-        self.assertEqual(reader[0:1], ['item1'])
-        self.assertEqual(reader[0:-2], ['item1'])
-        self.assertEqual(reader[1:3], ['item2', 'item3'])
-        self.assertEqual(reader[1:2], ['item2'])
-        self.assertEqual(reader[-2:-1], ['item2'])
-        self.assertEqual(reader[1:1], [])
-        self.assertEqual(reader[-2:-2], [])
-        self.assertEqual(reader[2:3], ['item3'])
-        self.assertEqual(reader[3:3], [])
-        self.assertEqual(reader[0:300], ['item1', 'item2', 'item3'])
-        self.assertEqual(reader[2:1], [])
-        self.assertEqual(reader[2:-2], [])
+        self.assertEqual(sequence[0:3], ['item1', 'item2', 'item3'])
+        self.assertEqual(sequence[0:2], ['item1', 'item2'])
+        self.assertEqual(sequence[0:-1], ['item1', 'item2'])
+        self.assertEqual(sequence[0:1], ['item1'])
+        self.assertEqual(sequence[0:-2], ['item1'])
+        self.assertEqual(sequence[1:3], ['item2', 'item3'])
+        self.assertEqual(sequence[1:2], ['item2'])
+        self.assertEqual(sequence[-2:-1], ['item2'])
+        self.assertEqual(sequence[1:1], [])
+        self.assertEqual(sequence[-2:-2], [])
+        self.assertEqual(sequence[2:3], ['item3'])
+        self.assertEqual(sequence[3:3], [])
+        self.assertEqual(sequence[0:300], ['item1', 'item2', 'item3'])
+        self.assertEqual(sequence[2:1], [])
+        self.assertEqual(sequence[2:-2], [])
 
-        self.assertEqual(reader[0:], ['item1', 'item2', 'item3'])
-        self.assertEqual(reader[1:], ['item2', 'item3'])
-        self.assertEqual(reader[2:], ['item3'])
-        self.assertEqual(reader[3:], [])
-        self.assertEqual(reader[4:], [])
-        self.assertEqual(reader[-1:], ['item3'])
-        self.assertEqual(reader[-2:], ['item2', 'item3'])
-        self.assertEqual(reader[-3:], ['item1', 'item2', 'item3'])
-        self.assertEqual(reader[-4:], ['item1', 'item2', 'item3'])
+        self.assertEqual(sequence[0:], ['item1', 'item2', 'item3'])
+        self.assertEqual(sequence[1:], ['item2', 'item3'])
+        self.assertEqual(sequence[2:], ['item3'])
+        self.assertEqual(sequence[3:], [])
+        self.assertEqual(sequence[4:], [])
+        self.assertEqual(sequence[-1:], ['item3'])
+        self.assertEqual(sequence[-2:], ['item2', 'item3'])
+        self.assertEqual(sequence[-3:], ['item1', 'item2', 'item3'])
+        self.assertEqual(sequence[-4:], ['item1', 'item2', 'item3'])
 
-        self.assertEqual(reader[:0], [])
-        self.assertEqual(reader[:1], ['item1'])
-        self.assertEqual(reader[:2], ['item1', 'item2'])
-        self.assertEqual(reader[:3], ['item1', 'item2', 'item3'])
-        self.assertEqual(reader[:4], ['item1', 'item2', 'item3'])
-        self.assertEqual(reader[:-1], ['item1', 'item2'])
-        self.assertEqual(reader[:-2], ['item1'])
-        self.assertEqual(reader[:-3], [])
-        self.assertEqual(reader[:-4], [])
+        self.assertEqual(sequence[:0], [])
+        self.assertEqual(sequence[:1], ['item1'])
+        self.assertEqual(sequence[:2], ['item1', 'item2'])
+        self.assertEqual(sequence[:3], ['item1', 'item2', 'item3'])
+        self.assertEqual(sequence[:4], ['item1', 'item2', 'item3'])
+        self.assertEqual(sequence[:-1], ['item1', 'item2'])
+        self.assertEqual(sequence[:-2], ['item1'])
+        self.assertEqual(sequence[:-3], [])
+        self.assertEqual(sequence[:-4], [])
 
         # Check iterator.
-        for i, item in enumerate(reader):
+        for i, item in enumerate(sequence):
             self.assertEqual(item, 'item{}'.format(i + 1))
 
         # Check len.
-        self.assertEqual(len(reader), 3)
+        self.assertEqual(len(sequence), 3)
 
         # Check index errors.
         # - out of range
         with self.assertRaises(IndexError):
             # noinspection PyStatementEffect
-            reader[3]
+            sequence[3]
 
         with self.assertRaises(IndexError):
             # noinspection PyStatementEffect
-            reader[-4]
+            sequence[-4]
 
         with self.assertRaises(SequenceFullError):
             # Append another item.
-            append_item_to_sequence(name, 'item1', repo.event_player, max_size=1)
+            sequence.max_size = 1
+            sequence.append('item1')
 
 
 class TestCassandraSequence(WithCassandraActiveRecordStrategies, SequenceTestCase):

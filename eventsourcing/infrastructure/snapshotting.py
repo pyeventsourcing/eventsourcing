@@ -41,7 +41,7 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
 
         :rtype: Snapshot
         """
-        snapshots = self.event_store.get_domain_events(entity_id, lt=lt, lte=lte, is_ascending=False, limit=1)
+        snapshots = self.event_store.get_domain_events(entity_id, lt=lt, lte=lte, limit=1, is_ascending=False)
         if len(snapshots) == 1:
             return snapshots[0]
 

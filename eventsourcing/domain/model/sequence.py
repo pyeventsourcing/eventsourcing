@@ -4,6 +4,16 @@ from eventsourcing.exceptions import RepositoryKeyError
 
 
 class Sequence(TimestampedVersionedEntity):
+    """
+    This class represents an overall, which is
+    initially empty. A specialised repository
+    SequenceRepo returns a Sequence object which
+    can append items to the sequence without
+    loading all the events. It can also index,
+    slice and iterate through items in the sequence
+    without having to load all of them.
+    """
+
     class Event(TimestampedVersionedEntity.Event):
         """Layer supertype."""
 
@@ -11,14 +21,15 @@ class Sequence(TimestampedVersionedEntity):
         """Occurs when sequence is started."""
 
     class ItemAppended(Event):
-        """Occurs when item is appended."""
-
-    @property
-    def name(self):
-        return self.id
+        """Occurs when item is appended to a sequence."""
 
 
 def start_sequence(name):
+    """
+    Factory for Sequence objects.
+    
+    :rtype: Sequence
+    """
     event = Sequence.Started(originator_id=name)
     entity = Sequence._mutate(initial=None, event=event)
     publish(event)
@@ -26,13 +37,17 @@ def start_sequence(name):
 
 
 class SequenceRepository(AbstractEntityRepository):
-    def get_or_create(self, sequence_name):
+    """
+    Repository for sequence objects.
+    """
+    def get_or_create(self, sequence_id):
         """
-        Gets or creates a log.
+        Gets or creates a sequence.
 
-        :rtype: Timebucketedlog
+        :rtype: Sequence
         """
         try:
-            return self[sequence_name]
+            sequence = self[sequence_id]
         except RepositoryKeyError:
-            return start_sequence(sequence_name)
+            sequence = start_sequence(sequence_id)
+        return sequence
