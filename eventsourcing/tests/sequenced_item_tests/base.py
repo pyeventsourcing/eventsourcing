@@ -6,9 +6,9 @@ from uuid import uuid4
 import six
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
-from eventsourcing.domain.model.events import topic_from_domain_class, EventWithOriginatorVersion, \
-    EventWithOriginatorID, EventWithTimestamp, Logged
+from eventsourcing.domain.model.entity import VersionedEntity
+from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
+    Logged, topic_from_domain_class
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import SequencedItemError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
