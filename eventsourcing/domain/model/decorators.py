@@ -144,15 +144,13 @@ def retry(exc=Exception, max_retries=5, wait=0.5):
             attempts = 0
             while True:
                 try:
-                    func(*args, **kwargs)
+                    return func(*args, **kwargs)
                 except exc as e:
                     attempts += 1
                     if attempts < max_retries:
                         sleep(wait)
                     else:
                         raise e
-                else:
-                    break
         return wrapper
 
     if isfunction(exc):
