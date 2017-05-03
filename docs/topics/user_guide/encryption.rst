@@ -8,19 +8,19 @@ the sequenced item mapper, and set ``always_encrypt`` to a True value.
 Cipher strategy
 ---------------
 
-This example uses the AES cipher strategy provided by this library. Alternatively,
-you can craft your own cipher strategy object.
+This example uses the library AES cipher strategy
+:class:`~eventsourcing.domain.services.aes_cipher.AESCipher`.
+Alternatively, you can craft your own cipher strategy object.
 
-This cipher strategy uses the standard AES cipher from the crypto library, by default
-in CBC mode with 128 bit blocksize and a 16 byte encryption key. It generates a unique
-16 byte initialization vector for each encryption. In this cipher strategy, serialized
-event data is compressed before it is encrypted, which can mean application performance
-is improved when encryption is enabled.
+The library AES cipher strategy uses the standard AES cipher from the crypto library, by
+default in CBC mode with 128 bit blocksize and a 16 byte encryption key. It generates
+a unique 16 byte initialization vector for each encryption. In this cipher strategy,
+serialized event data is compressed before it is encrypted, which can mean application
+performance is improved when encryption is enabled.
 
 With encryption enabled, event attribute values are encrypted inside the application
 before they are mapped to the database. The values are decrypted before domain events
 are replayed.
-
 
 .. code:: python
 
