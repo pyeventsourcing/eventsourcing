@@ -25,11 +25,3 @@ Similarly, if you want to use Cassandra, then please install the library with th
 
     pip install eventsourcing[cassandra]
 
-
-Please register any `issues on
-GitHub <https://github.com/johnbywater/eventsourcing/issues>`__.
-
-There is also a `mailing
-list <https://groups.google.com/forum/#!forum/eventsourcing-users>`__.
-And a `room on
-Gitter <https://gitter.im/eventsourcing-in-python/eventsourcing>`__
