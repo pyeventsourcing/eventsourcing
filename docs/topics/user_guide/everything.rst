@@ -114,8 +114,6 @@ Aggregate factory
         return aggregate
 
 
-
-
 Mutator function
 ----------------
 
