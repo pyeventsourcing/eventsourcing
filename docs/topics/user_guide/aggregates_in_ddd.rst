@@ -173,7 +173,7 @@ collection of examples.
 Application and infrastructure
 ------------------------------
 
-Setup a database table using library classes.
+Set up a database table using library classes.
 
 .. code:: python
 

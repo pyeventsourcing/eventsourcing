@@ -12,7 +12,7 @@ exception.
 Application and infrastructure
 ------------------------------
 
-Setup infrastructure using library classes.
+Set up infrastructure using library classes.
 
 .. code:: python
 

@@ -118,7 +118,7 @@ after child workers have been forked.
 
     @postfork
     def init_process():
-        # Setup database connection.
+        # Set up database connection.
         database = {}
         # Construct eventsourcing application.
         init_example_application()
@@ -200,7 +200,7 @@ for the Celery worker process.
 
     @worker_process_init.connect
     def init_process(sender=None, conf=None, **kwargs):
-        # Setup database connection.
+        # Set up database connection.
         database = {}
         # Construct eventsourcing application.
         init_example_application()
