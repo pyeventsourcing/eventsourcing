@@ -1,6 +1,6 @@
-==========
-Everything
-==========
+=====================
+Everything in one app
+=====================
 
 In this example, an application is developed that includes all of
 the aspects introduced in previous sections. The application has

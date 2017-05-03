@@ -8,17 +8,19 @@ mechanisms, for example applying and publishing the events generated
 within domain entities, storing and retrieving selections of the events
 in a highly scalable manner, replaying the stored events for a
 particular entity to obtain the current state, and projecting views of
-the event stream that are persisted in other models. Quoting from the
-"Cohesive Mechanism" pages in Eric Evan's Domain Driven Design book:
+the event stream that are persisted in other models.
+
+Quoting from the "Cohesive Mechanism" pages in Eric Evans' Domain Driven Design book:
 
 .. pull-quote::
 
-    **Therefore: Partition a conceptually COHESIVE MECHANISM into a separate
+    **Partition a conceptually COHESIVE MECHANISM into a separate
     lightweight framework. Particularly watch for formalisms for
     well-documented categories of algorithms. Expose the capabilities of the
     framework with an INTENTION-REVEALING INTERFACE. Now the other elements
     of the domain can focus on expressing the problem ("what"), delegating
     the intricacies of the solution ("how") to the framework.**
+
 
 Inspiration:
 

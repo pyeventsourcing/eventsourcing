@@ -1,6 +1,6 @@
-==================================
-Aggregates in domain driven design
-==================================
+=================
+Aggregates in DDD
+=================
 
 Eric Evans' book Domain Driven Design describes an abstraction called
 "aggregate":
