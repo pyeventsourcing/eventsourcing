@@ -96,8 +96,8 @@ This section contains suggestions for Web framework users.
 *Please note, the fragments of code in this section are merely suggestive, and unlike the
 code snippets in the other sections of the user guide, do not form a working program. For
 a working example using Flask and uWSGI, please refer to the library modules
-:mod:`eventsourcing.example.flaskapp` and
-:mod:`eventsourcing.example.flaskwsgi`.
+:mod:`eventsourcing.example.interface.flaskapp` and
+:mod:`eventsourcing.example.interface.flaskwsgi`.
 
 uWSGI
 -----
