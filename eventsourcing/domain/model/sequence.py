@@ -1,6 +1,7 @@
+from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.entity import AbstractEntityRepository, Created, TimestampedVersionedEntity
 from eventsourcing.domain.model.events import publish
-from eventsourcing.exceptions import RepositoryKeyError
+from eventsourcing.exceptions import RepositoryKeyError, ConcurrencyError
 
 
 class Sequence(TimestampedVersionedEntity):
@@ -65,7 +66,7 @@ def start_sequence(sequence_id, max_size=None):
     return entity
 
 
-def start_compound_sequence(sequence_id, i=None, j=None, h=None, max_size=None):
+def start_compound_sequence(sequence_id, i, j, h, max_size):
     """
     Factory for Sequence objects.
     
@@ -81,9 +82,15 @@ class SequenceRepository(AbstractEntityRepository):
     """
     Repository for sequence objects.
     """
+    @retry(ConcurrencyError, max_retries=1, wait=0)
     def get_or_create(self, sequence_id, max_size=None):
         """
         Gets or creates a sequence.
+        
+        Gets first because mostly they will exist.
+        
+        Decorated with a retry for ConcurrencyError to deal
+        with race condition on creating after failing to get.
 
         :rtype: Sequence
         """
@@ -99,7 +106,7 @@ class CompoundSequenceRepository(AbstractEntityRepository):
     Repository for compound sequence objects.
     """
 
-    def get_or_create(self, sequence_id, max_size=None):
+    def get_or_create(self, sequence_id, i, j, h, max_size):
         """
         Gets or creates a sequence.
 
@@ -108,5 +115,5 @@ class CompoundSequenceRepository(AbstractEntityRepository):
         try:
             sequence = self[sequence_id]
         except RepositoryKeyError:
-            sequence = start_compound_sequence(sequence_id, max_size=max_size)
+            sequence = start_compound_sequence(sequence_id, i, j, h, max_size)
         return sequence

@@ -5,7 +5,7 @@ from uuid import uuid4, UUID, uuid5
 from eventsourcing.domain.model.sequence import start_compound_sequence
 from eventsourcing.exceptions import SequenceFullError, ConcurrencyError
 from eventsourcing.infrastructure.event_sourced_repos.sequence import SequenceRepo, CompoundSequenceRepo
-from eventsourcing.infrastructure.sequencereader import SequenceReader
+from eventsourcing.infrastructure.sequencereader import SequenceReader, CompoundSequenceReader
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
     WithCassandraActiveRecordStrategies
@@ -496,8 +496,8 @@ class SequenceTestCase(WithPersistencePolicies):
         root.append(child1.id)
         self.assertEqual(root[0], child1.id)
 
-        # Check the last sequence is root.
-        self.assertEqual(repo.get_last_sequence(root), repo.get_reader(child1.id))
+        # Check the last sequence is child1.
+        self.assertEqual(repo.get_last_sequence(root), child1)
 
         # Check the last item in the last sequence is None.
         with self.assertRaises(IndexError):
@@ -539,9 +539,9 @@ class SequenceTestCase(WithPersistencePolicies):
         parent_id = repo.create_sequence_id(i, j)
         self.assertIn(parent_id, repo)
 
-        parent = repo.get_reader(parent_id)
+        parent = CompoundSequenceReader(repo[parent_id], repo.event_store)
 
-        self.assertEqual(parent.id, child2.id)
+        self.assertEqual(parent, child2)
 
         # Attach to parent.
         parent.append(child3.id)
@@ -569,34 +569,41 @@ class SequenceTestCase(WithPersistencePolicies):
 
         self.assertEqual(repo.get_last_item(root), 'item4')
 
-        # Construct new parent.
-        i, j, h = repo.calc_parent_i_j_h(child6)
-        child5 = repo.start(i, j, h, max_size=2)
-        child5.append(child6.id)
+        # Construct detached branch.
+        child5, attachment_point = repo.create_detached_branch(child6)
+
+        # Attach child to parent.
+        # child5.append(child6.id)
         self.assertEqual(repo.get_last_item(root), 'item4')
 
         # Demote child2, while attaching new branch.
         child4 = repo.demote(root, child2, detached_id=child5.id)
 
-        # Check the last item it correct.
+        # Check the last item is correct.
         self.assertEqual(repo.get_last_item(root), 'item5')
 
         # Append another item.
         child6.append('item6')
 
-        # Check the last item it correct.
+        # Check the last item is correct.
         self.assertEqual(repo.get_last_item(root), 'item6')
 
-        # When child6 is full and then items added to child7
-        # and child7 added to child 5.
-        i = 3 * SEQUENCE_SIZE
-        j = 4 * SEQUENCE_SIZE
-        h = 0
-        child7 = repo.start(i, j, h, max_size=2)
-        child7.append('item7')
-        child5.append(child7.id)
+        # Child6 is full so extend base to child7.
+        child7 = repo.extend_base(child6, 'item7')
 
-        # Check the last item it correct.
+        # Construct detached branch.
+        branch, attachment_point = repo.create_detached_branch(child7)
+
+        # Immediate parent already exists, so don't need to attach a new branch.
+        self.assertEqual(branch, child7)
+
+        self.assertEqual(attachment_point, child5.id)
+
+        # Append branch to attachment point.
+        parent = CompoundSequenceReader(repo[attachment_point], repo.event_store)
+        parent.append(branch.id)
+
+        # Check the last item is correct.
         self.assertEqual(repo.get_last_item(root), 'item7')
 
         # Append another item.
@@ -609,7 +616,7 @@ class SequenceTestCase(WithPersistencePolicies):
         # Now we're full again, so need to demote child4 under child8.
         child8 = repo.demote(root, child4)
 
-        # Check the last item it correct.
+        # Check the last item is correct.
         self.assertEqual(repo.get_last_item(root), 'item8')
 
         # Check the length of root.

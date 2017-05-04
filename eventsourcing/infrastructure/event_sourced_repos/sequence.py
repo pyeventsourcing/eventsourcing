@@ -2,6 +2,7 @@ from uuid import UUID, uuid5
 
 from eventsourcing.domain.model.sequence import Sequence, SequenceRepository, CompoundSequenceRepository, \
     CompoundSequence, start_compound_sequence
+from eventsourcing.exceptions import ConcurrencyError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sequencereader import SequenceReader, CompoundSequenceReader
 
@@ -42,7 +43,7 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
         """
         return self.event_player.replay_entity(entity_id, limit=1)
 
-    def get_reader(self, sequence_id, max_size=None):
+    def get_reader(self, sequence_id, i, j, h, max_size):
         """
         Returns a sequence reader for the given sequence_id.
         
@@ -51,7 +52,7 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
         :rtype: SequenceReader 
         """
         return CompoundSequenceReader(
-            sequence=self.get_or_create(sequence_id, max_size=max_size),
+            sequence=self.get_or_create(sequence_id, i, j, h, max_size),
             event_store=self.event_store,
         )
 
@@ -72,7 +73,8 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
             return sequence
         else:
             if isinstance(last, UUID):
-                return self.get_last_sequence(self.get_reader(last))
+                s = CompoundSequenceReader(self[last], self.event_store)
+                return self.get_last_sequence(s)
             else:
                 return sequence
 
@@ -114,3 +116,21 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
         j = i + width_p
         h = child6.h + 1
         return i, j, h
+
+    def create_detached_branch(self, child):
+        highest = child
+        while True:
+            i, j, h = self.calc_parent_i_j_h(child)
+            sequence_id = self.create_sequence_id(i, j)
+            try:
+                parent = start_compound_sequence(sequence_id, i, j, h, child.max_size)
+            except ConcurrencyError:
+                # It already exists.
+                attachment_point = sequence_id
+                break
+            else:
+                reader = CompoundSequenceReader(parent, self.event_store)
+                reader.append(child.id)
+                highest = reader
+        return highest, attachment_point
+
