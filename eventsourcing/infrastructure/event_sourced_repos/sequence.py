@@ -1,8 +1,8 @@
-from uuid import UUID, uuid5
+from uuid import UUID, uuid5, uuid4
 
 from eventsourcing.domain.model.sequence import Sequence, SequenceRepository, CompoundSequenceRepository, \
     CompoundSequence, start_compound_sequence
-from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.exceptions import ConcurrencyError, SequenceFullError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sequencereader import SequenceReader, CompoundSequenceReader
 
@@ -56,14 +56,25 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
             event_store=self.event_store,
         )
 
-    def create_sequence_id(self, i, j):
-        namespace = UUID('00000000-0000-0000-0000-000000000000')
-        return uuid5(namespace, str((i, j)))
+    def create_sequence_id(self, ns, i, j):
+        sequence_id = uuid5(ns, str((i, j)))
+        print('Created sequence ID: {}, {}, {}, {}'.format(ns, i, j, sequence_id))
+        return sequence_id
 
-    def start(self, i, j, h, max_size=None):
-        sequence_id = self.create_sequence_id(i, j)
+    def start(self, ns, i, j, h, max_size):
+        sequence_id = self.create_sequence_id(ns, i, j)
 
-        sequence = start_compound_sequence(sequence_id, i=i, j=j, h=h, max_size=max_size)
+        try:
+            sequence = start_compound_sequence(sequence_id, i=i, j=j, h=h, max_size=max_size)
+        except ConcurrencyError as e:
+            raise
+            # raise Exception("Can't start compound sequence, ns={}, i={}, j={}: {}".format(ns, i, j, e))
+
+        return CompoundSequenceReader(sequence, self.event_store)
+
+    def start_root(self, max_size):
+        sequence_id = uuid4()
+        sequence = start_compound_sequence(sequence_id, i=None, j=None, h=None, max_size=max_size)
         return CompoundSequenceReader(sequence, self.event_store)
 
     def get_last_sequence(self, sequence):
@@ -86,7 +97,7 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
         i = 0  # always zero, because always demote the apex
         j = child.j * child.max_size  # N**h
         h = child.h + 1
-        new_child = self.start(i, j, h, max_size=child.max_size)
+        new_child = self.start(root.id, i, j, h, max_size=child.max_size)
         # First, append child to new child.
         new_child.append(child.id)
         # Attach new branch.
@@ -96,11 +107,11 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
         root.append(new_child.id)
         return new_child
 
-    def extend_base(self, left, item):
+    def extend_base(self, ns, left, item):
         i = left.j
         j = i + left.max_size
         h = left.h
-        new = self.start(i, j, h, max_size=left.max_size)
+        new = self.start(ns, i, j, h, max_size=left.max_size)
         # Append an item to new child.
         new.append(item)
 
@@ -123,26 +134,49 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
             raise AssertionError(p_j, c_j)
         return p_i, p_j, p_h
 
-    def create_detached_branch(self, child, max_height):
-        attachment_point = None
+    def create_detached_branch(self, ns, child, max_height):
+        target_id = None
         while True:
             i, j, h = self.calc_parent_i_j_h(child)
             if h > max_height:
                 break
-            sequence_id = self.create_sequence_id(i, j)
+            sequence_id = self.create_sequence_id(ns, i, j)
             try:
                 parent = start_compound_sequence(sequence_id, i, j, h, child.max_size)
             except ConcurrencyError:
                 # It already exists.
-                attachment_point = sequence_id
+                target_id = sequence_id
                 break
             else:
                 reader = CompoundSequenceReader(parent, self.event_store)
                 reader.append(child.id)
                 child = reader
-        return child, attachment_point
+        return child, target_id
 
     def attach_branch(self, parent_id, branch_id):
         sequence = self[parent_id]
         parent = CompoundSequenceReader(sequence, self.event_store)
         parent.append(branch_id)
+
+    def append_item(self, item, sequence_id):
+        root = CompoundSequenceReader(self[sequence_id], self.event_store)
+        last = self.get_last_sequence(root)
+        try:
+            last.append(item)
+        except SequenceFullError:
+            next = self.extend_base(root.id, last, item)
+            detached, target_id = self.create_detached_branch(root.id, next, len(root))
+            top_id = root[-1]
+            if target_id:
+                self.attach_branch(target_id, detached.id)
+            else:
+                self.demote(root, self[top_id], detached.id)
+
+    def start_root_with_item(self, max_size, item):
+        root = self.start_root(max_size)
+        i = 0
+        j = max_size
+        child1 = self.start(root.id, i, j, 1, max_size=root.max_size)
+        root.append(child1.id)
+        child1.append(item)
+        return root
