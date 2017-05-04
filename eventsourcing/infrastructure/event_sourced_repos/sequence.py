@@ -14,7 +14,7 @@ class SequenceRepo(EventSourcedRepository, SequenceRepository):
         """
         return self.event_player.replay_entity(entity_id, limit=1)
 
-    def get_reader(self, sequence_id):
+    def get_reader(self, sequence_id, max_size=None):
         """
         Returns a sequence reader for the given sequence_id.
         
@@ -23,6 +23,6 @@ class SequenceRepo(EventSourcedRepository, SequenceRepository):
         :rtype: SequenceReader 
         """
         return SequenceReader(
-            sequence=self.get_or_create(sequence_id),
+            sequence=self.get_or_create(sequence_id, max_size=max_size),
             event_store=self.event_store,
         )

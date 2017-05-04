@@ -23,14 +23,22 @@ class Sequence(TimestampedVersionedEntity):
     class ItemAppended(Event):
         """Occurs when item is appended to a sequence."""
 
+    def __init__(self, max_size=None, **kwargs):
+        super(Sequence, self).__init__(**kwargs)
+        self._max_size = max_size
 
-def start_sequence(name):
+    @property
+    def max_size(self):
+        return self._max_size
+
+
+def start_sequence(name, max_size=None):
     """
     Factory for Sequence objects.
     
     :rtype: Sequence
     """
-    event = Sequence.Started(originator_id=name)
+    event = Sequence.Started(originator_id=name, max_size=max_size)
     entity = Sequence._mutate(initial=None, event=event)
     publish(event)
     return entity
@@ -40,7 +48,7 @@ class SequenceRepository(AbstractEntityRepository):
     """
     Repository for sequence objects.
     """
-    def get_or_create(self, sequence_id):
+    def get_or_create(self, sequence_id, max_size=None):
         """
         Gets or creates a sequence.
 
@@ -49,5 +57,5 @@ class SequenceRepository(AbstractEntityRepository):
         try:
             sequence = self[sequence_id]
         except RepositoryKeyError:
-            sequence = start_sequence(sequence_id)
+            sequence = start_sequence(sequence_id, max_size=max_size)
         return sequence

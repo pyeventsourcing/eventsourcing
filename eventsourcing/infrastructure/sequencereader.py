@@ -7,12 +7,12 @@ from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 
 class SequenceReader(object):
-    def __init__(self, sequence, event_store, max_size=None):
+    def __init__(self, sequence, event_store):
         assert isinstance(sequence, Sequence), sequence
         assert isinstance(event_store, AbstractEventStore), event_store
         self.sequence = sequence
         self.event_store = event_store
-        self.max_size = max_size
+        self.max_size = sequence.max_size
 
     @property
     def id(self):
@@ -67,6 +67,9 @@ class SequenceReader(object):
         events = self.event_store.get_domain_events(originator_id=self.sequence.id, limit=1,
                                                     is_ascending=False)
         return events[0].originator_version
+
+    def __eq__(self, other):
+        return isinstance(other, type(self)) and self.id == other.id
 
     def append(self, item):
         """
