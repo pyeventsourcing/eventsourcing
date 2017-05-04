@@ -747,7 +747,6 @@ class SequenceTestCase(WithPersistencePolicies):
         self.assertEqual(child6.j, 6)
         self.assertEqual(child6.h, 1)
 
-
         self.assertEqual(repo.get_last_item(root), 'item4')
 
         # Construct detached branch.
@@ -801,7 +800,7 @@ class SequenceTestCase(WithPersistencePolicies):
         # Check the length of root.
         self.assertEqual(len(root), 3)  # 8 items
 
-        # Now we're full again, so need to demote child4 under child8.
+        # Now we're full again, so need can demote child4 under child8.
         child8 = repo.demote(root, child4)
 
         # Check the last item is correct.
@@ -809,6 +808,29 @@ class SequenceTestCase(WithPersistencePolicies):
 
         # Check the length of root.
         self.assertEqual(len(root), 4)  # 16 items
+
+        # Now do it more generally...
+        def append_item(item):
+            last_sequence = repo.get_last_sequence(root)
+            try:
+                last_sequence.append(item)
+            except SequenceFullError:
+                next_sequence = repo.extend_base(last_sequence, item)
+                detached, attachment_point = repo.create_detached_branch(next_sequence, len(root))
+                if attachment_point is None:
+                    repo.demote(root, detached.id)
+                else:
+                    repo.attach_branch(attachment_point, detached.id)
+
+
+        append_item('item9')
+        self.assertEqual(repo.get_last_item(root), 'item9')
+        append_item('item10')
+        self.assertEqual(repo.get_last_item(root), 'item10')
+        append_item('item11')
+        self.assertEqual(repo.get_last_item(root), 'item11')
+        append_item('item12')
+        self.assertEqual(repo.get_last_item(root), 'item12')
 
         # Hence the depth is limited by the max_size of root.
         # The number of items at a given depth is max_size
