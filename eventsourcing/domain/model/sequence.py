@@ -32,14 +32,30 @@ class Sequence(TimestampedVersionedEntity):
         return self._max_size
 
 
-def start_sequence(name, max_size=None):
+class CompoundSequence(Sequence):
+    pass
+
+
+def start_sequence(sequence_id, max_size=None):
     """
     Factory for Sequence objects.
     
     :rtype: Sequence
     """
-    event = Sequence.Started(originator_id=name, max_size=max_size)
+    event = Sequence.Started(originator_id=sequence_id, max_size=max_size)
     entity = Sequence._mutate(initial=None, event=event)
+    publish(event)
+    return entity
+
+
+def start_compound_sequence(sequence_id, max_size=None):
+    """
+    Factory for Sequence objects.
+    
+    :rtype: Sequence
+    """
+    event = CompoundSequence.Started(originator_id=sequence_id, max_size=max_size)
+    entity = CompoundSequence._mutate(initial=None, event=event)
     publish(event)
     return entity
 
@@ -58,4 +74,21 @@ class SequenceRepository(AbstractEntityRepository):
             sequence = self[sequence_id]
         except RepositoryKeyError:
             sequence = start_sequence(sequence_id, max_size=max_size)
+        return sequence
+
+
+class CompoundSequenceRepository(AbstractEntityRepository):
+    """
+    Repository for compound sequence objects.
+    """
+    def get_or_create(self, sequence_id, max_size=None):
+        """
+        Gets or creates a sequence.
+
+        :rtype: Sequence
+        """
+        try:
+            sequence = self[sequence_id]
+        except RepositoryKeyError:
+            sequence = start_compound_sequence(sequence_id, max_size=max_size)
         return sequence

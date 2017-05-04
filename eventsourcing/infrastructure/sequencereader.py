@@ -85,3 +85,7 @@ class SequenceReader(object):
             item=item,
         )
         publish(event)
+
+
+class CompoundSequenceReader(SequenceReader):
+    pass
