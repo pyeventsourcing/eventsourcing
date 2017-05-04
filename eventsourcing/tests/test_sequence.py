@@ -465,7 +465,7 @@ class SequenceTestCase(WithPersistencePolicies):
         # easily fit in a partition, the number items would
         # be 10**3000 items, which is probably enough.
 
-    def test_compound_sequence2(self):
+    def _test_compound_sequence2(self):
         # Check that sequences can be stacked.
 
         repo = CompoundSequenceRepo(self.entity_event_store)
@@ -602,6 +602,194 @@ class SequenceTestCase(WithPersistencePolicies):
         # Append branch to attachment point.
         parent = CompoundSequenceReader(repo[attachment_point], repo.event_store)
         parent.append(branch.id)
+
+        # Check the last item is correct.
+        self.assertEqual(repo.get_last_item(root), 'item7')
+
+        # Append another item.
+        child7.append('item8')
+        self.assertEqual(repo.get_last_item(root), 'item8')
+
+        # Check the length of root.
+        self.assertEqual(len(root), 3)  # 8 items
+
+        # Now we're full again, so need to demote child4 under child8.
+        child8 = repo.demote(root, child4)
+
+        # Check the last item is correct.
+        self.assertEqual(repo.get_last_item(root), 'item8')
+
+        # Check the length of root.
+        self.assertEqual(len(root), 4)  # 16 items
+
+        # Hence the depth is limited by the max_size of root.
+        # The number of items at a given depth is max_size
+        # to the power of the depth.
+        # Hence it is possible to store max_size**max_size
+        # items in a compound sequence made from sequences
+        # of max_size. So if max_size is 1000, which would
+        # easily fit in a partition, the number items would
+        # be 10**3000 items, which is probably enough.
+
+    def test_compound_sequence3(self):
+        # Check that sequences can be stacked.
+
+        repo = CompoundSequenceRepo(self.entity_event_store)
+
+        # Start a root sequence.
+        SEQUENCE_SIZE = 2
+
+        root = repo.start(None, None, None, max_size=10)
+
+        self.assertEqual(root.max_size, 10)
+        self.assertEqual(root.i, None)
+        self.assertEqual(root.j, None)
+        self.assertEqual(root.h, None)
+
+        # Check the last sequence is root.
+        self.assertEqual(repo.get_last_sequence(root), root)
+
+        # Add first child sequence to root.
+        i = 0
+        j = SEQUENCE_SIZE
+        child1 = repo.start(i, j, 1, max_size=SEQUENCE_SIZE)
+        self.assertEqual(child1.i, 0)
+        self.assertEqual(child1.j, 2)
+        self.assertEqual(child1.h, 1)
+
+
+        self.assertEqual(child1.max_size, SEQUENCE_SIZE)
+        self.assertEqual(child1.i, 0)
+        self.assertEqual(child1.j, SEQUENCE_SIZE)
+
+        # - append to root
+        root.append(child1.id)
+        self.assertEqual(root[0], child1.id)
+
+        # Check the last sequence is child1.
+        self.assertEqual(repo.get_last_sequence(root), child1)
+
+        # Check the last item in the last sequence is None.
+        with self.assertRaises(IndexError):
+            repo.get_last_item(root)
+
+        # Add item to child1.
+        child1.append('item1')
+
+        # Check the last item is item1.
+        self.assertEqual(repo.get_last_item(child1), 'item1')
+        self.assertEqual(repo.get_last_item(root), 'item1')
+
+        # Add another item to child1.
+        child1.append('item2')
+
+        # Append and check the last item is item2.
+        self.assertEqual(repo.get_last_item(child1), 'item2')
+        self.assertEqual(repo.get_last_item(root), 'item2')
+
+        self.assertEqual(len(root), 1)
+
+        # Demote child1.
+        child2 = repo.demote(root, child1)
+        self.assertEqual(child2.i, 0)
+        self.assertEqual(child2.j, 4)
+        self.assertEqual(child2.h, 2)
+
+        self.assertEqual(repo.get_last_item(child1), 'item2')
+        self.assertEqual(repo.get_last_item(child2), 'item2')
+        self.assertEqual(repo.get_last_item(root), 'item2')
+
+        # Extend the base beyond child1.
+        child3 = repo.extend_base(child1, 'item3')
+        self.assertEqual(child3.i, 2)
+        self.assertEqual(child3.j, 4)
+        self.assertEqual(child3.h, 1)
+
+
+        # Identify parent (should be child2).
+        i, j, h = repo.calc_parent_i_j_h(child3)
+
+        # Check creating parent doesn't work.
+        with self.assertRaises(ConcurrencyError):
+            repo.start(i, j, h)
+
+        parent_id = repo.create_sequence_id(i, j)
+        self.assertIn(parent_id, repo)
+
+        parent = CompoundSequenceReader(repo[parent_id], repo.event_store)
+
+        self.assertEqual(parent, child2)
+
+        # Attach to parent.
+        parent.append(child3.id)
+
+        # Check the last sequence from the root is now child3.
+        self.assertEqual(repo.get_last_sequence(root), child3)
+
+        # Check the last item from the root is now item3.
+        self.assertEqual(repo.get_last_item(child1), 'item2')
+        self.assertEqual(repo.get_last_item(child2), 'item3')
+        self.assertEqual(repo.get_last_item(child3), 'item3')
+        self.assertEqual(repo.get_last_item(root), 'item3')
+
+        # Append another item to child3.
+        child3.append('item4')
+
+        # Check the last item from the root is now item4.
+        self.assertEqual(repo.get_last_item(root), 'item4')
+
+        # Check the length of root.
+        self.assertEqual(len(root), 2)  # 4 items
+
+        # Extend the base beyond child3.
+        child6 = repo.extend_base(child3, 'item5')
+        self.assertEqual(child6.i, 4)
+        self.assertEqual(child6.j, 6)
+        self.assertEqual(child6.h, 1)
+
+
+        self.assertEqual(repo.get_last_item(root), 'item4')
+
+        # Construct detached branch.
+        child5, attachment_point = repo.create_detached_branch(child6, len(root))
+        self.assertEqual(child5.i, 4)
+        self.assertEqual(child5.j, 8)
+        self.assertEqual(child5.h, 2)
+
+        # Attachment point is None, because we need to demote the root's child.
+        self.assertIsNone(attachment_point)
+
+        self.assertEqual(repo.get_last_item(root), 'item4')
+
+        # Demote child2, while attaching new branch.
+        child4 = repo.demote(root, child2, detached_id=child5.id)
+        self.assertEqual(child4.i, 0)
+        self.assertEqual(child4.j, 8)
+        self.assertEqual(child4.h, 3)
+
+        # Check the last item is correct.
+        self.assertEqual(repo.get_last_item(root), 'item5')
+
+        # Append another item.
+        child6.append('item6')
+
+        # Check the last item is correct.
+        self.assertEqual(repo.get_last_item(root), 'item6')
+
+        # Child6 is full so extend base to child7.
+        child7 = repo.extend_base(child6, 'item7')
+        self.assertEqual(child7.i, 6)
+        self.assertEqual(child7.j, 8)
+        self.assertEqual(child7.h, 1)
+
+        # Construct detached branch.
+        branch, attachment_point = repo.create_detached_branch(child7, len(root))
+
+        # Attachment point exists.
+        self.assertEqual(attachment_point, child5.id)
+
+        # Attach branch.
+        repo.attach_branch(attachment_point, branch.id)
 
         # Check the last item is correct.
         self.assertEqual(repo.get_last_item(root), 'item7')

@@ -106,21 +106,29 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
 
         return new
 
-    def calc_parent_i_j_h(self, child6):
-        N = child6.max_size
-        n_c = child6.i // N
-        n_p = n_c // N
-        h_p = child6.h + 1
-        width_p = N ** h_p
-        i = n_p * width_p
-        j = i + width_p
-        h = child6.h + 1
-        return i, j, h
+    def calc_parent_i_j_h(self, child):
+        N = child.max_size
+        c_i = child.i
+        c_j = child.j
+        c_h = child.h
+        c_n = c_i // (N ** c_h)
+        p_n = c_n // N
+        p_h = c_h + 1
+        p_width = N ** p_h
+        p_i = p_n * p_width
+        p_j = p_i + p_width
+        if p_i > c_i:
+            raise AssertionError(p_i, c_i)
+        if p_j < c_j:
+            raise AssertionError(p_j, c_j)
+        return p_i, p_j, p_h
 
-    def create_detached_branch(self, child):
-        highest = child
+    def create_detached_branch(self, child, max_height):
+        attachment_point = None
         while True:
             i, j, h = self.calc_parent_i_j_h(child)
+            if h > max_height:
+                break
             sequence_id = self.create_sequence_id(i, j)
             try:
                 parent = start_compound_sequence(sequence_id, i, j, h, child.max_size)
@@ -131,6 +139,10 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
             else:
                 reader = CompoundSequenceReader(parent, self.event_store)
                 reader.append(child.id)
-                highest = reader
-        return highest, attachment_point
+                child = reader
+        return child, attachment_point
 
+    def attach_branch(self, parent_id, branch_id):
+        sequence = self[parent_id]
+        parent = CompoundSequenceReader(sequence, self.event_store)
+        parent.append(branch_id)
