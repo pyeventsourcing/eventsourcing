@@ -18,6 +18,14 @@ class SequenceReader(object):
     def id(self):
         return self.sequence.id
 
+    @property
+    def i(self):
+        return self.sequence.i
+
+    @property
+    def j(self):
+        return self.sequence.j
+
     def __getitem__(self, item):
         assert isinstance(item, (six.integer_types, slice))
         sequence_len = None
@@ -88,4 +96,7 @@ class SequenceReader(object):
 
 
 class CompoundSequenceReader(SequenceReader):
-    pass
+    @property
+    def h(self):
+        return self.sequence.h
+

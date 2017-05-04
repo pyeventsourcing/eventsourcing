@@ -23,9 +23,19 @@ class Sequence(TimestampedVersionedEntity):
     class ItemAppended(Event):
         """Occurs when item is appended to a sequence."""
 
-    def __init__(self, max_size=None, **kwargs):
+    def __init__(self, i=None, j=None, max_size=None, **kwargs):
         super(Sequence, self).__init__(**kwargs)
+        self._i = i
+        self._j = j
         self._max_size = max_size
+
+    @property
+    def i(self):
+        return self._i
+
+    @property
+    def j(self):
+        return self._j
 
     @property
     def max_size(self):
@@ -33,7 +43,14 @@ class Sequence(TimestampedVersionedEntity):
 
 
 class CompoundSequence(Sequence):
-    pass
+
+    def __init__(self, h=None, *args, **kwargs):
+        super(CompoundSequence, self).__init__(**kwargs)
+        self._h = h
+
+    @property
+    def h(self):
+        return self._h
 
 
 def start_sequence(sequence_id, max_size=None):
@@ -48,13 +65,13 @@ def start_sequence(sequence_id, max_size=None):
     return entity
 
 
-def start_compound_sequence(sequence_id, max_size=None):
+def start_compound_sequence(sequence_id, i=None, j=None, h=None, max_size=None):
     """
     Factory for Sequence objects.
     
     :rtype: Sequence
     """
-    event = CompoundSequence.Started(originator_id=sequence_id, max_size=max_size)
+    event = CompoundSequence.Started(originator_id=sequence_id, i=i, j=j, h=h, max_size=max_size)
     entity = CompoundSequence._mutate(initial=None, event=event)
     publish(event)
     return entity
@@ -81,6 +98,7 @@ class CompoundSequenceRepository(AbstractEntityRepository):
     """
     Repository for compound sequence objects.
     """
+
     def get_or_create(self, sequence_id, max_size=None):
         """
         Gets or creates a sequence.
