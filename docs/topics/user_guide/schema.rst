@@ -1,13 +1,22 @@
-====================
-Alternative database
-====================
+==================
+Alternative schema
+==================
 
 Stored event model
 ==================
 
-Let's say we want the database table to look like stored events, rather than sequenced items.
+The database schema we have been using so far stores events
+in a sequence of "sequenced items", and the names in the
+database schema reflect that design.
 
-It's easy to do. Just define a new sequenced item class, e.g. ``StoredEvent`` below.
+Let's say we want instead our database records to called "stored events".
+
+It's easy to do. Just define a new sequenced item class,
+e.g. ``StoredEvent`` below, and then supply a suitable
+active record class. As before, create the table using the
+new active record class, and pass both to the active record
+strategy when constructing the application object.
+
 
 .. code:: python
 
@@ -146,6 +155,8 @@ events" rather than "sequenced items".
 Applause djangoevents project
 =============================
 
+It is possible to replace more aspects of the library, to make a more customized
+application.
 The excellent project `djangoevents <https://github.com/ApplauseOSS/djangoevents>`__
 by `Applause <https://www.applause.com/>`__ is a Django app that provides a neat
 way of taking an event sourcing approach in a Django project. It allows this library

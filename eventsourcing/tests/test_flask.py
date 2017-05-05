@@ -13,6 +13,7 @@ from requests.exceptions import ConnectionError
 from requests.models import Response
 
 import eventsourcing
+from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.example.interface import flaskapp
 from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
@@ -32,6 +33,7 @@ class TestFlaskApp(unittest.TestCase):
     port = 5001
 
     def setUp(self):
+        assert_event_handlers_empty()
         super(TestFlaskApp, self).setUp()
         self.app = self.start_app()
 
@@ -46,6 +48,7 @@ class TestFlaskApp(unittest.TestCase):
         sleep(1)
         self.app.wait()
         super(TestFlaskApp, self).tearDown()
+        assert_event_handlers_empty()
 
     def test(self):
         max_retries = 100
