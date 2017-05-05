@@ -18,27 +18,30 @@ tested both stand-alone and with uWSGI.
 Application object
 ==================
 
-In general, you will need one, and only one, instance of your application
+In general you need one, and only one, instance of your application
 object in each process.
-
 If your eventsourcing application object has any policies, then
-constructing more than one instance of the application will causes
-the event handlers to be subscribed more than once, which won't work.
+constructing more than one instance of the application causes the
+policy event handlers to be subscribed more than once, so for example
+more than one attempt will be made to save each event, which won't
+work.
 
-One possible arrangement (see below) is to have a module with a variable
-and two functions. The first function constructs the application object
-and assigns it to the variable, and can be called from a suitable hook or
-signal designed for setting things up before any requests are handled.
-A second function returns the application object assigned to the variable,
-and can be called by any request or task handlers that depend on the
-application's services. An alternative to having separate "init" and "get"
-functions is having one function that does lazy initialization of the
-application object when first requested.
+To make sure there in only one instance of your application object in
+each process, one possible arrangement (see below) is to have a module
+with a variable and two functions. The first function constructs the
+application object and assigns it to the variable, and can be called
+from a suitable hook or signal designed for setting things up before
+any requests are handled. A second function returns the application
+object assigned to the variable, and can be called by any request or
+task handlers that depend on the application's services. An alternative
+to having separate "init" and "get" functions is having one function
+that does lazy initialization of the application object when first
+requested.
 
 Although the first function below must be called only once, the second
-function may be called many times. The example functions below have been written
-relatively strictly, so that ``init_application()`` will raise
-an exception if it has already been called, and ``get_application()``
+function may be called many times. The example functions below have
+been written relatively strictly, so that ``init_application()`` will
+raise an exception if it has already been called, and ``get_application()``
 will raise an exeception if ``init_application()`` has not been called.
 
 .. code:: python
