@@ -20,7 +20,7 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
     WithSQLAlchemyActiveRecordStrategies
 
 
-@notquick()
+@notquick
 class PerformanceTestCase(WithExampleApplication):
     def test_entity_performance(self):
         """
@@ -211,16 +211,16 @@ class PerformanceTestCase(WithExampleApplication):
         return events, next_position
 
 
-@notquick()
+@notquick
 class TestCassandraPerformance(WithCassandraActiveRecordStrategies, PerformanceTestCase):
     pass
 
 
-@notquick()
+@notquick
 class TestEncryptionPerformance(WithEncryption, TestCassandraPerformance):
     pass
 
 
-@notquick()
+@notquick
 class TestSQLAlchemyPerformance(WithSQLAlchemyActiveRecordStrategies, PerformanceTestCase):
     pass

@@ -27,7 +27,7 @@ path_to_flaskapp = abspath(flaskapp.__file__)
 path_to_flaskwsgi = join(dirname(path_to_flaskapp), 'flaskwsgi.py')
 
 
-@notquick()
+@notquick
 class TestFlaskApp(unittest.TestCase):
     port = 5001
 
@@ -62,7 +62,7 @@ class TestFlaskApp(unittest.TestCase):
         else:
             self.fail("Couldn't get response from app, (Python executable {})".format(sys.executable))
 
-@notquick()
+@notquick
 @skipIf(platform.python_implementation() == 'PyPy', 'uWSGI needs special plugin to run with PyPy')
 class TestFlaskWsgi(TestFlaskApp):
     port = 9001
