@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from eventsourcing.exceptions import ConcurrencyError, SequenceFullError
-from eventsourcing.infrastructure.event_sourced_repos.sequence import CompoundSequenceRepo, SequenceRepo
+from eventsourcing.infrastructure.event_sourced_repos.sequence import CompoundSequenceRepository, SequenceRepo
 from eventsourcing.infrastructure.sequencereader import CompoundSequenceReader, SequenceReader
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
@@ -114,12 +114,12 @@ class CompoundSequenceTestCase(WithPersistencePolicies):
 
     def setUp(self):
         super(CompoundSequenceTestCase, self).setUp()
-        self.repo = CompoundSequenceRepo(self.entity_event_store)
+        self.repo = CompoundSequenceRepository(self.entity_event_store)
 
     def test_compound_sequence_internals(self):
         # Check that sequences can be stacked.
 
-        self.repo = CompoundSequenceRepo(self.entity_event_store)
+        self.repo = CompoundSequenceRepository(self.entity_event_store)
 
         # Start a root sequence.
         SEQUENCE_SIZE = 2

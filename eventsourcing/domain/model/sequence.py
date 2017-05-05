@@ -101,19 +101,7 @@ class SequenceRepository(AbstractEntityRepository):
         return sequence
 
 
-class CompoundSequenceRepository(AbstractEntityRepository):
+class AbstractCompoundSequenceRepository(AbstractEntityRepository):
     """
     Repository for compound sequence objects.
     """
-
-    def get_or_create(self, sequence_id, i, j, h, max_size):
-        """
-        Gets or creates a sequence.
-
-        :rtype: Sequence
-        """
-        try:
-            sequence = self[sequence_id]
-        except RepositoryKeyError:
-            sequence = start_compound_sequence(sequence_id, i, j, h, max_size)
-        return sequence

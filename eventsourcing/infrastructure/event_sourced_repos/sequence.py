@@ -1,7 +1,7 @@
 from uuid import uuid4, uuid5
 
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.domain.model.sequence import CompoundSequence, CompoundSequenceRepository, Sequence, \
+from eventsourcing.domain.model.sequence import CompoundSequence, AbstractCompoundSequenceRepository, Sequence, \
     SequenceRepository, start_compound_sequence
 from eventsourcing.exceptions import ConcurrencyError, SequenceFullError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
@@ -34,14 +34,14 @@ class SequenceRepo(EventSourcedRepository, SequenceRepository):
         )
 
 
-class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
+class CompoundSequenceRepository(EventSourcedRepository, AbstractCompoundSequenceRepository):
     mutator = CompoundSequence._mutate
 
     def get_entity(self, entity_id, lt=None, lte=None):
         """
-        Replays entity using only the 'Started' event.
+        Replays entity, using the initial 'Started' event only.
         
-        :rtype: Sequence
+        :rtype: CompoundSequence
         """
         return self.event_player.replay_entity(entity_id, limit=1)
 
@@ -86,17 +86,29 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
                 self.demote(root, self[top_id], detached_branch.id)
 
     def get_last_item(self, sequence):
+        """Returns last item in compound sequence.
+        
+        Gets the last sequence, and returns its last item.
+        """
+        # Get last sequence.
         last_sequence = self.get_last_sequence(sequence)
+
+        # Return last item of last sequence.
         return last_sequence[-1]
 
     def get_last_sequence(self, sequence):
+        """
+        Returns last sequence in compound.
+        
+        :rtype: CompoundSequenceReader
+        """
         # Root must have a sequence.
         if sequence.h is None:
             sequence_id = sequence[-1]
             sequence_entity = self[sequence_id]
             sequence = CompoundSequenceReader(sequence_entity, self.event_store)
 
-        # Descend into the compound.
+        # Descend into the compound until hitting the bottom.
         while sequence.h > 1:
             sequence_id = sequence[-1]
             sequence_entity = self[sequence_id]
@@ -106,11 +118,25 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
         return sequence
 
     def start(self, ns, i, j, h, max_size):
+        """
+        Starts compound sequence.
+        
+        :rtype: CompoundSequenceReader
+        """
         sequence_id = self.create_sequence_id(ns, i, j)
         sequence = start_compound_sequence(sequence_id, i=i, j=j, h=h, max_size=max_size)
         return CompoundSequenceReader(sequence, self.event_store)
 
     def demote(self, root, child, detached_id=None):
+        """
+        Inserts a new sequence between the root and the current top.
+        
+        Starts a new sequence. Appends the current top of the
+        compound to it. Optionally appends a detached branch to the
+        new sequence, then appends the new sequence to the root.
+         
+        :rtype: CompoundSequenceReader
+        """
         i = 0  # always zero, because always demote the apex
         j = child.j * child.max_size  # N**h
         h = child.h + 1
@@ -125,20 +151,36 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
         return new_child
 
     def extend_base(self, ns, left, item):
+        """
+        Starts sequence that extends the base of
+        the compound, and appends an item to it.
+        
+        Starts a new sequence at the bottom of the compound,
+        to the right of the right-most sequence, with a span
+        that is contiguous from its left. Then appends the given
+        item to it.
+        """
         i = left.j
         j = i + left.max_size
         h = left.h
         new = self.start(ns, i, j, h, max_size=left.max_size)
-        # Append an item to new child.
+        # Append the item to new child.
         new.append(item)
 
         return new
 
     def create_detached_branch(self, ns, child, max_height):
         """
-        Works up from child, attempting to create a parent,
-        until it conflicts with already existing sequence,
-        when it stops and returns what it has created.
+        Works up from child to parent, building a branch
+        that is not attached to the main compound, using
+        predictable sequence IDs, attempting to create a
+        parent until doing so conflicts with an already
+        existing sequence, when it stops and returns the
+        branch it has created, or the original child.
+        
+        Also return the ID of the already existing parent,
+        as target_id, so branch can be attached to it. If
+        top of compound is not found, the target_id is None. 
         """
         target_id = None
         while True:
@@ -159,12 +201,18 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
         return child, target_id
 
     def attach_branch(self, parent_id, branch):
+        """
+        Attaches branch to parent.
+        """
         sequence = self[parent_id]
         parent = CompoundSequenceReader(sequence, self.event_store)
         # If the calculations are correct, this won't ever raise a ConcurrencyError.
         parent.append(branch.id)
 
     def calc_parent_i_j_h(self, child):
+        """
+        Returns start and end of span of parent sequence that contains given child.
+        """
         N = child.max_size
         c_i = child.i
         c_j = child.j
