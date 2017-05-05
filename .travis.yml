@@ -20,6 +20,8 @@ env:
     - CASSANDRA_HOSTS=127.0.0.1
 
 script:
-- if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then coverage run -m unittest discover eventsourcing.tests -v ; coveralls
-; fi
+- if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then coverage run -m unittest discover eventsourcing.tests -v ; fi
 - if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then python -m unittest discover eventsourcing.tests -v ; fi
+
+after_success:
+- if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then coveralls ; fi
