@@ -180,11 +180,9 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
         # Calculate parent i and j.
         p_i = p_n * span
         p_j = p_i + span
-        # Check the parent i,j bounds the child i,j.
-        if p_i > c_i:
-            raise AssertionError(p_i, c_i)
-        if p_j < c_j:
-            raise AssertionError(p_j, c_j)
+        # Check the parent i,j bounds the child i,j, ie child span is contained by parent span.
+        assert p_i <= c_i, 'i greater on parent than child: {}'.format(p_i, p_j)
+        assert p_j >= c_j, 'j less on parent than child: {}'.format(p_i, p_j)
         # Return parent i, j, h.
         return p_i, p_j, p_h
 
