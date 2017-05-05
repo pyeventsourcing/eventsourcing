@@ -1,7 +1,6 @@
 import os
 import unittest
 from functools import wraps
-from inspect import isfunction
 from unittest import TestCase
 
 
@@ -23,10 +22,8 @@ class AbstractTestCase(TestCase):
 
 
 def notquick(arg):
-
     @wraps(arg)
     def _not_quick(arg):
         return unittest.skipIf(os.getenv("QUICK_TESTS_ONLY"), 'Ignored slow test.')(arg)
 
     return _not_quick(arg)
-

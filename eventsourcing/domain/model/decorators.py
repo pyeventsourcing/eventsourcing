@@ -136,7 +136,6 @@ def attribute(getter):
 
 
 def retry(exc=Exception, max_retries=5, wait=0.5):
-
     def _retry(func):
 
         @wraps(func)
@@ -151,6 +150,7 @@ def retry(exc=Exception, max_retries=5, wait=0.5):
                         sleep(wait)
                     else:
                         raise e
+
         return wrapper
 
     if isfunction(exc):
