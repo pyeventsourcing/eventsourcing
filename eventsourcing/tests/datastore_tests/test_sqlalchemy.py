@@ -12,6 +12,7 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, 
 
 class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
     use_named_temporary_file = False
+    connection_strategy = 'plain'
 
     def construct_datastore(self):
         if self.use_named_temporary_file:
@@ -23,6 +24,7 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
             base=ActiveRecord,
             settings=SQLAlchemySettings(uri=uri),
             tables=(IntegerSequencedItemRecord, TimestampSequencedItemRecord, SnapshotRecord),
+            connection_strategy=self.connection_strategy,
         )
 
 

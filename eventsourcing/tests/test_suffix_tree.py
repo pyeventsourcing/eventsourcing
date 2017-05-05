@@ -53,7 +53,7 @@
 #         self.assertEqual(self.app.find_substring('m', st.id), 0)
 #         self.assertEqual(self.app.find_substring('i', st.id), 1)
 #
-#     @notquick()
+#     @notquick
 #     def test_long_string(self):
 #         st = register_new_suffix_tree()
 #         st.add_string(LONG_TEXT)
@@ -61,7 +61,7 @@
 #         self.assertEqual(self.app.find_substring('Optimal', st.id), 11074)
 #         self.assertFalse(self.app.has_substring('ukkonen', st.id))
 #
-#     @notquick()
+#     @notquick
 #     def test_case_insensitivity(self):
 #         st = register_new_suffix_tree(case_insensitive=True)
 #         st.add_string(LONG_TEXT)

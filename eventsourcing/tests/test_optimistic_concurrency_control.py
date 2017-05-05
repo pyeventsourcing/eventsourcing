@@ -26,7 +26,7 @@
 #
 #
 # class OptimisticConcurrencyControlTestCase(WithActiveRecordStrategies):
-#     @notquick()
+#     @notquick
 #     def test_optimistic_concurrency_control(self):
 #         """Appends lots of events, but with a pool of workers
 #         all trying to add the same sequence of events.
@@ -169,7 +169,7 @@
 #             return (successes, failures)
 #
 #
-# @notquick()
+# @notquick
 # class TestOptimisticConcurrencyControlWithCassandra(WithCassandraActiveRecordStrategies,
 #                                                     OptimisticConcurrencyControlTestCase):
 #     pass

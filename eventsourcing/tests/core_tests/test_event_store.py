@@ -40,12 +40,12 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
 
         # Check there are zero stored events in the repo.
         entity_id1 = uuid4()
-        entity_events = event_store.get_domain_events(entity_id=entity_id1)
+        entity_events = event_store.get_domain_events(originator_id=entity_id1)
         entity_events = list(entity_events)
         self.assertEqual(0, len(entity_events))
 
         # Check there are zero events in the event store, using iterator.
-        entity_events = event_store.get_domain_events(entity_id=entity_id1, page_size=1)
+        entity_events = event_store.get_domain_events(originator_id=entity_id1, page_size=1)
         entity_events = list(entity_events)
         self.assertEqual(0, len(entity_events))
 
@@ -54,12 +54,12 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         event_store.append(event1)
 
         # Check there is one event in the event store.
-        entity_events = event_store.get_domain_events(entity_id=entity_id1)
+        entity_events = event_store.get_domain_events(originator_id=entity_id1)
         entity_events = list(entity_events)
         self.assertEqual(1, len(entity_events))
 
         # Check there are two events in the event store, using iterator.
-        entity_events = event_store.get_domain_events(entity_id=entity_id1, page_size=1)
+        entity_events = event_store.get_domain_events(originator_id=entity_id1, page_size=1)
         entity_events = list(entity_events)
         self.assertEqual(1, len(entity_events))
 
@@ -68,12 +68,12 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         event_store.append(event1)
 
         # Check there are two events in the event store.
-        entity_events = event_store.get_domain_events(entity_id=entity_id1)
+        entity_events = event_store.get_domain_events(originator_id=entity_id1)
         entity_events = list(entity_events)
         self.assertEqual(2, len(entity_events))
 
         # Check there are two events in the event store, using iterator.
-        entity_events = event_store.get_domain_events(entity_id=entity_id1, page_size=1)
+        entity_events = event_store.get_domain_events(originator_id=entity_id1, page_size=1)
         entity_events = list(entity_events)
         self.assertEqual(2, len(entity_events))
 
@@ -82,7 +82,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
 
         # Check there is no most recent event.
         entity_id1 = uuid4()
-        entity_event = event_store.get_most_recent_event(entity_id=entity_id1)
+        entity_event = event_store.get_most_recent_event(originator_id=entity_id1)
         self.assertEqual(entity_event, None)
 
         # Store a domain event.
@@ -90,7 +90,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         event_store.append(event1)
 
         # Check there is an event.
-        entity_event = event_store.get_most_recent_event(entity_id=entity_id1)
+        entity_event = event_store.get_most_recent_event(originator_id=entity_id1)
         self.assertEqual(entity_event, event1)
 
     def test_all_domain_events(self):

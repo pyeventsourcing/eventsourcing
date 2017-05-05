@@ -17,20 +17,20 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def get_domain_events(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
+    def get_domain_events(self, originator_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
                           page_size=None):
         """
         Returns domain events for given entity ID.
         """
 
     @abstractmethod
-    def get_domain_event(self, entity_id, eq):
+    def get_domain_event(self, originator_id, eq):
         """
         Returns a single domain event.
         """
 
     @abstractmethod
-    def get_most_recent_event(self, entity_id, lt=None, lte=None):
+    def get_most_recent_event(self, originator_id, lt=None, lte=None):
         """
         Returns most recent domain event for given entity ID.
         """
@@ -67,13 +67,13 @@ class EventStore(AbstractEventStore):
     def to_sequenced_item(self, domain_event):
         return self.sequenced_item_mapper.to_sequenced_item(domain_event)
 
-    def get_domain_events(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
+    def get_domain_events(self, originator_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
                           page_size=None):
         # Get all the sequenced items for the entity.
         if page_size:
             sequenced_items = self.iterator_class(
                 active_record_strategy=self.active_record_strategy,
-                sequence_id=entity_id,
+                sequence_id=originator_id,
                 page_size=page_size,
                 gt=gt,
                 gte=gte,
@@ -84,7 +84,7 @@ class EventStore(AbstractEventStore):
             )
         else:
             sequenced_items = self.active_record_strategy.get_items(
-                sequence_id=entity_id,
+                sequence_id=originator_id,
                 gt=gt,
                 gte=gte,
                 lt=lt,
@@ -99,16 +99,16 @@ class EventStore(AbstractEventStore):
         domain_events = list(domain_events)
         return domain_events
 
-    def get_domain_event(self, entity_id, eq):
+    def get_domain_event(self, originator_id, eq):
         sequenced_item = self.active_record_strategy.get_item(
-            sequence_id=entity_id,
+            sequence_id=originator_id,
             eq=eq,
         )
         domain_event = self.sequenced_item_mapper.from_sequenced_item(sequenced_item)
         return domain_event
 
-    def get_most_recent_event(self, entity_id, lt=None, lte=None):
-        events = self.get_domain_events(entity_id=entity_id, lt=lt, lte=lte, limit=1, is_ascending=False)
+    def get_most_recent_event(self, originator_id, lt=None, lte=None):
+        events = self.get_domain_events(originator_id=originator_id, lt=lt, lte=lte, limit=1, is_ascending=False)
         events = list(events)
         try:
             return events[0]

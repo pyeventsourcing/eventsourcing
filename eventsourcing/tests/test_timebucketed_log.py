@@ -133,7 +133,7 @@ class TimebucketedlogTestCase(WithPersistencePolicies):
         messages = list(reader.get_messages(gt=halfway, lte=halfway))
         self.assertEqual(len(messages), 0)
 
-    @notquick()
+    @notquick
     def test_buckets_size_second(self):
         # Start new log.
         log = start_new_timebucketedlog(name=uuid4(), bucket_size='second')
