@@ -232,15 +232,6 @@ Exception classes
 Example application
 ===================
 
-:mod:`eventsourcing.example.interface.flaskwsgi`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: eventsourcing.example.interface.flaskwsgi
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
-
 :mod:`eventsourcing.example.interface.flaskapp`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

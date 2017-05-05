@@ -9,4 +9,5 @@ mock<=2.0.99999
 PyCrypto<=2.6.99999
 requests<=2.13.99999
 flask<=0.12.99999
+flask_sqlalchemy<=2.2.99
 uwsgi<=2.0.99999
