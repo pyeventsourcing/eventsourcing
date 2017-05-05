@@ -10,8 +10,8 @@ in a highly scalable manner, replaying the stored events for a
 particular entity to obtain the current state, and projecting views of
 the event stream that are persisted in other models.
 
-Therefore, quoting from the "Cohesive Mechanism" pages in Eric Evans'
-Domain Driven Design book:
+Therefore, quoting from Eric Evans' book about `domain-driven design
+<https://en.wikipedia.org/wiki/Domain-driven_design>`__:
 
 .. pull-quote::
 
@@ -20,7 +20,7 @@ Domain Driven Design book:
     well-documented categories of algorithms. Expose the capabilities of the
     framework with an INTENTION-REVEALING INTERFACE. Now the other elements
     of the domain can focus on expressing the problem ('what'), delegating
-    the intricacies of the solution ('how') to the framework."**
+    the intricacies of the solution ('how') to the framework."*
 
 
 Inspiration:

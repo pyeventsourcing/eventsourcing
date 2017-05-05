@@ -8,8 +8,7 @@ and indicates how they can be resolved in different situations.
 
 Please note, unlike the code snippets in the other sections of
 the user guide, the snippets of code in this section are merely
-suggestive, and do not form a working program.
-
+suggestive, and do not form a complete working program.
 For a working example using eventsourcing and Flask and
 SQLAlchemy, please refer to the library module
 :mod:`eventsourcing.example.interface.flaskapp`, which is
@@ -32,7 +31,9 @@ and assigns it to the variable, and can be called from a suitable hook or
 signal designed for setting things up before any requests are handled.
 A second function returns the application object assigned to the variable,
 and can be called by any request or task handlers that depend on the
-application's services.
+application's services. An alternative to having separate "init" and "get"
+functions is having one function that does lazy initialization of the
+application object when first requested.
 
 Although the first function below must be called only once, the second
 function may be called many times. The example functions below have been written
@@ -83,10 +84,6 @@ you may wish to close any database or other connections to network services.
             application.close()
         application = None
 
-
-An alternative to having separate "init" and "get" functions is having one
-function that does lazy initialization of the application object when first
-requested.
 
 
 Database connection
@@ -149,31 +146,25 @@ If you are an SQLAlchemy user, it is well worth reading the
 documentation about sessions.
 
 
+Cassandra
+---------
+
+Cassandra connections can be setup entirely independently of the application
+object. See the section about :doc:`using Cassandra</topics/user_guide/cassandra>`
+for more information.
+
+
 Web frameworks
 ==============
-
-Flask-SQLAlchemy
-----------------
-
-If you wish to use eventsourcing with Flask and SQLAlchemy, then you may wish
-to use Flask-SQLAlchemy. You just need to define your active record class
-using the model classes from that library, and then use it instead of the
-library classes in your eventsourcing application object, along with the
-session object it provides.
-
-For a working example using eventsourcing and Flask and SQLAlchemy, please
-refer to the library module :mod:`eventsourcing.example.interface.flaskapp`,
-which is tested both stand-alone and with uWSGI. This example uses
-Flask-SQLAlchemy to setup session object that is scoped to the request.
-
 
 uWSGI
 -----
 
-uWSGI has a `postfork decorator
+If you are running uWSGI in prefork mode, and not using a framework to
+to initialise the database or provide a signal to initialise the
+application object, uWSGI has a `postfork decorator
 <http://uwsgi-docs.readthedocs.io/en/latest/PythonDecorators.html#uwsgidecorators.postfork>`__
-that can be used with Django and Flask and other frameworks. The ``@postfork``
-may be appropriate if you are running uWSGI in prefork mode.
+that may be used for this purpose.
 
 Your ``wsgi.py`` file can have a module-level function decorated with the ``@postfork``
 decorator that initialises your eventsourcing application for the Web application process
@@ -190,18 +181,49 @@ after child workers have been forked.
         # Construct eventsourcing application.
         init_application()
 
-
 Other decorators are available.
 
 
-Flask-Cassandra
----------------
+Flask-SQLAlchemy
+----------------
 
-The `Flask-Cassandra <https://github.com/TerbiumLabs/flask-cassandra>`__
-project serves a similar function to flask-sqlalchemy.
+If you wish to use eventsourcing with Flask and SQLAlchemy, then you may wish
+to use Flask-SQLAlchemy. You just need to define your active record class
+using the model classes from that library, and then use it instead of the
+library classes in your eventsourcing application object, along with the
+session object it provides.
+
+For a working example using Flask and SQLAlchemy, please
+refer to the library module :mod:`eventsourcing.example.interface.flaskapp`,
+which is tested both stand-alone and with uWSGI. That example uses
+Flask-SQLAlchemy to setup session object that is scoped to the request.
+The application is initialised using Flask's 'before_first_request'
+signal.
+
+.. code:: python
+
+    application = Flask(__name__)
+
+    db = SQLAlchemy(application)
+
+
+    @application.before_first_request
+    def init_example_application_with_sqlalchemy():
+        active_record_strategy = SQLAlchemyActiveRecordStrategy(
+            active_record_class=IntegerSequencedItemRecord,
+            session=db.session,
+        )
+        init_example_application(
+            entity_active_record_strategy=active_record_strategy
+        )
+
+
+Flask with Cassandra
+--------------------
 
 The `Cassandra Driver FAQ <https://datastax.github.io/python-driver/faq.html>__`
-has a code snippet about establishing the connection with the uWSGI `postfork` decorator.
+has a code snippet about establishing the connection with the uWSGI `postfork`
+decorator, when running in a forked mode.
 
 .. code:: python
 
@@ -226,11 +248,22 @@ has a code snippet about establishing the connection with the uWSGI `postfork` d
         return row.release_version
 
 
+Flask-Cassandra
+---------------
+
+The `Flask-Cassandra <https://github.com/TerbiumLabs/flask-cassandra>`__
+project serves a similar function to Flask-SQLAlchemy.
+
+
 Django-Cassandra
 ----------------
 
 If you wish to use eventsourcing with Django and Cassandra, you may wish
 to use `Django-Cassandra <https://pypi.python.org/pypi/django-cassandra-engine/>`__.
+
+It's also possible to use this library directly with Django and Cassandra. You
+just need to configure the connection and initialise the application before handling
+requests in a way that is correct for your configuration.
 
 
 Django ORM
@@ -282,9 +315,10 @@ with a getter that supports lazy initialization.
 
 .. code:: python
 
-    from celery.signals import worker_process_init
-    @task_prerun.connect()
-    get_appliation(lazy_init=True)
+    from celery.signals import task_prerun
+    @task_prerun.connect
+    def init_process(*args, **kwargs):
+        get_appliation(lazy_init=True)
 
 
 If you use lazy initialization, it might be safer to lock the section
