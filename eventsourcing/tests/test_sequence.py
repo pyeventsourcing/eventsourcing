@@ -1,8 +1,11 @@
-from queue import Queue
+try:
+    from queue import Queue
+except ImportError:
+    from Queue import Queue
 from threading import Thread
 from uuid import uuid4
 
-from eventsourcing.exceptions import ConcurrencyError, SequenceFullError, CompoundSequenceFullError
+from eventsourcing.exceptions import CompoundSequenceFullError, ConcurrencyError, SequenceFullError
 from eventsourcing.infrastructure.event_sourced_repos.sequence import CompoundSequenceRepository, SequenceRepo
 from eventsourcing.infrastructure.sequencereader import CompoundSequenceReader, SequenceReader
 from eventsourcing.tests.base import notquick
@@ -111,7 +114,6 @@ class SequenceTestCase(WithPersistencePolicies):
 
 
 class CompoundSequenceTestCase(WithPersistencePolicies):
-
     def setUp(self):
         super(CompoundSequenceTestCase, self).setUp()
         self.repo = CompoundSequenceRepository(self.entity_event_store)
@@ -413,8 +415,6 @@ class CompoundSequenceTestCase(WithPersistencePolicies):
         # Check the root is full.
         self.assertEqual(len(root), max_size)
         # Todo: Check the sequence items are as expected.
-
-
 
 
 class TestSequenceWithCassandra(WithCassandraActiveRecordStrategies, SequenceTestCase):
