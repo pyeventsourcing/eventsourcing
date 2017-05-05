@@ -1,10 +1,10 @@
-from uuid import UUID, uuid5, uuid4
+from uuid import uuid4, uuid5
 
-from eventsourcing.domain.model.sequence import Sequence, SequenceRepository, CompoundSequenceRepository, \
-    CompoundSequence, start_compound_sequence
+from eventsourcing.domain.model.sequence import CompoundSequence, CompoundSequenceRepository, Sequence, \
+    SequenceRepository, start_compound_sequence
 from eventsourcing.exceptions import ConcurrencyError, SequenceFullError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.infrastructure.sequencereader import SequenceReader, CompoundSequenceReader
+from eventsourcing.infrastructure.sequencereader import CompoundSequenceReader, SequenceReader
 
 
 class SequenceRepo(EventSourcedRepository, SequenceRepository):
@@ -18,6 +18,7 @@ class SequenceRepo(EventSourcedRepository, SequenceRepository):
         """
         return self.event_player.replay_entity(entity_id, limit=1)
 
+    # Todo: Factor this out?
     def get_reader(self, sequence_id, max_size=None):
         """
         Returns a sequence reader for the given sequence_id.
@@ -43,23 +44,8 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
         """
         return self.event_player.replay_entity(entity_id, limit=1)
 
-    def get_reader(self, sequence_id, i, j, h, max_size):
-        """
-        Returns a sequence reader for the given sequence_id.
-        
-        Starts sequence entity if it doesn't exist.
-        
-        :rtype: SequenceReader 
-        """
-        return CompoundSequenceReader(
-            sequence=self.get_or_create(sequence_id, i, j, h, max_size),
-            event_store=self.event_store,
-        )
-
     def create_sequence_id(self, ns, i, j):
-        sequence_id = uuid5(ns, str((i, j)))
-        print('Created sequence ID: {}, {}, {}, {}'.format(ns, i, j, sequence_id))
-        return sequence_id
+        return uuid5(ns, str((i, j)))
 
     def start(self, ns, i, j, h, max_size):
         sequence_id = self.create_sequence_id(ns, i, j)
@@ -67,21 +53,31 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
         return CompoundSequenceReader(sequence, self.event_store)
 
     def start_root(self, max_size):
+        # Create root entity.
         sequence_id = uuid4()
         sequence = start_compound_sequence(sequence_id, i=None, j=None, h=None, max_size=max_size)
-        return CompoundSequenceReader(sequence, self.event_store)
+        root = CompoundSequenceReader(sequence, self.event_store)
+        # Add first sequence to root.
+        child = self.start(ns=root.id, i=0, j=root.max_size, h=1, max_size=root.max_size)
+        root.append(child.id)
+        # Return root.
+        return root
 
     def get_last_sequence(self, sequence):
-        try:
+        # Root must have a sequence.
+        if sequence.h is None:
             last = sequence[-1]
-        except IndexError:
-            return sequence
-        else:
-            if isinstance(last, UUID):
-                s = CompoundSequenceReader(self[last], self.event_store)
-                return self.get_last_sequence(s)
+            sequence = CompoundSequenceReader(self[last], self.event_store)
+
+        # Descend into the compound.
+        while sequence.h > 1:
+            last_id = sequence[-1]
+            last_sequence = CompoundSequenceReader(self[last_id], self.event_store)
+            if len(last_sequence) > 0:
+                sequence = last_sequence
             else:
-                return sequence
+                break
+        return sequence
 
     def get_last_item(self, sequence):
         last_sequence = self.get_last_sequence(sequence)
@@ -167,12 +163,3 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
                 self.attach_branch(target_id, detached.id)
             else:
                 self.demote(root, self[top_id], detached.id)
-
-    def start_root_with_item(self, max_size, item):
-        root = self.start_root(max_size)
-        i = 0
-        j = max_size
-        child1 = self.start(root.id, i, j, 1, max_size=root.max_size)
-        root.append(child1.id)
-        child1.append(item)
-        return root

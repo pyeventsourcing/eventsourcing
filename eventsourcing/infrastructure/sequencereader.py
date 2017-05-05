@@ -99,4 +99,3 @@ class CompoundSequenceReader(SequenceReader):
     @property
     def h(self):
         return self.sequence.h
-

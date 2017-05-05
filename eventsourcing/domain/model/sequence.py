@@ -1,7 +1,7 @@
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.domain.model.entity import AbstractEntityRepository, Created, TimestampedVersionedEntity
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 from eventsourcing.domain.model.events import publish
-from eventsourcing.exceptions import RepositoryKeyError, ConcurrencyError
+from eventsourcing.exceptions import ConcurrencyError, RepositoryKeyError
 
 
 class Sequence(TimestampedVersionedEntity):
@@ -44,7 +44,6 @@ class Sequence(TimestampedVersionedEntity):
 
 
 class CompoundSequence(Sequence):
-
     def __init__(self, h=None, *args, **kwargs):
         super(CompoundSequence, self).__init__(**kwargs)
         self._h = h
@@ -82,6 +81,7 @@ class SequenceRepository(AbstractEntityRepository):
     """
     Repository for sequence objects.
     """
+
     @retry(ConcurrencyError, max_retries=1, wait=0)
     def get_or_create(self, sequence_id, max_size=None):
         """
