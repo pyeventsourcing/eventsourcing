@@ -1,6 +1,8 @@
+from queue import Queue
+from threading import Thread
 from uuid import uuid4
 
-from eventsourcing.exceptions import ConcurrencyError, SequenceFullError
+from eventsourcing.exceptions import ConcurrencyError, SequenceFullError, CompoundSequenceFullError
 from eventsourcing.infrastructure.event_sourced_repos.sequence import CompoundSequenceRepository, SequenceRepo
 from eventsourcing.infrastructure.sequencereader import CompoundSequenceReader, SequenceReader
 from eventsourcing.tests.base import notquick
@@ -107,8 +109,6 @@ class SequenceTestCase(WithPersistencePolicies):
             sequence.max_size = 1
             sequence.append('item1')
 
-# Todo: Test with multiple threads trying to append items
-# at the same time. It should work, but does need testing.
 
 class CompoundSequenceTestCase(WithPersistencePolicies):
 
@@ -124,7 +124,7 @@ class CompoundSequenceTestCase(WithPersistencePolicies):
         # Start a root sequence.
         SEQUENCE_SIZE = 2
 
-        root = self.repo.start_root(max_size=2)
+        root = self.start(max_size=2)
 
         # Just make this a bit bigger for the test,
         # because debugging is simpler with sequence
@@ -306,15 +306,21 @@ class CompoundSequenceTestCase(WithPersistencePolicies):
         self.assertEqual(self.repo.get_last_item(root), 'item12')
 
     def start_and_append(self, max_size, num_items):
-        root = self.repo.start_root(max_size=max_size)
+        root = self.start(max_size=max_size)
+        item = self.append_num_items(num_items=num_items, root=root)
+        return root, item
+
+    def append_num_items(self, num_items, root):
         item = None
-        if num_items == 0:
-            return
         for i in range(num_items):
             # item = 'item{}'.format(i)
             item = uuid4()
             self.repo.append_item(item, root.id)
-        return root, item
+        return item
+
+    def start(self, max_size):
+        root = self.repo.start_root(max_size=max_size)
+        return root
 
     def test_compound_sequence_short(self):
         # Can add zero items if max_size is zero.
@@ -336,7 +342,7 @@ class CompoundSequenceTestCase(WithPersistencePolicies):
         self.assertEqual(self.repo.get_last_item(root), last_added)
 
         # Can't add 5 items if max_size is 2.
-        with self.assertRaises(SequenceFullError):
+        with self.assertRaises(CompoundSequenceFullError):
             self.start_and_append(max_size=2, num_items=5)
 
         # Can add 27 items if max_size is 3.
@@ -344,7 +350,7 @@ class CompoundSequenceTestCase(WithPersistencePolicies):
         self.assertEqual(self.repo.get_last_item(root), last_added)
 
         # Can't add 28 items if max_size is 3.
-        with self.assertRaises(SequenceFullError):
+        with self.assertRaises(CompoundSequenceFullError):
             self.start_and_append(max_size=3, num_items=28)
 
     @notquick
@@ -353,7 +359,7 @@ class CompoundSequenceTestCase(WithPersistencePolicies):
         self.start_and_append(max_size=4, num_items=256)
 
         # Can't add 257 items if max_size is 4.
-        with self.assertRaises(SequenceFullError):
+        with self.assertRaises(CompoundSequenceFullError):
             self.start_and_append(max_size=4, num_items=257)
 
         # Can add 100 items if max_size is 10000.
@@ -370,13 +376,53 @@ class CompoundSequenceTestCase(WithPersistencePolicies):
         # Check depth is 2.
         self.assertEqual(len(root), 2)
 
+    def test_compound_sequence_threads(self):
+
+        queue = Queue()
+        max_size = 3
+        root = self.start(max_size=max_size)
+        # self.append_num_items(1, root)
+        num_threads = 16
+
+        def task():
+            try:
+                # Try to add one plus the maximum number of items.
+                num_items = max_size ** max_size
+                self.append_num_items(num_items + 1, root)
+            except (CompoundSequenceFullError):
+                pass
+            except Exception as e:
+                queue.put(e)
+
+        # Have many threads each trying to fill up the log
+        threads = [Thread(target=task) for _ in range(num_threads)]
+        for t in threads:
+            t.start()
+
+        for t in threads:
+            t.join()
+
+        # Gather thread exception.
+        errors = []
+        while not queue.empty():
+            errors.append(queue.get())
+
+        # Check there are no thread exceptions.
+        self.assertFalse(errors)
+
+        # Check the root is full.
+        self.assertEqual(len(root), max_size)
+        # Todo: Check the sequence items are as expected.
+
+
+
 
 class TestSequenceWithCassandra(WithCassandraActiveRecordStrategies, SequenceTestCase):
     pass
 
 
 class TestSequenceWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, SequenceTestCase):
-    pass
+    use_named_temporary_file = True
 
 
 class TestCompoundSequenceWithCassandra(WithCassandraActiveRecordStrategies, CompoundSequenceTestCase):
@@ -384,4 +430,4 @@ class TestCompoundSequenceWithCassandra(WithCassandraActiveRecordStrategies, Com
 
 
 class TestCompoundSequenceWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, CompoundSequenceTestCase):
-    pass
+    use_named_temporary_file = True

@@ -50,6 +50,10 @@ class SequenceFullError(EventSourcingError):
     "Raised when attempting to append an item to a sequence that is already at its maximum size."
 
 
+class CompoundSequenceFullError(EventSourcingError):
+    "Raised when attempting to append an item to a compound sequence root that is already at its maximum size."
+
+
 class DatasourceSettingsError(EventSourcingError):
     "Raised when an error is detected in settings for a datasource."
 

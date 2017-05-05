@@ -3,7 +3,7 @@ from uuid import uuid4, uuid5
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.sequence import CompoundSequence, AbstractCompoundSequenceRepository, Sequence, \
     SequenceRepository, start_compound_sequence
-from eventsourcing.exceptions import ConcurrencyError, SequenceFullError
+from eventsourcing.exceptions import ConcurrencyError, SequenceFullError, CompoundSequenceFullError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sequencereader import CompoundSequenceReader, SequenceReader
 
@@ -56,7 +56,7 @@ class CompoundSequenceRepository(EventSourcedRepository, AbstractCompoundSequenc
         # Return root.
         return root
 
-    @retry(ConcurrencyError, max_retries=20, wait=0)
+    @retry(ConcurrencyError, max_retries=20, wait=0.01)
     def append_item(self, item, sequence_id):
         root = CompoundSequenceReader(self[sequence_id], self.event_store)
         last = self.get_last_sequence(root)
@@ -65,25 +65,31 @@ class CompoundSequenceRepository(EventSourcedRepository, AbstractCompoundSequenc
         except SequenceFullError as e:
             if root.max_size == 1:
                 raise e
-            # This may raise a ConcurrencyError, if another
-            # thread has just extended the compound.
-            # If so, just let the exception be caught by
-            # the retry decorator, so a fresh attempt is
-            # made to append the item to the compound sequence.
-            next = self.extend_base(root.id, last, item)
+            try:
+                # This may raise a ConcurrencyError, if another
+                # thread has just extended the compound.
+                # If so, just let the exception be caught by
+                # the retry decorator, so a fresh attempt is
+                # made to append the item to the compound sequence.
+                next = self.extend_base(root.id, last, item)
 
-            # If we managed to extend the base, then create a
-            # branch. No other thread should be attempting this.
-            # So if it fails, the compound will need to be repaired.
-            detached_branch, target_id = self.create_detached_branch(root.id, next, len(root))
+                # If we managed to extend the base, then create a
+                # branch. No other thread should be attempting this.
+                # So if it fails, the compound will need to be repaired.
+                detached_branch, target_id = self.create_detached_branch(root.id, next, len(root))
 
-            # If there is a target, then attach the branch to it.
-            if target_id:
-                self.attach_branch(target_id, detached_branch)
-            # Otherwise demote the top in favour of the branch.
-            else:
-                top_id = root[-1]
-                self.demote(root, self[top_id], detached_branch.id)
+                # If there is a target, then attach the branch to it.
+                if target_id:
+                    self.attach_branch(target_id, detached_branch)
+                # Otherwise demote the top in favour of the branch.
+                else:
+                    top_id = root[-1]
+                    self.demote(root, self[top_id], detached_branch.id)
+            except ConcurrencyError as e:
+                if len(root) == root.max_size:
+                    raise CompoundSequenceFullError
+                else:
+                    raise e
 
     def get_last_item(self, sequence):
         """Returns last item in compound sequence.
@@ -147,7 +153,10 @@ class CompoundSequenceRepository(EventSourcedRepository, AbstractCompoundSequenc
         if detached_id is not None:
             new_child.append(detached_id)
         # Then append new child to to root.
-        root.append(new_child.id)
+        try:
+            root.append(new_child.id)
+        except SequenceFullError:
+            raise CompoundSequenceFullError
         return new_child
 
     def extend_base(self, ns, left, item):
