@@ -25,6 +25,7 @@ if hasattr(sys, 'real_prefix'):
 
 path_to_eventsourcing = dirname(dirname(abspath(eventsourcing.__file__)))
 path_to_flaskapp = abspath(flaskapp.__file__)
+path_to_flaskwsgi = join(dirname(path_to_flaskapp), 'flaskwsgi.py')
 
 
 @notquick
@@ -92,7 +93,7 @@ class TestFlaskWsgi(TestFlaskApp):
         cmd += ['--master']
         cmd += ['--processes', '4']
         cmd += ['--threads', '2']
-        cmd += ['--wsgi-file', path_to_flaskapp]
+        cmd += ['--wsgi-file', path_to_flaskwsgi]
         cmd += ['--http', ':{}'.format(self.port)]
         pythonpath = ':'.join(os.getenv('PYTHONPATH', '').split(':') + [path_to_eventsourcing])
         return Popen(cmd, env={
