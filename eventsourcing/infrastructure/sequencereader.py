@@ -82,6 +82,9 @@ class SequenceReader(object):
     def append(self, item):
         """
         Appends item to sequence, by publishing an ItemAppended event.
+        
+        Won't overrun the end of the sequence, because any contention
+        over the last place is controlled.
         """
         last_event = self.event_store.get_most_recent_event(self.id)
         next_version = last_event.originator_version + 1

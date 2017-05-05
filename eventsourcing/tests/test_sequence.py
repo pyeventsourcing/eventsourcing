@@ -107,6 +107,8 @@ class SequenceTestCase(WithPersistencePolicies):
             sequence.max_size = 1
             sequence.append('item1')
 
+# Todo: Test with multiple threads trying to append items
+# at the same time. It should work, but does need testing.
 
 class CompoundSequenceTestCase(WithPersistencePolicies):
 
@@ -269,7 +271,7 @@ class CompoundSequenceTestCase(WithPersistencePolicies):
         self.assertEqual(attachment_point, child5.id)
 
         # Attach branch.
-        self.repo.attach_branch(attachment_point, branch.id)
+        self.repo.attach_branch(attachment_point, branch)
 
         # Check the last item is correct.
         self.assertEqual(self.repo.get_last_item(root), 'item7')
