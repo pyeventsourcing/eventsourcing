@@ -92,18 +92,14 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
     def get_last_sequence(self, sequence):
         # Root must have a sequence.
         if sequence.h is None:
-            last = sequence[-1]
-            sequence = CompoundSequenceReader(self[last], self.event_store)
+            sequence = sequence[-1]
 
         # Descend into the compound.
         while sequence.h > 1:
-            last_id = sequence[-1]
-            last_sequence = CompoundSequenceReader(self[last_id], self.event_store)
-            if len(last_sequence) > 0:
-                sequence = last_sequence
-            else:
-                break
-        return sequence
+            sequence = sequence[-1]
+
+        # Return a reader.
+        return CompoundSequenceReader(sequence, self.event_store)
 
     def start(self, ns, i, j, h, max_size):
         sequence_id = self.create_sequence_id(ns, i, j)
