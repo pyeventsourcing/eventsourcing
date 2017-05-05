@@ -63,13 +63,7 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
 
     def start(self, ns, i, j, h, max_size):
         sequence_id = self.create_sequence_id(ns, i, j)
-
-        try:
-            sequence = start_compound_sequence(sequence_id, i=i, j=j, h=h, max_size=max_size)
-        except ConcurrencyError as e:
-            raise
-            # raise Exception("Can't start compound sequence, ns={}, i={}, j={}: {}".format(ns, i, j, e))
-
+        sequence = start_compound_sequence(sequence_id, i=i, j=j, h=h, max_size=max_size)
         return CompoundSequenceReader(sequence, self.event_store)
 
     def start_root(self, max_size):
@@ -163,7 +157,9 @@ class CompoundSequenceRepo(EventSourcedRepository, CompoundSequenceRepository):
         last = self.get_last_sequence(root)
         try:
             last.append(item)
-        except SequenceFullError:
+        except SequenceFullError as e:
+            if root.max_size == 1:
+                raise e
             next = self.extend_base(root.id, last, item)
             detached, target_id = self.create_detached_branch(root.id, next, len(root))
             top_id = root[-1]

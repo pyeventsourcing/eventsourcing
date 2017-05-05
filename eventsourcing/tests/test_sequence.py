@@ -106,7 +106,7 @@ class SequenceTestCase(WithPersistencePolicies):
             sequence.max_size = 1
             sequence.append('item1')
 
-    def test_compound_sequence_internals(self):
+    def _test_compound_sequence_internals(self):
         # Check that sequences can be stacked.
 
         repo = CompoundSequenceRepo(self.entity_event_store)
@@ -318,21 +318,15 @@ class SequenceTestCase(WithPersistencePolicies):
         # Can add zero items if max_size is zero.
         start_and_add_items(0, 0)
 
-        # Todo: This should pass, but somehow it raises the wrong exception (ConcurrencyError).
-        # # Can't add 1 items if max_size is 0.
-        # with self.assertRaises(SequenceFullError):
-        #     start_and_add_items(max_size=1, num_items=2)
-
         # Can add zero items if max_size is 1.
         start_and_add_items(1, 0)
 
         # Can add 1 items if max_size is 1.
         start_and_add_items(max_size=1, num_items=1)
 
-        # Todo: This should pass, but somehow it raises the wrong exception (ConcurrencyError).
         # Can't add 2 items if max_size is 1.
-        # with self.assertRaises(SequenceFullError):
-        #     start_and_add_items(max_size=1, num_items=2)
+        with self.assertRaises(SequenceFullError):
+            start_and_add_items(max_size=1, num_items=2)
 
         # Can add 4 items if max_size is 2.
         start_and_add_items(max_size=2, num_items=4)
