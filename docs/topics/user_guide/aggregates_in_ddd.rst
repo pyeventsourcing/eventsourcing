@@ -7,18 +7,18 @@ Eric Evans' book Domain Driven Design describes an abstraction called
 
 .. pull-quote::
 
-    *An aggregate is a cluster of associated objects that we treat as a unit
-    for the purpose of data changes. Each aggregate has a root and a boundary.*
+    *"An aggregate is a cluster of associated objects that we treat as a unit
+    for the purpose of data changes. Each aggregate has a root and a boundary."*
 
 Therefore,
 
 .. pull-quote::
 
-    **Cluster the entities and value objects into aggregates and define
+    **"Cluster the entities and value objects into aggregates and define
     boundaries around each. Choose one entity to be the root of each
     aggregate, and control all access to the objects inside the boundary
     through the root. Allow external objects to hold references to the
-    root only.**
+    root only."*
 
 From this, it appears that an event sourced aggregate must have a set of
 events and a mutator function that pertain to a cluster of objects within
