@@ -1,32 +1,34 @@
-=====================================
-Web frameworks and task queue workers
-=====================================
+==============================
+Web interfaces and task queues
+==============================
 
-There are many frameworks, many databases, and various process or
-execution models. This section gives an overview of the concerns,
-and indicates how they can be resolved in different situations.
+This section gives an overview of the concerns that arise
+when using an eventsourcing application in a Web application
+and with task queue workers, and indicates how the concerns
+can be addressed in different situations. There are too many
+combinations of frameworks, databases, and process models to
+provide exhaustive guidance.
 
 Please note, unlike the code snippets in the other sections of
 the user guide, the snippets of code in this section are merely
 suggestive, and do not form a complete working program.
-For a working example using eventsourcing and Flask and
-SQLAlchemy, please refer to the library module
-:mod:`eventsourcing.example.interface.flaskapp`, which is
-tested both stand-alone and with uWSGI.
+For a working example using Flask and SQLAlchemy, please refer
+to the library module :mod:`eventsourcing.example.interface.flaskapp`,
+which is tested both stand-alone and with uWSGI.
 
 
 Application object
 ==================
 
 In general you need one, and only one, instance of your application
-object in each process.
-If your eventsourcing application object has any policies, then
-constructing more than one instance of the application causes the
-policy event handlers to be subscribed more than once, so for example
-more than one attempt will be made to save each event, which won't
-work.
+object in each process. If your eventsourcing application object has
+any policies, for example if is has a persistence policy that will
+persist events whenever they are published, then constructing more
+than one instance of the application causes the policy event handlers
+to be subscribed more than once, so for example more than one attempt
+will be made to save each event, which won't work.
 
-To make sure there in only one instance of your application object in
+To make sure there is only one instance of your application object in
 each process, one possible arrangement (see below) is to have a module
 with a variable and two functions. The first function constructs the
 application object and assigns it to the variable, and can be called
@@ -39,10 +41,11 @@ that does lazy initialization of the application object when first
 requested.
 
 Although the first function below must be called only once, the second
-function may be called many times. The example functions below have
-been written relatively strictly, so that ``init_application()`` will
-raise an exception if it has already been called, and ``get_application()``
-will raise an exeception if ``init_application()`` has not been called.
+function can be called many times. The example functions below have
+been written relatively strictly so that, when it is called, the function
+``init_application()`` will raise an exception if it has already been
+called, and ``get_application()`` will raise an exeception if
+``init_application()`` has not already been called.
 
 .. code:: python
 
