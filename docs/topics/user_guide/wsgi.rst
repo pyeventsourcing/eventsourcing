@@ -163,13 +163,12 @@ Web frameworks
 uWSGI
 -----
 
-If you are running uWSGI in prefork mode, and not using a framework to
-to initialise the database or provide a signal to initialise the
-application object, uWSGI has a `postfork decorator
+If you are not using a framework to set things up, and are running uWSGI in prefork mode,
+please note that uWSGI has a `postfork decorator
 <http://uwsgi-docs.readthedocs.io/en/latest/PythonDecorators.html#uwsgidecorators.postfork>`__
-that may be used for this purpose.
+which may help.
 
-Your ``wsgi.py`` file can have a module-level function decorated with the ``@postfork``
+Your "wsgi.py" file can have a module-level function decorated with the ``@postfork``
 decorator that initialises your eventsourcing application for the Web application process
 after child workers have been forked.
 
