@@ -11,6 +11,10 @@ from eventsourcing.example.interface.flaskapp import init_example_application_wi
 from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 
+# Todo: Investigate why removing this file breaks python3.3.
+# For some reason, this file is needed to run flaskapp.py
+# with uWSGI and python3.3.
+#
 application = eventsourcing.example.interface.flaskapp.application
 
 
