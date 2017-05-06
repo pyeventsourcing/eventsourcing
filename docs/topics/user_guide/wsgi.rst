@@ -190,7 +190,7 @@ Other decorators are available.
 Flask with Cassandra
 --------------------
 
-The `Cassandra Driver FAQ <https://datastax.github.io/python-driver/faq.html>__`
+The `Cassandra Driver FAQ <https://datastax.github.io/python-driver/faq.html>`__
 has a code snippet about establishing the connection with the uWSGI `postfork`
 decorator, when running in a forked mode.
 
