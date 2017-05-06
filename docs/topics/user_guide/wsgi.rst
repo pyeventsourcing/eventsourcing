@@ -129,11 +129,9 @@ SQLAlchemy has `very good documentation about constructing sessions
 
     *Some web frameworks include infrastructure to assist in the task of aligning
     the lifespan of a Session with that of a web request. This includes products
-    such as* `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__, *for usage
-    in conjunction with the Flask web framework, and* `Zope-SQLAlchemy
-    <https://pypi.python.org/pypi/zope.sqlalchemy>`__, *typically used with the
-    Pyramid framework. SQLAlchemy recommends that these products be used as
-    available.*
+    such as Flask-SQLAlchemy for usage in conjunction with the Flask web framework,
+    and Zope-SQLAlchemy, typically used with the Pyramid framework. SQLAlchemy
+    recommends that these products be used as available.*
 
     *In those situations where the integration libraries are not provided or are
     insufficient, SQLAlchemy includes its own “helper” class known as scoped_session.
@@ -157,13 +155,13 @@ object. See the section about :doc:`using Cassandra</topics/user_guide/cassandra
 for more information.
 
 
-Web frameworks
+Web interfaces
 ==============
 
 uWSGI
 -----
 
-If you are not using a framework to set things up, and are running uWSGI in prefork mode,
+If you are running uWSGI in prefork mode, and not using a Web application framework, and are ,
 please note that uWSGI has a `postfork decorator
 <http://uwsgi-docs.readthedocs.io/en/latest/PythonDecorators.html#uwsgidecorators.postfork>`__
 which may help.
@@ -190,7 +188,8 @@ Flask-SQLAlchemy
 ----------------
 
 If you wish to use eventsourcing with Flask and SQLAlchemy, then you may wish
-to use Flask-SQLAlchemy. You just need to define your active record class
+to use `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
+You just need to define your active record class
 using the model classes from that library, and then use it instead of the
 library classes in your eventsourcing application object, along with the
 session object it provides.
@@ -218,6 +217,13 @@ signal.
         init_example_application(
             entity_active_record_strategy=active_record_strategy
         )
+
+
+Zope-SQLAlchemy
+---------------
+
+The `Zope-SQLAlchemy <https://pypi.python.org/pypi/zope.sqlalchemy>`__
+project serves a similar function to Flask-SQLAlchemy.
 
 
 Flask with Cassandra
