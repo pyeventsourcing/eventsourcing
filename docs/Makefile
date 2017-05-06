@@ -15,7 +15,7 @@ help:
 .PHONY: help Makefile
 
 
-livehtml:
+html-live:
 	sphinx-autobuild -z topics -z topics/user_guide -z ../eventsourcing $(SOURCEDIR) $(BUILDDIR)/html
 
 

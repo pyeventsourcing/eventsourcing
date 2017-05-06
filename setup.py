@@ -13,7 +13,6 @@ install_requires = singledispatch_requires + [
     'python-dateutil<=2.6.99999',
     'singledispatch==3.4.0.3',
     'six<=1.10.99999',
-    'sphinx_rtd_theme'
 ]
 
 sqlalchemy_requires = [
@@ -26,14 +25,6 @@ cassandra_requires = [
 ]
 
 crypto_requires = ['PyCrypto<=2.6.99999']
-
-test_requires = sqlalchemy_requires + cassandra_requires + crypto_requires + [
-    'mock<=2.0.99999',
-    'PyCrypto<=2.6.99999',
-    'requests<=2.13.99999',
-    'flask<=0.12.99999',
-    'uwsgi<=2.0.99999',
-]
 
 long_description = """
 This package provides generic support for event sourcing in Python.
@@ -62,7 +53,6 @@ setup(
     extras_require={
         'cassandra': cassandra_requires,
         'crypto': crypto_requires,
-        'test': test_requires,
         'sqlalchemy': sqlalchemy_requires,
     },
     zip_safe=False,

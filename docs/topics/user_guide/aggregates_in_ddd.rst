@@ -7,24 +7,24 @@ Eric Evans' book Domain Driven Design describes an abstraction called
 
 .. pull-quote::
 
-    *An aggregate is a cluster of associated objects that we treat as a unit
-    for the purpose of data changes. Each aggregate has a root and a boundary.*
+    *"An aggregate is a cluster of associated objects that we treat as a unit
+    for the purpose of data changes. Each aggregate has a root and a boundary."*
 
 Therefore,
 
 .. pull-quote::
 
-    **Cluster the entities and value objects into aggregates and define
+    *"Cluster the entities and value objects into aggregates and define
     boundaries around each. Choose one entity to be the root of each
     aggregate, and control all access to the objects inside the boundary
     through the root. Allow external objects to hold references to the
-    root only.**
+    root only."*
 
-From this, it appears that an event sourced aggregate must have a set of
+Which seems to suggest an event sourced aggregate must have a set of
 events and a mutator function that pertain to a cluster of objects within
-a boundary. It must also have an entity that can function as the root of the
+a boundary. Also an entity that can function as the root of the
 cluster of objects, with identity distinguishable across the application,
-and with methods that exclusively operate on the objects of the aggregate.
+and methods that exclusively operate on the objects of the aggregate.
 
 Since one command may result in several events, it is also important never
 to persist only some events that result from executing a command. And so

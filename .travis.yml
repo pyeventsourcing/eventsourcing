@@ -11,7 +11,8 @@ python:
 
 install:
 - pip install -U pip
-- pip install -e .[test]
+- pip install -e .[cassandra,sqlalchemy,crypto]
+- pip install -r dev_requirements.txt
 - pip install python-coveralls
 
 env:

@@ -2,20 +2,28 @@
 Application-level encryption
 ============================
 
+
+Install the library with the 'crypto' option.
+
+::
+
+    pip install eventsourcing[crypto]
+
+
 To enable encryption, pass in a cipher strategy object when constructing
 the sequenced item mapper, and set ``always_encrypt`` to a True value.
 
 Cipher strategy
 ---------------
 
-This example uses the library AES cipher strategy
-:class:`~eventsourcing.domain.services.aes_cipher.AESCipher`.
-Alternatively, you can craft your own cipher strategy object.
+Let's firstly construct a cipher strategy object. This example uses the
+library AES cipher strategy :class:`~eventsourcing.domain.services.aes_cipher.AESCipher`.
 
-The library AES cipher strategy uses the standard AES cipher from the crypto library, by
-default in CBC mode with 128 bit blocksize and a 16 byte encryption key. It generates
-a unique 16 byte initialization vector for each encryption. In this cipher strategy,
-serialized event data is compressed before it is encrypted, which can mean application
+The library AES cipher strategy uses the AES cipher from the `Python Cryptography
+Toolkit <https://pypi.python.org/pypi/pycrypto>`__, by default in CBC mode with
+128 bit blocksize and a 16 byte encryption key. It generates a unique 16 byte
+initialization vector for each encryption. In this cipher strategy, serialized
+event data is compressed before it is encrypted, which can mean application
 performance is improved when encryption is enabled.
 
 With encryption enabled, event attribute values are encrypted inside the application
