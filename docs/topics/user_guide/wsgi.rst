@@ -30,7 +30,7 @@ will be made to save each event, which won't work.
 
 To make sure there is only one instance of your application object in
 each process, one possible arrangement (see below) is to have a module
-with a variable and two functions. The first function constructs the
+with a variable and two functions. The first function constructs an
 application object and assigns it to the variable, and can be called
 from a suitable hook or signal designed for setting things up before
 any requests are handled. A second function returns the application
@@ -164,7 +164,7 @@ Web interfaces
 uWSGI
 -----
 
-If you are running uWSGI in prefork mode, and not using a Web application framework, and are ,
+If you are running uWSGI in prefork mode, and not using a Web application framework,
 please note that uWSGI has a `postfork decorator
 <http://uwsgi-docs.readthedocs.io/en/latest/PythonDecorators.html#uwsgidecorators.postfork>`__
 which may help.
@@ -185,48 +185,6 @@ after child workers have been forked.
         init_application()
 
 Other decorators are available.
-
-
-Flask-SQLAlchemy
-----------------
-
-If you wish to use eventsourcing with Flask and SQLAlchemy, then you may wish
-to use `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
-You just need to define your active record class
-using the model classes from that library, and then use it instead of the
-library classes in your eventsourcing application object, along with the
-session object it provides.
-
-For a working example using Flask and SQLAlchemy, please
-refer to the library module :mod:`eventsourcing.example.interface.flaskapp`,
-which is tested both stand-alone and with uWSGI. That example uses
-Flask-SQLAlchemy to setup session object that is scoped to the request.
-The application is initialised using Flask's 'before_first_request'
-signal.
-
-.. code:: python
-
-    application = Flask(__name__)
-
-    db = SQLAlchemy(application)
-
-
-    @application.before_first_request
-    def init_example_application_with_sqlalchemy():
-        active_record_strategy = SQLAlchemyActiveRecordStrategy(
-            active_record_class=IntegerSequencedItemRecord,
-            session=db.session,
-        )
-        init_example_application(
-            entity_active_record_strategy=active_record_strategy
-        )
-
-
-Zope-SQLAlchemy
----------------
-
-The `Zope-SQLAlchemy <https://pypi.python.org/pypi/zope.sqlalchemy>`__
-project serves a similar function to Flask-SQLAlchemy.
 
 
 Flask with Cassandra
@@ -266,6 +224,41 @@ The `Flask-Cassandra <https://github.com/TerbiumLabs/flask-cassandra>`__
 project serves a similar function to Flask-SQLAlchemy.
 
 
+Flask-SQLAlchemy
+----------------
+
+If you wish to use eventsourcing with Flask and SQLAlchemy, then you may wish
+to use `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
+You just need to define your active record class
+using the model classes from that library, and then use it instead of the
+library classes in your eventsourcing application object, along with the
+session object it provides.
+
+For a working example using Flask and SQLAlchemy, please
+refer to the library module :mod:`eventsourcing.example.interface.flaskapp`,
+which is tested both stand-alone and with uWSGI. That example uses
+Flask-SQLAlchemy to setup session object that is scoped to the request.
+The application is initialised using Flask's 'before_first_request'
+signal.
+
+.. code:: python
+
+    application = Flask(__name__)
+
+    db = SQLAlchemy(application)
+
+
+    @application.before_first_request
+    def init_example_application_with_sqlalchemy():
+        active_record_strategy = SQLAlchemyActiveRecordStrategy(
+            active_record_class=IntegerSequencedItemRecord,
+            session=db.session,
+        )
+        init_example_application(
+            entity_active_record_strategy=active_record_strategy
+        )
+
+
 Django-Cassandra
 ----------------
 
@@ -290,10 +283,17 @@ extended or replaced. Please note, the djangoevents project currently works with
 a previous version of this library.
 
 
+Zope-SQLAlchemy
+---------------
+
+The `Zope-SQLAlchemy <https://pypi.python.org/pypi/zope.sqlalchemy>`__
+project serves a similar function to Flask-SQLAlchemy.
+
+
 Task queue workers
 ==================
 
-This section contains suggestions for Celery users.
+This section contains suggestions about using an eventsourcing application in task queue workers.
 
 
 Celery
@@ -353,3 +353,9 @@ to complete their work.
         # Use eventsourcing app to complete the task.
         app = get_application()
         return "Hello World, {}".format(id(app))
+        
+        
+Redis Queue
+-----------
+
+http://python-rq.org/docs/workers/
