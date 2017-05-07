@@ -1,9 +1,8 @@
 import six
 from coverage.data import os
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.indexable import index_property
 from sqlalchemy.sql.expression import asc, desc
-from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
+from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint, Index
 from sqlalchemy.sql.sqltypes import BigInteger, Float, Integer, String, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
@@ -162,20 +161,15 @@ class IntegerSequencedItemRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Unique constraint includes 'sequence_id' and 'position'.
-    __table_args__ = UniqueConstraint('sequence_id', 'position',
-                                      name='integer_sequenced_item_uc'),
-
-    if with_new_index:
-        index = index_property('sequence_id', '-position')
+    # Unique constraint and index.
+    __table_args__ = (
+        UniqueConstraint('sequence_id', 'position', name='integer_sequenced_item_uc'),
+    ) + (Index('integer_sequenced_items_index', 'sequence_id', 'position'),) if with_new_index else ()
 
 
 class TimestampSequencedItemRecord(ActiveRecord):
     # Explicit table name.
     __tablename__ = 'timestamp_sequenced_items'
-
-    # Unique constraint.
-    __table_args__ = UniqueConstraint('sequence_id', 'position', name='timestamp_sequenced_items_uc'),
 
     # Primary key.
     id = Column(Integer, Sequence('timestamp_sequenced_item_id_seq'), primary_key=True)
@@ -192,15 +186,10 @@ class TimestampSequencedItemRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    if with_new_index:
-        index = index_property('sequence_id', '-position')
-
-
-# timestamp_sequence_index = Index("some_index", TimestampSequencedItemRecord.sequence_id,
-#                                  TimestampSequencedItemRecord.position)
-# #                                  # TimestampSequencedItemRecord.position.descending())
-# #
-# TimestampSequencedItemRecord.meta.append_constraint(timestamp_sequence_index)
+    # Unique constraint and index.
+    __table_args__ = (
+        UniqueConstraint('sequence_id', 'position', name='timestamp_sequenced_items_uc'),
+    ) + (Index('timestamp_sequenced_items_index', 'sequence_id', 'position'),) if with_new_index else ()
 
 
 class SnapshotRecord(ActiveRecord):
@@ -220,9 +209,7 @@ class SnapshotRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Unique constraint includes 'sequence_id' and 'position'.
-    __table_args__ = UniqueConstraint('sequence_id', 'position',
-                                      name='snapshot_uc'),
-
-    if with_new_index:
-        index = index_property('sequence_id', '-position')
+    # Unique constraint and index.
+    __table_args__ = (
+        UniqueConstraint('sequence_id', 'position', name='snapshot_uc'),
+    ) + (Index('snapshots_index', 'sequence_id', 'position'),) if with_new_index else ()

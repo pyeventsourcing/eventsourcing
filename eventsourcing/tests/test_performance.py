@@ -41,10 +41,10 @@ class PerformanceTestCase(WithExampleApplication):
 
             # NB: Use range(1, 5) to test whether we can get more than 10000 items from Cassandra.
             # Setup a number of entities, with different lengths of event history.
-            for i in six.moves.range(0, 3):
+            for i in six.moves.range(0, 5):
 
                 # Initialise table with other entities.
-                num_other_entities = 10000
+                num_other_entities = i
                 filling = []
                 for j in six.moves.range(num_other_entities):
                     # print("Filling table: {}".format(j))
