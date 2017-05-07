@@ -1,4 +1,5 @@
 from tempfile import NamedTemporaryFile
+from uuid import uuid4
 
 from sqlalchemy.exc import OperationalError
 
@@ -39,7 +40,7 @@ class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, DatastoreTestCase):
 
     def create_record(self):
         try:
-            record = IntegerSequencedItemRecord()
+            record = IntegerSequencedItemRecord(sequence_id=uuid4(), position=0)
             self.datastore.session.add(record)
             self.datastore.session.commit()
         except OperationalError as e:
