@@ -1,5 +1,4 @@
 import time
-from math import floor
 from uuid import uuid4
 
 import six
@@ -41,7 +40,7 @@ class PerformanceTestCase(WithExampleApplication):
 
             # NB: Use range(1, 5) to test whether we can get more than 10000 items from Cassandra.
             # Setup a number of entities, with different lengths of event history.
-            for i in six.moves.range(0, 5):
+            for i in six.moves.range(0, 4):
 
                 # Initialise table with other entities.
                 num_other_entities = i
@@ -99,40 +98,40 @@ class PerformanceTestCase(WithExampleApplication):
                 for j in range(0, i + 1):
                     last_n(10 ** j)
 
-                # # Get the entity by replaying all events (which it must since there isn't a snapshot).
-                # start_replay = time.clock()
-                # for _ in six.moves.range(repetitions):
-                #     example = app.example_repository[example.id]
-                #     assert isinstance(example, Example)
-                #     heartbeats = example.count_heartbeats()
-                #     assert heartbeats == num_beats, (heartbeats, num_beats)
-                #
-                # time_replaying = (time.clock() - start_replay) / repetitions
-                # print("Time to replay {} beats: {:.2f}s ({:.0f} beats/s, {:.6f}s each)"
-                #       "".format(num_beats, time_replaying, num_beats / time_replaying, time_replaying / num_beats))
-                #
-                # # Take snapshot, and beat heart a few more times.
-                # app.example_repository.take_snapshot(example.id, lt=example.version)
-                #
-                # extra_beats = 4
-                # for _ in six.moves.range(extra_beats):
-                #     example.beat_heart()
-                # num_beats += extra_beats
-                #
-                # # Get the entity using snapshot and replaying events since the snapshot.
-                # start_replay = time.clock()
-                # for _ in six.moves.range(repetitions):
-                #     example = app.example_repository[example.id]
-                # time_replaying = (time.clock() - start_replay) / repetitions
-                #
-                # events_per_second = (extra_beats + 1) / time_replaying  # +1 for the snapshot event
-                # beats_per_second = num_beats / time_replaying
-                # print("Time to replay snapshot with {} extra beats: {:.6f}s ({:.0f} events/s, {:.0f} beats/s)"
-                #       "".format(extra_beats, time_replaying, events_per_second, beats_per_second))
-                #
+                # Get the entity by replaying all events (which it must since there isn't a snapshot).
+                start_replay = time.clock()
+                for _ in six.moves.range(repetitions):
+                    example = app.example_repository[example.id]
+                    assert isinstance(example, Example)
+                    heartbeats = example.count_heartbeats()
+                    assert heartbeats == num_beats, (heartbeats, num_beats)
+
+                time_replaying = (time.clock() - start_replay) / repetitions
+                print("Time to replay {} beats: {:.2f}s ({:.0f} beats/s, {:.6f}s each)"
+                      "".format(num_beats, time_replaying, num_beats / time_replaying, time_replaying / num_beats))
+
+                # Take snapshot, and beat heart a few more times.
+                app.example_repository.take_snapshot(example.id, lt=example.version)
+
+                extra_beats = 4
+                for _ in six.moves.range(extra_beats):
+                    example.beat_heart()
+                num_beats += extra_beats
+
+                # Get the entity using snapshot and replaying events since the snapshot.
+                start_replay = time.clock()
+                for _ in six.moves.range(repetitions):
+                    example = app.example_repository[example.id]
+                time_replaying = (time.clock() - start_replay) / repetitions
+
+                events_per_second = (extra_beats + 1) / time_replaying  # +1 for the snapshot event
+                beats_per_second = num_beats / time_replaying
+                print("Time to replay snapshot with {} extra beats: {:.6f}s ({:.0f} events/s, {:.0f} beats/s)"
+                      "".format(extra_beats, time_replaying, events_per_second, beats_per_second))
+
                 print("")
 
-    def _test_log_performance(self):
+    def test_log_performance(self):
 
         with self.construct_application() as app:
             example_id = uuid4()
@@ -226,17 +225,16 @@ class PerformanceTestCase(WithExampleApplication):
         return events, next_position
 
 
-# @notquick
-# class TestCassandraPerformance(WithCassandraActiveRecordStrategies, PerformanceTestCase):
-#     pass
-#
-#
-# @notquick
-# class TestEncryptionPerformance(WithEncryption, TestCassandraPerformance):
-#     pass
-#
+@notquick
+class TestCassandraPerformance(WithCassandraActiveRecordStrategies, PerformanceTestCase):
+    pass
+
+
+@notquick
+class TestEncryptionPerformance(WithEncryption, TestCassandraPerformance):
+    pass
+
 
 @notquick
 class TestSQLAlchemyPerformance(WithSQLAlchemyActiveRecordStrategies, PerformanceTestCase):
     pass
-    # use_named_temporary_file = True

@@ -1,5 +1,4 @@
 import six
-from coverage.data import os
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint, Index
@@ -8,9 +7,6 @@ from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord
-
-with_new_index = bool(os.environ.get("WITH_NEW_INDEX"))
-with_old_index = bool(os.environ.get("WITH_OLD_INDEX"))
 
 
 class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
@@ -147,13 +143,11 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 class IntegerSequencedItemRecord(ActiveRecord):
     __tablename__ = 'integer_sequenced_items'
 
-    id = Column(Integer, Sequence('integer_sequenced_item_id_seq'), primary_key=True)
-
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(UUIDType(), index=with_old_index)
+    sequence_id = Column(UUIDType(), primary_key=True)
 
     # Position (index) of item in sequence.
-    position = Column(BigInteger(), index=with_old_index)
+    position = Column(BigInteger(), primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
     topic = Column(String(255))
@@ -161,24 +155,20 @@ class IntegerSequencedItemRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Unique constraint and index.
+    # Index.
     __table_args__ = (
-        UniqueConstraint('sequence_id', 'position', name='integer_sequenced_item_uc'),
-    ) + (Index('integer_sequenced_items_index', 'sequence_id', 'position'),) if with_new_index else ()
+        Index('integer_sequenced_items_index', 'sequence_id', 'position'),
+    )
 
 
 class TimestampSequencedItemRecord(ActiveRecord):
-    # Explicit table name.
     __tablename__ = 'timestamp_sequenced_items'
 
-    # Primary key.
-    id = Column(Integer, Sequence('timestamp_sequenced_item_id_seq'), primary_key=True)
-
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(UUIDType(), index=with_old_index)
+    sequence_id = Column(UUIDType(), primary_key=True)
 
     # Position (timestamp) of item in sequence.
-    position = Column(Float(), index=with_old_index)
+    position = Column(Float(), primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
     topic = Column(String(255))
@@ -186,22 +176,20 @@ class TimestampSequencedItemRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Unique constraint and index.
+    # Index.
     __table_args__ = (
-        UniqueConstraint('sequence_id', 'position', name='timestamp_sequenced_items_uc'),
-    ) + (Index('timestamp_sequenced_items_index', 'sequence_id', 'position'),) if with_new_index else ()
+        Index('timestamp_sequenced_items_index', 'sequence_id', 'position'),
+    )
 
 
 class SnapshotRecord(ActiveRecord):
     __tablename__ = 'snapshots'
 
-    id = Column(Integer, Sequence('snapshot_seq'), primary_key=True)
-
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(UUIDType(), index=with_old_index)
+    sequence_id = Column(UUIDType(), primary_key=True)
 
     # Position (index) of item in sequence.
-    position = Column(BigInteger(), index=with_old_index)
+    position = Column(BigInteger(), primary_key=True)
 
     # Topic of the item (e.g. path to domain entity class).
     topic = Column(String(255))
@@ -209,7 +197,7 @@ class SnapshotRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Unique constraint and index.
+    # Index.
     __table_args__ = (
-        UniqueConstraint('sequence_id', 'position', name='snapshot_uc'),
-    ) + (Index('snapshots_index', 'sequence_id', 'position'),) if with_new_index else ()
+        Index('snapshots_index', 'sequence_id', 'position'),
+    )
