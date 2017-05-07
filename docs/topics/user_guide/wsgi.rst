@@ -1,13 +1,12 @@
-==============================
-Web interfaces and task queues
-==============================
+==========
+Deployment
+==========
 
 This section gives an overview of the concerns that arise
 when using an eventsourcing application in a Web application
-and with task queue workers, and indicates how the concerns
-can be addressed in different situations. There are too many
-combinations of frameworks, databases, and process models to
-provide exhaustive guidance.
+and task queue workers. There are simply too many combinations of
+frameworks, databases, and process models to provide exhaustive
+guidance.
 
 Please note, unlike the code snippets in the other sections of
 the user guide, the snippets of code in this section are merely
@@ -30,15 +29,13 @@ will be made to save each event, which won't work.
 
 To make sure there is only one instance of your application object in
 each process, one possible arrangement (see below) is to have a module
-with a variable and two functions. The first function constructs an
-application object and assigns it to the variable, and can be called
-from a suitable hook or signal designed for setting things up before
-any requests are handled. A second function returns the application
-object assigned to the variable, and can be called by any request or
-task handlers that depend on the application's services. An alternative
-to having separate "init" and "get" functions is having one function
-that does lazy initialization of the application object when first
-requested.
+with two functions and a variable. The first function constructs an
+application object and assigns it to the variable, and can perhaps be
+called when a module is imported, or from a suitable hook or signal
+designed for setting things up before any requests are handled. A
+second function returns the application object assigned to the variable,
+and can be called by any views, or request or task handlers, that depend
+on the application's services.
 
 Although the first function below must be called only once, the second
 function can be called many times. The example functions below have
@@ -91,27 +88,57 @@ you may wish to close any database or other connections to network services.
         application = None
 
 
+Lazy initialization
+-------------------
+
+An alternative to having separate "init" and "get" functions is having one
+"get" function that does lazy initialization of the application object when
+first requested. With lazy initialization, the getter will first check if
+the object it needs to return has been constructed, and will then return the
+object. If the object hasn't been constructed, before returning the object
+it will construct the object. So you could use a lock around the construction
+of the object, to make sure it only happens once. After the lock is obtained
+and before the object is constructed, it is recommended to check again that
+the object wasn't constructed by another thread before the lock was acquired.
+
+.. code:: python
+
+    application = None
+
+    lock = threading.Lock()
+
+    def get_application():
+        global application
+        if application is None:
+            lock.acquire()
+            try:
+                # Check again to avoid a TOCTOU bug.
+                if application is None:
+                    application = construct_application()
+            finally:
+                lock.release()
+        return application
+
+
 
 Database connection
 ===================
 
+Typically, your eventsourcing application object will be constructed after
+its database connection has been configured, and before any requests are handled.
+Views or tasks can then safely use the already constructed application object.
+
 If your eventsourcing application depends on receiving a database session
 object when it is constructed, for example if you are using the SQLAlchemy
-classes in this library, then you will need to create a session object first
-and use it to construct the application object.
+classes in this library, then you will need to create a correctly scoped
+session object first and use it to construct the application object.
 
 On the other hand, if your eventsourcing application does not depend on
 receiving a database session object when it is constructed, for example if
 you are using the Cassandra classes in this library, then you may construct
 the application object before configuring the database connection - just be
 careful not to use the application object before the database connection is
-established.
-
-Typically, your eventsourcing application object will be constructed after
-its database connection has been setup, and before any requests are handled.
-Request handlers ("views" or "tasks") can then safely use the already
-constructed application object without risk of a race condition leading to
-the application being constructed more than once.
+configured otherwise your queries just won't work.
 
 Setting up connections to databases is out of scope of the eventsourcing
 application classes, and should be setup in a "normal" way. The documentation
@@ -127,6 +154,8 @@ SQLAlchemy
 
 SQLAlchemy has `very good documentation about constructing sessions
 <http://docs.sqlalchemy.org/en/latest/orm/session_basics.html>`__.
+If you are an SQLAlchemy user, it is well worth reading the
+documentation about sessions in full. Here's a small quote:
 
 .. pull-quote::
 
@@ -146,8 +175,8 @@ The important thing is to use a scoped session, and it is better
 to have the session scoped to the request or task, rather than
 the thread, but scoping to the thread is ok.
 
-If you are an SQLAlchemy user, it is well worth reading the
-documentation about sessions.
+As soon as you have a scope session object, you can construct
+your eventsourcing application.
 
 
 Cassandra
@@ -238,8 +267,8 @@ For a working example using Flask and SQLAlchemy, please
 refer to the library module :mod:`eventsourcing.example.interface.flaskapp`,
 which is tested both stand-alone and with uWSGI. That example uses
 Flask-SQLAlchemy to setup session object that is scoped to the request.
-The application is initialised using Flask's 'before_first_request'
-signal.
+The eventsourcing application object is constructed when the module is
+imported, immediately after the session object has been constructed.
 
 .. code:: python
 
@@ -247,16 +276,31 @@ signal.
 
     db = SQLAlchemy(application)
 
+    class IntegerSequencedItem(db.Model):
+        __tablename__ = 'integer_sequenced_items'
 
-    @application.before_first_request
-    def init_example_application_with_sqlalchemy():
-        active_record_strategy = SQLAlchemyActiveRecordStrategy(
-            active_record_class=IntegerSequencedItemRecord,
+        # Sequence ID (e.g. an entity or aggregate ID).
+        sequence_id = Column(UUIDType(), primary_key=True)
+
+        # Position (index) of item in sequence.
+        position = Column(BigInteger(), primary_key=True)
+
+        # Topic of the item (e.g. path to domain event class).
+        topic = Column(String(255))
+
+        # State of the item (serialized dict, possibly encrypted).
+        data = Column(Text())
+
+        # Index.
+        __table_args__ = Index('index', 'sequence_id, 'position'),
+
+
+    init_example_application(
+        entity_active_record_strategy=SQLAlchemyActiveRecordStrategy(
+            active_record_class=IntegerSequencedItem,
             session=db.session,
         )
-        init_example_application(
-            entity_active_record_strategy=active_record_strategy
-        )
+    )
 
 
 Django-Cassandra
@@ -290,8 +334,8 @@ The `Zope-SQLAlchemy <https://pypi.python.org/pypi/zope.sqlalchemy>`__
 project serves a similar function to Flask-SQLAlchemy.
 
 
-Task queue workers
-==================
+Task queues
+===========
 
 This section contains suggestions about using an eventsourcing application in task queue workers.
 
@@ -332,14 +376,10 @@ with a getter that supports lazy initialization.
         get_appliation(lazy_init=True)
 
 
-If you use lazy initialization, it might be safer to lock the section
-that constructs the application object, and check inside the locked
-block that the application object still doesn't exist before constructing
-it (you don't want to keep locking the application object just to get it).
-
 Once the application has been safely initialized once
 in the process, your Celery tasks can use function ``get_application()``
-to complete their work.
+to complete their work. Of course, you could just call a getter with lazy
+initialization from the tasks.
 
 .. code:: python
 
@@ -353,8 +393,12 @@ to complete their work.
         # Use eventsourcing app to complete the task.
         app = get_application()
         return "Hello World, {}".format(id(app))
-        
-        
+
+
+Again, the most important thing is configuring the database, and making
+things work across all modes of execution, including your test suite.
+
+
 Redis Queue
 -----------
 
