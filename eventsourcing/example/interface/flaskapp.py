@@ -6,14 +6,26 @@ from sqlalchemy_utils.types.uuid import UUIDType
 from eventsourcing.example.application import get_example_application, init_example_application
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
 
+# Flask application.
+
 application = Flask(__name__)
 
 uri = os.environ.get('DB_URI', 'sqlite:///:memory:')
 
 application.config['SQLALCHEMY_DATABASE_URI'] = uri
 application.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(application)
 
+@application.route("/")
+def hello():
+    app = get_example_application()
+    entity_id = app.create_new_example(foo='Hello There!').id
+    entity = app.example_repository[entity_id]
+    return "<h1 style='color:blue'>{}</h1>".format(entity.foo)
+
+
+# SQLAlchemy tables.
+
+db = SQLAlchemy(application)
 
 class IntegerSequencedItemRecord(db.Model):
     __tablename__ = 'integer_sequenced_items'
@@ -37,23 +49,16 @@ class IntegerSequencedItemRecord(db.Model):
                                          name='integer_sequenced_item_uc'),
 
 
-@application.route("/")
-def hello():
-    app = get_example_application()
-    entity_id = app.create_new_example(foo='Hello There!').id
-    entity = app.example_repository[entity_id]
-    return "<h1 style='color:blue'>{}</h1>".format(entity.foo)
+# Event sourced application.
 
+active_record_strategy = SQLAlchemyActiveRecordStrategy(
+    active_record_class=IntegerSequencedItemRecord,
+    session=db.session,
+)
 
-@application.before_first_request
-def init_example_application_with_sqlalchemy():
-    active_record_strategy = SQLAlchemyActiveRecordStrategy(
-        active_record_class=IntegerSequencedItemRecord,
-        session=db.session,
-    )
-    init_example_application(
-        entity_active_record_strategy=active_record_strategy
-    )
+init_example_application(
+    entity_active_record_strategy=active_record_strategy
+)
 
 
 if __name__ == "__main__":
