@@ -1,5 +1,7 @@
 import six
+from coverage.data import os
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.indexable import index_property
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
 from sqlalchemy.sql.sqltypes import BigInteger, Float, Integer, String, Text
@@ -7,6 +9,9 @@ from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord
+
+with_new_index = bool(os.environ.get("WITH_NEW_INDEX"))
+with_old_index = bool(os.environ.get("WITH_OLD_INDEX"))
 
 
 class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
@@ -143,13 +148,13 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 class IntegerSequencedItemRecord(ActiveRecord):
     __tablename__ = 'integer_sequenced_items'
 
-    id = Column(Integer, Sequence('integer_sequened_item_id_seq'), primary_key=True)
+    id = Column(Integer, Sequence('integer_sequenced_item_id_seq'), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(UUIDType(), index=True)
+    sequence_id = Column(UUIDType(), index=with_old_index)
 
     # Position (index) of item in sequence.
-    position = Column(BigInteger(), index=True)
+    position = Column(BigInteger(), index=with_old_index)
 
     # Topic of the item (e.g. path to domain event class).
     topic = Column(String(255))
@@ -161,6 +166,9 @@ class IntegerSequencedItemRecord(ActiveRecord):
     __table_args__ = UniqueConstraint('sequence_id', 'position',
                                       name='integer_sequenced_item_uc'),
 
+    if with_new_index:
+        index = index_property('sequence_id', '-position')
+
 
 class TimestampSequencedItemRecord(ActiveRecord):
     # Explicit table name.
@@ -170,19 +178,29 @@ class TimestampSequencedItemRecord(ActiveRecord):
     __table_args__ = UniqueConstraint('sequence_id', 'position', name='timestamp_sequenced_items_uc'),
 
     # Primary key.
-    id = Column(Integer, Sequence('timestamp_sequened_item_id_seq'), primary_key=True)
+    id = Column(Integer, Sequence('timestamp_sequenced_item_id_seq'), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(UUIDType(), index=True)
+    sequence_id = Column(UUIDType(), index=with_old_index)
 
     # Position (timestamp) of item in sequence.
-    position = Column(Float(), index=True)
+    position = Column(Float(), index=with_old_index)
 
     # Topic of the item (e.g. path to domain event class).
     topic = Column(String(255))
 
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
+
+    if with_new_index:
+        index = index_property('sequence_id', '-position')
+
+
+# timestamp_sequence_index = Index("some_index", TimestampSequencedItemRecord.sequence_id,
+#                                  TimestampSequencedItemRecord.position)
+# #                                  # TimestampSequencedItemRecord.position.descending())
+# #
+# TimestampSequencedItemRecord.meta.append_constraint(timestamp_sequence_index)
 
 
 class SnapshotRecord(ActiveRecord):
@@ -191,10 +209,10 @@ class SnapshotRecord(ActiveRecord):
     id = Column(Integer, Sequence('snapshot_seq'), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(UUIDType(), index=True)
+    sequence_id = Column(UUIDType(), index=with_old_index)
 
     # Position (index) of item in sequence.
-    position = Column(BigInteger(), index=True)
+    position = Column(BigInteger(), index=with_old_index)
 
     # Topic of the item (e.g. path to domain entity class).
     topic = Column(String(255))
@@ -205,3 +223,6 @@ class SnapshotRecord(ActiveRecord):
     # Unique constraint includes 'sequence_id' and 'position'.
     __table_args__ = UniqueConstraint('sequence_id', 'position',
                                       name='snapshot_uc'),
+
+    if with_new_index:
+        index = index_property('sequence_id', '-position')

@@ -18,7 +18,7 @@ db = SQLAlchemy(application)
 class IntegerSequencedItemRecord(db.Model):
     __tablename__ = 'integer_sequenced_items'
 
-    id = db.Column(db.Integer, db.Sequence('integer_sequened_item_id_seq'), primary_key=True)
+    id = db.Column(db.Integer, db.Sequence('integer_sequenced_item_id_seq'), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
     sequence_id = db.Column(UUIDType(), index=True)

@@ -368,7 +368,7 @@ with each item positioned in its sequence by an integer index number.
     class SequencedItemRecord(ActiveRecord):
         __tablename__ = 'sequenced_items'
 
-        id = Column(Integer(), Sequence('integer_sequened_item_id_seq'), primary_key=True)
+        id = Column(Integer(), Sequence('integer_sequenced_item_id_seq'), primary_key=True)
 
         # Sequence ID (e.g. an entity or aggregate ID).
         sequence_id = Column(UUIDType(), index=True)
