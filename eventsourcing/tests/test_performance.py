@@ -67,8 +67,19 @@ class PerformanceTestCase(WithExampleApplication):
                         # print("Beat other: {}".format(j))
                         other.beat_heart()
                 time_beating = time.clock() - start_beating
+                try:
+                    beats_per_second = total_beats / time_beating
+                except ZeroDivisionError as e:
+                    print("Warning: {} / {}: {}".format(total_beats, time_beating, e))
+                    beats_per_second = 'NaN'
+                try:
+                    beat_period = time_beating / total_beats
+                except ZeroDivisionError as e:
+                    print("Warning: {} / {}: {}".format(time_beating, total_beats, e))
+                    beat_period = 'NaN'
+
                 print("Time to beat {} times: {:.2f}s ({:.0f} beats/s, {:.6f}s each)"
-                      "".format(num_beats, time_beating, total_beats / time_beating, time_beating / total_beats))
+                      "".format(num_beats, time_beating, beats_per_second, beat_period))
 
                 # Get the last n events from the repo.
                 def last_n(n):
