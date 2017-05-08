@@ -71,12 +71,12 @@ class PerformanceTestCase(WithExampleApplication):
                     beats_per_second = total_beats / time_beating
                 except ZeroDivisionError as e:
                     print("Warning: beats per second {} / {}: {}".format(total_beats, time_beating, e))
-                    beats_per_second = 'NaN'
+                    beats_per_second = -999999999999.99999999
                 try:
                     beat_period = time_beating / total_beats
                 except ZeroDivisionError as e:
                     print("Warning: beat period {} / {}: {}".format(time_beating, total_beats, e))
-                    beat_period = 'NaN'
+                    beat_period = -999999999999.9999999
 
                 print("Time to beat {} times: {:.2f}s ({:.0f} beats/s, {:.6f}s each)"
                       "".format(num_beats, time_beating, beats_per_second, beat_period))
