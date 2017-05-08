@@ -55,10 +55,9 @@ class PerformanceTestCase(WithExampleApplication):
                 self.entities[i] = example
 
                 # Beat a number of times.
+                num_beats = int((10 ** i))
                 start_beating = time.clock()
-                num_beats = int(floor(10 ** i))
                 # num_beats = int(10 ** i)
-                total_beats = num_beats * (1 + len(filling))
                 for _ in six.moves.range(num_beats):
                     # print("Beat example")
                     example.beat_heart()
@@ -66,6 +65,7 @@ class PerformanceTestCase(WithExampleApplication):
                     for other in filling:
                         other.beat_heart()
 
+                total_beats = num_beats * (1 + len(filling))
                 time_beating = time.clock() - start_beating
                 try:
                     beats_per_second = total_beats / time_beating
@@ -78,8 +78,8 @@ class PerformanceTestCase(WithExampleApplication):
                     print("Warning: beat period {} / {}: {}".format(time_beating, total_beats, e))
                     beat_period = -999999999999.9999999
 
-                print("Time to beat {} times: {:.2f}s ({:.0f} beats/s, {:.6f}s each)"
-                      "".format(num_beats, time_beating, beats_per_second, beat_period))
+                print("Time to beat {} times: {:.4f}s ({:.0f} beats/s, {:.6f}s each)"
+                      "".format(num_beats, time_beating / (1 + num_other_entities), beats_per_second, beat_period))
 
                 # Get the last n events from the repo.
                 def last_n(n):
