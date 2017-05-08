@@ -12,9 +12,9 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         if isinstance(sequenced_item_or_items, list):
             if len(sequenced_item_or_items):
                 b = BatchQuery()
-                for i in sequenced_item_or_items:
-                    assert isinstance(i, self.sequenced_item_class), (type(i), self.sequenced_item_class)
-                    kwargs = {n: getattr(i, n) for n in self.field_names}
+                for item in sequenced_item_or_items:
+                    assert isinstance(item, self.sequenced_item_class), (type(item), self.sequenced_item_class)
+                    kwargs = self.get_field_kwargs(item)
                     self.active_record_class.batch(b).if_not_exists().create(**kwargs)
                 try:
                     b.execute()
@@ -101,14 +101,14 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         Returns an active record instance, from given sequenced item.
         """
         assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
-        kwargs = {n: getattr(sequenced_item, n) for n in self.field_names}
+        kwargs = self.get_field_kwargs(sequenced_item)
         return self.active_record_class(**kwargs)
 
     def from_active_record(self, active_record):
         """
         Returns a sequenced item instance, from given active record.
         """
-        kwargs = {n: getattr(active_record, n) for n in self.field_names}
+        kwargs = self.get_field_kwargs(active_record)
         return self.sequenced_item_class(**kwargs)
 
     def filter(self, *args, **kwargs):

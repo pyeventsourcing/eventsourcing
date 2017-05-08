@@ -105,8 +105,9 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         assert isinstance(sequenced_item, self.sequenced_item_class), (self.sequenced_item_class, type(sequenced_item))
 
         # Construct and return an ORM object.
-        orm_kwargs = {f: sequenced_item[i] for i, f in enumerate(self.field_names)}
-        return self.active_record_class(**orm_kwargs)
+        # orm_kwargs = {f: sequenced_item[i] for i, f in enumerate(self.field_names)}
+        kwargs = self.get_field_kwargs(sequenced_item)
+        return self.active_record_class(**kwargs)
 
     def all_items(self):
         """
@@ -118,8 +119,9 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Returns a sequenced item, from given active record.
         """
-        item_args = [getattr(active_record, f) for f in self.field_names]
-        return self.sequenced_item_class(*item_args)
+        kwargs = self.get_field_kwargs(active_record)
+        # item_args = [getattr(active_record, f) for f in self.field_names]
+        return self.sequenced_item_class(**kwargs)
 
     def all_records(self, *args, **kwargs):
         """

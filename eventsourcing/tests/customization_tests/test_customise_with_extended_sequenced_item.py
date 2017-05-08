@@ -37,9 +37,8 @@ class ExtendedIntegerSequencedItemRecord(IntegerSequencedItemRecord):
 class ExtendedSequencedItemMapper(SequencedItemMapper):
     def construct_item_args(self, domain_event):
         args = super(ExtendedSequencedItemMapper, self).construct_item_args(domain_event)
-        timestamp = domain_event.timestamp
         event_type = domain_event.__class__.__qualname__
-        return args + (timestamp, event_type)
+        return args + (event_type,)
 
 
 # Define an application object.
@@ -55,6 +54,7 @@ class ExampleApplicationWithExtendedSequencedItemType(object):
                 sequenced_item_class=ExtendedSequencedItem,
                 sequence_id_attr_name='originator_id',
                 position_attr_name='originator_version',
+                other_attr_names=('timestamp',),
             )
         )
         self.repository = ExampleRepository(

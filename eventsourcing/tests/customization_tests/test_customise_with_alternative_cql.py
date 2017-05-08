@@ -18,7 +18,7 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 # and configure the other components. It's easy.
 
 
-StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'event_type', 'state'])
+StoredEvent = namedtuple('StoredEvent', ['originator_id', 'originator_version', 'event_type', 'state'])
 
 
 class StoredEventRecord(ActiveRecord):
@@ -27,10 +27,10 @@ class StoredEventRecord(ActiveRecord):
     _if_not_exists = True
 
     # Aggregate ID (e.g. an entity or aggregate ID).
-    aggregate_id = columns.UUID(partition_key=True)
+    originator_id = columns.UUID(partition_key=True)
 
     # Aggregate version (index) of item in sequence.
-    aggregate_version = columns.BigInt(clustering_order='DESC', primary_key=True)
+    originator_version = columns.BigInt(clustering_order='DESC', primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
     event_type = columns.Text(required=True)
@@ -48,8 +48,7 @@ class ExampleApplicationWithAlternativeSequencedItemType(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=StoredEvent,
-                sequence_id_attr_name='originator_id',
-                position_attr_name='originator_version',
+                other_attr_names=(),
             )
         )
         self.repository = ExampleRepository(
@@ -94,10 +93,10 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
             all_records = list(app.event_store.active_record_strategy.all_records())
             assert len(all_records) == 1
             stored_event = all_records[0]
-            assert stored_event.aggregate_id == entity1.id
-            assert stored_event.aggregate_version == 0
+            assert isinstance(stored_event, StoredEventRecord)
+            assert stored_event.originator_id == entity1.id
+            assert stored_event.originator_version == 0
 
-            # Todo: Finish this off so we can read events.
             # Read entity from repo.
             retrieved_obj = app.repository[entity1.id]
             self.assertEqual(retrieved_obj.id, entity1.id)
