@@ -22,14 +22,15 @@ class EventSourcedRepository(AbstractEntityRepository):
     # be set as a class attribute, or passed as a constructor arg.
     mutator = None
 
-    def __init__(self, event_store, mutator=None, snapshot_strategy=None, use_cache=False):
+    def __init__(self, event_store, mutator=None, snapshot_strategy=None, use_cache=False, *args, **kwargs):
+        super(EventSourcedRepository, self).__init__(*args, **kwargs)
         self._cache = {}
         self._snapshot_strategy = snapshot_strategy
         # self._use_cache = use_cache
 
         # Check we got an event store.
         assert isinstance(event_store, AbstractEventStore), type(event_store)
-        self.event_store = event_store
+        self._event_store = event_store
 
         # Instantiate an event player for this repo.
         mutator = mutator or type(self).mutator
@@ -42,6 +43,10 @@ class EventSourcedRepository(AbstractEntityRepository):
             is_short=self.__is_short__,
             snapshot_strategy=self._snapshot_strategy,
         )
+
+    @property
+    def event_store(self):
+        return self._event_store
 
     def __contains__(self, entity_id):
         """

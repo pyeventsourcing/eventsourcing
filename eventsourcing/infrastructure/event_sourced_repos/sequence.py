@@ -1,21 +1,28 @@
 from uuid import uuid4, uuid5
 
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.domain.model.sequence import CompoundSequence, AbstractCompoundSequenceRepository, Sequence, \
-    SequenceRepository, start_compound_sequence
+from eventsourcing.domain.model.sequence import CompoundSequence, AbstractCompoundSequenceRepository, SequenceMeta, \
+    AbstractSequenceRepository, start_compound_sequence, Sequence
 from eventsourcing.exceptions import ConcurrencyError, SequenceFullError, CompoundSequenceFullError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sequencereader import CompoundSequenceReader, SequenceReader
 
 
-class SequenceRepo(EventSourcedRepository, SequenceRepository):
-    mutator = Sequence._mutate
+class SequenceRepository(EventSourcedRepository, AbstractSequenceRepository):
+    mutator = SequenceMeta._mutate
+
+    def __getitem__(self, sequence_id):
+        """
+        Returns sequence for given ID.
+        """
+        return Sequence(sequence_id=sequence_id, repo=self)
+
 
     def get_entity(self, entity_id, lt=None, lte=None):
         """
         Replays entity using only the 'Started' event.
         
-        :rtype: Sequence
+        :rtype: SequenceMeta
         """
         return self.event_player.replay_entity(entity_id, limit=1)
 
@@ -255,3 +262,7 @@ class CompoundSequenceRepository(EventSourcedRepository, AbstractCompoundSequenc
 
     def create_sequence_id(self, ns, i, j):
         return uuid5(ns, str((i, j)))
+
+    def get_reader(self, sequence_id):
+        sequence = self[sequence_id]
+        return CompoundSequenceReader(sequence, self.event_store)

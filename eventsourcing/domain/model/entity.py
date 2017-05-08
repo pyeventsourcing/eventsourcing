@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod, abstractproperty
 
 from six import with_metaclass
 
@@ -299,7 +299,20 @@ class AbstractEntityRepository(with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
+    def get_entity(self, entity_id):
+        """
+        Returns entity for given ID.
+        """
+
+
+    @abstractmethod
     def __contains__(self, entity_id):
         """
         Returns True or False, according to whether or not entity exists.
+        """
+
+    @abstractproperty
+    def event_store(self):
+        """
+        Returns event store object used by this repository.
         """
