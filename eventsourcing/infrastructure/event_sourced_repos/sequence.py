@@ -71,20 +71,21 @@ class CompoundSequenceRepository(EventSourcedRepository, AbstractCompoundSequenc
                 # If so, just let the exception be caught by
                 # the retry decorator, so a fresh attempt is
                 # made to append the item to the compound sequence.
-                next = self.extend_base(root.id, last, item)
+                next = self.extend_base(root.id, last.j, root.max_size, item)
 
                 # If we managed to extend the base, then create a
                 # branch. No other thread should be attempting this.
                 # So if it fails, the compound will need to be repaired.
-                detached_branch, target_id = self.create_detached_branch(root.id, next, len(root))
+                detached_branch_id, target_id = self.create_detached_branch(root.id, next.id, next.i, next.j,
+                                                                            next.h, next.max_size, len(root))
 
                 # If there is a target, then attach the branch to it.
                 if target_id:
-                    self.attach_branch(target_id, detached_branch)
+                    self.attach_branch(target_id, detached_branch_id)
                 # Otherwise demote the top in favour of the branch.
                 else:
                     top_id = root[-1]
-                    self.demote(root, self[top_id], detached_branch.id)
+                    self.demote(root, self[top_id], detached_branch_id)
             except ConcurrencyError as e:
                 if len(root) == root.max_size:
                     raise CompoundSequenceFullError
@@ -159,7 +160,7 @@ class CompoundSequenceRepository(EventSourcedRepository, AbstractCompoundSequenc
             raise CompoundSequenceFullError
         return new_child
 
-    def extend_base(self, ns, left, item):
+    def extend_base(self, ns, j, max_size, item):
         """
         Starts sequence that extends the base of
         the compound, and appends an item to it.
@@ -169,16 +170,17 @@ class CompoundSequenceRepository(EventSourcedRepository, AbstractCompoundSequenc
         that is contiguous from its left. Then appends the given
         item to it.
         """
-        i = left.j
-        j = i + left.max_size
-        h = left.h
-        new = self.start(ns, i, j, h, max_size=left.max_size)
+        i = j
+        j = i + max_size
+        # h = left.h
+        h = 1
+        new = self.start(ns, i, j, h, max_size=max_size)
         # Append the item to new child.
         new.append(item)
 
         return new
 
-    def create_detached_branch(self, ns, child, max_height):
+    def create_detached_branch(self, ns, c_id, c_i, c_j, c_h, max_size, max_height):
         """
         Works up from child to parent, building a branch
         that is not attached to the main compound, using
@@ -192,40 +194,48 @@ class CompoundSequenceRepository(EventSourcedRepository, AbstractCompoundSequenc
         top of compound is not found, the target_id is None. 
         """
         target_id = None
+        # c_i = child.i
+        # c_j = child.j
+        # c_h = child.h
+        # c_id = child.id
+        # max_size = child.max_size
         while True:
-            i, j, h = self.calc_parent_i_j_h(child)
-            if h > max_height:
+            p_i, p_j, p_h = self.calc_parent_i_j_h(c_i, c_j, c_h, max_size)
+            if p_h > max_height:
                 break
-            sequence_id = self.create_sequence_id(ns, i, j)
+            p_id = self.create_sequence_id(ns, p_i, p_j)
             try:
-                parent = start_compound_sequence(sequence_id, i, j, h, child.max_size)
+                parent = start_compound_sequence(p_id, p_i, p_j, p_h, max_size)
             except ConcurrencyError:
                 # It already exists.
-                target_id = sequence_id
+                target_id = p_id
                 break
             else:
                 reader = CompoundSequenceReader(parent, self.event_store)
-                reader.append(child.id)
-                child = reader
-        return child, target_id
+                reader.append(c_id)
+                c_i = p_i
+                c_j = p_j
+                c_h = p_h
+                c_id = p_id
+        return c_id, target_id
 
-    def attach_branch(self, parent_id, branch):
+    def attach_branch(self, parent_id, branch_id):
         """
         Attaches branch to parent.
         """
         sequence = self[parent_id]
         parent = CompoundSequenceReader(sequence, self.event_store)
         # If the calculations are correct, this won't ever raise a ConcurrencyError.
-        parent.append(branch.id)
+        parent.append(branch_id)
 
-    def calc_parent_i_j_h(self, child):
+    def calc_parent_i_j_h(self, i, j, h, max_size):
         """
         Returns start and end of span of parent sequence that contains given child.
         """
-        N = child.max_size
-        c_i = child.i
-        c_j = child.j
-        c_h = child.h
+        N = max_size
+        c_i = i
+        c_j = j
+        c_h = h
         # Calculate the number of the sequence in its row (sequences
         # with same height), from left to right, starting from 0.
         c_n = c_i // (N ** c_h)

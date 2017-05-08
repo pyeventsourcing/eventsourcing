@@ -12,10 +12,9 @@ import requests
 from requests.exceptions import ConnectionError
 from requests.models import Response
 
-import eventsourcing
+import eventsourcing.example.interface
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.example.application import close_example_application
-from eventsourcing.example.interface import flaskapp
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.base import notquick
 
@@ -24,7 +23,8 @@ if hasattr(sys, 'real_prefix'):
     path_to_virtualenv = sys.prefix
 
 path_to_eventsourcing = dirname(dirname(abspath(eventsourcing.__file__)))
-path_to_flaskapp = abspath(flaskapp.__file__)
+path_to_interface_module = dirname(abspath(eventsourcing.example.interface.__file__))
+path_to_flaskapp = join(path_to_interface_module, 'flaskapp.py')
 path_to_flaskwsgi = join(dirname(path_to_flaskapp), 'flaskwsgi.py')
 
 
