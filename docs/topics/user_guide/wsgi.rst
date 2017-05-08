@@ -3,10 +3,13 @@ Deployment
 ==========
 
 This section gives an overview of the concerns that arise
-when using an eventsourcing application in a Web application
-and task queue workers. There are simply too many combinations of
-frameworks, databases, and process models to provide exhaustive
-guidance.
+when using an eventsourcing application in Web applications
+and task queue workers. There are many combinations of
+frameworks, databases, and process models. The complicated
+aspect is setting up the database configuration to work well
+with the framework. You event sourcing application can be
+constructed just after the database is configured, and before
+requests are handled.
 
 Please note, unlike the code snippets in the other sections of
 the user guide, the snippets of code in this section are merely
@@ -415,4 +418,12 @@ things work across all modes of execution, including your test suite.
 Redis Queue
 -----------
 
+Redis queue workers are quite similar to Celery workers.
+You can call ``get_application()`` from within a job function.
+To fit with the style in the RQ documentation, you could
+perhaps use your eventsourcing application as a context manager,
+just like the Redis connection example.
+
 http://python-rq.org/docs/workers/
+
+
