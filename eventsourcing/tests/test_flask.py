@@ -14,7 +14,7 @@ from requests.models import Response
 
 import eventsourcing.example.interface
 from eventsourcing.domain.model.events import assert_event_handlers_empty
-from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
+from eventsourcing.example.application import close_example_application
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.base import notquick
 
@@ -76,10 +76,15 @@ class TestFlaskWsgi(TestFlaskApp):
         self.tempfile = NamedTemporaryFile()
         uri = 'sqlite:///{}'.format(self.tempfile.name)
 
+        from eventsourcing.example.interface.flaskapp import IntegerSequencedItem
+        # Close application, importing the module constructed
+        # the application, which will leave event handlers subscribed.
+        close_example_application()
+
         # Setup tables.
         datastore = SQLAlchemyDatastore(
             settings=SQLAlchemySettings(uri=uri),
-            tables=(IntegerSequencedItemRecord,),
+            tables=(IntegerSequencedItem,),
         )
         datastore.setup_connection()
         datastore.setup_tables()
