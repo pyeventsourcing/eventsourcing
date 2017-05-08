@@ -49,6 +49,9 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
         Removes permanently given record from the table.
         """
 
+    def get_field_kwargs(self, item):
+        return {name: getattr(item, name) for name in self.field_names}
+
     def raise_sequenced_item_error(self, sequenced_item, e):
         sequenced_item = sequenced_item[0] if isinstance(sequenced_item, list) else sequenced_item
         raise SequencedItemError("Item at position '{}' already exists in sequence '{}': {}"

@@ -1,43 +1,20 @@
-from collections import namedtuple
 from uuid import UUID
-
-from cassandra.cqlengine import columns
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
+from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, StoredEventRecord
+from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy
-from eventsourcing.infrastructure.cassandra.datastore import ActiveRecord, CassandraDatastore, CassandraSettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
+
 
 # In this test the default SequencedItem class is replaced with a "stored event" class.
 # How easy is it to customize the infrastructure to support that? We just need
 # to define the new sequenced item class, define a suitable active record class,
 # and configure the other components. It's easy.
-
-
-StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'event_type', 'state'])
-
-
-class StoredEventRecord(ActiveRecord):
-    """Stores integer-sequenced items in Cassandra."""
-    __table_name__ = 'integer_sequenced_items'
-    _if_not_exists = True
-
-    # Aggregate ID (e.g. an entity or aggregate ID).
-    aggregate_id = columns.UUID(partition_key=True)
-
-    # Aggregate version (index) of item in sequence.
-    aggregate_version = columns.BigInt(clustering_order='DESC', primary_key=True)
-
-    # Topic of the item (e.g. path to domain event class).
-    event_type = columns.Text(required=True)
-
-    # State of the item (serialized dict, possibly encrypted).
-    state = columns.Text(required=True)
-
 
 class ExampleApplicationWithAlternativeSequencedItemType(object):
     def __init__(self):
@@ -48,8 +25,7 @@ class ExampleApplicationWithAlternativeSequencedItemType(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=StoredEvent,
-                sequence_id_attr_name='originator_id',
-                position_attr_name='originator_version',
+                other_attr_names=(),
             )
         )
         self.repository = ExampleRepository(
@@ -94,10 +70,10 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
             all_records = list(app.event_store.active_record_strategy.all_records())
             assert len(all_records) == 1
             stored_event = all_records[0]
-            assert stored_event.aggregate_id == entity1.id
-            assert stored_event.aggregate_version == 0
+            assert isinstance(stored_event, StoredEventRecord)
+            assert stored_event.originator_id == entity1.id
+            assert stored_event.originator_version == 0
 
-            # Todo: Finish this off so we can read events.
             # Read entity from repo.
             retrieved_obj = app.repository[entity1.id]
             self.assertEqual(retrieved_obj.id, entity1.id)

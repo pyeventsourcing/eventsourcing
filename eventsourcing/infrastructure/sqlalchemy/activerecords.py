@@ -105,8 +105,8 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         assert isinstance(sequenced_item, self.sequenced_item_class), (self.sequenced_item_class, type(sequenced_item))
 
         # Construct and return an ORM object.
-        orm_kwargs = {f: sequenced_item[i] for i, f in enumerate(self.field_names)}
-        return self.active_record_class(**orm_kwargs)
+        kwargs = self.get_field_kwargs(sequenced_item)
+        return self.active_record_class(**kwargs)
 
     def all_items(self):
         """
@@ -118,8 +118,8 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Returns a sequenced item, from given active record.
         """
-        item_args = [getattr(active_record, f) for f in self.field_names]
-        return self.sequenced_item_class(*item_args)
+        kwargs = self.get_field_kwargs(active_record)
+        return self.sequenced_item_class(**kwargs)
 
     def all_records(self, *args, **kwargs):
         """
@@ -198,3 +198,21 @@ class SnapshotRecord(ActiveRecord):
     __table_args__ = (
         Index('snapshots_index', 'sequence_id', 'position'),
     )
+
+
+class StoredEventRecord(ActiveRecord):
+    __tablename__ = 'stored_events'
+
+    # Originator ID (e.g. an entity or aggregate ID).
+    originator_id = Column(UUIDType(), primary_key=True)
+
+    # Originator version of item in sequence.
+    originator_version = Column(BigInteger(), primary_key=True)
+
+    # Type of the event (class name).
+    event_type = Column(String(100))
+
+    # State of the item (serialized dict, possibly encrypted).
+    state = Column(Text())
+
+    __table_args__ = Index('index', 'originator_id', 'originator_version'),

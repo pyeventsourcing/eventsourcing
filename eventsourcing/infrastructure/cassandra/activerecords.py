@@ -12,9 +12,9 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         if isinstance(sequenced_item_or_items, list):
             if len(sequenced_item_or_items):
                 b = BatchQuery()
-                for i in sequenced_item_or_items:
-                    assert isinstance(i, self.sequenced_item_class), (type(i), self.sequenced_item_class)
-                    kwargs = {n: getattr(i, n) for n in self.field_names}
+                for item in sequenced_item_or_items:
+                    assert isinstance(item, self.sequenced_item_class), (type(item), self.sequenced_item_class)
+                    kwargs = self.get_field_kwargs(item)
                     self.active_record_class.batch(b).if_not_exists().create(**kwargs)
                 try:
                     b.execute()
@@ -101,14 +101,14 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         Returns an active record instance, from given sequenced item.
         """
         assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
-        kwargs = {n: getattr(sequenced_item, n) for n in self.field_names}
+        kwargs = self.get_field_kwargs(sequenced_item)
         return self.active_record_class(**kwargs)
 
     def from_active_record(self, active_record):
         """
         Returns a sequenced item instance, from given active record.
         """
-        kwargs = {n: getattr(active_record, n) for n in self.field_names}
+        kwargs = self.get_field_kwargs(active_record)
         return self.sequenced_item_class(**kwargs)
 
     def filter(self, *args, **kwargs):
@@ -185,3 +185,21 @@ class SnapshotRecord(ActiveRecord):
 
     # State of the entity (serialized dict, possibly encrypted).
     data = columns.Text(required=True)
+
+
+class StoredEventRecord(ActiveRecord):
+    """Stores integer-sequenced items in Cassandra."""
+    __table_name__ = 'stored_events'
+    _if_not_exists = True
+
+    # Aggregate ID (e.g. an entity or aggregate ID).
+    originator_id = columns.UUID(partition_key=True)
+
+    # Aggregate version (index) of item in sequence.
+    originator_version = columns.BigInt(clustering_order='DESC', primary_key=True)
+
+    # Topic of the item (e.g. path to domain event class).
+    event_type = columns.Text(required=True)
+
+    # State of the item (serialized dict, possibly encrypted).
+    state = columns.Text(required=True)
