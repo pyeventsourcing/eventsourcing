@@ -14,8 +14,8 @@ from requests.models import Response
 
 import eventsourcing
 from eventsourcing.domain.model.events import assert_event_handlers_empty
+from eventsourcing.example.application import close_example_application
 from eventsourcing.example.interface import flaskapp
-from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.base import notquick
 
@@ -65,6 +65,7 @@ class TestFlaskApp(unittest.TestCase):
         else:
             self.fail("Couldn't get response from app, (Python executable {})".format(sys.executable))
 
+
 @notquick
 @skipIf(platform.python_implementation() == 'PyPy', 'uWSGI needs special plugin to run with PyPy')
 class TestFlaskWsgi(TestFlaskApp):
@@ -74,6 +75,11 @@ class TestFlaskWsgi(TestFlaskApp):
         # Make up a DB URI using a named temporary file.
         self.tempfile = NamedTemporaryFile()
         uri = 'sqlite:///{}'.format(self.tempfile.name)
+
+        from eventsourcing.example.interface.flaskapp import IntegerSequencedItemRecord
+        # Close application, importing the module constructed
+        # the application, which will leave event handlers subscribed.
+        close_example_application()
 
         # Setup tables.
         datastore = SQLAlchemyDatastore(
