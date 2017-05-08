@@ -7,7 +7,7 @@ when using an eventsourcing application in Web applications
 and task queue workers. There are many combinations of
 frameworks, databases, and process models. The complicated
 aspect is setting up the database configuration to work well
-with the framework. You event sourcing application can be
+with the framework. Your event sourcing application can be
 constructed just after the database is configured, and before
 requests are handled.
 
@@ -418,12 +418,12 @@ things work across all modes of execution, including your test suite.
 Redis Queue
 -----------
 
-Redis queue workers are quite similar to Celery workers.
-You can call ``get_application()`` from within a job function.
-To fit with the style in the RQ documentation, you could
-perhaps use your eventsourcing application as a context manager,
-just like the Redis connection example.
+Redis `queue workers <http://python-rq.org/docs/workers/>`__ are
+quite similar to Celery workers. You can call ``get_application()``
+from within a job function. To fit with the style in the RQ
+documentation, you could perhaps use your eventsourcing application
+as a context manager, just like the Redis connection example.
 
-http://python-rq.org/docs/workers/
+
 
 
