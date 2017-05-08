@@ -135,7 +135,7 @@ def attribute(getter):
         raise ProgrammingError("Expected a function, got: {}".format(repr(getter)))
 
 
-def retry(exc=Exception, max_retries=5, wait=0.5):
+def retry(exc=Exception, max_retries=1, wait=0):
     def _retry(func):
 
         @wraps(func)
