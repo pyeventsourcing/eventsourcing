@@ -76,7 +76,7 @@ class TestFlaskWsgi(TestFlaskApp):
         self.tempfile = NamedTemporaryFile()
         uri = 'sqlite:///{}'.format(self.tempfile.name)
 
-        from eventsourcing.example.interface.flaskapp import IntegerSequencedItemRecord
+        from eventsourcing.example.interface.flaskapp import IntegerSequencedItem
         # Close application, importing the module constructed
         # the application, which will leave event handlers subscribed.
         close_example_application()
@@ -84,7 +84,7 @@ class TestFlaskWsgi(TestFlaskApp):
         # Setup tables.
         datastore = SQLAlchemyDatastore(
             settings=SQLAlchemySettings(uri=uri),
-            tables=(IntegerSequencedItemRecord,),
+            tables=(IntegerSequencedItem,),
         )
         datastore.setup_connection()
         datastore.setup_tables()

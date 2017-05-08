@@ -155,7 +155,6 @@ class IntegerSequencedItemRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Index.
     __table_args__ = (
         Index('integer_sequenced_items_index', 'sequence_id', 'position'),
     )
@@ -176,7 +175,6 @@ class TimestampSequencedItemRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Index.
     __table_args__ = (
         Index('timestamp_sequenced_items_index', 'sequence_id', 'position'),
     )
@@ -197,7 +195,6 @@ class SnapshotRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Index.
     __table_args__ = (
         Index('snapshots_index', 'sequence_id', 'position'),
     )
