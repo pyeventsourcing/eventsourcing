@@ -75,7 +75,7 @@ called, and ``get_application()`` will raise an exeception if
 
 
 As an aside, if you will use these function also in your test suite, and your
-test suite needs to setup the application more than once, you will also need
+test suite needs to set up the application more than once, you will also need
 a ``close_application()`` function that closes the application object,
 unsubscribing any handlers, and resetting the module level variable so that
 ``init_application()`` can be called again. If doesn't really matter
@@ -144,8 +144,8 @@ careful not to use the application object before the database connection is
 configured otherwise your queries just won't work.
 
 Setting up connections to databases is out of scope of the eventsourcing
-application classes, and should be setup in a "normal" way. The documentation
-for your Web or worker framework may describe when to setup database connections,
+application classes, and should be set up in a "normal" way. The documentation
+for your Web or worker framework may describe when to set up database connections,
 and your database documentation may also have some suggestions. It is recommended
 to make use of any hooks or decorators or signals intended for the purpose of setting
 up the database connection also to construct the application once for the process.
@@ -178,14 +178,14 @@ The important thing is to use a scoped session, and it is better
 to have the session scoped to the request or task, rather than
 the thread, but scoping to the thread is ok.
 
-As soon as you have a scope session object, you can construct
+As soon as you have a scoped session object, you can construct
 your eventsourcing application.
 
 
 Cassandra
 ---------
 
-Cassandra connections can be setup entirely independently of the application
+Cassandra connections can be set up entirely independently of the application
 object. See the section about :doc:`using Cassandra</topics/user_guide/cassandra>`
 for more information.
 
@@ -270,7 +270,7 @@ The docs snippet below shows that it can work simply to construct
 the eventsourcing application in the same place as the Flask
 application object.
 
-The Flask-SQLAlchemy class `SQLAlchemy` is used to setup session
+The Flask-SQLAlchemy class `SQLAlchemy` is used to set up a session
 object that is scoped to the request.
 
 .. code:: python
@@ -313,7 +313,7 @@ object that is scoped to the request.
 For a working example using Flask and SQLAlchemy, please
 refer to the library module :mod:`eventsourcing.example.interface.flaskapp`,
 which is tested both stand-alone and with uWSGI.
-The Flask application method "before_first_request" is used to decorate a
+The Flask application method "before_first_request" is used to decorate an
 application object constructor, just before a request is made, so that the
 module can be imported by the test suite, without immediately constructing
 the application.
@@ -423,7 +423,3 @@ quite similar to Celery workers. You can call ``get_application()``
 from within a job function. To fit with the style in the RQ
 documentation, you could perhaps use your eventsourcing application
 as a context manager, just like the Redis connection example.
-
-
-
-
