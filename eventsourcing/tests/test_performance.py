@@ -22,6 +22,8 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 
 @notquick
 class PerformanceTestCase(WithExampleApplication):
+    drop_tables = True
+
     def test_entity_performance(self):
         """
         Reports on the performance of Example entity and repo.

@@ -272,6 +272,8 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
 
 
 class WithActiveRecordStrategies(AbstractDatastoreTestCase):
+    drop_tables = False
+
     def __init__(self, *args, **kwargs):
         super(WithActiveRecordStrategies, self).__init__(*args, **kwargs)
         self._entity_active_record_strategy = None
@@ -288,9 +290,11 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
         self._log_active_record_strategy = None
         self._entity_active_record_strategy = None
         if self.datastore is not None:
-            self.datastore.truncate_tables()
-            # self.datastore.drop_tables()
-            # self.datastore.drop_connection()
+            if self.drop_tables:
+                self.datastore.drop_tables()
+                self.datastore.drop_connection()
+            else:
+                self.datastore.truncate_tables()
         super(WithActiveRecordStrategies, self).tearDown()
 
     @property
