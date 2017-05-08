@@ -37,7 +37,12 @@ class TestCassandraDatastore(CassandraDatastoreTestCase, DatastoreTestCase):
             raise DatastoreTableError(e)
 
     def create_record(self):
-        record = IntegerSequencedItemRecord(s=uuid4(), p=0, t='topic', d='{}')
+        record = IntegerSequencedItemRecord(
+            sequence_id=uuid4(),
+            position=0,
+            topic='topic',
+            data='{}'
+        )
         try:
             record.save()
         except (CQLEngineException, NoHostAvailable) as e:

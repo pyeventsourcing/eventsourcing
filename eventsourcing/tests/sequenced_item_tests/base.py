@@ -282,19 +282,19 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
 
     def setUp(self):
         super(WithActiveRecordStrategies, self).setUp()
-        if self.datastore is not None:
-            self.datastore.setup_connection()
-            self.datastore.setup_tables()
+        self.datastore.setup_connection()
+        self.datastore.setup_tables()
 
     def tearDown(self):
         self._log_active_record_strategy = None
         self._entity_active_record_strategy = None
-        if self.datastore is not None:
+        if self._datastore is not None:
             if self.drop_tables:
-                self.datastore.drop_tables()
-                self.datastore.drop_connection()
+                self._datastore.drop_tables()
+                self._datastore.drop_connection()
+                self._datastore = None
             else:
-                self.datastore.truncate_tables()
+                self._datastore.truncate_tables()
         super(WithActiveRecordStrategies, self).tearDown()
 
     @property
@@ -306,8 +306,7 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
     @property
     def log_active_record_strategy(self):
         if self._log_active_record_strategy is None:
-            self._log_active_record_strategy = \
-                self.construct_log_active_record_strategy()
+            self._log_active_record_strategy = self.construct_log_active_record_strategy()
         return self._log_active_record_strategy
 
     @property

@@ -5,6 +5,7 @@ from cassandra import ConsistencyLevel
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import NoHostAvailable
 from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
+from cassandra.cqlengine.models import Model
 
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import DatasourceSettingsError
@@ -89,6 +90,7 @@ class CassandraDatastore(Datastore):
         # Avoid warnings about this variable not being set.
         os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
         # Attempt to create the keyspace.
+        drop_keyspace(self.settings.default_keyspace)
         create_keyspace_simple(
             name=self.settings.default_keyspace,
             replication_factor=self.settings.replication_factor,
@@ -112,3 +114,9 @@ class CassandraDatastore(Datastore):
                 for obj in remaining_objects:
                     obj.delete()
                 remaining_objects = table.objects.all().limit(10)
+
+
+class ActiveRecord(Model):
+    """Layer supertype."""
+    __abstract__ = True
+

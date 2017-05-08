@@ -1,20 +1,18 @@
 from collections import namedtuple
 from uuid import UUID
 
-from sqlalchemy.sql.schema import Column, Index
-from sqlalchemy.sql.sqltypes import BigInteger, Float, String, Text
-from sqlalchemy_utils.types.uuid import UUIDType
+from cassandra.cqlengine import columns
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
-from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord, SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy
+from eventsourcing.infrastructure.cassandra.datastore import ActiveRecord, CassandraDatastore, CassandraSettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
-# This test replaces the default SequencedItem class with a StoredEvent class.
+# In this test the default SequencedItem class is replaced with a "stored event" class.
 # How easy is it to customize the infrastructure to support that? We just need
 # to define the new sequenced item class, define a suitable active record class,
 # and configure the other components. It's easy.
@@ -24,31 +22,27 @@ StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'e
 
 
 class StoredEventRecord(ActiveRecord):
-    __tablename__ = 'stored_events'
+    """Stores integer-sequenced items in Cassandra."""
+    __table_name__ = 'integer_sequenced_items'
+    _if_not_exists = True
 
-    # Sequence ID (e.g. an entity or aggregate ID).
-    aggregate_id = Column(UUIDType(), primary_key=True)
+    # Aggregate ID (e.g. an entity or aggregate ID).
+    aggregate_id = columns.UUID(partition_key=True)
 
-    # Position (timestamp) of item in sequence.
-    aggregate_version = Column(BigInteger(), primary_key=True)
+    # Aggregate version (index) of item in sequence.
+    aggregate_version = columns.BigInt(clustering_order='DESC', primary_key=True)
 
-    # Type of the event (class name).
-    event_type = Column(String(100))
-
-    # Timestamp of the event.
-    timestamp = Column(Float())
+    # Topic of the item (e.g. path to domain event class).
+    event_type = columns.Text(required=True)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
-
-    __table_args__ = Index('index', 'aggregate_id', 'aggregate_version'),
+    state = columns.Text(required=True)
 
 
 class ExampleApplicationWithAlternativeSequencedItemType(object):
-    def __init__(self, session):
+    def __init__(self):
         self.event_store = EventStore(
-            active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                session=session,
+            active_record_strategy=CassandraActiveRecordStrategy(
                 active_record_class=StoredEventRecord,
                 sequenced_item_class=StoredEvent,
             ),
@@ -63,14 +57,11 @@ class ExampleApplicationWithAlternativeSequencedItemType(object):
         )
         self.persistence_policy = PersistencePolicy(self.event_store)
 
-    def close(self):
-        self.persistence_policy.close()
-
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+        self.persistence_policy.close()
 
 
 class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
@@ -85,15 +76,14 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
         super(TestExampleWithAlternativeSequencedItemType, self).setUp()
 
     def construct_datastore(self):
-        return SQLAlchemyDatastore(
-            base=ActiveRecord,
-            settings=SQLAlchemySettings(),
+        return CassandraDatastore(
+            settings=CassandraSettings(),
             tables=(StoredEventRecord,)
 
         )
 
     def test(self):
-        with ExampleApplicationWithAlternativeSequencedItemType(self.datastore.session) as app:
+        with ExampleApplicationWithAlternativeSequencedItemType() as app:
             # Create entity.
             entity1 = create_new_example(a='a', b='b')
             self.assertIsInstance(entity1.id, UUID)
