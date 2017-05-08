@@ -57,7 +57,6 @@ class PerformanceTestCase(WithExampleApplication):
                 # Beat a number of times.
                 num_beats = int(floor(10 ** i))
                 start_beating = time.clock()
-                # num_beats = int(10 ** i)
                 for _ in six.moves.range(num_beats):
                     # print("Beat example")
                     example.beat_heart()
