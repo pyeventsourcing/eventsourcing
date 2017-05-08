@@ -2,6 +2,7 @@ import time
 from uuid import uuid4
 
 import six
+from math import floor
 
 from eventsourcing.domain.model.timebucketedlog import start_new_timebucketedlog
 from eventsourcing.example.domainmodel import Example, create_new_example
@@ -45,8 +46,7 @@ class PerformanceTestCase(WithExampleApplication):
                 # Initialise table with other entities.
                 num_other_entities = i
                 filling = []
-                for j in six.moves.range(num_other_entities):
-                    # print("Filling table: {}".format(j))
+                for _ in six.moves.range(num_other_entities):
                     filling.append(create_new_example(a=1, b=2))
 
                 # b = str([uuid4().hex for _ in six.moves.range(100000)])
@@ -56,26 +56,26 @@ class PerformanceTestCase(WithExampleApplication):
 
                 # Beat a number of times.
                 start_beating = time.clock()
-                # num_beats = int(floor(10 ** i))
-                num_beats = int(10 ** i)
+                num_beats = int(floor(10 ** i))
+                # num_beats = int(10 ** i)
                 total_beats = num_beats * (1 + len(filling))
                 for _ in six.moves.range(num_beats):
                     # print("Beat example")
                     example.beat_heart()
 
-                    for j, other in enumerate(filling):
-                        # print("Beat other: {}".format(j))
+                    for other in filling:
                         other.beat_heart()
+
                 time_beating = time.clock() - start_beating
                 try:
                     beats_per_second = total_beats / time_beating
                 except ZeroDivisionError as e:
-                    print("Warning: {} / {}: {}".format(total_beats, time_beating, e))
+                    print("Warning: beats per second {} / {}: {}".format(total_beats, time_beating, e))
                     beats_per_second = 'NaN'
                 try:
                     beat_period = time_beating / total_beats
                 except ZeroDivisionError as e:
-                    print("Warning: {} / {}: {}".format(time_beating, total_beats, e))
+                    print("Warning: beat period {} / {}: {}".format(time_beating, total_beats, e))
                     beat_period = 'NaN'
 
                 print("Time to beat {} times: {:.2f}s ({:.0f} beats/s, {:.6f}s each)"
