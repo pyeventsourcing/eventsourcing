@@ -263,44 +263,57 @@ using the model classes from that library, and then use it instead of the
 library classes in your eventsourcing application object, along with the
 session object it provides.
 
-For a working example using Flask and SQLAlchemy, please
-refer to the library module :mod:`eventsourcing.example.interface.flaskapp`,
-which is tested both stand-alone and with uWSGI. That example uses
-Flask-SQLAlchemy to setup session object that is scoped to the request.
-The eventsourcing application object is constructed when the module is
-imported, immediately after the session object has been constructed.
+The docs snippet below shows that it can work simply to construct
+the eventsourcing application in the same place as the Flask
+application object.
+
+The Flask-SQLAlchemy class `SQLAlchemy` is used to setup session
+object that is scoped to the request.
 
 .. code:: python
 
+    # Construct Flask application.
     application = Flask(__name__)
 
+    # Construct Flask-SQLAlchemy object.
     db = SQLAlchemy(application)
 
+    # Define database table using Flask-SQLAlchemy library.
     class IntegerSequencedItem(db.Model):
         __tablename__ = 'integer_sequenced_items'
 
         # Sequence ID (e.g. an entity or aggregate ID).
-        sequence_id = Column(UUIDType(), primary_key=True)
+        sequence_id = db.Column(UUIDType(), primary_key=True)
 
         # Position (index) of item in sequence.
-        position = Column(BigInteger(), primary_key=True)
+        position = db.Column(db.BigInteger(), primary_key=True)
 
         # Topic of the item (e.g. path to domain event class).
-        topic = Column(String(255))
+        topic = db.Column(db.String(255))
 
         # State of the item (serialized dict, possibly encrypted).
-        data = Column(Text())
+        data = db.Column(db.Text())
 
         # Index.
-        __table_args__ = Index('index', 'sequence_id, 'position'),
+        __table_args__ = db.Index('index', 'sequence_id, 'position'),
 
 
+    # Construct eventsourcing application with db table and session.
     init_example_application(
         entity_active_record_strategy=SQLAlchemyActiveRecordStrategy(
             active_record_class=IntegerSequencedItem,
             session=db.session,
         )
     )
+
+
+For a working example using Flask and SQLAlchemy, please
+refer to the library module :mod:`eventsourcing.example.interface.flaskapp`,
+which is tested both stand-alone and with uWSGI.
+The Flask application method "before_first_request" is used to decorate a
+application object constructor, just before a request is made, so that the
+module can be imported by the test suite, without immediately constructing
+the application.
 
 
 Django-Cassandra
