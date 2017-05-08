@@ -3,10 +3,13 @@ Deployment
 ==========
 
 This section gives an overview of the concerns that arise
-when using an eventsourcing application in a Web application
-and task queue workers. There are simply too many combinations of
-frameworks, databases, and process models to provide exhaustive
-guidance.
+when using an eventsourcing application in Web applications
+and task queue workers. There are many combinations of
+frameworks, databases, and process models. The complicated
+aspect is setting up the database configuration to work well
+with the framework. You event sourcing application can be
+constructed just after the database is configured, and before
+requests are handled.
 
 Please note, unlike the code snippets in the other sections of
 the user guide, the snippets of code in this section are merely
@@ -263,44 +266,57 @@ using the model classes from that library, and then use it instead of the
 library classes in your eventsourcing application object, along with the
 session object it provides.
 
-For a working example using Flask and SQLAlchemy, please
-refer to the library module :mod:`eventsourcing.example.interface.flaskapp`,
-which is tested both stand-alone and with uWSGI. That example uses
-Flask-SQLAlchemy to setup session object that is scoped to the request.
-The eventsourcing application object is constructed when the module is
-imported, immediately after the session object has been constructed.
+The docs snippet below shows that it can work simply to construct
+the eventsourcing application in the same place as the Flask
+application object.
+
+The Flask-SQLAlchemy class `SQLAlchemy` is used to setup session
+object that is scoped to the request.
 
 .. code:: python
 
+    # Construct Flask application.
     application = Flask(__name__)
 
+    # Construct Flask-SQLAlchemy object.
     db = SQLAlchemy(application)
 
+    # Define database table using Flask-SQLAlchemy library.
     class IntegerSequencedItem(db.Model):
         __tablename__ = 'integer_sequenced_items'
 
         # Sequence ID (e.g. an entity or aggregate ID).
-        sequence_id = Column(UUIDType(), primary_key=True)
+        sequence_id = db.Column(UUIDType(), primary_key=True)
 
         # Position (index) of item in sequence.
-        position = Column(BigInteger(), primary_key=True)
+        position = db.Column(db.BigInteger(), primary_key=True)
 
         # Topic of the item (e.g. path to domain event class).
-        topic = Column(String(255))
+        topic = db.Column(db.String(255))
 
         # State of the item (serialized dict, possibly encrypted).
-        data = Column(Text())
+        data = db.Column(db.Text())
 
         # Index.
-        __table_args__ = Index('index', 'sequence_id, 'position'),
+        __table_args__ = db.Index('index', 'sequence_id, 'position'),
 
 
+    # Construct eventsourcing application with db table and session.
     init_example_application(
         entity_active_record_strategy=SQLAlchemyActiveRecordStrategy(
             active_record_class=IntegerSequencedItem,
             session=db.session,
         )
     )
+
+
+For a working example using Flask and SQLAlchemy, please
+refer to the library module :mod:`eventsourcing.example.interface.flaskapp`,
+which is tested both stand-alone and with uWSGI.
+The Flask application method "before_first_request" is used to decorate a
+application object constructor, just before a request is made, so that the
+module can be imported by the test suite, without immediately constructing
+the application.
 
 
 Django-Cassandra
@@ -402,4 +418,12 @@ things work across all modes of execution, including your test suite.
 Redis Queue
 -----------
 
+Redis queue workers are quite similar to Celery workers.
+You can call ``get_application()`` from within a job function.
+To fit with the style in the RQ documentation, you could
+perhaps use your eventsourcing application as a context manager,
+just like the Redis connection example.
+
 http://python-rq.org/docs/workers/
+
+
