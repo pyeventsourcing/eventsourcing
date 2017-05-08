@@ -6,37 +6,41 @@ from sqlalchemy_utils.types.uuid import UUIDType
 from eventsourcing.example.application import get_example_application, init_example_application
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
 
-application = Flask(__name__)
 
+# Read DB URI from environment.
 uri = os.environ.get('DB_URI', 'sqlite:///:memory:')
 
+
+# Construct Flask application.
+application = Flask(__name__)
 application.config['SQLALCHEMY_DATABASE_URI'] = uri
 application.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+
+# Define database connection.
 db = SQLAlchemy(application)
 
 
-class IntegerSequencedItemRecord(db.Model):
+# Define database tables.
+class IntegerSequencedItem(db.Model):
     __tablename__ = 'integer_sequenced_items'
-
-    id = db.Column(db.Integer, db.Sequence('integer_sequened_item_id_seq'), primary_key=True)
-
-    # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = db.Column(UUIDType(), index=True)
-
-    # Position (index) of item in sequence.
-    position = db.Column(db.BigInteger(), index=True)
-
-    # Topic of the item (e.g. path to domain event class).
+    __table_args__ = db.Index('index', 'sequence_id', 'position'),
+    sequence_id = db.Column(UUIDType(), primary_key=True)
+    position = db.Column(db.BigInteger(), primary_key=True)
     topic = db.Column(db.String(255))
-
-    # State of the item (serialized dict, possibly encrypted).
     data = db.Column(db.Text())
 
-    # Unique constraint includes 'sequence_id' and 'position'.
-    __table_args__ = db.UniqueConstraint('sequence_id', 'position',
-                                         name='integer_sequenced_item_uc'),
+
+# Construct eventsourcing application.
+init_example_application(
+    entity_active_record_strategy=SQLAlchemyActiveRecordStrategy(
+        active_record_class=IntegerSequencedItem,
+        session=db.session,
+    )
+)
 
 
+# Define Web application.
 @application.route("/")
 def hello():
     app = get_example_application()
@@ -45,17 +49,10 @@ def hello():
     return "<h1 style='color:blue'>{}</h1>".format(entity.foo)
 
 
-@application.before_first_request
-def init_example_application_with_sqlalchemy():
-    active_record_strategy = SQLAlchemyActiveRecordStrategy(
-        active_record_class=IntegerSequencedItemRecord,
-        session=db.session,
-    )
-    init_example_application(
-        entity_active_record_strategy=active_record_strategy
-    )
-
-
+# Run directly, with uWSGI, or otherwise as a WSGI application.
+#
+# uwsgi -H PATH_TO_VIRTUALENV --master --processes 4 --threads 2 --wsgi-file PATH_TO_THIS_FILE --http :5001
+#
 if __name__ == "__main__":
     # Create tables.
     db.create_all()
