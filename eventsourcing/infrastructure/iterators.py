@@ -78,7 +78,7 @@ class SequencedItemIterator(AbstractSequencedItemIterator):
                 limit = self.page_size
 
             if limit == 0:
-                raise StopIteration
+                return
 
             # Get the events.
             if self._position is not None:
@@ -124,7 +124,7 @@ class SequencedItemIterator(AbstractSequencedItemIterator):
 
             # If that wasn't a full page, stop iterating (there can be no more items).
             if page_item_counter != self.page_size:
-                raise StopIteration
+                return
 
 
 class ThreadedSequencedItemIterator(AbstractSequencedItemIterator):
@@ -169,7 +169,7 @@ class ThreadedSequencedItemIterator(AbstractSequencedItemIterator):
 
                 # Stop if we're over the limit.
                 if self.limit and self.all_item_counter >= self.limit:
-                    raise StopIteration
+                    return
 
                 # Count each event.
                 self._inc_all_event_counter()
@@ -179,7 +179,7 @@ class ThreadedSequencedItemIterator(AbstractSequencedItemIterator):
 
             # If that was the last page, then stop iterating.
             if is_last_page:
-                raise StopIteration
+                return
 
     def start_thread(self):
         gt = self.gt

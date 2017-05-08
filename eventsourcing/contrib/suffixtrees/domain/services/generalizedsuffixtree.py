@@ -58,7 +58,7 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
 
                 # Check the limit, stop if we've had enough string IDs.
                 if limit is not None and len(unique_string_ids) >= limit:
-                    raise StopIteration
+                    return
 
         # Check the hop count before getting the child collection.
         if hop_max is None or hop_count < hop_max:
