@@ -1,7 +1,7 @@
 from collections import namedtuple
 from uuid import UUID
 
-from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
+from sqlalchemy.sql.schema import Column, Index, Sequence
 from sqlalchemy.sql.sqltypes import BigInteger, Float, Integer, String, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
@@ -24,20 +24,13 @@ StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'e
 
 
 class StoredEventRecord(ActiveRecord):
-    # Explicit table name.
     __tablename__ = 'stored_events'
 
-    # Unique constraint.
-    __table_args__ = UniqueConstraint('aggregate_id', 'aggregate_version', name='stored_events_uc'),
-
-    # Primary key.
-    id = Column(Integer, Sequence('stored_event_id_seq'), primary_key=True)
-
     # Sequence ID (e.g. an entity or aggregate ID).
-    aggregate_id = Column(UUIDType(), index=True)
+    aggregate_id = Column(UUIDType(), primary_key=True)
 
     # Position (timestamp) of item in sequence.
-    aggregate_version = Column(BigInteger(), index=True)
+    aggregate_version = Column(BigInteger(), primary_key=True)
 
     # Type of the event (class name).
     event_type = Column(String(100))
@@ -47,6 +40,8 @@ class StoredEventRecord(ActiveRecord):
 
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
+
+    __table_args__ = Index('index', 'aggregate_id', 'aggregate_version'),
 
 
 class ExampleApplicationWithAlternativeSequencedItemType(object):

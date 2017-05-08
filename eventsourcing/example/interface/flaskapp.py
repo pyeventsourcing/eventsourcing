@@ -18,13 +18,11 @@ db = SQLAlchemy(application)
 class IntegerSequencedItemRecord(db.Model):
     __tablename__ = 'integer_sequenced_items'
 
-    id = db.Column(db.Integer, db.Sequence('integer_sequenced_item_id_seq'), primary_key=True)
-
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = db.Column(UUIDType(), index=True)
+    sequence_id = db.Column(UUIDType(), primary_key=True)
 
     # Position (index) of item in sequence.
-    position = db.Column(db.BigInteger(), index=True)
+    position = db.Column(db.BigInteger(), primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
     topic = db.Column(db.String(255))
@@ -33,8 +31,7 @@ class IntegerSequencedItemRecord(db.Model):
     data = db.Column(db.Text())
 
     # Unique constraint includes 'sequence_id' and 'position'.
-    __table_args__ = db.UniqueConstraint('sequence_id', 'position',
-                                         name='integer_sequenced_item_uc'),
+    __table_args__ = db.Index('index', 'sequence_id', 'position'),
 
 
 @application.route("/")

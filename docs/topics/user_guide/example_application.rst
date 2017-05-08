@@ -358,7 +358,7 @@ with each item positioned in its sequence by an integer index number.
 .. code:: python
 
     from sqlalchemy.ext.declarative.api import declarative_base
-    from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint
+    from sqlalchemy.sql.schema import Column, Sequence, Index
     from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
     from sqlalchemy_utils import UUIDType
 
@@ -368,13 +368,11 @@ with each item positioned in its sequence by an integer index number.
     class SequencedItemRecord(ActiveRecord):
         __tablename__ = 'sequenced_items'
 
-        id = Column(Integer(), Sequence('integer_sequenced_item_id_seq'), primary_key=True)
-
         # Sequence ID (e.g. an entity or aggregate ID).
-        sequence_id = Column(UUIDType(), index=True)
+        sequence_id = Column(UUIDType(), primary_key=True)
 
         # Position (index) of item in sequence.
-        position = Column(BigInteger(), index=True)
+        position = Column(BigInteger(), primary_key=True)
 
         # Topic of the item (e.g. path to domain event class).
         topic = Column(String(255))
@@ -382,9 +380,9 @@ with each item positioned in its sequence by an integer index number.
         # State of the item (serialized dict, possibly encrypted).
         data = Column(Text())
 
-        # Unique constraint.
-        __table_args__ = UniqueConstraint('sequence_id', 'position',
-                                          name='integer_sequenced_item_uc'),
+        __table_args__ = Index('index', 'sequence_id', 'position'),
+
+
 
 
 The library has a class

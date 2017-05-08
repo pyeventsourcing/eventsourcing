@@ -1,8 +1,8 @@
 import six
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import asc, desc
-from sqlalchemy.sql.schema import Column, Sequence, UniqueConstraint, Index
-from sqlalchemy.sql.sqltypes import BigInteger, Float, Integer, String, Text
+from sqlalchemy.sql.schema import Column, Index
+from sqlalchemy.sql.sqltypes import BigInteger, Float, String, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
