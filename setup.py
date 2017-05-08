@@ -5,13 +5,12 @@ try:
 
     singledispatch_requires = []
 except ImportError:
-    singledispatch_requires = ['singledispatch']
+    singledispatch_requires = ['singledispatch==3.4.0.3']
 
 from eventsourcing import __version__
 
 install_requires = singledispatch_requires + [
     'python-dateutil<=2.6.99999',
-    'singledispatch==3.4.0.3',
     'six<=1.10.99999',
 ]
 

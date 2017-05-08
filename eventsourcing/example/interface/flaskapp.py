@@ -24,20 +24,22 @@ db = SQLAlchemy(application)
 # Define database tables.
 class IntegerSequencedItem(db.Model):
     __tablename__ = 'integer_sequenced_items'
-    __table_args__ = db.Index('index', 'sequence_id', 'position'),
     sequence_id = db.Column(UUIDType(), primary_key=True)
     position = db.Column(db.BigInteger(), primary_key=True)
     topic = db.Column(db.String(255))
     data = db.Column(db.Text())
+    __table_args__ = db.Index('index', 'sequence_id', 'position'),
 
 
 # Construct eventsourcing application.
-init_example_application(
-    entity_active_record_strategy=SQLAlchemyActiveRecordStrategy(
-        active_record_class=IntegerSequencedItem,
-        session=db.session,
+@application.before_first_request
+def init_example_application_with_sqlalchemy():
+    init_example_application(
+        entity_active_record_strategy=SQLAlchemyActiveRecordStrategy(
+            active_record_class=IntegerSequencedItem,
+            session=db.session,
+        )
     )
-)
 
 
 # Define Web application.
