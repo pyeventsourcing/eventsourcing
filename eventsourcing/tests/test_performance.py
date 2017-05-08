@@ -37,11 +37,11 @@ class PerformanceTestCase(WithExampleApplication):
             report_name = type(self).__name__[4:]
             print("\n\n{} report:\n".format(report_name))
 
-            repetitions = 100  # 10
+            repetitions = 10  # 10
 
             # NB: Use range(1, 5) to test whether we can get more than 10000 items from Cassandra.
             # Setup a number of entities, with different lengths of event history.
-            for i in six.moves.range(0, 5):
+            for i in six.moves.range(0, 4):
 
                 # Initialise table with other entities.
                 num_other_entities = i
