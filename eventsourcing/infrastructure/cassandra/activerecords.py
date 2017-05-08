@@ -185,3 +185,21 @@ class SnapshotRecord(ActiveRecord):
 
     # State of the entity (serialized dict, possibly encrypted).
     data = columns.Text(required=True)
+
+
+class StoredEventRecord(ActiveRecord):
+    """Stores integer-sequenced items in Cassandra."""
+    __table_name__ = 'stored_events'
+    _if_not_exists = True
+
+    # Aggregate ID (e.g. an entity or aggregate ID).
+    originator_id = columns.UUID(partition_key=True)
+
+    # Aggregate version (index) of item in sequence.
+    originator_version = columns.BigInt(clustering_order='DESC', primary_key=True)
+
+    # Topic of the item (e.g. path to domain event class).
+    event_type = columns.Text(required=True)
+
+    # State of the item (serialized dict, possibly encrypted).
+    state = columns.Text(required=True)

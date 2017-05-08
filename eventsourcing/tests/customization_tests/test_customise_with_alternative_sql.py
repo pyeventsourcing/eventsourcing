@@ -1,16 +1,13 @@
 from collections import namedtuple
 from uuid import UUID
 
-from sqlalchemy.sql.schema import Column, Index
-from sqlalchemy.sql.sqltypes import BigInteger, Float, String, Text
-from sqlalchemy_utils.types.uuid import UUIDType
-
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
+from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, StoredEventRecord
 from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord, SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
@@ -18,30 +15,6 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 # How easy is it to customize the infrastructure to support that? We just need
 # to define the new sequenced item class, define a suitable active record class,
 # and configure the other components. It's easy.
-
-
-StoredEvent = namedtuple('StoredEvent', ['originator_id', 'originator_version', 'event_type', 'state', 'timestamp'])
-
-
-class StoredEventRecord(ActiveRecord):
-    __tablename__ = 'stored_events'
-
-    # Originator ID (e.g. an entity or aggregate ID).
-    originator_id = Column(UUIDType(), primary_key=True)
-
-    # Originator version of item in sequence.
-    originator_version = Column(BigInteger(), primary_key=True)
-
-    # Type of the event (class name).
-    event_type = Column(String(100))
-
-    # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
-
-    # Timestamp of the event.
-    timestamp = Column(Float())
-
-    __table_args__ = Index('index', 'originator_id', 'originator_version'),
 
 
 class ExampleApplicationWithAlternativeSequencedItemType(object):
@@ -89,7 +62,6 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
             base=ActiveRecord,
             settings=SQLAlchemySettings(),
             tables=(StoredEventRecord,)
-
         )
 
     def test(self):
@@ -106,7 +78,6 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
             stored_event = all_records[0]
             assert stored_event.originator_id == entity1.id
             assert stored_event.originator_version == 0
-            assert stored_event.timestamp == entity1.created_on, (stored_event.timestamp, entity1.created_on)
 
             # Read entity from repo.
             retrieved_obj = app.repository[entity1.id]
