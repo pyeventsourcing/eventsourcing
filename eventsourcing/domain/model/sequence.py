@@ -1,13 +1,16 @@
 from abc import abstractproperty
+from math import ceil, log
 from uuid import uuid5
 
 import six
-from six.moves._thread import get_ident
 
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 from eventsourcing.domain.model.events import publish
 from eventsourcing.exceptions import CompoundSequenceFullError, ConcurrencyError, SequenceFullError
+
+
+# from six.moves._thread import get_ident
 
 
 class SequenceMeta(TimestampedVersionedEntity):
@@ -211,19 +214,13 @@ class CompoundSequence(Sequence):
     def append(self, item, position=None):
         root, height, apex, last, i = self.get_last_sequence()
         assert isinstance(root, Sequence)
-
-        thread_id = get_ident()
+        # thread_id = get_ident()
 
         if last is None:
             # print("{} Building root for: {}".format(thread_id, self.id))
-
-            root.register()
-            apex_id = self.create_sequence_id(0, self.repo.sequence_size)
-            apex = self.subrepo[apex_id]
-            apex.register()
-            root.append(apex_id, position=0)
-            last = apex
-        assert isinstance(last, Sequence)
+            apex = last = self.start_root_sequence(root)
+            height = 1
+        assert isinstance(last, Sequence), last
         try:
             position = last.get_position()
             while True:
@@ -244,43 +241,66 @@ class CompoundSequence(Sequence):
         except SequenceFullError as e:
             if self.repo.sequence_size == 1:
                 raise CompoundSequenceFullError
-            len_root_sequence = len(root)
+            # len_root_sequence = len(root)
+
+            sequence_size = self.subrepo.sequence_size
+            next_i = i + sequence_size
 
             try:
-                # This may raise a ConcurrencyError, if another
-                # thread has just extended the compound.
-                # If so, just let the exception be caught by
-                # the retry decorator, so a fresh attempt is
-                # made to append the item to the compound sequence.
-                sequence_size = self.subrepo.sequence_size
-                next_i = i + sequence_size
-                # print("{} Extending base for: {}".format(thread_id, next_i))
-                next = self.extend_base(next_i, item)
-
-                # If we managed to extend the base, then create a
-                # branch. No other thread should be attempting this.
-                # So if it fails, the compound will need to be repaired.
-                # print("{} Creating detached branch for: {}".format(thread_id, next_i))
-                detached_branch_id, target_id, position = self.create_detached_branch(
-                    base_id=next.id,
-                    i=next_i,
-                    max_height=len_root_sequence,
-                )
-
-                # If there is a target, then attach the branch to it.
-                if target_id:
-                    # print("{} Attaching branch for: {}".format(thread_id, next_i))
-                    self.attach_branch(target_id, detached_branch_id, position=position)
-                # Otherwise demote the top in favour of the branch.
-                else:
-                    assert apex
-                    # print("{} Demoting apex: {}".format(thread_id, apex.id))
-                    self.demote(root, apex, height, detached_branch_id)
+                self.extend_tree(apex, height, next_i, 0, item, root)
             except SequenceFullError as e:
                 if len(self) == self.subrepo.sequence_size:
                     raise CompoundSequenceFullError
                 else:
                     raise e
+
+    def extend_tree(self, apex, apex_height, next_i, offset, item, root):
+        # This may raise a ConcurrencyError, if another
+        # thread has just extended the compound.
+        # If so, just let the exception be caught by
+        # the retry decorator, so a fresh attempt is
+        # made to append the item to the compound sequence.
+        # print("{} Extending base for: {}".format(thread_id, next_i))
+        next = self.extend_base(next_i, item, offset)
+        # If we managed to extend the base, then create a
+        # branch. No other thread should be attempting this.
+        # So if it fails, the compound will need to be repaired.
+        # print("{} Creating detached branch for: {}".format(thread_id, next_i))
+        detached_branch_id, target_id, position = self.create_detached_branch(
+            base_id=next.id,
+            i=next_i,
+            max_height=apex_height,
+        )
+        # If there is a target, then attach the branch to it.
+        if target_id:
+            # print("{} Attaching branch for: {}".format(thread_id, next_i))
+            self.attach_branch(target_id, detached_branch_id, position=position)
+        # Otherwise demote the top in favour of the branch.
+        else:
+            # assert apex, "Apex: {}".format(apex)
+            # print("{} Demoting apex: {}".format(thread_id, apex.id))
+            self.demote(root, apex, apex_height, detached_branch_id)
+
+    def start_root_sequence(self, root):
+        # We need make sure we get an attached apex sequence.
+        # Make sure root sequence is registered.
+        try:
+            root.register()
+        except ConcurrencyError:
+            pass
+        # Make sure first apex is registered.
+        apex_id = self.create_sequence_id(0, self.repo.sequence_size)
+        apex = self.subrepo[apex_id]
+        try:
+            apex.register()
+        except ConcurrencyError:
+            pass
+        # Make sure root sequence has first apex.
+        try:
+            root.append(apex_id, position=0)
+        except ConcurrencyError:
+            pass
+        return apex
 
     def get_last_sequence(self):
         """
@@ -321,10 +341,12 @@ class CompoundSequence(Sequence):
 
     def get_last_item_and_n(self):
         _, _, _, sequence, i = self.get_last_sequence()
+        if sequence is None:
+            return None, None
         item, n = sequence.get_last_and_len()
         return item, i + n - 1
 
-    def extend_base(self, i, item):
+    def extend_base(self, i, item, offset):
         """
         Starts sequence that extends the base of
         the compound, and appends an item to it.
@@ -337,11 +359,11 @@ class CompoundSequence(Sequence):
         size = self.subrepo.sequence_size
         j = i + size
         sequence_id = self.create_sequence_id(i, j)
-        # If may raises a ConcurrencyError.
+        # May raise a ConcurrencyError.
         meta = self.register_sequence(sequence_id=sequence_id)
         sequence = self.subrepo[sequence_id]
         assert isinstance(sequence, Sequence)
-        sequence.append(item, position=0)
+        sequence.append(item, position=offset)
         return sequence
 
     def create_detached_branch(self, base_id, i, max_height):
@@ -409,7 +431,7 @@ class CompoundSequence(Sequence):
         # Return parent i, j, h.
         return p_i, p_j, p_h, p_p
 
-    def demote(self, root, old_apex, height, detached_id=None):
+    def demote(self, root, apex, apex_height, detached_id=None):
         """
         Inserts a new sequence between the root and the current top.
 
@@ -419,7 +441,7 @@ class CompoundSequence(Sequence):
 
         :rtype: CompoundSequenceReader
         """
-        j = self.subrepo.sequence_size ** (height + 1)
+        j = self.subrepo.sequence_size ** (apex_height + 1)
         new_apex_id = self.create_sequence_id(0, j)
 
         # Will raise ConcurrentError is sequence already exists.
@@ -427,13 +449,14 @@ class CompoundSequence(Sequence):
         new_apex = Sequence(sequence_id=new_apex_id, repo=self.subrepo, meta=new_apex_meta)
 
         # First, append child to new child.
-        new_apex.append(old_apex.id, position=0)
+        if apex is not None:
+            new_apex.append(apex.id, position=0)
         # Attach new branch.
         if detached_id is not None:
             new_apex.append(detached_id, position=1)
         # Then append new child to to root.
         try:
-            root.append(new_apex.id, position=height)
+            root.append(new_apex.id, position=apex_height)
         except SequenceFullError:
             raise CompoundSequenceFullError
         return new_apex
@@ -492,8 +515,14 @@ class CompoundSequence(Sequence):
         """
         Counts items in compound sequence.
         """
-        _, n = self.get_last_item_and_n()
-        return n + 1
+        return self.get_length_of_compound()
+
+    def get_length_of_compound(self):
+        last, n = self.get_last_item_and_n()
+        if last is None:
+            return 0
+        else:
+            return n + 1
 
     def get_item(self, item):
         size = self.subrepo.sequence_size
@@ -520,6 +549,40 @@ class CompoundSequence(Sequence):
             start = j
             if start > stop:
                 break
+
+    def __setitem__(self, key, value):
+        self.set_item(key, value)
+
+    def set_item(self, n, item):
+        # Calculate the base sequence i.
+        size = self.subrepo.sequence_size
+        i = n // size * size
+        j = i + size
+
+        root, height, apex, last, last_i = self.get_last_sequence()
+
+        if last is None:
+            last = self.start_root_sequence(root)
+
+
+        assert isinstance(last, Sequence), last
+
+        offset = n - i
+        if last_i == i:
+            last.append(item, offset)
+        elif last_i < i:
+            required_height = int(ceil(log(max(size, n + 1), size)))
+            self.extend_tree(apex=None, apex_height=required_height, next_i=i, offset=offset, item=item, root=root)
+        elif last_i > i:
+            sequence_id = self.create_sequence_id(i, j)
+            sequence = self.subrepo[sequence_id]
+            assert isinstance(sequence, Sequence)
+            sequence.append(item, offset)
+
+        # sequence_id = self.create_sequence_id(i, j)
+        # sequence = self.subrepo[sequence_id]
+        # assert isinstance(sequence, Sequence)
+        # sequence.append(item, n - i)
 
 
 class AbstractSequenceRepository(AbstractEntityRepository):
