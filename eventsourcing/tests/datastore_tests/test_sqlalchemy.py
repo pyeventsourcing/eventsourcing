@@ -2,6 +2,7 @@ from tempfile import NamedTemporaryFile
 from uuid import uuid4
 
 from sqlalchemy.exc import OperationalError
+# from sqlalchemy.pool import StaticPool
 
 from eventsourcing.infrastructure.datastore import DatastoreTableError
 from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord, TimestampSequencedItemRecord, \
@@ -21,11 +22,18 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
             uri = 'sqlite:///' + self.temp_file.name
         else:
             uri = DEFAULT_SQLALCHEMY_DB_URI
+
+        # kwargs = {}
+        # if not self.use_named_temporary_file:
+            # kwargs['connect_args'] = {'check_same_thread':False}
+            # kwargs['poolclass'] = StaticPool
+
         return SQLAlchemyDatastore(
             base=ActiveRecord,
             settings=SQLAlchemySettings(uri=uri),
             tables=(IntegerSequencedItemRecord, TimestampSequencedItemRecord, SnapshotRecord),
             connection_strategy=self.connection_strategy,
+            # **kwargs
         )
 
 

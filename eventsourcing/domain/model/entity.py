@@ -292,6 +292,10 @@ def _(self, event):
 
 
 class AbstractEntityRepository(with_metaclass(ABCMeta)):
+
+    def __init__(self, *args, **kwargs):
+        pass
+
     @abstractmethod
     def __getitem__(self, entity_id):
         """

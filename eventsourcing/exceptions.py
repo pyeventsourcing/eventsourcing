@@ -47,11 +47,11 @@ class RepositoryKeyError(KeyError, EventSourcingError):
 
 
 class SequenceFullError(EventSourcingError):
-    "Raised when attempting to append an item to a sequence that is already at its maximum size."
+    """Raised when appending item to sequence that is full."""
 
 
-class CompoundSequenceFullError(EventSourcingError):
-    "Raised when attempting to append an item to a compound sequence root that is already at its maximum size."
+class CompoundSequenceFullError(SequenceFullError):
+    """Raised when appending item to compound sequence that is full."""
 
 
 class DatasourceSettingsError(EventSourcingError):

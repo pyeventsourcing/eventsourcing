@@ -1,26 +1,30 @@
-from eventsourcing.domain.model.sequence import Sequence
+from math import ceil, log
+from unittest.case import skip
+
+from eventsourcing.domain.model.sequence import CompoundSequence, Sequence
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
+    WithCassandraActiveRecordStrategies
 
 try:
     from queue import Queue
 except ImportError:
     from Queue import Queue
 from threading import Thread
-from uuid import uuid4
+from uuid import uuid4, UUID
 
-from eventsourcing.exceptions import CompoundSequenceFullError, ConcurrencyError, SequenceFullError
+from eventsourcing.exceptions import CompoundSequenceFullError, SequenceFullError
 from eventsourcing.infrastructure.event_sourced_repos.sequence import CompoundSequenceRepository, SequenceRepository
-from eventsourcing.infrastructure.sequencereader import CompoundSequenceReader, SequenceReader
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
-    WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 
 
-class SequenceTestCase(WithPersistencePolicies):
+class TestSequenceWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
+    # use_named_temporary_file = True
+
     def setUp(self):
-        super(SequenceTestCase, self).setUp()
+        super(TestSequenceWithSQLAlchemy, self).setUp()
         self.repo = SequenceRepository(self.entity_event_store, sequence_size=3)
 
     def test_simple_sequence(self):
@@ -34,17 +38,19 @@ class SequenceTestCase(WithPersistencePolicies):
         self.assertIsInstance(sequence, Sequence)
         self.assertIsNone(sequence.meta)
 
+        sequence.register()
+
         self.assertEqual(sequence.id, sequence_id)
 
         # Append some items.
-        sequence.append('item1')
-        sequence.append('item2')
-        sequence.append('item3')
+        sequence.append('item1', sequence.get_position())
+        sequence.append('item2', sequence.get_position())
+        sequence.append('item3', sequence.get_position())
 
         # Check the sequence in the self.repo.
         sequence = self.repo[sequence_id]
         self.assertIsNotNone(sequence.meta)
-        self.assertEqual(sequence.meta.max_size, self.repo.sequence_size)
+        # self.assertEqual(sequence.meta.max_size, self.repo.sequence_size)
 
         # Check the sequence indexing.
         self.assertEqual(sequence[0], 'item1')
@@ -103,7 +109,7 @@ class SequenceTestCase(WithPersistencePolicies):
         # Check full error.
         with self.assertRaises(SequenceFullError):
             # Fail to append fourth item (sequence size is 3).
-            sequence.append('item1')
+            sequence.append('item1', sequence.get_position())
 
         # Check index errors.
         with self.assertRaises(IndexError):
@@ -115,290 +121,201 @@ class SequenceTestCase(WithPersistencePolicies):
             sequence[-4]
 
 
-class CompoundSequenceTestCase(WithPersistencePolicies):
+class TestCompoundSequenceWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
+    use_named_temporary_file = True
+
     def setUp(self):
-        super(CompoundSequenceTestCase, self).setUp()
-        self.repo = CompoundSequenceRepository(self.entity_event_store)
-
-    def test_compound_sequence_internals(self):
-        # Check that sequences can be stacked.
-
-        self.repo = CompoundSequenceRepository(self.entity_event_store)
-
-        # Start a root sequence.
-        SEQUENCE_SIZE = 2
-
-        root = self.start(max_size=2)
-
-        # Just make this a bit bigger for the test,
-        # because debugging is simpler with sequence
-        # size of 2, but need a deeper compound to
-        # check the basic operations.
-        root.max_size = 10
-
-        self.assertEqual(root.max_size, 10)
-        self.assertEqual(root.i, None)
-        self.assertEqual(root.j, None)
-        self.assertEqual(root.h, None)
-
-        # Check the first sequence.
-        child1 = self.repo.get_last_sequence(root)
-
-        self.assertEqual(child1.i, 0)
-        self.assertEqual(child1.j, 2)
-        self.assertEqual(child1.h, 1)
-
-        self.assertEqual(child1.max_size, SEQUENCE_SIZE)
-        self.assertEqual(child1.i, 0)
-        self.assertEqual(child1.j, SEQUENCE_SIZE)
-
-        self.assertEqual(root[0], child1.id)
-
-        # Check the last sequence is child1.
-        self.assertEqual(self.repo.get_last_sequence(root), child1)
-
-        # Check the last item in the last sequence is None.
-        with self.assertRaises(IndexError):
-            self.repo.get_last_item(root)
-
-        # Add item to child1.
-        child1.append('item1')
-
-        # Check the last item is item1.
-        self.assertEqual(self.repo.get_last_item(child1), 'item1')
-        self.assertEqual(self.repo.get_last_item(root), 'item1')
-
-        # Add another item to child1.
-        child1.append('item2')
-
-        # Append and check the last item is item2.
-        self.assertEqual(self.repo.get_last_item(child1), 'item2')
-        self.assertEqual(self.repo.get_last_item(root), 'item2')
-
-        self.assertEqual(len(root), 1)
-
-        # Demote child1.
-        child2 = self.repo.demote(root, child1)
-        self.assertEqual(child2.i, 0)
-        self.assertEqual(child2.j, 4)
-        self.assertEqual(child2.h, 2)
-
-        self.assertEqual(self.repo.get_last_item(child1), 'item2')
-        self.assertEqual(self.repo.get_last_item(child2), 'item2')
-        self.assertEqual(self.repo.get_last_item(root), 'item2')
-
-        # Extend the base beyond child1.
-        child3 = self.repo.extend_base(root.id, child1.j, SEQUENCE_SIZE, 'item3')
-        self.assertEqual(child3.i, 2)
-        self.assertEqual(child3.j, 4)
-        self.assertEqual(child3.h, 1)
-
-        # Identify parent (should be child2).
-        i, j, h = self.repo.calc_parent_i_j_h(child3.i, child3.j, child3.h, child3.max_size)
-
-        # Check creating parent doesn't work (already exists).
-        with self.assertRaises(ConcurrencyError):
-            self.repo.start(root.id, i, j, h, root.max_size)
-
-        parent_id = self.repo.create_sequence_id(root.id, i, j)
-        self.assertIn(parent_id, self.repo)
-
-        parent = CompoundSequenceReader(self.repo[parent_id], self.repo.event_store)
-
-        self.assertEqual(parent, child2)
-
-        # Attach to parent.
-        parent.append(child3.id)
-
-        # Check the last sequence from the root is now child3.
-        self.assertEqual(self.repo.get_last_sequence(root), child3)
-
-        # Check the last item from the root is now item3.
-        self.assertEqual(self.repo.get_last_item(child1), 'item2')
-        self.assertEqual(self.repo.get_last_item(child2), 'item3')
-        self.assertEqual(self.repo.get_last_item(child3), 'item3')
-        self.assertEqual(self.repo.get_last_item(root), 'item3')
-
-        # Append another item to child3.
-        child3.append('item4')
-
-        # Check the last item from the root is now item4.
-        self.assertEqual(self.repo.get_last_item(root), 'item4')
-
-        # Check the length of root.
-        self.assertEqual(len(root), 2)  # 4 items
-
-        # Extend the base beyond child3.
-        child6 = self.repo.extend_base(root.id, child3.j, SEQUENCE_SIZE, 'item5')
-        self.assertEqual(child6.i, 4)
-        self.assertEqual(child6.j, 6)
-        self.assertEqual(child6.h, 1)
-
-        self.assertEqual(self.repo.get_last_item(root), 'item4')
-
-        # Construct detached branch.
-        child5_id, attachment_point = self.repo.create_detached_branch(root.id, child6.id, child6.i, child6.j,
-                                                                       child6.h, child6.max_size, len(root))
-        # self.assertEqual(child5.i, 4)
-        # self.assertEqual(child5.j, 8)
-        # self.assertEqual(child5.h, 2)
-
-        # Attachment point is None, because we need to demote the root's child.
-        self.assertIsNone(attachment_point)
-
-        self.assertEqual(self.repo.get_last_item(root), 'item4')
-
-        # Demote child2, while attaching new branch.
-        child4 = self.repo.demote(root, child2, detached_id=child5_id)
-        self.assertEqual(child4.i, 0)
-        self.assertEqual(child4.j, 8)
-        self.assertEqual(child4.h, 3)
-
-        # Check the last item is correct.
-        self.assertEqual(self.repo.get_last_item(root), 'item5')
-
-        # Append another item.
-        child6.append('item6')
-
-        # Check the last item is correct.
-        self.assertEqual(self.repo.get_last_item(root), 'item6')
-
-        # Child6 is full so extend base to child7.
-        child7 = self.repo.extend_base(root.id, child6.j, SEQUENCE_SIZE, 'item7')
-        self.assertEqual(child7.i, 6)
-        self.assertEqual(child7.j, 8)
-        self.assertEqual(child7.h, 1)
-
-        # Construct detached branch.
-        branch_id, attachment_point = self.repo.create_detached_branch(root.id, child7.id, child7.i, child7.j,
-                                                                       child7.h, child7.max_size, len(root))
-
-        # Attachment point exists.
-        self.assertEqual(attachment_point, child5_id)
-
-        # Attach branch.
-        self.repo.attach_branch(attachment_point, branch_id)
-
-        # Check the last item is correct.
-        self.assertEqual(self.repo.get_last_item(root), 'item7')
-
-        # Append another item.
-        child7.append('item8')
-        self.assertEqual(self.repo.get_last_item(root), 'item8')
-
-        # Check the length of root.
-        self.assertEqual(len(root), 3)  # 8 items
-
-        # Now we're full again, so need can demote child4 under child8.
-        child8 = self.repo.demote(root, child4)
-        self.assertEqual(child8.i, 0)
-        self.assertEqual(child8.j, 16)
-        self.assertEqual(child8.h, 4)
-
-        # Check the last item is correct.
-        self.assertEqual(self.repo.get_last_item(root), 'item8')
-
-        # Check the length of root.
-        self.assertEqual(len(root), 4)  # 16 items
-
-        # Now do it more generally...
-        self.repo.append_item('item9', root.id)
-        self.assertEqual(self.repo.get_last_item(root), 'item9')
-        self.repo.append_item('item10', root.id)
-        self.assertEqual(self.repo.get_last_item(root), 'item10')
-        self.repo.append_item('item11', root.id)
-        self.assertEqual(self.repo.get_last_item(root), 'item11')
-        self.repo.append_item('item12', root.id)
-        self.assertEqual(self.repo.get_last_item(root), 'item12')
-
-    def start_and_append(self, max_size, num_items):
-        root = self.start(max_size=max_size)
-        item = self.append_num_items(num_items=num_items, root=root)
-        return root, item
-
-    def append_num_items(self, num_items, root):
-        item = None
-        for i in range(num_items):
-            # item = 'item{}'.format(i)
-            item = uuid4()
-            self.repo.append_item(item, root.id)
-        return item
-
-    def start(self, max_size):
-        root = self.repo.start_root(max_size=max_size)
-        return root
+        super(TestCompoundSequenceWithSQLAlchemy, self).setUp()
+        self.repo = CompoundSequenceRepository(
+            event_store=self.entity_event_store,
+        )
+        self.subrepo = self.repo.subrepo
+        self.result_queue = None
 
     def test_compound_sequence_short(self):
         # Can add zero items if max_size is zero.
-        self.start_and_append(0, 0)
-
-        # Can add zero items if max_size is 1.
-        self.start_and_append(1, 0)
+        root, added = self.start_and_append(0, 0)
+        # Check we got a compound sequence.
+        self.assertIsInstance(root, CompoundSequence)
+        # Check none was added.
+        self.assertEqual(added, [])
 
         # Can add 1 items if max_size is 1.
-        self.start_and_append(max_size=1, num_items=1)
+        root, added = self.start_and_append(sequence_size=1, num_items=1)
 
-        # Can't add 2 items if max_size is 1.
+        # Check we got a compound sequence.
+        self.assertIsInstance(root, CompoundSequence)
+        assert isinstance(root, CompoundSequence)
+        # Check something was added.
+        self.assertTrue(added)
+
+        # Check root has an ID.
+        self.assertTrue(root.id)
+        # Get the root sequence.
+        root_sequence = self.subrepo[root.id]
+        # Check it has some meta data.
+        self.assertTrue(root_sequence.meta)
+        # Check the root sequence has length 1.
+        self.assertEqual(len(root_sequence), 1)
+        # Check the root sequence is full.
         with self.assertRaises(SequenceFullError):
-            self.start_and_append(max_size=1, num_items=2)
+            root_sequence.append(1, root_sequence.get_position())
+
+        # Get the current apex ID from the root sequence.
+        apex_id = root_sequence[-1]
+        # Check it's a UUID.
+        self.assertIsInstance(apex_id, UUID)
+        # Get the apex sequence.
+        apex_sequence = self.subrepo[apex_id]
+        self.assertTrue(apex_sequence.meta)
+        # Check the apex sequence has length 1.
+        self.assertEqual(len(apex_sequence), 1)
+        # Check the apex sequence is full.
+        with self.assertRaises(SequenceFullError):
+            apex_sequence.append(1, apex_sequence.get_position())
+
+        # Get the item.
+        item1 = apex_sequence[-1]
+        # Check it's a UUID.
+        self.assertIsInstance(apex_id, UUID)
+        # Check it's the last things that was added above.
+        self.assertEqual(item1, added[-1])
+
+        # Check the "last sequence" is the apex we got above.
+        _, _, _, last_sequence, i = root.get_last_sequence()
+        self.assertEqual(last_sequence, apex_sequence)
+        # Check the 'i' value of the apex is 0.
+        self.assertEqual(i, 0)
+
+        # Check the "last item" is the item we got above.
+        last_item, n = root.get_last_item_and_n()
+        self.assertEqual(last_item, added[-1])
+        # Check the index of the item.
+        self.assertEqual(n, 0)
+
+        # Can add 2 items if max_size is 2.
+        root, added = self.start_and_append(sequence_size=2, num_items=2)
+        last_item, n = root.get_last_item_and_n()
+        self.assertEqual(last_item, added[-1])
+        self.assertEqual(n, 1)
+        self.assertEqual(len(root), 2)
+        self.assertEqual(len(self.subrepo[root.id]), 1)
+
+        # Can add 3 items if max_size is 2.
+        root, added = self.start_and_append(sequence_size=2, num_items=3)
+        last_item, n = root.get_last_item_and_n()
+        self.assertEqual(last_item, added[-1])
+        self.assertEqual(n, 2)
+        self.assertEqual(len(root), 3)
+        self.assertEqual(len(self.subrepo[root.id]), 2)
+
+        # self.assertEqual(len(self.subrepo[root[0]]), 2)
+        # _, _, _, last_sequence, i = root.get_last_sequence()
+        # self.assertEqual(last_sequence.id, self.subrepo[root[-1]][-1])
+        self.assertEqual(len(last_sequence), 1)
+        # self.assertEqual(len(self.subrepo[self.subrepo[root[1]][1]]), 1)
+
+        # Check can append another, that it's not full.
+        last_sequence.append(1, last_sequence.get_position())
 
         # Can add 4 items if max_size is 2.
-        root, last_added = self.start_and_append(max_size=2, num_items=4)
+        root, added = self.start_and_append(sequence_size=2, num_items=4)
+        last_item, n = root.get_last_item_and_n()
+        self.assertEqual(last_item, added[-1])
+        self.assertEqual(n, 3)
 
-        self.assertEqual(self.repo.get_last_item(root), last_added)
+        # Can add 6 items if max_size is 3.
+        root, added = self.start_and_append(sequence_size=3, num_items=7)
+        last_item, n = root.get_last_item_and_n()
+        self.assertEqual(last_item, added[-1])
+        self.assertEqual(n, 6)
+
+        root, added = self.start_and_append(sequence_size=3, num_items=9)
+        last_item, n = root.get_last_item_and_n()
+        self.assertEqual(last_item, added[-1])
+        self.assertEqual(n, 8)
+
+        root, added = self.start_and_append(sequence_size=3, num_items=10)
+        last_item, n = root.get_last_item_and_n()
+        self.assertEqual(last_item, added[-1])
+        self.assertEqual(n, 9)
+
+        root, added = self.start_and_append(sequence_size=4, num_items=16)
+        last_item, n = root.get_last_item_and_n()
+        self.assertEqual(last_item, added[-1])
+        self.assertEqual(n, 15)
+
+        root, added = self.start_and_append(sequence_size=4, num_items=27)
+        last_item, n = root.get_last_item_and_n()
+        self.assertEqual(last_item, added[-1])
+        self.assertEqual(n, 26)
+
+        # Can't add 2 items if max_size is 1.
+        with self.assertRaises(CompoundSequenceFullError):
+            self.start_and_append(sequence_size=1, num_items=2)
 
         # Can't add 5 items if max_size is 2.
         with self.assertRaises(CompoundSequenceFullError):
-            self.start_and_append(max_size=2, num_items=5)
-
-        # Can add 27 items if max_size is 3.
-        root, last_added = self.start_and_append(max_size=3, num_items=27)
-        self.assertEqual(self.repo.get_last_item(root), last_added)
+            self.start_and_append(sequence_size=2, num_items=5)
 
         # Can't add 28 items if max_size is 3.
         with self.assertRaises(CompoundSequenceFullError):
-            self.start_and_append(max_size=3, num_items=28)
+            self.start_and_append(sequence_size=3, num_items=28)
+
+    def test_compound_sequence_threads_1_1_1(self):
+        self._test_compound_sequence_threads(1, 1, 1)
+
+    def test_compound_sequence_threads_2_2_2(self):
+        self._test_compound_sequence_threads(2, 2, 2)
+
+    def test_compound_sequence_threads_3_3_9(self):
+        self._test_compound_sequence_threads(3, 3, 9)
+
+    def test_compound_sequence_threads_3_9_3(self):
+        self._test_compound_sequence_threads(3, 9, 3)
 
     @notquick
-    def _test_compound_sequence_long(self):
-        # Can add 256 items if max_size is 4.
-        self.start_and_append(max_size=4, num_items=256)
+    def test_compound_sequence_threads_4_4_64(self):
+        self._test_compound_sequence_threads(4, 4, 64)
 
-        # Can't add 257 items if max_size is 4.
-        with self.assertRaises(CompoundSequenceFullError):
-            self.start_and_append(max_size=4, num_items=257)
+    @notquick
+    def test_compound_sequence_threads_4_8_32(self):
+        self._test_compound_sequence_threads(4, 8, 32)
 
-        # Can add 100 items if max_size is 10000.
-        #  - Should have capacity for 10000**10000 items,
-        #    which is 1e+40000 items, but is not checked here.
-        root, last_added = self.start_and_append(max_size=10000, num_items=100)
-        self.assertEqual(self.repo.get_last_item(root), last_added)
-        # Check depth is 1.
-        self.assertEqual(len(root), 1)
+    @notquick
+    def test_compound_sequence_threads_4_16_16(self):
+        self._test_compound_sequence_threads(4, 16, 16)
 
-        # Can add 101 items if max_size is 100.
-        root, last_added = self.start_and_append(max_size=100, num_items=101)
-        self.assertEqual(self.repo.get_last_item(root), last_added)
-        # Check depth is 2.
-        self.assertEqual(len(root), 2)
+    @notquick
+    def test_compound_sequence_threads_4_32_8(self):
+        self._test_compound_sequence_threads(4, 32, 8)
 
-    def test_compound_sequence_threads(self):
+    @skip("Avoid 'database is locked' error from SQLite")
+    @notquick
+    def test_compound_sequence_threads_4_64_4(self):
+        self._test_compound_sequence_threads(4, 64, 4)
 
-        queue = Queue()
-        max_size = 3
-        root = self.start(max_size=max_size)
-        # self.append_num_items(1, root)
-        num_threads = 16
+    @skip("Avoid 'database is locked' error from SQLite")
+    @notquick
+    def test_compound_sequence_threads_4_256_1(self):
+        self._test_compound_sequence_threads(4, 256, 1)
+
+    def _test_compound_sequence_threads(self, sequence_size, num_threads, num_items_per_thread):
+        error_queue = Queue()
+        full_queue = Queue()
+        self.result_queue = Queue()
+        assert num_threads * num_items_per_thread == sequence_size ** sequence_size, (
+            num_threads * num_items_per_thread, sequence_size ** sequence_size)
+        root = self.start_root(sequence_size=sequence_size)
 
         def task():
             try:
-                # Try to add one plus the maximum number of items.
-                num_items = max_size ** max_size
-                self.append_num_items(num_items + 1, root)
-            except (CompoundSequenceFullError):
-                pass
+                for item in self.append_items(num_items_per_thread, root):
+                    self.result_queue.put(item)
+            except CompoundSequenceFullError as e:
+                full_queue.put(e)
             except Exception as e:
-                queue.put(e)
+                error_queue.put(e)
 
         # Have many threads each trying to fill up the log
         threads = [Thread(target=task) for _ in range(num_threads)]
@@ -410,117 +327,174 @@ class CompoundSequenceTestCase(WithPersistencePolicies):
 
         # Gather thread exception.
         errors = []
-        while not queue.empty():
-            errors.append(queue.get())
+        while not error_queue.empty():
+            errors.append(error_queue.get())
+
+        # Gather thread exception.
+        fulls = []
+        while not full_queue.empty():
+            fulls.append(full_queue.get())
+
+        results = []
+        while not self.result_queue.empty():
+            results.append(self.result_queue.get())
 
         # Check there are no thread exceptions.
+        if errors:
+            raise errors[0]
         self.assertFalse(errors)
 
-        # Check the root is full.
-        self.assertEqual(len(root), max_size)
+        if fulls:
+            raise fulls[0]
+        self.assertFalse(fulls)
 
-    def test_iterator(self):
-        # Start a new sequence.
-        sequence_id = uuid4()
+        expected_results = min(sequence_size ** sequence_size, num_threads * num_items_per_thread)
+        self.assertEqual(len(results), expected_results)
 
-        # Check get_reader() can create a new sequence.
-        sequence = self.repo.get_reader(sequence_id)
-        self.assertIsInstance(sequence, SequenceReader)
-        self.assertEqual(sequence.id, sequence_id)
+        # Check the height of the root.
+        # - limited either by the max capacity
+        #   or by the number of added item
 
-        # Check get_reader() can return an existing sequence.
-        sequence = self.repo.get_reader(sequence_id)
-        self.assertIsInstance(sequence, SequenceReader)
-        self.assertEqual(sequence.id, sequence_id)
+        if expected_results <= 1:
+            expected_height = expected_results
+        else:
+            expected_height = ceil(log(expected_results, sequence_size))
 
-        # Append some items.
-        sequence.append('item1')
-        sequence.append('item2')
-        sequence.append('item3')
+        self.assertEqual(len(self.subrepo[root.id]), expected_height)
 
-        # Check the sequence in the self.repo.
-        self.assertIsInstance(sequence, SequenceReader)
-        self.assertEqual(sequence.id, sequence_id)
+    def start_and_append(self, sequence_size, num_items):
+        root = self.start_root(sequence_size)
+        items = self.append_items(num_items, root)
 
-        # Check the sequence indexing.
-        self.assertEqual(sequence[0], 'item1')
-        self.assertEqual(sequence[-3], 'item1')
-        self.assertEqual(sequence[1], 'item2')
-        self.assertEqual(sequence[-2], 'item2')
-        self.assertEqual(sequence[2], 'item3')
-        self.assertEqual(sequence[-1], 'item3')
+        return root, list(items)
+
+    def append_items(self, num_items, root):
+        for i in range(num_items):
+            # item = uuid4()
+            item = 'item-{}'.format(i)
+            root.append(item)
+            yield item
+
+    def start_root(self, sequence_size):
+        self.repo.sequence_size = sequence_size
+        self.repo.subrepo.sequence_size = sequence_size
+        root = self.repo[uuid4()]
+        return root
+
+    @notquick
+    def test_compound_sequence_long(self):
+        # Can add 256 items if max_size is 4.
+        self.start_and_append(sequence_size=4, num_items=256)
+
+        # Can't add 257 items if max_size is 4.
+        with self.assertRaises(CompoundSequenceFullError):
+            self.start_and_append(sequence_size=4, num_items=257)
+
+        # Can add 100 items if max_size is 10000.
+        #  - Should have capacity for 10000**10000 items,
+        #    which is 1e+40000 items, but is not checked here.
+        root, added = self.start_and_append(sequence_size=10000, num_items=100)
+        self.assertEqual(root.get_last_item_and_n(), (added[-1], 99))
+        self.assertEqual(len(root), 100)
+        # Check depth is 1.
+        self.assertEqual(len(self.subrepo[root.id]), 1)
+
+        # Can add 101 items if max_size is 100.
+        root, added = self.start_and_append(sequence_size=100, num_items=101)
+        self.assertEqual(root.get_last_item_and_n(), (added[-1], 100))
+        self.assertEqual(len(root), 101)
+        # Check depth is 2.
+        self.assertEqual(len(self.subrepo[root.id]), 2)
+
+    def test_iterator_2_3(self):
+        self._test_iterator(sequence_size=2, num_items=3)
+
+    def test_iterator_2_4(self):
+        self._test_iterator(sequence_size=2, num_items=3)
+
+    def test_iterator_3_20(self):
+        self._test_iterator(sequence_size=3, num_items=20)
+
+    def test_iterator_3_27(self):
+        self._test_iterator(sequence_size=3, num_items=27)
+
+    @notquick
+    def test_iterator_4_230(self):
+        self._test_iterator(sequence_size=4, num_items=230)
+
+    def test_iterator_1000_23(self):
+        self._test_iterator(sequence_size=1000, num_items=23)
+
+    def _test_iterator(self, sequence_size, num_items):
+        sequence, added = self.start_and_append(sequence_size, num_items)
+
+        self.assertEqual(sequence[0], added[0])
+        self.assertEqual(sequence[-3], added[-3])
+        self.assertEqual(sequence[1], added[1])
+        self.assertEqual(sequence[-2], added[-2])
+        self.assertEqual(sequence[2], added[2])
+        self.assertEqual(sequence[-1], added[-1])
 
         # Check slices also work.
-        self.assertEqual(sequence[0:3], ['item1', 'item2', 'item3'])
-        self.assertEqual(sequence[0:2], ['item1', 'item2'])
-        self.assertEqual(sequence[0:-1], ['item1', 'item2'])
-        self.assertEqual(sequence[0:1], ['item1'])
-        self.assertEqual(sequence[0:-2], ['item1'])
-        self.assertEqual(sequence[1:3], ['item2', 'item3'])
-        self.assertEqual(sequence[1:2], ['item2'])
-        self.assertEqual(sequence[-2:-1], ['item2'])
-        self.assertEqual(sequence[1:1], [])
-        self.assertEqual(sequence[-2:-2], [])
-        self.assertEqual(sequence[2:3], ['item3'])
-        self.assertEqual(sequence[3:3], [])
-        self.assertEqual(sequence[0:300], ['item1', 'item2', 'item3'])
-        self.assertEqual(sequence[2:1], [])
-        self.assertEqual(sequence[2:-2], [])
+        self.assertEqual(list(sequence[0:3]), added[0:3])
+        self.assertEqual(list(sequence[0:2]), added[0:2])
+        self.assertEqual(list(sequence[0:-1]), added[0:-1])
+        self.assertEqual(list(sequence[0:1]), added[0:1])
+        self.assertEqual(list(sequence[0:-2]), added[0:-2])
+        self.assertEqual(list(sequence[1:3]), added[1:3])
+        self.assertEqual(list(sequence[1:2]), added[1:2])
+        self.assertEqual(list(sequence[-2:-1]), added[-2:-1])
+        self.assertEqual(list(sequence[1:1]), added[1:1])
+        self.assertEqual(list(sequence[-2:-2]), added[-2:-2])
+        self.assertEqual(list(sequence[2:3]), added[2:3])
+        self.assertEqual(list(sequence[3:3]), added[3:3])
+        self.assertEqual(list(sequence[0:300]), added[0:300])
+        self.assertEqual(list(sequence[2:1]), added[2:1])
+        self.assertEqual(list(sequence[2:-2]), added[2:-2])
 
-        self.assertEqual(sequence[0:], ['item1', 'item2', 'item3'])
-        self.assertEqual(sequence[1:], ['item2', 'item3'])
-        self.assertEqual(sequence[2:], ['item3'])
-        self.assertEqual(sequence[3:], [])
-        self.assertEqual(sequence[4:], [])
-        self.assertEqual(sequence[-1:], ['item3'])
-        self.assertEqual(sequence[-2:], ['item2', 'item3'])
-        self.assertEqual(sequence[-3:], ['item1', 'item2', 'item3'])
-        self.assertEqual(sequence[-4:], ['item1', 'item2', 'item3'])
+        self.assertEqual(list(sequence[0:]), added[0:])
+        self.assertEqual(list(sequence[1:]), added[1:])
+        self.assertEqual(list(sequence[2:]), added[2:])
+        self.assertEqual(list(sequence[3:]), added[3:])
+        self.assertEqual(list(sequence[4:]), added[4:])
+        self.assertEqual(list(sequence[-1:]), added[-1:])
+        self.assertEqual(list(sequence[-2:]), added[-2:])
+        self.assertEqual(list(sequence[-3:]), added[-3:])
+        self.assertEqual(list(sequence[-4:]), added[-4:])
 
-        self.assertEqual(sequence[:0], [])
-        self.assertEqual(sequence[:1], ['item1'])
-        self.assertEqual(sequence[:2], ['item1', 'item2'])
-        self.assertEqual(sequence[:3], ['item1', 'item2', 'item3'])
-        self.assertEqual(sequence[:4], ['item1', 'item2', 'item3'])
-        self.assertEqual(sequence[:-1], ['item1', 'item2'])
-        self.assertEqual(sequence[:-2], ['item1'])
-        self.assertEqual(sequence[:-3], [])
-        self.assertEqual(sequence[:-4], [])
+        self.assertEqual(list(sequence[:0]), added[:0])
+        self.assertEqual(list(sequence[:1]), added[:1])
+        self.assertEqual(list(sequence[:2]), added[:2])
+        self.assertEqual(list(sequence[:3]), added[:3])
+        self.assertEqual(list(sequence[:4]), added[:4])
+        self.assertEqual(list(sequence[:-1]), added[:-1])
+        self.assertEqual(list(sequence[:-2]), added[:-2])
+        self.assertEqual(list(sequence[:-3]), added[:-3])
+        self.assertEqual(list(sequence[:-4]), added[:-4])
 
         # Check iterator.
         for i, item in enumerate(sequence):
-            self.assertEqual(item, 'item{}'.format(i + 1))
+            self.assertEqual(item, 'item-{}'.format(i))
 
         # Check len.
-        self.assertEqual(len(sequence), 3)
+        self.assertEqual(len(sequence), num_items)
 
         # Check index errors.
         # - out of range
         with self.assertRaises(IndexError):
             # noinspection PyStatementEffect
-            sequence[3]
+            sequence[num_items]
 
         with self.assertRaises(IndexError):
             # noinspection PyStatementEffect
-            sequence[-4]
+            sequence[- num_items - 1]
 
-        with self.assertRaises(SequenceFullError):
-            # Append another item.
-            sequence.max_size = 1
-            sequence.append('item1')
+        return sequence, added
 
 
-# class TestSequenceWithCassandra(WithCassandraActiveRecordStrategies, SequenceTestCase):
-#     pass
+class TestSequenceWithCassandra(WithCassandraActiveRecordStrategies, TestSequenceWithSQLAlchemy):
+    pass
 
 
-class TestSequenceWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, SequenceTestCase):
-    use_named_temporary_file = True
-
-
-# class TestCompoundSequenceWithCassandra(WithCassandraActiveRecordStrategies, CompoundSequenceTestCase):
-#     pass
-
-
-class TestCompoundSequenceWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, CompoundSequenceTestCase):
-    use_named_temporary_file = True
+class TestCompoundSequenceWithCassandra(WithCassandraActiveRecordStrategies, TestCompoundSequenceWithSQLAlchemy):
+    pass
