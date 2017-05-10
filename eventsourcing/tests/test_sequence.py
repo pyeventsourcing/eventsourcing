@@ -286,6 +286,7 @@ class TestCompoundSequenceWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, W
     def test_compound_sequence_threads_4_16_16(self):
         self._test_compound_sequence_threads(4, 16, 16)
 
+    @skip("Avoid 'database is locked' error from SQLite")
     @notquick
     def test_compound_sequence_threads_4_32_8(self):
         self._test_compound_sequence_threads(4, 32, 8)
