@@ -45,10 +45,7 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
         entity_id = uuid4()
         event_store.append(Example.Created(originator_id=entity_id, a=1, b=2))
 
-        # Check ValueError is raised if repo doesn't have a mutator function...
-        with self.assertRaises(ValueError):
-            EventSourcedRepository(event_store=event_store, mutator=None)
-        # ...and isn't if we pass a mutator function as a constructor arg.
+        # Construct a repository.
         event_sourced_repo = EventSourcedRepository(event_store=event_store, mutator=Example._mutate)
 
         # Check the entity attributes.
