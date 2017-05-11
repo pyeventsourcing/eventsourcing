@@ -2,7 +2,10 @@ from math import ceil, log
 from random import shuffle
 from unittest.case import skip
 
-from mock.mock import Mock
+try:
+    from unittest import mock
+except:
+    import mock
 
 from eventsourcing.domain.model.array import AbstractArrayRepository, AbstractBigArrayRepository, Array, BigArray
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
