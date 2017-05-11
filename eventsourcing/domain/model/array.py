@@ -22,17 +22,20 @@ class Array(object):
 
     @retry(ConcurrencyError, max_retries=50, wait=0.01)
     def append(self, item):
-        position = len(self)
-        self[position] = item
+        """Sets item in next position after the last item."""
+        next_position = self.__len__()
+        self.__setitem__(next_position, item)
 
     def __setitem__(self, position, item):
         """
-        Appends item to sequence, by publishing an ItemAppended event.
-
+        Sets item in array, at given position.
+        
         Won't overrun the end of the sequence, because the position is
         fixed to be less than the max_size, won't overwrite due to OCC.
+
+        Publishes an ItemAppended event.
         """
-        position = position if position is not None else len(self)
+        position = position if position is not None else self.__len__()
         size = self.repo.array_size
         if size and position >= size:
             raise SequenceFullError
@@ -43,21 +46,17 @@ class Array(object):
         )
         publish(event)
 
-    def get_next_position(self):
-        last_event = self.repo.event_store.get_most_recent_event(self.id)
-        if last_event is None:
-            return 0
-        else:
-            return last_event.originator_version + 1
-
     def __getitem__(self, item):
+        """
+        Returns item at index or, items in slice.
+        """
         assert isinstance(item, (six.integer_types, slice))
-        sequence_len = None
+        array_len = None
         if isinstance(item, six.integer_types):
             if item < 0:
-                if sequence_len is None:
-                    sequence_len = len(self)
-                index = sequence_len + item
+                if array_len is None:
+                    array_len = self.__len__()
+                index = array_len + item
                 if index < 0:
                     raise IndexError("Sequence index out of range: {}".format(item))
             else:
@@ -69,17 +68,17 @@ class Array(object):
             if item.start is None:
                 start_index = 0
             elif item.start < 0:
-                sequence_len = len(self)
-                start_index = max(sequence_len + item.start, 0)
+                array_len = self.__len__()
+                start_index = max(array_len + item.start, 0)
             else:
                 start_index = item.start
 
             if not isinstance(item.stop, six.integer_types):
                 limit = None
             elif item.stop < 0:
-                if sequence_len is None:
-                    sequence_len = len(self)
-                limit = sequence_len + item.stop - start_index
+                if array_len is None:
+                    array_len = self.__len__()
+                limit = array_len + item.stop - start_index
             else:
                 limit = item.stop - start_index
 
@@ -97,15 +96,6 @@ class Array(object):
         """
         return self.get_last_and_len()[1]
 
-    def __repr__(self):
-        return "{}(id={})".format(type(self).__name__, self.id)
-
-    def __eq__(self, other):
-        return isinstance(other, type(self)) and self.id == other.id
-
-    def get_last(self):
-        return self.get_last_and_len()[0]
-
     def get_last_and_len(self):
         events = self.repo.event_store.get_domain_events(
             originator_id=self.id,
@@ -117,6 +107,9 @@ class Array(object):
             return event.item, event.originator_version + 1
         else:
             return None, 0
+
+    def __eq__(self, other):
+        return isinstance(other, type(self)) and self.id == other.id
 
 
 class BigArray(Array):
@@ -148,17 +141,17 @@ class BigArray(Array):
 
         # Descend until hitting the bottom.
         array = apex
-        sequence_i = 0
+        array_i = 0
         height = apex_height
         while height > 1:
             height -= 1
-            sequence_id, width = array.get_last_and_len()
+            array_id, width = array.get_last_and_len()
             assert width > 0
             offset = width - 1
-            sequence_i += offset * self.subrepo.array_size ** height
-            array = self.subrepo[sequence_id]
+            array_i += offset * self.subrepo.array_size ** height
+            array = self.subrepo[array_id]
 
-        return array, sequence_i
+        return array, array_i
 
     def create_array_id(self, i, j):
         return uuid5(self.id, str((i, j)))
@@ -219,31 +212,32 @@ class BigArray(Array):
         i = n * size
         j = i + size
         offset = item - i
-        sequence_id = self.create_array_id(i, j)
-        sequence = self.subrepo[sequence_id]
+        array_id = self.create_array_id(i, j)
+        sequence = self.subrepo[array_id]
         return sequence[offset]
 
     def get_slice(self, item):
+        assert isinstance(item, slice)
         assert item.step in (None, 1), "Slice step must be 1: {}".format(str(item.step))
 
-        sequence_len = None
+        array_len = None
 
         if item.start is None:
             start = 0
         elif item.start < 0:
-            sequence_len = len(self)
-            start = max(sequence_len + item.start, 0)
+            array_len = self.__len__()
+            start = max(array_len + item.start, 0)
         else:
             start = item.start
 
         if not isinstance(item.stop, six.integer_types):
-            if sequence_len is None:
-                sequence_len = len(self)
-            stop = sequence_len
+            if array_len is None:
+                array_len = self.__len__()
+            stop = array_len
         elif item.stop < 0:
-            if sequence_len is None:
-                sequence_len = len(self)
-            stop = sequence_len + item.stop
+            if array_len is None:
+                array_len = self.__len__()
+            stop = array_len + item.stop
         else:
             stop = item.stop
 
@@ -257,8 +251,8 @@ class BigArray(Array):
             j = i + size
             substart = start - i
             substop = stop - i
-            sequence_id = self.create_array_id(i, j)
-            sequence = self.subrepo[sequence_id]
+            array_id = self.create_array_id(i, j)
+            sequence = self.subrepo[array_id]
             for item in sequence[substart:substop]:
                 yield item
             start = j
@@ -268,20 +262,25 @@ class BigArray(Array):
     def __setitem__(self, position, item):
         # Calculate the base array i.
         size = self.subrepo.array_size
-        i = position // size * size
+        i = (position // size) * size
         j = i + size
 
         # Calculate the height of the apex of the compound that would contain n.
         required_height = self.calc_required_height(position, size)
         assert required_height > 0
 
+        # Set the item in the base array.
         array_id = self.create_array_id(i, j)
         array = self.subrepo[array_id]
         array[position - i] = item
 
+        # Set array IDs in containing arrays,
+        # up to the required height.
         h = 1
         while h < required_height:
             child_id = array_id
+            # Calculate i and j for parent (start and stop positions),
+            # and height of parent, and position of child in parent.
             i, j, h, p = self.calc_parent_i_j_h_p(i, j, h)
             array_id = self.create_array_id(i, j)
             array = self.subrepo[array_id]
@@ -290,6 +289,7 @@ class BigArray(Array):
             except ConcurrencyError:
                 return
 
+        # Set the apex to the root array.
         assert array_id
         root = self.subrepo[self.id]
         try:

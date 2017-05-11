@@ -1,29 +1,28 @@
 from math import ceil, log
 from random import shuffle
+from threading import Thread
 from unittest.case import skip
+from uuid import UUID, uuid4
+
+from eventsourcing.domain.model.array import AbstractArrayRepository, AbstractBigArrayRepository, Array, BigArray
+from eventsourcing.exceptions import CompoundSequenceFullError, ConcurrencyError, SequenceFullError
+from eventsourcing.infrastructure.event_sourced_repos.array import ArrayRepository, BigArrayRepository
+from eventsourcing.tests.base import notquick
+from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
+    WithCassandraActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
+    WithSQLAlchemyActiveRecordStrategies
 
 try:
     from unittest import mock
 except:
     import mock
 
-from eventsourcing.domain.model.array import AbstractArrayRepository, AbstractBigArrayRepository, Array, BigArray
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
-    WithCassandraActiveRecordStrategies
-
 try:
     from queue import Queue
 except ImportError:
     from Queue import Queue
-from threading import Thread
-from uuid import uuid4, UUID
-
-from eventsourcing.exceptions import CompoundSequenceFullError, SequenceFullError, ConcurrencyError
-from eventsourcing.infrastructure.event_sourced_repos.array import BigArrayRepository, ArrayRepository
-from eventsourcing.tests.base import notquick
-from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
-    WithSQLAlchemyActiveRecordStrategies
 
 
 class TestArrayWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
@@ -122,16 +121,16 @@ class BigArrayTestCase(WithSQLAlchemyActiveRecordStrategies, WithPersistencePoli
         items = self.append_items(num_items, array)
         return array, list(items)
 
-    def start_and_set(self, array_size, num_items):
-        array = self.get_big_array(array_size)
-        items = self.set_items(num_items, array)
-        return array, list(items)
-
     def append_items(self, num_items, array):
         for i in range(num_items):
             item = 'item-{}'.format(i)
             array.append(item)
             yield item
+
+    def start_and_set(self, array_size, num_items):
+        array = self.get_big_array(array_size)
+        items = self.set_items(num_items, array)
+        return array, list(items)
 
     def set_items(self, num_items, array):
         for i in range(num_items):
@@ -157,14 +156,14 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
 
     def test_big_array_short(self):
         # Can add zero items if max_size is zero.
-        root, added = self.start_and_append(0, 0)
+        root, added = self.start_and_set(0, 0)
         # Check we got a compound array.
         self.assertIsInstance(root, BigArray)
         # Check none was added.
         self.assertEqual(added, [])
 
         # Can add 1 items if max_size is 1.
-        root, added = self.start_and_append(array_size=1, num_items=1)
+        root, added = self.start_and_set(array_size=1, num_items=1)
 
         # Check we got a compound array.
         self.assertIsInstance(root, BigArray)
@@ -214,14 +213,14 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
         self.assertEqual(length, 1)
 
         # Can add 2 items if max_size is 2.
-        root, added = self.start_and_append(array_size=2, num_items=2)
+        root, added = self.start_and_set(array_size=2, num_items=2)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 2)
         self.assertEqual(len(self.subrepo[root.id]), 1)
 
         # Can add 3 items if max_size is 2.
-        root, added = self.start_and_append(array_size=2, num_items=3)
+        root, added = self.start_and_set(array_size=2, num_items=3)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 3)
@@ -232,68 +231,68 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
         last_array.append(1)
 
         # Can add 4 items if max_size is 2.
-        root, added = self.start_and_append(array_size=2, num_items=4)
+        root, added = self.start_and_set(array_size=2, num_items=4)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 4)
 
         # Can add 6 items if max_size is 3.
-        root, added = self.start_and_append(array_size=3, num_items=7)
+        root, added = self.start_and_set(array_size=3, num_items=7)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 7)
 
-        root, added = self.start_and_append(array_size=3, num_items=9)
+        root, added = self.start_and_set(array_size=3, num_items=9)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 9)
 
-        root, added = self.start_and_append(array_size=3, num_items=10)
+        root, added = self.start_and_set(array_size=3, num_items=10)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 10)
 
-        root, added = self.start_and_append(array_size=4, num_items=16)
+        root, added = self.start_and_set(array_size=4, num_items=16)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 16)
 
-        root, added = self.start_and_append(array_size=4, num_items=27)
+        root, added = self.start_and_set(array_size=4, num_items=27)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 27)
 
         # Can't add 2 items if max_size is 1.
         with self.assertRaises(IndexError):
-            self.start_and_append(array_size=1, num_items=2)
+            self.start_and_set(array_size=1, num_items=2)
 
         # Can't add 5 items if max_size is 2.
         with self.assertRaises(IndexError):
-            self.start_and_append(array_size=2, num_items=5)
+            self.start_and_set(array_size=2, num_items=5)
 
         # Can't add 28 items if max_size is 3.
         with self.assertRaises(IndexError):
-            self.start_and_append(array_size=3, num_items=28)
+            self.start_and_set(array_size=3, num_items=28)
 
     @notquick
     def test_big_array_long(self):
         # Can add 256 items if max_size is 4.
-        self.start_and_append(array_size=4, num_items=256)
+        self.start_and_set(array_size=4, num_items=256)
 
         # Can't add 257 items if max_size is 4.
         with self.assertRaises(IndexError):
-            self.start_and_append(array_size=4, num_items=257)
+            self.start_and_set(array_size=4, num_items=257)
 
         # Can add 100 items if max_size is 10000.
         #  - Should have capacity for 10000**10000 items,
         #    which is 1e+40000 items, but is not checked here.
-        root, added = self.start_and_append(array_size=10000, num_items=100)
+        root, added = self.start_and_set(array_size=10000, num_items=100)
         self.assertEqual(root.get_last_and_len(), (added[-1], 100))
         # Check depth is 1.
         self.assertEqual(len(self.subrepo[root.id]), 1)
 
         # Can add 101 items if array_size is 100.
-        root, added = self.start_and_append(array_size=100, num_items=101)
+        root, added = self.start_and_set(array_size=100, num_items=101)
         self.assertEqual(root.get_last_and_len(), (added[-1], 101))
         # Check depth is 2.
         self.assertEqual(len(self.subrepo[root.id]), 2)
@@ -318,7 +317,7 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
         self._test_iterator(array_size=1000, num_items=23)
 
     def _test_iterator(self, array_size, num_items):
-        array, added = self.start_and_append(array_size, num_items)
+        array, added = self.start_and_set(array_size, num_items)
 
         self.assertEqual(array[0], added[0])
         self.assertEqual(array[-3], added[-3])
