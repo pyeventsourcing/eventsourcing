@@ -480,8 +480,8 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
     def test_calc_required_height(self):
         root = BigArray(
             array_id='1',
-            repo=Mock(spec=AbstractBigArrayRepository),
-            subrepo=Mock(spec=AbstractArrayRepository),
+            repo=mock.Mock(spec=AbstractBigArrayRepository),
+            subrepo=mock.Mock(spec=AbstractArrayRepository),
         )
         with self.assertRaises(ValueError):
             root.calc_required_height(0, 0)
