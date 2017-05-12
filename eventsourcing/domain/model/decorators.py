@@ -1,4 +1,5 @@
 from inspect import isfunction
+from random import random
 from time import sleep
 
 from six import wraps
@@ -135,7 +136,7 @@ def attribute(getter):
         raise ProgrammingError("Expected a function, got: {}".format(repr(getter)))
 
 
-def retry(exc=Exception, max_retries=5, wait=0.5):
+def retry(exc=Exception, max_retries=1, wait=0):
     def _retry(func):
 
         @wraps(func)
@@ -144,20 +145,28 @@ def retry(exc=Exception, max_retries=5, wait=0.5):
             while True:
                 try:
                     return func(*args, **kwargs)
-                except exc as e:
+                except exc:
                     attempts += 1
                     if attempts < max_retries:
-                        sleep(wait)
+                        sleep(wait * (1 + 0.1 * (random() - 0.5)))
                     else:
-                        raise e
+                        # Max retries exceeded.
+                        raise
 
         return wrapper
 
+    # If using decorator in bare form, the decorated
+    # function is the first arg, so check 'exc'.
     if isfunction(exc):
-        func = exc
+        # Remember the given function.
+        _func = exc
+        # Set 'exc' to a sensible exception class for _retry().
         exc = Exception
-        return _retry(func=func)
+        # Wrap and return.
+        return _retry(func=_func)
     else:
+        # Check decorator args, and return _retry,
+        # to be called with the decorated function.
         if not (isinstance(exc, type) and issubclass(exc, Exception)):
             raise TypeError("'exc' must be an exception class: {}".format(exc))
         if not isinstance(max_retries, int):

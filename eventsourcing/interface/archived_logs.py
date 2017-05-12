@@ -6,7 +6,7 @@
 #
 # from eventsourcing.domain.model.timebucketedlog import TimebucketedlogRepository
 # from eventsourcing.domain.model.notificationlog import NotificationLog
-# from eventsourcing.domain.model.sequence import SequenceRepository
+# from eventsourcing.domain.model.array import SequenceRepository
 # from eventsourcing.infrastructure.eventstore import AbstractEventStore
 # from eventsourcing.infrastructure.notification_log import NotificationLogReader
 #

@@ -20,17 +20,30 @@ class SQLAlchemySettings(DatastoreSettings):
 
 class SQLAlchemyDatastore(Datastore):
 
-    def __init__(self, base=ActiveRecord, tables=None, connection_strategy='plain', **kwargs):
+    def __init__(self, base=ActiveRecord, tables=None, connection_strategy='plain',
+                 # connect_args=None, poolclass=None,
+                 **kwargs):
         super(SQLAlchemyDatastore, self).__init__(**kwargs)
         self._session = None
         self._engine = None
         self._base = base
         self._tables = tables
         self._connection_strategy = connection_strategy
+        # self._connect_args = connect_args
+        # self._poolclass = poolclass
 
     def setup_connection(self):
         assert isinstance(self.settings, SQLAlchemySettings), self.settings
-        self._engine = create_engine(self.settings.uri, strategy=self._connection_strategy)
+        # kwargs = {}
+        # if self._connect_args is not None:
+        #     kwargs['connect_args'] = self._connect_args
+        # if self._poolclass is not None:
+        #     kwargs['poolclass'] = self._poolclass
+        self._engine = create_engine(
+            self.settings.uri,
+            strategy=self._connection_strategy,
+            # **kwargs
+        )
 
     def setup_tables(self):
         if self._tables is not None:

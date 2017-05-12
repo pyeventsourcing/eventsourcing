@@ -86,9 +86,9 @@ class CassandraDatastore(Datastore):
 
     @retry(NoHostAvailable, max_retries=10, wait=0.5)
     def setup_tables(self):
-
         # Avoid warnings about this variable not being set.
         os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
+
         # Attempt to create the keyspace.
         drop_keyspace(self.settings.default_keyspace)
         create_keyspace_simple(
@@ -100,14 +100,10 @@ class CassandraDatastore(Datastore):
 
     @retry(NoHostAvailable, max_retries=10, wait=0.5)
     def drop_tables(self):
-        # Avoid warnings about this variable not being set.
-        os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
         drop_keyspace(name=self.settings.default_keyspace)
 
     @retry(NoHostAvailable, max_retries=10, wait=0.5)
     def truncate_tables(self):
-        # Avoid warnings about this variable not being set.
-        os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
         for table in self.tables:
             remaining_objects = table.objects.all().limit(10)
             while remaining_objects:
