@@ -203,7 +203,7 @@ class BigArray(Array):
     will be limited only by the rate at which the database can have
     events written to it (unless the number generator is quite slow).
     
-    An external integer sequence generator, such as Redis INCR
+    An external integer sequence generator, such as Redis' INCR
     command, or an auto-incrementing database column, may
     constitute a single point of failure.
     
