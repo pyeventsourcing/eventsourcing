@@ -1,7 +1,8 @@
 from math import ceil, log
 from random import shuffle
+from sys import version_info
 from threading import Thread
-from unittest.case import skip
+from unittest.case import skip, skipIf
 from uuid import UUID, uuid4
 
 from eventsourcing.domain.model.array import AbstractArrayRepository, Array, BigArray
@@ -585,14 +586,17 @@ class TestBigArrayWithSQLAlchemyAndMultithreading(BigArrayTestCase):
         self._test_compound_array_threads(3, 9, 3)
 
     @notquick
+    @skipIf(version_info[0:2] == [3, 3], "Avoid 'database is locked' error from SQLite")
     def test_compound_array_threads_4_4_64(self):
         self._test_compound_array_threads(4, 4, 64)
 
     @notquick
+    @skipIf(version_info[0:2] == [3, 3], "Avoid 'database is locked' error from SQLite")
     def test_compound_array_threads_4_8_32(self):
         self._test_compound_array_threads(4, 8, 32)
 
     @notquick
+    @skipIf(version_info[0:2] == [3, 3], "Avoid 'database is locked' error from SQLite")
     def test_compound_array_threads_4_16_16(self):
         self._test_compound_array_threads(4, 16, 16)
 
