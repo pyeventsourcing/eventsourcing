@@ -7,11 +7,23 @@ import six
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 from eventsourcing.domain.model.events import publish
-from eventsourcing.exceptions import ConcurrencyError, SequenceFullError
+from eventsourcing.exceptions import ConcurrencyError, ArrayIndexError
 
 
-class PositionTaken(TimestampedVersionedEntity.Event):
+class ItemAssigned(TimestampedVersionedEntity.Event):
     """Occurs when an item is set at a position in an array."""
+
+    def __init__(self, item, position, *args, **kwargs):
+        super(ItemAssigned, self).__init__(item=item, originator_version=position, *args, **kwargs)
+        self.__dict__['item'] = item
+
+    @property
+    def item(self):
+        return self.__dict__['item']
+
+    @property
+    def position(self):
+        return self.originator_version
 
 
 class Array(object):
@@ -26,7 +38,7 @@ class Array(object):
         next_position = self.__len__()
         self.__setitem__(next_position, item)
 
-    def __setitem__(self, position, item):
+    def __setitem__(self, index, item):
         """
         Sets item in array, at given position.
         
@@ -35,20 +47,19 @@ class Array(object):
 
         Publishes an ItemAppended event.
         """
-        position = position if position is not None else self.__len__()
         size = self.repo.array_size
-        if size and position >= size:
-            raise SequenceFullError
-        event = PositionTaken(
+        if size and index >= size:
+            raise ArrayIndexError("Index is {}, but size is {}".format(index, size))
+        event = ItemAssigned(
             originator_id=self.id,
-            originator_version=position,
+            position=index,
             item=item,
         )
         publish(event)
 
     def __getitem__(self, item):
         """
-        Returns item at index or, items in slice.
+        Returns item at index, or items in slice.
         """
         assert isinstance(item, (six.integer_types, slice))
         array_len = None
@@ -58,13 +69,14 @@ class Array(object):
                     array_len = self.__len__()
                 index = array_len + item
                 if index < 0:
-                    raise IndexError("Sequence index out of range: {}".format(item))
+                    raise ArrayIndexError("Array index out of range: {}".format(item))
             else:
                 index = item
-            event = self.repo.event_store.get_domain_event(originator_id=self.id, eq=index)
+            event = self.get_item_assigned(index)
+            assert isinstance(event, ItemAssigned)
             return event.item
         elif isinstance(item, slice):
-            assert item.step in (None, 1), "Slice step must be 1: {}".format(str(item.step))
+            assert item.step in (None, 1), "Slice stepping not supported, yet"
             if item.start is None:
                 start_index = 0
             elif item.start < 0:
@@ -82,12 +94,14 @@ class Array(object):
             else:
                 limit = item.stop - start_index
 
-            if limit is not None and limit <= 0:
-                return []
+            if limit is not None:
+                if limit <= 0:
+                    return []
+                # Avoid passing massive integers into the database.
+                limit = min(limit, self.repo.array_size - start_index)
 
-            events = self.repo.event_store.get_domain_events(originator_id=self.id,
-                                                             gte=start_index, limit=limit)
-            items = [e.item for e in events]
+            items_assigned = self.get_items_assigned(limit=limit, start_index=start_index)
+            items = [i.item for i in items_assigned]
             return items
 
     def __len__(self):
@@ -97,27 +111,43 @@ class Array(object):
         return self.get_last_and_len()[1]
 
     def get_last_and_len(self):
-        events = self.repo.event_store.get_domain_events(
-            originator_id=self.id,
-            limit=1,
-            is_ascending=False,
-        )
-        if len(events):
-            event = events[0]
-            return event.item, event.originator_version + 1
+        items_assigned = self.get_last_item_assigned()
+        if len(items_assigned):
+            item_assigned = items_assigned[0]
+            return item_assigned.item, item_assigned.position + 1
         else:
             return None, 0
+
+    def get_last_item_assigned(self):
+        return self.get_items_assigned(limit=1, is_ascending=False)
+
+    def get_items_assigned(self, limit, start_index=None, is_ascending=True):
+        return self.repo.event_store.get_domain_events(
+            originator_id=self.id,
+            gte=start_index,
+            limit=limit,
+            is_ascending=is_ascending,
+        )
+
+    def get_item_assigned(self, index):
+        try:
+            item_assigned = self.repo.event_store.get_domain_event(
+                originator_id=self.id,
+                eq=index,
+            )
+        except IndexError as e:
+            raise ArrayIndexError(e)
+        else:
+            return  item_assigned
 
     def __eq__(self, other):
         return isinstance(other, type(self)) and self.id == other.id
 
 
 class BigArray(Array):
-    def __init__(self, array_id, repo, subrepo):
-        assert isinstance(repo, AbstractBigArrayRepository)
-        assert isinstance(subrepo, AbstractArrayRepository)
+    def __init__(self, array_id, repo):
+        assert isinstance(repo, AbstractArrayRepository), type(repo)
         super(BigArray, self).__init__(array_id=array_id, repo=repo)
-        self.subrepo = subrepo
 
     def get_last_array(self):
         """
@@ -126,7 +156,7 @@ class BigArray(Array):
         :rtype: CompoundSequenceReader
         """
         # Get the root array (might not have been registered).
-        root = self.subrepo[self.id]
+        root = self.repo[self.id]
 
         # Get length and last item in the root array.
         apex_id, apex_height = root.get_last_and_len()
@@ -136,7 +166,7 @@ class BigArray(Array):
             return None, None
 
         # Get the current apex array.
-        apex = self.subrepo[apex_id]
+        apex = self.repo[apex_id]
         assert isinstance(apex, Array)
 
         # Descend until hitting the bottom.
@@ -148,13 +178,10 @@ class BigArray(Array):
             array_id, width = array.get_last_and_len()
             assert width > 0
             offset = width - 1
-            array_i += offset * self.subrepo.array_size ** height
-            array = self.subrepo[array_id]
+            array_i += offset * self.repo.array_size ** height
+            array = self.repo[array_id]
 
         return array, array_i
-
-    def create_array_id(self, i, j):
-        return uuid5(self.id, str((i, j)))
 
     def get_last_and_len(self):
         sequence, i = self.get_last_array()
@@ -163,11 +190,134 @@ class BigArray(Array):
         item, n = sequence.get_last_and_len()
         return item, i + n
 
+    def __getitem__(self, item):
+        assert isinstance(item, (six.integer_types, slice))
+        # Calculate the i and j of the containing base sequence.
+        if isinstance(item, six.integer_types):
+            return self.get_item(item)
+        elif isinstance(item, slice):
+            assert item.step in (None, 1), "Slice step must be 1: {}".format(str(item.step))
+            return self.get_slice(item.start, item.stop)
+
+    def get_item(self, position):
+
+        if position < 0:
+            last, length = self.get_last_and_len()
+            if position == -1:
+                return last
+            position = position + length
+        size = self.repo.array_size
+        n = position // size
+        i = n * size
+        j = i + size
+        offset = position - i
+        array_id = self.create_array_id(i, j)
+        sequence = self.repo[array_id]
+        return sequence[offset]
+
+    def get_slice(self, start, stop):
+        array_len = None
+
+        if start is None:
+            start = 0
+        elif start < 0:
+            array_len = self.__len__()
+            start = max(array_len + start, 0)
+
+        if not isinstance(stop, six.integer_types):
+            if array_len is None:
+                array_len = self.__len__()
+            stop = array_len
+        elif stop < 0:
+            if array_len is None:
+                array_len = self.__len__()
+            stop = array_len + stop
+
+        if start >= stop:
+            return
+
+        size = self.repo.array_size
+        while True:
+            n = start // size
+            i = n * size
+            j = i + size
+            substart = start - i
+            substop = stop - i
+            array_id = self.create_array_id(i, j)
+            sequence = self.repo[array_id]
+            for item in sequence[substart:substop]:
+                yield item
+            start = j
+            if start > stop:
+                break
+
+    def __setitem__(self, position, item):
+        # Calculate the base array i,
+        # zero-based index in big array
+        # of start of array.
+        size = self.repo.array_size
+        i = (position // size) * size
+        j = i + size
+
+        # Set the item in the base array.
+        array_id = self.create_array_id(i, j)
+        array = self.repo[array_id]
+        array[position - i] = item
+
+        # Calculate the height of the apex of
+        # the compound containing given position
+        # (zero-based index in big array).
+        required_height = self.calc_required_height(position, size)
+        assert required_height > 0
+
+        # Set array IDs in containing arrays,
+        # up to the required height.
+        h = 1
+        while h < required_height:
+            child_id = array_id
+            # Calculate i and j for parent (start and stop positions),
+            # and height of parent, and position of child in parent.
+            i, j, h, p = self.calc_parent_i_j_h_p(i, j, h)
+            array_id = self.create_array_id(i, j)
+            array = self.repo[array_id]
+            try:
+                array[p] = child_id
+            except ConcurrencyError:
+                return
+
+        # Set the apex to the root array.
+        assert array_id
+        root = self.repo[self.id]
+        try:
+            root[required_height - 1] = array_id
+        except ConcurrencyError:
+            return
+
+    def calc_required_height(self, n, size):
+        if size <= 0:
+            raise ValueError("Size must be greater than 0")
+        capacity = size ** size
+        if n + 1 > capacity:
+            raise ArrayIndexError("Contents can't be greater than capacity")
+        if n == 0 or n == 1:
+            return 1
+        min_capacity = max(int(size), int(n + 1))
+        required_height = log(min_capacity, int(size))
+        # Quash numerical error before calling ceil.
+        # - this is required for the final base
+        #   sequence, e.g. with base size of 1000
+        #   numerical error makes the required height
+        #   one greater than the correct value, which
+        #   causes an index error when assigning apex
+        #   ID to the root sequence.
+        required_height = round(required_height, 10)
+        return int(ceil(required_height))
+
     def calc_parent_i_j_h_p(self, i, j, h):
         """
         Returns get_big_array and end of span of parent sequence that contains given child.
         """
-        N = self.subrepo.array_size
+        N = self.repo.array_size
         c_i = i
         c_j = j
         c_h = h
@@ -190,122 +340,8 @@ class BigArray(Array):
         # Return parent i, j, h, p.
         return p_i, p_j, p_h, p_p
 
-    def __getitem__(self, item):
-        assert isinstance(item, (six.integer_types, slice))
-        # Calculate the i and j of the containing base sequence.
-        if isinstance(item, six.integer_types):
-            if item >= 0:
-                return self.get_item(item)
-            else:
-                last, length = self.get_last_and_len()
-                if item == -1:
-                    return last
-                else:
-                    item = length + item
-                    return self.get_item(item)
-        elif isinstance(item, slice):
-            return self.get_slice(item)
-
-    def get_item(self, item):
-        size = self.subrepo.array_size
-        n = item // size
-        i = n * size
-        j = i + size
-        offset = item - i
-        array_id = self.create_array_id(i, j)
-        sequence = self.subrepo[array_id]
-        return sequence[offset]
-
-    def get_slice(self, item):
-        assert isinstance(item, slice)
-        assert item.step in (None, 1), "Slice step must be 1: {}".format(str(item.step))
-
-        array_len = None
-
-        if item.start is None:
-            start = 0
-        elif item.start < 0:
-            array_len = self.__len__()
-            start = max(array_len + item.start, 0)
-        else:
-            start = item.start
-
-        if not isinstance(item.stop, six.integer_types):
-            if array_len is None:
-                array_len = self.__len__()
-            stop = array_len
-        elif item.stop < 0:
-            if array_len is None:
-                array_len = self.__len__()
-            stop = array_len + item.stop
-        else:
-            stop = item.stop
-
-        if stop <= start:
-            return
-
-        size = self.subrepo.array_size
-        while True:
-            n = start // size
-            i = n * size
-            j = i + size
-            substart = start - i
-            substop = stop - i
-            array_id = self.create_array_id(i, j)
-            sequence = self.subrepo[array_id]
-            for item in sequence[substart:substop]:
-                yield item
-            start = j
-            if start > stop:
-                break
-
-    def __setitem__(self, position, item):
-        # Calculate the base array i.
-        size = self.subrepo.array_size
-        i = (position // size) * size
-        j = i + size
-
-        # Calculate the height of the apex of the compound that would contain n.
-        required_height = self.calc_required_height(position, size)
-        assert required_height > 0
-
-        # Set the item in the base array.
-        array_id = self.create_array_id(i, j)
-        array = self.subrepo[array_id]
-        array[position - i] = item
-
-        # Set array IDs in containing arrays,
-        # up to the required height.
-        h = 1
-        while h < required_height:
-            child_id = array_id
-            # Calculate i and j for parent (start and stop positions),
-            # and height of parent, and position of child in parent.
-            i, j, h, p = self.calc_parent_i_j_h_p(i, j, h)
-            array_id = self.create_array_id(i, j)
-            array = self.subrepo[array_id]
-            try:
-                array[p] = child_id
-            except ConcurrencyError:
-                return
-
-        # Set the apex to the root array.
-        assert array_id
-        root = self.subrepo[self.id]
-        try:
-            root[required_height - 1] = array_id
-        except ConcurrencyError:
-            return
-
-    def calc_required_height(self, n, size):
-        if size <= 0:
-            raise ValueError("Size must be greater than 0")
-        capacity = size ** size
-        if n + 1 > capacity:
-            raise IndexError
-        if n == 0 or n == 1:
-            return 1
-        return int(ceil(log(max(size, n + 1), size)))
+    def create_array_id(self, i, j):
+        return uuid5(self.id, str((i, j)))
 
 
 class AbstractArrayRepository(AbstractEntityRepository):
@@ -317,8 +353,14 @@ class AbstractArrayRepository(AbstractEntityRepository):
         super(AbstractArrayRepository, self).__init__(*args, **kwargs)
         self.array_size = array_size
 
+    def __getitem__(self, array_id):
+        """
+        Returns sequence for given ID.
+        """
+        return Array(array_id=array_id, repo=self)
 
-class AbstractBigArrayRepository(AbstractArrayRepository):
+
+class AbstractBigArrayRepository(AbstractEntityRepository):
     """
     Repository for compound sequence objects.
     """
@@ -326,3 +368,9 @@ class AbstractBigArrayRepository(AbstractArrayRepository):
     @abstractproperty
     def subrepo(self):
         """Sub-sequence repository."""
+
+    def __getitem__(self, array_id):
+        """
+        Returns sequence for given ID.
+        """
+        return BigArray(array_id=array_id, repo=self.subrepo)

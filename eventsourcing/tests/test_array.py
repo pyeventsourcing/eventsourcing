@@ -4,8 +4,8 @@ from threading import Thread
 from unittest.case import skip
 from uuid import UUID, uuid4
 
-from eventsourcing.domain.model.array import AbstractArrayRepository, AbstractBigArrayRepository, Array, BigArray
-from eventsourcing.exceptions import CompoundSequenceFullError, ConcurrencyError, SequenceFullError
+from eventsourcing.domain.model.array import AbstractArrayRepository, Array, BigArray
+from eventsourcing.exceptions import ArrayIndexError, ConcurrencyError
 from eventsourcing.infrastructure.event_sourced_repos.array import ArrayRepository, BigArrayRepository
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
@@ -28,7 +28,10 @@ except ImportError:
 class TestArrayWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
     def setUp(self):
         super(TestArrayWithSQLAlchemy, self).setUp()
-        self.repo = ArrayRepository(self.entity_event_store, array_size=3)
+        self.repo = ArrayRepository(
+            array_size=3,
+            event_store=self.entity_event_store,
+        )
 
     def test_array(self):
 
@@ -101,16 +104,16 @@ class TestArrayWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithPersiste
         self.assertEqual(len(array), 3)
 
         # Check full error.
-        with self.assertRaises(SequenceFullError):
+        with self.assertRaises(ArrayIndexError):
             # Fail to append fourth item (array size is 3).
             array.append('item1')
 
         # Check index errors.
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ArrayIndexError):
             # noinspection PyStatementEffect
             array[3]
 
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ArrayIndexError):
             # noinspection PyStatementEffect
             array[-4]
 
@@ -127,20 +130,19 @@ class BigArrayTestCase(WithSQLAlchemyActiveRecordStrategies, WithPersistencePoli
             array.append(item)
             yield item
 
-    def start_and_set(self, array_size, num_items):
-        array = self.get_big_array(array_size)
-        items = self.set_items(num_items, array)
+    def start_and_set(self, base_size, num_items, offset=0):
+        array = self.get_big_array(base_size)
+        items = self.set_items(num_items, array, offset)
         return array, list(items)
 
-    def set_items(self, num_items, array):
-        for i in range(num_items):
+    def set_items(self, num_items, array, offset):
+        for i in range(offset, offset + num_items):
             item = 'item-{}'.format(i)
             array[i] = item
             yield item
 
-    def get_big_array(self, array_size):
-        self.repo.array_size = array_size
-        self.repo.subrepo.array_size = array_size
+    def get_big_array(self, base_size):
+        self.repo.subrepo.array_size = base_size
         root = self.repo[uuid4()]
         return root
 
@@ -149,21 +151,22 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
     def setUp(self):
         super(TestBigArrayWithSQLAlchemy, self).setUp()
         self.repo = BigArrayRepository(
+            base_size=None,
             event_store=self.entity_event_store,
         )
         self.subrepo = self.repo.subrepo
         self.result_queue = None
 
     def test_big_array_short(self):
-        # Can add zero items if max_size is zero.
+        # Can add zero items if base_size is zero.
         root, added = self.start_and_set(0, 0)
         # Check we got a compound array.
         self.assertIsInstance(root, BigArray)
         # Check none was added.
         self.assertEqual(added, [])
 
-        # Can add 1 items if max_size is 1.
-        root, added = self.start_and_set(array_size=1, num_items=1)
+        # Can add 1 items if base_size is 1.
+        root, added = self.start_and_set(base_size=1, num_items=1)
 
         # Check we got a compound array.
         self.assertIsInstance(root, BigArray)
@@ -178,7 +181,7 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
         # Check the root array has length 1.
         self.assertEqual(len(root_array), 1)
         # Check the root array is full.
-        with self.assertRaises(SequenceFullError):
+        with self.assertRaises(ArrayIndexError):
             root_array.append(1)
 
         # Get the current apex ID from the root array.
@@ -190,7 +193,7 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
         # Check the apex array has length 1.
         self.assertEqual(len(apex_array), 1)
         # Check the apex array is full.
-        with self.assertRaises(SequenceFullError):
+        with self.assertRaises(ArrayIndexError):
             apex_array.append(1)
 
         # Get the item.
@@ -212,15 +215,15 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
         # Check the index of the item.
         self.assertEqual(length, 1)
 
-        # Can add 2 items if max_size is 2.
-        root, added = self.start_and_set(array_size=2, num_items=2)
+        # Can add 2 items if base_size is 2.
+        root, added = self.start_and_set(base_size=2, num_items=2)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 2)
         self.assertEqual(len(self.subrepo[root.id]), 1)
 
-        # Can add 3 items if max_size is 2.
-        root, added = self.start_and_set(array_size=2, num_items=3)
+        # Can add 3 items if base_size is 2.
+        root, added = self.start_and_set(base_size=2, num_items=3)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 3)
@@ -230,72 +233,97 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
         # Check can append another, that it's not full.
         last_array.append(1)
 
-        # Can add 4 items if max_size is 2.
-        root, added = self.start_and_set(array_size=2, num_items=4)
+        # Can add 4 items if base_size is 2.
+        root, added = self.start_and_set(base_size=2, num_items=4)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 4)
 
-        # Can add 6 items if max_size is 3.
-        root, added = self.start_and_set(array_size=3, num_items=7)
+        # Can add 6 items if base_size is 3.
+        root, added = self.start_and_set(base_size=3, num_items=7)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 7)
 
-        root, added = self.start_and_set(array_size=3, num_items=9)
+        root, added = self.start_and_set(base_size=3, num_items=9)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 9)
 
-        root, added = self.start_and_set(array_size=3, num_items=10)
+        root, added = self.start_and_set(base_size=3, num_items=10)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 10)
 
-        root, added = self.start_and_set(array_size=4, num_items=16)
+        root, added = self.start_and_set(base_size=4, num_items=16)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 16)
 
-        root, added = self.start_and_set(array_size=4, num_items=27)
+        root, added = self.start_and_set(base_size=4, num_items=27)
         last_item, length = root.get_last_and_len()
         self.assertEqual(last_item, added[-1])
         self.assertEqual(length, 27)
 
-        # Can't add 2 items if max_size is 1.
-        with self.assertRaises(IndexError):
-            self.start_and_set(array_size=1, num_items=2)
+        # Can't add 2 items if base_size is 1.
+        with self.assertRaises(ArrayIndexError):
+            self.start_and_set(base_size=1, num_items=2)
 
-        # Can't add 5 items if max_size is 2.
-        with self.assertRaises(IndexError):
-            self.start_and_set(array_size=2, num_items=5)
+        # Can't add 5 items if base_size is 2.
+        with self.assertRaises(ArrayIndexError):
+            self.start_and_set(base_size=2, num_items=5)
 
-        # Can't add 28 items if max_size is 3.
-        with self.assertRaises(IndexError):
-            self.start_and_set(array_size=3, num_items=28)
+        # Can't add 28 items if base_size is 3.
+        with self.assertRaises(ArrayIndexError):
+            self.start_and_set(base_size=3, num_items=28)
 
     @notquick
-    def test_big_array_long(self):
-        # Can add 256 items if max_size is 4.
-        self.start_and_set(array_size=4, num_items=256)
+    def test_big_array_longer(self):
+        # Can add 256 items if base_size is 4.
+        self.start_and_set(base_size=4, num_items=256)
 
-        # Can't add 257 items if max_size is 4.
-        with self.assertRaises(IndexError):
-            self.start_and_set(array_size=4, num_items=257)
+        # Can't add 257 items if base_size is 4.
+        with self.assertRaises(ArrayIndexError):
+            self.start_and_set(base_size=4, num_items=257)
 
-        # Can add 100 items if max_size is 10000.
+        # Can add 100 items if base_size is 10000.
         #  - Should have capacity for 10000**10000 items,
         #    which is 1e+40000 items, but is not checked here.
-        root, added = self.start_and_set(array_size=10000, num_items=100)
+        root, added = self.start_and_set(base_size=10000, num_items=100)
         self.assertEqual(root.get_last_and_len(), (added[-1], 100))
         # Check depth is 1.
         self.assertEqual(len(self.subrepo[root.id]), 1)
 
         # Can add 101 items if array_size is 100.
-        root, added = self.start_and_set(array_size=100, num_items=101)
+        root, added = self.start_and_set(base_size=100, num_items=101)
         self.assertEqual(root.get_last_and_len(), (added[-1], 101))
         # Check depth is 2.
         self.assertEqual(len(self.subrepo[root.id]), 2)
+
+    def test_big_array_bigoffset(self):
+        # Can add 256 items with large offset.
+        base_size = 4000
+        offset = 400000000000000000000000000000000000
+        root, added = self.start_and_set(base_size=base_size, num_items=256, offset=offset)
+        self.assertEqual(len(self.subrepo[root.id]), 10)  # depth of array tree
+        self.assertEqual(len(list(self.repo[root.id][offset:])), 256)
+
+    @notquick
+    def test_big_array_biggest_offset(self):
+        # Can add 25 items at the end.
+        base_size = 4000
+        offset = (base_size ** base_size) - 25
+        root, added = self.start_and_set(base_size=base_size, num_items=25, offset=offset)
+        self.assertEqual(len(self.subrepo[root.id]), base_size)  # depth of array tree
+        self.assertEqual(len(list(self.repo[root.id][offset:])), 25)
+
+    @notquick
+    def test_big_array_too_much_offset(self):
+        # Can't add 1 item past the end.
+        base_size = 4000
+        offset = (base_size ** base_size)
+        with self.assertRaises(ArrayIndexError):
+            self.start_and_set(base_size=base_size, num_items=1, offset=offset)
 
     def test_iterator_2_3(self):
         self._test_iterator(array_size=2, num_items=3)
@@ -372,11 +400,11 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
 
         # Check index errors.
         # - out of range
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ArrayIndexError):
             # noinspection PyStatementEffect
             array[num_items]
 
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ArrayIndexError):
             # noinspection PyStatementEffect
             array[- num_items - 1]
 
@@ -385,8 +413,7 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
     def test_setitem(self):
 
         a = self.get_big_array(1)
-        self.assertEqual(a.repo.array_size, 1)
-        self.assertEqual(a.subrepo.array_size, 1)
+        # self.assertEqual(a.repo.array_size, 1)
         self.assertEqual(list(a[:]), [])
         a[0] = 'item-0'
         self.assertEqual(list(a[:]), ['item-0'])
@@ -425,7 +452,7 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
         self.assertEqual(list(a[:]), list(reversed(items)))
 
         # Check getting the first item (which wasn't set) raises IndexError.
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ArrayIndexError):
             a[0]
 
         item0 = 'item-0'
@@ -479,19 +506,18 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
     def test_calc_required_height(self):
         root = BigArray(
             array_id='1',
-            repo=mock.Mock(spec=AbstractBigArrayRepository),
-            subrepo=mock.Mock(spec=AbstractArrayRepository),
+            repo=mock.Mock(spec=AbstractArrayRepository),
         )
         with self.assertRaises(ValueError):
             root.calc_required_height(0, 0)
         self.assertEqual(root.calc_required_height(0, 1), 1)
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ArrayIndexError):
             root.calc_required_height(1, 1)
         self.assertEqual(root.calc_required_height(0, 2), 1)
         self.assertEqual(root.calc_required_height(1, 2), 1)
         self.assertEqual(root.calc_required_height(2, 2), 2)
         self.assertEqual(root.calc_required_height(3, 2), 2)
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ArrayIndexError):
             root.calc_required_height(4, 2)
 
         self.assertEqual(root.calc_required_height(0, 3), 1)
@@ -521,8 +547,18 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
         self.assertEqual(root.calc_required_height(24, 3), 3)
         self.assertEqual(root.calc_required_height(25, 3), 3)
         self.assertEqual(root.calc_required_height(26, 3), 3)
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ArrayIndexError):
             root.calc_required_height(27, 3)
+
+        self.assertEqual(root.calc_required_height(100 ** 100 - 1, 100), 100)
+        self.assertEqual(root.calc_required_height(400 ** 400 - 1, 400), 400)
+        self.assertEqual(root.calc_required_height(900 ** 900 - 1, 900), 900)
+        self.assertEqual(root.calc_required_height(999 ** 999 - 1, 999), 999)
+        self.assertEqual(root.calc_required_height(1000 ** 1000 - 1, 1000), 1000)
+        self.assertEqual(root.calc_required_height(1001 ** 1001 - 1, 1001), 1001)
+        self.assertEqual(root.calc_required_height(1100 ** 1100 - 1, 1100), 1100)
+        self.assertEqual(root.calc_required_height(2000 ** 2000 - 1, 2000), 2000)
+        self.assertEqual(root.calc_required_height(10000 ** 10000 - 1, 10000), 10000)
 
 
 class TestBigArrayWithSQLAlchemyAndMultithreading(BigArrayTestCase):
@@ -581,13 +617,13 @@ class TestBigArrayWithSQLAlchemyAndMultithreading(BigArrayTestCase):
         self.result_queue = Queue()
         assert num_threads * num_items_per_thread == array_size ** array_size, (
             num_threads * num_items_per_thread, array_size ** array_size)
-        root = self.get_big_array(array_size=array_size)
+        root = self.get_big_array(base_size=array_size)
 
         def task():
             try:
                 for item in self.append_items(num_items_per_thread, root):
                     self.result_queue.put(item)
-            except CompoundSequenceFullError as e:
+            except ArrayIndexError as e:
                 full_queue.put(e)
             except Exception as e:
                 error_queue.put(e)

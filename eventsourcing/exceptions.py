@@ -46,12 +46,8 @@ class RepositoryKeyError(KeyError, EventSourcingError):
     """Raised when using entity repository's dictionary like interface  to get an entity that does not exist."""
 
 
-class SequenceFullError(EventSourcingError):
-    """Raised when appending item to sequence that is full."""
-
-
-class CompoundSequenceFullError(SequenceFullError):
-    """Raised when appending item to compound sequence that is full."""
+class ArrayIndexError(IndexError, EventSourcingError):
+    """Raised when appending item to an array that is full."""
 
 
 class DatasourceSettingsError(EventSourcingError):
