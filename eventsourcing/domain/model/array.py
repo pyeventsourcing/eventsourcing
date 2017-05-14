@@ -13,8 +13,8 @@ from eventsourcing.exceptions import ConcurrencyError, ArrayIndexError
 class ItemAssigned(TimestampedVersionedEntity.Event):
     """Occurs when an item is set at a position in an array."""
 
-    def __init__(self, item, position, *args, **kwargs):
-        super(ItemAssigned, self).__init__(item=item, originator_version=position, *args, **kwargs)
+    def __init__(self, item, index, *args, **kwargs):
+        super(ItemAssigned, self).__init__(item=item, originator_version=index, *args, **kwargs)
         self.__dict__['item'] = item
 
     @property
@@ -22,7 +22,7 @@ class ItemAssigned(TimestampedVersionedEntity.Event):
         return self.__dict__['item']
 
     @property
-    def position(self):
+    def index(self):
         return self.originator_version
 
 
@@ -40,19 +40,17 @@ class Array(object):
 
     def __setitem__(self, index, item):
         """
-        Sets item in array, at given position.
+        Sets item in array, at given index.
         
-        Won't overrun the end of the sequence, because the position is
-        fixed to be less than the max_size, won't overwrite due to OCC.
-
-        Publishes an ItemAppended event.
+        Won't overrun the end of the array, because
+        the position is fixed to be less than base_size.
         """
         size = self.repo.array_size
         if size and index >= size:
             raise ArrayIndexError("Index is {}, but size is {}".format(index, size))
         event = ItemAssigned(
             originator_id=self.id,
-            position=index,
+            index=index,
             item=item,
         )
         publish(event)
@@ -114,7 +112,7 @@ class Array(object):
         items_assigned = self.get_last_item_assigned()
         if len(items_assigned):
             item_assigned = items_assigned[0]
-            return item_assigned.item, item_assigned.position + 1
+            return item_assigned.item, item_assigned.index + 1
         else:
             return None, 0
 
@@ -145,6 +143,71 @@ class Array(object):
 
 
 class BigArray(Array):
+    """
+    A virtual array holding items in indexed
+    positions, across a number of Array instances.
+    
+    Getting and setting items at index position is
+    supported. Slices are supported, and operate 
+    across the underlying arrays. Appending is also
+    supported.
+    
+    BigArray is designed to overcome the concern of
+    needing a single large sequence that may not be
+    suitably stored in any single partiton. In simple
+    terms, if events of an aggregate can fit in a
+    partition, we can use the same size partition
+    to make a tree of arrays that will certainly
+    be capable of sequencing all the events of the
+    application in a single stream.
+    
+    With normal size base arrays, enterprise applications
+    can expect read and write time to be approximately
+    constant with respect to the number of items in the array.
+
+    The array is composed of a tree of arrays,
+    which gives the capacity equal to the size
+    of each array to the power of the size of
+    each array. If the arrays are limited to be
+    about the maximum size of an aggregate event
+    stream (a large number but not too many that
+    would cause there to be too much data in any
+    one partition, let's say 1000s to be safe)
+    then it would be possible to fit such a large
+    number of aggregates in the corresponding
+    BigArray, that we can be confident it would
+    be full.
+        
+    Write access time in the worst case, and the time
+    to identify the index of the last item in the big
+    array, is proportional to the log of the highest
+    assigned index to the base of the underlying array
+    size. Write time on average, and read time given an
+    index, is contant with respect to the number of items
+    in a BigArray.
+
+    Items can be appended in log time in a single thread.
+    However, the time between reading the current last index
+    and claiming the next position leads to contention and
+    retries when there are lots of threads of execution all
+    attempting to append items, which inherently limits throughput.
+    
+    Todo: Not possible in Cassandra, but maybe do it in a
+    transaction in SQLAlchemy?
+    
+    An alternative to reading the last item before writing
+    the next is to use an integer sequence generator to
+    generate a stream of integers. Items can be assigned
+    to index positions in a big array, according to the integers
+    that are issued. Throughput will then be much better, and
+    will be limited only by the rate at which the database can have
+    events written to it (unless the number generator is quite slow).
+    
+    An external integer sequence generator, such as Redis' INCR
+    command, or an auto-incrementing database column, may
+    constitute a single point of failure.
+    
+    """
     def __init__(self, array_id, repo):
         assert isinstance(repo, AbstractArrayRepository), type(repo)
         super(BigArray, self).__init__(array_id=array_id, repo=repo)
@@ -200,7 +263,6 @@ class BigArray(Array):
             return self.get_slice(item.start, item.stop)
 
     def get_item(self, position):
-
         if position < 0:
             last, length = self.get_last_and_len()
             if position == -1:
@@ -233,11 +295,8 @@ class BigArray(Array):
                 array_len = self.__len__()
             stop = array_len + stop
 
-        if start >= stop:
-            return
-
         size = self.repo.array_size
-        while True:
+        while start < stop:
             n = start // size
             i = n * size
             j = i + size
@@ -248,40 +307,36 @@ class BigArray(Array):
             for item in sequence[substart:substop]:
                 yield item
             start = j
-            if start > stop:
-                break
 
     def __setitem__(self, position, item):
-        # Calculate the base array i,
-        # zero-based index in big array
-        # of start of array.
+        # Calculate start and stop position
+        # of the containing base array.
         size = self.repo.array_size
-        i = (position // size) * size
-        j = i + size
+        start = (position // size) * size
+        stop = start + size
 
         # Set the item in the base array.
-        array_id = self.create_array_id(i, j)
+        array_id = self.create_array_id(start, stop)
         array = self.repo[array_id]
-        array[position - i] = item
+        index = position - start
+        array[index] = item
 
         # Calculate the height of the apex of
         # the compound containing given position
         # (zero-based index in big array).
         required_height = self.calc_required_height(position, size)
-        assert required_height > 0
 
         # Set array IDs in containing arrays,
         # up to the required height.
-        h = 1
-        while h < required_height:
+        height = 1
+        while height < required_height:
+            # Set ID of array in its parent array.
+            start, stop, height, index_of_child = self.calc_parent(start, stop, height)
             child_id = array_id
-            # Calculate i and j for parent (start and stop positions),
-            # and height of parent, and position of child in parent.
-            i, j, h, p = self.calc_parent_i_j_h_p(i, j, h)
-            array_id = self.create_array_id(i, j)
+            array_id = self.create_array_id(start, stop)
             array = self.repo[array_id]
             try:
-                array[p] = child_id
+                array[index_of_child] = child_id
             except ConcurrencyError:
                 return
 
@@ -313,7 +368,7 @@ class BigArray(Array):
         required_height = round(required_height, 10)
         return int(ceil(required_height))
 
-    def calc_parent_i_j_h_p(self, i, j, h):
+    def calc_parent(self, i, j, h):
         """
         Returns get_big_array and end of span of parent sequence that contains given child.
         """
