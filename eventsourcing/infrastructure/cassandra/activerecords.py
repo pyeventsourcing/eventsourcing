@@ -84,13 +84,25 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             yield self.from_active_record(record)
 
     def all_records(self):
-        query = self.active_record_class.objects.all().limit(10)
-        page = list(query)
-        while page:
-            for record in page:
-                yield record
-            last = page[-1]
-            page = list(query.filter(pk__token__gt=Token(last.pk)))
+        partition_query = self.active_record_class.objects.all().limit(1)
+        partition_page = list(partition_query)
+
+        position_field_name = self.field_names.position
+        while partition_page:
+            for partition in partition_page:
+                partion_id = partition.pk
+                kwargs = {self.field_names.sequence_id: partion_id}
+                record_query = self.filter(**kwargs).limit(100).order_by(position_field_name)
+                record_page = list(record_query)
+                while record_page:
+                    for record in record_page:
+                        yield record
+                    last_record = record_page[-1]
+                    kwargs = {'{}__gt'.format(position_field_name): getattr(last_record, position_field_name)}
+                    record_page = list(record_query.filter(**kwargs))
+
+            last_partition = partition_page[-1]
+            partition_page = list(partition_query.filter(pk__token__gt=Token(last_partition.pk)))
 
     def delete_record(self, record):
         assert isinstance(record, self.active_record_class)

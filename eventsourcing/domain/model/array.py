@@ -3,7 +3,6 @@ from math import ceil, log
 from uuid import uuid5
 
 import six
-from collections import defaultdict
 
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
@@ -96,8 +95,7 @@ class Array(object):
 
             items_assigned = self.get_items_assigned(stop_index=stop_index, start_index=start_index)
             items_dict = {str(i.originator_version): i.item for i in items_assigned}
-            items_dict = defaultdict(type(None), **items_dict)
-            items = [items_dict[str(i)] for i in range(start_index, stop_index)]
+            items = [items_dict.get(str(i)) for i in range(start_index, stop_index)]
             return items
 
     def __len__(self):
