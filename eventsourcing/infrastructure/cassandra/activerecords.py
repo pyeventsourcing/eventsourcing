@@ -90,8 +90,8 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         position_field_name = self.field_names.position
         while partition_page:
             for partition in partition_page:
-                partion_id = partition.pk
-                kwargs = {self.field_names.sequence_id: partion_id}
+                parition_id = partition.pk
+                kwargs = {self.field_names.sequence_id: parition_id}
                 record_query = self.filter(**kwargs).limit(100).order_by(position_field_name)
                 record_page = list(record_query)
                 while record_page:
