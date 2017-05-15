@@ -35,8 +35,7 @@ class Array(object):
     @retry(ConcurrencyError, max_retries=50, wait=0.01)
     def append(self, item):
         """Sets item in next position after the last item."""
-        next_position = self.__len__()
-        self.__setitem__(next_position, item)
+        self.__setitem__(self.get_next_position(), item)
 
     def __setitem__(self, index, item):
         """
@@ -60,12 +59,10 @@ class Array(object):
         Returns item at index, or items in slice.
         """
         assert isinstance(item, (six.integer_types, slice))
-        array_len = None
+        array_size = self.repo.array_size
         if isinstance(item, six.integer_types):
             if item < 0:
-                if array_len is None:
-                    array_len = self.__len__()
-                index = array_len + item
+                index = array_size + item
                 if index < 0:
                     raise ArrayIndexError("Array index out of range: {}".format(item))
             else:
@@ -78,51 +75,50 @@ class Array(object):
             if item.start is None:
                 start_index = 0
             elif item.start < 0:
-                array_len = self.__len__()
-                start_index = max(array_len + item.start, 0)
+                start_index = max(array_size + item.start, 0)
             else:
                 start_index = item.start
 
             if not isinstance(item.stop, six.integer_types):
-                limit = None
+                stop_index = array_size
             elif item.stop < 0:
-                if array_len is None:
-                    array_len = self.__len__()
-                limit = array_len + item.stop - start_index
+                stop_index = array_size + item.stop
             else:
-                limit = item.stop - start_index
+                stop_index = item.stop
 
-            if limit is not None:
-                if limit <= 0:
+            if stop_index is not None:
+                if stop_index <= 0:
                     return []
                 # Avoid passing massive integers into the database.
-                limit = min(limit, self.repo.array_size - start_index)
+                if array_size is not None:
+                    stop_index = min(stop_index, self.repo.array_size)
 
-            items_assigned = self.get_items_assigned(limit=limit, start_index=start_index)
-            items = [i.item for i in items_assigned]
+            items_assigned = self.get_items_assigned(stop_index=stop_index, start_index=start_index)
+            items_dict = {str(i.originator_version): i.item for i in items_assigned}
+            items = [items_dict.get(str(i)) for i in range(start_index, stop_index)]
             return items
 
     def __len__(self):
         """
         Returns length of array.
         """
-        return self.get_last_and_len()[1]
+        return self.repo.array_size
 
-    def get_last_and_len(self):
-        items_assigned = self.get_last_item_assigned()
-        if len(items_assigned):
-            item_assigned = items_assigned[0]
-            return item_assigned.item, item_assigned.index + 1
-        else:
+    def get_next_position(self):
+        return self.get_last_item_and_next_position()[1]
+
+    def get_last_item_and_next_position(self):
+        items_assigned = self.get_items_assigned(limit=1, is_ascending=False)
+        if len(items_assigned) == 0:
             return None, 0
+        item_assigned = items_assigned[0]
+        return item_assigned.item, item_assigned.index + 1
 
-    def get_last_item_assigned(self):
-        return self.get_items_assigned(limit=1, is_ascending=False)
-
-    def get_items_assigned(self, limit, start_index=None, is_ascending=True):
+    def get_items_assigned(self, start_index=None, stop_index=None, limit=None, is_ascending=True):
         return self.repo.event_store.get_domain_events(
             originator_id=self.id,
             gte=start_index,
+            lt=stop_index,
             limit=limit,
             is_ascending=is_ascending,
         )
@@ -222,7 +218,7 @@ class BigArray(Array):
         root = self.repo[self.id]
 
         # Get length and last item in the root array.
-        apex_id, apex_height = root.get_last_and_len()
+        apex_id, apex_height = root.get_last_item_and_next_position()
 
         # Bail if there isn't anything yet.
         if apex_id is None:
@@ -238,7 +234,7 @@ class BigArray(Array):
         height = apex_height
         while height > 1:
             height -= 1
-            array_id, width = array.get_last_and_len()
+            array_id, width = array.get_last_item_and_next_position()
             assert width > 0
             offset = width - 1
             array_i += offset * self.repo.array_size ** height
@@ -246,11 +242,11 @@ class BigArray(Array):
 
         return array, array_i
 
-    def get_last_and_len(self):
+    def get_last_item_and_next_position(self):
         sequence, i = self.get_last_array()
         if sequence is None:
             return None, 0
-        item, n = sequence.get_last_and_len()
+        item, n = sequence.get_last_item_and_next_position()
         return item, i + n
 
     def __getitem__(self, item):
@@ -264,7 +260,7 @@ class BigArray(Array):
 
     def get_item(self, position):
         if position < 0:
-            last, length = self.get_last_and_len()
+            last, length = self.get_last_item_and_next_position()
             if position == -1:
                 return last
             position = position + length
@@ -278,22 +274,19 @@ class BigArray(Array):
         return sequence[offset]
 
     def get_slice(self, start, stop):
-        array_len = None
+        array_len = self.repo.array_size ** self.repo.array_size
 
         if start is None:
             start = 0
         elif start < 0:
-            array_len = self.__len__()
             start = max(array_len + start, 0)
 
-        if not isinstance(stop, six.integer_types):
-            if array_len is None:
-                array_len = self.__len__()
+        if stop is None:
             stop = array_len
         elif stop < 0:
-            if array_len is None:
-                array_len = self.__len__()
             stop = array_len + stop
+
+        stop = min(stop, array_len)
 
         size = self.repo.array_size
         while start < stop:
@@ -347,6 +340,12 @@ class BigArray(Array):
             root[required_height - 1] = array_id
         except ConcurrencyError:
             return
+
+    def __len__(self):
+        """
+        Returns length of array.
+        """
+        return self.repo.array_size ** self.repo.array_size
 
     def calc_required_height(self, n, size):
         if size <= 0:

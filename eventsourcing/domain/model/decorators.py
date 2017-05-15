@@ -144,7 +144,9 @@ def retry(exc=Exception, max_retries=1, wait=0):
             attempts = 0
             while True:
                 try:
-                    return func(*args, **kwargs)
+                    result = func(*args, **kwargs)
+                    sleep(0.01)
+                    return result
                 except exc:
                     attempts += 1
                     if attempts < max_retries:
