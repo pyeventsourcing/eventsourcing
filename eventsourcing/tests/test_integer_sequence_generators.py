@@ -1,6 +1,6 @@
 from redis.client import StrictRedis
 
-from eventsourcing.infrastructure.integer_sequence_generators import RedisIntegerSequenceGenerator, \
+from eventsourcing.infrastructure.integer_sequence_generators import RedisIncr, \
     SimpleIntegerSequenceGenerator
 from eventsourcing.tests.base import AbstractTestCase
 
@@ -8,22 +8,18 @@ from eventsourcing.tests.base import AbstractTestCase
 class IntegerSequenceGeneratorTestCase(AbstractTestCase):
     generator_class = None
     def test(self):
-        r= StrictRedis()
-
         g = self.generator_class()
-        r.set(g.name, 9223372036854775807)
-        limit = 5000
-        for i1, i2 in enumerate(g):
-            self.assertEqual(i1, i2)
-            if i1 == limit:
+        limit = 500
+        for i, j in enumerate(g):
+            self.assertEqual(i, j)
+            if i == limit:
                 break
-
-        self.assertEqual(i1, limit)
-
-
-class TestRedisIntegerSequenceGenerator(IntegerSequenceGeneratorTestCase):
-    generator_class = RedisIntegerSequenceGenerator
+        self.assertEqual(i, limit)
 
 
 class TestSimpleIntegerSequenceGenerator(IntegerSequenceGeneratorTestCase):
     generator_class = SimpleIntegerSequenceGenerator
+
+
+class TestRedisIncr(IntegerSequenceGeneratorTestCase):
+    generator_class = RedisIncr
