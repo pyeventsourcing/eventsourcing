@@ -39,7 +39,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
     def get_item(self, sequence_id, eq):
         try:
             filter_args = {self.field_names.sequence_id: sequence_id}
-            query = self.all_records(**filter_args)
+            query = self.filter(**filter_args)
             position_field = getattr(self.active_record_class, self.field_names.position)
             query = query.filter(position_field == eq)
             events = six.moves.map(self.from_active_record, query)
@@ -58,8 +58,8 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         assert limit is None or limit >= 1, limit
 
         try:
-            filter_args = {self.field_names.sequence_id: sequence_id}
-            query = self.all_records(**filter_args)
+            filter_kwargs = {self.field_names.sequence_id: sequence_id}
+            query = self.filter(**filter_kwargs)
 
             position_field = getattr(self.active_record_class, self.field_names.position)
 
@@ -91,6 +91,10 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 
         return events
 
+    def filter(self, **kwargs):
+        query = self.session.query(self.active_record_class)
+        return query.filter_by(**kwargs)
+
     def add_record_to_session(self, active_record):
         """
         Adds active record to session.
@@ -112,7 +116,8 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Returns all items across all sequences.
         """
-        return map(self.from_active_record, self.all_records())
+        all_records = (r for r, _ in self.all_records())
+        return map(self.from_active_record, all_records)
 
     def from_active_record(self, active_record):
         """
@@ -121,12 +126,18 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         kwargs = self.get_field_kwargs(active_record)
         return self.sequenced_item_class(**kwargs)
 
-    def all_records(self, *args, **kwargs):
+    def all_records(self, resume=None, *args, **kwargs):
         """
         Returns all records in the table.
         """
-        query = self.session.query(self.active_record_class)
-        return query.filter_by(*args, **kwargs)
+        query = self.filter(**kwargs)
+        if resume is not None:
+            query = query.offset(resume + 1)
+        else:
+            resume = 0
+        query = query.limit(100)
+        for i, record in enumerate(query):
+            yield record, i + resume
 
     def delete_record(self, record):
         """
