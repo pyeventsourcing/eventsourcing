@@ -75,7 +75,7 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
             # Check there is a stored event.
             all_records = list(app.event_store.active_record_strategy.all_records())
             assert len(all_records) == 1
-            stored_event = all_records[0]
+            stored_event, _ = all_records[0]
             assert stored_event.originator_id == entity1.id
             assert stored_event.originator_version == 0
 

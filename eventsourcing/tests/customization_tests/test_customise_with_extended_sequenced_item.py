@@ -101,7 +101,7 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
             # Check there is a stored event.
             all_records = list(app.event_store.active_record_strategy.all_records())
             self.assertEqual(len(all_records), 1)
-            active_record = all_records[0]
+            active_record, _ = all_records[0]
             self.assertEqual(active_record.sequence_id, entity1.id)
             self.assertEqual(active_record.position, 0)
             self.assertEqual(active_record.event_type, 'Example.Created', active_record.event_type)

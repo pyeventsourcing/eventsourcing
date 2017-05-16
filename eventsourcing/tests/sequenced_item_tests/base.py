@@ -270,6 +270,16 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         entity_ids = set([i.sequence_id for i in retrieved_items])
         self.assertEqual(entity_ids, {sequence_id1, sequence_id2})
 
+        # Resume from after the first sequence.
+        for _, first in self.active_record_strategy.all_records():
+            break
+        retrieved_items = self.active_record_strategy.all_records(resume=first)
+        retrieved_items = list(retrieved_items)
+        if first == sequence_id1:
+            self.assertEqual(len(retrieved_items), 1)
+        else:
+            self.assertEqual(len(retrieved_items), 3)
+
 
 class WithActiveRecordStrategies(AbstractDatastoreTestCase):
     drop_tables = False

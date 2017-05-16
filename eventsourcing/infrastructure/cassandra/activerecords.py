@@ -80,32 +80,38 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         return items
 
     def all_items(self):
-        for record in self.all_records():
-            yield self.from_active_record(record)
+        for record, _ in self.all_records():
+            sequenced_item = self.from_active_record(record)
+            yield sequenced_item
 
-    def all_records(self):
-        partition_query = self.active_record_class.objects.all().limit(1)
-        partition_page = list(partition_query)
-
+    def all_records(self, resume=None, *args, **kwargs):
         position_field_name = self.field_names.position
-        while partition_page:
-            for partition in partition_page:
-                parition_id = partition.pk
-                kwargs = {self.field_names.sequence_id: parition_id}
-                record_query = self.filter(**kwargs).limit(100).order_by(position_field_name)
-                record_page = list(record_query)
-                while record_page:
-                    for record in record_page:
-                        yield record
-                    last_record = record_page[-1]
-                    kwargs = {'{}__gt'.format(position_field_name): getattr(last_record, position_field_name)}
-                    record_page = list(record_query.filter(**kwargs))
+        for sequence_id in self.all_sequence_ids(resume=resume):
+            kwargs = {self.field_names.sequence_id: sequence_id}
+            record_query = self.filter(**kwargs).limit(100).order_by(position_field_name)
+            record_page = list(record_query)
+            while record_page:
+                for record in record_page:
+                    yield record, record.pk
+                last_record = record_page[-1]
+                kwargs = {'{}__gt'.format(position_field_name): getattr(last_record, position_field_name)}
+                record_page = list(record_query.filter(**kwargs))
 
-            last_partition = partition_page[-1]
-            partition_page = list(partition_query.filter(pk__token__gt=Token(last_partition.pk)))
+    def all_sequence_ids(self, resume=None):
+        query = self.active_record_class.objects.all().limit(1)
+        if resume is None:
+            page = list(query)
+        else:
+            page = list(query.filter(pk__token__gt=Token(resume)))
+
+        while page:
+            for record in page:
+                yield record.pk
+            last = page[-1]
+            page = list(query.filter(pk__token__gt=Token(last.pk)))
 
     def delete_record(self, record):
-        assert isinstance(record, self.active_record_class)
+        assert isinstance(record, self.active_record_class), type(record)
         record.delete()
 
     def to_active_record(self, sequenced_item):
@@ -123,8 +129,8 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         kwargs = self.get_field_kwargs(active_record)
         return self.sequenced_item_class(**kwargs)
 
-    def filter(self, *args, **kwargs):
-        return self.active_record_class.objects.filter(*args, **kwargs)
+    def filter(self, **kwargs):
+        return self.active_record_class.objects.filter(**kwargs)
 
 
 class IntegerSequencedItemRecord(ActiveRecord):
