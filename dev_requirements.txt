@@ -11,3 +11,4 @@ sqlalchemy<=1.1.99999
 sqlalchemy-utils<=0.32.99999
 cassandra-driver<=3.9.99999
 PyCrypto<=2.6.99999
+redis<=2.10.99999

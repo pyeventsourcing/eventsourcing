@@ -34,3 +34,4 @@ to work as presented - raise an issue if something goes wrong.
    cassandra
    everything
    wsgi
+   remote
