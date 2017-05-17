@@ -1,5 +1,5 @@
-from eventsourcing.infrastructure.integer_sequence_generators import RedisIncr, \
-    SimpleIntegerSequenceGenerator
+from eventsourcing.infrastructure.integersequencegenerators.base import SimpleIntegerSequenceGenerator
+from eventsourcing.infrastructure.integersequencegenerators.redisincr import RedisIncr
 from eventsourcing.tests.base import AbstractTestCase
 
 
@@ -13,6 +13,8 @@ class IntegerSequenceGeneratorTestCase(AbstractTestCase):
             self.assertEqual(i, j)
             if i == limit:
                 break
+        else:
+            self.fail('There were no items in the sequence')
         self.assertEqual(i, limit)
 
 

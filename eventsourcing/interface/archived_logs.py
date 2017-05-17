@@ -86,6 +86,7 @@ class ArchivedLogRepo(ArchivedLogRepository):
             next_id = None
 
         # Return archived log object.
+        items = list(items)
         return ArchivedLog(
             id=archived_log_id,
             items=items,
