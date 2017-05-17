@@ -1,5 +1,3 @@
-from redis.client import StrictRedis
-
 from eventsourcing.infrastructure.integer_sequence_generators import RedisIncr, \
     SimpleIntegerSequenceGenerator
 from eventsourcing.tests.base import AbstractTestCase
@@ -7,6 +5,7 @@ from eventsourcing.tests.base import AbstractTestCase
 
 class IntegerSequenceGeneratorTestCase(AbstractTestCase):
     generator_class = None
+
     def test(self):
         g = self.generator_class()
         limit = 500
