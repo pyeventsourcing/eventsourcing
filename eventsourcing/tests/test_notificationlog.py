@@ -205,18 +205,19 @@ class TestRemoteArchivedLog(ArchivedLogTestCase):
             # Check we got all the items.
             self.assertEqual(len(items_from_start), num_notifications)
             self.assertEqual(items_from_start[0], 'item1')
-            expected_log_count = (num_notifications // section_size) + (1 if num_notifications % section_size else 0)
-            self.assertEqual(notification_log_reader.section_count, expected_log_count)
+            expected_section_count = (num_notifications // section_size) + (1 if num_notifications % section_size
+                                                                            else 0)
+            self.assertEqual(notification_log_reader.section_count, expected_section_count)
 
             # Get all the items from item 5.
             items_from_5 = list(notification_log_reader.get_items(last_item_num=section_size))
 
             # Check we got everything after item 5.
-            self.assertEqual(len(items_from_5), num_notifications - section_size)
-            self.assertEqual(items_from_5[0], 'item{}'.format(section_size + 1))
-            expected_log_count = (num_notifications // section_size) + (1 if num_notifications % section_size else
-                                                                        0) - 1
-            self.assertEqual(notification_log_reader.section_count, expected_log_count)
+            self.assertEqual(len(items_from_5), num_notifications - section_size + 1)
+            self.assertEqual(items_from_5[0], 'item{}'.format(section_size))
+            expected_section_count = (num_notifications // section_size) + (1 if num_notifications % section_size
+                                                                            else 0)
+            self.assertEqual(notification_log_reader.section_count, expected_section_count)
 
         finally:
             httpd.shutdown()
