@@ -20,7 +20,7 @@ class TestDocs(TestCase):
 
     def test_code_snippets_in_docs(self):
         skipped = [
-            'wsgi.rst'
+            'deployment.rst'
         ]
 
         self._out = ''
@@ -34,7 +34,7 @@ class TestDocs(TestCase):
             for name in filenames:
                 if name in skipped:
                     continue
-                if name.endswith('remote.rst'):
+                if name.endswith('.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)

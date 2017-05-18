@@ -51,21 +51,22 @@ called, and ``get_application()`` will raise an exeception if
 
     # Your eventsourcing application.
     class ExampleApplication(object):
-        pass
+        def __init__(*args, **kwargs):
+            pass
 
 
     def construct_application(**kwargs):
         return ExampleApplication(**kwargs)
 
 
-    application = None
+    _application = None
 
 
     def init_application(**kwargs):
-        global application
-        if application is not None:
+        global _application
+        if _application is not None:
             raise AssertionError("init_application() has already been called")
-        application = construct_application(**kwargs)
+        _application = construct_application(**kwargs)
 
 
     def get_application():
@@ -105,6 +106,8 @@ and before the object is constructed, it is recommended to check again that
 the object wasn't constructed by another thread before the lock was acquired.
 
 .. code:: python
+
+    import threading
 
     application = None
 
@@ -207,6 +210,7 @@ after child workers have been forked.
 
 .. code:: python
 
+
     from uwsgidecorators import postfork
 
     @postfork
@@ -275,6 +279,12 @@ object that is scoped to the request.
 
 .. code:: python
 
+    from flask import Flask
+    from flask_sqlalchemy import SQLAlchemy
+    from sqlalchemy_utils.types.uuid import UUIDType
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
+
+
     # Construct Flask application.
     application = Flask(__name__)
 
@@ -298,11 +308,11 @@ object that is scoped to the request.
         data = db.Column(db.Text())
 
         # Index.
-        __table_args__ = db.Index('index', 'sequence_id, 'position'),
+        __table_args__ = db.Index('index', 'sequence_id', 'position'),
 
 
     # Construct eventsourcing application with db table and session.
-    init_example_application(
+    init_application(
         entity_active_record_strategy=SQLAlchemyActiveRecordStrategy(
             active_record_class=IntegerSequencedItem,
             session=db.session,
