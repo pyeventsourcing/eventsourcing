@@ -6,7 +6,7 @@ from eventsourcing.tests.base import AbstractTestCase
 class IntegerSequenceGeneratorTestCase(AbstractTestCase):
     generator_class = None
 
-    def test(self):
+    def _test_iterable(self):
         g = self.generator_class()
         limit = 500
         for i, j in enumerate(g):
@@ -16,6 +16,13 @@ class IntegerSequenceGeneratorTestCase(AbstractTestCase):
         else:
             self.fail('There were no items in the sequence')
         self.assertEqual(i, limit)
+
+    def test_iterator(self):
+        g = self.generator_class()
+        limit = 500
+        for i in range(limit):
+            j = next(g)
+            self.assertEqual(i, j)
 
 
 class TestSimpleIntegerSequenceGenerator(IntegerSequenceGeneratorTestCase):

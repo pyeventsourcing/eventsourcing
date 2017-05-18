@@ -13,6 +13,12 @@ class AbstractIntegerSequenceGenerator(object):
         Returns an iterable that yields integers.
         """
 
+    def next(self):
+        """
+        Python 2.7 version of the iterator protocol.
+        """
+        return self.__next__()
+
 
 class SimpleIntegerSequenceGenerator(AbstractIntegerSequenceGenerator):
 
