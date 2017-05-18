@@ -10,7 +10,7 @@ class AbstractIntegerSequenceGenerator(object):
     @abstractmethod
     def __next__(self):
         """
-        Returns an iterable that yields integers.
+        Returns the next item in the container.
         """
 
     def next(self):
