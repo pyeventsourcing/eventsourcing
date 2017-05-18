@@ -296,5 +296,5 @@ method is called.
         assert aggregate.id not in app.aggregate_repository
 
 
-The library has a ``AggregateRoot`` class that is slightly more developed
-than the code in this example.
+The library has an :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`
+class that is slightly more developed than the code in this example.

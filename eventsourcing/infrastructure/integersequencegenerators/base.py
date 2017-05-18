@@ -1,17 +1,25 @@
 from abc import abstractmethod
+from threading import Lock
 
 
 class AbstractIntegerSequenceGenerator(object):
     @abstractmethod
-    def __iter__(self):
+    def __next__(self):
         """
         Returns an iterable that yields integers.
         """
 
 
 class SimpleIntegerSequenceGenerator(AbstractIntegerSequenceGenerator):
-    def __iter__(self):
-        i = 0
+
+    def __init__(self, i=0):
+        self.i = i
+        self.lock = Lock()
+
+    def __next__(self):
         while True:
-            yield i
-            i += 1
+            self.lock.acquire()
+            i = self.i
+            self.i += 1
+            self.lock.release()
+            return i

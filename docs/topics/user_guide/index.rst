@@ -33,5 +33,5 @@ to work as presented - raise an issue if something goes wrong.
    schema
    cassandra
    everything
-   wsgi
-   remote
+   notifications
+   deployment
