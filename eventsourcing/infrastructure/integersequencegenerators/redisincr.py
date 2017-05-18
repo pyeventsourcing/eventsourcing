@@ -1,23 +1,8 @@
-from abc import abstractmethod
 from uuid import uuid4
 
 from redis import StrictRedis
 
-
-class AbstractIntegerSequenceGenerator(object):
-    @abstractmethod
-    def __iter__(self):
-        """
-        Returns an iterable that yields integers.
-        """
-
-
-class SimpleIntegerSequenceGenerator(AbstractIntegerSequenceGenerator):
-    def __iter__(self):
-        i = 0
-        while True:
-            yield i
-            i += 1
+from eventsourcing.infrastructure.integersequencegenerators.base import AbstractIntegerSequenceGenerator
 
 
 class RedisIncr(AbstractIntegerSequenceGenerator):
