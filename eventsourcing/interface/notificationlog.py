@@ -111,7 +111,7 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
         self.section_count = 0
 
     def __getitem__(self, item=None):
-        assert isinstance(item, slice)
+        assert isinstance(item, slice), type(item)
         assert item.stop is None, item.stop
         assert item.start >= 0, item.start
         return self.get_items(item.start + 1)

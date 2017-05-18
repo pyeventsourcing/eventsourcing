@@ -123,14 +123,13 @@ class TestNotificationLog(ArchivedLogTestCase):
         # self.assertEqual(len(list(reader)), 21)
 
         # # Read items after a particular position.
-        # self.assertEqual(len(list(reader[0:])), 21)
-        # self.assertEqual(len(list(reader[1:])), 20)
-        # self.assertEqual(len(list(reader[2:])), 19)
-        # self.assertEqual(len(list(reader[3:])), 18)
-        # self.assertEqual(len(list(reader[13:])), 8)
-        # self.assertEqual(len(list(reader[18:])), 3)
+        self.assertEqual(len(list(reader[0:])), 21)
+        self.assertEqual(len(list(reader[1:])), 20)
+        self.assertEqual(len(list(reader[2:])), 19)
+        self.assertEqual(len(list(reader[3:])), 18)
+        self.assertEqual(len(list(reader[13:])), 8)
+        self.assertEqual(len(list(reader[18:])), 3)
         self.assertEqual(len(list(reader[19:])), 2)
-        return
         self.assertEqual(len(list(reader[20:])), 1)
         self.assertEqual(len(list(reader[21:])), 0)
 
