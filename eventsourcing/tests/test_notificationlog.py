@@ -162,7 +162,7 @@ class TestRemoteArchivedLog(ArchivedLogTestCase):
         from wsgiref.util import setup_testing_defaults
         from wsgiref.simple_server import make_server
 
-        port = 8000
+        port = 8080
         base_url = 'http://127.0.0.1:{}/notifications/'.format(port)
 
         def simple_app(environ, start_response):

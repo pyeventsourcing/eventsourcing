@@ -20,7 +20,7 @@ class TestDocs(TestCase):
 
     def test_code_snippets_in_docs(self):
         skipped = [
-            'wsgi.rst'
+            'deployment.rst'
         ]
 
         self._out = ''
