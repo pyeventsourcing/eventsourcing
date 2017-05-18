@@ -4,9 +4,6 @@ from threading import Lock
 
 class AbstractIntegerSequenceGenerator(object):
 
-    def __iter__(self):
-        return self
-
     @abstractmethod
     def __next__(self):
         """
