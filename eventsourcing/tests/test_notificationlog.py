@@ -244,7 +244,7 @@ class TestRemoteArchivedLog(ArchivedLogTestCase):
             # Check we got all the items.
             self.assertEqual(len(items_from_start), num_notifications)
             self.assertEqual(items_from_start[0], 'item1')
-            expected_section_count = ceil(num_notifications / section_size)
+            expected_section_count = ceil(num_notifications / float(section_size))
             self.assertEqual(notification_log_reader.section_count, expected_section_count)
 
             # Get all the items from item 5.
@@ -253,7 +253,7 @@ class TestRemoteArchivedLog(ArchivedLogTestCase):
             # Check we got everything after item 5.
             self.assertEqual(len(items_from_5), num_notifications - section_size + 1)
             self.assertEqual(items_from_5[0], 'item{}'.format(section_size))
-            expected_section_count = ceil(num_notifications / section_size)
+            expected_section_count = ceil(num_notifications / float(section_size))
             self.assertEqual(notification_log_reader.section_count, expected_section_count)
 
         finally:
