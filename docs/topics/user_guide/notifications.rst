@@ -45,12 +45,60 @@ possibly check for updates to that aggregate.
 This last concern brings us to needing a single application log
 that sequences all events of the application.
 
+
+Asynchronous update
+-------------------
+
+Asynchronous updates can be used to update other aggregates,
+especially aggregates in a remote context.
+
+The fundamental concern is to accomplish high fidelity when
+propagating a stream of events, so that events are neither
+missed nor are they duplicated. As Vaughn Vernon suggests
+in his book Implementing Domain Driven Design:
+
+    “at least two mechanisms in a messaging solution must always be consistent with each other: the persistence
+    store used by the domain model, and the persistence store backing the messaging infrastructure used to forward
+    the Events published by the model. This is required to ensure that when the model’s changes are persisted, Event
+    delivery is also guaranteed, and that if an Event is delivered through messaging, it indicates a true situation
+    reflected by the model that published it. If either of these is out of lockstep with the other, it will lead to
+    incorrect states in one or more interdependent models.”
+
+
+There are three options. The first option is to have the
+messaging infrastructure and the domain model share the same
+persistence store, so changes to the model and insertion of
+new messages commit in the same local transaction.
+The second option is to have separate datastores for domain
+model and messaging but have a two phase commit, or global
+transaction, across the two.
+
+The third option is to have the bounded context
+control notifications. It is the third approach that is taken here.
+The approach taken by Vaughn Vernon is his book Implementing Domain
+Driven Design is to rely on the simple logic of an ascending sequence
+of integers to allow others to progress along the event stream.
+
+A pull mechanism that allows others to pull events that they
+don't yet have can be used to allow remote components to catch
+up. The same mechanism can be used if the remote component is developed
+after the application has been deployed and so requires initialising
+from an established application stream, or otherwise needs to be
+reconstructed from scratch.
+
+Updates can be triggered by pushing the notifications to
+messaging infrastructure, and having the remote components subscribe.
+If anything goes wrong with messaging infrastructure, such that a
+notification is not received, remote components can fall back onto
+pulling notifications they have missed.
+
+
 Application log
 ---------------
 
 In order to update a projection of more than one aggregate, or of
 the application state as a whole, we need a single sequence
-for all the events of the application.
+to log all the events of the application.
 
 The application log needs to be a single sequence, that can be generated
 without error in a multi-threaded application. We want a log that follows
@@ -67,10 +115,12 @@ Items can be appended to a big array using the ``append()`` method.
 The append() method identifies the next available index in the array,
 and then assigns the item to that index in the array.
 
-(The average performance of the ``append()`` method is proportional to the log of the
+The performance of the ``append()`` method is proportional to the log of the
 index in the array, to the base of the array size used in the big array, rounded
 up to the nearest integer, plus one. For example, if the array size is 10000, then it
-will take only 50% longer to assign the 100,000,000th item than the 1st one.)
+will take only 50% longer to append the 100,000,000th item to the big array than the
+1st one. By the time the 1,000,000,000,000th index is appended to a big array, the
+``append()`` method will take only twice as long as the 1st.
 
 .. code:: python
 
@@ -124,19 +174,20 @@ will take only 50% longer to assign the 100,000,000th item than the 1st one.)
 
 Because there is a small duration of time between checking for the next
 position and using it, another thread could jump in and use the position
-first. If that happens, a :class:`~eventsourcing.exceptions.ConcurrencyError` will
-be raised by the :class:`~eventsourcing.domain.model.array.BigArray`
+first. If that happens, a :class:`~eventsourcing.exceptions.ConcurrencyError`
+will be raised by the :class:`~eventsourcing.domain.model.array.BigArray`
 object. In such a case, another attempt can be made to append the item.
 
 Items can be assigned directly. If an item has already been assigned,
 a concurrency error will be raised. Items cannot be unassigned, each index
 can only be used once.
 
-The average performance of assigning an item is constant. The worst case is
-"log time", which occurs when containing arrays are added, so that the last
-highest assigned index can be discovered. The probability of departing from
-average performance is inversely proportional to the array size, since the
-the larger the array size, the less often the base arrays fill up.
+The average performance of assigning an item is a constant time. The worst
+case is log of the index with base array size, which occurs when containing
+arrays are added, so that the last highest assigned index can be discovered.
+The probability of departing from average performance is inversely proportional
+to the array size, since the the larger the array size, the less often the base
+arrays fill up.
 
 .. code:: python
 
@@ -158,13 +209,16 @@ each time an item is assigned, the amount of contention will increase
 as the number of threads increases. Using the ``append()`` method alone
 will be perfectly alright if the time period of appending events is greater
 than the time it takes to identify the next available index and assign to
-it. At that rate, contention will not lead to congestion.
+it. At that rate, contention will not lead to congestion. Different nodes
+can take their chances assigning to what they believe is an unassigned
+index, and if another has already taken that position, the attempt can
+be retried.
 
 However, there will be an upper limit to the rate at which events can be
-appended, contention will eventually lead to congestion that will cause
+appended, and contention will eventually lead to congestion that will cause
 requests to backup or be spilled.
 
-The rate of assigning items to the big array when can be increased greatly
+The rate of assigning items to the big array can be greatly increased
 by centralizing the generation of the sequence of integers. Instead of
 discovering the next position from the array each time an item is assigned,
 an integer sequence generator can be used to generate a contiguous sequence
@@ -228,6 +282,15 @@ application log.
 
 Items can be read from the application log using an index or a slice.
 
+The performance of reading an item at a given index is always constant time
+with respect to the number of the index. The base array ID, and the index of
+the item in the base array, can be calculated from the number of the index.
+
+The performance of reading a slice of items it proportional to the
+size of the slice. Consecutive items in a base array are stored consecutively
+in the same database partition, and if the slice overlaps more than base
+array, the iteration proceeds to the next partition.
+
 .. code:: python
 
     assert application_log[0] == 'event0'
@@ -251,53 +314,6 @@ to push the notification perhaps should not prevent the command returning
 normally. Push notifications could also be generated by a different process,
 that pulls from the application log, and pushes notifications for events
 that have not already been sent.
-
-
-Asynchronous update
--------------------
-
-Asynchronous updates can be used to update other aggregates,
-especially aggregates in a remote context.
-
-The fundamental concern is to accomplish high fidelity when
-propagating a stream of events, so that events are neither
-missed nor are they duplicated. As Vaughn Vernon suggests
-in his book Implementing Domain Driven Design:
-
-    “at least two mechanisms in a messaging solution must always be consistent with each other: the persistence
-    store used by the domain model, and the persistence store backing the messaging infrastructure used to forward
-    the Events published by the model. This is required to ensure that when the model’s changes are persisted, Event
-    delivery is also guaranteed, and that if an Event is delivered through messaging, it indicates a true situation
-    reflected by the model that published it. If either of these is out of lockstep with the other, it will lead to
-    incorrect states in one or more interdependent models.”
-
-
-There are three options. The first option is to have the
-messaging infrastructure and the domain model share the same
-persistence store, so changes to the model and insertion of
-new messages commit in the same local transaction.
-The second option is to have separate datastores for domain
-model and messaging but have a two phase commit, or global
-transaction, across the two.
-
-The third option is to have the bounded context
-control notifications. It is the third approach that is taken here.
-The approach taken by Vaughn Vernon is his book Implementing Domain
-Driven Design is to rely on the simple logic of an ascending sequence
-of integers to allow others to progress along the event stream.
-
-A pull mechanism that allows others to pull events that they
-don't yet have can be used to allow remote components to catch
-up. The same mechanism can be used if the remote component is developed
-after the application has been deployed and so requires initialising
-from an established application stream, or otherwise needs to be
-reconstructed from scratch.
-
-Updates can be triggered by pushing the notifications to
-messaging infrastructure, and having the remote components subscribe.
-If anything goes wrong with messaging infrastructure, such that a
-notification is not received, remote components can fall back onto
-pulling notifications they have missed.
 
 
 Notification log
