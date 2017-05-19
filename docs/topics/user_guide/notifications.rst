@@ -72,7 +72,7 @@ in their own partition.
     from eventsourcing.infrastructure.sqlalchemy.activerecords import StoredEventRecord
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
     from eventsourcing.infrastructure.eventstore import EventStore
-    from eventsourcing.infrastructure.event_sourced_repos.array import BigArrayRepository
+    from eventsourcing.infrastructure.respositories.array import BigArrayRepository
     from eventsourcing.application.policies import PersistencePolicy
     from eventsourcing.infrastructure.sequenceditem import StoredEvent
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper

@@ -418,7 +418,7 @@ def has_substring(substring, suffix_tree, edge_repo):
 
 
 # Application
-from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.suffixtree_repo import SuffixTreeRepo, \
+from eventsourcing.contrib.suffixtrees.infrastructure.respositories.suffixtree_repo import SuffixTreeRepo, \
     NodeRepo, EdgeRepo
 
 

@@ -5,7 +5,7 @@ from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import
     register_new_suffix_tree
 from eventsourcing.contrib.suffixtrees.domain.services.generalizedsuffixtree import find_substring_edge, \
     get_string_ids, has_substring
-from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.generalizedsuffixtree_repo import EdgeRepo, \
+from eventsourcing.contrib.suffixtrees.infrastructure.respositories.generalizedsuffixtree_repo import EdgeRepo, \
     GeneralizedSuffixTreeRepo, NodeChildCollectionRepo, NodeRepo, StringidCollectionRepo
 
 
