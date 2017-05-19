@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import json
 from abc import ABCMeta, abstractmethod
 
@@ -29,6 +31,7 @@ class Section(object):
     
     May also have either IDs of previous and next sections of the notification log. 
     """
+
     def __init__(self, section_id, items, previous_id=None, next_id=None):
         self.section_id = section_id
         self.items = items
@@ -145,6 +148,7 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
             section = self.notification_log[section_id]
 
         # Yield items in first section, optionally after last item number.
+        self.section_count += 1
         items = section.items
         if start_item_num is not None:
             section_start_num = int(section.section_id.split(',')[0])
@@ -159,12 +163,12 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
                     return
                 yield item
                 self.position += 1
-            self.section_count += 1
 
             if section.next_id:
                 # Follow link to get next section.
                 section = self.notification_log[section.next_id]
                 items = section.items
+                self.section_count += 1
             else:
                 break
 

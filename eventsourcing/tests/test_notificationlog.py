@@ -192,7 +192,7 @@ class TestRemoteArchivedLog(ArchivedLogTestCase):
     use_named_temporary_file = True
 
     def test_remote_notification_log(self):
-        log_name = 'log2'
+        log_name = str(uuid4())
         num_notifications = 42
         big_array = self.create_big_array()
         section_size = 5
