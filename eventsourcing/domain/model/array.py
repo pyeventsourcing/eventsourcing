@@ -270,8 +270,8 @@ class BigArray(Array):
         j = i + size
         offset = position - i
         array_id = self.create_array_id(i, j)
-        sequence = self.repo[array_id]
-        return sequence[offset]
+        base_array = self.repo[array_id]
+        return base_array[offset]
 
     def get_slice(self, start, stop):
         array_len = self.repo.array_size ** self.repo.array_size
@@ -358,11 +358,11 @@ class BigArray(Array):
         min_capacity = max(int(size), int(n + 1))
         required_height = log(min_capacity, int(size))
         # Quash numerical error before calling ceil.
-        # - this is required for the final base
-        #   sequence, e.g. with base size of 1000
-        #   numerical error makes the required height
-        #   one greater than the correct value, which
-        #   causes an index error when assigning apex
+        # - this is occasionally required, for example
+        #   with base size of 1000 numerical error
+        #   makes the required height one greater
+        #   than the correct value, which causes
+        #   an index error when assigning apex
         #   ID to the root sequence.
         required_height = round(required_height, 10)
         return int(ceil(required_height))

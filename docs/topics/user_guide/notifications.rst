@@ -463,11 +463,23 @@ The command sequence can then be executed in a controlled manner.
 
 Todo: Race conditions around assigning events using central
 integer sequence generator. Perhaps wait until previous has been
-assigned? If an item is None, perhaps the consumer should stall for
-a moment to allow time for the race condition to expire. A permanent None
-value should be something that occurs very rarely, when an issued integer
-is not followed by a successful assignment to the big array. A permanent
-None will exist in the sequence if an integer is lost perhaps due to a
-database operation error that somehow still failed after many retries, or
-because the client process crashed before the database operation could be
-executed but after the integer had been issued, so the integer became lost.
+assigned? If an item is None, perhaps the notification log should
+stall for a moment to allow time for the race condition to expire.
+Perhaps it should only do it when the item has been assigned recently
+(timestamp of the ItemAdded event could be checked) or when there have
+been lots of event since (the highest assigned index could be checked).
+A permanent None value should be something that occurs very rarely,
+when an issued integer is not followed by a successful assignment
+to the big array. A permanent "None" will exist in the sequence if
+an integer is lost perhaps due to a database operation error that
+somehow still failed after many retries, or because the client process
+crashed before the database operation could be executed but after the
+integer had been issued, so the integer became lost. This needs code.
+
+Todo: Automatic initialisation of the integer sequence generator RedisIncr
+from getting highest assigned index. Or perhaps automatic update with
+the current highest assigned index if there continues to be contention
+after a number of increments, indicating the issued values are far behind.
+If processes all reset the value whilst they are also incrementing it, then
+there will be a few concurrency errors, but it should level out quickly.
+This also needs code.
