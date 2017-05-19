@@ -36,7 +36,7 @@ class Section(object):
         self.next_id = next_id
 
 
-class LocalNotificationLog(AbstractNotificationLog):
+class NotificationLog(AbstractNotificationLog):
     def __init__(self, big_array, section_size):
         assert isinstance(big_array, BigArray)
         if big_array.repo.array_size % section_size:
@@ -109,23 +109,25 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
         assert isinstance(notification_log, AbstractNotificationLog)
         self.notification_log = notification_log
         self.section_count = 0
+        self.position = 0
 
     def __getitem__(self, item=None):
         assert isinstance(item, slice), type(item)
-        assert item.stop is None, item.stop
         assert item.start >= 0, item.start
-        return self.get_items(item.start + 1)
+        self.seek(item.start)
+        return self.get_items(item.stop)
 
     def __iter__(self):
         return self.get_items()
 
-    def get_items(self, last_item_num=None):
+    def get_items(self, stop_index=None):
         self.section_count = 0
 
-        # Validate the last item number.
-        if last_item_num is not None:
-            if last_item_num < 1:
-                raise ValueError("Item number {} must be >= 1.".format(last_item_num))
+        start_item_num = self.position + 1
+
+        # Validate the position.
+        if self.position < 0:
+            raise ValueError("Position less than zero: {}".format(self.position))
 
         # Get current section.
         section = self.notification_log['current']
@@ -134,8 +136,8 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
         while section.previous_id:
 
             # Break if we can go forward from here.
-            if last_item_num is not None:
-                if int(section.section_id.split(',')[0]) <= last_item_num:
+            if start_item_num is not None:
+                if int(section.section_id.split(',')[0]) <= start_item_num:
                     break
 
             # Get the previous document.
@@ -144,17 +146,19 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
 
         # Yield items in first section, optionally after last item number.
         items = section.items
-        if last_item_num is not None:
-            doc_first_item_number = int(section.section_id.split(',')[0])
-            from_index = last_item_num - doc_first_item_number
+        if start_item_num is not None:
+            section_start_num = int(section.section_id.split(',')[0])
+            from_index = start_item_num - section_start_num
             items = items[from_index:]
 
         # Yield all items in all subsequent sections.
         while True:
 
             for item in items:
+                if stop_index is not None and self.position >= stop_index:
+                    return
                 yield item
-                # Todo: Increment an item counter, to track position.
+                self.position += 1
             self.section_count += 1
 
             if section.next_id:
@@ -163,6 +167,11 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
                 items = section.items
             else:
                 break
+
+    def seek(self, position):
+        if position < 0:
+            raise ValueError("Position less than zero: {}".format(position))
+        self.position = position
 
 
 def deserialize_section(section_json):
@@ -179,7 +188,7 @@ def serialize_section(section):
 
 
 def present_section(big_array, section_id, section_size):
-    notification_log = LocalNotificationLog(big_array, section_size=section_size)
+    notification_log = NotificationLog(big_array, section_size=section_size)
     section = notification_log[section_id]
     return serialize_section(section)
 

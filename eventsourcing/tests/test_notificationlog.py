@@ -1,10 +1,11 @@
+from math import ceil
 from threading import Thread
 from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.infrastructure.repositories.array import BigArrayRepository
-from eventsourcing.interface.notificationlog import LocalNotificationLog, NotificationLogReader, \
-    RemoteNotificationLog, serialize_section, deserialize_section, present_section
+from eventsourcing.interface.notificationlog import NotificationLog, NotificationLogReader, \
+    RemoteNotificationLog, deserialize_section, present_section
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
     WithCassandraActiveRecordStrategies
@@ -37,12 +38,11 @@ class ArchivedLogTestCase(WithSQLAlchemyActiveRecordStrategies, WithPersistenceP
 
 
 class TestNotificationLog(ArchivedLogTestCase):
-
     def test_notification_log(self):
         # Build notification log.
         big_array = self.create_big_array()
         section_size = 5
-        notification_log = LocalNotificationLog(big_array, section_size=section_size)
+        notification_log = NotificationLog(big_array, section_size=section_size)
 
         # Check the sections.
         section = notification_log['current']
@@ -73,10 +73,10 @@ class TestNotificationLog(ArchivedLogTestCase):
 
         # Check array size must be divisible by section size.
         with self.assertRaises(ValueError):
-            LocalNotificationLog(big_array, section_size=6)
+            NotificationLog(big_array, section_size=6)
 
         # Check the section ID must match the section size.
-        notification_log = LocalNotificationLog(big_array, section_size)
+        notification_log = NotificationLog(big_array, section_size)
         with self.assertRaises(ValueError):
             _ = notification_log['1,2']
 
@@ -92,20 +92,38 @@ class TestNotificationLog(ArchivedLogTestCase):
         # Build notification log.
         big_array = self.create_big_array()
         section_size = 5
-        notification_log = LocalNotificationLog(big_array, section_size=section_size)
+        notification_log = NotificationLog(big_array, section_size=section_size)
 
+        # Append 13 notifications.
         self.append_notifications(big_array, 13)
 
-        # Use a feed reader to read the feed.
+        # Construct notification log reader.
         reader = NotificationLogReader(notification_log)
-        # self.assertEqual(len(list(reader.get_items())), 13, list(reader.get_items()))
+
+        # Read all notifications.
+        all_notifications = list(reader)
+        self.assertEqual(len(all_notifications), 13, all_notifications)
+
+        # Check position.
+        self.assertEqual(reader.position, 13)
 
         # Add some more items to the log.
         self.append_notifications(big_array, 13, 21)
 
-        # Use reader to get notifications from the notification log.
-        reader = NotificationLogReader(notification_log)
-        # self.assertEqual(len(list(reader)), 21)
+        # Read subsequent notifications.
+        subsequent_notifications_notifications = list(reader)
+        self.assertEqual(len(subsequent_notifications_notifications), 8, subsequent_notifications_notifications)
+
+        # Check position.
+        self.assertEqual(reader.position, 21)
+
+        subsequent_notifications_notifications = list(reader)
+        self.assertEqual(len(subsequent_notifications_notifications), 0, subsequent_notifications_notifications)
+
+        # Set position.
+        reader.seek(13)
+        subsequent_notifications_notifications = list(reader)
+        self.assertEqual(len(subsequent_notifications_notifications), 8, subsequent_notifications_notifications)
 
         # # Read items after a particular position.
         self.assertEqual(len(list(reader[0:])), 21)
@@ -120,14 +138,54 @@ class TestNotificationLog(ArchivedLogTestCase):
 
         # Check last item numbers less than 1 cause a value errors.
         with self.assertRaises(ValueError):
-            list(reader.get_items(last_item_num=-1))
+            reader.position = -1
+            list(reader)
 
         with self.assertRaises(ValueError):
-            list(reader.get_items(last_item_num=0))
+            list(reader.seek(-1))
 
-        # Use a feed reader to read the feed with a larger doc size.
-        reader = NotificationLogReader(notification_log)
-        self.assertEqual(len(list(reader)), 21)
+        # Check resuming from a saved position.
+        saved_position = 5
+        advance_by = 3
+        reader.seek(saved_position)
+        count = 0
+        self.assertEqual(reader.position, saved_position)
+        for _ in reader:
+            count += 1
+            if count > advance_by:
+                break
+        else:
+            self.fail("for loop didn't break")
+        self.assertEqual(reader.position, saved_position + advance_by)
+
+        # Read items between particular positions.
+        # - check stops at end of slice, and position tracks ok
+        self.assertEqual(len(list(reader[0:1])), 1)
+        self.assertEqual(reader.position, 1)
+
+        self.assertEqual(len(list(reader[1:3])), 2)
+        self.assertEqual(reader.position, 3)
+
+        self.assertEqual(len(list(reader[2:5])), 3)
+        self.assertEqual(reader.position, 5)
+
+        self.assertEqual(len(list(reader[3:7])), 4)
+        self.assertEqual(reader.position, 7)
+
+        self.assertEqual(len(list(reader[13:20])), 7)
+        self.assertEqual(reader.position, 20)
+
+        self.assertEqual(len(list(reader[18:20])), 2)
+        self.assertEqual(reader.position, 20)
+
+        self.assertEqual(len(list(reader[19:20])), 1)
+        self.assertEqual(reader.position, 20)
+
+        self.assertEqual(len(list(reader[20:20])), 0)
+        self.assertEqual(reader.position, 20)
+
+        self.assertEqual(len(list(reader[21:20])), 0)
+        self.assertEqual(reader.position, 21)
 
 
 class TestRemoteArchivedLog(ArchivedLogTestCase):
@@ -186,18 +244,16 @@ class TestRemoteArchivedLog(ArchivedLogTestCase):
             # Check we got all the items.
             self.assertEqual(len(items_from_start), num_notifications)
             self.assertEqual(items_from_start[0], 'item1')
-            expected_section_count = (num_notifications // section_size) + (1 if num_notifications % section_size
-                                                                            else 0)
+            expected_section_count = ceil(num_notifications / section_size)
             self.assertEqual(notification_log_reader.section_count, expected_section_count)
 
             # Get all the items from item 5.
-            items_from_5 = list(notification_log_reader.get_items(last_item_num=section_size))
+            items_from_5 = list(notification_log_reader[section_size - 1:])
 
             # Check we got everything after item 5.
             self.assertEqual(len(items_from_5), num_notifications - section_size + 1)
             self.assertEqual(items_from_5[0], 'item{}'.format(section_size))
-            expected_section_count = (num_notifications // section_size) + (1 if num_notifications % section_size
-                                                                            else 0)
+            expected_section_count = ceil(num_notifications / section_size)
             self.assertEqual(notification_log_reader.section_count, expected_section_count)
 
         finally:

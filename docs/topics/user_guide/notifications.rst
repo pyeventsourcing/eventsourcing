@@ -51,18 +51,27 @@ In order to update a projection of more than one aggregate, or of
 the application state as a whole, we need a single sequence
 for all the events of the application.
 
-An application in a remote context can pull items from the application
-log added after a particular position, so that an object can be updated
-asynchronously. It can also subscribe to push notifications.
+The application log needs to be a single sequence, that can be generated
+without error in a multi-threaded application. We want a log that follows
+an increasing sequence of integers. The application log must also be capable
+of storing a very large sequence of events, neither swamping an individual
+database partition nor scattering things across partitions without order so
+that iterating through the sequence is slow and expensive.
+We also want the application log effectively to have constant time read and
+write operations. The library class
+:class:`~eventsourcing.domain.model.array.BigArray` satisfies these
+requirements quite well.
 
-Writing an application log brings its own difficulties, in particular
-how to generate a single sequence in a multi-threaded application? and
-how to store a large sequence of events without either swamping one
-partition in a database or distributing things across partitions so
-much that iterating through the sequence is slow and expensive? The
-library class :class:`~eventsourcing.domain.model.array.BigArray` provides
-a solution to these concerns, by constructing a tree of sequences each
-in their own partition.
+Items can be appended to a big array using the ``append()`` method.
+The append() method identifies the next available index in the array,
+and then assigns the item to that index in the array.
+
+(The average performance of the ``append()`` method is proportional to the log of the
+index in the array, to the base of the array size used in the big array, rounded
+up to the nearest integer, plus one. For example, if the array size is 10000, then it
+will take 50% longer to assign the 100,000,000th item than the first one. This is
+because it takes :class:`~eventsourcing.domain.model.array.BigArray` "log time"
+to discover the highest assigned index.)
 
 .. code:: python
 
@@ -102,7 +111,10 @@ in their own partition.
 
     array_id = uuid4()
 
-    repo = BigArrayRepository(event_store=event_store)
+    repo = BigArrayRepository(
+        event_store=event_store,
+        array_size=10000
+    )
 
     application_log = repo[array_id]
     application_log.append('event0')
@@ -110,14 +122,22 @@ in their own partition.
     application_log.append('event2')
     application_log.append('event3')
 
-Items can be assigned directly. The append() method just
-gets the next available position in the array, and then assigns
-the item to that position in the array. Because there is a small
-time duration between checking for the next position and using it,
-another thread could jump in and use the position first. If that
-happens, a :class:`~eventsourcing.exceptions.ConcurrencyError` will
+
+Because there is a small time duration between checking for the next
+position and using it, another thread could jump in and use the position
+first. If that happens, a :class:`~eventsourcing.exceptions.ConcurrencyError` will
 be raised by the :class:`~eventsourcing.domain.model.array.BigArray`
 object. In such a case, another attempt can be made to append the item.
+
+Items can be assigned directly. If an item has already been assigned,
+a concurrency error will be raised. Items cannot be unassigned, each index
+can only be used once.
+
+The average performance of assigning an item is constant. The worst case is
+"log time", which occurs when containing arrays are added, so that the last
+highest assigned index can be discovered. The probability of departing from
+average performance is inversely proportional to the array size, since the
+the larger the array size, the less often the base arrays fill up.
 
 .. code:: python
 
@@ -134,15 +154,30 @@ object. In such a case, another attempt can be made to append the item.
         raise
 
 
-If each thread must independently discover the next available
-position in the array each time an item is assigned, as the
-number of threads increases, so will the amount of contention,
-and the number of assignments to the array will increase.
+Now, if the next available position in the array must be identified
+each time an item is assigned, the amount of contention will increase
+as the number of threads increases. Using the ``append()`` method alone
+will be perfectly ok if the time period of appending events is greater
+than the time it takes to identify the next available index. At that
+rate, contention will not lead to congestion.
 
+However there will be an upper limit to the rate at which events can be
+appended, contention will eventually lead to congestion that will cause
+requests to backup or be spilled.
+
+The bandwidth of the ``append()`` method is relatively low, when compared
+to centralizing the generation of the sequence of integers.
 Instead of discovering the next position from the array
-each time an item is assigned, a number generator can be used to
-generate a sequence of integers. If the application has only one
-process, the number generator can be a simple Python generator.
+each time an item is assigned, an integer sequence generator can be used to
+generate a contiguous sequence of integers. This technique eliminates contention
+around assigning items to the big array entirely. In consequence, the bandwidth
+of assigning to a big array using an integer sequence generator is much greater
+than using the ``append()`` method.
+
+If the application has only one process, the number generator can
+be a simple Python generator. The library class
+:class:`~eventsourcing.infrastructure.integersequencegenerators.base.SimpleIntegerSequenceGenerator`
+generates a contiguous sequence of integers that can be shared across multiple threads.
 
 .. code:: python
 
@@ -158,11 +193,12 @@ process, the number generator can be a simple Python generator.
     expected = list(range(5))
     assert generated == expected, (generated, expected)
 
-If the application is deployed across many nodes, a number
-generator service can be used. The library has class
+
+If the application is deployed across many nodes, an external integer sequence
+generator can be used. There are many possible solutions. The library class
 :class:`~eventsourcing.infrastructure.integersequencegenerators.redisincr.RedisIncr`
-which uses Redis' INCR command to generate a contiguous sequence of integers
-that can be shared across multiple processes.
+uses Redis' INCR command to generate a contiguous sequence of integers
+that can be shared be processes running on different nodes.
 
 .. code:: python
 
@@ -179,7 +215,7 @@ that can be shared across multiple processes.
     assert generated == expected, (generated, expected)
 
 The integer sequence generator can be used when assigning items to the
-big array.
+application log.
 
 .. code:: python
 
@@ -188,47 +224,58 @@ big array.
 
     assert application_log.get_next_position() == 7
 
+
+Items can be read from the application log, by using an
+index, and by using a slice.
+
+.. code:: python
+
     assert application_log[0] == 'event0'
     assert list(application_log[5:7]) == ['event5', 'event6']
 
 
-The application log can be used in an entity persistence policy, and
-can be assigned to before the domain event is written to the aggregate's
-own sequence, so that it isn't possible to store an event in the aggregate's
-sequence that is not already in the application log. Commands
-that fail to write to the aggregate's sequence after the event has been
-logged in the application's sequence should raise an exception, so
-that the command may be retried. Events in the
-application log that aren't in the aggregate sequence can be
-ignored.
+The application log can be written to by a persistence policy. References
+to events can be assigned to the application log before the domain event is
+written to the aggregate's own sequence, so that it isn't possible to store
+an event in the aggregate's sequence that is not already in the application
+log.
 
-If writing to aggregate sequence is successful, then it is possible
-to push a notification about the event to a message queue. Failing
+Commands that fail to write to the aggregate's sequence after the event
+has been logged in the application's sequence should raise an exception, so
+that the command is known to have failed and may be retried. Events in the
+application log that aren't in the aggregate sequence can be ignored.
+
+If writing the event to its aggregate sequence is successful, then it is
+possible to push a notification about the event to a message queue. Failing
 to push the notification perhaps should not prevent the command returning
 normally. Push notifications could also be generated by a different process,
 that pulls from the application log, and pushes notifications for events
 that have not already been sent.
 
-The notifications can be used to retrieve the domain events, and the
-domain events can be deduplicated.
 
 Asynchronous update
 -------------------
 
 Asynchronous updates can be used to update other aggregates,
-especially aggregates in another bounded context.
+especially aggregates in a remote context.
 
 The fundamental concern is to accomplish high fidelity when
 propagating a stream of events, so that events are neither
 missed nor are they duplicated. As Vaughn Vernon suggests
 in his book Implementing Domain Driven Design:
 
-    “at least two mechanisms in a messaging solution must always be consistent with each other: the persistence store used by the domain model, and the persistence store backing the messaging infrastructure used to forward the Events published by the model. This is required to ensure that when the model’s changes are persisted, Event delivery is also guaranteed, and that if an Event is delivered through messaging, it indicates a true situation reflected by the model that published it. If either of these is out of lockstep with the other, it will lead to incorrect states in one or more interdependent models.”
+    “at least two mechanisms in a messaging solution must always be consistent with each other: the persistence
+    store used by the domain model, and the persistence store backing the messaging infrastructure used to forward
+    the Events published by the model. This is required to ensure that when the model’s changes are persisted, Event
+    delivery is also guaranteed, and that if an Event is delivered through messaging, it indicates a true situation
+    reflected by the model that published it. If either of these is out of lockstep with the other, it will lead to
+    incorrect states in one or more interdependent models.”
 
-He gives three options. The first option is to have the
+
+There are three options. The first option is to have the
 messaging infrastructure and the domain model share the same
 persistence store, so changes to the model and insertion of
-new messages happen commit in the same local transaction.
+new messages commit in the same local transaction.
 The second option is to have separate datastores for domain
 model and messaging but have a two phase commit, or global
 transaction, across the two.
@@ -243,7 +290,7 @@ A pull mechanism that allows others to pull events that they
 don't yet have can be used to allow remote components to catch
 up. The same mechanism can be used if the remote component is developed
 after the application has been deployed and so requires initialising
-from an established application stream, or otherwise need to be
+from an established application stream, or otherwise needs to be
 reconstructed from scratch.
 
 Updates can be triggered by pushing the notifications to
@@ -252,86 +299,94 @@ If anything goes wrong with messaging infrastructure, such that a
 notification is not received, remote components can fall back onto
 pulling notifications they have missed.
 
-This implies a log that spans all the aggregates in the originating
-context, and in the receiving context something to track the position
-of the last notification that was applied. We want a log that
-follows an incrementing integer sequence. We want a log that has
-constant time read and write operations. We want the log effectively
-to have infinite capacity, so it isn't at risk of becoming full, and
-so we want to distribute the log across multiple partitions. The library
-class :class:`~eventsourcing.domain.model.array.BigArray` has been
-designed for this purpose, and can be used to log references to all
-the events in a bounded context.
-
-Messages can be sent when an event is successfully stored. Or an
-out-of-band process can pull from the notification log and push
-notifications, as if the messaging infrastructure were its projected view.
-
 
 Notification log
 ----------------
 
-As described in Implementing Domain Driven Design, the application log
-can be presented as a notification log, in linked sections. There is a
-current section that contains the latest notification and some of the
-preceding notifications, and archived sections that contain all the
-earlier notifications. When the current section is full, it is considered
-to be an archived section that links to the new current section.
+As described in Implementing Domain Driven Design, a notification log
+is presented in linked sections. The "current section" is returned by
+default, and contains the very latest notification and some of the
+preceding notifications. There are also archived sections that
+contain all the earlier notifications. When the current section is
+full, it is considered to be an archived section that links to the new
+current section.
 
 Readers can navigate the linked sections from the current section backwards
 until the archived section is reached that contains the last notification
-seen by the client. If the client has not yet seen any notification, it will
-navigate to the first section. Readers can then navigate forwards, yielding
+seen by the client. If the client has not yet seen any notifications, it will
+navigate back to the first section. Readers can then navigate forwards, revealing
 all existing notifications that have not yet been seen.
 
-The library class :class:`~eventsourcing.interface.notificationlog.LocalNotificationLog`
+The library class :class:`~eventsourcing.interface.notificationlog.NotificationLog`
 encapsulates the application log and presents linked sections. The library class
 :class:`~eventsourcing.interface.notificationlog.NotificationLogReader` is an iterator
-that yields notifications. It navigates the sections of the notification logand, optionally
-with a slice from the position of the last seen notification.
+that yields notifications. It navigates the sections of the notification log, and
+maintains position so that it can continue when there are further notifications.
+The position can be set directly with the ``seek()`` method. The position is set
+indirectly when a slice is taken with a start index. The position is set to zero
+when the reader is constructed.
 
 .. code:: python
 
-    from eventsourcing.interface.notificationlog import LocalNotificationLog, NotificationLogReader
+    from eventsourcing.interface.notificationlog import NotificationLog, NotificationLogReader
 
-    notification_log = LocalNotificationLog(
-        big_array=application_log,
-        section_size=10,
-    )
+    # Construct notification log.
+    notification_log = NotificationLog(application_log, section_size=10)
 
+    # Construct log reader.
     reader = NotificationLogReader(notification_log)
 
-    all_notifications = list(reader)
+    # The position is zero by default.
+    assert reader.position == 0
 
+    # The position can be set directly.
+    reader.seek(10)
+    assert reader.position == 10
+
+    # Reset the position.
+    reader.seek(0)
+
+    # Read all existing notifications.
+    all_notifications = list(reader)
     assert all_notifications == ['event0', 'event1', 'event2', 'event3', 'event4', 'event5', 'event6']
 
-    position = len(all_notifications)
+    # Check the position has advanced.
+    assert reader.position == 7
 
-    subsequent_notifications = list(reader[position:])
+    # Read all subsequent notifications (should be none).
+    subsequent_notifications = list(reader)
     assert subsequent_notifications == []
 
+    # Assign more events to the application log.
     application_log[next(integers)] = 'event7'
     application_log[next(integers)] = 'event8'
 
-    subsequent_notifications = list(reader[position:])
-    position += len(subsequent_notifications)
+    # Read all subsequent notifications (should be two).
+    subsequent_notifications = list(reader)
     assert subsequent_notifications == ['event7', 'event8']
 
-    assert position == 9
+    # Check the position has advanced.
+    assert reader.position == 9
 
-    subsequent_notifications = list(reader[position:])
+    # Read all subsequent notifications (should be none).
+    subsequent_notifications = list(reader)
     assert subsequent_notifications == []
-    position += len(subsequent_notifications)
 
+    # Assign more events to the application log.
     application_log[next(integers)] = 'event9'
     application_log[next(integers)] = 'event10'
     application_log[next(integers)] = 'event11'
 
-    subsequent_notifications = list(reader[position:])
+    # Read all subsequent notifications (should be two).
+    subsequent_notifications = list(reader)
     assert subsequent_notifications == ['event9', 'event10', 'event11']
-    position += len(subsequent_notifications)
 
-    assert position == 12
+    # Check the position has advanced.
+    assert reader.position == 12
+
+    # Read all subsequent notifications (should be none).
+    subsequent_notifications = list(reader)
+    assert subsequent_notifications == []
 
 
 The RESTful API design in Implementing Domain Driven Design
@@ -348,8 +403,21 @@ an HTTP response with the JSON content that results from calling
 
 Todo: Pulling from remote notification log.
 
-Todo: Publishing and subscribing to notification log.
+Todo: Publishing and subscribing to remote notification log.
 
-Todo: Following notification log and deduplicating the domain events.
+Todo: Deduplicating domain events in receiving context.
 
-Todo: Sending deduplicated domain events to messaging infrastructure.
+
+Events may appear twice in the notification log if there is
+contention over the command that generates the logged event,
+or if the event cannot be appended to the aggregate stream
+for whatever reason and then the command is retried successfully.
+So events need to be deduplicated. One approach is to have a
+UUID5 namespace for received events, and use concurrency control
+to make sure each event is acted on only once. It may help to
+to construct a sequenced command log, also using a big array, so
+that the command sequence can be constructed in a distributed manner.
+The command sequence can then be executed in a controlled manner.
+
+
+
