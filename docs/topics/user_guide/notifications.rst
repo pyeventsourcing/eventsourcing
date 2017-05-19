@@ -461,20 +461,24 @@ to construct a sequenced command log, also using a big array, so
 that the command sequence can be constructed in a distributed manner.
 The command sequence can then be executed in a controlled manner.
 
-Todo: Race conditions around assigning events using central
-integer sequence generator. Perhaps wait until previous has been
-assigned? If an item is None, perhaps the notification log should
-stall for a moment to allow time for the race condition to expire.
-Perhaps it should only do it when the item has been assigned recently
-(timestamp of the ItemAdded event could be checked) or when there have
-been lots of event since (the highest assigned index could be checked).
-A permanent None value should be something that occurs very rarely,
-when an issued integer is not followed by a successful assignment
-to the big array. A permanent "None" will exist in the sequence if
-an integer is lost perhaps due to a database operation error that
-somehow still failed after many retries, or because the client process
-crashed before the database operation could be executed but after the
-integer had been issued, so the integer became lost. This needs code.
+Todo: Race conditions around reading events being assigned using
+central integer sequence generator, could potentially read when a
+later item has been assigned but a previous one has not yet been
+assigned. So perhaps something can wait until previous has been
+assigned, or until it can safely be assumed the integer was lost.
+If an item is None, perhaps the notification log could stall for
+a moment before yielding the item, to allow time for the race condition
+to pass. Perhaps it should only do it when the item has been assigned
+recently (timestamp of the ItemAdded event could be checked) or when
+there have been lots of event since (the highest assigned index could
+be checked). A permanent None value should be something that occurs
+very rarely, when an issued integer is not followed by a successful
+assignment to the big array. A permanent "None" will exist in the
+sequence if an integer is lost perhaps due to a database operation
+error that somehow still failed after many retries, or because the
+client process crashed before the database operation could be executed
+but after the integer had been issued, so the integer became lost.
+This needs code.
 
 Todo: Automatic initialisation of the integer sequence generator RedisIncr
 from getting highest assigned index. Or perhaps automatic update with
