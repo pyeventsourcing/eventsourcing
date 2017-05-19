@@ -7,7 +7,7 @@ from eventsourcing.domain.model.collection import Collection, register_new_colle
 from eventsourcing.domain.model.entity import EntityIsDiscarded
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepository
+from eventsourcing.infrastructure.repositories.collection_repo import CollectionRepository
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies

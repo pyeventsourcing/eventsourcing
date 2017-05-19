@@ -154,6 +154,7 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
 
             for item in items:
                 yield item
+                # Todo: Increment an item counter, to track position.
             self.section_count += 1
 
             if section.next_id:
@@ -175,6 +176,12 @@ def deserialize_section(section_json):
 def serialize_section(section):
     assert isinstance(section, Section)
     return json.dumps(section.__dict__, indent=4)
+
+
+def present_section(big_array, section_id, section_size):
+    notification_log = LocalNotificationLog(big_array, section_size=section_size)
+    section = notification_log[section_id]
+    return serialize_section(section)
 
 
 class RemoteNotificationLog(AbstractNotificationLog):

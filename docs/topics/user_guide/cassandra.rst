@@ -16,8 +16,8 @@ Set up the connection and the database tables, using the library classes for Cas
 
 If you are using default settings, make sure you have a Cassandra server available at
 port 9042. Please investigate the library class
-:class:`~eventsourcing.cassandra.datastore.CassandraSettings` for information about
-configuring away from default settings.
+:class:`~eventsourcing.infrastructure.cassandra.datastore.CassandraSettings` for
+information about configuring away from default settings.
 
 .. code:: python
 

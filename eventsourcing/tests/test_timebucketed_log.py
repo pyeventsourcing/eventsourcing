@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from eventsourcing.domain.model.timebucketedlog import Timebucketedlog, bucket_duration, bucket_starts, \
     make_timebucket_id, start_new_timebucketedlog
-from eventsourcing.infrastructure.event_sourced_repos.timebucketedlog_repo import TimebucketedlogRepo
+from eventsourcing.infrastructure.repositories.timebucketedlog_repo import TimebucketedlogRepo
 from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
