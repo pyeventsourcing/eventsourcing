@@ -37,9 +37,10 @@ is not retried.
 Without further refinements, such as with "round
 robin" polling of the known aggregates, the view will
 only be updated next time the aggregate changes.
-So if the first event of an aggregate is not applied to a
-projection, there is no way for it to know that aggregate
-exists, and so cannot possibly check for updates to that aggregate.
+Event if a "round robin" approach was taken, if the first
+event of an aggregate is not applied to a projection, there
+is no way for it to know that aggregate exists, and so cannot
+possibly check for updates to that aggregate.
 
 This last concern brings us to needing a single application log
 that sequences all events of the application.
