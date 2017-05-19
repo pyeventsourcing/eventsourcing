@@ -1,4 +1,4 @@
-from eventsourcing.domain.model.array import AbstractArrayRepository, AbstractBigArrayRepository, Array, BigArray
+from eventsourcing.domain.model.array import AbstractArrayRepository, AbstractBigArrayRepository
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
 
