@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from eventsourcing.domain.model.array import AbstractArrayRepository, Array, BigArray
 from eventsourcing.exceptions import ArrayIndexError, ConcurrencyError
-from eventsourcing.infrastructure.event_sourced_repos.array import ArrayRepository, BigArrayRepository
+from eventsourcing.infrastructure.repositories.array import ArrayRepository, BigArrayRepository
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \

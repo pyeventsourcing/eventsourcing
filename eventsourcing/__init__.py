@@ -1,4 +1,17 @@
 """
+===============
+Interface layer
+===============
+
+:mod:`eventsourcing.interface.notificationlog`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.interface.notificationlog
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
 =================
 Application layer
 =================
@@ -25,37 +38,19 @@ Application layer
 Domain layer
 ============
 
-:mod:`eventsourcing.domain.model.events`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: eventsourcing.domain.model.events
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
-
-:mod:`eventsourcing.domain.model.entity`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: eventsourcing.domain.model.entity
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
-
-:mod:`eventsourcing.domain.model.snapshot`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: eventsourcing.domain.model.snapshot
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
-
 :mod:`eventsourcing.domain.model.aggregate`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: eventsourcing.domain.model.aggregate
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.domain.model.array`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.domain.model.array
     :members:
     :show-inheritance:
     :undoc-members:
@@ -70,10 +65,28 @@ Domain layer
     :undoc-members:
 
 
-:mod:`eventsourcing.domain.services.cipher`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:mod:`eventsourcing.domain.model.entity`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: eventsourcing.domain.services.cipher
+.. automodule:: eventsourcing.domain.model.entity
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.domain.model.events`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.domain.model.events
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.domain.model.snapshot`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.domain.model.snapshot
     :members:
     :show-inheritance:
     :undoc-members:
@@ -86,6 +99,16 @@ Domain layer
     :members:
     :show-inheritance:
     :undoc-members:
+
+
+:mod:`eventsourcing.domain.services.cipher`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.domain.services.cipher
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
 
 
 ====================
@@ -216,6 +239,35 @@ Infrastructure layer
     :members:
     :show-inheritance:
     :undoc-members:
+
+
+:mod:`eventsourcing.infrastructure.repositories.array`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.repositories.array
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.infrastructure.integersequencegenerators.base`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.integersequencegenerators.base
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+:mod:`eventsourcing.infrastructure.integersequencegenerators.redisincr`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: eventsourcing.infrastructure.integersequencegenerators.redisincr
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
 
 
 =================

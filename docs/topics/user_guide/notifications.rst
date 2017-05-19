@@ -72,7 +72,7 @@ in their own partition.
     from eventsourcing.infrastructure.sqlalchemy.activerecords import StoredEventRecord
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
     from eventsourcing.infrastructure.eventstore import EventStore
-    from eventsourcing.infrastructure.event_sourced_repos.array import BigArrayRepository
+    from eventsourcing.infrastructure.repositories.array import BigArrayRepository
     from eventsourcing.application.policies import PersistencePolicy
     from eventsourcing.infrastructure.sequenceditem import StoredEvent
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
@@ -115,8 +115,9 @@ gets the next available position in the array, and then assigns
 the item to that position in the array. Because there is a small
 time duration between checking for the next position and using it,
 another thread could jump in and use the position first. If that
-happens, a ``ConcurrencyError`` will be raised by the BigArray class.
-In such a case, another attempt can be made to append the item.
+happens, a :class:`~eventsourcing.exceptions.ConcurrencyError` will
+be raised by the :class:`~eventsourcing.domain.model.array.BigArray`
+object. In such a case, another attempt can be made to append the item.
 
 .. code:: python
 
@@ -270,20 +271,24 @@ notifications, as if the messaging infrastructure were its projected view.
 Notification log
 ----------------
 
-The RESTful API design in Implementing Domain Driven Design
-suggests a good way to present the application log, a way that
-is simple and can scale using established HTTP technology.
+As described in Implementing Domain Driven Design, the application log
+can be presented as a notification log, in linked sections. There is a
+current section that contains the latest notification and some of the
+preceding notifications, and archived sections that contain all the
+earlier notifications. When the current section is full, it is considered
+to be an archived section that links to the new current section.
 
-Commands executed against the application result in events
-that are logged in the application's log. The notifications
-can be retrieved directly from the BigArray object, as seen above.
+Readers can navigate the linked sections from the current section backwards
+until the archived section is reached that contains the last notification
+seen by the client. If the client has not yet seen any notification, it will
+navigate to the first section. Readers can then navigate forwards, yielding
+all existing notifications that have not yet been seen.
 
-However, to allow reading the log to scale, the application log
-can be presented in linked sections, as a notification log, with a
-current section that contains the latest notification and some
-of the preceding notifications, and archived sections that
-contain all the earlier notifications.
-
+The library class :class:`~eventsourcing.interface.notificationlog.LocalNotificationLog`
+encapsulates the application log and presents linked sections. The library class
+:class:`~eventsourcing.interface.notificationlog.NotificationLogReader` is an iterator
+that yields notifications. It navigates the sections of the notification logand, optionally
+with a slice from the position of the last seen notification.
 
 .. code:: python
 
@@ -291,12 +296,12 @@ contain all the earlier notifications.
 
     notification_log = LocalNotificationLog(
         big_array=application_log,
-        section_size=2,
+        section_size=10,
     )
 
     reader = NotificationLogReader(notification_log)
 
-    all_notifications = list(reader[0:])
+    all_notifications = list(reader)
 
     assert all_notifications == ['event0', 'event1', 'event2', 'event3', 'event4', 'event5', 'event6']
 
@@ -328,6 +333,18 @@ contain all the earlier notifications.
 
     assert position == 12
 
+
+The RESTful API design in Implementing Domain Driven Design
+suggests a good way to present the application log, a way that
+is simple and can scale using established HTTP technology.
+
+The library class :class:`~eventsourcing.interface.notificationlog.RemoteNotificationLog`
+issues HTTP requests to a RESTful API that hopefully presents sections from the notification
+log. The library function :func:`~eventsourcing.interface.notificationlog.present_section`
+serializes sections from the notification log for use in a view. The view just needs to pick
+out from the request URL the notification log ID and the section ID, and return
+an HTTP response with the JSON content that results from calling
+:func:`~eventsourcing.interface.notificationlog.present_section`.
 
 Todo: Pulling from remote notification log.
 
