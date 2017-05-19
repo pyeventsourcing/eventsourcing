@@ -2,6 +2,15 @@
 Projections and notifications
 =============================
 
+If a projection is just another mutator function that operates on
+a sequence of events, and a persistent projection is a snapshot of
+the resulting state, then the new thing we need for projections
+of the application state is a sequence of all the events
+of the application. This section introduces the notification log,
+and assumes your projections and your persistent projections
+can be coded using techniques for coding mutator functions and
+snapshots introduced in previous sections.
+
 Synchronous update
 ------------------
 
@@ -22,10 +31,13 @@ that can be used for this purpose.
         todo = TodoProjection(id=event.originator_id, title=event.title)
         todo.save()
 
+Todo: Handle other events, not just the created event.
+
 The projection could be a normal record, or stored in a sequence
-that follows the originator version numbers, so that concurrent
-handling of events will not lead to a later state being overwritten
-by an earlier state. Older versions of the view could be deleted later.
+that follows the originator version numbers, perhaps as snapshots,
+so that concurrent handling of events will not lead to a later
+state being overwritten by an earlier state. Older versions of
+the view could be deleted later.
 
 If the view fails to update after the event has been stored,
 then the view will be inconsistent with the latest state
@@ -487,3 +499,12 @@ after a number of increments, indicating the issued values are far behind.
 If processes all reset the value whilst they are also incrementing it, then
 there will be a few concurrency errors, but it should level out quickly.
 This also needs code.
+
+Todo: Use actual domain event objects, and log references to them. Have an
+iterator that returns actual domain events, rather than the logged references.
+Could log the domain events, but their variable size makes the application log
+less stable (predictable) in its usage of database partitions. Perhaps
+deferencing to real domain events could be an option of the notification log?
+Perhaps something could encapsulate the notification log and generate domain
+events?
+
