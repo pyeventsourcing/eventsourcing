@@ -70,9 +70,7 @@ and then assigns the item to that index in the array.
 (The average performance of the ``append()`` method is proportional to the log of the
 index in the array, to the base of the array size used in the big array, rounded
 up to the nearest integer, plus one. For example, if the array size is 10000, then it
-will take 50% longer to assign the 100,000,000th item than the first one. This is
-because it takes :class:`~eventsourcing.domain.model.array.BigArray` "log time"
-to discover the highest assigned index.)
+will take only 50% longer to assign the 100,000,000th item than the 1st one.)
 
 .. code:: python
 
@@ -124,7 +122,7 @@ to discover the highest assigned index.)
     application_log.append('event3')
 
 
-Because there is a small time duration between checking for the next
+Because there is a small duration of time between checking for the next
 position and using it, another thread could jump in and use the position
 first. If that happens, a :class:`~eventsourcing.exceptions.ConcurrencyError` will
 be raised by the :class:`~eventsourcing.domain.model.array.BigArray`
@@ -155,30 +153,31 @@ the larger the array size, the less often the base arrays fill up.
         raise
 
 
-Now, if the next available position in the array must be identified
+If the next available position in the array must be identified
 each time an item is assigned, the amount of contention will increase
 as the number of threads increases. Using the ``append()`` method alone
-will be perfectly ok if the time period of appending events is greater
-than the time it takes to identify the next available index. At that
-rate, contention will not lead to congestion.
+will be perfectly alright if the time period of appending events is greater
+than the time it takes to identify the next available index and assign to
+it. At that rate, contention will not lead to congestion.
 
-However there will be an upper limit to the rate at which events can be
+However, there will be an upper limit to the rate at which events can be
 appended, contention will eventually lead to congestion that will cause
 requests to backup or be spilled.
 
-The bandwidth of the ``append()`` method is relatively low, when compared
-to centralizing the generation of the sequence of integers.
-Instead of discovering the next position from the array
-each time an item is assigned, an integer sequence generator can be used to
-generate a contiguous sequence of integers. This technique eliminates contention
-around assigning items to the big array entirely. In consequence, the bandwidth
-of assigning to a big array using an integer sequence generator is much greater
-than using the ``append()`` method.
+The rate of assigning items to the big array when can be increased greatly
+by centralizing the generation of the sequence of integers. Instead of
+discovering the next position from the array each time an item is assigned,
+an integer sequence generator can be used to generate a contiguous sequence
+of integers. This technique eliminates contention around assigning items to
+the big array entirely. In consequence, the bandwidth of assigning to a big
+array using an integer sequence generator is much greater than using the
+``append()`` method.
 
 If the application has only one process, the number generator can
 be a simple Python generator. The library class
 :class:`~eventsourcing.infrastructure.integersequencegenerators.base.SimpleIntegerSequenceGenerator`
-generates a contiguous sequence of integers that can be shared across multiple threads.
+generates a contiguous sequence of integers that can be shared across multiple
+threads in the same process.
 
 .. code:: python
 
@@ -215,7 +214,8 @@ that can be shared be processes running on different nodes.
     expected = list(range(5))
     assert generated == expected, (generated, expected)
 
-The integer sequence generator can be used when assigning items to the
+
+An integer sequence generator can be used when assigning items to the
 application log.
 
 .. code:: python
@@ -226,8 +226,7 @@ application log.
     assert application_log.get_next_position() == 7
 
 
-Items can be read from the application log, by using an
-index, and by using a slice.
+Items can be read from the application log using an index or a slice.
 
 .. code:: python
 
@@ -419,6 +418,3 @@ to make sure each event is acted on only once. It may help to
 to construct a sequenced command log, also using a big array, so
 that the command sequence can be constructed in a distributed manner.
 The command sequence can then be executed in a controlled manner.
-
-
-
