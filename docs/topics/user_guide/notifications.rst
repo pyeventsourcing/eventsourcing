@@ -349,6 +349,13 @@ when the reader is constructed.
     # Construct notification log.
     notification_log = NotificationLog(application_log, section_size=10)
 
+    # Get the "current "section from the notification log (numbering follows Vaughn Vernon's book)
+    section = notification_log['current']
+    assert section.section_id == '1,10'
+    assert len(section.items) == 7, section.items
+    assert section.previous_id == None
+    assert section.next_id == None
+
     # Construct log reader.
     reader = NotificationLogReader(notification_log)
 
@@ -404,18 +411,37 @@ when the reader is constructed.
     subsequent_notifications = list(reader)
     assert subsequent_notifications == []
 
+    # Get the "current "section from the notification log (numbering follows Vaughn Vernon's book)
+    section = notification_log['current']
+    assert section.section_id == '11,20'
+    assert section.previous_id == '1,10'
+    assert section.next_id == None
+    assert len(section.items) == 2, len(section.items)
+
+    # Get the first section from the notification log (numbering follows Vaughn Vernon's book)
+    section = notification_log['1,10']
+    assert section.section_id == '1,10'
+    assert section.previous_id == None
+    assert section.next_id == '11,20'
+    assert len(section.items) == 10, section.items
+
 
 The RESTful API design in Implementing Domain Driven Design
-suggests a good way to present the application log, a way that
+suggests a good way to present the notification log, a way that
 is simple and can scale using established HTTP technology.
 
+The library function :func:`~eventsourcing.interface.notificationlog.present_section`
+serializes sections from the notification log for use in a view.
+
+A Web application view can pick out from the request path the notification
+log ID and the section ID, and return an HTTP response with the JSON content
+that results from calling :func:`~eventsourcing.interface.notificationlog.present_section`.
+
 The library class :class:`~eventsourcing.interface.notificationlog.RemoteNotificationLog`
-issues HTTP requests to a RESTful API that hopefully presents sections from the notification
-log. The library function :func:`~eventsourcing.interface.notificationlog.present_section`
-serializes sections from the notification log for use in a view. The view just needs to pick
-out from the request URL the notification log ID and the section ID, and return
-an HTTP response with the JSON content that results from calling
-:func:`~eventsourcing.interface.notificationlog.present_section`.
+issues HTTP requests to a RESTful API that presents sections from the notification log.
+It has the same interface as :class:`~eventsourcing.interface.notificationlog.NotificationLog`
+and so can be used by :class:`~eventsourcing.interface.notificationlog.NotificationLogReader`
+progressively to obtain unseen notifications.
 
 Todo: Pulling from remote notification log.
 
@@ -434,3 +460,14 @@ to make sure each event is acted on only once. It may help to
 to construct a sequenced command log, also using a big array, so
 that the command sequence can be constructed in a distributed manner.
 The command sequence can then be executed in a controlled manner.
+
+Todo: Race conditions around assigning events using central
+integer sequence generator. Perhaps wait until previous has been
+assigned? If an item is None, perhaps the consumer should stall for
+a moment to allow time for the race condition to expire. A permanent None
+value should be something that occurs very rarely, when an issued integer
+is not followed by a successful assignment to the big array. A permanent
+None will exist in the sequence if an integer is lost perhaps due to a
+database operation error that somehow still failed after many retries, or
+because the client process crashed before the database operation could be
+executed but after the integer had been issued, so the integer became lost.
