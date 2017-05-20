@@ -27,7 +27,7 @@ class ItemAssigned(TimestampedVersionedEntity.Event):
 
 
 class Array(object):
-    def __init__(self, array_id, repo, meta=None):
+    def __init__(self, array_id, repo):
         assert isinstance(repo, AbstractArrayRepository)
         self.id = array_id
         self.repo = repo
