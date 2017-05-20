@@ -188,7 +188,7 @@ def deserialize_section(section_json):
 
 def serialize_section(section):
     assert isinstance(section, Section)
-    return json.dumps(section.__dict__, indent=4)
+    return json.dumps(section.__dict__, indent=4, sort_keys=True)
 
 
 def present_section(big_array, section_id, section_size):
