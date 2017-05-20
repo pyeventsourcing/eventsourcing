@@ -483,14 +483,13 @@ serializes sections from the notification log for use in a view.
 
 .. code:: python
 
+    import json
+
     from eventsourcing.interface.notificationlog import present_section
 
     content = present_section(application_log, '1,10', 10)
 
-    # Python 2.7 dumps JSON with space char at end of
-    # lines, so need to generate the expected result.
-    import json
-    expected = json.dumps({
+    expected = {
         "items": [
             "event0",
             "event1",
@@ -506,9 +505,9 @@ serializes sections from the notification log for use in a view.
         "next_id": "11,20",
         "previous_id": None,
         "section_id": "1,10"
-    }, indent=4, sort_keys=True)
+    }
 
-    assert content == expected
+    assert json.loads(content) == expected
 
 A Web application view can pick out from the request path the notification
 log ID and the section ID, and return an HTTP response with the JSON content
