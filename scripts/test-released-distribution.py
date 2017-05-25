@@ -7,10 +7,6 @@ if 'PYTHONPATH' in os.environ:
     del os.environ['PYTHONPATH']
 
 
-def get_version():
-    return [line.split('=')[1].strip().strip(",").strip("'") for line in open('../setup.py').readlines() if 'version' in line][0]
-
-
 def test_released_distribution(cwd):
     # Declare temporary working directory variable.
     tmpcwd27 = os.path.join(cwd, 'tmpve2.7')
@@ -22,7 +18,7 @@ def test_released_distribution(cwd):
         rebuild_virtualenv(cwd, tmpcwd, python_executable)
 
         # Install from PyPI.
-        subprocess.check_call(['bin/pip', 'install', '--no-cache-dir', '-U', 'eventsourcing[test]'], cwd=tmpcwd)
+        subprocess.check_call(['bin/pip', 'install', '--no-cache-dir', '-U', 'eventsourcing[testing]'], cwd=tmpcwd)
 
         # Check installed tests all pass.
         test_installation(tmpcwd)

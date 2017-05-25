@@ -25,6 +25,16 @@ cassandra_requires = [
 
 crypto_requires = ['PyCrypto<=2.6.99999']
 
+testing_requires = [
+    'mock<=2.0.99999',
+    'requests<=2.13.99999',
+    'flask<=0.12.99999',
+    'flask_sqlalchemy<=2.2.99',
+    'uwsgi<=2.0.99999',
+    'redis<=2.10.99999',
+    'celery<=4.0.99999',
+]
+
 long_description = """
 This package provides generic support for event sourcing in Python.
 
@@ -35,8 +45,8 @@ An extensive
 packages = find_packages(
     exclude=[
         "docs",
-        "eventsourcing.contrib*",
-        "eventsourcing.tests*"
+        # "eventsourcing.contrib*",
+        # "eventsourcing.tests*"
     ]
 )
 
@@ -53,6 +63,7 @@ setup(
         'cassandra': cassandra_requires,
         'crypto': crypto_requires,
         'sqlalchemy': sqlalchemy_requires,
+        'testing': cassandra_requires + crypto_requires + sqlalchemy_requires + testing_requires,
     },
     zip_safe=False,
     long_description=long_description,

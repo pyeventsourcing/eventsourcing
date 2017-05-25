@@ -8,9 +8,8 @@ try:
 except KeyError:
     pass
 
-
-def get_version():
-    return [line.split('=')[1].strip().strip(",").strip("'") for line in open('../setup.py').readlines() if 'version=' in line][0]
+sys.path.insert(0, '../')
+from eventsourcing import __version__
 
 
 def build_and_test(cwd):
@@ -19,7 +18,7 @@ def build_and_test(cwd):
     tmpcwd34 = os.path.join(cwd, 'tmpve3.4')
 
     # Build distribution.
-    subprocess.check_call([sys.executable, 'setup.py', 'clean', '-all'], cwd=cwd)
+    subprocess.check_call([sys.executable, 'setup.py', 'clean', '--all'], cwd=cwd)
     subprocess.check_call([sys.executable, 'setup.py', 'sdist'], cwd=cwd)
     is_uploaded_testpypi = False
 
@@ -30,8 +29,8 @@ def build_and_test(cwd):
 
         # Install from dist folder.
         subprocess.check_call(['bin/pip', 'install', '-U', 'pip'], cwd=tmpcwd)
-        subprocess.check_call(['bin/pip', 'install', '-U', '../dist/eventsourcing-%s.tar.gz[test]' % get_version()],
-                              cwd=tmpcwd)
+        tar_path = '../dist/eventsourcing-{}.tar.gz[testing]'.format(__version__)
+        subprocess.check_call(['bin/pip', 'install', '-U', tar_path], cwd=tmpcwd)
 
         # Check installed tests all pass.
         test_installation(tmpcwd)
@@ -45,7 +44,7 @@ def build_and_test(cwd):
         rebuild_virtualenv(cwd, tmpcwd, python_executable)
 
         # Install from Test PyPI.
-        subprocess.check_call(['bin/pip', 'install', '-U', 'eventsourcing[test]=='+get_version(),
+        subprocess.check_call(['bin/pip', 'install', '-U', 'eventsourcing[testing]==' + __version__,
                                '--index-url', 'https://testpypi.python.org/simple',
                                '--extra-index-url', 'https://pypi.python.org/simple'
                                ],
@@ -65,7 +64,6 @@ def test_installation(tmpcwd):
 def rebuild_virtualenv(cwd, venv_path, python_executable):
     remove_virtualenv(cwd, venv_path)
     subprocess.check_call(['virtualenv', '-p', python_executable, venv_path], cwd=cwd)
-
 
 
 def remove_virtualenv(cwd, venv_path):
