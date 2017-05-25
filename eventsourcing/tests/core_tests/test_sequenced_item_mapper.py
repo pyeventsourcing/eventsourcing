@@ -4,17 +4,17 @@ from time import sleep, time
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain.model.events import DomainEvent, TimestampedEntityEvent, VersionedEntityEvent, \
-    topic_from_domain_class
+from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
+from eventsourcing.domain.model.events import DomainEvent, topic_from_domain_class
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 
-class Event1(VersionedEntityEvent):
+class Event1(VersionedEntity.Event):
     pass
 
 
-class Event2(TimestampedEntityEvent):
+class Event2(TimestampedEntity.Event):
     pass
 
 
@@ -35,11 +35,11 @@ class TestSequencedItemMapper(TestCase):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(
             sequenced_item_class=SequencedItem,
-            event_sequence_id_attr='entity_id',
-            event_position_attr='entity_version'
+            sequence_id_attr_name='originator_id',
+            position_attr_name='originator_version'
         )
         entity_id1 = uuid4()
-        event1 = Event1(entity_id=entity_id1, entity_version=101)
+        event1 = Event1(originator_id=entity_id1, originator_version=101)
 
         # Check to_sequenced_item() method results in a sequenced item.
         sequenced_item = mapper.to_sequenced_item(event1)
@@ -60,19 +60,19 @@ class TestSequencedItemMapper(TestCase):
         # Check from_sequenced_item() returns an event.
         domain_event = mapper.from_sequenced_item(sequenced_item_copy)
         self.assertIsInstance(domain_event, Event1)
-        self.assertEqual(domain_event.entity_id, event1.entity_id)
-        self.assertEqual(domain_event.entity_version, event1.entity_version)
+        self.assertEqual(domain_event.originator_id, event1.originator_id)
+        self.assertEqual(domain_event.originator_version, event1.originator_version)
 
     def test_with_timestamped_entity_event(self):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(
             sequenced_item_class=SequencedItem,
-            event_sequence_id_attr='entity_id',
-            event_position_attr='timestamp'
+            sequence_id_attr_name='originator_id',
+            position_attr_name='timestamp'
         )
         before = time()
         sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
-        event2 = Event2(entity_id='entity2')
+        event2 = Event2(originator_id='entity2')
         sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
         after = time()
 
@@ -96,21 +96,21 @@ class TestSequencedItemMapper(TestCase):
         # Check from_sequenced_item() returns an event.
         domain_event = mapper.from_sequenced_item(sequenced_item_copy)
         self.assertIsInstance(domain_event, Event2)
-        self.assertEqual(domain_event.entity_id, event2.entity_id)
+        self.assertEqual(domain_event.originator_id, event2.originator_id)
         self.assertEqual(domain_event.timestamp, event2.timestamp)
 
     def test_with_different_types_of_event_attributes(self):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(
             sequenced_item_class=SequencedItem,
-            event_sequence_id_attr='entity_id',
-            event_position_attr='a'
+            sequence_id_attr_name='originator_id',
+            position_attr_name='a'
         )
 
         # Create an event with dates and datetimes.
         event3 = Event3(
-            entity_id='entity3',
-            entity_version=303,
+            originator_id='entity3',
+            originator_version=303,
             a=datetime.datetime(2017, 3, 22, 9, 12, 14),
             b=datetime.date(2017, 3, 22),
             c=uuid4(),
@@ -132,7 +132,7 @@ class TestSequencedItemMapper(TestCase):
         # Check from_sequenced_item() returns an event.
         domain_event = mapper.from_sequenced_item(sequenced_item_copy)
         self.assertIsInstance(domain_event, Event3)
-        self.assertEqual(domain_event.entity_id, event3.entity_id)
+        self.assertEqual(domain_event.originator_id, event3.originator_id)
         self.assertEqual(domain_event.a, event3.a)
         self.assertEqual(domain_event.b, event3.b)
         self.assertEqual(domain_event.c, event3.c)
@@ -143,14 +143,14 @@ class TestSequencedItemMapper(TestCase):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(
             sequenced_item_class=SequencedItem,
-            event_sequence_id_attr='entity_id',
-            event_position_attr='a'
+            sequence_id_attr_name='originator_id',
+            position_attr_name='a'
         )
 
         # Create an event with dates and datetimes.
         event3 = Event3(
-            entity_id='entity3',
-            entity_version=303,
+            originator_id='entity3',
+            originator_version=303,
             a=Decimal(1.0),
         )
 

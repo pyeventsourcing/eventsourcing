@@ -8,11 +8,9 @@ class DatastoreSettings(object):
 
 
 class Datastore(six.with_metaclass(ABCMeta)):
-    def __init__(self, settings, tables):
+    def __init__(self, settings):
         # assert isinstance(settings, DatastoreSettings), settings
-        assert isinstance(tables, tuple), tables
         self.settings = settings
-        self.tables = tables
 
     @abstractmethod
     def setup_connection(self):
@@ -29,6 +27,10 @@ class Datastore(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def drop_tables(self):
         """Drops tables used to store events."""
+
+    @abstractmethod
+    def truncate_tables(self):
+        """Truncates tables used to store events."""
 
 
 class DatastoreError(Exception):

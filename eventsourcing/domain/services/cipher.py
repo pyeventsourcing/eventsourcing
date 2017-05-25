@@ -4,7 +4,6 @@ import six
 
 
 class AbstractCipher(six.with_metaclass(ABCMeta)):
-
     @abstractmethod
     def encrypt(self, plaintext):
         """Return ciphertext for given plaintext."""

@@ -12,7 +12,6 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 
 
 class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
-
     def setUp(self):
         super(TestEventSourcedRepository, self).setUp()
         if self.datastore is not None:
@@ -32,8 +31,8 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                event_sequence_id_attr='entity_id',
-                event_position_attr='entity_version',
+                sequence_id_attr_name='originator_id',
+                position_attr_name='originator_version',
             )
         )
         return event_store
@@ -44,13 +43,10 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
 
         # Put an event in the event store.
         entity_id = uuid4()
-        event_store.append(Example.Created(entity_id=entity_id, a=1, b=2))
+        event_store.append(Example.Created(originator_id=entity_id, a=1, b=2))
 
-        # Check ValueError is raised if repo doesn't have a mutator function...
-        with self.assertRaises(ValueError):
-            EventSourcedRepository(event_store=event_store, mutator=None)
-        # ...and isn't if we pass a mutator function as a constructor arg.
-        event_sourced_repo = EventSourcedRepository(event_store=event_store, mutator=Example.mutate)
+        # Construct a repository.
+        event_sourced_repo = EventSourcedRepository(event_store=event_store, mutator=Example._mutate)
 
         # Check the entity attributes.
         example = event_sourced_repo[entity_id]

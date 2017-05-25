@@ -11,6 +11,7 @@ from six import with_metaclass
 from eventsourcing.exceptions import TopicResolutionError
 
 
+
 class QualnameABCMeta(ABCMeta):
     """Supplies __qualname__ to object classes with this metaclass.
     """
@@ -40,7 +41,13 @@ def create_timesequenced_event_id():
     return uuid1().hex
 
 
-class DomainEvent(with_metaclass(QualnameABCMeta)):
+class QualnameABC(with_metaclass(QualnameABCMeta)):
+    """
+    Base class that introduces __qualname__ for objects in Python 2.7.
+    """
+
+
+class DomainEvent(QualnameABC):
     """
     Base class for domain events.
 
@@ -59,21 +66,19 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
         """
         Inhibits event attributes from being updated by assignment.
         """
-        raise AttributeError("OldDomainEvent attributes are read-only")
+        raise AttributeError("DomainEvent attributes are read-only")
 
-    def __eq__(self, rhs):
+    def __eq__(self, other):
         """
         Tests for equality of type and attribute values.
         """
-        if type(self) is not type(rhs):
-            return NotImplemented
-        return self.__dict__ == rhs.__dict__
+        return type(self) == type(other) and self.__dict__ == other.__dict__
 
-    def __ne__(self, rhs):
+    def __ne__(self, other):
         """
         Negates the equality test.
         """
-        return not (self == rhs)
+        return not (self == other)
 
     def __hash__(self):
         """
@@ -89,23 +94,19 @@ class DomainEvent(with_metaclass(QualnameABCMeta)):
             "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
 
 
-class EventWithEntityID(DomainEvent):
-    """
-    For events that have an entity ID attribute.
-    """
-
-    def __init__(self, entity_id, **kwargs):
-        super(EventWithEntityID, self).__init__(**kwargs)
-        self.__dict__['entity_id'] = entity_id
+class EventWithOriginatorID(DomainEvent):
+    def __init__(self, originator_id, **kwargs):
+        super(EventWithOriginatorID, self).__init__(**kwargs)
+        self.__dict__['originator_id'] = originator_id
 
     @property
-    def entity_id(self):
-        return self.__dict__['entity_id']
+    def originator_id(self):
+        return self.__dict__['originator_id']
 
 
 class EventWithTimestamp(DomainEvent):
     """
-    For events that have an timestamp attribute.
+    For events that have a timestamp value.
     """
 
     def __init__(self, timestamp=None, **kwargs):
@@ -117,26 +118,27 @@ class EventWithTimestamp(DomainEvent):
         return self.__dict__['timestamp']
 
 
-class EventWithEntityVersion(DomainEvent):
+class EventWithOriginatorVersion(DomainEvent):
     """
-    For events that have an entity version number.
+    For events that have an originator version number.
     """
 
-    def __init__(self, entity_version, **kwargs):
-        if not isinstance(entity_version, six.integer_types):
-            raise TypeError("Version must be an integer: {}".format(entity_version))
-        super(EventWithEntityVersion, self).__init__(**kwargs)
-        self.__dict__['entity_version'] = entity_version
+    def __init__(self, originator_version, **kwargs):
+        if not isinstance(originator_version, six.integer_types):
+            raise TypeError("Version must be an integer: {}".format(originator_version))
+        super(EventWithOriginatorVersion, self).__init__(**kwargs)
+        self.__dict__['originator_version'] = originator_version
 
     @property
-    def entity_version(self):
-        return self.__dict__['entity_version']
+    def originator_version(self):
+        return self.__dict__['originator_version']
 
 
 class EventWithTimeuuid(DomainEvent):
     """
     For events that have an UUIDv1 event ID.
     """
+
     def __init__(self, event_id=None, **kwargs):
         super(EventWithTimeuuid, self).__init__(**kwargs)
         self.__dict__['event_id'] = event_id or uuid1()
@@ -146,99 +148,47 @@ class EventWithTimeuuid(DomainEvent):
         return self.__dict__['event_id']
 
 
-class TimestampedEntityEvent(EventWithTimestamp, EventWithEntityID):
+class Created(DomainEvent):
     """
-    For events of timestamp-based entities (e.g. a log).
-    """
-
-
-class VersionedEntityEvent(EventWithEntityVersion, EventWithEntityID):
-    """
-    For events of versioned entities.
+    Can be published when an entity is created.
     """
 
 
-class TimeuuidedEntityEvent(EventWithTimeuuid, EventWithEntityID):
+class AttributeChanged(DomainEvent):
     """
-    For events of entities.
+    Can be published when an attribute of an entity is created.
+    """
+    @property
+    def name(self):
+        return self.__dict__['name']
+
+    @property
+    def value(self):
+        return self.__dict__['value']
+
+
+class Discarded(DomainEvent):
+    """
+    Published when something is discarded.
     """
 
 
-class TimestampedVersionedEntityEvent(EventWithTimestamp, VersionedEntityEvent):
+class Logged(DomainEvent):
     """
-    For events of version-based entities, that are also timestamped.
-    """
-# class OldDomainEvent(DomainEvent):
-#     """
-#     Original domain event.
-#
-#     Due to the origins of the project, this design ended
-#     up as a confusion of time-sequenced and integer-sequenced
-#     events. It was used for both time-sequenced streams, such
-#     as time-bucketed logs and snapshots, where the entity
-#     version number appeared as the code smell known as "refused
-#     bequest". It was also used for integer sequenced streams,
-#     such as versioned domain entities, where the timestamp-based
-#     implementation threatened inconsistency due to network issues.
-#     The "solution" to the timestamp-based integer sequencing was
-#     to have a second table controlling consistency of integer
-#     sequenced. But working across two tables without cross-table
-#     transaction support (e.g. in Cassandra) is a dead-end. Now,
-#     integer sequenced domain events don't essentially require
-#     to know what time they happened.
-#
-#     Therefore it must be much better to have two separate types
-#     of domain event: time-sequenced events, and integer-sequenced
-#     events. Domain entities and notification logs can have integer-
-#     sequenced events, and snapshots and time-bucketed logs can
-#     have time-sequenced events.
-#
-#     That's why this class has been deprecated :-).
-#     """
-#
-#     def __init__(self, entity_id, entity_version, domain_event_id=None, **kwargs):
-#         super(OldDomainEvent, self).__init__(**kwargs)
-#         self.__dict__['entity_id'] = entity_id
-#         self.__dict__['entity_version'] = entity_version
-#         self.__dict__['domain_event_id'] = domain_event_id or create_timesequenced_event_id()
-#
-#     @property
-#     def entity_id(self):
-#         return self.__dict__['entity_id']
-#
-#     @property
-#     def entity_version(self):
-#         return self.__dict__['entity_version']
-#
-#     @property
-#     def domain_event_id(self):
-#         return self.__dict__['domain_event_id']
-#
-#     @property
-#     def timestamp(self):
-#         return timestamp_from_uuid(self.__dict__['domain_event_id'])
-
-
-class AggregateEvent(TimestampedVersionedEntityEvent):
-    """
-    For events of DDD aggregates.
+    Published when something is logged.
     """
 
 
 _event_handlers = OrderedDict()
 
 
-def all_events(_):
-    return True
-
-
-def subscribe(handler, predicate=all_events):
+def subscribe(handler, predicate=None):
     if predicate not in _event_handlers:
         _event_handlers[predicate] = []
     _event_handlers[predicate].append(handler)
 
 
-def unsubscribe(handler, predicate=all_events):
+def unsubscribe(handler, predicate=None):
     if predicate in _event_handlers:
         handlers = _event_handlers[predicate]
         if handler in handlers:
@@ -250,7 +200,7 @@ def unsubscribe(handler, predicate=all_events):
 def publish(event):
     matching_handlers = []
     for predicate, handlers in _event_handlers.items():
-        if predicate(event):
+        if predicate is None or predicate(event):
             for handler in handlers:
                 if handler not in matching_handlers:
                     matching_handlers.append(handler)
@@ -322,3 +272,9 @@ def resolve_attr(obj, path):
     head, _, tail = path.partition('.')
     head_obj = getattr(obj, head)
     return resolve_attr(head_obj, tail)
+
+
+def reconstruct_object(obj_class, obj_state):
+    obj = object.__new__(obj_class)
+    obj.__dict__.update(obj_state)
+    return obj

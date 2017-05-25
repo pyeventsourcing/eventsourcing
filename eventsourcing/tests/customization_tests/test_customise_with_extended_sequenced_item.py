@@ -5,16 +5,16 @@ from sqlalchemy.sql.schema import Column
 from sqlalchemy.sql.sqltypes import Float, String
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.example.domainmodel import register_new_example
+from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
-    SqlIntegerSequencedItem
-from eventsourcing.infrastructure.sqlalchemy.datastore import Base, SQLAlchemyDatastore, SQLAlchemySettings
+    IntegerSequencedItemRecord
+from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord, SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
-# This tests extending the sequenced item class with some more fields. How easy is it?
+# This module explores extending the sequenced item class with some more fields. How easy is it?
 # Just needed to define the extended type, define a suitable active record
 # class, and extend the sequenced itemevent mapper to derive values for the
 # extra attributes. It's easy.
@@ -25,7 +25,7 @@ ExtendedSequencedItem = namedtuple('ExtendedSequencedItem',
 
 
 # Extend the database table definition to support the extra fields.
-class SqlExtendedIntegerSequencedItem(SqlIntegerSequencedItem):
+class ExtendedIntegerSequencedItemRecord(IntegerSequencedItemRecord):
     # Timestamp of the event.
     timestamp = Column(Float())
 
@@ -37,24 +37,24 @@ class SqlExtendedIntegerSequencedItem(SqlIntegerSequencedItem):
 class ExtendedSequencedItemMapper(SequencedItemMapper):
     def construct_item_args(self, domain_event):
         args = super(ExtendedSequencedItemMapper, self).construct_item_args(domain_event)
-        timestamp = domain_event.timestamp
         event_type = domain_event.__class__.__qualname__
-        return args + (timestamp, event_type)
+        return args + (event_type,)
 
 
 # Define an application object.
 class ExampleApplicationWithExtendedSequencedItemType(object):
-    def __init__(self, datastore):
+    def __init__(self, session):
         self.event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                datastore=datastore,
-                active_record_class=SqlExtendedIntegerSequencedItem,
+                session=session,
+                active_record_class=ExtendedIntegerSequencedItemRecord,
                 sequenced_item_class=ExtendedSequencedItem,
             ),
             sequenced_item_mapper=ExtendedSequencedItemMapper(
                 sequenced_item_class=ExtendedSequencedItem,
-                event_sequence_id_attr='entity_id',
-                event_position_attr='entity_version',
+                sequence_id_attr_name='originator_id',
+                position_attr_name='originator_version',
+                other_attr_names=('timestamp',),
             )
         )
         self.repository = ExampleRepository(
@@ -85,23 +85,23 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
 
     def construct_datastore(self):
         return SQLAlchemyDatastore(
-            base=Base,
+            base=ActiveRecord,
             settings=SQLAlchemySettings(),
-            tables=(SqlExtendedIntegerSequencedItem,),
+            tables=(ExtendedIntegerSequencedItemRecord,)
         )
 
     def test(self):
-        with ExampleApplicationWithExtendedSequencedItemType(self.datastore) as app:
+        with ExampleApplicationWithExtendedSequencedItemType(self.datastore.session) as app:
             # Create entity.
-            entity1 = register_new_example(a='a', b='b')
+            entity1 = create_new_example(a='a', b='b')
             self.assertIsInstance(entity1.id, UUID)
             self.assertEqual(entity1.a, 'a')
             self.assertEqual(entity1.b, 'b')
 
             # Check there is a stored event.
-            all_records = list(app.event_store.active_record_strategy.filter())
+            all_records = list(app.event_store.active_record_strategy.all_records())
             self.assertEqual(len(all_records), 1)
-            active_record = all_records[0]
+            active_record, _ = all_records[0]
             self.assertEqual(active_record.sequence_id, entity1.id)
             self.assertEqual(active_record.position, 0)
             self.assertEqual(active_record.event_type, 'Example.Created', active_record.event_type)

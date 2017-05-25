@@ -53,7 +53,7 @@ class TimebucketedlogReader(with_metaclass(QualnameABCMeta)):
         while True:
             bucket_id = make_timebucket_id(self.log.name, position, self.log.bucket_size)
             for message_logged_event in self.event_store.get_domain_events(
-                entity_id=bucket_id,
+                originator_id=bucket_id,
                 gt=gt,
                 gte=gte,
                 lt=lt,
@@ -67,17 +67,17 @@ class TimebucketedlogReader(with_metaclass(QualnameABCMeta)):
                 if limit is not None:
                     count_events += 1
                     if count_events >= limit:
-                        raise StopIteration
+                        return
 
             # See if there's another bucket.
             if is_ascending:
                 next_timestamp = next_bucket_starts(position, self.log.bucket_size)
                 if next_timestamp > absolute_latest:
-                    raise StopIteration
+                    return
                 else:
                     position = next_timestamp
             else:
                 if position < absolute_earlyist:
-                    raise StopIteration
+                    return
                 else:
                     position = previous_bucket_starts(position, self.log.bucket_size)

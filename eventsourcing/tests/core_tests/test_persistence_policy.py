@@ -1,7 +1,9 @@
 import unittest
+from uuid import uuid4
 
-from eventsourcing.application.policies import CombinedPersistencePolicy, TimestampedEntityEvent
-from eventsourcing.domain.model.events import VersionedEntityEvent, publish
+from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
+from eventsourcing.domain.model.events import publish
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 try:
@@ -10,37 +12,33 @@ except:
     import mock
 
 
-class TestCombinedPersistencePolicy(unittest.TestCase):
+class TestPersistencePolicy(unittest.TestCase):
     def setUp(self):
-        self.ve_es = mock.Mock(spec=AbstractEventStore)
-        self.te_es = mock.Mock(spec=AbstractEventStore)
-        self.policy = CombinedPersistencePolicy(
-            versioned_entity_event_store=self.ve_es,
-            timestamped_entity_event_store=self.te_es,
+        self.event_store = mock.Mock(spec=AbstractEventStore)
+        self.persistence_policy = PersistencePolicy(
+            event_store=self.event_store,
+            event_type=VersionedEntity.Event
         )
 
     def tearDown(self):
-        self.policy.close()
+        self.persistence_policy.close()
 
     def test_published_events_are_appended_to_event_store(self):
         # Check the event store's append method has NOT been called.
-        assert isinstance(self.ve_es, AbstractEventStore)
-        assert isinstance(self.te_es, AbstractEventStore)
-        self.assertEqual(0, self.ve_es.append.call_count)
-        self.assertEqual(0, self.te_es.append.call_count)
+        assert isinstance(self.event_store, AbstractEventStore)
+        self.assertEqual(0, self.event_store.append.call_count)
 
-        # Publish a (mock) versioned entity event.
-        domain_event1 = mock.Mock(spec=VersionedEntityEvent)
+        # Publish a versioned entity event.
+        entity_id = uuid4()
+        domain_event1 = VersionedEntity.Event(originator_id=entity_id, originator_version=0)
         publish(domain_event1)
 
-        # Check the append method HAS been called once with the domain event.
-        self.ve_es.append.assert_called_once_with(domain_event1)
-        self.assertEqual(0, self.te_es.append.call_count)
+        # Check the append method has been called once with the domain event.
+        self.event_store.append.assert_called_once_with(domain_event1)
 
-        # Publish a (mock) timestamp entity event.
-        domain_event2 = mock.Mock(spec=TimestampedEntityEvent)
+        # Publish a timestamped entity event (should be ignored).
+        domain_event2 = TimestampedEntity.Event(originator_id=entity_id)
         publish(domain_event2)
 
-        # Check the append method HAS been called once with the domain event.
-        self.ve_es.append.assert_called_once_with(domain_event1)
-        self.te_es.append.assert_called_once_with(domain_event2)
+        # Check the append() has still only been called once with the first domain event.
+        self.event_store.append.assert_called_once_with(domain_event1)

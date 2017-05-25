@@ -1,17 +1,16 @@
-from math import floor
-from time import time
+import time
 from uuid import uuid4
 
 import six
+from math import floor
 
 from eventsourcing.domain.model.timebucketedlog import start_new_timebucketedlog
-from eventsourcing.example.domainmodel import Example, register_new_example
+from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader, get_timebucketedlog_reader
 from eventsourcing.tests.base import notquick
-from eventsourcing.tests.core_tests.test_utils import utc_now
 from eventsourcing.tests.example_application_tests.base import WithExampleApplication
 from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import \
     WithEncryption
@@ -21,9 +20,11 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
     WithSQLAlchemyActiveRecordStrategies
 
 
-@notquick()
+@notquick
 class PerformanceTestCase(WithExampleApplication):
-    def test(self):
+    drop_tables = True
+
+    def test_entity_performance(self):
         """
         Reports on the performance of Example entity and repo.
 
@@ -38,33 +39,57 @@ class PerformanceTestCase(WithExampleApplication):
             report_name = type(self).__name__[4:]
             print("\n\n{} report:\n".format(report_name))
 
-            repetitions = 1  # 10
+            repetitions = 10  # 10
 
             # NB: Use range(1, 5) to test whether we can get more than 10000 items from Cassandra.
-            for i in six.moves.range(0, 5):
-                # Setup a number of entities, with different lengths of event history.
-                payload = 3
-                # payload = str([uuid4().hex for _ in six.moves.range(100000)])
-                example = register_new_example(a=1, b=payload)
+            # Setup a number of entities, with different lengths of event history.
+            for i in six.moves.range(0, 4):
+
+                # Initialise table with other entities.
+                num_other_entities = i
+                filling = []
+                for _ in six.moves.range(num_other_entities):
+                    filling.append(create_new_example(a=1, b=2))
+
+                # b = str([uuid4().hex for _ in six.moves.range(100000)])
+                b = 2
+                example = create_new_example(a=1, b=b)
                 self.entities[i] = example
 
                 # Beat a number of times.
-                start_beating = utc_now()
                 num_beats = int(floor(10 ** i))
+                start_beating = time.time()
                 for _ in six.moves.range(num_beats):
+                    # print("Beat example")
                     example.beat_heart()
-                time_beating = utc_now() - start_beating
-                print("Time to beat {} times: {:.2f}s ({:.0f} beats/s, {:.6f}s each)"
-                      "".format(num_beats, time_beating, num_beats / time_beating, time_beating / num_beats))
+
+                    for other in filling:
+                        other.beat_heart()
+
+                total_beats = num_beats * (1 + len(filling))
+                time_beating = time.time() - start_beating
+                try:
+                    beats_per_second = total_beats / time_beating
+                except ZeroDivisionError as e:
+                    print("Warning: beats per second {} / {}: {}".format(total_beats, time_beating, e))
+                    beats_per_second = -999999999999.99999999
+                try:
+                    beat_period = time_beating / total_beats
+                except ZeroDivisionError as e:
+                    print("Warning: beat period {} / {}: {}".format(time_beating, total_beats, e))
+                    beat_period = -999999999999.9999999
+
+                print("Time to beat {} times: {:.4f}s ({:.0f} beats/s, {:.6f}s each)"
+                      "".format(num_beats, time_beating / (1 + num_other_entities), beats_per_second, beat_period))
 
                 # Get the last n events from the repo.
                 def last_n(n):
                     n = min(n, num_beats + 1)
-                    assert isinstance(app.example_repo.event_player.event_store, EventStore)
-                    ars = app.example_repo.event_player.event_store.active_record_strategy
+                    assert isinstance(app.example_repository.event_player.event_store, EventStore)
+                    ars = app.example_repository.event_player.event_store.active_record_strategy
                     assert isinstance(ars, AbstractActiveRecordStrategy)
 
-                    start_last_n = utc_now()
+                    start_last_n = time.time()
                     last_n_stored_events = []
                     for _ in six.moves.range(repetitions):
                         iterator = SequencedItemIterator(
@@ -74,7 +99,7 @@ class PerformanceTestCase(WithExampleApplication):
                             is_ascending=False,
                         )
                         last_n_stored_events = list(iterator)
-                    time_last_n = (utc_now() - start_last_n) / repetitions
+                    time_last_n = (time.time() - start_last_n) / repetitions
 
                     num_retrieved_events = len(last_n_stored_events)
                     events_per_second = num_retrieved_events / time_last_n
@@ -86,19 +111,19 @@ class PerformanceTestCase(WithExampleApplication):
                     last_n(10 ** j)
 
                 # Get the entity by replaying all events (which it must since there isn't a snapshot).
-                start_replay = utc_now()
+                start_replay = time.time()
                 for _ in six.moves.range(repetitions):
-                    example = app.example_repo[example.id]
+                    example = app.example_repository[example.id]
                     assert isinstance(example, Example)
                     heartbeats = example.count_heartbeats()
                     assert heartbeats == num_beats, (heartbeats, num_beats)
 
-                time_replaying = (utc_now() - start_replay) / repetitions
+                time_replaying = (time.time() - start_replay) / repetitions
                 print("Time to replay {} beats: {:.2f}s ({:.0f} beats/s, {:.6f}s each)"
                       "".format(num_beats, time_replaying, num_beats / time_replaying, time_replaying / num_beats))
 
                 # Take snapshot, and beat heart a few more times.
-                app.example_repo.event_player.take_snapshot(example.id, lte=time())
+                app.example_repository.take_snapshot(example.id, lt=example.version)
 
                 extra_beats = 4
                 for _ in six.moves.range(extra_beats):
@@ -106,10 +131,10 @@ class PerformanceTestCase(WithExampleApplication):
                 num_beats += extra_beats
 
                 # Get the entity using snapshot and replaying events since the snapshot.
-                start_replay = utc_now()
+                start_replay = time.time()
                 for _ in six.moves.range(repetitions):
-                    example = app.example_repo[example.id]
-                time_replaying = (utc_now() - start_replay) / repetitions
+                    example = app.example_repository[example.id]
+                time_replaying = (time.time() - start_replay) / repetitions
 
                 events_per_second = (extra_beats + 1) / time_replaying  # +1 for the snapshot event
                 beats_per_second = num_beats / time_replaying
@@ -123,16 +148,16 @@ class PerformanceTestCase(WithExampleApplication):
         with self.construct_application() as app:
             example_id = uuid4()
             log = start_new_timebucketedlog(example_id, bucket_size='year')
-            log_reader = get_timebucketedlog_reader(log, app.timestamp_entity_event_store)
+            log_reader = get_timebucketedlog_reader(log, app.log_event_store)
 
             # Write a load of messages.
-            start_write = utc_now()
+            start_write = time.time()
             number_of_messages = 111
             events = []
             for i in range(number_of_messages):
                 event = log.append_message('Logger message number {}'.format(i))
                 events.append(event)
-            time_to_write = (utc_now() - start_write)
+            time_to_write = (time.time() - start_write)
             print("Time to log {} messages: {:.2f}s ({:.0f} messages/s, {:.6f}s each)"
                   "".format(number_of_messages, time_to_write, number_of_messages / time_to_write,
                             time_to_write / number_of_messages))
@@ -145,15 +170,14 @@ class PerformanceTestCase(WithExampleApplication):
 
             # Page back through the log in reverse chronological order.
             previous_position = None
-            next_position = None
             count_pages = 0
             total_time_to_read = 0
             total_num_reads = 0
             while True:
-                start_read = utc_now()
+                start_read = time.time()
                 page_of_events, next_position = self.get_message_logged_events_and_next_position(log_reader, position,
                                                                                                  page_size)
-                time_to_read = (utc_now() - start_read)
+                time_to_read = (time.time() - start_read)
                 total_time_to_read += time_to_read
                 total_num_reads += 1
                 count_pages += 1
@@ -171,11 +195,11 @@ class PerformanceTestCase(WithExampleApplication):
             count_pages = 0
             position = None
             while True:
-                start_read = utc_now()
+                start_read = time.time()
                 page_of_events, next_position = self.get_message_logged_events_and_next_position(log_reader, position,
                                                                                                  page_size,
                                                                                                  is_ascending=True)
-                time_to_read = (utc_now() - start_read)
+                time_to_read = (time.time() - start_read)
                 total_time_to_read += time_to_read
                 total_num_reads += 1
                 count_pages += 1
@@ -213,16 +237,16 @@ class PerformanceTestCase(WithExampleApplication):
         return events, next_position
 
 
-@notquick()
+@notquick
 class TestCassandraPerformance(WithCassandraActiveRecordStrategies, PerformanceTestCase):
     pass
 
 
-@notquick()
+@notquick
 class TestEncryptionPerformance(WithEncryption, TestCassandraPerformance):
     pass
 
 
-@notquick()
+@notquick
 class TestSQLAlchemyPerformance(WithSQLAlchemyActiveRecordStrategies, PerformanceTestCase):
     pass

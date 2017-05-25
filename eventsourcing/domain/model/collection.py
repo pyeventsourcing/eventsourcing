@@ -2,26 +2,27 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from uuid import uuid4
 
-from eventsourcing.domain.model.entity import Created, Discarded, entity_mutator, singledispatch, Aggregate, \
-    AggregateRepository
-from eventsourcing.domain.model.events import publish, AggregateEvent
+from eventsourcing.domain.model.decorators import mutator
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, mutate_entity
+from eventsourcing.domain.model.events import publish
 
 
-class Collection(Aggregate):
-    class Created(Created):
-        def __init__(self, **kwargs):
-            super(Collection.Created, self).__init__(**kwargs)
+class Collection(TimestampedVersionedEntity):
+    class Event(TimestampedVersionedEntity.Event):
+        """Layer supertype."""
 
-    class Discarded(Discarded):
-        def __init__(self, **kwargs):
-            super(Collection.Discarded, self).__init__(**kwargs)
+    class Created(Event, TimestampedVersionedEntity.Created):
+        """Published when collection is created."""
 
-    class ItemAdded(AggregateEvent):
+    class Discarded(Event, TimestampedVersionedEntity.Discarded):
+        """Published when collection is discarded."""
+
+    class ItemAdded(Event):
         @property
         def item(self):
             return self.__dict__['item']
 
-    class ItemRemoved(AggregateEvent):
+    class ItemRemoved(Event):
         @property
         def item(self):
             return self.__dict__['item']
@@ -41,55 +42,53 @@ class Collection(Aggregate):
     def add_item(self, item):
         self._assert_not_discarded()
         event = self.ItemAdded(
-            entity_id=self.id,
-            entity_version=self._version,
+            originator_id=self.id,
+            originator_version=self._version,
             item=item,
         )
-        self._apply(event)
-        publish(event)
+        self._apply_and_publish(event)
 
     def remove_item(self, item):
         self._assert_not_discarded()
         event = self.ItemRemoved(
-            entity_id=self.id,
-            entity_version=self._version,
+            originator_id=self.id,
+            originator_version=self._version,
             item=item,
         )
-        self._apply(event)
-        publish(event)
+        self._apply_and_publish(event)
 
-    @staticmethod
-    def _mutator(event, initial):
-        return collection_mutator(event, initial)
+    @classmethod
+    def _mutate(cls, initial, event):
+        return collection_mutator(initial or cls, event)
 
 
 def register_new_collection(collection_id=None):
     collection_id = uuid4().hex if collection_id is None else collection_id
-    event = Collection.Created(entity_id=collection_id)
-    entity = Collection.mutate(event=event)
+    event = Collection.Created(originator_id=collection_id)
+    entity = collection_mutator(Collection, event)
     publish(event)
     return entity
 
 
-@singledispatch
-def collection_mutator(event, initial):
-    return entity_mutator(event, initial)
+@mutator
+def collection_mutator(initial, event):
+    return mutate_entity(initial, event)
 
 
 @collection_mutator.register(Collection.ItemAdded)
-def collection_item_added_mutator(event, entity):
-    assert isinstance(entity, Collection)
-    entity._items.add(event.item)
-    entity._increment_version()
-    return entity
+def collection_item_added_mutator(self, event):
+    assert isinstance(self, Collection)
+    self._items.add(event.item)
+    self._increment_version()
+    return self
 
 
 @collection_mutator.register(Collection.ItemRemoved)
-def collection_item_removed_mutator(event, entity):
-    entity._items.remove(event.item)
-    entity._increment_version()
-    return entity
+def collection_item_removed_mutator(self, event):
+    self._items.remove(event.item)
+    self._increment_version()
+    return self
 
 
-class AbstractCollectionRepository(AggregateRepository):
+class AbstractCollectionRepository(AbstractEntityRepository):
     pass

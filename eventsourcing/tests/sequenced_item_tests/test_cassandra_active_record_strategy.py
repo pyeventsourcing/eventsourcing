@@ -1,5 +1,5 @@
 from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, \
-    CqlIntegerSequencedItem, CqlTimestampSequencedItem
+    IntegerSequencedItemRecord, SnapshotRecord, TimestampSequencedItemRecord
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \
@@ -9,14 +9,21 @@ from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTe
 
 def construct_integer_sequenced_active_record_strategy():
     return CassandraActiveRecordStrategy(
-        active_record_class=CqlIntegerSequencedItem,
+        active_record_class=IntegerSequencedItemRecord,
         sequenced_item_class=SequencedItem,
     )
 
 
 def construct_timestamp_sequenced_active_record_strategy():
     return CassandraActiveRecordStrategy(
-        active_record_class=CqlTimestampSequencedItem,
+        active_record_class=TimestampSequencedItemRecord,
+        sequenced_item_class=SequencedItem,
+    )
+
+
+def construct_snapshot_active_record_strategy():
+    return CassandraActiveRecordStrategy(
+        active_record_class=SnapshotRecord,
         sequenced_item_class=SequencedItem,
     )
 
@@ -34,11 +41,14 @@ class TestCassandraActiveRecordStrategyWithTimestampSequences(CassandraDatastore
 
 
 class WithCassandraActiveRecordStrategies(CassandraDatastoreTestCase, WithActiveRecordStrategies):
-    def construct_integer_sequenced_active_record_strategy(self):
+    def construct_entity_active_record_strategy(self):
         return construct_integer_sequenced_active_record_strategy()
 
-    def construct_timestamp_sequenced_active_record_strategy(self):
+    def construct_log_active_record_strategy(self):
         return construct_timestamp_sequenced_active_record_strategy()
+
+    def construct_snapshot_active_record_strategy(self):
+        return construct_snapshot_active_record_strategy()
 
 
 class TestSimpleSequencedItemIteratorWithCassandra(WithCassandraActiveRecordStrategies,

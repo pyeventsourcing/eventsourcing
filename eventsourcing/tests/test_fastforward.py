@@ -11,7 +11,7 @@
 #     def test(self):
 #         with self.construct_application() as app:
 #             assert isinstance(app, ExampleApplication)
-#             example = app.register_new_example(1, 2)
+#             example = app.create_new_example(1, 2)
 #             instance1 = app.example_repo[example.id]
 #             instance2 = app.example_repo[example.id]
 #

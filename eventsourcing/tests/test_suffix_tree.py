@@ -16,7 +16,7 @@
 #
 #     def setUp(self):
 #         self.app = SuffixTreeApplication(
-#             integer_sequenced_active_record_strategy=self.integer_sequence_active_record_strategy,
+#             entity_active_record_strategy=self.integer_sequence_active_record_strategy,
 #         )
 #
 #     def tearDown(self):
@@ -53,7 +53,7 @@
 #         self.assertEqual(self.app.find_substring('m', st.id), 0)
 #         self.assertEqual(self.app.find_substring('i', st.id), 1)
 #
-#     @notquick()
+#     @notquick
 #     def test_long_string(self):
 #         st = register_new_suffix_tree()
 #         st.add_string(LONG_TEXT)
@@ -61,7 +61,7 @@
 #         self.assertEqual(self.app.find_substring('Optimal', st.id), 11074)
 #         self.assertFalse(self.app.has_substring('ukkonen', st.id))
 #
-#     @notquick()
+#     @notquick
 #     def test_case_insensitivity(self):
 #         st = register_new_suffix_tree(case_insensitive=True)
 #         st.add_string(LONG_TEXT)

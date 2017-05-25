@@ -7,14 +7,13 @@ from eventsourcing.domain.model.collection import Collection, register_new_colle
 from eventsourcing.domain.model.entity import EntityIsDiscarded
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.infrastructure.event_sourced_repos.collection_repo import CollectionRepository
-from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
+from eventsourcing.infrastructure.repositories.collection_repo import CollectionRepository
+from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 
 
 class TestCollection(TestCase):
-
     def setUp(self):
         assert_event_handlers_empty()
         self.published_events = []
@@ -46,7 +45,7 @@ class TestCollection(TestCase):
         self.assertEqual(len(self.published_events), 1)
         last_event = self.published_events[-1]
         self.assertIsInstance(last_event, Collection.Created)
-        self.assertEqual(last_event.entity_id, collection_id)
+        self.assertEqual(last_event.originator_id, collection_id)
 
         # Add item to collection.
         collection.add_item(item1)
@@ -60,7 +59,7 @@ class TestCollection(TestCase):
         self.assertEqual(len(self.published_events), 2)
         last_event = self.published_events[-1]
         self.assertIsInstance(last_event, Collection.ItemAdded)
-        self.assertEqual(last_event.entity_id, collection_id)
+        self.assertEqual(last_event.originator_id, collection_id)
         self.assertEqual(last_event.item, item1)
 
         # Add another item.
@@ -75,7 +74,7 @@ class TestCollection(TestCase):
         self.assertEqual(len(self.published_events), 3)
         last_event = self.published_events[-1]
         self.assertIsInstance(last_event, Collection.ItemAdded)
-        self.assertEqual(last_event.entity_id, collection_id)
+        self.assertEqual(last_event.originator_id, collection_id)
         self.assertEqual(last_event.item, item2)
 
         # Remove item1 from the collection.
@@ -90,7 +89,7 @@ class TestCollection(TestCase):
         self.assertEqual(len(self.published_events), 4)
         last_event = self.published_events[-1]
         self.assertIsInstance(last_event, Collection.ItemRemoved)
-        self.assertEqual(last_event.entity_id, collection_id)
+        self.assertEqual(last_event.originator_id, collection_id)
         self.assertEqual(last_event.item, item1)
 
         # Discard the collection.
@@ -100,16 +99,14 @@ class TestCollection(TestCase):
         self.assertEqual(len(self.published_events), 5)
         last_event = self.published_events[-1]
         self.assertIsInstance(last_event, Collection.Discarded)
-        self.assertEqual(last_event.entity_id, collection_id)
+        self.assertEqual(last_event.originator_id, collection_id)
 
         self.assertRaises(EntityIsDiscarded, getattr, collection, 'items')
 
 
-class TestCollectionRepo(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicy):
-
+class TestCollectionRepo(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
     def test(self):
-
-        repo = CollectionRepository(event_store=self.versioned_entity_event_store)
+        repo = CollectionRepository(event_store=self.entity_event_store)
 
         # Check unknown collections are not found in the repo.
         with self.assertRaises(RepositoryKeyError):

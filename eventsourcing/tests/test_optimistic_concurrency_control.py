@@ -26,7 +26,7 @@
 #
 #
 # class OptimisticConcurrencyControlTestCase(WithActiveRecordStrategies):
-#     @notquick()
+#     @notquick
 #     def test_optimistic_concurrency_control(self):
 #         """Appends lots of events, but with a pool of workers
 #         all trying to add the same sequence of events.
@@ -91,7 +91,7 @@
 #         for event in events:
 #             assert isinstance(event, StoredEvent)
 #             attr_values = json.loads(event.event_attrs)
-#             self.assertEqual(attr_values['entity_version'], version_counter)
+#             self.assertEqual(attr_values['originator_version'], version_counter)
 #             version_counter += 1
 #
 #         # Join the pool.
@@ -115,7 +115,7 @@
 #                 assert isinstance(worker_repo, AbstractStoredEventRepository)
 #                 events = worker_repo.get_stored_events(stored_entity_id, limit=1, query_ascending=False)
 #                 if len(events):
-#                     current_version = json.loads(events[0].event_attrs)['entity_version']
+#                     current_version = json.loads(events[0].event_attrs)['originator_version']
 #                     new_version = current_version + 1
 #                 else:
 #                     current_version = None
@@ -133,7 +133,7 @@
 #                         event_id=uuid1().hex,
 #                         stored_entity_id=stored_entity_id,
 #                         event_topic='topic',
-#                         event_attrs=json.dumps({'a': 1, 'b': 2, 'entity_version': new_version}),
+#                         event_attrs=json.dumps({'a': 1, 'b': 2, 'originator_version': new_version}),
 #                     )
 #                     started = datetime.datetime.now()
 #                     worker_repo.append(
@@ -169,7 +169,7 @@
 #             return (successes, failures)
 #
 #
-# @notquick()
+# @notquick
 # class TestOptimisticConcurrencyControlWithCassandra(WithCassandraActiveRecordStrategies,
 #                                                     OptimisticConcurrencyControlTestCase):
 #     pass
@@ -199,25 +199,25 @@
 #         repo = CassandraStoredEventRepository(
 #             stored_event_table=CqlStoredEvent,
 #             always_check_expected_version=True,
-#             always_write_entity_version=True,
+#             always_write_originator_version=True,
 #         )
 #     elif stored_repo_class is SQLAlchemyStoredEventRepository:
 #         uri = 'sqlite:///' + temp_file_name
 #         datastore = SQLAlchemyDatastore(
 #             settings=SQLAlchemySettings(uri=uri),
-#             tables=(SqlStoredEvent,),
+#             tables=(StoredEventRecord,),
 #         )
 #         datastore.setup_connection()
 #         repo = SQLAlchemyStoredEventRepository(
 #             datastore=datastore,
-#             stored_event_table=SqlStoredEvent,
+#             stored_event_table=StoredEventRecord,
 #             always_check_expected_version=True,
-#             always_write_entity_version=True,
+#             always_write_originator_version=True,
 #         )
 #     elif stored_repo_class is PythonObjectsStoredEventRepository:
 #         repo = PythonObjectsStoredEventRepository(
 #             always_check_expected_version=True,
-#             always_write_entity_version=True,
+#             always_write_originator_version=True,
 #         )
 #     else:
 #         raise Exception("Stored repo class not yet supported in test: {}".format(stored_repo_class))

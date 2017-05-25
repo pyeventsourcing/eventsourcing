@@ -1,10 +1,13 @@
 import os
 
 import cassandra.cqlengine
-from cassandra import ConsistencyLevel
+from cassandra import ConsistencyLevel, OperationTimedOut
 from cassandra.auth import PlainTextAuthProvider
+from cassandra.cluster import NoHostAvailable
 from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
+from cassandra.cqlengine.models import Model
 
+from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import DatasourceSettingsError
 from eventsourcing.infrastructure.datastore import Datastore, DatastoreSettings
 
@@ -37,6 +40,11 @@ class CassandraSettings(DatastoreSettings):
 
 
 class CassandraDatastore(Datastore):
+    def __init__(self, tables, *args, **kwargs):
+        super(CassandraDatastore, self).__init__(*args, **kwargs)
+        assert isinstance(tables, tuple), tables
+        self.tables = tables
+
     def setup_connection(self):
         assert isinstance(self.settings, CassandraSettings), self.settings
 
@@ -76,6 +84,7 @@ class CassandraDatastore(Datastore):
         if cassandra.cqlengine.connection.cluster:
             cassandra.cqlengine.connection.cluster.shutdown()
 
+    @retry((NoHostAvailable, OperationTimedOut), max_retries=10, wait=0.5)
     def setup_tables(self):
         # Avoid warnings about this variable not being set.
         os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
@@ -88,7 +97,21 @@ class CassandraDatastore(Datastore):
         for table in self.tables:
             sync_table(table)
 
+    @retry(NoHostAvailable, max_retries=10, wait=0.5)
     def drop_tables(self):
-        # Avoid warnings about this variable not being set.
-        os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
         drop_keyspace(name=self.settings.default_keyspace)
+
+    @retry(NoHostAvailable, max_retries=10, wait=0.5)
+    def truncate_tables(self):
+        for table in self.tables:
+            remaining_objects = table.objects.all().limit(10)
+            while remaining_objects:
+                for obj in remaining_objects:
+                    obj.delete()
+                remaining_objects = table.objects.all().limit(10)
+
+
+class ActiveRecord(Model):
+    """Layer supertype."""
+    __abstract__ = True
+

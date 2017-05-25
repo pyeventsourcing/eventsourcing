@@ -8,7 +8,9 @@ from eventsourcing.domain.services.cipher import AbstractCipher
 
 
 class AESCipher(AbstractCipher):
-
+    """
+    Cipher strategy that uses the AES cipher from the Crypto library.
+    """
     BLOCK_SIZE = 16
 
     def __init__(self, aes_key):
@@ -21,6 +23,8 @@ class AESCipher(AbstractCipher):
         self.bs = AES.block_size
 
     def encrypt(self, plaintext):
+        """Return ciphertext for given plaintext."""
+
         # Create a unique initialisation vector each time something is encrypted.
         iv = Random.new().read(self.bs)
 
@@ -43,6 +47,8 @@ class AESCipher(AbstractCipher):
         return ciphertext
 
     def decrypt(self, ciphertext):
+        """Return plaintext for given ciphertext."""
+
         # Recover the initialisation vector.
         ciphertext_bytes_base64 = ciphertext.encode('utf8')
         ciphertext_bytes = base64.b64decode(ciphertext_bytes_base64)
@@ -70,4 +76,4 @@ class AESCipher(AbstractCipher):
 
     @staticmethod
     def _unpad(s):
-        return s[:-ord(s[len(s)-1:])]
+        return s[:-ord(s[len(s) - 1:])]

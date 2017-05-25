@@ -6,14 +6,15 @@ from uuid import uuid4
 
 import six
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, Aggregate, attribute, Created, \
-    AttributeChanged, Discarded
+from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, Discarded, \
+    TimestampedVersionedEntity
+from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.events import publish
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.exceptions import RepositoryKeyError
 
 
-class SuffixTree(Aggregate):
+class SuffixTree(TimestampedVersionedEntity):
     """A suffix tree for string matching. Uses Ukkonen's algorithm
     for construction.
     """
@@ -181,7 +182,7 @@ class SuffixTree(Aggregate):
                 self._canonize_suffix(suffix)
 
 
-class Node(Aggregate):
+class Node(TimestampedVersionedEntity):
     """A node in the suffix tree.
     """
 
@@ -207,7 +208,7 @@ class Node(Aggregate):
         return "Node(suffix link: %d)" % self.suffix_node_id
 
 
-class Edge(Aggregate):
+class Edge(TimestampedVersionedEntity):
     """An edge in the suffix tree.
     """
 
@@ -320,7 +321,7 @@ def register_new_node(suffix_node_id=None):
     """Factory method, registers new node.
     """
     node_id = uuid4().hex
-    event = Node.Created(entity_id=node_id, suffix_node_id=suffix_node_id)
+    event = Node.Created(originator_id=node_id, suffix_node_id=suffix_node_id)
     entity = Node.mutate(event=event)
     publish(event)
     return entity
@@ -336,7 +337,7 @@ def register_new_edge(edge_id, first_char_index, last_char_index, source_node_id
     """Factory method, registers new edge.
     """
     event = Edge.Created(
-        entity_id=edge_id,
+        originator_id=edge_id,
         first_char_index=first_char_index,
         last_char_index=last_char_index,
         source_node_id=source_node_id,
@@ -355,7 +356,7 @@ def register_new_suffix_tree(case_insensitive=False):
 
     suffix_tree_id = uuid4().hex
     event = SuffixTree.Created(
-        entity_id=suffix_tree_id,
+        originator_id=suffix_tree_id,
         root_node_id=root_node.id,
         case_insensitive=case_insensitive,
     )
@@ -417,7 +418,7 @@ def has_substring(substring, suffix_tree, edge_repo):
 
 
 # Application
-from eventsourcing.contrib.suffixtrees.infrastructure.event_sourced_repos.suffixtree_repo import SuffixTreeRepo, \
+from eventsourcing.contrib.suffixtrees.infrastructure.respositories.suffixtree_repo import SuffixTreeRepo, \
     NodeRepo, EdgeRepo
 
 

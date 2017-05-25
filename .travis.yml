@@ -2,6 +2,8 @@ language: python
 sudo: false
 services:
   - cassandra
+  - redis-server
+
 python:
   - "2.7"
   - "3.3"
@@ -11,7 +13,8 @@ python:
 
 install:
 - pip install -U pip
-- pip install -r requirements.txt
+- pip install -e .[cassandra,sqlalchemy,crypto]
+- pip install -r dev_requirements.txt
 - pip install python-coveralls
 
 env:
@@ -20,7 +23,8 @@ env:
     - CASSANDRA_HOSTS=127.0.0.1
 
 script:
-- coverage run -m unittest discover eventsourcing.tests -v
+- if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then coverage run -m unittest discover eventsourcing.tests -v ; fi
+- if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then python -m unittest discover eventsourcing.tests -v ; fi
 
 after_success:
-- coveralls
+- if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then coveralls ; fi

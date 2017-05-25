@@ -36,7 +36,7 @@
 #
 #
 # @skip
-# @notquick()
+# @notquick
 # class TestGeneralizedSuffixTreeFast(GeneralizedSuffixTreeTestCase):
 #     def test_empty_string(self):
 #         st = self.app.register_new_suffix_tree()
@@ -674,7 +674,7 @@
 #
 #
 # @skip
-# @notquick()
+# @notquick
 # class TestGeneralizedSuffixTreeSlow(GeneralizedSuffixTreeTestCase):
 #     def test_long_string(self):
 #         st = self.app.register_new_suffix_tree()
@@ -741,7 +741,7 @@
 #         if self.app is not None:
 #             self.app.close()
 #
-#     @notquick()
+#     @notquick
 #     def test_words_in_sorted_order(self):
 #         self.check_words(is_sorted=True)
 #

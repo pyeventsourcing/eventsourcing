@@ -5,21 +5,20 @@ from uuid import uuid4
 
 from eventsourcing.domain.model.timebucketedlog import Timebucketedlog, bucket_duration, bucket_starts, \
     make_timebucket_id, start_new_timebucketedlog
-from eventsourcing.infrastructure.event_sourced_repos.timebucketedlog_repo import TimebucketedlogRepo
+from eventsourcing.infrastructure.repositories.timebucketedlog_repo import TimebucketedlogRepo
 from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader
 from eventsourcing.tests.base import notquick
-from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicy
+from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
     WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 
 
-class TimebucketedlogTestCase(WithPersistencePolicy):
-
+class TimebucketedlogTestCase(WithPersistencePolicies):
     def setUp(self):
         super(TimebucketedlogTestCase, self).setUp()
-        self.log_repo = TimebucketedlogRepo(self.timestamped_entity_event_store)
+        self.log_repo = TimebucketedlogRepo(self.log_event_store)
 
     def test_entity_lifecycle(self):
         log_name = uuid4()
@@ -44,7 +43,7 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         event6 = log.append_message(message6)
 
         # Read messages from the log.
-        reader = TimebucketedlogReader(log, event_store=self.timestamped_entity_event_store)
+        reader = TimebucketedlogReader(log, event_store=self.log_event_store)
         messages = list(reader.get_messages(is_ascending=False))
         self.assertEqual(len(messages), 6)
         self.assertEqual(messages[0], message6)
@@ -134,7 +133,7 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         messages = list(reader.get_messages(gt=halfway, lte=halfway))
         self.assertEqual(len(messages), 0)
 
-    @notquick()
+    @notquick
     def test_buckets_size_second(self):
         # Start new log.
         log = start_new_timebucketedlog(name=uuid4(), bucket_size='second')
@@ -150,7 +149,7 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         self.assertGreater(datetime.datetime.now() - start, datetime.timedelta(seconds=1))
 
         # Get the messages in descending order.
-        reader = TimebucketedlogReader(log, self.timestamped_entity_event_store)
+        reader = TimebucketedlogReader(log, self.log_event_store)
         messages = list(reader.get_messages(is_ascending=False, page_size=10))
         self.assertEqual(len(messages), number_of_messages)
 
@@ -284,7 +283,7 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         log.append_message('message')
 
         # Get the messages.
-        reader = TimebucketedlogReader(log, self.timestamped_entity_event_store)
+        reader = TimebucketedlogReader(log, self.log_event_store)
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new minute sized log.
@@ -293,7 +292,7 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         log.append_message('message')
 
         # Get the messages.
-        reader = TimebucketedlogReader(log, self.timestamped_entity_event_store)
+        reader = TimebucketedlogReader(log, self.log_event_store)
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new hour sized log.
@@ -302,7 +301,7 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         log.append_message('message')
 
         # Get the messages.
-        reader = TimebucketedlogReader(log, self.timestamped_entity_event_store)
+        reader = TimebucketedlogReader(log, self.log_event_store)
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new day sized log.
@@ -311,7 +310,7 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         log.append_message('message')
 
         # Get the messages.
-        reader = TimebucketedlogReader(log, self.timestamped_entity_event_store)
+        reader = TimebucketedlogReader(log, self.log_event_store)
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new month sized log.
@@ -320,7 +319,7 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         log.append_message('message')
 
         # Get the messages.
-        reader = TimebucketedlogReader(log, self.timestamped_entity_event_store)
+        reader = TimebucketedlogReader(log, self.log_event_store)
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new year sized log.
@@ -329,7 +328,7 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         log.append_message('message')
 
         # Get the messages.
-        reader = TimebucketedlogReader(log, self.timestamped_entity_event_store)
+        reader = TimebucketedlogReader(log, self.log_event_store)
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new default sized log.
@@ -338,7 +337,7 @@ class TimebucketedlogTestCase(WithPersistencePolicy):
         log.append_message('message')
 
         # Get the messages.
-        reader = TimebucketedlogReader(log, self.timestamped_entity_event_store)
+        reader = TimebucketedlogReader(log, self.log_event_store)
         self.assertTrue(len(list(reader.get_messages())))
 
         # Start new invalid sized log.

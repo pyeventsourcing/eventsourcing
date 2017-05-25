@@ -1,11 +1,12 @@
 import six
 
-from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import SuffixTreeNode, STRING_ID_END, \
-    GeneralizedSuffixTree, EdgeRepository, make_edge_id, StringidCollection
+from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import EdgeRepository, \
+    GeneralizedSuffixTree, STRING_ID_END, StringidCollection, SuffixTreeNode, make_edge_id
 from eventsourcing.exceptions import RepositoryKeyError
 
 
-def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_collection_repo, length_until_end=0, edge_length=0,
+def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_collection_repo, length_until_end=0,
+                   edge_length=0,
                    limit=None, hop_count=0, hop_max=None):
     """Generator that yields unique string IDs from leaf nodes as they are discovered,
     by performing a depth first search on the suffix tree from the given node.
@@ -57,8 +58,7 @@ def get_string_ids(node_id, node_repo, node_child_collection_repo, stringid_coll
 
                 # Check the limit, stop if we've had enough string IDs.
                 if limit is not None and len(unique_string_ids) >= limit:
-                    raise StopIteration
-
+                    return
 
         # Check the hop count before getting the child collection.
         if hop_max is None or hop_count < hop_max:

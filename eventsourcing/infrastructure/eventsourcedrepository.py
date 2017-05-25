@@ -1,6 +1,4 @@
-from abc import abstractproperty
-
-from eventsourcing.domain.model.entity import AbstractEntityRepository
+from eventsourcing.domain.model.entity import AbstractEntityRepository, mutate_entity
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
@@ -8,7 +6,6 @@ from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 
 
 class EventSourcedRepository(AbstractEntityRepository):
-
     # If the entity won't have very many events, marking the entity as
     # "short" by setting __is_short__ value equal to True will mean
     # the fastest path for getting all the events is used. If you set
@@ -23,21 +20,20 @@ class EventSourcedRepository(AbstractEntityRepository):
 
     # The mutator function used by this repository. Can either
     # be set as a class attribute, or passed as a constructor arg.
-    mutator = None
+    mutator = mutate_entity
 
-    def __init__(self, event_store, mutator=None, snapshot_strategy=None, use_cache=False):
+    def __init__(self, event_store, mutator=None, snapshot_strategy=None, use_cache=False, *args, **kwargs):
+        super(EventSourcedRepository, self).__init__(*args, **kwargs)
         self._cache = {}
         self._snapshot_strategy = snapshot_strategy
         # self._use_cache = use_cache
 
         # Check we got an event store.
-        assert isinstance(event_store, AbstractEventStore)
-        self.event_store = event_store
+        assert isinstance(event_store, AbstractEventStore), type(event_store)
+        self._event_store = event_store
 
         # Instantiate an event player for this repo.
         mutator = mutator or type(self).mutator
-        if mutator is None:
-            raise ValueError("Repository needs a mutator function (set class attribute or pass constructor arg)")
         self.event_player = EventPlayer(
             event_store=self.event_store,
             mutator=mutator,
@@ -45,6 +41,10 @@ class EventSourcedRepository(AbstractEntityRepository):
             is_short=self.__is_short__,
             snapshot_strategy=self._snapshot_strategy,
         )
+
+    @property
+    def event_store(self):
+        return self._event_store
 
     def __contains__(self, entity_id):
         """
@@ -80,30 +80,28 @@ class EventSourcedRepository(AbstractEntityRepository):
     # def add_cache(self, entity_id, entity):
     #     self._cache[entity_id] = entity
 
-    def get_entity(self, entity_id, lte=None):
+    def get_entity(self, entity_id, lt=None, lte=None):
         """
-        Returns entity with given ID, optionally as it was until the given domain event ID.
+        Returns entity with given ID, optionally until position.
         """
 
         # Get a snapshot (None if none exist).
         if self._snapshot_strategy is not None:
-            snapshot = self._snapshot_strategy.get_snapshot(entity_id, lte=lte)
+            snapshot = self._snapshot_strategy.get_snapshot(entity_id, lt=lt, lte=lte)
         else:
             snapshot = None
 
-        # Decide the initial state, and after when we need to get the events.
+        # Decide the initial state of the entity, and the
+        # version of the last item applied to the entity.
         if snapshot is None:
             initial_state = None
-            gte = None
+            gt = None
         else:
             initial_state = entity_from_snapshot(snapshot)
-            gte = initial_state._version
+            gt = snapshot.originator_version
 
         # Replay domain events.
-        return self.event_player.replay_entity(entity_id, gte=gte, lte=lte, initial_state=initial_state)
+        return self.event_player.replay_entity(entity_id, gt=gt, lt=lt, lte=lte, initial_state=initial_state)
 
-    # def fastforward(self, stale_entity, lt=None, lte=None):
-    #     """
-    #     Mutates an instance of an entity, according to the events that have occurred since its version.
-    #     """
-    #     return self.event_player.fastforward(stale_entity, lt=lt, lte=lte)
+    def take_snapshot(self, entity_id, lt=None, lte=None):
+        return self.event_player.take_snapshot(entity_id, lt=lt, lte=lte)
