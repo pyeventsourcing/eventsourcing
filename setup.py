@@ -38,8 +38,9 @@ testing_requires = [
 long_description = """
 This package provides generic support for event sourcing in Python.
 
-An extensive
-`README file is available on GitHub <https://github.com/johnbywater/eventsourcing/blob/master/README.md>`_.
+`Package documentation is now available <http://eventsourcing.readthedocs.io/>`_.
+
+`Please raise issues on GitHub <https://github.com/johnbywater/eventsourcing/issues>`_.
 """
 
 packages = find_packages(
