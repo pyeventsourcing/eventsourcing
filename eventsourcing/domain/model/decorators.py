@@ -169,8 +169,13 @@ def retry(exc=Exception, max_retries=1, wait=0):
     else:
         # Check decorator args, and return _retry,
         # to be called with the decorated function.
-        if not (isinstance(exc, type) and issubclass(exc, Exception)):
-            raise TypeError("'exc' must be an exception class: {}".format(exc))
+        if isinstance(exc, (list, tuple)):
+            for _exc in exc:
+                if not (isinstance(_exc, type) and issubclass(_exc, Exception)):
+                    raise TypeError("not an exception class: {}".format(_exc))
+        else:
+            if not (isinstance(exc, type) and issubclass(exc, Exception)):
+                raise TypeError("not an exception class: {}".format(exc))
         if not isinstance(max_retries, int):
             raise TypeError("'max' must be an int: {}".format(max_retries))
         if not isinstance(wait, (float, int)):
