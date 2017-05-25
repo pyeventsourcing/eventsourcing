@@ -293,6 +293,8 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
     def setUp(self):
         super(WithActiveRecordStrategies, self).setUp()
         self.datastore.setup_connection()
+        if self.drop_tables:
+            self.datastore.drop_tables()
         self.datastore.setup_tables()
 
     def tearDown(self):

@@ -1,7 +1,7 @@
 import os
 
 import cassandra.cqlengine
-from cassandra import ConsistencyLevel
+from cassandra import ConsistencyLevel, OperationTimedOut
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import NoHostAvailable
 from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
@@ -84,13 +84,12 @@ class CassandraDatastore(Datastore):
         if cassandra.cqlengine.connection.cluster:
             cassandra.cqlengine.connection.cluster.shutdown()
 
-    @retry(NoHostAvailable, max_retries=10, wait=0.5)
+    @retry((NoHostAvailable, OperationTimedOut), max_retries=10, wait=0.5)
     def setup_tables(self):
         # Avoid warnings about this variable not being set.
         os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
 
         # Attempt to create the keyspace.
-        drop_keyspace(self.settings.default_keyspace)
         create_keyspace_simple(
             name=self.settings.default_keyspace,
             replication_factor=self.settings.replication_factor,

@@ -588,49 +588,49 @@ class TestBigArrayWithSQLAlchemyAndMultithreading(BigArrayTestCase):
         self.subrepo = self.repo.subrepo
         self.result_queue = None
 
-    def test_compound_array_threads_1_1_1(self):
-        self._test_compound_array_threads(1, 1, 1)
+    def test_big_array_threads_1_1_1(self):
+        self._test_big_array_threads(1, 1, 1)
 
-    def test_compound_array_threads_2_2_2(self):
-        self._test_compound_array_threads(2, 2, 2)
+    def test_big_array_threads_2_2_2(self):
+        self._test_big_array_threads(2, 2, 2)
 
-    def test_compound_array_threads_3_3_9(self):
-        self._test_compound_array_threads(3, 3, 9)
+    def test_big_array_threads_3_3_9(self):
+        self._test_big_array_threads(3, 3, 9)
 
-    def test_compound_array_threads_3_9_3(self):
-        self._test_compound_array_threads(3, 9, 3)
-
-    @notquick
-    @skipIf(version_info[0:2] == [3, 3], "Avoid 'database is locked' error from SQLite")
-    def test_compound_array_threads_4_4_64(self):
-        self._test_compound_array_threads(4, 4, 64)
+    def test_big_array_threads_3_9_3(self):
+        self._test_big_array_threads(3, 9, 3)
 
     @notquick
-    @skipIf(version_info[0:2] == [3, 3], "Avoid 'database is locked' error from SQLite")
-    def test_compound_array_threads_4_8_32(self):
-        self._test_compound_array_threads(4, 8, 32)
-
-    @notquick
-    @skipIf(version_info[0:2] == [3, 3], "Avoid 'database is locked' error from SQLite")
-    def test_compound_array_threads_4_16_16(self):
-        self._test_compound_array_threads(4, 16, 16)
-
     @skip("Avoid 'database is locked' error from SQLite")
-    @notquick
-    def test_compound_array_threads_4_32_8(self):
-        self._test_compound_array_threads(4, 32, 8)
+    def test_big_array_threads_4_4_64(self):
+        self._test_big_array_threads(4, 4, 64)
 
+    @notquick
     @skip("Avoid 'database is locked' error from SQLite")
-    @notquick
-    def test_compound_array_threads_4_64_4(self):
-        self._test_compound_array_threads(4, 64, 4)
+    def test_big_array_threads_4_8_32(self):
+        self._test_big_array_threads(4, 8, 32)
 
+    @notquick
     @skip("Avoid 'database is locked' error from SQLite")
-    @notquick
-    def test_compound_array_threads_4_256_1(self):
-        self._test_compound_array_threads(4, 256, 1)
+    def test_big_array_threads_4_16_16(self):
+        self._test_big_array_threads(4, 16, 16)
 
-    def _test_compound_array_threads(self, array_size, num_threads, num_items_per_thread):
+    @notquick
+    @skip("Avoid 'database is locked' error from SQLite")
+    def test_big_array_threads_4_32_8(self):
+        self._test_big_array_threads(4, 32, 8)
+
+    @notquick
+    @skip("Avoid 'database is locked' error from SQLite")
+    def test_big_array_threads_4_64_4(self):
+        self._test_big_array_threads(4, 64, 4)
+
+    @notquick
+    @skip("Avoid 'database is locked' error from SQLite")
+    def test_big_array_threads_4_256_1(self):
+        self._test_big_array_threads(4, 256, 1)
+
+    def _test_big_array_threads(self, array_size, num_threads, num_items_per_thread):
         error_queue = Queue()
         full_queue = Queue()
         self.result_queue = Queue()
