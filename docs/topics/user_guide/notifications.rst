@@ -46,7 +46,7 @@ is not retried. The failure to update will need to be logged, or
 otherwise handled, in a similar way to failures of asynchronous updates.
 
 The big issue with this approach is that if the first
-event of an aggregate is not received, there is no way
+event of an aggregate is not processed, there is no way
 of knowing the aggregate exists, and so there is nothing
 that can be used to check for updates to that aggregate.
 
@@ -56,7 +56,11 @@ Asynchronous update
 
 The fundamental concern is to accomplish high fidelity when
 propagating a stream of events, so that events are neither
-missed nor are they duplicated. As Vaughn Vernon suggests
+missed nor are they duplicated. Once the stream of events
+has been propagated faithfully, it can be republished and
+subscribers can execute commands as above.
+
+As Vaughn Vernon suggests
 in his book Implementing Domain Driven Design:
 
     “at least two mechanisms in a messaging solution must always be consistent with each other: the persistence
