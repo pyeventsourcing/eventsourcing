@@ -14,11 +14,11 @@ snapshots introduced in previous sections.
 Synchronous update
 ------------------
 
-In a simple situation, you may wish to update a projection of
-an aggregate synchronously when it changes. If a projection
-depends only on one aggregate, you may wish simply to subscribe
-to the events of the aggregate. Then, whenever an event occurs,
-the projection can be updated.
+In a simple situation, you may wish to update a view of
+an aggregate synchronously whenever there are changes. If
+each view model depends only on one aggregate, you may wish
+simply to subscribe to the events of the aggregate. Then,
+whenever an event occurs, the projection can be updated.
 
 The library has a decorator function
 :func:`~eventsourcing.domain.model.decorators.subscribe_to`
@@ -31,42 +31,36 @@ that can be used for this purpose.
         todo = TodoProjection(id=event.originator_id, title=event.title)
         todo.save()
 
-Todo: Handle other events, not just the created event.
 
-The projection could be a normal record, or stored in a sequence
-that follows the originator version numbers, perhaps as snapshots,
-so that concurrent handling of events will not lead to a later
-state being overwritten by an earlier state. Older versions of
+The view model could be saved as a normal record, or stored in
+a sequence that follows the event originator version numbers, perhaps
+as snapshots, so that concurrent handling of events will not lead to a
+later state being overwritten by an earlier state. Older versions of
 the view could be deleted later.
 
-If the view fails to update after the event has been stored,
-then the view will be inconsistent with the latest state
-of the aggregate. Since it is not desirable to delete the
-event once it has been stored, the command must return
+If the view fails to update after the domain event has been stored,
+then the view will become inconsistent. Since it is not desirable
+to delete the event once it has been stored, the command must return
 normally despite the view update failing, so that the command
-is not retried.
+is not retried. The failure to update will need to be logged, or
+otherwise handled, in a similar way to failures of asynchronous updates.
 
-Without further refinements, such as with "round
-robin" polling of the known aggregates, the view will
-only be updated next time the aggregate changes.
-Event if a "round robin" approach was taken, if the first
-event of an aggregate is not applied to a projection, there
-is no way for it to know that aggregate exists, and so cannot
-possibly check for updates to that aggregate.
-
-This last concern brings us to needing a single application log
-that sequences all events of the application.
+The big issue with this approach is that if the first
+event of an aggregate is not processed, there is no way
+of knowing the aggregate exists, and so there is nothing
+that can be used to check for updates to that aggregate.
 
 
 Asynchronous update
 -------------------
 
-Asynchronous updates can be used to update other aggregates,
-especially aggregates in a remote context.
-
 The fundamental concern is to accomplish high fidelity when
 propagating a stream of events, so that events are neither
-missed nor are they duplicated. As Vaughn Vernon suggests
+missed nor are they duplicated. Once the stream of events
+has been propagated faithfully, it can be republished and
+subscribers can execute commands as above.
+
+As Vaughn Vernon suggests
 in his book Implementing Domain Driven Design:
 
     “at least two mechanisms in a messaging solution must always be consistent with each other: the persistence
@@ -85,24 +79,23 @@ The second option is to have separate datastores for domain
 model and messaging but have a two phase commit, or global
 transaction, across the two.
 
-
 The third option is to have the bounded context
 control notifications. Vaughn Vernon is his book
 Implementing Domain Driven Design relies on the simple logic
 of an ascending sequence of integers to allow others to progress
 along the event stream. That is the approach taken here.
 
-A pull mechanism that allows others to pull events that they
+A pull mechanism that allows others to pull events they
 don't yet have can be used to allow remote components to catch
-up. The same mechanism can be used if the remote component is developed
+up. The same mechanism can be used if a component is developed
 after the application has been deployed and so requires initialising
 from an established application stream, or otherwise needs to be
 reconstructed from scratch.
 
-Updates can be triggered by pushing the notifications to
+As we will see below, updates can be triggered by pushing the notifications to
 messaging infrastructure, and having the remote components subscribe.
 If anything goes wrong with messaging infrastructure, such that a
-notification is not received, remote components could somehow detect
+notification is not received, remote components can detect
 they have missed a notification and pull the notifications they have
 missed.
 
@@ -127,7 +120,7 @@ requirements quite well. It is a tree of arrays, with a root array
 that stores references to the current apex, with an apex that contains
 references to arrays, which either contain references to lower arrays
 or contain the items assigned to the big array. Each array uses one database
-partition, and is limited is size (the array size) to ensure the parition
+partition, and is limited is size (the array size) to ensure the partition
 is never too large. The identity of each array can be calculated directly
 from the index number, so it is possible to identify arrays directly
 without traversing the tree to discover entity IDs. The capacity of base
@@ -146,9 +139,9 @@ the position is already taken.
 The performance of the ``append()`` method is proportional to the log of the
 index in the array, to the base of the array size used in the big array, rounded
 up to the nearest integer, plus one (because of the root sequence that tracks
-the apex). For example, if the array size is 10,000, then it will take only 50%
+the apex). For example, if the sub-array size is 10,000, then it will take only 50%
 longer to append the 100,000,000th item to the big array than the 1st one. By
-the time the 1,000,000,000,000th index is appended to a big array, the
+the time the 1,000,000,000,000th index position is assigned to a big array, the
 ``append()`` method will take only twice as long as the 1st.
 
 That's because the performance of the ``append()`` method is dominated by the
@@ -266,8 +259,8 @@ the big array entirely. In consequence, the bandwidth of assigning to a big
 array using an integer sequence generator is much greater than using the
 ``append()`` method.
 
-If the application has only one process, the number generator can
-be a simple Python generator. The library class
+If the application is executed in only one process, the number generator can
+be a simple Python object. The library class
 :class:`~eventsourcing.infrastructure.integersequencegenerators.base.SimpleIntegerSequenceGenerator`
 generates a contiguous sequence of integers that can be shared across multiple
 threads in the same process.
@@ -292,6 +285,16 @@ generator can be used. There are many possible solutions. The library class
 :class:`~eventsourcing.infrastructure.integersequencegenerators.redisincr.RedisIncr`
 uses Redis' INCR command to generate a contiguous sequence of integers
 that can be shared be processes running on different nodes.
+
+Using Redis doesn't necessarily create a single point of failure. Redundancy can be
+obtained using clustered Redis. Although there aren't synchronous updates between
+nodes, so that the INCR command may issue the same numbers more than once, these
+numbers can only ever be used once. As failures are retried, the position will
+eventually reach an unassigned index position. Arrangements can be made to set the
+value from the highest assigned index. With care, the worst case will be an occasional
+slight delay in storing events, caused by switching to a new Redis node and catching up
+with the current index number. Please note, there is currently no code in the library
+to update or resync the Redis key used in the Redis INCR integer sequence generator.
 
 .. code:: python
 
@@ -343,25 +346,22 @@ an event in the aggregate's sequence that is not already in the application
 log.
 
 Commands that fail to write to the aggregate's sequence (due to an operation
-error or concurrency) after the event has been logged in the application log
+error or concurrency error) after the event has been logged in the application log
 should probably raise an exception, so that the command is seen to have failed
 and so may be retried. This leaves an item in the notification log, but not a
 domain event in the aggregate stream (a dangling reference, that may be satisfied later).
 If the command failed due to an operational error, the same event maybe
 published again, and so it would appear twice in the application log.
-
 And so whilst events in the application log that aren't in the aggregate
 sequence can perhaps be ignored by consumers of the application log, care
-should be taken to deduplicate events that are notified twice.
+should be taken to deduplicate events.
 
 If writing the event to its aggregate sequence is successful, then it is
 possible to push a notification about the event to a message queue. Failing
 to push the notification perhaps should not prevent the command returning
-normally.
-
-Push notifications could also be generated by a different process,
-that pulls from the application log, and pushes notifications for events
-that have not already been sent.
+normally. Push notifications could also be generated by another process,
+something that pulls from the application log, and pushes notifications
+for events that have not already been sent.
 
 
 Notification log
@@ -389,6 +389,13 @@ maintains position so that it can continue when there are further notifications.
 The position can be set directly with the ``seek()`` method. The position is set
 indirectly when a slice is taken with a start index. The position is set to zero
 when the reader is constructed.
+
+The notification log uses a big array object. In this example, the big array
+object is directly the application log above. It is possible to project the
+application log into a custom notification log, perhaps to deduplicate domain
+events, or to anonymise data, or to send messages to messaging infrastructure
+with more stateful control.
+
 
 .. code:: python
 
@@ -483,14 +490,13 @@ serializes sections from the notification log for use in a view.
 
 .. code:: python
 
+    import json
+
     from eventsourcing.interface.notificationlog import present_section
 
     content = present_section(application_log, '1,10', 10)
 
-    # Python 2.7 dumps JSON with space char at end of
-    # lines, so need to generate the expected result.
-    import json
-    expected = json.dumps({
+    expected = {
         "items": [
             "event0",
             "event1",
@@ -506,9 +512,9 @@ serializes sections from the notification log for use in a view.
         "next_id": "11,20",
         "previous_id": None,
         "section_id": "1,10"
-    }, indent=4, sort_keys=True)
+    }
 
-    assert content == expected
+    assert json.loads(content) == expected
 
 A Web application view can pick out from the request path the notification
 log ID and the section ID, and return an HTTP response with the JSON content
@@ -544,9 +550,10 @@ application log that is entirely correct.
 
 Todo: Race conditions around reading events being assigned using
 central integer sequence generator, could potentially read when a
-later item has been assigned but a previous one has not yet been
-assigned. So perhaps something can wait until previous has been
-assigned, or until it can safely be assumed the integer was lost.
+later index has been assigned but a previous one has not yet been
+assigned. Reading the previous as None, when it just being assigned
+is an error. So perhaps something can wait until previous has
+been assigned, or until it can safely be assumed the integer was lost.
 If an item is None, perhaps the notification log could stall for
 a moment before yielding the item, to allow time for the race condition
 to pass. Perhaps it should only do it when the item has been assigned
@@ -577,3 +584,4 @@ deferencing to real domain events could be an option of the notification log?
 Perhaps something could encapsulate the notification log and generate domain
 events?
 
+Todo: Configuration of remote reader, to allow URL to be completely configurable.
