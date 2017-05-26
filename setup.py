@@ -36,7 +36,7 @@ testing_requires = [
 ]
 
 long_description = """
-This package provides generic support for event sourcing in Python.
+A library for event sourcing in Python.
 
 `Package documentation is now available <http://eventsourcing.readthedocs.io/>`_.
 
