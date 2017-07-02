@@ -30,3 +30,7 @@ Please refer to [the documentation](http://eventsourcing.readthedocs.io/) for in
 
 This project is [hosted on GitHub](https://github.com/johnbywater/eventsourcing).
 Please [register your questions, requests and any other issues](https://github.com/johnbywater/eventsourcing/issues).
+
+## Slack Channel
+
+There is a [Slack channel](https://join.slack.com/eventsourcinginpython/shared_invite/MjA2ODA4MTI0OTYyLTE0OTg5ODM1MDMtZjUyNTI1ZWIyZg) for this project, which you are welcome to join.
