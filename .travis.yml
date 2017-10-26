@@ -6,9 +6,10 @@ services:
 
 python:
   - "2.7"
-  - "3.3"
+#  - "3.3"  matplotlib doesn't support this version of Python
   - "3.4"
   - "3.5"
+  - "3.6"
   - "pypy"
 
 install:
