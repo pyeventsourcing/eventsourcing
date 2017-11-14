@@ -33,7 +33,9 @@ testing_requires = [
     'uwsgi<=2.0.99999',
     'redis<=2.10.99999',
     'celery<=4.1.99999',
-]
+] + cassandra_requires + crypto_requires + sqlalchemy_requires
+
+docs_requires = ['sphinx_rtd_theme'] + testing_requires
 
 
 long_description = """
@@ -65,7 +67,8 @@ setup(
         'cassandra': cassandra_requires,
         'crypto': crypto_requires,
         'sqlalchemy': sqlalchemy_requires,
-        'testing': cassandra_requires + crypto_requires + sqlalchemy_requires + testing_requires,
+        'testing': testing_requires,
+        'docs': docs_requires,
     },
     zip_safe=False,
     long_description=long_description,
