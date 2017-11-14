@@ -1,5 +1,5 @@
 language: python
-sudo: false
+sudo: required
 services:
   - cassandra
   - redis-server
@@ -19,10 +19,10 @@ install:
 - CASS_DRIVER_NO_CYTHON=1 pip install -e .[cassandra,sqlalchemy,crypto,testing]
 - pip install python-coveralls
 
-#env:
-#  global:
+env:
+  global:
 #    - CASSANDRA_PROTOCOL_VERSION=2
-#    - CASSANDRA_HOSTS=127.0.0.1
+    - CASSANDRA_HOSTS=127.0.0.1
 
 script:
 - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then coverage run -m unittest discover eventsourcing.tests.core_tests.test_entity -v ; fi
