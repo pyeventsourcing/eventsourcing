@@ -16,13 +16,13 @@ python:
 
 install:
 - pip install -U pip wheel
-- pip install -e .[cassandra,sqlalchemy,crypto,testing]
+- CASS_DRIVER_NO_CYTHON=1 pip install -e .[cassandra,sqlalchemy,crypto,testing]
 - pip install python-coveralls
 
-env:
-  global:
-    - CASSANDRA_PROTOCOL_VERSION=2
-    - CASSANDRA_HOSTS=127.0.0.1
+#env:
+#  global:
+#    - CASSANDRA_PROTOCOL_VERSION=2
+#    - CASSANDRA_HOSTS=127.0.0.1
 
 script:
 - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then coverage run -m unittest discover eventsourcing.tests -v ; fi
