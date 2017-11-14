@@ -15,7 +15,7 @@ python:
   - pypy
 
 install:
-- pip install -U pip, wheel
+- pip install -U pip wheel
 - pip install -e .[cassandra,sqlalchemy,crypto,testing]
 - pip install python-coveralls
 
