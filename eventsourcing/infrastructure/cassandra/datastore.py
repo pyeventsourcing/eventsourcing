@@ -13,7 +13,7 @@ from eventsourcing.infrastructure.datastore import Datastore, DatastoreSettings
 
 DEFAULT_HOSTS = 'localhost'
 DEFAULT_PORT = 9042
-DEFAULT_PROTOCOL_VERSION = None
+DEFAULT_PROTOCOL_VERSION = 3
 DEFAULT_DEFAULT_KEYSPACE = 'eventsourcing'
 DEFAULT_CONSISTENCY_LEVEL = 'LOCAL_QUORUM'
 DEFAULT_REPLICATION_FACTOR = 1
