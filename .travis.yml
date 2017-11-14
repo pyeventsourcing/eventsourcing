@@ -5,11 +5,14 @@ services:
   - redis-server
 
 python:
-  - "2.7"
-  - "3.3"
-  - "3.4"
-  - "3.5"
-  - "pypy"
+  - 2.7
+  - 3.3
+  - 3.4
+  - 3.5
+  - 3.5-dev
+  - 3.6
+  - 3.6-dev
+  - pypy
 
 install:
 - pip install -U pip
