@@ -10,6 +10,6 @@ six<=1.10.99999
 sqlalchemy<=1.1.99999
 sqlalchemy-utils<=0.32.99999
 cassandra-driver<=3.9.99999
-PyCrypto<=2.6.99999
+pycryptodome<=3.4.99999
 redis<=2.10.99999
 celery<=4.0.99999

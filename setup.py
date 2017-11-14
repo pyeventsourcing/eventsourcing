@@ -23,7 +23,7 @@ cassandra_requires = [
     'cassandra-driver<=3.9.99999'
 ]
 
-crypto_requires = ['PyCrypto<=2.6.99999']
+crypto_requires = ['pycryptodome<=3.4.99999']
 
 testing_requires = [
     'mock<=2.0.99999',
