@@ -39,8 +39,8 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         self.cipher = cipher
         self.always_encrypt = always_encrypt
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
-        self.sequence_id_attr_name = sequence_id_attr_name
-        self.position_attr_name = position_attr_name
+        self.sequence_id_attr_name = sequence_id_attr_name or self.field_names.sequence_id
+        self.position_attr_name = position_attr_name or self.field_names.position
         self.other_attr_names = other_attr_names or self.field_names[4:]
 
     def to_sequenced_item(self, domain_event):
@@ -61,10 +61,10 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         event_attrs = domain_event.__dict__.copy()
 
         # Pop the sequence ID.
-        sequence_id = event_attrs.pop(self.sequence_id_attr_name or self.field_names.sequence_id)
+        sequence_id = event_attrs.pop(self.sequence_id_attr_name)
 
         # Pop the position in the sequence.
-        position = event_attrs.pop(self.position_attr_name or self.field_names.position)
+        position = event_attrs.pop(self.position_attr_name)
 
         # Decide if this event will be encrypted.
         is_encrypted = self.is_encrypted(domain_event.__class__)
@@ -94,10 +94,12 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Deserialize, optionally with decryption.
         is_encrypted = self.is_encrypted(domain_event_class)
         event_attrs = self.deserialize_event_attrs(getattr(sequenced_item, self.field_names.data), is_encrypted)
-        event_attrs[self.sequence_id_attr_name or self.field_names.sequence_id] = getattr(sequenced_item,
-                                                                                       self.field_names.sequence_id)
-        event_attrs[self.position_attr_name or self.field_names.position] = getattr(sequenced_item,
-                                                                                 self.field_names.position)
+
+        # Set the sequence ID.
+        event_attrs[self.sequence_id_attr_name] = getattr(sequenced_item, self.field_names.sequence_id)
+
+        # Set the position.
+        event_attrs[self.position_attr_name] = getattr(sequenced_item, self.field_names.position)
 
         # Reconstruct the domain event object.
         return reconstruct_object(domain_event_class, event_attrs)
