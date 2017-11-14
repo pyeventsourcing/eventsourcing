@@ -32,8 +32,8 @@ class TestObjectJSONEncoder(TestCase):
         self.assertEqual(encoder.encode(value), expect)
 
         value = Object(NAMESPACE_URL)
-        expect = ('{"__class__": {"topic": "eventsourcing.tests.test_transcoding#Object", "state": {"a": {"UUID": '
-                  '"6ba7b8119dad11d180b400c04fd430c8"}}}}')
+        expect = ('{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04fd430c8"}}, '
+                  '"topic": "eventsourcing.tests.test_transcoding#Object"}}')
         self.assertEqual(encoder.encode(value), expect)
 
         # Check defers to base class to raise TypeError.
@@ -64,8 +64,8 @@ class TestObjectJSONDecoder(TestCase):
         expect = NAMESPACE_URL
         self.assertEqual(decoder.decode(value), expect)
 
-        value = ('{"__class__": {"topic": "eventsourcing.tests.test_transcoding#Object", "state": {"a": {"UUID": '
-                 '"6ba7b8119dad11d180b400c04fd430c8"}}}}')
+        value = ('{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04fd430c8"}}, '
+                 '"topic": "eventsourcing.tests.test_transcoding#Object"}}')
         expect = Object(NAMESPACE_URL)
         self.assertEqual(decoder.decode(value), expect)
 
@@ -76,4 +76,3 @@ class Object(QualnameABC):
 
     def __eq__(self, other):
         return self.a == other.a
-
