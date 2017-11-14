@@ -11,9 +11,9 @@ from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import DatasourceSettingsError
 from eventsourcing.infrastructure.datastore import Datastore, DatastoreSettings
 
-DEFAULT_HOSTS = 'localhost'
+DEFAULT_HOSTS = '127.0.0.1'
 DEFAULT_PORT = 9042
-DEFAULT_PROTOCOL_VERSION = 2
+DEFAULT_PROTOCOL_VERSION = 3
 DEFAULT_DEFAULT_KEYSPACE = 'eventsourcing'
 DEFAULT_CONSISTENCY_LEVEL = 'LOCAL_QUORUM'
 DEFAULT_REPLICATION_FACTOR = 1

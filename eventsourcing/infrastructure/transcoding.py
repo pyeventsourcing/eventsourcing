@@ -8,6 +8,10 @@ from eventsourcing.domain.model.events import resolve_domain_topic, topic_from_d
 
 
 class ObjectJSONEncoder(JSONEncoder):
+
+    def __init__(self, sort_keys=True, *args, **kwargs):
+        super(ObjectJSONEncoder, self).__init__(sort_keys=sort_keys, *args, **kwargs)
+
     def default(self, obj):
         if isinstance(obj, datetime.datetime):
             return {'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z')}

@@ -1,25 +1,26 @@
 language: python
-sudo: false
+sudo: required
 services:
   - cassandra
   - redis-server
 
 python:
-  - "2.7"
-  - "3.3"
-  - "3.4"
-  - "3.5"
-  - "pypy"
+  - 2.7
+  - 3.3
+  - 3.4
+  - 3.5
+  - 3.5-dev
+  - 3.6
+  - 3.6-dev
+  - pypy
 
 install:
-- pip install -U pip
-- pip install -e .[cassandra,sqlalchemy,crypto]
-- pip install -r dev_requirements.txt
+- pip install -U pip wheel
+- CASS_DRIVER_NO_CYTHON=1 pip install -e .[cassandra,sqlalchemy,crypto,testing]
 - pip install python-coveralls
 
 env:
   global:
-    - CASSANDRA_PROTOCOL_VERSION=2
     - CASSANDRA_HOSTS=127.0.0.1
 
 script:

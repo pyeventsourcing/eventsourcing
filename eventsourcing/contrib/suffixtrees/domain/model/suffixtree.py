@@ -320,7 +320,7 @@ class Suffix(object):
 def register_new_node(suffix_node_id=None):
     """Factory method, registers new node.
     """
-    node_id = uuid4().hex
+    node_id = uuid4()
     event = Node.Created(originator_id=node_id, suffix_node_id=suffix_node_id)
     entity = Node.mutate(event=event)
     publish(event)
@@ -354,7 +354,7 @@ def register_new_suffix_tree(case_insensitive=False):
     assert isinstance(case_insensitive, bool)
     root_node = register_new_node()
 
-    suffix_tree_id = uuid4().hex
+    suffix_tree_id = uuid4()
     event = SuffixTree.Created(
         originator_id=suffix_tree_id,
         root_node_id=root_node.id,
