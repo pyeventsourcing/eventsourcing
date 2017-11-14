@@ -11,14 +11,15 @@ base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
 
 class TestDocs(TestCase):
-    def test_code_snippets_in_readme(self):
+    def test_readme(self):
         self._out = ''
         path = join(base_dir, 'README.md')
         if not os.path.exists(path):
             self.skipTest("Skipped test, README file not found: {}".format(path))
         self.check_code_snippets_in_file(path)
 
-    def test_code_snippets_in_docs(self):
+    def test_docs(self):
+
         skipped = [
             'deployment.rst'
         ]
@@ -34,7 +35,8 @@ class TestDocs(TestCase):
             for name in filenames:
                 if name in skipped:
                     continue
-                if name.endswith('.rst'):
+                # if name.endswith('.rst'):
+                if name.endswith('infrastructure.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)

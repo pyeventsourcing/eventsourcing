@@ -68,7 +68,10 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         # Serialise the state of the event.
         is_encrypted = self.is_encrypted(domain_event.__class__)
-        data = self.serialize_event_attrs(domain_event.__dict__, is_encrypted=is_encrypted)
+        event_attrs = domain_event.__dict__.copy()
+        event_attrs.pop(self.sequence_id_attr_name)
+        event_attrs.pop(self.position_attr_name)
+        data = self.serialize_event_attrs(event_attrs, is_encrypted=is_encrypted)
 
         other_args = tuple((getattr(domain_event, name) for name in self.other_attr_names))
         return (sequence_id, position, topic, data) + other_args
@@ -90,6 +93,8 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Deserialize, optionally with decryption.
         is_encrypted = self.is_encrypted(domain_event_class)
         event_attrs = self.deserialize_event_attrs(getattr(sequenced_item, self.field_names.data), is_encrypted)
+        event_attrs[self.position_attr_name] = getattr(sequenced_item, self.position_attr_name)
+        event_attrs[self.sequence_id_attr_name] = getattr(sequenced_item, self.sequence_id_attr_name)
 
         # Reconstruct the domain event object.
         return reconstruct_object(domain_event_class, event_attrs)
