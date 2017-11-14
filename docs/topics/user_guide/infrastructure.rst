@@ -2,22 +2,26 @@
 Infrastructure
 ==============
 
-The library infrastructure layer implements the cohesive mechanism for storing events as sequenced items.
+The library infrastructure layer implements the cohesive mechanism for storing events as sequences of items.
+
+Persistence Model
+=================
 
 When storing events, domain events of different types are mapped to a namedtuple, and the namedtuple is used to
-create a database record. Such database records can be selected and converted to namedtuples, and the namedtuples
-can be mapped back to event objects.
+create a database record.
 
 The fields of the namedtuple define the persistence model for storing domain events. The field names of the database
 record are expected to follow the field names of the namedtuple.
 
+Such database records can be selected and converted to namedtuples, and the namedtuples
+can be mapped back to event objects.
+
 
 SequencedItem
-=============
+-------------
 
-The library provides a namedtuple ``SequencedItem`` to which domain events can be mapped.
-
-The attributes of ``SequencedItem`` are ``sequence_id``, ``position``, ``topic``, and ``data``.
+The library provides a namedtuple ``SequencedItem`` to which domain events can be mapped. The attributes of
+``SequencedItem`` are ``sequence_id``, ``position``, ``topic``, and ``data``.
 
 The ``sequence_id`` identifies in which sequence the stored event belongs.
 
@@ -45,14 +49,14 @@ The ``data`` holds the serialized values of the attributes of the domain event.
 
 
 Stored Event
-============
+------------
 
 As an alternative, the library also provides a namedtuple ``StoredEvent`` to which domain events can be mapped.
-
 The attributes of ``StoredEvent`` are ``originator_id``, ``originator_version``, ``event_type``, and ``state``.
 
-The ``originator_id`` identifies in which sequence the stored event belongs. The ``originator_version`` identifies
-the position in that sequence.
+The ``originator_id`` identifies in which sequence the stored event belongs.
+
+The ``originator_version`` identifies the position in that sequence.
 
 The ``event_type`` identifies the particular type of the domain event that is stored.
 
