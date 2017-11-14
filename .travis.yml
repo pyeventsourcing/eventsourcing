@@ -21,7 +21,6 @@ install:
 
 env:
   global:
-    - CASSANDRA_PROTOCOL_VERSION=4
     - CASSANDRA_HOSTS=127.0.0.1
 
 script:
