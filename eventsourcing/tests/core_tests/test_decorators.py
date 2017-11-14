@@ -6,10 +6,6 @@ from eventsourcing.domain.model.decorators import mutator, retry
 class TestDecorators(TestCase):
 
     def test_retry_without_arg(self):
-        # Check the exc arg must be an exception class.
-        with self.assertRaises(TypeError):
-            self.assertEqual(retry(exc=TestCase), 1)
-
         # Check docstrings of decorated functions.
         def func(*args):
             """func docstring"""
@@ -49,7 +45,10 @@ class TestDecorators(TestCase):
             retry(max_retries='')  # needs to be an int
 
         with self.assertRaises(TypeError):
-            retry(exc=TestCase)  # need to be subclass of Exception
+            retry(exc=TestCase)  # need to be subclass of Exception (single value)
+
+        with self.assertRaises(TypeError):
+            retry(exc=(TestCase,))  # need to be subclass of Exception (tuple)
 
         with self.assertRaises(TypeError):
             retry(wait='')  # needs to be a float
