@@ -4,12 +4,13 @@ from uuid import NAMESPACE_URL
 
 from decimal import Decimal
 
+from eventsourcing.domain.model.events import QualnameABC
 from eventsourcing.infrastructure.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
 from eventsourcing.utils.time import utc_timezone
 
 
 class TestObjectJSONEncoder(TestCase):
-    def test_default(self):
+    def test_encode(self):
         encoder = ObjectJSONEncoder()
         expect = '1'
         self.assertEqual(encoder.encode(1), expect)
@@ -31,7 +32,7 @@ class TestObjectJSONEncoder(TestCase):
         self.assertEqual(encoder.encode(value), expect)
 
         value = Object(NAMESPACE_URL)
-        expect = ('{"__class__": {"topic": "test_transcoding#Object", "state": {"a": {"UUID": '
+        expect = ('{"__class__": {"topic": "eventsourcing.tests.test_transcoding#Object", "state": {"a": {"UUID": '
                   '"6ba7b8119dad11d180b400c04fd430c8"}}}}')
         self.assertEqual(encoder.encode(value), expect)
 
@@ -43,7 +44,7 @@ class TestObjectJSONEncoder(TestCase):
 
 
 class TestObjectJSONDecoder(TestCase):
-    def test_default(self):
+    def test_decode(self):
         decoder = ObjectJSONDecoder()
         self.assertEqual(decoder.decode('1'), 1)
 
@@ -63,13 +64,13 @@ class TestObjectJSONDecoder(TestCase):
         expect = NAMESPACE_URL
         self.assertEqual(decoder.decode(value), expect)
 
-        value = ('{"__class__": {"topic": "test_transcoding#Object", "state": {"a": {"UUID": '
+        value = ('{"__class__": {"topic": "eventsourcing.tests.test_transcoding#Object", "state": {"a": {"UUID": '
                  '"6ba7b8119dad11d180b400c04fd430c8"}}}}')
         expect = Object(NAMESPACE_URL)
         self.assertEqual(decoder.decode(value), expect)
 
 
-class Object(object):
+class Object(QualnameABC):
     def __init__(self, a):
         self.a = a
 
