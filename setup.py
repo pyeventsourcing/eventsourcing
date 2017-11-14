@@ -20,7 +20,7 @@ sqlalchemy_requires = [
 ]
 
 cassandra_requires = [
-    'cassandra-driver<=3.9.99999'
+    'cassandra-driver<=3.12.99999'
 ]
 
 crypto_requires = ['pycryptodome<=3.4.99999']
@@ -32,8 +32,9 @@ testing_requires = [
     'flask_sqlalchemy<=2.2.99',
     'uwsgi<=2.0.99999',
     'redis<=2.10.99999',
-    'celery<=4.0.99999',
+    'celery<=4.1.99999',
 ]
+
 
 long_description = """
 A library for event sourcing in Python.
