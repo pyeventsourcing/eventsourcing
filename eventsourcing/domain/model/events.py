@@ -38,7 +38,7 @@ class QualnameABCMeta(ABCMeta):
 
 
 def create_timesequenced_event_id():
-    return uuid1().hex
+    return uuid1()
 
 
 class QualnameABC(with_metaclass(QualnameABCMeta)):

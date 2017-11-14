@@ -192,7 +192,7 @@ class ExampleDDDApplication(object):
         """
         Factory method, creates and returns a new example aggregate root object.
 
-        :rtype: ExampleAggregateRoot 
+        :rtype: ExampleAggregateRoot
         """
         event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4())
         aggregate = ExampleAggregateRoot._mutate(initial=None, event=event)

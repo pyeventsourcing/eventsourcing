@@ -138,22 +138,3 @@ class TestSequencedItemMapper(TestCase):
         self.assertEqual(domain_event.c, event3.c)
         # self.assertEqual(domain_event.d, event3.d)
         self.assertEqual(domain_event.e, event3.e)
-
-    def test_errors(self):
-        # Setup the mapper, and create an event.
-        mapper = SequencedItemMapper(
-            sequenced_item_class=SequencedItem,
-            sequence_id_attr_name='originator_id',
-            position_attr_name='a'
-        )
-
-        # Create an event with dates and datetimes.
-        event3 = Event3(
-            originator_id='entity3',
-            originator_version=303,
-            a=Decimal(1.0),
-        )
-
-        # Check to_sequenced_item() method results in a sequenced item.
-        with self.assertRaises(TypeError):
-            mapper.to_sequenced_item(event3)

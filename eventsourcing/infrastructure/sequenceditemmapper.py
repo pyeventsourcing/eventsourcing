@@ -30,9 +30,6 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     Uses JSON to transcode domain events.
     """
 
-    SEQUENCE_ID_FIELD_INDEX = 0
-    POSITION_FIELD_INDEX = 1
-
     def __init__(self, sequenced_item_class=SequencedItem, sequence_id_attr_name=None, position_attr_name=None,
                  json_encoder_class=ObjectJSONEncoder, json_decoder_class=ObjectJSONDecoder,
                  always_encrypt=False, cipher=None, other_attr_names=()):
@@ -42,8 +39,8 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         self.cipher = cipher
         self.always_encrypt = always_encrypt
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
-        self.sequence_id_attr_name = sequence_id_attr_name or self.field_names[self.SEQUENCE_ID_FIELD_INDEX]
-        self.position_attr_name = position_attr_name or self.field_names[self.POSITION_FIELD_INDEX]
+        self.sequence_id_attr_name = sequence_id_attr_name
+        self.position_attr_name = position_attr_name
         self.other_attr_names = other_attr_names or self.field_names[4:]
 
     def to_sequenced_item(self, domain_event):
@@ -57,23 +54,27 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         """
         Constructs attributes of a sequenced item from the given domain event.
         """
-        # Identify the sequence ID.
-        sequence_id = getattr(domain_event, self.sequence_id_attr_name)
-
-        # Identify the position in the sequence.
-        position = getattr(domain_event, self.position_attr_name)
-
         # Construct the topic from the event class.
         topic = topic_from_domain_class(domain_event.__class__)
 
-        # Serialise the state of the event.
-        is_encrypted = self.is_encrypted(domain_event.__class__)
+        # Copy the state of the event.
         event_attrs = domain_event.__dict__.copy()
-        event_attrs.pop(self.sequence_id_attr_name)
-        event_attrs.pop(self.position_attr_name)
+
+        # Pop the sequence ID.
+        sequence_id = event_attrs.pop(self.sequence_id_attr_name or self.field_names.sequence_id)
+
+        # Pop the position in the sequence.
+        position = event_attrs.pop(self.position_attr_name or self.field_names.position)
+
+        # Decide if this event will be encrypted.
+        is_encrypted = self.is_encrypted(domain_event.__class__)
+
+        # Serialise the remaining event attribute values.
         data = self.serialize_event_attrs(event_attrs, is_encrypted=is_encrypted)
 
+        # Get the 'other' args.
         other_args = tuple((getattr(domain_event, name) for name in self.other_attr_names))
+
         return (sequence_id, position, topic, data) + other_args
 
     def construct_sequenced_item(self, item_args):
@@ -93,8 +94,10 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Deserialize, optionally with decryption.
         is_encrypted = self.is_encrypted(domain_event_class)
         event_attrs = self.deserialize_event_attrs(getattr(sequenced_item, self.field_names.data), is_encrypted)
-        event_attrs[self.position_attr_name] = getattr(sequenced_item, self.position_attr_name)
-        event_attrs[self.sequence_id_attr_name] = getattr(sequenced_item, self.sequence_id_attr_name)
+        event_attrs[self.sequence_id_attr_name or self.field_names.sequence_id] = getattr(sequenced_item,
+                                                                                       self.field_names.sequence_id)
+        event_attrs[self.position_attr_name or self.field_names.position] = getattr(sequenced_item,
+                                                                                 self.field_names.position)
 
         # Reconstruct the domain event object.
         return reconstruct_object(domain_event_class, event_attrs)
