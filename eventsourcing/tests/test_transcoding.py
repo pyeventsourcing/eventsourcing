@@ -2,6 +2,8 @@ import datetime
 from unittest import TestCase
 from uuid import NAMESPACE_URL
 
+from decimal import Decimal
+
 from eventsourcing.infrastructure.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
 from eventsourcing.utils.time import utc_timezone
 
@@ -32,6 +34,12 @@ class TestObjectJSONEncoder(TestCase):
         expect = ('{"__class__": {"topic": "test_transcoding#Object", "state": {"a": {"UUID": '
                   '"6ba7b8119dad11d180b400c04fd430c8"}}}}')
         self.assertEqual(encoder.encode(value), expect)
+
+        # Check defers to base class to raise TypeError.
+        # - a Decimal isn't supported at the moment, hence this test works
+        # - but maybe it should, in which case we need a different unsupported type here
+        with self.assertRaises(TypeError):
+            encoder.encode(Decimal(1.0))
 
 
 class TestObjectJSONDecoder(TestCase):
