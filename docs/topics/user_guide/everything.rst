@@ -170,7 +170,7 @@ Cipher strategy
 
 .. code:: python
 
-    from eventsourcing.domain.services.aes_cipher import AESCipher
+    from eventsourcing.infrastructure.cipher.aes import AESCipher
 
     # Construct the cipher strategy.
     aes_key = b'0123456789abcdef'

@@ -4,14 +4,13 @@ import zlib
 from Crypto import Random
 from Crypto.Cipher import AES
 
-from eventsourcing.domain.services.cipher import AbstractCipher
+from eventsourcing.infrastructure.cipher.base import AbstractCipher
 
 
 class AESCipher(AbstractCipher):
     """
     Cipher strategy that uses the AES cipher from the Crypto library.
     """
-    BLOCK_SIZE = 16
 
     def __init__(self, aes_key):
         self.aes_key = aes_key
@@ -44,10 +43,17 @@ class AESCipher(AbstractCipher):
             )
         ).decode('utf8')
 
+        # Check can decrypt without error.
+        assert self.decrypt(ciphertext) == plaintext
+
+        print('Encrypted ok: ' + ciphertext)
+
         return ciphertext
 
     def decrypt(self, ciphertext):
         """Return plaintext for given ciphertext."""
+
+        print('Decrypting: ' + ciphertext)
 
         # Recover the initialisation vector.
         ciphertext_bytes_base64 = ciphertext.encode('utf8')
