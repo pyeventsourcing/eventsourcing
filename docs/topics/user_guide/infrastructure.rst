@@ -97,37 +97,39 @@ Sequenced Item Mapper
 The library has an object class ``SequencedItemMapper``, which is used to map between sequenced item objects and domain
 event objects.
 
+.. code:: python
+
+    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+
+
 The method ``to_sequenced_item()`` is used to convert domain events to sequenced items.
 
 The method ``from_sequenced_item()`` is used to convert sequenced items to domain events.
 
-A namedtuple class is passed to the sequenced item mapper using constructor arg ``sequenced_item_class``. The default
-value of arg ``sequenced_item_class`` is the library's ``SequencedItem`` namedtuple type.
-
 
 .. code:: python
-
-    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-    from eventsourcing.domain.model.events import DomainEvent
-
 
     sequenced_item_mapper = SequencedItemMapper()
 
     domain_event = sequenced_item_mapper.from_sequenced_item(sequenced_item1)
 
-    assert domain_event.foo == 'bar'
     assert domain_event.sequence_id == sequence1
     assert domain_event.position == 0
-    assert isinstance(domain_event, DomainEvent)
+    assert domain_event.foo == 'bar'
 
     assert sequenced_item_mapper.to_sequenced_item(domain_event) == sequenced_item1
 
 
-If the event attribute names which identify the sequence and the position
-in the sequence do not correspond to the field names of the namedtuple, the domain event's
-attribute names can be passed to the sequenced item mapper, using
-constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
+A sequenced item namedtuple class can be passed to the sequenced item mapper using constructor arg
+``sequenced_item_class``, by default the library's ``SequencedItem``.
 
+If the attributes
+If the field names of the sequenced item namedtuple which identify the domain event's sequence and position
+(e.g. `sequence_id` and `position`) do not match the domain event's attribute names, the actual domain event
+attribute names can be given to the sequenced item mapper using constructor args ``sequence_id_attr_name`` and
+``position_attr_name``.
+
+For example, in the code below, the domain event attribute names are ``'originator_id'`` and ``'originator_version'``.
 
 .. code:: python
 
@@ -141,12 +143,11 @@ constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
     assert domain_event1.foo == 'bar', domain_event1
     assert domain_event1.originator_id == sequence1
     assert domain_event1.originator_version == 0
-    assert isinstance(domain_event1, DomainEvent)
     assert sequenced_item_mapper.to_sequenced_item(domain_event1) == sequenced_item1
 
 
 An alternative is to use a namedtuple with fields that correspond to the
-domain event attribute names, such as the ``StoredEvent`` namedtuple, discussed above.
+domain event attribute names, such as the library's ``StoredEvent`` namedtuple, discussed above.
 
 
 .. code:: python
@@ -159,31 +160,40 @@ domain event attribute names, such as the ``StoredEvent`` namedtuple, discussed 
 
     assert domain_event1.foo == 'bar', domain_event1
     assert domain_event1.originator_id == aggregate1
-    assert isinstance(domain_event1, DomainEvent)
     assert sequenced_item_mapper.to_sequenced_item(domain_event1) == stored_event1
 
 
 Which namedtuple you choose for your project depends on your preferences for the names
 in the database schema: if you want the names to resemble the attributes of domain event
 classes in the library, then use the ``StoredEvent`` namedtuple. Otherwise use the default
-``SequencedItem`` namedtuple, or define a namedtuple that more closely suits your purpose.
+``SequencedItem`` namedtuple or, even better, define a namedtuple that more closely suits
+your purpose.
 
 
 Encryption
 ----------
 
 The ``SequencedItemMapper`` can be given a ``cipher`` object. The library provides an AES cipher object class, which
-can be used by ``SequencedItemMapper``
-
-If the domain event attribute ``__always_encrypt__`` is True, or the constructor arg ``always_encrypt`` is True,
-then the ``state`` of the stored event will be encrypted.
-
+can be used by ``SequencedItemMapper``.
 
 .. code:: python
 
     from eventsourcing.infrastructure.cipher.aes import AESCipher
 
     cipher = AESCipher(aes_key=b'0123456789abcdef')
+
+
+    ciphertext = cipher.encrypt('plaintext')
+    plaintext = cipher.decrypt(ciphertext)
+
+    assert ciphertext != 'plaintext'
+    assert plaintext == 'plaintext'
+
+
+If the constructor arg ``always_encrypt`` is True, then the ``state`` of the stored event will be encrypted.
+
+
+.. code:: python
 
     # Construct sequenced item mapper to always encrypt domain events.
     ciphered_sequenced_item_mapper = SequencedItemMapper(
@@ -351,19 +361,21 @@ The library object class ``EventStore`` is constructed with a ``sequenced_item_m
     )
 
 
-The method ``append()`` is used to append events. If a second event is appended to the same
+The method ``append()`` is used to append an event to its sequence. If a second event is appended to the same
 sequence, the sequence will then have two events.
 
 
 .. code:: python
 
-    event2 = DomainEvent(
-        originator_id=aggregate1,
-        originator_version=1,
-        foo='baz',
-    )
+    from eventsourcing.domain.model.events import DomainEvent
 
-    event_store.append(event2)
+    event_store.append(
+        DomainEvent(
+            originator_id=aggregate1,
+            originator_version=1,
+            foo='baz',
+        )
+    )
 
 
 The method ``get_domain_events()`` is used to retrieve events.
