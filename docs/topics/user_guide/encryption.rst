@@ -17,7 +17,7 @@ Cipher strategy
 ---------------
 
 Let's firstly construct a cipher strategy object. This example uses the
-library AES cipher strategy :class:`~eventsourcing.domain.services.aes_cipher.AESCipher`.
+library AES cipher strategy :class:`~eventsourcing.infrastructure.cipher.aes.AESCipher`.
 
 The library AES cipher strategy uses the AES cipher from the `Python Cryptography
 Toolkit <https://pypi.python.org/pypi/pycrypto>`__, by default in CBC mode with
@@ -32,7 +32,7 @@ are replayed.
 
 .. code:: python
 
-    from eventsourcing.domain.services.aes_cipher import AESCipher
+    from eventsourcing.infrastructure.cipher.aes import AESCipher
 
     # Construct the cipher strategy.
     aes_key = '0123456789abcdef'

@@ -6,7 +6,7 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.domain.model.events import reconstruct_object, resolve_domain_topic, topic_from_domain_class
-from eventsourcing.domain.services.cipher import AbstractCipher
+from eventsourcing.infrastructure.cipher.base import AbstractCipher
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 from eventsourcing.infrastructure.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 

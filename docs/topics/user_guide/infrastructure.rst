@@ -131,10 +131,6 @@ constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-    from eventsourcing.domain.model.events import DomainEvent
-
-
     sequenced_item_mapper = SequencedItemMapper(
         sequence_id_attr_name='originator_id',
         position_attr_name='originator_version'
@@ -155,10 +151,6 @@ domain event attribute names, such as the ``StoredEvent`` namedtuple, discussed 
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-    from eventsourcing.domain.model.events import DomainEvent
-
-
     sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=StoredEvent,
     )
@@ -175,6 +167,46 @@ Which namedtuple you choose for your project depends on your preferences for the
 in the database schema: if you want the names to resemble the attributes of domain event
 classes in the library, then use the ``StoredEvent`` namedtuple. Otherwise use the default
 ``SequencedItem`` namedtuple, or define a namedtuple that more closely suits your purpose.
+
+
+Encryption
+----------
+
+The ``SequencedItemMapper`` can be given a ``cipher`` object. The library provides an AES cipher object class, which
+can be used by ``SequencedItemMapper``
+
+If the domain event attribute ``__always_encrypt__`` is True, or the constructor arg ``always_encrypt`` is True,
+then the ``state`` of the stored event will be encrypted.
+
+
+.. code:: python
+
+    from eventsourcing.infrastructure.cipher.aes import AESCipher
+
+    cipher = AESCipher(aes_key=b'0123456789abcdef')
+
+    # Construct sequenced item mapper to always encrypt domain events.
+    ciphered_sequenced_item_mapper = SequencedItemMapper(
+        sequenced_item_class=StoredEvent,
+        cipher=cipher,
+        always_encrypt=True,
+    )
+
+    # Domain event attribute ``foo`` has value ``'bar'``.
+    assert domain_event1.foo == 'bar'
+
+    # Map domain event to an encrypted stored event namedtuple.
+    stored_event = ciphered_sequenced_item_mapper.to_sequenced_item(domain_event1)
+
+    # Attribute values of the domain event are not visible.
+    assert 'foo' not in stored_event.state
+    assert 'bar' not in stored_event.state
+
+    # Recover domain event from encrypted stored event.
+    domain_event = ciphered_sequenced_item_mapper.from_sequenced_item(stored_event)
+
+    # Domain event has the expected attribute value.
+    assert domain_event.foo == 'bar'
 
 
 Active Record Strategy
