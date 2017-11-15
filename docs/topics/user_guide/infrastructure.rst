@@ -292,6 +292,10 @@ The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` named
     results = cassandra_active_record_strategy.get_items(aggregate1)
     assert results[0] == stored_event1
 
+    cassandra_datastore.drop_tables()
+    cassandra_datastore.drop_connection()
+
+
 
 Event Store
 ===========
