@@ -131,6 +131,7 @@ attribute names can be given to the sequenced item mapper using constructor args
 
 For example, in the code below, the domain event attribute names are ``'originator_id'`` and ``'originator_version'``.
 
+
 .. code:: python
 
     sequenced_item_mapper = SequencedItemMapper(
@@ -175,6 +176,7 @@ Encryption
 
 The ``SequencedItemMapper`` can be given a ``cipher`` object. The library provides an AES cipher object class, which
 can be used by ``SequencedItemMapper``.
+
 
 .. code:: python
 
@@ -255,6 +257,7 @@ record classes which inherit from your ``Base`` class. If so, if may help to ref
 classes to see which fields are required, and how to setup the indexes.
 
 The code below uses the ``StoredEventRecord`` to setup a table suitable for storing the ``StoredEvent`` namedtuple.
+
 
 .. code:: python
 
@@ -361,8 +364,10 @@ The library object class ``EventStore`` is constructed with a ``sequenced_item_m
     )
 
 
-The method ``append()`` is used to append an event to its sequence. If a second event is appended to the same
+The event store's method ``append()`` appends an event to its sequence. If a second event is appended to the same
 sequence, the sequence will then have two events.
+
+In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at position ``1``.
 
 
 .. code:: python
@@ -394,7 +399,7 @@ The method ``get_domain_events()`` is used to retrieve events.
     assert result[1].foo == 'baz'
 
 
-Optional arguments of ``get_domain_events`` can be used to select some of the items in the sequence.
+The optional arguments of ``get_domain_events()`` can be used to select some of the items in the sequence.
 
 The ``lt`` arg is used to select items below the given position in the sequence.
 
@@ -444,14 +449,39 @@ order of the results. Hence, it can affect both the content of the results and t
 Optimistic Concurrency Control
 ==============================
 
+It is a feature of the infrastructure layer that it isn't possible to append two events at the same position in the
+same sequence. This condition is coded as a concurrency error (since, by definition, a correct program running in a
+single thread wouldn't attempt to append twice to the same position in the same sequence).
+
+
+.. code:: python
+
+    from eventsourcing.exceptions import ConcurrencyError
+
+    # Fail to append an event at the same position in the same sequence as a previous event.
+    try:
+        event_store.append(
+            DomainEvent(
+                originator_id=aggregate1,
+                originator_version=1,
+                foo='baz',
+            )
+        )
+    except ConcurrencyError:
+        pass
+    else:
+        raise Exception("ConcurrencyError not raised")
+
 
 Timestamp Sequenced Events
 ==========================
 
+The code above uses items that are sequenced by integer. As an alternative, items can be sequenced by timestamp.
 
-Encryption
-==========
+Todo: More about timestamp sequenced events.
 
 
 Snapshots
 =========
+
+Todo: More about snapshots.
