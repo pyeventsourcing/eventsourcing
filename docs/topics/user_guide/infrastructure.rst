@@ -12,8 +12,8 @@ The fields of the namedtuple define the persistence model for storing domain eve
 suitable database table will match the field names of the namedtuple.
 
 Domain events of different types can be mapped to a single namedtuple type, and a namedtuple can be used to
-create a database record. The database records can be selected and converted to namedtuples, and the namedtuples can
- be mapped back to domain event objects.
+create a database record. The database records can be selected and converted to namedtuples, and the namedtuples
+can be mapped back to domain event objects.
 
 
 SequencedItem
@@ -352,13 +352,13 @@ The ``lte`` arg is used to select items below and at the given position in the s
 
 The ``gte`` arg is used to select items at and above the given position in the sequence.
 
-The ``lte`` arg is used to select items above the given position in the sequence.
+The ``gt`` arg is used to select items above the given position in the sequence.
 
 The ``limit`` arg is used to limit the number of items selected from the sequence.
 
-The ``is_ascending`` arg is used when selecting items. It affects how the query is performed, determines the order of
-the results, and affects how any ``limit`` is applied. Hence, it can affect both the results and the performance of
-the method.
+The ``is_ascending`` arg is used when selecting items. It affects how any ``limit`` is applied, and determines the
+order of the results. Hence, it can affect both the content of the results and the performance of the method.
+
 
 .. code:: python
 
