@@ -8,12 +8,13 @@ The library's infrastructure layer provides a cohesive mechanism for storing eve
 Persistence Model
 =================
 
-The fields of the namedtuple define the persistence model for storing domain events. The field names of a
-suitable database table will match the field names of the namedtuple.
+A persistence model for sequenced items is defined using a namedtuple.
 
-Domain events of different types can be mapped to a single namedtuple type, and a namedtuple can be used to
-create a database record. The database records can be selected and converted to namedtuples, and the namedtuples
-can be mapped back to domain event objects.
+Domain events of different types can be mapped to a single sequenced item type, and the sequenced item
+objects can be used to create database records. The database records can be selected and converted to
+sequenced items objects, and the sequenced item objects can be mapped back to domain event objects.
+
+The field names of a suitable database table will match the field names of the sequenced item namedtuple.
 
 
 SequencedItem
@@ -52,8 +53,8 @@ The ``data`` holds the serialized values of the item that is stored.
     assert sequenced_item1.data == '{"foo":"bar"}'
 
 
-Stored Event
-------------
+StoredEvent namedtuple
+----------------------
 
 As an alternative, the library also provides a namedtuple ``StoredEvent`` to which domain events can be mapped.
 The attributes of ``StoredEvent`` are ``originator_id``, ``originator_version``, ``event_type``, and ``state``.
@@ -93,8 +94,8 @@ The ``state`` holds the serialized values of the attributes of the domain event,
 Sequenced Item Mapper
 =====================
 
-The library has an object class ``SequencedItemMapper``, which is used to map between namedtuples and domain
-events.
+The library has an object class ``SequencedItemMapper``, which is used to map between sequenced item objects and domain
+event objects.
 
 The method ``to_sequenced_item()`` is used to convert domain events to sequenced items.
 
@@ -122,8 +123,8 @@ value of arg ``sequenced_item_class`` is the library's ``SequencedItem`` namedtu
     assert sequenced_item_mapper.to_sequenced_item(domain_event) == sequenced_item1
 
 
-If the names of the domain event attributes that identify the sequence ID and the position
-in the sequence do not correspond to the field names of the named tuple, the domain event's
+If the event attribute names which identify the sequence and the position
+in the sequence do not correspond to the field names of the namedtuple, the domain event's
 attribute names can be passed to the sequenced item mapper, using
 constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 
@@ -151,6 +152,7 @@ constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 An alternative is to use a namedtuple with fields that correspond to the
 domain event attribute names, such as the ``StoredEvent`` namedtuple, discussed above.
 
+
 .. code:: python
 
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
@@ -171,7 +173,7 @@ domain event attribute names, such as the ``StoredEvent`` namedtuple, discussed 
 
 Which namedtuple you choose for your project depends on your preferences for the names
 in the database schema: if you want the names to resemble the attributes of domain event
-classes in the library, then use the ``StoredEvent`` namedtuple. Otherwise, use the
+classes in the library, then use the ``StoredEvent`` namedtuple. Otherwise use the default
 ``SequencedItem`` namedtuple, or define a namedtuple that more closely suits your purpose.
 
 
@@ -393,3 +395,19 @@ order of the results. Hence, it can affect both the content of the results and t
     assert result[0].originator_id == aggregate1
     assert result[0].originator_version == 1
     assert result[0].foo == 'baz'
+
+
+Optimistic Concurrency Control
+==============================
+
+
+Timestamp Sequenced Events
+==========================
+
+
+Encryption
+==========
+
+
+Snapshots
+=========
