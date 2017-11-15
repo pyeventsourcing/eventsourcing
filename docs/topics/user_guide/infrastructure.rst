@@ -2,7 +2,8 @@
 Infrastructure
 ==============
 
-The library infrastructure layer implements the cohesive mechanism for storing events as sequences of items.
+The library's infrastructure layer provides a cohesive mechanism for storing events as sequences of items.
+
 
 Persistence Model
 =================
@@ -10,10 +11,9 @@ Persistence Model
 When storing events, domain events of different types are mapped to a namedtuple, and the namedtuple is used to
 create a database record.
 
-The fields of the namedtuple define the persistence model for storing domain events. The field names of the database
-record are expected to match the field names of the namedtuple. Such database records can be selected and converted
-to namedtuples, and the namedtuples
-can be mapped back to event objects.
+The fields of the namedtuple define the persistence model for storing domain events. The field names of a
+suitable database table will match the field names of the namedtuple. The database records can be
+selected and converted to namedtuples, and the namedtuples can be mapped back to domain event objects.
 
 
 SequencedItem
@@ -93,14 +93,15 @@ The ``state`` holds the serialized values of the attributes of the domain event,
 Sequenced Item Mapper
 =====================
 
-The library has an object class ``SequencedItemMapper``, which is used to map between domain events and namedtuples.
-
-A namedtuple class is passed to the sequenced item mapper using constructor arg ``sequenced_item_class``. The default
-value is ``SequencedItem``.
+The library has an object class ``SequencedItemMapper``, which is used to map between namedtuples and domain
+events.
 
 The method ``to_sequenced_item()`` is used to convert domain events to sequenced items.
 
 The method ``from_sequenced_item()`` is used to convert sequenced items to domain events.
+
+A namedtuple class is passed to the sequenced item mapper using constructor arg ``sequenced_item_class``. The default
+value is ``SequencedItem``.
 
 
 
@@ -123,8 +124,8 @@ The method ``from_sequenced_item()`` is used to convert sequenced items to domai
 
 
 If the names of the domain event attributes that identify the sequence ID and the position
-in the sequence do not correspond to the field names of the named tuple, the attribute names
-of the domain event can be passed to the sequenced item mapper, using
+in the sequence do not correspond to the field names of the named tuple, the domain event's
+attribute names can be passed to the sequenced item mapper, using
 constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 
 
@@ -148,8 +149,8 @@ constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
     assert sequenced_item_mapper.to_sequenced_item(domain_event1) == sequenced_item1
 
 
-An alternative straightforward approach is to use a namedtuple with fields that correspond to the
-domain event attribute names, such as the ``StoredEvent`` namedtuple.
+An alternative is to use a namedtuple with fields that correspond to the
+domain event attribute names, such as the ``StoredEvent`` namedtuple (discussed above).
 
 .. code:: python
 
@@ -170,7 +171,7 @@ domain event attribute names, such as the ``StoredEvent`` namedtuple.
 
 
 Which namedtuple you choose for your project depends on your preferences for the names
-in the database schema: if you want the names to resemble the names of domain event
+in the database schema: if you want the names to resemble the attributes of domain event
 classes in the library, then use the ``StoredEvent`` namedtuple. Otherwise, use the
 ``SequencedItem`` namedtuple, or define a namedtuple that more closely suits your purpose.
 
@@ -201,12 +202,16 @@ SQLAlchemy
 The ``SQLAlchemyDatastore`` is used to setup an SQLAlchemy database, and requires a ``settings`` object,
 and a tuple of active record classes passed using the ``tables`` arg.
 
+For the ``SQLAlchemyActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
+from ``eventsourcing.infrastructure.sqlalchemy.activerecords`` matches the ``SequencedItem`` namedtuple.
+
+The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` namedtuple.
+
 Note, if you have declared your own SQLAlchemy model ``Base`` class, you may wish to define your own active
 record classes which inherit from your ``Base`` class. If so, if may help to refer to the library active record
 classes to see which fields are required, and how to setup the indexes.
 
-The code below uses the ``StoredEventRecord`` when setting up an SQLAlchemy database with a table suitable
-for storing the ``StoredEvent`` namedtuple.
+The code below uses the ``StoredEventRecord`` to setup a table suitable for storing the ``StoredEvent`` namedtuple.
 
 .. code:: python
 
@@ -220,10 +225,6 @@ for storing the ``StoredEvent`` namedtuple.
     datastore.setup_connection()
     datastore.setup_tables()
 
-
-For the ``SQLAlchemyActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
-from ``eventsourcing.infrastructure.sqlalchemy.activerecords`` matches the ``SequencedItem`` namedtuple.
-The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` namedtuple.
 
 The ``SQLAlchemyActiveRecordStrategy`` also requires a scoped session object to be passed, using the ``session`` arg.
 
@@ -249,6 +250,7 @@ record strategy object.
 
 
 Stored events previously appended to the database can be retrieved using the sequence or aggregate ID.
+
 
 .. code:: python
 
@@ -315,7 +317,7 @@ The library object class ``EventStore`` is constructed with a ``sequenced_item_m
     )
 
 
-The method ``append()`` is used to append events. If a second event is appended to the
+The method ``append()`` is used to append events. If a second event is appended to the same
 sequence, the sequence will then have two events.
 
 
@@ -364,28 +366,28 @@ the method.
 
 .. code:: python
 
-    # Get all events at or below position 0.
+    # Get events below and at position 0.
     result = event_store.get_domain_events(aggregate1, lte=0)
     assert len(result) == 1, result
     assert result[0].originator_id == aggregate1
     assert result[0].originator_version == 0
     assert result[0].foo == 'bar'
 
-    # Get all events at or above position 1.
+    # Get events at and above position 1.
     result = event_store.get_domain_events(aggregate1, gte=1)
     assert len(result) == 1, result
     assert result[0].originator_id == aggregate1
     assert result[0].originator_version == 1
     assert result[0].foo == 'baz'
 
-    # Get the first event.
+    # Get the first event in the sequence.
     result = event_store.get_domain_events(aggregate1, limit=1)
     assert len(result) == 1, result
     assert result[0].originator_id == aggregate1
     assert result[0].originator_version == 0
     assert result[0].foo == 'bar'
 
-    # Get the last event.
+    # Get the last event in the sequence.
     result = event_store.get_domain_events(aggregate1, limit=1, is_ascending=False)
     assert len(result) == 1, result
     assert result[0].originator_id == aggregate1
