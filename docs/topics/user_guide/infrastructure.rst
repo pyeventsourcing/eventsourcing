@@ -8,12 +8,12 @@ The library's infrastructure layer provides a cohesive mechanism for storing eve
 Persistence Model
 =================
 
-When storing events, domain events of different types are mapped to a namedtuple, and the namedtuple is used to
-create a database record.
-
 The fields of the namedtuple define the persistence model for storing domain events. The field names of a
-suitable database table will match the field names of the namedtuple. The database records can be
-selected and converted to namedtuples, and the namedtuples can be mapped back to domain event objects.
+suitable database table will match the field names of the namedtuple.
+
+Domain events of different types can be mapped to a single namedtuple type, and a namedtuple can be used to
+create a database record. The database records can be selected and converted to namedtuples, and the namedtuples can
+ be mapped back to domain event objects.
 
 
 SequencedItem
@@ -101,8 +101,7 @@ The method ``to_sequenced_item()`` is used to convert domain events to sequenced
 The method ``from_sequenced_item()`` is used to convert sequenced items to domain events.
 
 A namedtuple class is passed to the sequenced item mapper using constructor arg ``sequenced_item_class``. The default
-value is ``SequencedItem``.
-
+value of arg ``sequenced_item_class`` is the library's ``SequencedItem`` namedtuple type.
 
 
 .. code:: python
@@ -150,7 +149,7 @@ constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 
 
 An alternative is to use a namedtuple with fields that correspond to the
-domain event attribute names, such as the ``StoredEvent`` namedtuple (discussed above).
+domain event attribute names, such as the ``StoredEvent`` namedtuple, discussed above.
 
 .. code:: python
 
@@ -199,7 +198,7 @@ To help setup database connection and tables for these two active record strateg
 SQLAlchemy
 ----------
 
-The ``SQLAlchemyDatastore`` is used to setup an SQLAlchemy database, and requires a ``settings`` object,
+The ``SQLAlchemyDatastore`` can be used to setup an SQLAlchemy database. It requires a ``settings`` object,
 and a tuple of active record classes passed using the ``tables`` arg.
 
 For the ``SQLAlchemyActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
@@ -270,8 +269,8 @@ The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` named
 .. code:: python
 
     from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
-    from eventsourcing.infrastructure.cassandra.activerecords import StoredEventRecord
-    from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy
+    from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, StoredEventRecord
+
 
     cassandra_datastore = CassandraDatastore(
         settings=CassandraSettings(),
@@ -280,20 +279,17 @@ The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` named
     cassandra_datastore.setup_connection()
     cassandra_datastore.setup_tables()
 
-
     cassandra_active_record_strategy = CassandraActiveRecordStrategy(
         active_record_class=StoredEventRecord,
         sequenced_item_class=StoredEvent,
     )
 
     results = cassandra_active_record_strategy.get_items(aggregate1)
-
     assert len(results) == 0
 
     cassandra_active_record_strategy.append(stored_event1)
 
     results = cassandra_active_record_strategy.get_items(aggregate1)
-
     assert results[0] == stored_event1
 
 
@@ -348,7 +344,7 @@ The method ``get_domain_events()`` is used to retrieve events.
     assert result[1].foo == 'baz'
 
 
-Optional arguments of ``get_domain_events`` can be used to select some of the item in the sequence.
+Optional arguments of ``get_domain_events`` can be used to select some of the items in the sequence.
 
 The ``lt`` arg is used to select items below the given position in the sequence.
 
