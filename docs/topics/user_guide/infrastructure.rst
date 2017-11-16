@@ -43,9 +43,9 @@ The ``sequence_id`` identifies the sequence in which the item belongs.
 
 The ``position`` identifies the position of the item in its sequence.
 
-The ``topic`` identifies the kind of the item that is stored.
+The ``topic`` identifies the dimension of concern to which the item pertains.
 
-The ``data`` holds the values of the item serialized to JSON, optionally encrypted.
+The ``data`` holds the values of the item, perhaps serialized to JSON, and optionally encrypted.
 
 
 .. code:: python
