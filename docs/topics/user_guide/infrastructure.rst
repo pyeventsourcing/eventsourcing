@@ -21,7 +21,8 @@ The active record strategy can write such sequenced items to a database.
 Sequenced Items
 ===============
 
-The sequenced item type is declared as a namedtuple.
+The sequenced item type provides a common persistence model across the components of
+the mechanism. The sequenced item type is normally declared as a namedtuple.
 
 
 .. code:: python
@@ -89,7 +90,7 @@ The ``originator_version`` is the version of the aggregate that published the ev
 
 The ``event_type`` identifies the class of the domain event that is stored, and is equivalent to ``topic`` above.
 
-The ``state`` holds the serialized values of the attributes of the domain event, and is equivalent to ``data`` above.
+The ``state`` holds the state of the domain event, and is equivalent to ``data`` above.
 
 
 .. code:: python
@@ -115,11 +116,11 @@ Active Record Strategy
 
 An active record strategy writes sequenced item namedtuples to database records.
 
-The library's abstract base class ``AbstractActiveRecordStrategy`` has a method ``append()`` which can
-be used in concrete implementations of this class to write namedtuples into the database. Similarly, the method
+The library's abstract base class ``AbstractActiveRecordStrategy`` has an abstract method ``append()`` which can
+be used on concrete implementations of this class to write namedtuples into the database. Similarly, the method
 ``get_items()`` can be used to read namedtuples from the database.
 
-When it is constructed, an active record strategy requires a ``sequenced_item_class`` and a matching
+An active record strategy is constructed with a ``sequenced_item_class`` and a matching
 ``active_record_class``. The field names of a suitable active record class will match the field names of the
 sequenced item namedtuple.
 
@@ -127,8 +128,8 @@ The library has a concrete active record strategy for SQLAlchemy provided by the
 ``SQLAlchemyActiveRecordStrategy``, and one for Apache Cassandra provided by ``CassandraActiveRecordStrategy``.
 The library also provides active record classes for SQLAlchemy and for Cassandra.
 
-To help setup database connection and tables for these two active record strategies, the library has object classes
-``SQLAlchemyDatastore`` and ``CassandraDatastore``. Database settings can be configured using either
+To help setup the database connection and tables for these two active record strategies, the library has object
+classes ``SQLAlchemyDatastore`` and ``CassandraDatastore``. Database settings can be configured using either
 ``SQLAlchemySettings`` or ``CassandraSettings``.
 
 
@@ -250,16 +251,16 @@ The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` named
 Sequenced Item Mapper
 =====================
 
-The library has an object class ``SequencedItemMapper``, which is used to map between sequenced item namedtuple
+A sequenced item mapper is used by the event store to map between sequenced item namedtuple
 objects and sequential application-level objects, such as domain event objects.
+
+The library provides a sequenced item mapper object class, called ``SequencedItemMapper``.
 
 
 .. code:: python
 
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
-
-The method ``to_sequenced_item()`` can be used to convert domain events to sequenced item objects.
 
 The method ``from_sequenced_item()`` can be used to convert sequenced item objects to domain events.
 
@@ -274,14 +275,20 @@ The method ``from_sequenced_item()`` can be used to convert sequenced item objec
     assert domain_event.position == 0
     assert domain_event.foo == 'bar'
 
+
+The method ``to_sequenced_item()`` can be used to convert domain events to sequenced item objects.
+
+
+.. code:: python
+
     assert sequenced_item_mapper.to_sequenced_item(domain_event) == sequenced_item1
 
 
-A sequenced item namedtuple class can be passed to the sequenced item mapper using constructor arg
-``sequenced_item_class``, by default the library's ``SequencedItem``.
+The ``SequencedItemMapper`` has a constructor arg ``sequenced_item_class``, which is by default the library's
+``SequencedItem`` namedtuple.
 
 If the first two fields of the sequenced item namedtuple, which identify the sequence and the position
-(e.g. `sequence_id` and `position`), do not match the attributes of the domain events in your domain model,
+(e.g. `sequence_id` and `position`), do not match the attributes of the domain events in your application,
 then the actual domain event attribute names can be given to the sequenced item mapper using constructor args
 ``sequence_id_attr_name`` and ``position_attr_name``.
 
@@ -303,8 +310,8 @@ For example, in the code below, the domain event attribute names are ``'originat
     assert sequenced_item_mapper.to_sequenced_item(domain_event1) == sequenced_item1
 
 
-Alternatively, use a sequenced item namedtuple with field names that match the domain event attribute names,
-such as the library's ``StoredEvent`` namedtuple, discussed above.
+Alternatively, the constructor arg ``sequenced_item_class`` can set with another sequenced item namedtuple type,
+such as the library's ``StoredEvent`` namedtuple.
 
 
 .. code:: python
@@ -321,20 +328,21 @@ such as the library's ``StoredEvent`` namedtuple, discussed above.
 
 
 Which namedtuple you choose for your project depends on your preferences for the names
-in the your persistence model. Since the ``SequencedItem`` namedtuple can be used
-instead of the default ``StoredEvent`` namedtuple, so it is possible to use a custom
-namedtuple that more closely suits your purpose.
+in the your persistence model. Since the alternative ``StoredEvent`` namedtuple can be used
+instead of the default ``SequencedItem`` namedtuple, so it is possible to use a custom
+namedtuple.
 
 
 Encryption
 ----------
 
-The ``SequencedItemMapper`` can be given a ``cipher`` object. The library provides an AES cipher object class,
-namely ``AESCipher``.
+The ``SequencedItemMapper`` can be constructed with an optional ``cipher`` object. The library provides
+an AES cipher object class called ``AESCipher``.
 
 The ``AESCipher`` is given an encryption key, using constructor arg ``aes_key``, which must be either 16, 24, or 32
 random bytes (128, 192, or 256 bits). Longer keys take more time to encrypt plaintext, but produce more secure
-ciphertext. Securely generating and storing a truly random key requires functionality beyond the scope of this library.
+ciphertext. Generating and storing a secure key requires functionality beyond the scope of this library.
+
 
 .. code:: python
 
