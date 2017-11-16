@@ -4,11 +4,24 @@ Infrastructure
 
 The library's infrastructure layer provides a cohesive mechanism for storing events as sequences of items.
 
+The entire mechanism is encapsulated by the library's ``EventStore`` class.
 
-Persistence Model
-=================
 
-A persistence model for sequenced items is declared as a namedtuple.
+.. code:: python
+
+    from eventsourcing.infrastructure.eventstore import EventStore
+
+The event store uses a "sequenced item mapper" and an "active record strategy".
+The sequenced item mapper and the active record strategy share a common "sequenced item" type.
+
+The sequenced item mapper can map objects of different types to sequenced items of a single type.
+The active record strategy can write such sequenced items to a database.
+
+
+Sequenced Items
+===============
+
+The sequenced item type is declared as a namedtuple.
 
 
 .. code:: python
@@ -18,7 +31,7 @@ A persistence model for sequenced items is declared as a namedtuple.
     SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data'])
 
 
-The names of the fields are arbitrary. It is assumed by the mechanism that the first field represents
+The names of the fields are arbitrary. However, the first field of a sequenced item namedtuple represents
 the identity of a sequence to which an item belongs, the second field represents the position of the item in its
 sequence, the third field represents a topic (dimension of concern) to which the item pertains, and the fourth
 field represents the data associated with the item.
@@ -100,20 +113,15 @@ The ``state`` holds the serialized values of the attributes of the domain event,
 Active Record Strategy
 ======================
 
-
-Instances of the sequenced item namedtuple can be mapped to (and recovered from) database records.
-
-
-
-
 An active record strategy writes sequenced item namedtuples to database records.
 
-The library has an abstract base class ``AbstractActiveRecordStrategy``. The method ``append()`` can
-be used to write namedtuples into the database. The method ``get_items()`` is used to
-read namedtuples from the database.
+The library's abstract base class ``AbstractActiveRecordStrategy`` has a method ``append()`` which can
+be used in concrete implementations of this class to write namedtuples into the database. Similarly, the method
+``get_items()`` can be used to read namedtuples from the database.
 
-Each active record strategy requires a ``sequenced_item_class`` and a matching ``active_record_class``.
-The field names of a suitable active record class will match the field names of the sequenced item namedtuple.
+When it is constructed, an active record strategy requires a ``sequenced_item_class`` and a matching
+``active_record_class``. The field names of a suitable active record class will match the field names of the
+sequenced item namedtuple.
 
 The library has a concrete active record strategy for SQLAlchemy provided by the object class
 ``SQLAlchemyActiveRecordStrategy``, and one for Apache Cassandra provided by ``CassandraActiveRecordStrategy``.
@@ -156,6 +164,7 @@ The code below uses the ``StoredEventRecord`` to setup a table suitable for stor
 
 
 The ``SQLAlchemyActiveRecordStrategy`` also requires a scoped session object to be passed, using the ``session`` arg.
+For convenience, the ``SQLAlchemyDatabase`` has a thread-scoped session set as its a ``session`` attribute.
 
 
 .. code:: python
@@ -387,8 +396,6 @@ active record strategy, both are discussed in detail in the sections above.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.eventstore import EventStore
-
     event_store = EventStore(
         sequenced_item_mapper=sequenced_item_mapper,
         active_record_strategy=active_record_strategy,
@@ -415,7 +422,7 @@ In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at p
     )
 
 
-The event store's method ``get_domain_events()`` is used to retrieve events that have previously been stored.
+The event store's method ``get_domain_events()`` is used to retrieve events that have previously been appended.
 The event store uses the ``active_record_strategy`` to read the sequenced item namedtuples from a database, and it
 uses the ``sequenced_item_mapper`` to obtain domain events from the sequenced item namedtuples.
 
