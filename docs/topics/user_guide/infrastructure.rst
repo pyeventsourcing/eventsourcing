@@ -82,14 +82,14 @@ StoredEvent namedtuple
 As an alternative, the library also provides a sequenced item namedtuple called ``StoredEvent``. The attributes of the
 ``StoredEvent`` namedtuple are ``originator_id``, ``originator_version``, ``event_type``, and ``state``.
 
-The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to ``sequence_id``.
+The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to ``sequence_id`` above.
 
 The ``originator_version`` is the version of the aggregate that published the event, and is equivalent to
-``position``.
+``position`` above.
 
-The ``event_type`` identifies the class of the domain event that is stored, and is equivalent to ``topic``.
+The ``event_type`` identifies the class of the domain event that is stored, and is equivalent to ``topic`` above.
 
-The ``state`` holds the serialized values of the attributes of the domain event, and is equivalent to ``data``.
+The ``state`` holds the serialized values of the attributes of the domain event, and is equivalent to ``data`` above.
 
 
 .. code:: python
