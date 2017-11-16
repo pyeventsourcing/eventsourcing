@@ -8,20 +8,31 @@ The library's infrastructure layer provides a cohesive mechanism for storing eve
 Persistence Model
 =================
 
-A persistence model for sequenced items is defined using a namedtuple.
+The persistence model for sequenced items is defined using a namedtuple.
 
-Domain events of different types can be mapped to a single sequenced item type, and the sequenced item
-objects can be used to create database records. The database records can be selected and converted to
-sequenced items objects, and the sequenced item objects can be mapped back to domain event objects.
+.. code:: python
 
-The field names of a suitable database table will match the field names of the sequenced item namedtuple.
+    from collections import namedtuple
+
+    SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data'])
+
+
+Such namedtuples can be mapped to domain event objects of different types. They can also be used to create
+database records. The field names of a suitable database table will match the field names of the sequenced item
+namedtuple.
 
 
 SequencedItem
 -------------
 
-The library provides a namedtuple ``SequencedItem`` to which domain events can be mapped. The attributes of
-``SequencedItem`` are ``sequence_id``, ``position``, ``topic``, and ``data``.
+The library provides a namedtuple ``SequencedItem`` to which domain events can be mapped.
+
+.. code:: python
+
+    from eventsourcing.infrastructure.sequenceditem import SequencedItem
+
+
+The attributes of ``SequencedItem`` are ``sequence_id``, ``position``, ``topic``, and ``data``.
 
 The ``sequence_id`` identifies the sequence in which the item belongs.
 
@@ -29,14 +40,12 @@ The ``position`` identifies the position of the item in its sequence.
 
 The ``topic`` identifies the kind of the item that is stored.
 
-The ``data`` holds the serialized values of the item that is stored.
+The ``data`` holds the values of the item serialized to JSON, optionally encrypted.
 
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sequenceditem import SequencedItem
     from uuid import uuid4
-
 
     sequence1 = uuid4()
 
@@ -46,7 +55,6 @@ The ``data`` holds the serialized values of the item that is stored.
         topic='eventsourcing.domain.model.events#DomainEvent',
         data='{"foo":"bar"}'
     )
-
     assert sequenced_item1.sequence_id == sequence1
     assert sequenced_item1.position == 0
     assert sequenced_item1.topic == 'eventsourcing.domain.model.events#DomainEvent'
@@ -56,25 +64,23 @@ The ``data`` holds the serialized values of the item that is stored.
 StoredEvent namedtuple
 ----------------------
 
-As an alternative, the library also provides a namedtuple ``StoredEvent`` to which domain events can be mapped.
-The attributes of ``StoredEvent`` are ``originator_id``, ``originator_version``, ``event_type``, and ``state``.
+As an alternative, the library also provides a sequence item namedtuple called ``StoredEvent`` to which domain events
+can be  mapped. The attributes of ``StoredEvent`` are ``originator_id``, ``originator_version``, ``event_type``,
+and ``state``.
 
-The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to the ``sequence_id``
-above.
+The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to ``sequence_id``.
 
-The ``originator_version`` is the version of the aggregate that published the event, and is equivalent to the
-``position`` above.
+The ``originator_version`` is the version of the aggregate that published the event, and is equivalent to
+``position``.
 
-The ``event_type`` identifies the class of the domain event that is stored, and is equivalent to ``topic`` above.
+The ``event_type`` identifies the class of the domain event that is stored, and is equivalent to ``topic``.
 
-The ``state`` holds the serialized values of the attributes of the domain event, and is equivalent to ``data`` above.
+The ``state`` holds the serialized values of the attributes of the domain event, and is equivalent to ``data``.
 
 
 .. code:: python
 
     from eventsourcing.infrastructure.sequenceditem import StoredEvent
-    from uuid import uuid4
-
 
     aggregate1 = uuid4()
 
@@ -84,7 +90,6 @@ The ``state`` holds the serialized values of the attributes of the domain event,
         event_type='eventsourcing.domain.model.events#DomainEvent',
         state='{"foo":"bar"}'
     )
-
     assert stored_event1.originator_id == aggregate1
     assert stored_event1.originator_version == 0
     assert stored_event1.event_type == 'eventsourcing.domain.model.events#DomainEvent'
@@ -123,11 +128,10 @@ The method ``from_sequenced_item()`` is used to convert sequenced items to domai
 A sequenced item namedtuple class can be passed to the sequenced item mapper using constructor arg
 ``sequenced_item_class``, by default the library's ``SequencedItem``.
 
-If the attributes
-If the field names of the sequenced item namedtuple which identify the domain event's sequence and position
-(e.g. `sequence_id` and `position`) do not match the domain event's attribute names, the actual domain event
-attribute names can be given to the sequenced item mapper using constructor args ``sequence_id_attr_name`` and
-``position_attr_name``.
+If the first two fields of the sequenced item namedtuple, which identify the sequence and the position
+(e.g. `sequence_id` and `position`), do not match the attributes of the domain events in your domain model,
+then the actual domain event attribute names can be given to the sequenced item mapper using constructor args
+``sequence_id_attr_name`` and ``position_attr_name``.
 
 For example, in the code below, the domain event attribute names are ``'originator_id'`` and ``'originator_version'``.
 
@@ -165,7 +169,7 @@ domain event attribute names, such as the library's ``StoredEvent`` namedtuple, 
 
 
 Which namedtuple you choose for your project depends on your preferences for the names
-in the database schema: if you want the names to resemble the attributes of domain event
+in the your persistence model: if you want the names to resemble the attributes of domain event
 classes in the library, then use the ``StoredEvent`` namedtuple. Otherwise use the default
 ``SequencedItem`` namedtuple or, even better, define a namedtuple that more closely suits
 your purpose.
@@ -174,15 +178,19 @@ your purpose.
 Encryption
 ----------
 
-The ``SequencedItemMapper`` can be given a ``cipher`` object. The library provides an AES cipher object class, which
-can be used by ``SequencedItemMapper``.
+The ``SequencedItemMapper`` can be given a ``cipher`` object. The library provides an AES cipher object class,
+namely ``AESCipher``.
 
+The ``AESCipher`` is given an encryption key, using constructor arg ``aes_key``, which must be either 16, 24, or 32
+random bytes (128, 192, or 256 bits). Longer keys take more time to encrypt plaintext, but create more
+secure ciphertext. Generating a truly random key, and storing it securely, requires functionality beyond the scope of
+this library.
 
 .. code:: python
 
     from eventsourcing.infrastructure.cipher.aes import AESCipher
 
-    cipher = AESCipher(aes_key=b'0123456789abcdef')
+    cipher = AESCipher(aes_key=b'0123456789abcdef')  # Key with 128 bits.
 
 
     ciphertext = cipher.encrypt('plaintext')
