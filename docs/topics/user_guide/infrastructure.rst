@@ -8,20 +8,31 @@ The library's infrastructure layer provides a cohesive mechanism for storing eve
 Persistence Model
 =================
 
-A persistence model for sequenced items is defined using a namedtuple.
+The persistence model for sequenced items is defined using a namedtuple.
 
-Domain events of different types can be mapped to a single sequenced item type, and the sequenced item
-objects can be used to create database records. The database records can be selected and converted to
-sequenced items objects, and the sequenced item objects can be mapped back to domain event objects.
+.. code:: python
 
-The field names of a suitable database table will match the field names of the sequenced item namedtuple.
+    from collections import namedtuple
+
+    SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data'])
+
+
+Such namedtuples can be mapped to domain event objects of different types. They can also be used to create
+database records. The field names of a suitable database table will match the field names of the sequenced item
+namedtuple.
 
 
 SequencedItem
 -------------
 
-The library provides a namedtuple ``SequencedItem`` to which domain events can be mapped. The attributes of
-``SequencedItem`` are ``sequence_id``, ``position``, ``topic``, and ``data``.
+The library provides a namedtuple ``SequencedItem`` to which domain events can be mapped.
+
+.. code:: python
+
+    from eventsourcing.infrastructure.sequenceditem import SequencedItem
+
+
+The attributes of ``SequencedItem`` are ``sequence_id``, ``position``, ``topic``, and ``data``.
 
 The ``sequence_id`` identifies the sequence in which the item belongs.
 
@@ -29,14 +40,12 @@ The ``position`` identifies the position of the item in its sequence.
 
 The ``topic`` identifies the kind of the item that is stored.
 
-The ``data`` holds the serialized values of the item that is stored.
+The ``data`` holds the values of the item serialized to JSON, optionally encrypted.
 
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sequenceditem import SequencedItem
     from uuid import uuid4
-
 
     sequence1 = uuid4()
 
@@ -46,7 +55,6 @@ The ``data`` holds the serialized values of the item that is stored.
         topic='eventsourcing.domain.model.events#DomainEvent',
         data='{"foo":"bar"}'
     )
-
     assert sequenced_item1.sequence_id == sequence1
     assert sequenced_item1.position == 0
     assert sequenced_item1.topic == 'eventsourcing.domain.model.events#DomainEvent'
@@ -56,25 +64,23 @@ The ``data`` holds the serialized values of the item that is stored.
 StoredEvent namedtuple
 ----------------------
 
-As an alternative, the library also provides a namedtuple ``StoredEvent`` to which domain events can be mapped.
-The attributes of ``StoredEvent`` are ``originator_id``, ``originator_version``, ``event_type``, and ``state``.
+As an alternative, the library also provides a sequence item namedtuple called ``StoredEvent`` to which domain events
+can be  mapped. The attributes of ``StoredEvent`` are ``originator_id``, ``originator_version``, ``event_type``,
+and ``state``.
 
-The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to the ``sequence_id``
-above.
+The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to ``sequence_id``.
 
-The ``originator_version`` is the version of the aggregate that published the event, and is equivalent to the
-``position`` above.
+The ``originator_version`` is the version of the aggregate that published the event, and is equivalent to
+``position``.
 
-The ``event_type`` identifies the class of the domain event that is stored, and is equivalent to ``topic`` above.
+The ``event_type`` identifies the class of the domain event that is stored, and is equivalent to ``topic``.
 
-The ``state`` holds the serialized values of the attributes of the domain event, and is equivalent to ``data`` above.
+The ``state`` holds the serialized values of the attributes of the domain event, and is equivalent to ``data``.
 
 
 .. code:: python
 
     from eventsourcing.infrastructure.sequenceditem import StoredEvent
-    from uuid import uuid4
-
 
     aggregate1 = uuid4()
 
@@ -84,7 +90,6 @@ The ``state`` holds the serialized values of the attributes of the domain event,
         event_type='eventsourcing.domain.model.events#DomainEvent',
         state='{"foo":"bar"}'
     )
-
     assert stored_event1.originator_id == aggregate1
     assert stored_event1.originator_version == 0
     assert stored_event1.event_type == 'eventsourcing.domain.model.events#DomainEvent'
@@ -97,36 +102,38 @@ Sequenced Item Mapper
 The library has an object class ``SequencedItemMapper``, which is used to map between sequenced item objects and domain
 event objects.
 
+.. code:: python
+
+    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+
+
 The method ``to_sequenced_item()`` is used to convert domain events to sequenced items.
 
 The method ``from_sequenced_item()`` is used to convert sequenced items to domain events.
 
-A namedtuple class is passed to the sequenced item mapper using constructor arg ``sequenced_item_class``. The default
-value of arg ``sequenced_item_class`` is the library's ``SequencedItem`` namedtuple type.
-
 
 .. code:: python
-
-    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-    from eventsourcing.domain.model.events import DomainEvent
-
 
     sequenced_item_mapper = SequencedItemMapper()
 
     domain_event = sequenced_item_mapper.from_sequenced_item(sequenced_item1)
 
-    assert domain_event.foo == 'bar'
     assert domain_event.sequence_id == sequence1
     assert domain_event.position == 0
-    assert isinstance(domain_event, DomainEvent)
+    assert domain_event.foo == 'bar'
 
     assert sequenced_item_mapper.to_sequenced_item(domain_event) == sequenced_item1
 
 
-If the event attribute names which identify the sequence and the position
-in the sequence do not correspond to the field names of the namedtuple, the domain event's
-attribute names can be passed to the sequenced item mapper, using
-constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
+A sequenced item namedtuple class can be passed to the sequenced item mapper using constructor arg
+``sequenced_item_class``, by default the library's ``SequencedItem``.
+
+If the first two fields of the sequenced item namedtuple, which identify the sequence and the position
+(e.g. `sequence_id` and `position`), do not match the attributes of the domain events in your domain model,
+then the actual domain event attribute names can be given to the sequenced item mapper using constructor args
+``sequence_id_attr_name`` and ``position_attr_name``.
+
+For example, in the code below, the domain event attribute names are ``'originator_id'`` and ``'originator_version'``.
 
 
 .. code:: python
@@ -141,12 +148,11 @@ constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
     assert domain_event1.foo == 'bar', domain_event1
     assert domain_event1.originator_id == sequence1
     assert domain_event1.originator_version == 0
-    assert isinstance(domain_event1, DomainEvent)
     assert sequenced_item_mapper.to_sequenced_item(domain_event1) == sequenced_item1
 
 
 An alternative is to use a namedtuple with fields that correspond to the
-domain event attribute names, such as the ``StoredEvent`` namedtuple, discussed above.
+domain event attribute names, such as the library's ``StoredEvent`` namedtuple, discussed above.
 
 
 .. code:: python
@@ -159,31 +165,43 @@ domain event attribute names, such as the ``StoredEvent`` namedtuple, discussed 
 
     assert domain_event1.foo == 'bar', domain_event1
     assert domain_event1.originator_id == aggregate1
-    assert isinstance(domain_event1, DomainEvent)
     assert sequenced_item_mapper.to_sequenced_item(domain_event1) == stored_event1
 
 
 Which namedtuple you choose for your project depends on your preferences for the names
-in the database schema: if you want the names to resemble the attributes of domain event
+in the your persistence model: if you want the names to resemble the attributes of domain event
 classes in the library, then use the ``StoredEvent`` namedtuple. Otherwise use the default
-``SequencedItem`` namedtuple, or define a namedtuple that more closely suits your purpose.
+``SequencedItem`` namedtuple or, even better, define a namedtuple that more closely suits
+your purpose.
 
 
 Encryption
 ----------
 
-The ``SequencedItemMapper`` can be given a ``cipher`` object. The library provides an AES cipher object class, which
-can be used by ``SequencedItemMapper``
+The ``SequencedItemMapper`` can be given a ``cipher`` object. The library provides an AES cipher object class,
+namely ``AESCipher``.
 
-If the domain event attribute ``__always_encrypt__`` is True, or the constructor arg ``always_encrypt`` is True,
-then the ``state`` of the stored event will be encrypted.
-
+The ``AESCipher`` is given an encryption key, using constructor arg ``aes_key``, which must be either 16, 24, or 32
+random bytes (128, 192, or 256 bits). Longer keys take more time to encrypt plaintext, but produce more secure
+ciphertext. Securely generating and storing a truly random key requires functionality beyond the scope of this library.
 
 .. code:: python
 
     from eventsourcing.infrastructure.cipher.aes import AESCipher
 
-    cipher = AESCipher(aes_key=b'0123456789abcdef')
+    cipher = AESCipher(aes_key=b'01234567890123456789012345678901')  # Key with 256 bits.
+
+    ciphertext = cipher.encrypt('plaintext')
+    plaintext = cipher.decrypt(ciphertext)
+
+    assert ciphertext != 'plaintext'
+    assert plaintext == 'plaintext'
+
+
+If the constructor arg ``always_encrypt`` is True, then the ``state`` of the stored event will be encrypted.
+
+
+.. code:: python
 
     # Construct sequenced item mapper to always encrypt domain events.
     ciphered_sequenced_item_mapper = SequencedItemMapper(
@@ -195,24 +213,29 @@ then the ``state`` of the stored event will be encrypted.
     # Domain event attribute ``foo`` has value ``'bar'``.
     assert domain_event1.foo == 'bar'
 
-    # Map domain event to an encrypted stored event namedtuple.
+    # Map the domain event to an encrypted stored event namedtuple.
     stored_event = ciphered_sequenced_item_mapper.to_sequenced_item(domain_event1)
 
-    # Attribute values of the domain event are not visible.
+    # Attribute names and values of the domain event are not visible in the encrypted ``state`` field.
     assert 'foo' not in stored_event.state
     assert 'bar' not in stored_event.state
 
-    # Recover domain event from encrypted stored event.
+    # Recover the domain event from the encrypted state.
     domain_event = ciphered_sequenced_item_mapper.from_sequenced_item(stored_event)
 
-    # Domain event has the expected attribute value.
+    # Domain event has decrypted attributes.
     assert domain_event.foo == 'bar'
+
+
+Please note, the sequence, position, and event type values are not encrypted in the database. However, by
+encrypting the other attribute values, sensitive information, such as personally identifiable information,
+will always be encrypted at the level of the application.
 
 
 Active Record Strategy
 ======================
 
-An active record strategy writes namedtuples to database records.
+An active record strategy writes sequenced item namedtuples to database records.
 
 The library has an abstract base class ``AbstractActiveRecordStrategy``. The method ``append()`` can
 be used to write namedtuples into the database. The method ``get_items()`` is used to
@@ -246,6 +269,7 @@ classes to see which fields are required, and how to setup the indexes.
 
 The code below uses the ``StoredEventRecord`` to setup a table suitable for storing the ``StoredEvent`` namedtuple.
 
+
 .. code:: python
 
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
@@ -273,8 +297,13 @@ The ``SQLAlchemyActiveRecordStrategy`` also requires a scoped session object to 
     )
 
 
-After setting up the connection and the tables, stored events can be appended to the database using the active
-record strategy object.
+After setting up the connection and the tables, sequenced items (or "stored events" in this example) can be appended
+to the database using the ``append()`` method of the active record strategy.
+
+(Please note, since the position is given by the sequenced item itself, the word "append" means here "to add something
+extra" rather than the perhaps more common but stricter meaning "to add to the end of a document". That is, the
+database is deliberately not responsible for positioning a new item at the end of a sequence. So perhaps "save"
+would be a better name for this operation?)
 
 
 .. code:: python
@@ -282,13 +311,20 @@ record strategy object.
     active_record_strategy.append(stored_event1)
 
 
-Stored events previously appended to the database can be retrieved using the sequence or aggregate ID.
+All the previously appended items of a sequence can be retrieved by using the ``get_items()`` method.
 
 
 .. code:: python
 
     results = active_record_strategy.get_items(aggregate1)
 
+
+Since by now only one item was stored, there is only one item in the results.
+
+
+.. code:: python
+
+    assert len(results) == 1
     assert results[0] == stored_event1
 
 
@@ -304,7 +340,6 @@ The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` named
 
     from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
     from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, StoredEventRecord
-
 
     cassandra_datastore = CassandraDatastore(
         settings=CassandraSettings(),
@@ -334,16 +369,16 @@ The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` named
 Event Store
 ===========
 
-The event store is used by other objects to append and retrieve domain events.
+The event store effectively provides an application level interface to the library's cohesive mechanism for storing
+events as sequences of items, and can be used directly within an event sourced application to append and retrieve
+its domain events.
 
-The library object class ``EventStore`` is constructed with a ``sequenced_item_mapper`` and an
-``active_record_strategy``.
-
+The library object class ``EventStore`` is constructed with a sequenced item mapper and an
+active record strategy, both are discussed in detail in the sections above.
 
 .. code:: python
 
     from eventsourcing.infrastructure.eventstore import EventStore
-
 
     event_store = EventStore(
         sequenced_item_mapper=sequenced_item_mapper,
@@ -351,38 +386,51 @@ The library object class ``EventStore`` is constructed with a ``sequenced_item_m
     )
 
 
-The method ``append()`` is used to append events. If a second event is appended to the same
-sequence, the sequence will then have two events.
+The event store's method ``append()`` appends an event to its sequence. The event store uses the
+``sequenced_item_mapper`` to obtain sequenced item namedtuples from domain events, and it uses the
+``active_record_strategy`` to write the sequenced item namedtuples to a database.
+
+In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at position ``1``.
 
 
 .. code:: python
 
-    event2 = DomainEvent(
-        originator_id=aggregate1,
-        originator_version=1,
-        foo='baz',
+    from eventsourcing.domain.model.events import DomainEvent
+
+    event_store.append(
+        DomainEvent(
+            originator_id=aggregate1,
+            originator_version=1,
+            foo='baz',
+        )
     )
 
-    event_store.append(event2)
 
-
-The method ``get_domain_events()`` is used to retrieve events.
+The event store's method ``get_domain_events()`` is used to retrieve events that have previously been stored.
+The event store uses the ``active_record_strategy`` to read the sequenced item namedtuples from a database, and it
+uses the ``sequenced_item_mapper`` to obtain domain events from the sequenced item namedtuples.
 
 
 .. code:: python
 
-    result = event_store.get_domain_events(aggregate1)
-
-    assert len(result) == 2, result
-
-    assert result[0].originator_id == aggregate1
-    assert result[0].foo == 'bar'
-
-    assert result[1].originator_id == aggregate1
-    assert result[1].foo == 'baz'
+    results = event_store.get_domain_events(aggregate1)
 
 
-Optional arguments of ``get_domain_events`` can be used to select some of the items in the sequence.
+Since by now two domain events have been stored, there are two domain events in the results.
+
+
+.. code:: python
+
+    assert len(results) == 2
+
+    assert results[0].originator_id == aggregate1
+    assert results[0].foo == 'bar'
+
+    assert results[1].originator_id == aggregate1
+    assert results[1].foo == 'baz'
+
+
+The optional arguments of ``get_domain_events()`` can be used to select some of the items in the sequence.
 
 The ``lt`` arg is used to select items below the given position in the sequence.
 
@@ -432,14 +480,39 @@ order of the results. Hence, it can affect both the content of the results and t
 Optimistic Concurrency Control
 ==============================
 
+It is a feature of the infrastructure layer that it isn't possible to append two events at the same position in the
+same sequence. This condition is coded as a concurrency error (since, by definition, a correct program running in a
+single thread wouldn't attempt to append twice to the same position in the same sequence).
+
+
+.. code:: python
+
+    from eventsourcing.exceptions import ConcurrencyError
+
+    # Fail to append an event at the same position in the same sequence as a previous event.
+    try:
+        event_store.append(
+            DomainEvent(
+                originator_id=aggregate1,
+                originator_version=1,
+                foo='baz',
+            )
+        )
+    except ConcurrencyError:
+        pass
+    else:
+        raise Exception("ConcurrencyError not raised")
+
 
 Timestamp Sequenced Events
 ==========================
 
+The code above uses items that are sequenced by integer. As an alternative, items can be sequenced by timestamp.
 
-Encryption
-==========
+Todo: More about timestamp sequenced events.
 
 
 Snapshots
 =========
+
+Todo: More about snapshots.
