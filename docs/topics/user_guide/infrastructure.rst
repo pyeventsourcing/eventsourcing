@@ -161,7 +161,6 @@ which is constructed with a ``uri`` connection string. The code below uses an in
     settings = SQLAlchemySettings(uri='sqlite:///:memory:')
 
 
-
 The ``SQLAlchemyDatastore`` is constructed with the ``settings`` object,
 and a tuple of active record classes passed using the ``tables`` arg.
 The library provides active record classes for SQLAlchemy, such as ``IntegerSequencedItemRecord`` and
@@ -251,6 +250,8 @@ The library also has a concrete active record strategy for Apache Cassandra prov
 Similarly, for the ``CassandraActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
 from ``eventsourcing.infrastructure.cassandra.activerecords`` matches the ``SequencedItem`` namedtuple.
 The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` namedtuple.
+
+The ``CassandraDatastore`` class uses the ``CassandraSettings`` class to setup a Cassandra database.
 
 
 .. code:: python
