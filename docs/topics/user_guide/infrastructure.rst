@@ -291,8 +291,8 @@ For example, in the code below, the domain event attribute names are ``'originat
     assert sequenced_item_mapper.to_sequenced_item(domain_event1) == sequenced_item1
 
 
-An alternative is to use a namedtuple with fields that correspond to the
-domain event attribute names, such as the library's ``StoredEvent`` namedtuple, discussed above.
+Alternatively, use a sequenced item namedtuple with field names that match the domain event attribute names,
+such as the library's ``StoredEvent`` namedtuple, discussed above.
 
 
 .. code:: python
@@ -367,9 +367,9 @@ If the constructor arg ``always_encrypt`` is True, then the ``state`` of the sto
     assert domain_event.foo == 'bar'
 
 
-Please note, the sequence, position, and event type values are not encrypted in the database. However, by
-encrypting the other attribute values, sensitive information, such as personally identifiable information,
-will always be encrypted at the level of the application.
+Please note, the sequence, position are necessarily not encrypted. However, by encrypting the state of the event,
+sensitive information, such as personally identifiable information, will always be encrypted at the level of the
+application, and so it will be encrypted in the database (and in all backups of the database).
 
 
 Event Store
@@ -508,6 +508,11 @@ single thread wouldn't attempt to append twice to the same position in the same 
         pass
     else:
         raise Exception("ConcurrencyError not raised")
+
+
+This feature is implemented using optimistic concurrency control features of the underlying database. With
+SQLAlchemy, the primary key constraint involves both the sequence and the position columns. With Cassandra
+the "IF NOT EXISTS" feature is applied, whilst the position is the primary key in the sequence partition.
 
 
 Timestamp Sequenced Events
