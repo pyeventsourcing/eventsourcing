@@ -33,7 +33,7 @@ The sequenced item type is declared as a namedtuple.
 
 The names of the fields are arbitrary. However, the first field of a sequenced item namedtuple represents
 the identity of a sequence to which an item belongs, the second field represents the position of the item in its
-sequence, the third field represents a topic (dimension of concern) to which the item pertains, and the fourth
+sequence, the third field represents a topic to which the item pertains (dimension of concern), and the fourth
 field represents the data associated with the item.
 
 
