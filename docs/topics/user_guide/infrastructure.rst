@@ -312,10 +312,9 @@ such as the library's ``StoredEvent`` namedtuple, discussed above.
 
 
 Which namedtuple you choose for your project depends on your preferences for the names
-in the your persistence model: if you want the names to resemble the attributes of domain event
-classes in the library, then use the ``StoredEvent`` namedtuple. Otherwise use the default
-``SequencedItem`` namedtuple or, even better, define a namedtuple that more closely suits
-your purpose.
+in the your persistence model. Since the ``SequencedItem`` namedtuple can be used
+instead of the default ``StoredEvent`` namedtuple, so it is possible to use a custom
+namedtuple that more closely suits your purpose.
 
 
 Encryption
@@ -378,12 +377,13 @@ application, and so it will be encrypted in the database (and in all backups of 
 Event Store
 ===========
 
-The event store effectively provides an application level interface to the library's cohesive mechanism for storing
+The event store effectively provides an application-level interface to the library's cohesive mechanism for storing
 events as sequences of items, and can be used directly within an event sourced application to append and retrieve
 its domain events.
 
 The library object class ``EventStore`` is constructed with a sequenced item mapper and an
 active record strategy, both are discussed in detail in the sections above.
+
 
 .. code:: python
 
