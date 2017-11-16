@@ -3,7 +3,8 @@ Infrastructure
 ==============
 
 The library's infrastructure layer provides a cohesive mechanism for storing events as sequences of items.
-The entire mechanism is encapsulated by the library's ``EventStore`` class.
+The entire mechanism is encapsulated by the library's :class:`~eventsourcing.infrastructure.eventstore.EventStore`
+class.
 
 The event store uses a "sequenced item mapper" and an "active record strategy".
 The sequenced item mapper and the active record strategy share a common "sequenced item" type.
@@ -34,7 +35,9 @@ field represents the data associated with the item.
 SequencedItem namedtuple
 ------------------------
 
-The library provides a sequenced item namedtuple called ``SequencedItem``.
+The library provides a sequenced item namedtuple called
+:class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`.
+
 
 .. code:: python
 
