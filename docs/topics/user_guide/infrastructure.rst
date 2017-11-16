@@ -142,6 +142,8 @@ in-memory SQLite database.
 
 .. code:: python
 
+    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings
+
     settings = SQLAlchemySettings(uri='sqlite:///:memory:')
 
 
@@ -162,8 +164,8 @@ For convenience, the ``SQLAlchemyDatabase`` has a thread-scoped session set as i
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
     from eventsourcing.infrastructure.sqlalchemy.activerecords import StoredEventRecord
+    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore
 
     datastore = SQLAlchemyDatastore(
         settings=settings,
