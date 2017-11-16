@@ -5,11 +5,6 @@ Infrastructure
 The library's infrastructure layer provides a cohesive mechanism for storing events as sequences of items.
 The entire mechanism is encapsulated by the library's ``EventStore`` class.
 
-
-.. code:: python
-
-    from eventsourcing.infrastructure.eventstore import EventStore
-
 The event store uses a "sequenced item mapper" and an "active record strategy".
 The sequenced item mapper and the active record strategy share a common "sequenced item" type.
 The sequenced item mapper can convert objects such as domain events to sequenced items, and the active
@@ -344,6 +339,15 @@ instead of the default ``SequencedItem`` namedtuple, so it is possible to use a 
 namedtuple.
 
 
+Serialiser
+----------
+
+The ``SequencedItemMapper`` can be constructed with an optional ``json_encoder_class`` and
+``json_decoder_class`` args. The defaults are the library's ``JSONObjectEncoder`` and ``JSONObjectDecoder``
+which can be extended to support object types that are not currently supported by the library.
+
+
+
 Encryption
 ----------
 
@@ -397,19 +401,24 @@ If the constructor arg ``always_encrypt`` is True, then the ``state`` of the sto
     assert domain_event.foo == 'bar'
 
 
-Please note, the sequence, position are necessarily not encrypted. However, by encrypting the state of the event,
-sensitive information, such as personally identifiable information, will always be encrypted at the level of the
-application, and so it will be encrypted in the database (and in all backups of the database).
+Please note, the sequence ID and position values are necessarily not encrypted. However, by encrypting the state of
+the event, sensitive information, such as personally identifiable information, will always be encrypted at the level
+of the application, and so it will be encrypted in the database (and in all backups of the database).
 
 
 Event Store
 ===========
 
-The event store effectively provides an application-level interface to the library's cohesive mechanism for storing
-events as sequences of items, and can be used directly within an event sourced application to append and retrieve
-its domain events.
+The library's ``EventStore`` provides an interface to the library's cohesive mechanism for storing events as sequences
+of items, and can be used directly within an event sourced application to append and retrieve its domain events.
 
-The library object class ``EventStore`` is constructed with a sequenced item mapper and an
+
+.. code:: python
+
+    from eventsourcing.infrastructure.eventstore import EventStore
+
+
+The ``EventStore`` is constructed with a sequenced item mapper and an
 active record strategy, both are discussed in detail in the sections above.
 
 
@@ -421,9 +430,9 @@ active record strategy, both are discussed in detail in the sections above.
     )
 
 
-The event store's method ``append()`` appends an event to its sequence. The event store uses the
+The event store's method ``append()`` can append a domain event to its sequence. The event store uses the
 ``sequenced_item_mapper`` to obtain sequenced item namedtuples from domain events, and it uses the
-``active_record_strategy`` to write the sequenced item namedtuples to a database.
+``active_record_strategy`` to write the sequenced items to a database.
 
 In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at position ``1``.
 
@@ -442,8 +451,8 @@ In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at p
 
 
 The event store's method ``get_domain_events()`` is used to retrieve events that have previously been appended.
-The event store uses the ``active_record_strategy`` to read the sequenced item namedtuples from a database, and it
-uses the ``sequenced_item_mapper`` to obtain domain events from the sequenced item namedtuples.
+The event store uses the ``active_record_strategy`` to read the sequenced items from a database, and it
+uses the ``sequenced_item_mapper`` to obtain domain events from the sequenced items.
 
 
 .. code:: python
@@ -451,7 +460,7 @@ uses the ``sequenced_item_mapper`` to obtain domain events from the sequenced it
     results = event_store.get_domain_events(aggregate1)
 
 
-Since by now two domain events have been stored, there are two domain events in the results.
+Since by now two domain events have been stored, so there are two domain events in the results.
 
 
 .. code:: python
