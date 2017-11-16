@@ -10,11 +10,6 @@ Persistence Model
 
 A persistence model for sequenced items is declared as a namedtuple.
 
-The names of the fields are arbitrary. It is assumed by the mechanism that the first field represents
-the identity of a sequence to which an item belongs, the second field represents the position of the item in its
-sequence, the third field represents a topic (dimension of concern) to which the item pertains, and the fourth
-field represents the data associated with the item.
-
 
 .. code:: python
 
@@ -22,6 +17,11 @@ field represents the data associated with the item.
 
     SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data'])
 
+
+The names of the fields are arbitrary. It is assumed by the mechanism that the first field represents
+the identity of a sequence to which an item belongs, the second field represents the position of the item in its
+sequence, the third field represents a topic (dimension of concern) to which the item pertains, and the fourth
+field represents the data associated with the item.
 
 Instances of the sequenced item namedtuple can be mapped to (and recovered from) database records. Database field
 names are inferred by reflection from the field names of the namedtuple that represents sequenced items.
