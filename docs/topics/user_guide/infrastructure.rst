@@ -182,16 +182,14 @@ The ``SequencedItemMapper`` can be given a ``cipher`` object. The library provid
 namely ``AESCipher``.
 
 The ``AESCipher`` is given an encryption key, using constructor arg ``aes_key``, which must be either 16, 24, or 32
-random bytes (128, 192, or 256 bits). Longer keys take more time to encrypt plaintext, but create more
-secure ciphertext. Generating a truly random key, and storing it securely, requires functionality beyond the scope of
-this library.
+random bytes (128, 192, or 256 bits). Longer keys take more time to encrypt plaintext, but produce more secure
+ciphertext. Securely generating and storing a truly random key requires functionality beyond the scope of this library.
 
 .. code:: python
 
     from eventsourcing.infrastructure.cipher.aes import AESCipher
 
-    cipher = AESCipher(aes_key=b'0123456789abcdef')  # Key with 128 bits.
-
+    cipher = AESCipher(aes_key=b'01234567890123456789012345678901')  # Key with 256 bits.
 
     ciphertext = cipher.encrypt('plaintext')
     plaintext = cipher.decrypt(ciphertext)
@@ -215,24 +213,29 @@ If the constructor arg ``always_encrypt`` is True, then the ``state`` of the sto
     # Domain event attribute ``foo`` has value ``'bar'``.
     assert domain_event1.foo == 'bar'
 
-    # Map domain event to an encrypted stored event namedtuple.
+    # Map the domain event to an encrypted stored event namedtuple.
     stored_event = ciphered_sequenced_item_mapper.to_sequenced_item(domain_event1)
 
-    # Attribute values of the domain event are not visible.
+    # Attribute names and values of the domain event are not visible in the encrypted ``state`` field.
     assert 'foo' not in stored_event.state
     assert 'bar' not in stored_event.state
 
-    # Recover domain event from encrypted stored event.
+    # Recover the domain event from the encrypted state.
     domain_event = ciphered_sequenced_item_mapper.from_sequenced_item(stored_event)
 
-    # Domain event has the expected attribute value.
+    # Domain event has decrypted attributes.
     assert domain_event.foo == 'bar'
+
+
+Please note, the sequence, position, and event type values are not encrypted in the database. However, by
+encrypting the other attribute values, sensitive information, such as personally identifiable information,
+will always be encrypted at the level of the application.
 
 
 Active Record Strategy
 ======================
 
-An active record strategy writes namedtuples to database records.
+An active record strategy writes sequenced item namedtuples to database records.
 
 The library has an abstract base class ``AbstractActiveRecordStrategy``. The method ``append()`` can
 be used to write namedtuples into the database. The method ``get_items()`` is used to
@@ -294,8 +297,13 @@ The ``SQLAlchemyActiveRecordStrategy`` also requires a scoped session object to 
     )
 
 
-After setting up the connection and the tables, stored events can be appended to the database using the active
-record strategy object.
+After setting up the connection and the tables, sequenced items (or "stored events" in this example) can be appended
+to the database using the ``append()`` method of the active record strategy.
+
+(Please note, since the position is given by the sequenced item itself, the word "append" means here "to add something
+extra" rather than the perhaps more common but stricter meaning "to add to the end of a document". That is, the
+database is deliberately not responsible for positioning a new item at the end of a sequence. So perhaps "save"
+would be a better name for this operation?)
 
 
 .. code:: python
@@ -303,13 +311,20 @@ record strategy object.
     active_record_strategy.append(stored_event1)
 
 
-Stored events previously appended to the database can be retrieved using the sequence or aggregate ID.
+All the previously appended items of a sequence can be retrieved by using the ``get_items()`` method.
 
 
 .. code:: python
 
     results = active_record_strategy.get_items(aggregate1)
 
+
+Since by now only one item was stored, there is only one item in the results.
+
+
+.. code:: python
+
+    assert len(results) == 1
     assert results[0] == stored_event1
 
 
@@ -325,7 +340,6 @@ The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` named
 
     from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
     from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, StoredEventRecord
-
 
     cassandra_datastore = CassandraDatastore(
         settings=CassandraSettings(),
@@ -355,16 +369,16 @@ The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` named
 Event Store
 ===========
 
-The event store is used by other objects to append and retrieve domain events.
+The event store effectively provides an application level interface to the library's cohesive mechanism for storing
+events as sequences of items, and can be used directly within an event sourced application to append and retrieve
+its domain events.
 
-The library object class ``EventStore`` is constructed with a ``sequenced_item_mapper`` and an
-``active_record_strategy``.
-
+The library object class ``EventStore`` is constructed with a sequenced item mapper and an
+active record strategy, both are discussed in detail in the sections above.
 
 .. code:: python
 
     from eventsourcing.infrastructure.eventstore import EventStore
-
 
     event_store = EventStore(
         sequenced_item_mapper=sequenced_item_mapper,
@@ -372,8 +386,9 @@ The library object class ``EventStore`` is constructed with a ``sequenced_item_m
     )
 
 
-The event store's method ``append()`` appends an event to its sequence. If a second event is appended to the same
-sequence, the sequence will then have two events.
+The event store's method ``append()`` appends an event to its sequence. The event store uses the
+``sequenced_item_mapper`` to obtain sequenced item namedtuples from domain events, and it uses the
+``active_record_strategy`` to write the sequenced item namedtuples to a database.
 
 In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at position ``1``.
 
@@ -391,20 +406,28 @@ In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at p
     )
 
 
-The method ``get_domain_events()`` is used to retrieve events.
+The event store's method ``get_domain_events()`` is used to retrieve events that have previously been stored.
+The event store uses the ``active_record_strategy`` to read the sequenced item namedtuples from a database, and it
+uses the ``sequenced_item_mapper`` to obtain domain events from the sequenced item namedtuples.
 
 
 .. code:: python
 
-    result = event_store.get_domain_events(aggregate1)
+    results = event_store.get_domain_events(aggregate1)
 
-    assert len(result) == 2, result
 
-    assert result[0].originator_id == aggregate1
-    assert result[0].foo == 'bar'
+Since by now two domain events have been stored, there are two domain events in the results.
 
-    assert result[1].originator_id == aggregate1
-    assert result[1].foo == 'baz'
+
+.. code:: python
+
+    assert len(results) == 2
+
+    assert results[0].originator_id == aggregate1
+    assert results[0].foo == 'bar'
+
+    assert results[1].originator_id == aggregate1
+    assert results[1].foo == 'baz'
 
 
 The optional arguments of ``get_domain_events()`` can be used to select some of the items in the sequence.
