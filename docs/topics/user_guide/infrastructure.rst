@@ -23,14 +23,11 @@ the identity of a sequence to which an item belongs, the second field represents
 sequence, the third field represents a topic (dimension of concern) to which the item pertains, and the fourth
 field represents the data associated with the item.
 
-Instances of the sequenced item namedtuple can be mapped to (and recovered from) database records. Database field
-names are inferred by reflection from the field names of the namedtuple that represents sequenced items.
-
 
 SequencedItem namedtuple
 ------------------------
 
-The library provides a namedtuple ``SequencedItem`` to which domain events can be mapped.
+The library provides a sequenced item namedtuple called ``SequencedItem``.
 
 .. code:: python
 
@@ -103,18 +100,24 @@ The ``state`` holds the serialized values of the attributes of the domain event,
 Active Record Strategy
 ======================
 
+
+Instances of the sequenced item namedtuple can be mapped to (and recovered from) database records.
+
+
+
+
 An active record strategy writes sequenced item namedtuples to database records.
-The field names of a suitable database table will match the field names of the sequenced item namedtuple.
 
 The library has an abstract base class ``AbstractActiveRecordStrategy``. The method ``append()`` can
 be used to write namedtuples into the database. The method ``get_items()`` is used to
 read namedtuples from the database.
 
 Each active record strategy requires a ``sequenced_item_class`` and a matching ``active_record_class``.
+The field names of a suitable active record class will match the field names of the sequenced item namedtuple.
 
 The library has a concrete active record strategy for SQLAlchemy provided by the object class
 ``SQLAlchemyActiveRecordStrategy``, and one for Apache Cassandra provided by ``CassandraActiveRecordStrategy``.
-The library also provides various active record classes for SQLAlchemy and for Cassandra.
+The library also provides active record classes for SQLAlchemy and for Cassandra.
 
 To help setup database connection and tables for these two active record strategies, the library has object classes
 ``SQLAlchemyDatastore`` and ``CassandraDatastore``. Database settings can be configured using either
