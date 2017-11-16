@@ -122,7 +122,7 @@ sequenced item namedtuple.
 
 The library has a concrete active record strategy for SQLAlchemy provided by the object class
 ``SQLAlchemyActiveRecordStrategy``. It has an active record strategy also for Apache Cassandra provided by
-``CassandraActiveRecordStrategy``. The library also provides a active record classes for SQLAlchemy and
+``CassandraActiveRecordStrategy``. The library also provides an active record classes for SQLAlchemy and
 for Cassandra.
 
 To help setup the database connection and tables for these two active record strategies, the library has object
@@ -133,11 +133,25 @@ classes ``SQLAlchemyDatastore`` and ``CassandraDatastore``. Database settings ca
 SQLAlchemy
 ----------
 
-The ``SQLAlchemyDatastore`` can be used to setup an SQLAlchemy database. It requires a ``settings`` object,
-and a tuple of active record classes passed using the ``tables`` arg.
+The library has a concrete active record strategy for SQLAlchemy provided by the object class
+``SQLAlchemyActiveRecordStrategy``.
 
-A ``SQLAlchemySettings`` object is constructed with a ``uri`` connection string. In the code below uses an
-in-memory SQLite database.
+
+.. code:: python
+
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
+
+
+To help setup the database connection and tables, the library has object class ``SQLAlchemyDatastore``.
+
+
+.. code:: python
+
+    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore
+
+
+Database settings for ``SQLAlchemyDatastore`` can be configured using ``SQLAlchemySettings``,
+which is constructed with a ``uri`` connection string. The code below uses an in-memory SQLite database.
 
 
 .. code:: python
@@ -147,38 +161,48 @@ in-memory SQLite database.
     settings = SQLAlchemySettings(uri='sqlite:///:memory:')
 
 
-For the ``SQLAlchemyActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
-from ``eventsourcing.infrastructure.sqlalchemy.activerecords`` matches the ``SequencedItem`` namedtuple.
 
-The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` namedtuple.
+The ``SQLAlchemyDatastore`` is constructed with the ``settings`` object,
+and a tuple of active record classes passed using the ``tables`` arg.
+The library provides active record classes for SQLAlchemy, such as ``IntegerSequencedItemRecord`` and
+``StoredEventRecord``.
 
-Please note, if you have declared your own SQLAlchemy model ``Base`` class, you may wish to define your own active
-record classes which inherit from your ``Base`` class. If so, if may help to refer to the library active record
-classes to see how SQLALchemy ORM columns and indexes can be used to persist sequenced items.
-
-The ``StoredEventRecord`` can be used to setup a table suitable for storing the ``StoredEvent`` namedtuple.
-
-The ``SQLAlchemyActiveRecordStrategy`` also requires a scoped session object to be passed, using the ``session`` arg.
-For convenience, the ``SQLAlchemyDatabase`` has a thread-scoped session set as its a ``session`` attribute.
+The ``IntegerSequencedItemRecord`` class matches the ``SequencedItem`` namedtuple, and the
+``StoredEventRecord`` class matches the ``StoredEvent`` namedtuple. The code below uses ``StoredEventRecord``
+with the ``StoredEvent`` namedtuple.
 
 
 .. code:: python
 
     from eventsourcing.infrastructure.sqlalchemy.activerecords import StoredEventRecord
-    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore
 
     datastore = SQLAlchemyDatastore(
         settings=settings,
         tables=(StoredEventRecord,)
     )
-    datastore.setup_connection()
-    datastore.setup_tables()
 
+
+Please note, if you have declared your own SQLAlchemy model ``Base`` class, you may wish to define your own active
+record classes which inherit from your ``Base`` class. If so, if may help to refer to the library active record
+classes to see how SQLALchemy ORM columns and indexes can be used to persist sequenced items.
+
+The methods ``setup_connection()`` and ``setup_tables()`` of the datastore object
+are used to setup the database connection and the tables.
 
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
+    datastore.setup_connection()
+    datastore.setup_tables()
+
+
+The ``SQLAlchemyActiveRecordStrategy`` also requires a scoped session object, passed using the constructor
+arg ``session``. For convenience, the ``SQLAlchemyDatabase`` has a thread-scoped session set as its a ``session``
+attribute. In production, you may wish to use a more suitable scoped session object, such as a request-scoped session
+facade provided by a Web framework.
+
+
+.. code:: python
 
     active_record_strategy = SQLAlchemyActiveRecordStrategy(
         sequenced_item_class=StoredEvent,
@@ -220,6 +244,9 @@ Since by now only one item was stored, so there is only one item in the results.
 
 Cassandra
 ---------
+
+The library also has a concrete active record strategy for Apache Cassandra provided by
+``CassandraActiveRecordStrategy`` class.
 
 Similarly, for the ``CassandraActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
 from ``eventsourcing.infrastructure.cassandra.activerecords`` matches the ``SequencedItem`` namedtuple.
@@ -272,7 +299,7 @@ The library provides a sequenced item mapper object class called ``SequencedItem
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 
-The method ``from_sequenced_item()`` can be used to convert sequenced item objects to domain events.
+The method ``from_sequenced_item()`` can be used to convert sequenced item objects to application-level objects.
 
 
 .. code:: python
@@ -286,7 +313,7 @@ The method ``from_sequenced_item()`` can be used to convert sequenced item objec
     assert domain_event.foo == 'bar'
 
 
-The method ``to_sequenced_item()`` can be used to convert domain events to sequenced item objects.
+The method ``to_sequenced_item()`` can be used to convert application-level objects to sequenced item objects.
 
 
 .. code:: python
@@ -297,10 +324,10 @@ The method ``to_sequenced_item()`` can be used to convert domain events to seque
 The ``SequencedItemMapper`` has a constructor arg ``sequenced_item_class``, which is by default the library's
 ``SequencedItem`` namedtuple.
 
-If the names of the first two fields of the sequenced item namedtuple (e.g. `sequence_id` and `position`), do not
-match the names of the attributes of the domain events in your application which identify the sequence and the
-position in the sequence, then the actual domain event attribute names can be given to the sequenced item mapper
-using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
+If the names of the first two fields of the sequenced item namedtuple (e.g. ``sequence_id`` and ``position``) do not
+match the names of the attributes of the application-level object which identify a sequence and a position in
+the sequence (e.g. ``originator_id`` and ``originator_version``) then the attribute names can be
+given to the sequenced item mapper using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 
 For example, in the code below, the domain event attribute names are given as ``'originator_id'`` and
 ``'originator_version'``.
@@ -321,8 +348,8 @@ For example, in the code below, the domain event attribute names are given as ``
     assert sequenced_item_mapper.to_sequenced_item(domain_event1) == sequenced_item1
 
 
-Alternatively, the constructor arg ``sequenced_item_class`` can set with another sequenced item namedtuple type,
-such as the library's ``StoredEvent`` namedtuple.
+Alternatively, the constructor arg ``sequenced_item_class`` can be set with a sequenced item namedtuple type that is
+different from the default ``SequencedItem`` namedtuple, such as the library's ``StoredEvent`` namedtuple.
 
 
 .. code:: python
