@@ -54,7 +54,7 @@ class DatasourceSettingsError(EventSourcingError):
     "Raised when an error is detected in settings for a datasource."
 
 
-class SequencedItemError(EventSourcingError):
+class SequencedItemConflict(EventSourcingError):
     "Raised when an integer sequence error occurs e.g. trying to save a version that already exists."
 
 

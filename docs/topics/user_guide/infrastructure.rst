@@ -133,7 +133,8 @@ The library has a concrete active record strategy for SQLAlchemy provided by the
     from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
 
 
-To help setup the database connection and tables, the library has object class ``SQLAlchemyDatastore``.
+To help setup a database connection and tables, the library has object class ``SQLAlchemyDatastore``, with methods
+``setup_connection()`` and ``setup_tables()``.
 
 
 .. code:: python
@@ -177,7 +178,7 @@ record classes which inherit from your ``Base`` class. If so, if may help to ref
 classes to see how SQLALchemy ORM columns and indexes can be used to persist sequenced items.
 
 The methods ``setup_connection()`` and ``setup_tables()`` of the datastore object
-are used to setup the database connection and the tables.
+can be used to setup the database connection and the tables.
 
 
 .. code:: python
@@ -277,6 +278,32 @@ The ``CassandraDatastore`` class uses the ``CassandraSettings`` class to setup a
 Please refer to ``CassandraSettings`` class for information about configuring away from default settings.
 
 
+Sequenced Item Conflicts
+------------------------
+
+It is a feature of the active record strategy that it isn't possible to successfully append two items at the same
+position in the same sequence. If such an attempt is made, a ``SequencedItemConflict`` will be raised by the active
+record strategy.
+
+
+.. code:: python
+
+    from eventsourcing.exceptions import SequencedItemConflict
+
+    # Fail to append an item at the same position in the same sequence as a previous item.
+    try:
+        active_record_strategy.append(stored_event1)
+    except SequencedItemConflict:
+        pass
+    else:
+        raise Exception("SequencedItemConflict not raised")
+
+
+This feature is implemented using optimistic concurrency control features of the underlying database. With
+SQLAlchemy, the primary key constraint involves both the sequence and the position columns. With Cassandra
+the position is the primary key in the sequence partition, and the "IF NOT EXISTS" feature is applied.
+
+
 Sequenced Item Mapper
 =====================
 
@@ -305,7 +332,7 @@ The method ``from_sequenced_item()`` can be used to convert sequenced item objec
     assert domain_event.foo == 'bar'
 
 
-The method ``to_sequenced_item()`` can be used to convert application-level objects to sequenced item objects.
+The method ``to_sequenced_item()`` can be used to convert application-level objects to sequenced item namedtuples.
 
 
 .. code:: python
@@ -317,9 +344,9 @@ The ``SequencedItemMapper`` has a constructor arg ``sequenced_item_class``, whic
 ``SequencedItem`` namedtuple.
 
 If the names of the first two fields of the sequenced item namedtuple (e.g. ``sequence_id`` and ``position``) do not
-match the names of the attributes of the application-level object which identify a sequence and a position in
-the sequence (e.g. ``originator_id`` and ``originator_version``) then the attribute names can be
-given to the sequenced item mapper using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
+match the names of the attributes of the application-level object which identify a sequence and a position (e.g.
+``originator_id`` and ``originator_version``) then the attribute names can be given to the sequenced item mapper
+using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 
 For example, in the code below, the domain event attribute names are given as ``'originator_id'`` and
 ``'originator_version'``.
@@ -363,19 +390,19 @@ instead of the default ``SequencedItem`` namedtuple, so it is possible to use a 
 namedtuple.
 
 
-JSON Encoding
--------------
+Custom JSON Encoding
+--------------------
 
-The ``SequencedItemMapper`` can be constructed with an optional ``json_encoder_class`` and
-``json_decoder_class`` args. The defaults are the library's ``JSONObjectEncoder`` and
-``JSONObjectDecoder`` which can be extended to support types that are not currently supported by the library.
+The ``SequencedItemMapper`` can be constructed with optional args ``json_encoder_class`` and
+``json_decoder_class``. The defaults are the library's ``JSONObjectEncoder`` and
+``JSONObjectDecoder`` which can be extended to support types of value objects that are not
+currently supported by the library.
 
 
+Application-Level Encryption
+----------------------------
 
-Encryption
-----------
-
-The ``SequencedItemMapper`` can be constructed with an optional ``cipher`` object. The library provides
+The ``SequencedItemMapper`` can be constructed with an symmetric cipher object. The library provides
 an AES cipher object class called ``AESCipher``.
 
 The ``AESCipher`` is given an encryption key, using constructor arg ``aes_key``, which must be either 16, 24, or 32
@@ -396,8 +423,8 @@ ciphertext. Generating and storing a secure key requires functionality beyond th
     assert plaintext == 'plaintext'
 
 
-If the ``SequencedItemMapper`` constructor arg ``always_encrypt`` is True, then
-the ``state`` of the stored event will be encrypted.
+If the ``SequencedItemMapper`` has an optional constructor arg ``cipher``. If ``always_encrypt`` is True, then
+the ``state`` field of every stored event will be encrypted with the cipher.
 
 
 .. code:: python
@@ -427,8 +454,9 @@ the ``state`` of the stored event will be encrypted.
 
 
 Please note, the sequence ID and position values are necessarily not encrypted. However, by encrypting the state of
-the event, sensitive information, such as personally identifiable information, will always be encrypted at the level
-of the application, and so it will be encrypted in the database (and in all backups of the database).
+the event, sensitive information, such as personally identifiable information, will be encrypted at the level
+of the application, before being sent to the database, and so it will be encrypted in the database (and in all
+backups of the database).
 
 
 Event Store
@@ -437,17 +465,13 @@ Event Store
 The library's ``EventStore`` provides an interface to the library's cohesive mechanism for storing events as sequences
 of items, and can be used directly within an event sourced application to append and retrieve its domain events.
 
-
-.. code:: python
-
-    from eventsourcing.infrastructure.eventstore import EventStore
-
-
 The ``EventStore`` is constructed with a sequenced item mapper and an
 active record strategy, both are discussed in detail in the sections above.
 
 
 .. code:: python
+
+    from eventsourcing.infrastructure.eventstore import EventStore
 
     event_store = EventStore(
         sequenced_item_mapper=sequenced_item_mapper,
@@ -455,9 +479,9 @@ active record strategy, both are discussed in detail in the sections above.
     )
 
 
-The event store's method ``append()`` can append a domain event to its sequence. The event store uses the
-``sequenced_item_mapper`` to obtain sequenced item namedtuples from domain events, and it uses the
-``active_record_strategy`` to write the sequenced items to a database.
+The event store's ``append()`` method can append a domain event to its sequence. The event store uses the
+``sequenced_item_mapper`` to obtain a sequenced item namedtuple from a domain events, and it uses the
+``active_record_strategy`` to write a sequenced item to a database.
 
 In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at position ``1``.
 
@@ -547,11 +571,11 @@ order of the results. Hence, it can affect both the content of the results and t
 
 
 Optimistic Concurrency Control
-==============================
+------------------------------
 
-It is a feature of the infrastructure layer that it isn't possible to append two events at the same position in the
-same sequence. This condition is coded as a concurrency error (since, by definition, a correct program running in a
-single thread wouldn't attempt to append twice to the same position in the same sequence).
+It is a feature of the event store that it isn't possible to successfully append two events at the same position in
+the same sequence. This condition is coded as a ``ConcurrencyError`` (since a correct program running in a
+single thread wouldn't attempt to successfully append the same event twice).
 
 
 .. code:: python
@@ -573,9 +597,8 @@ single thread wouldn't attempt to append twice to the same position in the same 
         raise Exception("ConcurrencyError not raised")
 
 
-This feature is implemented using optimistic concurrency control features of the underlying database. With
-SQLAlchemy, the primary key constraint involves both the sequence and the position columns. With Cassandra
-the "IF NOT EXISTS" feature is applied, whilst the position is the primary key in the sequence partition.
+This feature depends on the behaviour of the active record strategy's ``append()`` method: the event store will
+raise a ``ConcurrencyError`` if a ``SequencedItemConflict`` is raised by its active record strategy.
 
 
 Timestamp Sequenced Events
