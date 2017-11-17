@@ -120,15 +120,6 @@ An active record strategy is constructed with a ``sequenced_item_class`` and a m
 ``active_record_class``. The field names of a suitable active record class will match the field names of the
 sequenced item namedtuple.
 
-The library has a concrete active record strategy for SQLAlchemy provided by the object class
-``SQLAlchemyActiveRecordStrategy``. It has an active record strategy also for Apache Cassandra provided by
-``CassandraActiveRecordStrategy``. The library also provides an active record classes for SQLAlchemy and
-for Cassandra.
-
-To help setup the database connection and tables for these two active record strategies, the library has object
-classes ``SQLAlchemyDatastore`` and ``CassandraDatastore``. Database settings can be configured using either
-``SQLAlchemySettings`` or ``CassandraSettings``.
-
 
 SQLAlchemy
 ----------
@@ -372,12 +363,12 @@ instead of the default ``SequencedItem`` namedtuple, so it is possible to use a 
 namedtuple.
 
 
-Serialiser
-----------
+JSON Encoding
+-------------
 
 The ``SequencedItemMapper`` can be constructed with an optional ``json_encoder_class`` and
-``json_decoder_class`` args. The defaults are the library's ``JSONObjectEncoder`` and ``JSONObjectDecoder``
-which can be extended to support object types that are not currently supported by the library.
+``json_decoder_class`` args. The defaults are the library's ``JSONObjectEncoder`` and
+``JSONObjectDecoder`` which can be extended to support types that are not currently supported by the library.
 
 
 
@@ -405,7 +396,8 @@ ciphertext. Generating and storing a secure key requires functionality beyond th
     assert plaintext == 'plaintext'
 
 
-If the constructor arg ``always_encrypt`` is True, then the ``state`` of the stored event will be encrypted.
+If the ``SequencedItemMapper`` constructor arg ``always_encrypt`` is True, then
+the ``state`` of the stored event will be encrypted.
 
 
 .. code:: python
