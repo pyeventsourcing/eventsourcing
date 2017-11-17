@@ -340,8 +340,8 @@ The method ``to_sequenced_item()`` can be used to convert application-level obje
     assert sequenced_item_mapper.to_sequenced_item(domain_event) == sequenced_item1
 
 
-The ``SequencedItemMapper`` has a constructor arg ``sequenced_item_class``, which is by default the library's
-``SequencedItem`` namedtuple.
+The ``SequencedItemMapper`` has a constructor arg ``sequenced_item_class``, which defaults to the library's
+sequenced item namedtuple ``SequencedItem``.
 
 If the names of the first two fields of the sequenced item namedtuple (e.g. ``sequence_id`` and ``position``) do not
 match the names of the attributes of the application-level object which identify a sequence and a position (e.g.
