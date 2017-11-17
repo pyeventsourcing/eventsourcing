@@ -187,9 +187,9 @@ are used to setup the database connection and the tables.
 
 
 The ``SQLAlchemyActiveRecordStrategy`` also requires a scoped session object, passed using the constructor
-arg ``session``. For convenience, the ``SQLAlchemyDatabase`` has a thread-scoped session set as its a ``session``
-attribute. In production, you may wish to use a more suitable scoped session object, such as a request-scoped session
-facade provided by a Web framework.
+arg ``session``. For convenience, the ``SQLAlchemyDatabase`` has a thread-scoped session facade set as its a
+``session`` attribute. You may wish to use a different scoped session facade, such as a request-scoped session
+object provided by a Web framework.
 
 
 .. code:: python
