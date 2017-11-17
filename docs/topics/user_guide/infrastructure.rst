@@ -318,12 +318,19 @@ The library provides a sequenced item mapper object class called ``SequencedItem
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 
-The method ``from_sequenced_item()`` can be used to convert sequenced item objects to application-level objects.
+The ``SequencedItemMapper`` has a constructor arg ``sequenced_item_class``, which defaults to the library's
+sequenced item namedtuple ``SequencedItem``.
 
 
 .. code:: python
 
     sequenced_item_mapper = SequencedItemMapper()
+
+
+The method ``from_sequenced_item()`` can be used to convert sequenced item objects to application-level objects.
+
+
+.. code:: python
 
     domain_event = sequenced_item_mapper.from_sequenced_item(sequenced_item1)
 
@@ -339,9 +346,6 @@ The method ``to_sequenced_item()`` can be used to convert application-level obje
 
     assert sequenced_item_mapper.to_sequenced_item(domain_event) == sequenced_item1
 
-
-The ``SequencedItemMapper`` has a constructor arg ``sequenced_item_class``, which defaults to the library's
-sequenced item namedtuple ``SequencedItem``.
 
 If the names of the first two fields of the sequenced item namedtuple (e.g. ``sequence_id`` and ``position``) do not
 match the names of the attributes of the application-level object which identify a sequence and a position (e.g.
@@ -381,10 +385,10 @@ different from the default ``SequencedItem`` namedtuple, such as the library's `
     assert sequenced_item_mapper.to_sequenced_item(domain_event1) == stored_event1
 
 
-Which namedtuple you choose for your project depends on your preferences for the names
-in the your persistence model. Since the alternative ``StoredEvent`` namedtuple can be used
-instead of the default ``SequencedItem`` namedtuple, so it is possible to use a custom
-namedtuple.
+Since the alternative ``StoredEvent`` namedtuple can be used instead of the default
+``SequencedItem`` namedtuple, so it is possible to use a custom namedtuple.
+Which alternative you use for your project depends on your preferences for the names
+in the your domain events and your persistence model.
 
 
 Custom JSON Transcoding
