@@ -281,7 +281,7 @@ Please refer to ``CassandraSettings`` class for information about configuring aw
 Sequenced Item Conflicts
 ------------------------
 
-It is a feature of the active record strategy that it isn't possible to successfully append two items at the same
+It is a feature of the active record strategy that it isn't possible successfully to append two items at the same
 position in the same sequence. If such an attempt is made, a ``SequencedItemConflict`` will be raised by the active
 record strategy.
 
@@ -573,9 +573,9 @@ order of the results. Hence, it can affect both the content of the results and t
 Optimistic Concurrency Control
 ------------------------------
 
-It is a feature of the event store that it isn't possible to successfully append two events at the same position in
-the same sequence. This condition is coded as a ``ConcurrencyError`` (since a correct program running in a
-single thread wouldn't attempt to successfully append the same event twice).
+It is a feature of the event store that it isn't possible successfully to append two events at the same position in
+the same sequence. This condition is coded as a ``ConcurrencyError`` since a correct program running in a
+single thread wouldn't attempt to append an event that it had already successfully appended.
 
 
 .. code:: python
