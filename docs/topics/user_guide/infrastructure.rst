@@ -348,9 +348,6 @@ match the names of the attributes of the application-level object which identify
 ``originator_id`` and ``originator_version``) then the attribute names can be given to the sequenced item mapper
 using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 
-For example, in the code below, the domain event attribute names are given as ``'originator_id'`` and
-``'originator_version'``.
-
 
 .. code:: python
 
