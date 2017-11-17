@@ -394,8 +394,8 @@ Custom JSON Encoding
 --------------------
 
 The ``SequencedItemMapper`` can be constructed with optional args ``json_encoder_class`` and
-``json_decoder_class``. The defaults are the library's ``JSONObjectEncoder`` and
-``JSONObjectDecoder`` which can be extended to support types of value objects that are not
+``json_decoder_class``. The defaults are the library's ``ObjectJSONEncoder`` and
+``ObjectJSONDecoder`` which can be extended to support types of value objects that are not
 currently supported by the library.
 
 
