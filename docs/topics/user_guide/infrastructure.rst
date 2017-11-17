@@ -390,13 +390,60 @@ instead of the default ``SequencedItem`` namedtuple, so it is possible to use a 
 namedtuple.
 
 
-Custom JSON Encoding
---------------------
+Custom JSON Transcoding
+-----------------------
 
 The ``SequencedItemMapper`` can be constructed with optional args ``json_encoder_class`` and
 ``json_decoder_class``. The defaults are the library's ``ObjectJSONEncoder`` and
 ``ObjectJSONDecoder`` which can be extended to support types of value objects that are not
 currently supported by the library.
+
+The code below extends the JSON transcoding to support sets.
+
+
+.. code:: python
+
+    from eventsourcing.infrastructure.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
+
+
+    class CustomObjectJSONEncoder(ObjectJSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, set):
+                return {'__set__': list(obj)}
+            else:
+                return super(CustomObjectJSONEncoder, self).default(obj)
+
+
+    class CustomObjectJSONDecoder(ObjectJSONDecoder):
+        @classmethod
+        def from_jsonable(cls, d):
+            if '__set__' in d:
+                return cls._decode_set(d)
+            else:
+                return ObjectJSONDecoder.from_jsonable(d)
+
+        @staticmethod
+        def _decode_set(d):
+            return set(d['__set__'])
+
+
+    customized_sequenced_item_mapper = SequencedItemMapper(
+        json_encoder_class=CustomObjectJSONEncoder,
+        json_decoder_class=CustomObjectJSONDecoder,
+    )
+
+    domain_event = customized_sequenced_item_mapper.from_sequenced_item(
+        SequencedItem(
+            sequence_id=sequence1,
+            position=0,
+            topic='eventsourcing.domain.model.events#DomainEvent',
+            data='{"foo":{"__set__":["bar","baz"]}}'
+        )
+    )
+    assert domain_event.foo == set(["bar", "baz"])
+
+    sequenced_item = customized_sequenced_item_mapper.to_sequenced_item(domain_event)
+    assert sequenced_item.data.startswith('{"foo":{"__set__":["ba')
 
 
 Application-Level Encryption
