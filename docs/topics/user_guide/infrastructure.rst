@@ -133,17 +133,20 @@ The library has a concrete active record strategy for SQLAlchemy provided by the
     from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
 
 
-To help setup a database connection and tables, the library has object class ``SQLAlchemyDatastore``, with methods
-``setup_connection()`` and ``setup_tables()``.
+The library also provides active record classes for SQLAlchemy, such as ``IntegerSequencedItemRecord`` and
+``StoredEventRecord``. The ``IntegerSequencedItemRecord`` class matches the default ``SequencedItem``
+namedtuple. The ``StoredEventRecord`` class matches the alternative ``StoredEvent`` namedtuple.
+
+The code below uses the namedtuple ``StoredEvent`` and the active record ``StoredEventRecord``.
 
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import StoredEventRecord
 
 
-Database settings for ``SQLAlchemyDatastore`` can be configured using ``SQLAlchemySettings``,
-which is constructed with a ``uri`` connection string. The code below uses an in-memory SQLite database.
+Database settings can be configured using ``SQLAlchemySettings``, which is constructed with a ``uri`` connection
+string. The code below uses an in-memory SQLite database.
 
 
 .. code:: python
@@ -153,19 +156,15 @@ which is constructed with a ``uri`` connection string. The code below uses an in
     settings = SQLAlchemySettings(uri='sqlite:///:memory:')
 
 
+To help setup a database connection and tables, the library has object class ``SQLAlchemyDatastore``.
+
 The ``SQLAlchemyDatastore`` is constructed with the ``settings`` object,
 and a tuple of active record classes passed using the ``tables`` arg.
-The library provides active record classes for SQLAlchemy, such as ``IntegerSequencedItemRecord`` and
-``StoredEventRecord``.
-
-The ``IntegerSequencedItemRecord`` class matches the ``SequencedItem`` namedtuple, and the
-``StoredEventRecord`` class matches the ``StoredEvent`` namedtuple. The code below uses ``StoredEventRecord``
-with the ``StoredEvent`` namedtuple.
 
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import StoredEventRecord
+    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore
 
     datastore = SQLAlchemyDatastore(
         settings=settings,
@@ -187,10 +186,11 @@ can be used to setup the database connection and the tables.
     datastore.setup_tables()
 
 
-The ``SQLAlchemyActiveRecordStrategy`` also requires a scoped session object, passed using the constructor
-arg ``session``. For convenience, the ``SQLAlchemyDatabase`` has a thread-scoped session facade set as its a
-``session`` attribute. You may wish to use a different scoped session facade, such as a request-scoped session
-object provided by a Web framework.
+As well as ``sequenced_item_class`` and a matching ``active_record_class``, the ``SQLAlchemyActiveRecordStrategy``
+requires a scoped session object, passed using the constructor arg ``session``. For convenience, the
+``SQLAlchemyDatabase`` has a thread-scoped session facade set as its a ``session`` attribute. You may
+wish to use a different scoped session facade, such as a request-scoped session object provided by a Web
+framework.
 
 
 .. code:: python
