@@ -224,6 +224,19 @@ attribute.
     assert entity.version == 0
 
 
+The class ``VersionedEntity`` has a method ``_increment_version()`` which can be used to increment the version
+number of an versioned entity.
+
+.. code:: python
+
+    entity._increment_version()
+
+    assert entity.version == 1
+
+
+Entity Library
+--------------
+
 There is a ``TimestampedEntity`` that has ``id`` and ``created_on`` attributes. It also has a ``last_modified``
 attribute which is normally updated as events are applied.
 
@@ -266,15 +279,8 @@ A timestamped versioned entity is both a version entity and a timestamped entity
     assert isinstance(entity, TimstampedEntity)
 
 
-The class ``VersionedEntity`` has a method ``_increment_version()`` which can be used to increment the version
-number of an versioned entity.
-
-.. code:: python
-
-    entity._increment_version()
-
-    assert entity.version == 1
-
+Entity Events
+-------------
 
 The library's domain entity classes have inner domain event classes: ``Event``, ```Created``, ``AttributeChanged``, and
 ``Discarded``. These inner event classes are all subclasses of ``DomainEvent`` and can be freely constructed, with
@@ -356,7 +362,6 @@ The method ``_apply_and_publish()`` can be used to apply and then publish the ev
     # Clean up.
     unsubscribe(handler=receive_event, predicate=is_domain_event)
     del received_events[:]  # received_events.clear()
-
 
 
 The entity method ``discard()`` can be used to discard the entity, by applying and publishing a ``Discarded``
@@ -616,16 +621,9 @@ your application,
     assert world.history[2].what == 'internet'
 
 
-
-Aggregate
-=========
+Aggregate Root
+--------------
 
 The library has a domain entity class called ``AggregateRoot``, which postpones the publishing of all events
 pending the next call to its ``save()`` method. When the ``save()`` method is called, all such pending events
 are published as a single list of events.
-
-Event Player
-============
-
-Repository
-==========
