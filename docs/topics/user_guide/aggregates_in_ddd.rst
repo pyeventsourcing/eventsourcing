@@ -146,7 +146,10 @@ collection of examples.
         """
         # Handle "created" events by constructing the aggregate object.
         if isinstance(event, ExampleAggregateRoot.Created):
-            aggregate = ExampleAggregateRoot(**event.__dict__)
+            kwargs = event.__dict__.copy()
+            kwargs['version'] = kwargs.pop('originator_version')
+            kwargs['id'] = kwargs.pop('originator_id')
+            aggregate = ExampleAggregateRoot(**kwargs)
             aggregate._version += 1
             return aggregate
 
@@ -157,7 +160,7 @@ collection of examples.
             entity = Example(example_id=event.example_id)
             aggregate._examples[str(entity.id)] = entity
             aggregate._version += 1
-            aggregate._last_modified_on = event.timestamp
+            aggregate._last_modified = event.timestamp
             return aggregate
 
         # Handle "discarded" events by returning 'None'.

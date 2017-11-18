@@ -63,12 +63,6 @@ class EventPlayer(object):
         # Replay the domain events, starting with the initial state.
         return self.replay_events(initial_state, domain_events)
 
-    def replay_events(self, initial_state, domain_events):
-        """
-        Mutates initial state using the sequence of domain events.
-        """
-        return reduce(self.mutator, domain_events, initial_state)
-
     def get_domain_events(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True):
         """
         Returns domain events for given entity ID.
@@ -78,6 +72,12 @@ class EventPlayer(object):
                                                            limit=limit, is_ascending=is_ascending,
                                                            page_size=self.page_size)
         return domain_events
+
+    def replay_events(self, initial_state, domain_events):
+        """
+        Mutates initial state using the sequence of domain events.
+        """
+        return reduce(self.mutator, domain_events, initial_state)
 
     def take_snapshot(self, entity_id, lt=None, lte=None):
         """

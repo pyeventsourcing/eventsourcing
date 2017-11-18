@@ -5,7 +5,8 @@ from uuid import UUID, uuid4, uuid1
 from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmptyError, EventWithOriginatorID, \
     EventWithOriginatorVersion, EventWithTimestamp, _event_handlers, assert_event_handlers_empty, \
-    create_timesequenced_event_id, publish, resolve_domain_topic, subscribe, unsubscribe, EventWithTimeuuid
+    create_timesequenced_event_id, publish, subscribe, unsubscribe, EventWithTimeuuid
+from eventsourcing.infrastructure.topic import resolve_topic
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.utils.time import timestamp_from_uuid
@@ -420,8 +421,8 @@ class TestEvents(unittest.TestCase):
     def test_topic_resolution_error(self):
         # Check topic resolution error is raised, if the module path is
         # broken, and if the class name is broken.
-        resolve_domain_topic('eventsourcing.domain.model.events#DomainEvent')
+        resolve_topic('eventsourcing.domain.model.events#DomainEvent')
         with self.assertRaises(TopicResolutionError):
-            resolve_domain_topic('eventsourcing.domain.model.broken#DomainEvent')
+            resolve_topic('eventsourcing.domain.model.broken#DomainEvent')
         with self.assertRaises(TopicResolutionError):
-            resolve_domain_topic('eventsourcing.domain.model.events#Broken')
+            resolve_topic('eventsourcing.domain.model.events#Broken')

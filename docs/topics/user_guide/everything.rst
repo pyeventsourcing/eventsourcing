@@ -140,7 +140,7 @@ Mutator function
         entity = Example(example_id=event.example_id)
         aggregate._examples[str(entity.id)] = entity
         aggregate._version += 1
-        aggregate._last_modified_on = event.timestamp
+        aggregate._last_modified = event.timestamp
         return aggregate
 
 

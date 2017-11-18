@@ -40,7 +40,12 @@ class ExampleEntity(TimeuuidedEntity):
     @classmethod
     def _mutate(cls, initial, event):
         if isinstance(event, ExampleEntity.Started):
-            return cls(**event.__dict__)
+            constructor_args = event.__dict__.copy()
+            if 'originator_id' in constructor_args:
+                constructor_args['id'] = constructor_args.pop('originator_id')
+            if 'originator_version' in constructor_args:
+                constructor_args['version'] = constructor_args.pop('originator_version')
+            return cls(**constructor_args)
         elif isinstance(event, ExampleEntity.Finished):
             initial._is_finished = True
             return None
@@ -113,7 +118,7 @@ class TestDomainEventsWithTimeUUIDs(AbstractDatastoreTestCase):
             self.assertIsInstance(entity1._initial_event_id, UUID)
             expected_timestamp = timestamp_from_uuid(entity1._initial_event_id)
             self.assertEqual(entity1.created_on, expected_timestamp)
-            self.assertTrue(entity1.last_modified_on, expected_timestamp)
+            self.assertTrue(entity1.last_modified, expected_timestamp)
 
             # Read entity from repo.
             retrieved_obj = app.repository[entity1.id]

@@ -11,13 +11,16 @@ class ExampleWithReflexiveMutator(WithReflexiveMutator, Example):
 
     class Created(Event, Example.Created):
         def mutate(self, cls):
-            return cls(**self.__dict__)
+            constructor_args = self.__dict__.copy()
+            constructor_args['id'] = constructor_args.pop('originator_id')
+            constructor_args['version'] = constructor_args.pop('originator_version')
+            return cls(**constructor_args)
 
     class AttributeChanged(Event, Example.AttributeChanged):
         def mutate(self, entity):
             entity._validate_originator(self)
             setattr(entity, self.name, self.value)
-            entity._last_modified_on = self.timestamp
+            entity._last_modified = self.timestamp
             entity._increment_version()
             return entity
 

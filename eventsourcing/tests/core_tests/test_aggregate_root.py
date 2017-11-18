@@ -163,7 +163,7 @@ def _(self, event):
     entity = Example(entity_id=event.entity_id)
     self._entities[entity.id] = entity
     self._version += 1
-    self._last_modified_on = event.timestamp
+    self._last_modified = event.timestamp
     return self
 
 
