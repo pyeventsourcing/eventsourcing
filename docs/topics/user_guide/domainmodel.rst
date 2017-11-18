@@ -224,16 +224,6 @@ attribute.
     assert entity.version == 0
 
 
-The class ``VersionedEntity`` has a method ``_increment_version()`` which can be used to increment the version
-number of an versioned entity.
-
-.. code:: python
-
-    entity._increment_version()
-
-    assert entity.version == 1
-
-
 Entity Library
 --------------
 
@@ -311,6 +301,16 @@ suitable arguments.
         originator_version=3,
         originator_id=entity_id
     )
+
+
+The class ``VersionedEntity`` has a method ``_increment_version()`` which can be used, for example by a mutator
+function, to increment the version number each time an event is applied.
+
+.. code:: python
+
+    entity._increment_version()
+
+    assert entity.version == 1
 
 
 The entity mutator function ``mutate_entity()`` can be used to update the state of an entity from a domain event.
