@@ -2,16 +2,14 @@
 Domain Model
 ============
 
-The library's domain layer complements the infrastructure layer by providing some domain driven design shaped objects
-that work with cohesive mechanism for storing domain events as sequences of items.
-
-The domain layer contains object classes for: domain events, domain entities, aggregate roots, and entity repositories.
+The library's domain model package provides base classes for domain events, domain entities, and aggregate root
+entities.
 
 
-Events
-======
+Domain Events
+=============
 
-The purpose of a domain event is to be instantiated and published when something happens, such as the results from the
+The purpose of a domain event is to be published when something happens, normally the results from the
 work of a command.
 
 The library's base class for domain events is ``DomainEvent``. Domain event object instances can be freely constructed
@@ -62,10 +60,9 @@ publish events. The ``event`` arg is required.
     publish(event=domain_event)
 
 
-The ``subscribe()`` function is used to subscribe a ``handler`` to events. The optional ``predicate`` arg can
-be used to provide a function that will decide whether or not the subscribed handler will be called
+The ``subscribe()`` function is used to subscribe a ``handler`` that will receive event. The optional ``predicate``
+arg can be used to provide a function that will decide whether or not the subscribed handler will actually be called
 when an event is published.
-
 
 .. code:: python
 
@@ -88,7 +85,7 @@ when an event is published.
     assert received_events[0] == domain_event
 
 
-The ``unsubscribe()`` function can be used to cancel a subscription.
+The ``unsubscribe()`` function can be used to stop the handler receiving further events.
 
 .. code:: python
 
@@ -96,6 +93,7 @@ The ``unsubscribe()`` function can be used to cancel a subscription.
 
     unsubscribe(handler=receive_event, predicate=is_domain_event)
 
+    # Clean up.
     received_events.clear()
 
 
@@ -193,23 +191,22 @@ It is possible to code domain events as inner or nested classes.
             """
 
 
-    started_event = Job.Started(job_id='#1')
-    done_event = Job.Done(job_id='#1')
+    started = Job.Started(job_id='#1')
+    done = Job.Done(job_id='#1')
 
-    assert started_event.timestamp < done_event.timestamp
+    assert started.timestamp < done.timestamp
 
 
 Inner or nested classes can be used, and are used in the library, to define the domain events of a domain entity
 on the domain entity class itself (see below).
 
 
-Entities
-========
+Domain Entities
+===============
 
 A domain entity is an object that is not defined by its attributes, but rather by a thread of continuity and its
-identity.
-
-The attributes of a domain entity can change, directly by assignment, or indirectly by calling a method of the object.
+identity. The attributes of a domain entity can change, directly by assignment, or indirectly by calling a method of
+the object.
 
 The library provides a domain entity class ``VersionedEntity``, which has an ``id`` attribute, and a ``version``
 attribute.
@@ -260,7 +257,7 @@ attributes.
 
 
 The base class ``DomainEntity`` has a method ``_increment_version()`` which can be used to increment the version number
- of an entity.
+of an entity.
 
 .. code:: python
 
@@ -386,7 +383,6 @@ Custom Entities
 The library entity classes can be subclassed and extended by adding attributes and methods.
 
 .. code:: python
-
 
     from eventsourcing.domain.model.decorators import attribute
 
