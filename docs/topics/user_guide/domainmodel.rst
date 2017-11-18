@@ -12,24 +12,23 @@ Domain Events
 The purpose of a domain event is to be published when something happens, normally the results from the
 work of a command.
 
-The library's base class for domain events is ``DomainEvent``. Domain event object instances can be freely constructed
-from the ``DomainEvent`` object class. Event attributes are set directly from constructor keyword arguments.
+The library's base class for domain events is called ``DomainEvent``. Domain events can be freely constructed
+from the ``DomainEvent`` class. Event attributes are set directly from the constructor keyword arguments.
 
 .. code:: python
 
     from eventsourcing.domain.model.events import DomainEvent
 
     domain_event = DomainEvent(a=1)
-
     assert domain_event.a == 1
 
 
-The attributes of a domain event object are read-only, new values cannot be assigned to existing domain
-event objects. Domain event objects are immutable in that sense.
+The attributes of a domain event are read-only. New values cannot be assigned to existing domain
+events. Domain events are immutable in that sense.
 
 .. code:: python
 
-    # Fail to assign a new value to a domain event.
+    # Fail to set domain event attribute.
     try:
         domain_event.a = 2
     except AttributeError:
@@ -50,8 +49,9 @@ same type and the same attributes).
     DomainEvent(a=1) != DomainEvent(b=1)
 
 
-Domain events can be published, using the library's publish-subscribe mechanism. The ``publish()`` function is used to
-publish events. The ``event`` arg is required.
+Domain events can be published, using the library's publish-subscribe mechanism.
+
+The ``publish()`` function is used to publish events, the ``event`` arg is required.
 
 .. code:: python
 
@@ -60,7 +60,7 @@ publish events. The ``event`` arg is required.
     publish(event=domain_event)
 
 
-The ``subscribe()`` function is used to subscribe a ``handler`` that will receive event. The optional ``predicate``
+The ``subscribe()`` function is used to subscribe a ``handler`` that will receive events. The optional ``predicate``
 arg can be used to provide a function that will decide whether or not the subscribed handler will actually be called
 when an event is published.
 
