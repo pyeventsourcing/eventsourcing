@@ -257,8 +257,17 @@ attributes.
     assert entity.last_modified == 123456789
 
 
-The base class ``DomainEntity`` has a method ``_increment_version()`` which can be used to increment the version number
-of an entity.
+A timestamped versioned entity is both a version entity and a timestamped entity.
+
+.. code:: python
+
+    assert isinstance(entity, TimstampedVersionedEntity)
+    assert isinstance(entity, VersionedEntity)
+    assert isinstance(entity, TimstampedEntity)
+
+
+The class ``VersionedEntity`` has a method ``_increment_version()`` which can be used to increment the version
+number of an versioned entity.
 
 .. code:: python
 
