@@ -2,8 +2,9 @@
 Domain Model
 ============
 
-The library's domain model package provides base classes for domain events, domain entities, and aggregate root
-entities.
+The library's domain layer has base classes for domain events and entities. These classes show how to
+write a domain model that uses the library's event sourcing infrastructure. They can also be used to
+conveniently develop an event-sourced application as a domain driven design.
 
 
 Domain Events
@@ -13,7 +14,7 @@ The purpose of a domain event is to be published when something happens, normall
 work of a command.
 
 The library's base class for domain events is called ``DomainEvent``. Domain events can be freely constructed
-from the ``DomainEvent`` class. Event attributes are set directly from the constructor keyword arguments.
+from the ``DomainEvent`` class. Event object attributes are set directly from the constructor keyword arguments.
 
 .. code:: python
 
