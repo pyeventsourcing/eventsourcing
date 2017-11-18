@@ -94,7 +94,7 @@ The ``unsubscribe()`` function can be used to stop the handler receiving further
     unsubscribe(handler=receive_event, predicate=is_domain_event)
 
     # Clean up.
-    received_events.clear()
+    del received_events[:]  # received_events.clear()
 
 
 Event Library
@@ -345,7 +345,8 @@ The method ``_apply_and_publish()`` can be used to apply and then publish the ev
 
     # Clean up.
     unsubscribe(handler=receive_event, predicate=is_domain_event)
-    received_events.clear()
+    del received_events[:]  # received_events.clear()
+
 
 
 The entity method ``discard()`` can be used to discard the entity, by applying and publishing a ``Discarded``
@@ -457,7 +458,7 @@ received by a subscriber.
 
     # Clean up.
     unsubscribe(handler=receive_event, predicate=is_domain_event)
-    received_events.clear()
+    del received_events[:]  # received_events.clear()
 
 
 The entity base classes can also be extended by adding methods that publish events. In general, the arguments of a
