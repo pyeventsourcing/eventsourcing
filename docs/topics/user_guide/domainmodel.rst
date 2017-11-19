@@ -24,8 +24,8 @@ set directly from the constructor keyword arguments.
     assert domain_event.a == 1
 
 
-The attributes of domain events are read-only. New values cannot be assigned to an existing domain
-event. Domain events are immutable in that sense.
+The attributes of domain events are read-only. New values cannot be assigned to existing objects.
+Domain events are immutable in that sense.
 
 .. code:: python
 
@@ -38,8 +38,8 @@ event. Domain events are immutable in that sense.
         raise Exception("Shouldn't get here")
 
 
-Domain events can be compared for equality and inequality as value objects (instances are equal if they have the
-same type and the same attributes).
+Domain events can be compared for equality and inequality as value objects, instances are equal if they have the
+same type and the same attributes.
 
 .. code:: python
 
@@ -628,7 +628,7 @@ Aggregate Root Entity
 
 The library has a domain entity class called ``AggregateRoot``, which postpones the publishing of all events
 pending the next call to its ``save()`` method. When the ``save()`` method is called, all such pending events
-are published as a single list of events. This class is useful when a single command causes many events
+are published as a single list of events. This is useful when a single command causes many events
 to be published, and those event are best be persisted as a single atomic operation, without the risk that
 some events will be stored successfully but other events will fall into conflict because another thread has
 operated on the same aggregate at the same time.
