@@ -598,14 +598,14 @@ will be called when events are applied.
 
         @classmethod
         def _mutate(cls, initial, event):
-            return world_mutator(event=event, initial=initial)
+            return mutate_world(event=event, initial=initial)
 
 
     @mutator
-    def world_mutator(initial, event):
+    def mutate_world(initial, event):
         return mutate_entity(initial, event)
 
-    @world_mutator.register(World.SomethingHappened)
+    @mutate_world.register(World.SomethingHappened)
     def _(self, event):
         self.history.append(event)
         self._increment_version()
