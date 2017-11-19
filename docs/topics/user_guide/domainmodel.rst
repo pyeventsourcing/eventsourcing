@@ -413,7 +413,7 @@ The mutator function will return ``None`` after mutating an entity with a ``Disc
 Custom Entities
 ---------------
 
-The library entity classes can be subclassed and extended by adding attributes and methods.
+The library entity classes can be subclassed.
 
 .. code:: python
 
@@ -441,6 +441,9 @@ is published, the new entity will be returned by the factory method.
     user = create_user(full_name='Mrs Boots')
 
     assert user.full_name == 'Mrs Boots'
+
+
+Subclasses can extend the entity base classes, by adding event-based properties and methods.
 
 
 Custom Attributes
@@ -501,7 +504,7 @@ Custom Commands
 
 The entity base classes can also be extended by adding "command" methods that publish events. In general, the arguments
 of a command will be used to perform some work. Then, the result of the work will be used to construct a domain event
-that represents what happened. And then the domain event will be applied and published.
+that represents what happened. And then, the domain event will be applied and published.
 
 Methods like this, for example the ``set_password()`` method of the ``User`` entity below, normally have no return
 value. The method creates an encoded string from a raw password, and then uses the ``change_attribute()`` method to
