@@ -8,7 +8,8 @@ import six
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
-    Logged, topic_from_domain_class
+    Logged
+from eventsourcing.infrastructure.topic import get_topic
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import SequencedItemConflict
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
@@ -363,16 +364,16 @@ class TimestampedEventExample2(EventWithTimestamp, EventWithOriginatorID):
 
 
 class IntegerSequencedItemTestCase(ActiveRecordStrategyTestCase):
-    EXAMPLE_EVENT_TOPIC1 = topic_from_domain_class(VersionedEventExample1)
-    EXAMPLE_EVENT_TOPIC2 = topic_from_domain_class(VersionedEventExample2)
+    EXAMPLE_EVENT_TOPIC1 = get_topic(VersionedEventExample1)
+    EXAMPLE_EVENT_TOPIC2 = get_topic(VersionedEventExample2)
 
     def construct_positions(self):
         return 0, 1, 2
 
 
 class TimestampSequencedItemTestCase(ActiveRecordStrategyTestCase):
-    EXAMPLE_EVENT_TOPIC1 = topic_from_domain_class(TimestampedEventExample1)
-    EXAMPLE_EVENT_TOPIC2 = topic_from_domain_class(TimestampedEventExample2)
+    EXAMPLE_EVENT_TOPIC1 = get_topic(TimestampedEventExample1)
+    EXAMPLE_EVENT_TOPIC2 = get_topic(TimestampedEventExample2)
 
     def construct_positions(self):
         t1 = time()

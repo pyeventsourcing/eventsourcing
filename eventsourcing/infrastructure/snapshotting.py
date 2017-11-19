@@ -3,7 +3,8 @@ from copy import deepcopy
 
 import six
 
-from eventsourcing.domain.model.events import publish, resolve_domain_topic, topic_from_domain_class
+from eventsourcing.domain.model.events import publish
+from eventsourcing.infrastructure.topic import get_topic, resolve_topic
 from eventsourcing.domain.model.snapshot import AbstractSnapshop, Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import reconstruct_object
@@ -22,7 +23,7 @@ class AbstractSnapshotStrategy(six.with_metaclass(ABCMeta)):
     def take_snapshot(self, entity_id, entity, last_event_version):
         """
         Takes a snapshot of entity, using given ID, state and version number.
-        
+
         :rtype: AbstractSnapshop
         """
 
@@ -55,7 +56,7 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
         snapshot = Snapshot(
             originator_id=entity_id,
             originator_version=last_event_version,
-            topic=topic_from_domain_class(entity.__class__),
+            topic=get_topic(entity.__class__),
             state=None if entity is None else deepcopy(entity.__dict__)
         )
 
@@ -72,5 +73,5 @@ def entity_from_snapshot(snapshot):
     """
     assert isinstance(snapshot, AbstractSnapshop), type(snapshot)
     if snapshot.state is not None:
-        entity_class = resolve_domain_topic(snapshot.topic)
+        entity_class = resolve_topic(snapshot.topic)
         return reconstruct_object(entity_class, snapshot.state)
