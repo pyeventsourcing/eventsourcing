@@ -36,10 +36,10 @@ Please `register any issues, questions, and requests
    topics/quick_start
    topics/installing
    topics/features
-   topics/user_guide/index
    topics/design
    topics/infrastructure
    topics/domainmodel
+   topics/user_guide/index
 
    topics/release_notes
 
