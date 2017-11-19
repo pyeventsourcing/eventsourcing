@@ -42,3 +42,11 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
             pass
         if batch_of_events:
             publish(batch_of_events)
+
+    def _trigger(self, event_class, **kwargs):
+        event = event_class(
+            originator_id=self.id,
+            originator_version=self.version,
+            **kwargs,
+        )
+        self._apply_and_publish(event)

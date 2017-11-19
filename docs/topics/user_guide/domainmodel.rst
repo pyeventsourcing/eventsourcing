@@ -109,7 +109,8 @@ The library has a small collection of domain event subclasses, such as ``EventWi
 ``EventWithOriginatorVersion``, ``EventWithTimestamp``, ``EventWithTimeuuid``, ``Created``, ``AttributeChanged``,
 ``Discarded``.
 
-Some of these classes provide useful defaults for particular attributes, such as a timestamp.
+Some of these classes provide useful defaults for particular attributes, such as a ``timestamp``.
+Timestamps can be used to sequence events.
 
 .. code:: python
 
@@ -124,7 +125,9 @@ Some of these classes provide useful defaults for particular attributes, such as
     assert isinstance(EventWithTimeuuid().event_id, UUID)
 
 
-Some classes require particular arguments when constructed.
+Some classes require particular arguments when constructed. The ``originator_id`` can be used
+to identify a sequence to which an event belongs. The ``originator_version`` can be used to
+position the event in a sequence.
 
 .. code:: python
 
@@ -663,8 +666,12 @@ all entity classes in an application.
 Aggregate Root Entity
 ---------------------
 
-The library has a domain entity class called ``AggregateRoot`` that can be useful in a domain driven design. The
-``AggregateRoot`` class inherits from both ``TimestampedVersionedEntity`` and ``WithReflexiveMutator``.
+The library has a domain entity class called ``AggregateRoot`` that can be useful in a domain driven design, where a
+command can cause many events to be published. The ``AggregateRoot`` class has a ``save()`` method, which publishes
+a list of pending events, and overrides the ``_publish()`` method of the base class to append events to a pending list.
+
+The ``AggregateRoot`` class inherits from both ``TimestampedVersionedEntity`` and
+``WithReflexiveMutator``, and can be subclassed to define custom aggregate root entities.
 
 .. code:: python
 
@@ -681,13 +688,7 @@ The library has a domain entity class called ``AggregateRoot`` that can be usefu
 
         def make_things_so(self, *somethings):
             for something in somethings:
-                what_happened = something
-                event = World.SomethingHappened(
-                    what=what_happened,
-                    originator_id=self.id,
-                    originator_version=self.version
-                )
-                self._apply_and_publish(event)
+                self._trigger(World.SomethingHappened, what=something)
 
         class SomethingHappened(VersionedEntity.Event):
             def mutate(self, entity):
@@ -724,7 +725,7 @@ An ``AggregateRoot`` entity will postpone the publishing of all events, pending 
 
 
 When the ``save()`` method is called, all such pending events are published as a
-single list of events.
+single list of events to the publish-subscribe mechanism.
 
 .. code:: python
 
@@ -737,10 +738,10 @@ single list of events.
     assert len(received_events[0]) == 4
 
 
-Publishing all events from a single command together allows all the events to be written to a database as a single
-atomic operation, without the risk that some events will be stored successfully but other events from the same
-command will fall into conflict because another thread has operated on the same aggregate at the same time,
-causing an inconsistent state that would also be difficult to repair.
+Publishing all events from a single command in a single list allows all the events to be written to a database as a
+single atomic operation, without the risk that some events will be stored successfully but other events from the same
+command will fall into conflict and lost because another thread has operated on the same aggregate at the
+same time, causing an inconsistent state that would also be difficult to repair.
 
 .. code:: python
 
