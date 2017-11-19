@@ -7,7 +7,7 @@ write a domain model that uses the library's event sourcing infrastructure. They
 develop an event-sourced application as a domain driven design.
 
 
-Domain events
+Domain Events
 =============
 
 The purpose of a domain event is to be published when something happens, normally the results from the
@@ -50,7 +50,7 @@ same type and the same attributes).
     DomainEvent(a=1) != DomainEvent(b=1)
 
 
-Publish-subscribe
+Publish-Subscribe
 -----------------
 
 Domain events can be published, using the library's publish-subscribe mechanism. The ``publish()`` function is used to
@@ -100,7 +100,7 @@ The ``unsubscribe()`` function can be used to stop the handler receiving further
     del received_events[:]  # received_events.clear()
 
 
-Event library
+Event Library
 -------------
 
 The library has a rich collection of domain event subclasses, such as ``EventWithOriginatorID``,
@@ -162,7 +162,7 @@ Some are just useful for their distinct type, for example in subscription predic
     assert is_domain_event(DomainEvent()) is True
 
 
-Custom events
+Custom Events
 -------------
 
 Custom domain events can be coded by subclassing the library's domain event classes. Events are normally
@@ -204,7 +204,7 @@ Inner or nested classes can be used, and are used in the library, to define the 
 on the domain entity class itself (see below).
 
 
-Domain entities
+Domain Entities
 ===============
 
 A domain entity is an object that is not defined by its attributes, but rather by a thread of continuity and its
@@ -226,7 +226,7 @@ attribute.
     assert entity.version == 0
 
 
-Entity library
+Entity Library
 --------------
 
 There is a ``TimestampedEntity`` that has ``id`` and ``created_on`` attributes. It also has a ``last_modified``
@@ -270,7 +270,7 @@ A timestamped, versioned entity is both a timestamped entity and a versioned ent
     assert isinstance(entity, VersionedEntity)
 
 
-Entity events
+Entity Events
 -------------
 
 The library's domain entities have domain events as inner classes: ``Event``, ```Created``, ``AttributeChanged``, and
@@ -395,7 +395,7 @@ The mutator function will return ``None`` after mutating an entity with a ``Disc
     assert entity is None
 
 
-Custom entities
+Custom Entities
 ---------------
 
 The library entity classes can be subclassed and extended by adding attributes and methods.
@@ -623,7 +623,7 @@ your application,
     assert world.history[2].what == 'internet'
 
 
-Aggregate root entity
+Aggregate Root Entity
 ---------------------
 
 The library has a domain entity class called ``AggregateRoot``, which postpones the publishing of all events

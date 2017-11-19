@@ -12,7 +12,7 @@ The sequenced item mapper can convert objects such as domain events to sequenced
 record strategy can write sequenced items to a database.
 
 
-Sequenced items
+Sequenced Items
 ===============
 
 A sequenced item type provides a common persistence model across the components of
@@ -107,7 +107,7 @@ The ``state`` holds the state of the domain event, and is equivalent to ``data``
     assert stored_event1.state == '{"foo":"bar"}'
 
 
-Active record strategies
+Active Record Strategies
 ========================
 
 An active record strategy writes sequenced items to database records.
@@ -121,8 +121,8 @@ An active record strategy is constructed with a ``sequenced_item_class`` and a m
 sequenced item namedtuple.
 
 
-SQLAlchemy
-----------
+SQLAlchemy ORM
+--------------
 
 The library has a concrete active record strategy for SQLAlchemy provided by the object class
 ``SQLAlchemyActiveRecordStrategy``.
@@ -278,7 +278,7 @@ The ``CassandraDatastore`` class uses the ``CassandraSettings`` class to setup a
 Please refer to ``CassandraSettings`` class for information about configuring away from default settings.
 
 
-Sequenced item conflicts
+Sequenced Item Conflicts
 ------------------------
 
 It is a feature of the active record strategy that it isn't possible successfully to append two items at the same
@@ -304,7 +304,7 @@ SQLAlchemy, the primary key constraint involves both the sequence and the positi
 the position is the primary key in the sequence partition, and the "IF NOT EXISTS" feature is applied.
 
 
-Sequenced item mapping
+Sequenced Item Mapping
 ======================
 
 A sequenced item mapper is used by the event store to map between sequenced item namedtuple
@@ -404,7 +404,7 @@ Please note, it is required of these application-level objects that the  "topic"
     assert topic == 'eventsourcing.domain.model.events#Created'
 
 
-Custom JSON transcoding
+Custom JSON Transcoding
 -----------------------
 
 The ``SequencedItemMapper`` can be constructed with optional args ``json_encoder_class`` and
@@ -460,7 +460,7 @@ The code below extends the JSON transcoding to support sets.
     assert sequenced_item.data.startswith('{"foo":{"__set__":["ba')
 
 
-Application-level encryption
+Application-Level Encryption
 ----------------------------
 
 The ``SequencedItemMapper`` can be constructed with an symmetric cipher object. The library provides
@@ -520,7 +520,7 @@ of the application, before being sent to the database, and so it will be encrypt
 backups of the database).
 
 
-Event store
+Event Store
 ===========
 
 The library's ``EventStore`` provides an interface to the library's cohesive mechanism for storing events as sequences
@@ -631,7 +631,7 @@ order of the results. Hence, it can affect both the content of the results and t
     assert result[0].foo == 'baz'
 
 
-Optimistic concurrency control
+Optimistic Concurrency Control
 ------------------------------
 
 It is a feature of the event store that it isn't possible successfully to append two events at the same position in
@@ -662,7 +662,7 @@ This feature depends on the behaviour of the active record strategy's ``append()
 raise a ``ConcurrencyError`` if a ``SequencedItemConflict`` is raised by its active record strategy.
 
 
-Timestamp sequenced items
+Timestamp Sequenced Items
 =========================
 
 The code above uses items that are sequenced by integer. As an alternative, items can be sequenced by timestamp.
