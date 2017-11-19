@@ -727,6 +727,7 @@ When the ``save()`` method is called, all such pending events are published as a
 single list of events.
 
 .. code:: python
+
     # Events are pending actual publishing until the save() method is called.
     assert len(received_events) == 0
     world.save()
