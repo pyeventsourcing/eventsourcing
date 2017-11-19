@@ -5,7 +5,7 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.domain.model.events import reconstruct_object, resolve_domain_topic, topic_from_domain_class
+from eventsourcing.infrastructure.topic import get_topic, resolve_topic
 from eventsourcing.infrastructure.cipher.base import AbstractCipher
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 from eventsourcing.infrastructure.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
@@ -55,7 +55,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         Constructs attributes of a sequenced item from the given domain event.
         """
         # Construct the topic from the event class.
-        topic = topic_from_domain_class(domain_event.__class__)
+        topic = get_topic(domain_event.__class__)
 
         # Copy the state of the event.
         event_attrs = domain_event.__dict__.copy()
@@ -89,7 +89,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         # Get the domain event class from the topic.
         topic = getattr(sequenced_item, self.field_names.topic)
-        domain_event_class = resolve_domain_topic(topic)
+        domain_event_class = resolve_topic(topic)
 
         # Deserialize, optionally with decryption.
         is_encrypted = self.is_encrypted(domain_event_class)
@@ -129,3 +129,9 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
     def is_encrypted(self, domain_event_class):
         return self.always_encrypt or getattr(domain_event_class, '__always_encrypt__', False)
+
+
+def reconstruct_object(obj_class, obj_state):
+    obj = object.__new__(obj_class)
+    obj.__dict__.update(obj_state)
+    return obj

@@ -38,8 +38,8 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertTrue(example1.id)
         self.assertEqual(1, example1.version)
         self.assertTrue(example1.created_on)
-        self.assertTrue(example1.last_modified_on)
-        self.assertEqual(example1.created_on, example1.last_modified_on)
+        self.assertTrue(example1.last_modified)
+        self.assertEqual(example1.created_on, example1.last_modified)
 
         # Check a different type with the same values is not "equal" to the first.
         class Subclass(Example): pass
@@ -74,8 +74,8 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertEqual(-200, repo[entity1.id].b)
 
         self.assertEqual(repo[entity1.id].created_on, entity1.created_on)
-        self.assertEqual(repo[entity1.id].last_modified_on, entity1.last_modified_on)
-        self.assertNotEqual(entity1.last_modified_on, entity1.created_on)
+        self.assertEqual(repo[entity1.id].last_modified, entity1.last_modified)
+        self.assertNotEqual(entity1.last_modified, entity1.created_on)
 
         self.assertEqual(0, entity1.count_heartbeats())
         entity1.beat_heart()
@@ -153,7 +153,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Pretend we decorated an object.
         entity_id = uuid4()
-        o = VersionedEntity(originator_id=entity_id, originator_version=0)
+        o = VersionedEntity(id=entity_id, version=0)
         o.__dict__['_<lambda>'] = 'value1'
 
         # Call the property's getter function.
@@ -188,7 +188,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         subscribe(*subscription)
         entity_id = uuid4()
         try:
-            aaa = Aaa(originator_id=entity_id, originator_version=1, a=1)
+            aaa = Aaa(id=entity_id, version=1, a=1)
             self.assertEqual(aaa.a, 1)
             aaa.a = 'value1'
             self.assertEqual(aaa.a, 'value1')
@@ -217,8 +217,8 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         # Check the instantiation type error.
         with self.assertRaises(TypeError):
             # DomainEntity.Created doesn't have an originator_version,
-            # so the mutator fails to construct an intance with a type
-            # error from the contructor.
+            # so the mutator fails to construct an instance with a type
+            # error from the constructor.
             mutate_entity(TimestampedVersionedEntity, DomainEntity.Created(originator_id=uuid4()))
 
 

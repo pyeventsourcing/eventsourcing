@@ -35,7 +35,7 @@ are replayed.
     from eventsourcing.infrastructure.cipher.aes import AESCipher
 
     # Construct the cipher strategy.
-    aes_key = '0123456789abcdef'
+    aes_key = b'0123456789abcdef'
     cipher = AESCipher(aes_key)
 
 

@@ -43,17 +43,10 @@ class AESCipher(AbstractCipher):
             )
         ).decode('utf8')
 
-        # Check can decrypt without error.
-        assert self.decrypt(ciphertext) == plaintext
-
-        print('Encrypted ok: ' + ciphertext)
-
         return ciphertext
 
     def decrypt(self, ciphertext):
         """Return plaintext for given ciphertext."""
-
-        print('Decrypting: ' + ciphertext)
 
         # Recover the initialisation vector.
         ciphertext_bytes_base64 = ciphertext.encode('utf8')

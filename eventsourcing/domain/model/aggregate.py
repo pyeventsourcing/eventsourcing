@@ -1,10 +1,10 @@
 from collections import deque
 
-from eventsourcing.domain.model.entity import TimestampedVersionedEntity
+from eventsourcing.domain.model.entity import TimestampedVersionedEntity, WithReflexiveMutator
 from eventsourcing.domain.model.events import publish
 
 
-class AggregateRoot(TimestampedVersionedEntity):
+class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
     """
     Root entity for an aggregate in a domain driven design.
     """
@@ -24,12 +24,6 @@ class AggregateRoot(TimestampedVersionedEntity):
         super(AggregateRoot, self).__init__(**kwargs)
         self._pending_events = deque()
 
-    def _publish(self, event):
-        """
-        Appends event to internal collection of pending events.
-        """
-        self._pending_events.append(event)
-
     def save(self):
         """
         Publishes pending events for others in application.
@@ -42,3 +36,20 @@ class AggregateRoot(TimestampedVersionedEntity):
             pass
         if batch_of_events:
             publish(batch_of_events)
+
+    def _trigger(self, event_class, **kwargs):
+        """
+        Constructs, applies, and publishes domain event of given class, with given kwargs.
+        """
+        domain_event = event_class(
+            originator_id=self.id,
+            originator_version=self.version,
+            **kwargs
+        )
+        self._apply_and_publish(domain_event)
+
+    def _publish(self, event):
+        """
+        Appends event to internal collection of pending events.
+        """
+        self._pending_events.append(event)

@@ -58,7 +58,7 @@ class Collection(TimestampedVersionedEntity):
         self._apply_and_publish(event)
 
     @classmethod
-    def _mutate(cls, initial, event):
+    def _mutate(cls, initial=None, event=None):
         return collection_mutator(initial or cls, event)
 
 

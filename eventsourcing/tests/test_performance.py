@@ -85,8 +85,8 @@ class PerformanceTestCase(WithExampleApplication):
                 # Get the last n events from the repo.
                 def last_n(n):
                     n = min(n, num_beats + 1)
-                    assert isinstance(app.example_repository.event_player.event_store, EventStore)
-                    ars = app.example_repository.event_player.event_store.active_record_strategy
+                    assert isinstance(app.example_repository.event_store, EventStore)
+                    ars = app.example_repository.event_store.active_record_strategy
                     assert isinstance(ars, AbstractActiveRecordStrategy)
 
                     start_last_n = time.time()
