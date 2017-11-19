@@ -118,7 +118,7 @@ Some of these classes provide useful defaults for particular attributes, such as
     assert isinstance(EventWithTimeuuid().event_id, UUID)
 
 
-Some classes require particular attributes when constructed.
+Some classes require particular arguments when constructed.
 
 .. code:: python
 
@@ -133,7 +133,7 @@ Some classes require particular attributes when constructed.
     EventWithOriginatorVersion(originator_version=0)
 
 
-Some classes are just useful for their distinct type, for example in subscription predicates.
+Some are just useful for their distinct type, for example in subscription predicates.
 
 .. code:: python
 
