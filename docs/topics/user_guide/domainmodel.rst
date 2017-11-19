@@ -278,7 +278,7 @@ A timestamped, versioned entity is both a timestamped entity and a versioned ent
 Entity Events
 -------------
 
-The library's domain entities have domain events as inner classes: ``Event``, ```Created``, ``AttributeChanged``, and
+The library's domain entities have domain events as inner classes: ``Event``, ``Created``, ``AttributeChanged``, and
 ``Discarded``. These inner event classes are all subclasses of ``DomainEvent`` and can be freely constructed, with
 suitable arguments.
 
