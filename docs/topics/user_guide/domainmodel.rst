@@ -617,7 +617,6 @@ in an application.
 .. code:: python
 
     from eventsourcing.domain.model.entity import WithReflexiveMutator
-    from eventsourcing.domain.model.decorators import mutator
 
 
     class Entity(VersionedEntity, WithReflexiveMutator):
@@ -629,15 +628,15 @@ in an application.
         """
         Example domain entity, with mutator function on domain event.
         """
-        def __init__(self, *args, **kwargs):
-            super(World, self).__init__(*args, **kwargs)
-            self.history = []
-
         class SomethingHappened(VersionedEntity.Event):
             # Define mutator function for entity on the event class.
             def mutate(self, entity):
                 entity.history.append(self)
                 entity._increment_version()
+
+        def __init__(self, *args, **kwargs):
+            super(World, self).__init__(*args, **kwargs)
+            self.history = []
 
         def make_it_so(self, something):
             what_happened = something
@@ -664,7 +663,73 @@ Aggregate Root Entity
 
 The library has a domain entity class called ``AggregateRoot``, which postpones the publishing of all events
 pending the next call to its ``save()`` method. When the ``save()`` method is called, all such pending events
-are published as a single list of events. This is useful when a single command causes many events
-to be published, and those event are best be persisted as a single atomic operation, without the risk that
-some events will be stored successfully but other events will fall into conflict because another thread has
-operated on the same aggregate at the same time.
+are published as a single list of events.
+
+This is useful when a single command causes many events to be published, and those events must be written to
+a database as a single atomic operation, without the risk that some events will be stored successfully but
+other events will fall into conflict because another thread has operated on the same aggregate at the same time.
+
+.. code:: python
+
+    from eventsourcing.domain.model.aggregate import AggregateRoot
+    from eventsourcing.domain.model.entity import WithReflexiveMutator
+
+
+    class World(AggregateRoot, WithReflexiveMutator):
+        """
+        Example domain entity, with mutator function on domain event.
+        """
+        class Created(AggregateRoot.Created):
+            def mutate(self, cls):
+                args = self.__dict__.copy()
+                args['id'] = args.pop('originator_id')
+                args['version'] = args.pop('originator_version')
+                return cls(**args)
+
+        class SomethingHappened(VersionedEntity.Event):
+            # Define mutator function for entity on the event class.
+            def mutate(self, entity):
+                entity.history.append(self)
+                entity._increment_version()
+
+        def __init__(self, *args, **kwargs):
+            super(World, self).__init__(*args, **kwargs)
+            self.history = []
+
+        def make_things_so(self, *somethings):
+            for something in somethings:
+                what_happened = something
+                event = World.SomethingHappened(
+                    what=what_happened,
+                    originator_id=self.id,
+                    originator_version=self.version
+                )
+                self._apply_and_publish(event)
+
+
+    assert len(received_events) == 0
+
+
+    subscribe(handler=receive_event)
+
+
+    created = World.Created(originator_id=1)
+
+
+    world = World._mutate(event=created, initial=World)
+    world.make_things_so('dinosaurs', 'trucks', 'internet')
+
+    assert world.history[0].what == 'dinosaurs'
+    assert world.history[1].what == 'trucks'
+    assert world.history[2].what == 'internet'
+
+    assert len(received_events) == 0
+
+    world.save()
+
+    assert len(received_events[0]) == 3
+
+
+    # Clean up.
+    unsubscribe(handler=receive_event)
+    del received_events[:]  # received_events.clear()
