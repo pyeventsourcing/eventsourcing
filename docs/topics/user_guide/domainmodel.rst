@@ -194,14 +194,15 @@ It is possible to code domain events as inner or nested classes.
             """
 
 
+Inner or nested classes can be used, and are used in the library, to define the domain events of a domain entity
+on the entity class itself.
+
+.. code:: python
+
     seen = Job.Seen(job_id='#1')
     done = Job.Done(job_id='#1')
 
     assert done.timestamp > seen.timestamp
-
-
-Inner or nested classes can be used, and are used in the library, to define the domain events of a domain entity
-on the domain entity class itself (see below).
 
 
 Domain Entities
