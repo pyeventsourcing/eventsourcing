@@ -50,8 +50,8 @@ same type and the same attributes.
     DomainEvent(a=1) != DomainEvent(b=1)
 
 
-Publish-Subscribe
------------------
+Publish and Subscribe
+---------------------
 
 Domain events can be published, using the library's publish-subscribe mechanism.
 
@@ -319,6 +319,9 @@ function, to increment the version number each time an event is applied.
     assert entity.version == 1
 
 
+Mutator Functions
+-----------------
+
 The entity mutator function ``mutate_entity()`` can be used to update the state of an entity from a domain event.
 
 .. code:: python
@@ -337,7 +340,8 @@ When a versioned entity is updated in this way, the version number is normally i
     assert entity.version == 2
 
 
-The entity method ``_apply()`` can also be used to apply an event to the entity.
+The entity method ``_apply()`` can also be used to update the state of an entity using the entity's ``_mutate()``
+function.
 
 .. code:: python
 
@@ -346,6 +350,9 @@ The entity method ``_apply()`` can also be used to apply an event to the entity.
     assert entity.b == 2
     assert entity.version == 3
 
+
+Apply and Publish
+-----------------
 
 Events are normally published after they are applied. The method ``_apply_and_publish()``
 can be used to both apply and then publish the event to the publish-subscribe mechanism.
@@ -370,6 +377,9 @@ can be used to both apply and then publish the event to the publish-subscribe me
     unsubscribe(handler=receive_event, predicate=is_domain_event)
     del received_events[:]  # received_events.clear()
 
+
+Discarding Entities
+-------------------
 
 The entity method ``discard()`` can be used to discard the entity, by applying and publishing
 a ``Discarded`` event, after which the entity is unavailable for further changes.
@@ -433,6 +443,9 @@ is published, the new entity will be returned by the factory method.
     assert user.full_name == 'Mrs Boots'
 
 
+Custom Attributes
+-----------------
+
 The library's ``@attribute`` decorator provides a property getter and setter, which will apply and publish an
 ``AttributeChanged`` event when the property is assigned. Simple mutable attributes can be coded as an empty
 decorated function, such as the ``fullname`` attribute of the ``User`` entity in the code below.
@@ -483,10 +496,16 @@ received by a subscriber.
     del received_events[:]  # received_events.clear()
 
 
-The entity base classes can also be extended by adding methods that publish events. In general, the arguments of a
-method will be used to perform some work. Then, the result of the work will be used to construct a domain event that
-represents what happened. And then the domain event will be applied and published. Methods like this normally have no
-return value.
+Custom Commands
+---------------
+
+The entity base classes can also be extended by adding "command" methods that publish events. In general, the arguments
+of a command will be used to perform some work. Then, the result of the work will be used to construct a domain event
+that represents what happened. And then the domain event will be applied and published.
+
+Methods like this, for example the ``set_password()`` method of the ``User`` entity below, normally have no return
+value. The method creates an encoded string from a raw password, and then uses the ``change_attribute()`` method to
+apply and publish an ``AttributeChanged`` event for the ``_password`` attribute with the encoded password.
 
 .. code:: python
 
@@ -523,9 +542,14 @@ return value.
 A custom entity can also have custom methods that publish custom events. In the example below, a method
 ``make_it_so()`` publishes a domain event called ``SomethingHappened``.
 
+
+Custom Mutator
+--------------
+
 To be applied to an entity, custom event classes must be supported by a custom mutator function. In the code below,
-the ``mutate_world()`` mutator function extends the library's ``mutate_entity`` function. The ``_mutate()`` function
-of ``DomainEntity`` has been overridden so that ``mutate_world()`` will be called when events are applied.
+the ``mutate_world()`` mutator function extends the library's ``mutate_entity`` function to support the event
+``SomethingHappened``. The ``_mutate()`` function of ``DomainEntity`` has been overridden so that ``mutate_world()``
+will be called when events are applied.
 
 .. code:: python
 
@@ -580,9 +604,12 @@ of ``DomainEntity`` has been overridden so that ``mutate_world()`` will be calle
     assert world.history[2].what == 'internet'
 
 
-An alternative is to mix in the class ``WithReflexiveMutator`` to your entity class, and define a ``mutator()``
-function on the event object itself. A custom base class might help to adopt this style for all events and entities in
-your application,
+Reflexive Mutator
+-----------------
+
+An alternative is to mix in the class ``WithReflexiveMutator`` to your entity class, and then define a ``mutator()``
+function on the event class itself. A custom base entity class may help to adopt this style across all entity classes
+in an application.
 
 .. code:: python
 
@@ -597,13 +624,14 @@ your application,
 
     class World(Entity):
         """
-        Example domain entity, coded with mutator functions on the event classes.
+        Example domain entity, with mutator function on domain event.
         """
         def __init__(self, *args, **kwargs):
             super(World, self).__init__(*args, **kwargs)
             self.history = []
 
         class SomethingHappened(VersionedEntity.Event):
+            # Define mutator function for entity on the event class.
             def mutate(self, entity):
                 entity.history.append(self)
                 entity._increment_version()
