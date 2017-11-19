@@ -53,8 +53,9 @@ same type and the same attributes.
 Publish-Subscribe
 -----------------
 
-Domain events can be published, using the library's publish-subscribe mechanism. The ``publish()`` function is used to
-publish events, the ``event`` arg is required.
+Domain events can be published, using the library's publish-subscribe mechanism.
+
+The ``publish()`` function is used to publish events. The ``event`` arg is required.
 
 .. code:: python
 
@@ -63,9 +64,10 @@ publish events, the ``event`` arg is required.
     publish(event=domain_event)
 
 
-The ``subscribe()`` function is used to subscribe a ``handler`` that will receive events. The optional ``predicate``
-arg can be used to provide a function that will decide whether or not the subscribed handler will actually be called
-when an event is published.
+The ``subscribe()`` function is used to subscribe a ``handler`` that will receive events.
+
+The optional ``predicate`` arg can be used to provide a function that will decide whether or not the subscribed handler
+ will actually be called when an event is published.
 
 .. code:: python
 
