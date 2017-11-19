@@ -105,7 +105,7 @@ The ``unsubscribe()`` function can be used to stop the handler receiving further
 Event Library
 -------------
 
-The library has a rich collection of domain event subclasses, such as ``EventWithOriginatorID``,
+The library has a small collection of domain event subclasses, such as ``EventWithOriginatorID``,
 ``EventWithOriginatorVersion``, ``EventWithTimestamp``, ``EventWithTimeuuid``, ``Created``, ``AttributeChanged``,
 ``Discarded``.
 
@@ -167,9 +167,11 @@ Some are just useful for their distinct type, for example in subscription predic
 Custom Events
 -------------
 
-Custom domain events can be coded by subclassing the library's domain event classes. Events are normally
-named using the past participle of a common verb, for example a regular past participle such as "started",
-"paused", "stopped", or an irregular past participle such as "chosen", "done", "found", "paid", "quit", "seen".
+Custom domain events can be coded by subclassing the library's domain event classes.
+
+Domain events are normally named using the past participle of a common verb, for example
+a regular past participle such as "started", "paused", "stopped", or an irregular past
+participle such as "chosen", "done", "found", "paid", "quit", "seen".
 
 .. code:: python
 
