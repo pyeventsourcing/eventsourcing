@@ -463,7 +463,7 @@ The code below extends the JSON transcoding to support sets.
 Application-level encryption
 ----------------------------
 
-The ``SequencedItemMapper`` can be constructed with an symmetric cipher object. The library provides
+The ``SequencedItemMapper`` can be constructed with a symmetric cipher object. The library provides
 an AES cipher object class called ``AESCipher``.
 
 The ``AESCipher`` is given an encryption key, using constructor arg ``aes_key``, which must be either 16, 24, or 32
