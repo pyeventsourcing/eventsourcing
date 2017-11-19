@@ -325,6 +325,8 @@ function, to increment the version number each time an event is applied.
 Mutator Functions
 -----------------
 
+For an application to be event sourced, the state of the application must be mutated by applying domain events.
+
 The entity mutator function ``mutate_entity()`` can be used to update the state of an entity from a domain event.
 
 .. code:: python
