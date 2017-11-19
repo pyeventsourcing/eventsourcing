@@ -161,9 +161,9 @@ Some are just useful for their distinct type, for example in subscription predic
 Custom Events
 -------------
 
-You can code for your own domain events, by subclassing the library's domain event classes. When deciding names for
-your domain events, try to use the past participle of a common verb. For example, a regular verb like "started",
-"paused", "stopped", or an irregular verb such as "chosen", "done", "found", "paid", "quit", "seen".
+You can code for your own domain events, by subclassing the library's domain event classes. Try to name events
+using the past participle of a common verb. For example, a regular verb like "started", "paused", "stopped", or an
+irregular verb such as "chosen", "done", "found", "paid", "quit", "seen".
 
 .. code:: python
 
