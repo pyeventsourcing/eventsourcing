@@ -345,22 +345,26 @@ When a versioned entity is updated in this way, the version number is normally i
     assert entity.version == 2
 
 
+Apply and Publish
+-----------------
+
 The entity method ``_apply()`` can also be used to update the state of an entity, using the entity's ``_mutate()``
 function.
+Events are normally published after they are applied. The method ``_apply_and_publish()``
+can be used to both apply and then publish the event to the publish-subscribe mechanism.
 
 .. code:: python
 
-    entity._apply(attribute_b_changed)
+    # Apply and publish a domain event.
+    entity._apply_and_publish(attribute_b_changed)
 
+    # Check the event was applied.
     assert entity.b == 2
     assert entity.version == 3
 
 
-Apply and Publish
------------------
-
-Events are normally published after they are applied. The method ``_apply_and_publish()``
-can be used to both apply and then publish the event to the publish-subscribe mechanism.
+The method ``change_attribute()`` constructs an ``AttributeChanged`` event and then calls
+``_apply_and_publish()``.
 
 .. code:: python
 
@@ -369,11 +373,13 @@ can be used to both apply and then publish the event to the publish-subscribe me
     assert len(received_events) == 0
     subscribe(handler=receive_event, predicate=is_domain_event)
 
-    # Publish an AttributeChanged event.
+    # Apply and publish an AttributeChanged event.
     entity.change_attribute(name='full_name', value='Mr Boots')
 
+    # Check the event was applied.
     assert entity.full_name == 'Mr Boots'
 
+    # Check the event was published.
     assert received_events[0].__class__ == VersionedEntity.AttributeChanged
     assert received_events[0].name == 'full_name'
     assert received_events[0].value == 'Mr Boots'
@@ -413,6 +419,10 @@ The mutator function will return ``None`` after mutating an entity with a ``Disc
     entity = mutate_entity(entity, entity_discarded)
 
     assert entity is None
+
+
+That means a sequence of events that ends with a ``Discarded`` event will result in the same
+state as an empty sequence of events, when the sequence is replayed by an event player for example.
 
 
 Custom Entities

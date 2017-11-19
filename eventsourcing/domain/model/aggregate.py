@@ -47,6 +47,6 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         event = event_class(
             originator_id=self.id,
             originator_version=self.version,
-            **kwargs,
+            **kwargs
         )
         self._apply_and_publish(event)

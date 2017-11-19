@@ -79,12 +79,25 @@ class EventPlayer(object):
         """
         return reduce(self.mutator, domain_events, initial_state)
 
+    def get_snapshot(self, entity_id, lt=None, lte=None):
+        """
+        Returns a snapshot for given entity ID, according to the snapshot strategy.
+        """
+        if self.snapshot_strategy:
+            return self.snapshot_strategy.get_snapshot(entity_id, lt=lt, lte=lte)
+
+    def get_most_recent_event(self, entity_id, lt=None, lte=None):
+        """
+        Returns the most recent event for the given entity ID.
+        """
+        return self.event_store.get_most_recent_event(entity_id, lt=lt, lte=lte)
+
     def take_snapshot(self, entity_id, lt=None, lte=None):
         """
         Takes a snapshot of the entity as it existed after the most recent
         event, optionally less than, or less than or equal to, a particular position.
         """
-        assert isinstance(self.snapshot_strategy, AbstractSnapshotStrategy)
+        # assert isinstance(self.snapshot_strategy, AbstractSnapshotStrategy)
 
         # Get the last event (optionally until a particular position).
         last_event = self.get_most_recent_event(entity_id, lt=lt, lte=lte)
@@ -115,16 +128,3 @@ class EventPlayer(object):
                 snapshot = self.snapshot_strategy.take_snapshot(entity_id, entity, last_version)
 
         return snapshot
-
-    def get_snapshot(self, entity_id, lt=None, lte=None):
-        """
-        Returns a snapshot for given entity ID, according to the snapshot strategy.
-        """
-        if self.snapshot_strategy:
-            return self.snapshot_strategy.get_snapshot(entity_id, lt=lt, lte=lte)
-
-    def get_most_recent_event(self, entity_id, lt=None, lte=None):
-        """
-        Returns the most recent event for the given entity ID.
-        """
-        return self.event_store.get_most_recent_event(entity_id, lt=lt, lte=lte)
