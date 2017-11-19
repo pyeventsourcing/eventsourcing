@@ -708,27 +708,26 @@ other events will fall into conflict because another thread has operated on the 
 
 
     assert len(received_events) == 0
-
-
     subscribe(handler=receive_event)
 
 
+    # Create new entity.
     created = World.Created(originator_id=1)
-
-
     world = World._mutate(event=created, initial=World)
+
+    # Command that publishes many events.
     world.make_things_so('dinosaurs', 'trucks', 'internet')
 
     assert world.history[0].what == 'dinosaurs'
     assert world.history[1].what == 'trucks'
     assert world.history[2].what == 'internet'
 
+    # Events aren't published until the save() method is called.
     assert len(received_events) == 0
-
     world.save()
 
+    # Events are published as a list of events.
     assert len(received_events[0]) == 3
-
 
     # Clean up.
     unsubscribe(handler=receive_event)
