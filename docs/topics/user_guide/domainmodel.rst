@@ -450,8 +450,8 @@ Custom Attributes
 -----------------
 
 The library's ``@attribute`` decorator provides a property getter and setter, which will apply and publish an
-``AttributeChanged`` event when the property is assigned. Simple mutable attributes can be coded as an empty
-decorated function, such as the ``fullname`` attribute of the ``User`` entity in the code below.
+``AttributeChanged`` event when the property is assigned. Simple mutable attributes can be coded as
+decorated functions without a body, such as the ``full_name`` function of ``User`` below.
 
 .. code:: python
 
