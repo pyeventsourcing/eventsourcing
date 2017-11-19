@@ -258,13 +258,12 @@ attributes.
     assert entity.last_modified == 123456789
 
 
-A timestamped versioned entity is both a version entity and a timestamped entity.
+A timestamped, versioned entity is both a timestamped entity and a versioned entity.
 
 .. code:: python
 
-    assert isinstance(entity, TimstampedVersionedEntity)
+    assert isinstance(entity, TimestampedEntity)
     assert isinstance(entity, VersionedEntity)
-    assert isinstance(entity, TimstampedEntity)
 
 
 Entity Events
@@ -276,19 +275,19 @@ suitable arguments.
 
 .. code:: python
 
-    entity_created = VersionedEntity.Created(
+    created = VersionedEntity.Created(
         originator_version=0,
         originator_id=entity_id,
     )
 
-    entity_attribute_a_changed = VersionedEntity.AttributeChanged(
+    attribute_a_changed = VersionedEntity.AttributeChanged(
         name='a',
         value=1,
         originator_version=1,
         originator_id=entity_id
     )
 
-    entity_attribute_b_changed = VersionedEntity.AttributeChanged(
+    attribute_b_changed = VersionedEntity.AttributeChanged(
         name='b',
         value=2,
         originator_version=2,
@@ -317,7 +316,7 @@ The entity mutator function ``mutate_entity()`` can be used to update the state 
 
     from eventsourcing.domain.model.entity import mutate_entity
 
-    entity = mutate_entity(entity, entity_attribute_a_changed)
+    entity = mutate_entity(entity, attribute_a_changed)
 
     assert entity.a == 1
 
@@ -333,7 +332,7 @@ The method ``_apply()`` can be used to apply an event to the entity.
 
 .. code:: python
 
-    entity._apply(entity_attribute_b_changed)
+    entity._apply(attribute_b_changed)
 
     assert entity.b == 2
     assert entity.version == 3
