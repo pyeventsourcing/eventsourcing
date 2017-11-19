@@ -50,6 +50,9 @@ same type and the same attributes).
     DomainEvent(a=1) != DomainEvent(b=1)
 
 
+Publish-Subscribe
+-----------------
+
 Domain events can be published, using the library's publish-subscribe mechanism. The ``publish()`` function is used to
 publish events, the ``event`` arg is required.
 
