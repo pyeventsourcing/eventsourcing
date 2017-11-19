@@ -24,12 +24,6 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         super(AggregateRoot, self).__init__(**kwargs)
         self._pending_events = deque()
 
-    def _publish(self, event):
-        """
-        Appends event to internal collection of pending events.
-        """
-        self._pending_events.append(event)
-
     def save(self):
         """
         Publishes pending events for others in application.
@@ -45,7 +39,7 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
 
     def _trigger(self, event_class, **kwargs):
         """
-        Constructs, applies and publishes domain event of given class, with given kwargs.
+        Constructs, applies, and publishes domain event of given class, with given kwargs.
         """
         domain_event = event_class(
             originator_id=self.id,
@@ -53,3 +47,9 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
             **kwargs
         )
         self._apply_and_publish(domain_event)
+
+    def _publish(self, event):
+        """
+        Appends event to internal collection of pending events.
+        """
+        self._pending_events.append(event)
