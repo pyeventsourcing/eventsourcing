@@ -340,7 +340,7 @@ When a versioned entity is updated in this way, the version number is normally i
     assert entity.version == 2
 
 
-The entity method ``_apply()`` can also be used to update the state of an entity using the entity's ``_mutate()``
+The entity method ``_apply()`` can also be used to update the state of an entity, using the entity's ``_mutate()``
 function.
 
 .. code:: python
@@ -610,8 +610,10 @@ will be called when events are applied.
 Reflexive Mutator
 -----------------
 
-The ``WithReflexiveMutator`` class tries to call a ``mutator()`` function on the
-event class itself. A custom base entity class may help to adopt this style across
+The ``WithReflexiveMutator`` class tries to call a function called ``mutate()`` on the
+event class itself.
+
+A custom base entity class, for example ``Entity`` in the code below, may help to adopt this style across
 all entity classes in an application.
 
 .. code:: python
@@ -661,8 +663,8 @@ all entity classes in an application.
 Aggregate Root Entity
 ---------------------
 
-The library has a domain entity class called ``AggregateRoot``. The ``AggregateRoot`` class inherits from both
-``TimestampedVersionedEntity`` and ``WithReflexiveMutator``.
+The library has a domain entity class called ``AggregateRoot`` that can be useful in a domain driven design. The
+``AggregateRoot`` class inherits from both ``TimestampedVersionedEntity`` and ``WithReflexiveMutator``.
 
 .. code:: python
 
@@ -702,8 +704,7 @@ The library has a domain entity class called ``AggregateRoot``. The ``AggregateR
 
 
 An ``AggregateRoot`` entity will postpone the publishing of all events, pending the next call to its
-``save()`` method. When the ``save()`` method is called, all such pending events are published as a
-single list of events.
+``save()`` method.
 
 .. code:: python
 
@@ -721,6 +722,11 @@ single list of events.
     assert world.history[1].what == 'trucks'
     assert world.history[2].what == 'internet'
 
+
+When the ``save()`` method is called, all such pending events are published as a
+single list of events.
+
+.. code:: python
     # Events are pending actual publishing until the save() method is called.
     assert len(received_events) == 0
     world.save()
@@ -729,12 +735,13 @@ single list of events.
     assert len(received_events) == 1
     assert len(received_events[0]) == 4
 
-    # Clean up.
+
+Publishing all events from a single command together allows all the events to be written to a database as a single
+atomic operation, without the risk that some events will be stored successfully but other events from the same
+command will fall into conflict because another thread has operated on the same aggregate at the same time,
+causing an inconsistent state that would also be difficult to repair.
+
+.. code:: python
+
     unsubscribe(handler=receive_event)
     del received_events[:]  # received_events.clear()
-
-
-This is useful when a single command causes many events to be published, and those events must be written to
-a database as a single atomic operation, without the risk that some events will be stored successfully but
-other events will fall into conflict because another thread has operated on the same aggregate at the same time.
-
