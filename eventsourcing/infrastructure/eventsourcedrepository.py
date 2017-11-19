@@ -10,12 +10,6 @@ from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 
 
 class EventSourcedRepository(AbstractEntityRepository):
-    # If the entity won't have very many events, marking the entity as
-    # "short" by setting __is_short__ value equal to True will mean
-    # the fastest path for getting all the events is used. If you set
-    # a value for page size (see below), this option will have no effect.
-    __is_short__ = False
-
     # The page size by which events are retrieved. If this
     # value is set to a positive integer, the events of
     # the entity will be retrieved in pages, using a series
@@ -176,7 +170,7 @@ class EventSourcedRepository(AbstractEntityRepository):
         #    all the events are needed eventually, so it would probably slow things
         #    down. Paging is intended to support replaying longer event streams, and
         #    only makes sense to work in ascending order.
-        if self.__is_short__ and gt is None and gte is None and lt is None and lte is None and self.__page_size__ is None:
+        if gt is None and gte is None and lt is None and lte is None and self.__page_size__ is None:
             is_ascending = False
         else:
             is_ascending = not query_descending
