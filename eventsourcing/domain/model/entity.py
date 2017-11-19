@@ -78,7 +78,7 @@ class DomainEntity(QualnameABC):
 
     def _apply_and_publish(self, event):
         """
-        Applies event, by mutating self with event and then publishing event.
+        Applies event to self and published event.
 
         Must be an object method, since subclass AggregateRoot._publish()
         will append events to a list internal to the entity object, hence
@@ -88,10 +88,15 @@ class DomainEntity(QualnameABC):
         self._publish(event)
 
     def _apply(self, event):
+        """
+        Applies given event to self.
+
+        Must be an object method, so that self is an object instance.
+        """
         self._mutate(initial=self, event=event)
 
     @classmethod
-    def _mutate(cls, initial, event):
+    def _mutate(cls, initial=None, event=None):
         """
         Calls a mutator function with given entity and event.
 
@@ -120,15 +125,20 @@ class WithReflexiveMutator(DomainEntity):
     This is an alternative to using an independent mutator function
     implemented with the @mutator decorator, or an if-else block.
     """
+
     @classmethod
-    def _mutate(cls, initial, event):
+    def _mutate(cls, initial=None, event=None):
         """
         Calls the mutate() method of the event.
 
         Passes cls if initial is None, so that handler of Created
         events can construct an entity object with the subclass.
         """
-        return event.mutate(initial or cls)
+        if hasattr(event, 'mutate') and callable(event.mutate):
+            entity = event.mutate(initial or cls)
+        else:
+            entity = super(WithReflexiveMutator, cls)._mutate(initial, event)
+        return entity
 
 
 class VersionedEntity(DomainEntity):
@@ -299,7 +309,6 @@ def _(self, event):
 
 
 class AbstractEntityRepository(with_metaclass(ABCMeta)):
-
     def __init__(self, *args, **kwargs):
         pass
 
@@ -314,7 +323,6 @@ class AbstractEntityRepository(with_metaclass(ABCMeta)):
         """
         Returns entity for given ID.
         """
-
 
     @abstractmethod
     def __contains__(self, entity_id):

@@ -1,10 +1,10 @@
 from collections import deque
 
-from eventsourcing.domain.model.entity import TimestampedVersionedEntity
+from eventsourcing.domain.model.entity import TimestampedVersionedEntity, WithReflexiveMutator
 from eventsourcing.domain.model.events import publish
 
 
-class AggregateRoot(TimestampedVersionedEntity):
+class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
     """
     Root entity for an aggregate in a domain driven design.
     """

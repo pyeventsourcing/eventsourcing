@@ -38,7 +38,7 @@ class ExampleEntity(TimeuuidedEntity):
         self._apply_and_publish(event)
 
     @classmethod
-    def _mutate(cls, initial, event):
+    def _mutate(cls, initial=None, event=None):
         if isinstance(event, ExampleEntity.Started):
             constructor_args = event.__dict__.copy()
             if 'originator_id' in constructor_args:

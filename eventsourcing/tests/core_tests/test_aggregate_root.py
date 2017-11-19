@@ -132,7 +132,7 @@ class ExampleAggregateRoot(AggregateRoot):
         return len(self._entities)
 
     @classmethod
-    def _mutate(cls, initial, event):
+    def _mutate(cls, initial=None, event=None):
         return mutate_example_aggregate(initial or cls, event)
 
 

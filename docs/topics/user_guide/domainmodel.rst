@@ -610,16 +610,16 @@ will be called when events are applied.
 Reflexive Mutator
 -----------------
 
-An alternative is to mix in the class ``WithReflexiveMutator`` to your entity class, and then define a ``mutator()``
-function on the event class itself. A custom base entity class may help to adopt this style across all entity classes
-in an application.
+The ``WithReflexiveMutator`` class tries to call a ``mutator()`` function on the
+event class itself. A custom base entity class may help to adopt this style across
+all entity classes in an application.
 
 .. code:: python
 
     from eventsourcing.domain.model.entity import WithReflexiveMutator
 
 
-    class Entity(VersionedEntity, WithReflexiveMutator):
+    class Entity(WithReflexiveMutator, VersionedEntity):
         """
         Custom base class for domain entities in this example.
         """
@@ -628,12 +628,6 @@ in an application.
         """
         Example domain entity, with mutator function on domain event.
         """
-        class SomethingHappened(VersionedEntity.Event):
-            # Define mutator function for entity on the event class.
-            def mutate(self, entity):
-                entity.history.append(self)
-                entity._increment_version()
-
         def __init__(self, *args, **kwargs):
             super(World, self).__init__(*args, **kwargs)
             self.history = []
@@ -646,6 +640,12 @@ in an application.
                 originator_version=self.version
             )
             self._apply_and_publish(event)
+
+        class SomethingHappened(VersionedEntity.Event):
+            # Define mutator function for entity on the event class.
+            def mutate(self, entity):
+                entity.history.append(self)
+                entity._increment_version()
 
 
     world = World(id='1')
@@ -661,37 +661,18 @@ in an application.
 Aggregate Root Entity
 ---------------------
 
-The library has a domain entity class called ``AggregateRoot``, which postpones the publishing of all events
-pending the next call to its ``save()`` method. When the ``save()`` method is called, all such pending events
-are published as a single list of events.
-
-This is useful when a single command causes many events to be published, and those events must be written to
-a database as a single atomic operation, without the risk that some events will be stored successfully but
-other events will fall into conflict because another thread has operated on the same aggregate at the same time.
+The library has a domain entity class called ``AggregateRoot``. The ``AggregateRoot`` class inherits from both
+``TimestampedVersionedEntity`` and ``WithReflexiveMutator``.
 
 .. code:: python
 
     from eventsourcing.domain.model.aggregate import AggregateRoot
-    from eventsourcing.domain.model.entity import WithReflexiveMutator
 
 
-    class World(AggregateRoot, WithReflexiveMutator):
+    class World(AggregateRoot):
         """
         Example domain entity, with mutator function on domain event.
         """
-        class Created(AggregateRoot.Created):
-            def mutate(self, cls):
-                args = self.__dict__.copy()
-                args['id'] = args.pop('originator_id')
-                args['version'] = args.pop('originator_version')
-                return cls(**args)
-
-        class SomethingHappened(VersionedEntity.Event):
-            # Define mutator function for entity on the event class.
-            def mutate(self, entity):
-                entity.history.append(self)
-                entity._increment_version()
-
         def __init__(self, *args, **kwargs):
             super(World, self).__init__(*args, **kwargs)
             self.history = []
@@ -706,14 +687,32 @@ other events will fall into conflict because another thread has operated on the 
                 )
                 self._apply_and_publish(event)
 
+        class SomethingHappened(VersionedEntity.Event):
+            def mutate(self, entity):
+                entity.history.append(self)
+                entity._increment_version()
+
+
+    # World factory.
+    def create_new_world():
+        created = World.Created(originator_id=1)
+        world = World._mutate(event=created)
+        world._publish(created)
+        return world
+
+
+An ``AggregateRoot`` entity will postpone the publishing of all events, pending the next call to its
+``save()`` method. When the ``save()`` method is called, all such pending events are published as a
+single list of events.
+
+.. code:: python
 
     assert len(received_events) == 0
     subscribe(handler=receive_event)
 
-
     # Create new entity.
-    created = World.Created(originator_id=1)
-    world = World._mutate(event=created, initial=World)
+    world = create_new_world()
+    assert isinstance(world, World)
 
     # Command that publishes many events.
     world.make_things_so('dinosaurs', 'trucks', 'internet')
@@ -722,13 +721,20 @@ other events will fall into conflict because another thread has operated on the 
     assert world.history[1].what == 'trucks'
     assert world.history[2].what == 'internet'
 
-    # Events aren't published until the save() method is called.
+    # Events are pending actual publishing until the save() method is called.
     assert len(received_events) == 0
     world.save()
 
-    # Events are published as a list of events.
-    assert len(received_events[0]) == 3
+    # Pending events were published as a single list of events.
+    assert len(received_events) == 1
+    assert len(received_events[0]) == 4
 
     # Clean up.
     unsubscribe(handler=receive_event)
     del received_events[:]  # received_events.clear()
+
+
+This is useful when a single command causes many events to be published, and those events must be written to
+a database as a single atomic operation, without the risk that some events will be stored successfully but
+other events will fall into conflict because another thread has operated on the same aggregate at the same time.
+

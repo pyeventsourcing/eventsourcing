@@ -55,7 +55,7 @@ class Example(TimestampedVersionedEntity):
         return self._count_heartbeats
 
     @classmethod
-    def _mutate(cls, initial, event):
+    def _mutate(cls, initial=None, event=None):
         return example_mutator(initial or cls, event)
 
 
