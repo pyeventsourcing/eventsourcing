@@ -4,17 +4,16 @@ Domain Model
 
 The library's domain layer has base classes for domain events and entities. These classes show how to
 write a domain model that uses the library's event sourcing infrastructure. They can also be used to
-conveniently develop an event-sourced application as a domain driven design.
+develop an event-sourced application as a domain driven design.
 
 
 Domain Events
 =============
 
 The purpose of a domain event is to be published when something happens, normally the results from the
-work of a command.
-
-The library's base class for domain events is called ``DomainEvent``. Domain events can be freely constructed
-from the ``DomainEvent`` class. Event object attributes are set directly from the constructor keyword arguments.
+work of a command. The library has a base class for domain events called ``DomainEvent``. Domain events can be
+freely constructed from the ``DomainEvent`` class, it isn't an abstract base class. Event object attributes are set
+directly from the constructor keyword arguments.
 
 .. code:: python
 
@@ -24,12 +23,12 @@ from the ``DomainEvent`` class. Event object attributes are set directly from th
     assert domain_event.a == 1
 
 
-The attributes of a domain event are read-only. New values cannot be assigned to existing domain
-events. Domain events are immutable in that sense.
+The attributes of domain events are read-only. New values cannot be assigned to an existing domain
+event. Domain events are immutable in that sense.
 
 .. code:: python
 
-    # Fail to set domain event attribute.
+    # Fail to set attribute of already-existing domain event.
     try:
         domain_event.a = 2
     except AttributeError:
@@ -50,9 +49,8 @@ same type and the same attributes).
     DomainEvent(a=1) != DomainEvent(b=1)
 
 
-Domain events can be published, using the library's publish-subscribe mechanism.
-
-The ``publish()`` function is used to publish events, the ``event`` arg is required.
+Domain events can be published, using the library's publish-subscribe mechanism. The ``publish()`` function is used to
+publish events, the ``event`` arg is required.
 
 .. code:: python
 
