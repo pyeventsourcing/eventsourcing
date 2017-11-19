@@ -162,9 +162,9 @@ Some are just useful for their distinct type, for example in subscription predic
 Custom Events
 -------------
 
-You can code for your own domain events, by subclassing the library's domain event classes. Try to name events
-using the past participle of a common verb. For example, a regular verb like "started", "paused", "stopped", or an
-irregular verb such as "chosen", "done", "found", "paid", "quit", "seen".
+Your domain events can be coded by subclassing the library's domain event classes. Try to
+name events using the past participle of a common verb. For example, a regular verb like "started", "paused",
+"stopped", or an irregular verb such as "chosen", "done", "found", "paid", "quit", "seen".
 
 .. code:: python
 
@@ -270,7 +270,7 @@ A timestamped, versioned entity is both a timestamped entity and a versioned ent
 Entity Events
 -------------
 
-The library's domain entity classes have inner domain event classes: ``Event``, ```Created``, ``AttributeChanged``, and
+The library's domain entities have domain events as inner classes: ``Event``, ```Created``, ``AttributeChanged``, and
 ``Discarded``. These inner event classes are all subclasses of ``DomainEvent`` and can be freely constructed, with
 suitable arguments.
 
@@ -329,7 +329,7 @@ When a versioned entity is updated in this way, the version number is normally i
     assert entity.version == 2
 
 
-The method ``_apply()`` can be used to apply an event to the entity.
+The entity method ``_apply()`` can also be used to apply an event to the entity.
 
 .. code:: python
 
@@ -339,7 +339,8 @@ The method ``_apply()`` can be used to apply an event to the entity.
     assert entity.version == 3
 
 
-The method ``_apply_and_publish()`` can be used to apply and then publish the event to the publish-subscribe mecahnism.
+Events are normally published after they are applied. The method ``_apply_and_publish()``
+can be used to both apply and then publish the event to the publish-subscribe mechanism.
 
 .. code:: python
 
@@ -362,8 +363,8 @@ The method ``_apply_and_publish()`` can be used to apply and then publish the ev
     del received_events[:]  # received_events.clear()
 
 
-The entity method ``discard()`` can be used to discard the entity, by applying and publishing a ``Discarded``
-event, after which the entity is unavailable for further changes.
+The entity method ``discard()`` can be used to discard the entity, by applying and publishing
+a ``Discarded`` event, after which the entity is unavailable for further changes.
 
 .. code:: python
 
@@ -425,7 +426,7 @@ is published, the new entity will be returned by the factory method.
 
 
 The library's ``@attribute`` decorator provides a property getter and setter, which will apply and publish an
-``AttributeChanged`` event when the property is assigned. Simple mutable attributes can be coded simply as an empty
+``AttributeChanged`` event when the property is assigned. Simple mutable attributes can be coded as an empty
 decorated function, such as the ``fullname`` attribute of the ``User`` entity in the code below.
 
 .. code:: python
