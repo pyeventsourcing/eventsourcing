@@ -38,7 +38,7 @@ Domain events are immutable in that sense.
         raise Exception("Shouldn't get here")
 
 
-Domain events can be compared for equality and inequality as value objects, instances are equal if they have the
+Domain events can be compared for equality as value objects, instances are equal if they have the
 same type and the same attributes.
 
 .. code:: python
