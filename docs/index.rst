@@ -17,11 +17,14 @@ Therefore, this library provides mechanisms useful in event sourced applications
 for coding entity behaviours that emit events; and a way for the events of an
 entity to be stored and replayed to obtain the entities on demand.
 
-This documentation provides instructions for :doc:`installing </topics/installing>` the
-package, highlights the main :doc:`features </topics/features>` of the library, includes
-detailed :doc:`examples of usage </topics/user_guide/index>`, describes the
-:doc:`design </topics/design>` of the software, and has some :doc:`background </topics/background>`
-information about the project.
+This documentation provides:
+* instructions for :doc:`installing </topics/installing>` the package,
+* highlights the main :doc:`features </topics/features>` of the library,
+* describes the :doc:`design </topics/design>` of the software,
+the :doc:`infrastructure </topics/infrastructure>` layer,
+the :doc:`domain model </topics/domainmodel>` layer,
+the :doc:`application </topics/user_guide/index>` layer, and
+* has some :doc:`background </topics/background>` information about the project.
 
 This project is `hosted on GitHub <https://github.com/johnbywater/eventsourcing>`__.
 Please `register any issues, questions, and requests
