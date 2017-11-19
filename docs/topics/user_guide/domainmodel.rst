@@ -739,9 +739,14 @@ single list of events to the publish-subscribe mechanism.
 
 
 Publishing all events from a single command in a single list allows all the events to be written to a database as a
-single atomic operation, without the risk that some events will be stored successfully but other events from the same
-command will fall into conflict and lost because another thread has operated on the same aggregate at the
+single atomic operation.
+
+That avoids the risk that some events will be stored successfully but other events from the
+same command will fall into conflict and be lost, because another thread has operated on the same aggregate at the
 same time, causing an inconsistent state that would also be difficult to repair.
+
+It also avoids the risk of other threads picking up only some events caused by a command, presenting the aggregate
+in an inconsistent or unusual and perhaps unworkable state.
 
 .. code:: python
 
