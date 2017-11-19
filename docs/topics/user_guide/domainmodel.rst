@@ -103,7 +103,7 @@ The library has a rich collection of domain event subclasses, such as ``EventWit
 ``EventWithOriginatorVersion``, ``EventWithTimestamp``, ``EventWithTimeuuid``, ``Created``, ``AttributeChanged``,
 ``Discarded``.
 
-Some of these classes provide useful default values for particular attributes, such as a timestamp.
+Some of these classes provide useful defaults for particular attributes, such as a timestamp.
 
 .. code:: python
 
