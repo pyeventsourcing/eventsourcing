@@ -304,8 +304,8 @@ SQLAlchemy, the primary key constraint involves both the sequence and the positi
 the position is the primary key in the sequence partition, and the "IF NOT EXISTS" feature is applied.
 
 
-Sequenced Item Mapping
-======================
+Sequenced Item Mapper
+=====================
 
 A sequenced item mapper is used by the event store to map between sequenced item namedtuple
 objects and application-level objects such as domain events.
