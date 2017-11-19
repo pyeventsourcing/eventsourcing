@@ -66,8 +66,8 @@ The ``publish()`` function is used to publish events. The ``event`` arg is requi
 
 The ``subscribe()`` function is used to subscribe a ``handler`` that will receive events.
 
-The optional ``predicate`` arg can be used to provide a function that will decide whether or not the subscribed handler
- will actually be called when an event is published.
+The optional ``predicate`` arg can be used to provide a function that will decide whether
+or not the subscribed handler will actually be called when an event is published.
 
 .. code:: python
 
