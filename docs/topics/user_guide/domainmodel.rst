@@ -165,9 +165,9 @@ Some are just useful for their distinct type, for example in subscription predic
 Custom Events
 -------------
 
-Your domain events can be coded by subclassing the library's domain event classes. Try to
-name events using the past participle of a common verb. For example, a regular verb like "started", "paused",
-"stopped", or an irregular verb such as "chosen", "done", "found", "paid", "quit", "seen".
+Custom domain events can be coded by subclassing the library's domain event classes. Events are normally
+named using the past participle of a common verb, for example a regular past participle such as "started",
+"paused", "stopped", or an irregular past participle such as "chosen", "done", "found", "paid", "quit", "seen".
 
 .. code:: python
 
@@ -183,9 +183,9 @@ It is possible to code domain events as inner or nested classes.
 
     class Job(object):
 
-        class Started(EventWithTimestamp):
+        class Seen(EventWithTimestamp):
             """
-            Published when the job is started.
+            Published when the job is seen.
             """
 
         class Done(EventWithTimestamp):
@@ -194,10 +194,10 @@ It is possible to code domain events as inner or nested classes.
             """
 
 
-    started = Job.Started(job_id='#1')
+    seen = Job.Seen(job_id='#1')
     done = Job.Done(job_id='#1')
 
-    assert started.timestamp < done.timestamp
+    assert done.timestamp > seen.timestamp
 
 
 Inner or nested classes can be used, and are used in the library, to define the domain events of a domain entity
