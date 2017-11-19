@@ -1,3 +1,4 @@
+from time import sleep
 from uuid import uuid4
 
 from eventsourcing.application.policies import PersistencePolicy
@@ -145,6 +146,11 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         # Take a snapshot of the new entity (no previous snapshots).
         snapshot1 = event_player.take_snapshot(registered_example.id, lt=registered_example.version)
 
+        # Take another snapshot of the entity (should be the same event).
+        sleep(0.0001)
+        snapshot2 = event_player.take_snapshot(registered_example.id, lt=registered_example.version)
+        self.assertEqual(snapshot1, snapshot2)
+
         # Check the snapshot is pegged to the last applied version.
         self.assertEqual(snapshot1.originator_version, 0)
 
@@ -180,10 +186,10 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         self.assertEqual(retrieved_example.a, 9999)
 
         # Take another snapshot.
-        snapshot2 = event_player.take_snapshot(retrieved_example.id, lt=retrieved_example.version)
+        snapshot3 = event_player.take_snapshot(retrieved_example.id, lt=retrieved_example.version)
 
         # Replay from this snapshot.
-        initial_state = entity_from_snapshot(snapshot2)
+        initial_state = entity_from_snapshot(snapshot3)
         retrieved_example = event_player.replay_entity(
             registered_example.id,
             initial_state=initial_state,
@@ -219,6 +225,6 @@ class TestEventPlayer(SQLAlchemyDatastoreTestCase):
         registered_example.discard()
 
         # Take snapshot of discarded entity.
-        snapshot3 = event_player.take_snapshot(registered_example.id)
-        self.assertIsNone(snapshot3.state)
-        self.assertIsNone(entity_from_snapshot(snapshot3))
+        snapshot4 = event_player.take_snapshot(registered_example.id)
+        self.assertIsNone(snapshot4.state)
+        self.assertIsNone(entity_from_snapshot(snapshot4))

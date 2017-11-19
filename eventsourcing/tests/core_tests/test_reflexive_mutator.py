@@ -5,6 +5,11 @@ from eventsourcing.domain.model.entity import EntityIsDiscarded, WithReflexiveMu
 from eventsourcing.example.domainmodel import Example
 
 
+class ExampleWithReflexiveMutatorDefaultsToBaseClass(WithReflexiveMutator, Example):
+    # Don't redefine events with mutate methods, should call super class.
+    pass
+
+
 class ExampleWithReflexiveMutator(WithReflexiveMutator, Example):
     class Event(Example.Event):
         """Layer supertype."""
@@ -32,7 +37,28 @@ class ExampleWithReflexiveMutator(WithReflexiveMutator, Example):
             return None
 
 
-class TestReflexiveMutator(TestCase):
+class TestWithReflexiveMutatorDefaultsToBaseClass(TestCase):
+    def test(self):
+        # Create an entity.
+        entity_id = uuid4()
+        created = ExampleWithReflexiveMutatorDefaultsToBaseClass.Created(originator_id=entity_id, a=1, b=2)
+        entity = ExampleWithReflexiveMutatorDefaultsToBaseClass._mutate(initial=None, event=created)
+        self.assertIsInstance(entity, ExampleWithReflexiveMutatorDefaultsToBaseClass)
+        self.assertEqual(entity.id, entity_id)
+        self.assertEqual(entity.a, 1)
+        self.assertEqual(entity.b, 2)
+
+        # Check the attribute changed event can be applied.
+        entity.a = 3
+        self.assertEqual(entity.a, 3)
+
+        # Check the discarded event can be applied.
+        entity.discard()
+        with self.assertRaises(EntityIsDiscarded):
+            entity.a = 4
+
+
+class TestWithReflexiveMutatorCallsEventMethod(TestCase):
     def test(self):
         # Create an entity.
         entity_id = uuid4()

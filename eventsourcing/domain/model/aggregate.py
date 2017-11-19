@@ -44,9 +44,12 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
             publish(batch_of_events)
 
     def _trigger(self, event_class, **kwargs):
-        event = event_class(
+        """
+        Constructs, applies and publishes domain event of given class, with given kwargs.
+        """
+        domain_event = event_class(
             originator_id=self.id,
             originator_version=self.version,
             **kwargs
         )
-        self._apply_and_publish(event)
+        self._apply_and_publish(domain_event)

@@ -117,16 +117,11 @@ class ExampleAggregateRoot(AggregateRoot):
 
     @attribute
     def foo(self):
-        """Event sourced attribute foo."""
+        """Simple event sourced attribute called 'foo'."""
 
     def create_new_example(self):
         assert not self._is_discarded
-        event = ExampleAggregateRoot.ExampleCreated(
-            entity_id=uuid.uuid4(),
-            originator_id=self.id,
-            originator_version=self.version,
-        )
-        self._apply_and_publish(event)
+        self._trigger(self.ExampleCreated, entity_id=uuid.uuid4())
 
     def count_examples(self):
         return len(self._entities)
