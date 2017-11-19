@@ -11,9 +11,10 @@ Domain Events
 =============
 
 The purpose of a domain event is to be published when something happens, normally the results from the
-work of a command. The library has a base class for domain events called ``DomainEvent``. Domain events can be
-freely constructed from the ``DomainEvent`` class, it isn't an abstract base class. Event object attributes are set
-directly from the constructor keyword arguments.
+work of a command. The library has a base class for domain events called ``DomainEvent``.
+
+Domain events can be freely constructed from the ``DomainEvent`` class. Event object attributes are
+set directly from the constructor keyword arguments.
 
 .. code:: python
 
