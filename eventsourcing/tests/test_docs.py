@@ -37,6 +37,7 @@ class TestDocs(TestCase):
                     continue
                 if name.endswith('.rst'):
                 # if name.endswith('domainmodel.rst'):
+                # if name.endswith('infrastructure.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)

@@ -1,5 +1,5 @@
 ============
-Domain Model
+Domain model
 ============
 
 The library's domain layer has base classes for domain events and entities. These classes show how to
@@ -7,7 +7,7 @@ write a domain model that uses the library's event sourcing infrastructure. They
 develop an event-sourced application as a domain driven design.
 
 
-Domain Events
+Domain events
 =============
 
 The purpose of a domain event is to be published when something happens, normally the results from the
@@ -50,8 +50,8 @@ same type and the same attributes.
     DomainEvent(a=1) != DomainEvent(b=1)
 
 
-Publish and Subscribe
----------------------
+Publish-subscribe
+-----------------
 
 Domain events can be published, using the library's publish-subscribe mechanism.
 
@@ -102,7 +102,7 @@ The ``unsubscribe()`` function can be used to stop the handler receiving further
     del received_events[:]  # received_events.clear()
 
 
-Event Library
+Event library
 -------------
 
 The library has a small collection of domain event subclasses, such as ``EventWithOriginatorID``,
@@ -167,7 +167,7 @@ Some are just useful for their distinct type, for example in subscription predic
     assert is_domain_event(DomainEvent()) is True
 
 
-Custom Events
+Custom events
 -------------
 
 Custom domain events can be coded by subclassing the library's domain event classes.
@@ -212,7 +212,7 @@ on the entity class itself.
     assert done.timestamp > seen.timestamp
 
 
-Domain Entities
+Domain entities
 ===============
 
 A domain entity is an object that is not defined by its attributes, but rather by a thread of continuity and its
@@ -234,7 +234,7 @@ attribute.
     assert entity.version == 0
 
 
-Entity Library
+Entity library
 --------------
 
 There is a ``TimestampedEntity`` that has ``id`` and ``created_on`` attributes. It also has a ``last_modified``
@@ -278,7 +278,7 @@ A timestamped, versioned entity is both a timestamped entity and a versioned ent
     assert isinstance(entity, VersionedEntity)
 
 
-Entity Events
+Entity events
 -------------
 
 The library's domain entities have domain events as inner classes: ``Event``, ``Created``, ``AttributeChanged``, and
@@ -322,12 +322,12 @@ function, to increment the version number each time an event is applied.
     assert entity.version == 1
 
 
-Mutator Functions
+Mutator functions
 -----------------
 
 For an application to be event sourced, the state of the application must be mutated by applying domain events.
 
-The entity mutator function ``mutate_entity()`` can be used to update the state of an entity from a domain event.
+The entity mutator function ``mutate_entity()`` can be used to apply a domain event to an entity.
 
 .. code:: python
 
@@ -345,13 +345,12 @@ When a versioned entity is updated in this way, the version number is normally i
     assert entity.version == 2
 
 
-Apply and Publish
+Apply and publish
 -----------------
 
-The entity method ``_apply()`` can also be used to update the state of an entity, using the entity's ``_mutate()``
-function.
 Events are normally published after they are applied. The method ``_apply_and_publish()``
-can be used to both apply and then publish the event to the publish-subscribe mechanism.
+can be used to both apply and then publish, so the event mutates the entity
+and is then received by subscribers.
 
 .. code:: python
 
@@ -363,8 +362,8 @@ can be used to both apply and then publish the event to the publish-subscribe me
     assert entity.version == 3
 
 
-The method ``change_attribute()`` constructs an ``AttributeChanged`` event and then calls
-``_apply_and_publish()``.
+For example, the method ``change_attribute()`` constructs an ``AttributeChanged`` event and then calls
+``_apply_and_publish()``. In the code below, the event is received and checked.
 
 .. code:: python
 
@@ -389,7 +388,7 @@ The method ``change_attribute()`` constructs an ``AttributeChanged`` event and t
     del received_events[:]  # received_events.clear()
 
 
-Discarding Entities
+Discarding entities
 -------------------
 
 The entity method ``discard()`` can be used to discard the entity, by applying and publishing
@@ -425,7 +424,7 @@ That means a sequence of events that ends with a ``Discarded`` event will result
 state as an empty sequence of events, when the sequence is replayed by an event player for example.
 
 
-Custom Entities
+Custom entities
 ---------------
 
 The library entity classes can be subclassed.
@@ -461,7 +460,7 @@ is published, the new entity will be returned by the factory method.
 Subclasses can extend the entity base classes, by adding event-based properties and methods.
 
 
-Custom Attributes
+Custom attributes
 -----------------
 
 The library's ``@attribute`` decorator provides a property getter and setter, which will apply and publish an
@@ -514,7 +513,7 @@ received by a subscriber.
     del received_events[:]  # received_events.clear()
 
 
-Custom Commands
+Custom commands
 ---------------
 
 The entity base classes can also be extended by adding "command" methods that publish events. In general, the arguments
@@ -561,7 +560,7 @@ A custom entity can also have custom methods that publish custom events. In the 
 ``make_it_so()`` publishes a domain event called ``SomethingHappened``.
 
 
-Custom Mutator
+Custom mutator
 --------------
 
 To be applied to an entity, custom event classes must be supported by a custom mutator function. In the code below,
@@ -622,14 +621,14 @@ will be called when events are applied.
     assert world.history[2].what == 'internet'
 
 
-Reflexive Mutator
+Reflexive mutator
 -----------------
 
 The ``WithReflexiveMutator`` class tries to call a function called ``mutate()`` on the
-event class itself.
+event class itself. This means each event class can define how an entity is mutated by it.
 
-A custom base entity class, for example ``Entity`` in the code below, may help to adopt this style across
-all entity classes in an application.
+A custom base entity class, for example ``Entity`` in the code below, may help to adopt
+this style across all entity classes in an application.
 
 .. code:: python
 
@@ -675,8 +674,8 @@ all entity classes in an application.
     assert world.history[2].what == 'internet'
 
 
-Aggregate Root Entity
----------------------
+Aggregate root
+==============
 
 The library has a domain entity class called ``AggregateRoot`` that can be useful in a domain driven design, where a
 command can cause many events to be published. The ``AggregateRoot`` class has a ``save()`` method, which publishes

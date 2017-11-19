@@ -566,7 +566,7 @@ Although we can do everything at the module level, an application object brings
 it all together. In the example below, the class ``ExampleApplication`` has an
 event store, and an entity repository. The application also has a persistence policy.
 
-Persistence Policy
+Persistence policy
 ------------------
 
 The persistence policy below subscribes to receive events whenever they are published. It
@@ -589,6 +589,7 @@ uses an event store to store events whenever they are received.
 
 A slightly more developed class :class:`~eventsourcing.application.policies.PersistencePolicy`
 is included in the library.
+
 
 Application object
 ------------------
