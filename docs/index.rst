@@ -38,6 +38,9 @@ Please `register any issues, questions, and requests
    topics/features
    topics/user_guide/index
    topics/design
+   topics/infrastructure
+   topics/domainmodel
+
    topics/release_notes
 
 
