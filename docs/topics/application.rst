@@ -30,23 +30,9 @@ interface that uses the application.
 Event sourced application
 =========================
 
-The example below shows an event sourced application object class. When constructed, it constructs
-an event store that uses the library's infrastructure with SQLAlchemy. A domain model with one
-domain entity type called ``CustomAggregate`` is defined for the application using the library's
-``AggregateRoot`` entity class.
-
-The application object class below has a persistence policy. It uses the library class
-``PersistencePolicy``. The persistence policy stores domain events when they are published,
-and requires an event store when it is constructed.
-
-An event sourced application normally has aggregate repositories that are event sourced. The application below
-has an event sourced repository for ``CustomAggregate`` instances. It uses the library class
-``EventSourceRepository``, which requires an event store when it is constructed. An application can have many
-repositories, normally one for each type of aggregate in the application's domain model.
-
-The application below also has an application service called ``create_aggregate()`` which can be used
-to create new ``CustomAggregate`` instances. The ``CustomAggregate`` is a very simple aggregate, which
-has an event sourced attribute called `a`. To create such an aggregate, a value for `a` must be provided.
+The example code below shows an event sourced application object class. When constructed, it constructs
+an event store that uses the library's infrastructure with SQLAlchemy. It involves a domain entity
+called ``CustomAggregate`` defined below.
 
 .. code:: python
 
@@ -56,7 +42,6 @@ has an event sourced attribute called `a`. To create such an aggregate, a value 
     from eventsourcing.domain.model.aggregate import AggregateRoot
     from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
     from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
-    from eventsourcing.domain.model.decorators import attribute
 
 
     class Application(object):
@@ -86,6 +71,29 @@ has an event sourced attribute called `a`. To create such an aggregate, a value 
             self.persistence_policy.close()
 
 
+The library function ``construct_sqlalchemy_eventstore()`` is used to construct an event store.
+
+The application object class below has a persistence policy. It uses the library class
+``PersistencePolicy``. The persistence policy stores domain events when they are published,
+and requires an event store when it is constructed.
+
+An event sourced application normally has aggregate repositories that are event sourced. The application below
+has an event sourced repository for ``CustomAggregate`` instances. It uses the library class
+``EventSourceRepository``, which requires an event store when it is constructed. An application can have many
+repositories, normally one for each type of aggregate in the application's domain model.
+
+The application also has an application service called ``create_aggregate()`` which can be used
+to create new ``CustomAggregate`` instances. The ``CustomAggregate`` is a very simple aggregate, which
+has an event sourced attribute called `a`. To create such an aggregate, a value for `a` must be provided.
+
+A domain model with one domain entity type called ``CustomAggregate`` is defined for the application using the
+library's ``AggregateRoot`` entity class.
+
+.. code:: python
+
+    from eventsourcing.domain.model.decorators import attribute
+
+
     class CustomAggregate(AggregateRoot):
         def __init__(self, a, **kwargs):
             super(CustomAggregate, self).__init__(**kwargs)
@@ -98,7 +106,8 @@ has an event sourced attribute called `a`. To create such an aggregate, a value 
             """
 
 
-The application above is constructed with a database session object.
+The application above needs to be constructed with an SQLAlchemy session object. The library classes
+``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` can be used to setup a database.
 The ``active_record_class`` of the event store's active record strategy
 can be used to setup a table in the database for storing events.
 
@@ -107,20 +116,20 @@ can be used to setup a table in the database for storing events.
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 
     # Define database settings.
-    settings = SQLAlchemySettings()
+    settings = SQLAlchemySettings(uri='sqlite:///:memory:')
 
     # Setup connection to database.
     datastore = SQLAlchemyDatastore(settings=settings)
     datastore.setup_connection()
 
-    # Construct application with database session.
+    # Construct application with session.
     app = Application(session=datastore.session)
 
     # Setup table in database.
     datastore.setup_table(app.event_store.active_record_strategy.active_record_class)
 
 
-A new aggregate instance can be created with the application service ``create_aggregate()``.
+Finally, a new aggregate instance can be created with the application service ``create_aggregate()``.
 
 .. code:: python
 
@@ -187,7 +196,6 @@ The aggregate can be discarded. After being saved, a discarded aggregate will no
         pass
     else:
         raise Excpetion("Shouldn't get here.")
-
 
 
 It is always possible to get the domain events for an aggregate, using the application's event store method
