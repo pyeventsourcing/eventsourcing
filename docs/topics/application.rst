@@ -84,7 +84,7 @@ repositories, normally one for each type of aggregate in the application's domai
 
 The application also has an application service called ``create_aggregate()`` which can be used
 to create new ``CustomAggregate`` instances. The ``CustomAggregate`` is a very simple aggregate, which
-has an event sourced attribute called `a`. To create such an aggregate, a value for `a` must be provided.
+has an event sourced attribute called ``a``. To create such an aggregate, a value for ``a`` must be provided.
 
 A domain model with one domain entity type called ``CustomAggregate`` is defined for the application using the
 library's ``AggregateRoot`` entity class.
@@ -160,7 +160,7 @@ An existing aggregate can be recovered by ID using the dictionary-like interface
     assert aggregate.a == 1
 
 
-Changes to the aggregate's attribute `a` are visible in the repository, but only after the aggregate has been saved.
+Changes to the aggregate's attribute ``a`` are visible in the repository, but only after the aggregate has been saved.
 
 .. code:: python
 
