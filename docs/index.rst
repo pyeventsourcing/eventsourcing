@@ -41,6 +41,7 @@ Please `register any issues, questions, and requests
    topics/design
    topics/infrastructure
    topics/domainmodel
+   topics/application
    topics/user_guide/index
 
    topics/release_notes
