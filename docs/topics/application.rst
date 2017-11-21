@@ -31,14 +31,15 @@ Event sourced application
 =========================
 
 The example below shows an event sourced application object class. When constructed, it constructs
-an event store that uses the library's infrastructure with SQLAlchemy. The ``AggregateRoot``
-class is used to define for the application a domain model with one aggregate type called ``CustomAggregate``.
+an event store that uses the library's infrastructure with SQLAlchemy. A domain model with one
+domain entity type called ``CustomAggregate`` is defined for the application using the library's
+``AggregateRoot`` entity class.
 
 The application object class below has a persistence policy. It uses the library class
 ``PersistencePolicy``. The persistence policy stores domain events when they are published,
 and requires an event store when it is constructed.
 
-An event sourced application has aggregate repositories that are event sourced. The application below
+An event sourced application normally has aggregate repositories that are event sourced. The application below
 has an event sourced repository for ``CustomAggregate`` instances. It uses the library class
 ``EventSourceRepository``, which requires an event store when it is constructed. An application can have many
 repositories, normally one for each type of aggregate in the application's domain model.
@@ -56,6 +57,7 @@ has an event sourced attribute called `a`. To create such an aggregate, a value 
     from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
     from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
     from eventsourcing.domain.model.decorators import attribute
+
 
     class Application(object):
         def __init__(self, session):
@@ -82,6 +84,7 @@ has an event sourced attribute called `a`. To create such an aggregate, a value 
 
         def close(self):
             self.persistence_policy.close()
+
 
     class CustomAggregate(AggregateRoot):
         def __init__(self, a, **kwargs):
