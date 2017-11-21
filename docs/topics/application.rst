@@ -5,20 +5,27 @@ Applications
 The application layer combines objects from the domain and
 infrastructure layers.
 
+Repositories and policies
+=========================
+
 An application object can have repositories, so that aggregates
 can be retrieved by ID using a dictionary-like interface.
 In general, aggregates implement commands that publish events.
 
-An application object can have policies. In general, policies receive
+An application object can also have policies. In general, policies receive
 events and execute commands.
+
+
+Application services
+====================
 
 An application object can have methods ("application services")
 which provide a relatively simple interface for clients operations,
 hiding the complexity and usage of the application's domain and
 infrastructure layers.
 
-Application services are most effectively developed outside-in, with
-test- or behaviour-driven development. A test suite can be imagined as an
+Application services can be developed outside-in, with a
+test- or behaviour-driven development approach. A test suite can be imagined as an
 interface that uses the application. Interfaces are outside the scope of
 the application layer.
 
@@ -27,8 +34,8 @@ Event sourced application
 =========================
 
 The example code below shows an event sourced application object class. It constructs
-an event store that uses the library's infrastructure with SQLAlchemy. The library
-function ``construct_sqlalchemy_eventstore()`` is used to construct an event store.
+an event store that uses the library's infrastructure with SQLAlchemy, using library
+function ``construct_sqlalchemy_eventstore()``.
 
 .. code:: python
 
@@ -46,14 +53,14 @@ function ``construct_sqlalchemy_eventstore()`` is used to construct an event sto
             self.event_store = construct_sqlalchemy_eventstore(
                 session=session
             )
-            # Construct a persistence policy.
-            self.persistence_policy = PersistencePolicy(
-                event_store=self.event_store
-            )
             # Construct an event sourced repository.
             self.repository = EventSourcedRepository(
                 event_store=self.event_store,
                 mutator=CustomAggregate._mutate
+            )
+            # Construct a persistence policy.
+            self.persistence_policy = PersistencePolicy(
+                event_store=self.event_store
             )
 
         def create_aggregate(self, a):
@@ -68,7 +75,7 @@ function ``construct_sqlalchemy_eventstore()`` is used to construct an event sto
 
 
 The application has a domain model with one domain entity called ``CustomAggregate``,
-which is defined below. The entity has one attribute, called ``a``. It is subclass
+defined below. The entity has one attribute, called ``a``. It is subclass
 of the library's ``AggregateRoot`` entity class.
 
 The application has an event sourced repository for ``CustomAggregate`` instances. It
