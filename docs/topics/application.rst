@@ -79,8 +79,8 @@ defined below. The entity has one attribute, called ``a``. It is subclass
 of the library's ``AggregateRoot`` entity class.
 
 
-Event sourced repository
-------------------------
+Repository
+----------
 
 The application has an event sourced repository for ``CustomAggregate`` instances. It
 uses the library class ``EventSourceRepository``, which uses an event store to get domain
@@ -89,8 +89,8 @@ it uses to reconstruct an aggregate instance from the events. An application nee
 repository for each type of aggregate in the application's domain model.
 
 
-Persistence policy
-------------------
+Policy
+------
 
 The application object class has a persistence policy. It uses the library class
 ``PersistencePolicy``. The persistence policy appends domain events to an event
@@ -121,8 +121,8 @@ has an event sourced attribute called ``a``. To create such an aggregate, a valu
             """
 
 
-Database setup
---------------
+Database
+--------
 
 The library classes ``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` can be
 used to setup a database.
