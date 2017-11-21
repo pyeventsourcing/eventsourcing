@@ -78,15 +78,27 @@ The application has a domain model with one domain entity called ``CustomAggrega
 defined below. The entity has one attribute, called ``a``. It is subclass
 of the library's ``AggregateRoot`` entity class.
 
+
+Event sourced repository
+------------------------
+
 The application has an event sourced repository for ``CustomAggregate`` instances. It
 uses the library class ``EventSourceRepository``, which uses an event store to get domain
 events for an aggregate, and the mutator function from the ``CustomAggregate`` class which
 it uses to reconstruct an aggregate instance from the events. An application needs one such
 repository for each type of aggregate in the application's domain model.
 
+
+Persistence policy
+------------------
+
 The application object class has a persistence policy. It uses the library class
 ``PersistencePolicy``. The persistence policy appends domain events to an event
 store whenever they are published.
+
+
+Aggregate factory
+-----------------
 
 The application also has an application service called ``create_aggregate()`` which can be used
 to create new ``CustomAggregate`` instances. The ``CustomAggregate`` is a very simple aggregate, which
@@ -109,6 +121,9 @@ has an event sourced attribute called ``a``. To create such an aggregate, a valu
             """
 
 
+Database setup
+--------------
+
 The library classes ``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` can be
 used to setup a database.
 
@@ -128,6 +143,9 @@ used to setup a database.
     # - done only once
     datastore.setup_table(StoredEventRecord)
 
+
+Run the code
+------------
 
 After setting up the database connection, the application can be constructed with the session object.
 
@@ -205,6 +223,9 @@ The aggregate can be discarded. After being saved, a discarded aggregate will no
         raise Excpetion("Shouldn't get here.")
 
 
+Application events
+------------------
+
 It is always possible to get the domain events for an aggregate, using the application's event store method
 ``get_domain_events()``.
 
@@ -231,6 +252,9 @@ It is always possible to get the domain events for an aggregate, using the appli
     assert isinstance(events[3], CustomAggregate.Discarded)
 
 
+Sequenced items
+---------------
+
 It is also possible to get the sequenced item namedtuples for an aggregate, using the application's event store's
 active record strategy method ``get_items()``.
 
@@ -256,12 +280,17 @@ active record strategy method ``get_items()``.
     assert items[3].state.startswith('{"timestamp":')
 
 
+Close
+-----
+
 It is useful to unsubscribe any handlers subscribed by the policies (avoids dangling
 handlers being called inappropriately, if the process isn't going to terminate immediately).
 
 .. code:: python
 
+    # Clean up.
     app.close()
+
 
 Todo: Something about the library's application class?
 
