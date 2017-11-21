@@ -687,10 +687,83 @@ decorator can help code retries on commands.
     assert len(errors) == 5
 
 
-Timestamp sequenced items
--------------------------
+Event store factory
+-------------------
 
-The code above uses items that are sequenced by integer. As an alternative, items can be sequenced by timestamp.
+As a convenience, the library function ``construct_sqlalchemy_eventstore()``
+can be used to construct an event store that uses the SQLAlchemy classes.
 
-Todo: More about timestamp sequenced items.
+.. code:: python
 
+    from eventsourcing.infrastructure.sqlalchemy import factory
+
+    event_store = factory.construct_sqlalchemy_eventstore(session=datastore.session)
+
+
+By default, the event store is constructed with the ``StoredEvent`` sequenced item namedtuple,
+and the active record class ``StoredEventRecord``. The optional args ``sequenced_item_class``
+and ``active_record_class`` can be used to construct different kinds of event store.
+
+
+Timestamped event store
+-----------------------
+
+The examples so far have used an integer sequenced event store, where the items are sequenced by integer version.
+
+The example below constructs an event store for timestamp-sequenced domain events, using the library active
+record class ``TimestampedSequencedItemRecord``.
+
+.. code:: python
+
+    import time
+    from uuid import uuid4
+
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import TimestampSequencedItemRecord
+
+    # Setup database table for timestamped sequenced items.
+    datastore.setup_table(TimestampSequencedItemRecord)
+
+    # Construct event store for timestamp sequenced events.
+    timestamped_event_store = factory.construct_sqlalchemy_eventstore(
+        sequenced_item_class=SequencedItem,
+        active_record_class=TimestampSequencedItemRecord,
+        sequence_id_attr_name='originator_id',
+        position_attr_name='timestamp',
+        session=datastore.session,
+    )
+
+    # Construct an event.
+    aggregate_id = uuid4()
+    event = DomainEvent(
+        originator_id=aggregate_id,
+        timestamp=time.time(),
+    )
+
+    # Store the event.
+    timestamped_event_store.append(event)
+
+    # Check the event was stored.
+    events = timestamped_event_store.get_domain_events(aggregate_id)
+    assert len(events) == 1
+    assert events[0].originator_id == aggregate_id
+    assert events[0].timestamp < time.time()
+
+
+Please note, optimistic concurrent control doesn't work to maintain entity consistency, because each
+event is likely to have a unique timestamp, and so conflicts are very unlikely to arise when concurrent
+operations appending to the same sequence. For this reason, although domain events can be timestamped,
+it is not a very good idea to store the events of an entity or aggregate as timestamp-sequenced items.
+Timestamp-sequenced items are useful for storing events that are logically independent of others, such
+as messages in a log, things that do not risk causing a consistency error due to concurrent operations.
+
+
+.. The library function ``construct_cassandra_eventstore()`` can be used to
+construct an event store that uses the Apache Cassandra classes.
+
+.. .. code:: python
+
+..    from eventsourcing.infrastructure.cassandra import factory
+
+
+..    event_store = factory.construct_cassandra_eventstore(
+..    )
