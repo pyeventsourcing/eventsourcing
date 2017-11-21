@@ -73,12 +73,12 @@ called ``CustomAggregate`` defined below.
 
 The library function ``construct_sqlalchemy_eventstore()`` is used to construct an event store.
 
-The application object class below has a persistence policy. It uses the library class
+The application object class has a persistence policy. It uses the library class
 ``PersistencePolicy``. The persistence policy stores domain events when they are published,
 and requires an event store when it is constructed.
 
-An event sourced application normally has aggregate repositories that are event sourced. The application below
-has an event sourced repository for ``CustomAggregate`` instances. It uses the library class
+An event sourced application normally has aggregate repositories that are event sourced. So the application
+also has an event sourced repository for ``CustomAggregate`` instances. It uses the library class
 ``EventSourceRepository``, which requires an event store when it is constructed. An application can have many
 repositories, normally one for each type of aggregate in the application's domain model.
 
