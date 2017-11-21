@@ -256,6 +256,7 @@ handlers being called inappropriately, if the process isn't going to terminate i
 
     app.close()
 
+Todo: Something about the library's application class?
 
 Todo: Something about using uuid5 to make UUIDs from things like email addresses.
 
