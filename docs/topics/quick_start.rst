@@ -4,7 +4,7 @@ Quick start
 
 This section shows how to write a very simple event sourced
 application using classes from the library. It shows the
-overall structure that is elaborated in the user guide.
+general story, which is elaborated over the following pages.
 
 Please use pip to install the library with the 'sqlalchemy' option.
 

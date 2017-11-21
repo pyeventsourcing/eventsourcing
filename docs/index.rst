@@ -23,8 +23,8 @@ describes the :doc:`design </topics/design>` of the software,
 the :doc:`infrastructure layer </topics/infrastructure>`,
 the :doc:`domain model layer </topics/domainmodel>`,
 the :doc:`application layer </topics/application>`, and
-a :doc:`user guide </topics/user_guide/index>` layer, and
-has some :doc:`background </topics/background>` information about the project.
+has :doc:`examples </topics/examples/index>` and
+some :doc:`background </topics/background>` information about the project.
 
 This project is `hosted on GitHub <https://github.com/johnbywater/eventsourcing>`__.
 Please `register any issues, questions, and requests
@@ -43,7 +43,7 @@ Please `register any issues, questions, and requests
    topics/infrastructure
    topics/domainmodel
    topics/application
-   topics/user_guide/index
+   topics/examples/index
 
    topics/release_notes
 
