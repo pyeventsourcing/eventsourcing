@@ -75,7 +75,7 @@ function ``construct_sqlalchemy_eventstore()``.
 
 
 The application has a domain model with one domain entity called ``CustomAggregate``,
-defined below. The entity has one attribute, called ``a``. It is subclass
+defined below. The entity has one attribute, called ``a``. It is a subclass
 of the library's ``AggregateRoot`` entity class.
 
 
