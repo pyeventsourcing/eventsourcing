@@ -2,7 +2,6 @@ from functools import reduce
 
 from eventsourcing.domain.model.entity import AbstractEntityRepository, mutate_entity
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 
