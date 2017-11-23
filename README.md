@@ -12,14 +12,6 @@ the Python Package Index.
 
     pip install eventsourcing
 
-If you want to use SQLAlchemy, then please install with 'sqlalchemy'.
-
-    pip install eventsourcing[sqlalchemy]
-
-Similarly, if you want to use Cassandra, then please install with 'cassandra'.
-
-    pip install eventsourcing[cassandra]
-
 ## Documentation
 
 Please refer to [the documentation](http://eventsourcing.readthedocs.io/) for installation and usage guides.
