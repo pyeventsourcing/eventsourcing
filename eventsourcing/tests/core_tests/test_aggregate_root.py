@@ -117,22 +117,17 @@ class ExampleAggregateRoot(AggregateRoot):
 
     @attribute
     def foo(self):
-        """Event sourced attribute foo."""
+        """Simple event sourced attribute called 'foo'."""
 
     def create_new_example(self):
         assert not self._is_discarded
-        event = ExampleAggregateRoot.ExampleCreated(
-            entity_id=uuid.uuid4(),
-            originator_id=self.id,
-            originator_version=self.version,
-        )
-        self._apply_and_publish(event)
+        self._trigger(self.ExampleCreated, entity_id=uuid.uuid4())
 
     def count_examples(self):
         return len(self._entities)
 
     @classmethod
-    def _mutate(cls, initial, event):
+    def _mutate(cls, initial=None, event=None):
         return mutate_example_aggregate(initial or cls, event)
 
 
@@ -163,7 +158,7 @@ def _(self, event):
     entity = Example(entity_id=event.entity_id)
     self._entities[entity.id] = entity
     self._version += 1
-    self._last_modified_on = event.timestamp
+    self._last_modified = event.timestamp
     return self
 
 
@@ -192,7 +187,7 @@ class ExampleDDDApplication(object):
         """
         Factory method, creates and returns a new example aggregate root object.
 
-        :rtype: ExampleAggregateRoot 
+        :rtype: ExampleAggregateRoot
         """
         event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4())
         aggregate = ExampleAggregateRoot._mutate(initial=None, event=event)

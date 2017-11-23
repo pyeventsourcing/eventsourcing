@@ -140,7 +140,7 @@ Mutator function
         entity = Example(example_id=event.example_id)
         aggregate._examples[str(entity.id)] = entity
         aggregate._version += 1
-        aggregate._last_modified_on = event.timestamp
+        aggregate._last_modified = event.timestamp
         return aggregate
 
 
@@ -170,10 +170,10 @@ Cipher strategy
 
 .. code:: python
 
-    from eventsourcing.domain.services.aes_cipher import AESCipher
+    from eventsourcing.infrastructure.cipher.aes import AESCipher
 
     # Construct the cipher strategy.
-    aes_key = '0123456789abcdef'
+    aes_key = b'0123456789abcdef'
     cipher = AESCipher(aes_key)
 
 

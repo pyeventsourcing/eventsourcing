@@ -20,10 +20,10 @@ sqlalchemy_requires = [
 ]
 
 cassandra_requires = [
-    'cassandra-driver<=3.9.99999'
+    'cassandra-driver<=3.12.99999'
 ]
 
-crypto_requires = ['PyCrypto<=2.6.99999']
+crypto_requires = ['pycryptodome<=3.4.99999']
 
 testing_requires = [
     'mock<=2.0.99999',
@@ -32,14 +32,18 @@ testing_requires = [
     'flask_sqlalchemy<=2.2.99',
     'uwsgi<=2.0.99999',
     'redis<=2.10.99999',
-    'celery<=4.0.99999',
-]
+    'celery<=4.1.99999',
+] + cassandra_requires + crypto_requires + sqlalchemy_requires
+
+docs_requires = ['sphinx_rtd_theme'] + testing_requires
+
 
 long_description = """
-This package provides generic support for event sourcing in Python.
+A library for event sourcing in Python.
 
-An extensive
-`README file is available on GitHub <https://github.com/johnbywater/eventsourcing/blob/master/README.md>`_.
+`Package documentation is now available <http://eventsourcing.readthedocs.io/>`_.
+
+`Please raise issues on GitHub <https://github.com/johnbywater/eventsourcing/issues>`_.
 """
 
 packages = find_packages(
@@ -63,13 +67,14 @@ setup(
         'cassandra': cassandra_requires,
         'crypto': crypto_requires,
         'sqlalchemy': sqlalchemy_requires,
-        'testing': cassandra_requires + crypto_requires + sqlalchemy_requires + testing_requires,
+        'testing': testing_requires,
+        'docs': docs_requires,
     },
     zip_safe=False,
     long_description=long_description,
     keywords=['event sourcing', 'event store', 'domain driven design', 'ddd', 'cqrs', 'cqs'],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Intended Audience :: Education',
         'Intended Audience :: Science/Research',

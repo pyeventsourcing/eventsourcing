@@ -1,4 +1,5 @@
 from time import sleep
+from uuid import uuid4
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.snapshot import Snapshot
@@ -45,6 +46,10 @@ class ExampleApplicationTestCase(WithExampleApplication):
 
             # Check there's an example repository.
             self.assertIsInstance(app.example_repository, ExampleRepository)
+
+            # Take snapshot of non-existing entity.
+            snapshot0 = app.example_repository.take_snapshot(uuid4())
+            self.assertIsNone(snapshot0)
 
             # Register a new example.
             example1 = app.create_new_example(a=10, b=20)
@@ -123,3 +128,4 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(entity1_v3.a, 50)
             entity1_v3 = app.example_repository.get_entity(entity1.id, lte=2)
             self.assertEqual(entity1_v3.a, 100)
+

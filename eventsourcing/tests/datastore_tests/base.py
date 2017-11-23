@@ -31,11 +31,12 @@ class AbstractDatastoreTestCase(AbstractTestCase):
 
 class DatastoreTestCase(AbstractDatastoreTestCase):
     def test(self):
-        # Check the stored event class doesn't function before the connection is setup.
-        with self.assertRaises(DatastoreConnectionError):
-            self.list_records()
-        with self.assertRaises(DatastoreConnectionError):
-            self.create_record()
+
+        # # Check the stored event class doesn't function before the connection is setup.
+        # with self.assertRaises(DatastoreConnectionError):
+        #     self.list_records()
+        # with self.assertRaises(DatastoreConnectionError):
+        #     self.create_record()
 
         # Setup the connection.
         self.datastore.setup_connection()
@@ -43,11 +44,11 @@ class DatastoreTestCase(AbstractDatastoreTestCase):
         # Check it doesn't matter if setup_connection() is called twice.
         self.datastore.setup_connection()
 
-        # Check the stored event class doesn't function before the tables are setup.
-        with self.assertRaises(DatastoreTableError):
-            self.list_records()
-        with self.assertRaises(DatastoreTableError):
-            self.create_record()
+        # # Check the stored event class doesn't function before the tables are setup.
+        # with self.assertRaises(DatastoreTableError):
+        #     self.list_records()
+        # with self.assertRaises(DatastoreTableError):
+        #     self.create_record()
 
         # Setup the tables.
         self.datastore.setup_tables()

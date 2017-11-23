@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.exceptions import SequencedItemError
+from eventsourcing.exceptions import SequencedItemConflict
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 
 
@@ -54,7 +54,7 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
 
     def raise_sequenced_item_error(self, sequenced_item, e):
         sequenced_item = sequenced_item[0] if isinstance(sequenced_item, list) else sequenced_item
-        raise SequencedItemError("Item at position '{}' already exists in sequence '{}': {}"
+        raise SequencedItemConflict("Item at position '{}' already exists in sequence '{}': {}"
                                  "".format(sequenced_item[1], sequenced_item[0], e))
 
     def raise_index_error(self, eq):

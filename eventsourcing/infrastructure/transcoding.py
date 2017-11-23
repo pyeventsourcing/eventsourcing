@@ -4,10 +4,14 @@ from uuid import UUID
 
 import dateutil.parser
 
-from eventsourcing.domain.model.events import resolve_domain_topic, topic_from_domain_class
+from eventsourcing.infrastructure.topic import get_topic, resolve_topic
 
 
 class ObjectJSONEncoder(JSONEncoder):
+
+    def __init__(self, sort_keys=True, *args, **kwargs):
+        super(ObjectJSONEncoder, self).__init__(sort_keys=sort_keys, *args, **kwargs)
+
     def default(self, obj):
         if isinstance(obj, datetime.datetime):
             return {'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z')}
@@ -16,7 +20,7 @@ class ObjectJSONEncoder(JSONEncoder):
         elif isinstance(obj, UUID):
             return {'UUID': obj.hex}
         elif hasattr(obj, '__class__') and hasattr(obj, '__dict__'):
-            topic = topic_from_domain_class(obj.__class__)
+            topic = get_topic(obj.__class__)
             state = obj.__dict__.copy()
             return {
                 '__class__': {
@@ -60,7 +64,7 @@ class ObjectJSONDecoder(JSONDecoder):
     def _decode_object(d):
         topic = d['__class__']['topic']
         state = d['__class__']['state']
-        obj_class = resolve_domain_topic(topic)
+        obj_class = resolve_topic(topic)
         obj = object.__new__(obj_class)
         obj.__dict__.update(state)
         return obj

@@ -1,4 +1,3 @@
-import importlib
 import itertools
 import time
 from abc import ABCMeta
@@ -7,9 +6,6 @@ from uuid import uuid1
 
 import six
 from six import with_metaclass
-
-from eventsourcing.exceptions import TopicResolutionError
-
 
 
 class QualnameABCMeta(ABCMeta):
@@ -38,7 +34,7 @@ class QualnameABCMeta(ABCMeta):
 
 
 def create_timesequenced_event_id():
-    return uuid1().hex
+    return uuid1()
 
 
 class QualnameABC(with_metaclass(QualnameABCMeta)):
@@ -216,65 +212,3 @@ def assert_event_handlers_empty():
     if len(_event_handlers):
         msg = "Event handlers are still subscribed: %s" % _event_handlers
         raise EventHandlersNotEmptyError(msg)
-
-
-def topic_from_domain_class(domain_class):
-    """Returns a string describing a domain event class.
-
-    Args:
-        domain_class: A domain entity or event class.
-
-    Returns:
-        A string describing the class.
-    """
-    return domain_class.__module__ + '#' + getattr(domain_class, '__qualname__', domain_class.__name__)
-
-
-def resolve_domain_topic(topic):
-    """Return domain class described by given topic.
-
-    Args:
-        topic: A string describing a domain class.
-
-    Returns:
-        A domain class.
-
-    Raises:
-        TopicResolutionError: If there is no such domain class.
-    """
-    try:
-        module_name, _, class_name = topic.partition('#')
-        module = importlib.import_module(module_name)
-    except ImportError as e:
-        raise TopicResolutionError("{}: {}".format(topic, e))
-    try:
-        cls = resolve_attr(module, class_name)
-    except AttributeError as e:
-        raise TopicResolutionError("{}: {}".format(topic, e))
-    return cls
-
-
-def resolve_attr(obj, path):
-    """A recursive version of getattr for navigating dotted paths.
-
-    Args:
-        obj: An object for which we want to retrieve a nested attribute.
-        path: A dot separated string containing zero or more attribute names.
-
-    Returns:
-        The attribute referred to by obj.a1.a2.a3...
-
-    Raises:
-        AttributeError: If there is no such attribute.
-    """
-    if not path:
-        return obj
-    head, _, tail = path.partition('.')
-    head_obj = getattr(obj, head)
-    return resolve_attr(head_obj, tail)
-
-
-def reconstruct_object(obj_class, obj_state):
-    obj = object.__new__(obj_class)
-    obj.__dict__.update(obj_state)
-    return obj

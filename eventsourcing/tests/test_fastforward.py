@@ -1,6 +1,6 @@
 # from eventsourcing.example.application import ExampleApplication
 # from eventsourcing.example.domainmodel import Example
-# from eventsourcing.exceptions import ConcurrencyError, SequencedItemError
+# from eventsourcing.exceptions import ConcurrencyError, SequencedItemConflict
 # from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
 # from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
 #     WithSQLAlchemyActiveRecordStrategies
@@ -28,7 +28,7 @@
 #             # Fail to evolve instance2 in the same way.
 #             # Todo: This needs to be a deepcopy.
 #             preop_state = instance2.__dict__.copy()
-#             with self.assertRaises(SequencedItemError):
+#             with self.assertRaises(SequencedItemConflict):
 #                 instance2.beat_heart()
 #
 #             # Reset instance2 to its pre-op state.

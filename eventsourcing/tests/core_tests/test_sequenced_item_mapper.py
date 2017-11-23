@@ -1,11 +1,11 @@
 import datetime
-from decimal import Decimal
 from time import sleep, time
 from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
-from eventsourcing.domain.model.events import DomainEvent, topic_from_domain_class
+from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.infrastructure.topic import get_topic
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
@@ -46,7 +46,7 @@ class TestSequencedItemMapper(TestCase):
         self.assertIsInstance(sequenced_item, SequencedItem)
         self.assertEqual(sequenced_item.position, 101)
         self.assertEqual(sequenced_item.sequence_id, entity_id1)
-        self.assertEqual(sequenced_item.topic, topic_from_domain_class(Event1))
+        self.assertEqual(sequenced_item.topic, get_topic(Event1))
         self.assertTrue(sequenced_item.data)
 
         # Use the returned values to create a new sequenced item.
@@ -82,7 +82,7 @@ class TestSequencedItemMapper(TestCase):
         self.assertGreater(sequenced_item.position, before)
         self.assertLess(sequenced_item.position, after)
         self.assertEqual(sequenced_item.sequence_id, 'entity2')
-        self.assertEqual(sequenced_item.topic, topic_from_domain_class(Event2))
+        self.assertEqual(sequenced_item.topic, get_topic(Event2))
         self.assertTrue(sequenced_item.data)
 
         # Use the returned values to create a new sequenced item.
@@ -138,22 +138,3 @@ class TestSequencedItemMapper(TestCase):
         self.assertEqual(domain_event.c, event3.c)
         # self.assertEqual(domain_event.d, event3.d)
         self.assertEqual(domain_event.e, event3.e)
-
-    def test_errors(self):
-        # Setup the mapper, and create an event.
-        mapper = SequencedItemMapper(
-            sequenced_item_class=SequencedItem,
-            sequence_id_attr_name='originator_id',
-            position_attr_name='a'
-        )
-
-        # Create an event with dates and datetimes.
-        event3 = Event3(
-            originator_id='entity3',
-            originator_version=303,
-            a=Decimal(1.0),
-        )
-
-        # Check to_sequenced_item() method results in a sequenced item.
-        with self.assertRaises(TypeError):
-            mapper.to_sequenced_item(event3)

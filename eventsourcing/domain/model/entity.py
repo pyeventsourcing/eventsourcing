@@ -23,8 +23,8 @@ class DomainEntity(QualnameABC):
     class Discarded(Event, Discarded):
         """Published when a DomainEntity is discarded."""
 
-    def __init__(self, originator_id):
-        self._id = originator_id
+    def __init__(self, id):
+        self._id = id
         self._is_discarded = False
 
     def __eq__(self, other):
@@ -78,17 +78,25 @@ class DomainEntity(QualnameABC):
 
     def _apply_and_publish(self, event):
         """
-        Applies event, by mutating self with event and then publishing event.
+        Applies event to self and published event.
 
         Must be an object method, since subclass AggregateRoot._publish()
         will append events to a list internal to the entity object, hence
         it needs to work with an instance rather than the type.
         """
-        self._mutate(initial=self, event=event)
+        self._apply(event)
         self._publish(event)
 
+    def _apply(self, event):
+        """
+        Applies given event to self.
+
+        Must be an object method, so that self is an object instance.
+        """
+        self._mutate(initial=self, event=event)
+
     @classmethod
-    def _mutate(cls, initial, event):
+    def _mutate(cls, initial=None, event=None):
         """
         Calls a mutator function with given entity and event.
 
@@ -113,19 +121,24 @@ class WithReflexiveMutator(DomainEntity):
     """
     Implements an entity mutator function by dispatching to the
     event itself all calls to mutate an entity with an event.
-    
+
     This is an alternative to using an independent mutator function
     implemented with the @mutator decorator, or an if-else block.
     """
+
     @classmethod
-    def _mutate(cls, initial, event):
+    def _mutate(cls, initial=None, event=None):
         """
         Calls the mutate() method of the event.
 
         Passes cls if initial is None, so that handler of Created
         events can construct an entity object with the subclass.
         """
-        return event.mutate(initial or cls)
+        if hasattr(event, 'mutate') and callable(event.mutate):
+            entity = event.mutate(initial or cls)
+        else:
+            entity = super(WithReflexiveMutator, cls)._mutate(initial, event)
+        return entity
 
 
 class VersionedEntity(DomainEntity):
@@ -136,7 +149,7 @@ class VersionedEntity(DomainEntity):
         """Published when a VersionedEntity is created."""
 
         def __init__(self, originator_version=0, **kwargs):
-            super(Created, self).__init__(originator_version=originator_version, **kwargs)
+            super(VersionedEntity.Created, self).__init__(originator_version=originator_version, **kwargs)
 
     class AttributeChanged(Event, DomainEntity.AttributeChanged):
         """Published when a VersionedEntity is changed."""
@@ -144,9 +157,9 @@ class VersionedEntity(DomainEntity):
     class Discarded(Event, DomainEntity.Discarded):
         """Published when a VersionedEntity is discarded."""
 
-    def __init__(self, originator_version, **kwargs):
+    def __init__(self, version=0, **kwargs):
         super(VersionedEntity, self).__init__(**kwargs)
-        self._version = originator_version
+        self._version = version
 
     @property
     def version(self):
@@ -169,7 +182,7 @@ class VersionedEntity(DomainEntity):
                 ("Event originated from entity at version {}, "
                  "but entity is currently at version {}. "
                  "Event type: '{}', entity type: '{}', entity ID: '{}'"
-                 "".format(self._version, event.originator_version,
+                 "".format(event.originator_version, self._version,
                            type(event).__name__, type(self).__name__, self._id)
                  )
             )
@@ -199,15 +212,15 @@ class TimestampedEntity(DomainEntity):
     def __init__(self, timestamp, **kwargs):
         super(TimestampedEntity, self).__init__(**kwargs)
         self._created_on = timestamp
-        self._last_modified_on = timestamp
+        self._last_modified = timestamp
 
     @property
     def created_on(self):
         return self._created_on
 
     @property
-    def last_modified_on(self):
-        return self._last_modified_on
+    def last_modified(self):
+        return self._last_modified
 
 
 class TimeuuidedEntity(DomainEntity):
@@ -221,7 +234,7 @@ class TimeuuidedEntity(DomainEntity):
         return timestamp_from_uuid(self._initial_event_id)
 
     @property
-    def last_modified_on(self):
+    def last_modified(self):
         return timestamp_from_uuid(self._last_event_id)
 
 
@@ -246,7 +259,7 @@ class TimeuuidedVersionedEntity(TimeuuidedEntity, VersionedEntity):
 @mutator
 def mutate_entity(initial, event):
     """Entity mutator function. Mutates initial state by the event.
-    
+
     Different handlers are registered for different types of event.
     """
     raise NotImplementedError("Event type not supported: {}".format(type(event)))
@@ -258,8 +271,12 @@ def _(cls, event):
     if not isinstance(cls, type):
         msg = ("Mutator for Created event requires object type: {}".format(type(cls)))
         raise MutatorRequiresTypeNotInstance(msg)
+    constructor_args = event.__dict__.copy()
+    constructor_args['id'] = constructor_args.pop('originator_id')
+    if 'originator_version' in constructor_args:
+        constructor_args['version'] = constructor_args.pop('originator_version')
     try:
-        self = cls(**event.__dict__)
+        self = cls(**constructor_args)
     except TypeError as e:
         raise TypeError("Class {} {}. Given {} from event type {}"
                         "".format(cls, e, event.__dict__, type(event)))
@@ -273,7 +290,7 @@ def _(self, event):
     self._validate_originator(event)
     setattr(self, event.name, event.value)
     if isinstance(event, TimestampedEntity.AttributeChanged):
-        self._last_modified_on = event.timestamp
+        self._last_modified = event.timestamp
     if isinstance(event, VersionedEntity.AttributeChanged):
         self._increment_version()
     return self
@@ -285,14 +302,13 @@ def _(self, event):
     self._validate_originator(event)
     self._is_discarded = True
     if isinstance(event, TimestampedEntity.Discarded):
-        self._last_modified_on = event.timestamp
+        self._last_modified = event.timestamp
     if isinstance(event, VersionedEntity.Discarded):
         self._increment_version()
     return None
 
 
 class AbstractEntityRepository(with_metaclass(ABCMeta)):
-
     def __init__(self, *args, **kwargs):
         pass
 
@@ -307,7 +323,6 @@ class AbstractEntityRepository(with_metaclass(ABCMeta)):
         """
         Returns entity for given ID.
         """
-
 
     @abstractmethod
     def __contains__(self, entity_id):

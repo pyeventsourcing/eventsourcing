@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.exceptions import ConcurrencyError, SequencedItemError
+from eventsourcing.exceptions import ConcurrencyError, SequencedItemConflict
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
@@ -45,7 +45,7 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
 class EventStore(AbstractEventStore):
     iterator_class = SequencedItemIterator
 
-    def __init__(self, active_record_strategy, sequenced_item_mapper=None):
+    def __init__(self, active_record_strategy, sequenced_item_mapper):
         assert isinstance(active_record_strategy, AbstractActiveRecordStrategy), active_record_strategy
         assert isinstance(sequenced_item_mapper, AbstractSequencedItemMapper), sequenced_item_mapper
         self.active_record_strategy = active_record_strategy
@@ -61,7 +61,7 @@ class EventStore(AbstractEventStore):
         # Append to the sequenced item(s) to the sequence.
         try:
             self.active_record_strategy.append(sequenced_item_or_items)
-        except SequencedItemError as e:
+        except SequencedItemConflict as e:
             raise ConcurrencyError(e)
 
     def to_sequenced_item(self, domain_event):

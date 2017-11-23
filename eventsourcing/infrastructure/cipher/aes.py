@@ -4,14 +4,13 @@ import zlib
 from Crypto import Random
 from Crypto.Cipher import AES
 
-from eventsourcing.domain.services.cipher import AbstractCipher
+from eventsourcing.infrastructure.cipher.base import AbstractCipher
 
 
 class AESCipher(AbstractCipher):
     """
     Cipher strategy that uses the AES cipher from the Crypto library.
     """
-    BLOCK_SIZE = 16
 
     def __init__(self, aes_key):
         self.aes_key = aes_key

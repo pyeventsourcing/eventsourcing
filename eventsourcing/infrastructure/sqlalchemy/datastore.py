@@ -45,10 +45,13 @@ class SQLAlchemyDatastore(Datastore):
             # **kwargs
         )
 
-    def setup_tables(self):
+    def setup_tables(self, tables=None):
         if self._tables is not None:
             for table in self._tables:
-                table.__table__.create(self._engine, checkfirst=True)
+                self.setup_table(table)
+
+    def setup_table(self, table):
+        table.__table__.create(self._engine, checkfirst=True)
 
     def drop_connection(self):
         if self._session:

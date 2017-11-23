@@ -1,13 +1,15 @@
 import unittest
 from time import time
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid1
 
 from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmptyError, EventWithOriginatorID, \
     EventWithOriginatorVersion, EventWithTimestamp, _event_handlers, assert_event_handlers_empty, \
-    create_timesequenced_event_id, publish, resolve_domain_topic, subscribe, unsubscribe
+    create_timesequenced_event_id, publish, subscribe, unsubscribe, EventWithTimeuuid
+from eventsourcing.infrastructure.topic import resolve_topic
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.exceptions import TopicResolutionError
+from eventsourcing.utils.time import timestamp_from_uuid
 
 try:
     from unittest import mock
@@ -125,6 +127,29 @@ class TestEventWithTimestamp(unittest.TestCase):
             event.timestamp = time()
 
 
+class TestEventWithTimeuuid(unittest.TestCase):
+    def test(self):
+        # Check base class can be sub-classed.
+        class Event(EventWithTimeuuid):
+            pass
+
+        # Check event can be instantiated with an event_id.
+        event_id = uuid1()
+        event = Event(event_id=event_id)
+        self.assertEqual(event.event_id, event_id)
+
+        # Check event can be instantiated without an event_id.
+        time1 = time()
+        event = Event()
+        self.assertGreater(timestamp_from_uuid(event.event_id), time1)
+        self.assertLess(timestamp_from_uuid(event.event_id), time())
+
+        # Check the event_id can't be reassigned.
+        with self.assertRaises(AttributeError):
+            # noinspection PyPropertyAccess
+            event.event_id = time()
+
+
 class TestEventWithOriginatorVersionAndID(unittest.TestCase):
     # noinspection PyArgumentList
     def test(self):
@@ -161,7 +186,7 @@ class TestEventWithOriginatorVersionAndID(unittest.TestCase):
 
 
 class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
-    def test(self):
+    def test_one_subclass(self):
         # Check base class can be sub-classed.
         class Event(EventWithTimestamp, EventWithOriginatorID):
             pass
@@ -191,9 +216,7 @@ class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
         self.assertEqual(event2, event2)
         self.assertNotEqual(event1, event2)
 
-
-class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
-    def test(self):
+    def test_two_subclasses(self):
         # Check base class can be sub-classed.
         class Event(EventWithTimestamp, EventWithOriginatorID):
             pass
@@ -398,8 +421,8 @@ class TestEvents(unittest.TestCase):
     def test_topic_resolution_error(self):
         # Check topic resolution error is raised, if the module path is
         # broken, and if the class name is broken.
-        resolve_domain_topic('eventsourcing.domain.model.events#DomainEvent')
+        resolve_topic('eventsourcing.domain.model.events#DomainEvent')
         with self.assertRaises(TopicResolutionError):
-            resolve_domain_topic('eventsourcing.domain.model.broken#DomainEvent')
+            resolve_topic('eventsourcing.domain.model.broken#DomainEvent')
         with self.assertRaises(TopicResolutionError):
-            resolve_domain_topic('eventsourcing.domain.model.events#Broken')
+            resolve_topic('eventsourcing.domain.model.events#Broken')

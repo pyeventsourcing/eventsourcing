@@ -58,12 +58,12 @@ class Collection(TimestampedVersionedEntity):
         self._apply_and_publish(event)
 
     @classmethod
-    def _mutate(cls, initial, event):
+    def _mutate(cls, initial=None, event=None):
         return collection_mutator(initial or cls, event)
 
 
 def register_new_collection(collection_id=None):
-    collection_id = uuid4().hex if collection_id is None else collection_id
+    collection_id = uuid4() if collection_id is None else collection_id
     event = Collection.Created(originator_id=collection_id)
     entity = collection_mutator(Collection, event)
     publish(event)

@@ -8,9 +8,10 @@ import six
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
-    Logged, topic_from_domain_class
+    Logged
+from eventsourcing.infrastructure.topic import get_topic
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.exceptions import SequencedItemError
+from eventsourcing.exceptions import SequencedItemConflict
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
@@ -108,7 +109,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.assertEqual(retrieved_items[0].data, item1.data)
         self.assertEqual(retrieved_items[0].topic, item1.topic)
 
-        # Check raises SequencedItemError when appending an item at same position in same sequence.
+        # Check raises SequencedItemConflict when appending an item at same position in same sequence.
         data3 = json.dumps({'name': 'value3'})
         item3 = SequencedItem(
             sequence_id=item1.sequence_id,
@@ -121,7 +122,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.assertNotEqual(item1.topic, item3.topic)
         self.assertNotEqual(item1.data, item3.data)
         # - check appending item as single item
-        with self.assertRaises(SequencedItemError):
+        with self.assertRaises(SequencedItemConflict):
             self.active_record_strategy.append(item3)
 
         item4 = SequencedItem(
@@ -137,7 +138,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             data=data3,
         )
         # - check appending item as a list of items (none should be appended)
-        with self.assertRaises(SequencedItemError):
+        with self.assertRaises(SequencedItemConflict):
             self.active_record_strategy.append([item3, item4, item5])
 
         # Check there is still only one item.
@@ -363,16 +364,16 @@ class TimestampedEventExample2(EventWithTimestamp, EventWithOriginatorID):
 
 
 class IntegerSequencedItemTestCase(ActiveRecordStrategyTestCase):
-    EXAMPLE_EVENT_TOPIC1 = topic_from_domain_class(VersionedEventExample1)
-    EXAMPLE_EVENT_TOPIC2 = topic_from_domain_class(VersionedEventExample2)
+    EXAMPLE_EVENT_TOPIC1 = get_topic(VersionedEventExample1)
+    EXAMPLE_EVENT_TOPIC2 = get_topic(VersionedEventExample2)
 
     def construct_positions(self):
         return 0, 1, 2
 
 
 class TimestampSequencedItemTestCase(ActiveRecordStrategyTestCase):
-    EXAMPLE_EVENT_TOPIC1 = topic_from_domain_class(TimestampedEventExample1)
-    EXAMPLE_EVENT_TOPIC2 = topic_from_domain_class(TimestampedEventExample2)
+    EXAMPLE_EVENT_TOPIC1 = get_topic(TimestampedEventExample1)
+    EXAMPLE_EVENT_TOPIC2 = get_topic(TimestampedEventExample2)
 
     def construct_positions(self):
         t1 = time()
