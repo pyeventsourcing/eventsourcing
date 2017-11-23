@@ -526,11 +526,11 @@ It has the same interface as :class:`~eventsourcing.interface.notificationlog.No
 and so can be used by :class:`~eventsourcing.interface.notificationlog.NotificationLogReader`
 progressively to obtain unseen notifications.
 
-Todo: Pulling from remote notification log.
+.. Todo: Pulling from remote notification log.
 
-Todo: Publishing and subscribing to remote notification log.
+.. Todo: Publishing and subscribing to remote notification log.
 
-Todo: Deduplicating domain events in receiving context.
+.. Todo: Deduplicating domain events in receiving context.
 Events may appear twice in the notification log if there is
 contention over the command that generates the logged event,
 or if the event cannot be appended to the aggregate stream
@@ -548,7 +548,7 @@ distributed manner. The command sequence can then be executed in
 a distributed manner. This approach would support creating another
 application log that is entirely correct.
 
-Todo: Race conditions around reading events being assigned using
+.. Todo: Race conditions around reading events being assigned using
 central integer sequence generator, could potentially read when a
 later index has been assigned but a previous one has not yet been
 assigned. Reading the previous as None, when it just being assigned
@@ -568,7 +568,7 @@ client process crashed before the database operation could be executed
 but after the integer had been issued, so the integer became lost.
 This needs code.
 
-Todo: Automatic initialisation of the integer sequence generator RedisIncr
+.. Todo: Automatic initialisation of the integer sequence generator RedisIncr
 from getting highest assigned index. Or perhaps automatic update with
 the current highest assigned index if there continues to be contention
 after a number of increments, indicating the issued values are far behind.
@@ -576,7 +576,7 @@ If processes all reset the value whilst they are also incrementing it, then
 there will be a few concurrency errors, but it should level out quickly.
 This also needs code.
 
-Todo: Use actual domain event objects, and log references to them. Have an
+.. Todo: Use actual domain event objects, and log references to them. Have an
 iterator that returns actual domain events, rather than the logged references.
 Could log the domain events, but their variable size makes the application log
 less stable (predictable) in its usage of database partitions. Perhaps
@@ -584,4 +584,4 @@ deferencing to real domain events could be an option of the notification log?
 Perhaps something could encapsulate the notification log and generate domain
 events?
 
-Todo: Configuration of remote reader, to allow URL to be completely configurable.
+.. Todo: Configuration of remote reader, to allow URL to be completely configurable.

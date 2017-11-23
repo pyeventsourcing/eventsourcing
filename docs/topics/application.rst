@@ -265,19 +265,19 @@ active record strategy method ``get_items()``.
 
     assert items[0].originator_id == aggregate_id
     assert items[0].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Created'
-    assert items[0].state.startswith('{"a":1,"timestamp":')
+    assert '{"a":1,"timestamp":' in items[0].state
 
     assert items[1].originator_id == aggregate_id
     assert items[1].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
-    assert items[1].state.startswith('{"name":"_a",')
+    assert '{"name":"_a",' in items[1].state
 
     assert items[2].originator_id == aggregate_id
     assert items[2].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
-    assert items[2].state.startswith('{"name":"_a",')
+    assert '{"name":"_a",' in items[2].state
 
     assert items[3].originator_id == aggregate_id
     assert items[3].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Discarded'
-    assert items[3].state.startswith('{"timestamp":')
+    assert '{"timestamp":' in items[3].state
 
 
 Close
@@ -292,27 +292,27 @@ handlers being called inappropriately, if the process isn't going to terminate i
     app.close()
 
 
-Todo: Something about the library's application class?
+.. Todo: Something about the library's application class?
 
-Todo: Something about using uuid5 to make UUIDs from things like email addresses.
+.. Todo: Something about using uuid5 to make UUIDs from things like email addresses.
 
-Todo: Something about using application log to get a sequence of all events.
+.. Todo: Something about using application log to get a sequence of all events.
 
-Todo: Something about using a policy to update views from published events.
+.. Todo: Something about using a policy to update views from published events.
 
-Todo: Something about using a policy to update a register of existant IDs from published events.
+.. Todo: Something about using a policy to update a register of existant IDs from published events.
 
-Todo: Something about having a worker application, that has policies that process events received by a worker.
+.. Todo: Something about having a worker application, that has policies that process events received by a worker.
 
-Todo: Something about having a policy to publish events to worker applications.
+.. Todo: Something about having a policy to publish events to worker applications.
 
-Todo: Something like a message queue strategy strategy.
+.. Todo: Something like a message queue strategy strategy.
 
-Todo: Something about publishing events to a message queue.
+.. Todo: Something about publishing events to a message queue.
 
-Todo: Something about receiving events in a message queue worker.
+.. Todo: Something about receiving events in a message queue worker.
 
-Todo: Something about publishing events to a message queue.
+.. Todo: Something about publishing events to a message queue.
 
-Todo: Something about receiving events in a message queue worker.
+.. Todo: Something about receiving events in a message queue worker.
 

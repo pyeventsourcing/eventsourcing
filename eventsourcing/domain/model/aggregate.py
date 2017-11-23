@@ -41,6 +41,20 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         """
         Constructs, applies, and publishes domain event of given class, with given kwargs.
         """
+
+        # Make hash from kwargs.
+        # hash_kwargs = self.hash(kwargs)
+        # hash_last = self.last_hash
+        # hash_next = self(hash_last, hash_kwargs)
+
+
+        # Validate (somewhere).
+        # hash_kwargs = self.hash(kwargs)
+        # hash_last = last_hash
+        # hash_next = self(hash_last, hash_kwargs)
+        # assert hash_next == stored_hash
+
+
         domain_event = event_class(
             originator_id=self.id,
             originator_version=self.version,

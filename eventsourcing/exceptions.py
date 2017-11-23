@@ -60,3 +60,6 @@ class SequencedItemConflict(EventSourcingError):
 
 class TimeSequenceError(EventSourcingError):
     "Raised when a time sequence error occurs e.g. trying to save a timestamp that already exists."
+
+class DataIntegrityError(EventSourcingError):
+    "Raised when a sequenced item data is damaged (hash doesn't match data)"

@@ -324,7 +324,7 @@ sequenced item namedtuple ``SequencedItem``.
 
 .. code:: python
 
-    sequenced_item_mapper = SequencedItemMapper()
+    sequenced_item_mapper = SequencedItemMapper(check_data_integrity=False)
 
 
 The method ``from_sequenced_item()`` can be used to convert sequenced item objects to application-level objects.
@@ -357,7 +357,8 @@ using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 
     sequenced_item_mapper = SequencedItemMapper(
         sequence_id_attr_name='originator_id',
-        position_attr_name='originator_version'
+        position_attr_name='originator_version',
+        check_data_integrity=False
     )
 
     domain_event1 = sequenced_item_mapper.from_sequenced_item(sequenced_item1)
@@ -376,6 +377,7 @@ different from the default ``SequencedItem`` namedtuple, such as the library's `
 
     sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=StoredEvent,
+        check_data_integrity=False,
     )
 
     domain_event1 = sequenced_item_mapper.from_sequenced_item(stored_event1)
@@ -444,6 +446,7 @@ The code below extends the JSON transcoding to support sets.
     customized_sequenced_item_mapper = SequencedItemMapper(
         json_encoder_class=CustomObjectJSONEncoder,
         json_decoder_class=CustomObjectJSONDecoder,
+        check_data_integrity=False,
     )
 
     domain_event = customized_sequenced_item_mapper.from_sequenced_item(
