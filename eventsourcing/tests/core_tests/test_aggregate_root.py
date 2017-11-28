@@ -164,17 +164,6 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         aggregate1.save()
         aggregate2.save()
 
-        # Todo: Somehow avoid IDs being valid in other repositories.
-        # - either namespace the UUIDs, with a UUID for each type,
-        #     with adjustments to repository and factory methods.
-        # - or make sequence type be a thing, with IDs being valid within the type
-        #     compound partition key in Cassandra,
-        # self.assertFalse(aggregate1.id in self.app.aggregate2_repository)
-        # self.assertFalse(aggregate2.id in self.app.aggregate1_repository)
-
-        aggregate1 = self.app.aggregate2_repository[aggregate1.id]
-        aggregate2 = self.app.aggregate1_repository[aggregate2.id]
-
         aggregate1 = self.app.aggregate1_repository[aggregate1.id]
         aggregate2 = self.app.aggregate2_repository[aggregate2.id]
 
@@ -188,6 +177,14 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         aggregate1.save()
         self.assertFalse(aggregate1.id in self.app.aggregate1_repository)
         self.assertTrue(aggregate2.id in self.app.aggregate2_repository)
+
+        # Todo: Somehow avoid all IDs existing in all repositories.
+        # - either namespace the UUIDs, with a UUID for each type,
+        #     with adjustments to repository and factory methods.
+        # - or make sequence type be a thing, with IDs being valid within the type
+        #     compound partition key in Cassandra,
+        # self.assertFalse(aggregate2.id in self.app.aggregate1_repository)
+
 
     def test_validate_originator_head_error(self):
         # Check event has valid originator head.
