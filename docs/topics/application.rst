@@ -66,7 +66,6 @@ defined below. It is a subclass of the library's ``AggregateRoot`` entity class.
 
 The entity has an event sourced attribute, called ``a``.
 
-
 .. code:: python
 
     from eventsourcing.domain.model.aggregate import AggregateRoot
@@ -85,7 +84,13 @@ The entity has an event sourced attribute, called ``a``.
             """
 
 
+    # It works just like a normal object.
     assert CustomAggregate(a=1, id=1, timestamp=1).a == 1
+
+
+For more sophisticated domain models, please read
+more about the :doc:`domain model layer </topics/domainmodel>`.
+
 
 Repository
 ----------
@@ -151,6 +156,10 @@ function ``construct_sqlalchemy_eventstore()``, and the database ``session``.
     # Setup table in database.
     active_record_class = event_store.active_record_strategy.active_record_class
     datastore.setup_table(active_record_class)
+
+
+For alternative infrastructure, please read more about
+the :doc:`infrastructure layer </topics/infrastructure>`.
 
 
 Run the code
