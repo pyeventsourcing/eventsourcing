@@ -189,7 +189,7 @@ Now, a new aggregate instance can be created with the application service ``crea
     # Remember the aggregate's ID.
     aggregate_id = aggregate.id
 
-    # Forget the aggregate (will still saved be in the database).
+    # Forget the aggregate (will still be saved in the database).
     del(aggregate)
 
 
