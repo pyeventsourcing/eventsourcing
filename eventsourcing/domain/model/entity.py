@@ -5,8 +5,8 @@ from six import with_metaclass
 from eventsourcing.domain.model.decorators import mutator
 from eventsourcing.domain.model.events import AttributeChanged, Created, Discarded, DomainEvent, \
     EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, QualnameABC, publish
-from eventsourcing.exceptions import EntityIsDiscarded, MismatchedOriginatorIDError, \
-    MismatchedOriginatorVersionError, MutatorRequiresTypeNotInstance
+from eventsourcing.exceptions import EntityIsDiscarded, OriginatorIDError, \
+    OriginatorVersionError, MutatorRequiresTypeNotInstance
 from eventsourcing.utils.time import timestamp_from_uuid
 
 
@@ -64,7 +64,7 @@ class DomainEntity(QualnameABC):
         Checks the event's originator ID matches this entity's ID.
         """
         if self._id != event.originator_id:
-            raise MismatchedOriginatorIDError(
+            raise OriginatorIDError(
                 "'{}' not equal to event originator ID '{}'"
                 "".format(self.id, event.originator_id)
             )
@@ -171,7 +171,7 @@ class VersionedEntity(DomainEntity):
         """
         super(VersionedEntity, self)._validate_originator(event)
         if self._version != event.originator_version:
-            raise MismatchedOriginatorVersionError(
+            raise OriginatorVersionError(
                 ("Event originated from entity at version {}, "
                  "but entity is currently at version {}. "
                  "Event type: '{}', entity type: '{}', entity ID: '{}'"

@@ -4,6 +4,7 @@ from unittest.case import TestCase
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import attribute
+from eventsourcing.exceptions import EventHashError, OriginatorHeadError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
@@ -26,7 +27,7 @@ class TestAggregateRootEvent(TestCase):
         event2 = AggregateRoot.AttributeChanged(
             originator_version=1,
             originator_id='1',
-            originator_hash=event1.event_hash
+            originator_head=event1.event_hash
         )
         event2.validate()
 
@@ -34,9 +35,21 @@ class TestAggregateRootEvent(TestCase):
         event3 = AggregateRoot.AttributeChanged(
             originator_version=2,
             originator_id='1',
-            originator_hash=event2.event_hash
+            originator_head=event2.event_hash
         )
         event3.validate()
+
+    def test_seal_hash_mismatch(self):
+        event1 = AggregateRoot.Created(
+            originator_version=0,
+            originator_id='1',
+        )
+        event1.validate()
+
+        # Break the seal hash.
+        event1.__dict__['event_hash'] = ''
+        with self.assertRaises(EventHashError):
+            event1.validate()
 
 
 class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
@@ -130,6 +143,18 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         # Check the aggregate no longer exists in the repo.
         self.assertNotIn(aggregate.id, self.app.aggregate_repository)
 
+    def test_validate_originator_head_error(self):
+        # Check event has valid originator head.
+        aggregate = ExampleAggregateRoot(id='1', foo='bar', timestamp=0)
+        event = ExampleAggregateRoot.AttributeChanged(name='foo', value='bar', originator_id='1',
+                                                      originator_version=1, originator_head=aggregate.__head__)
+        aggregate._validate_originator_head(event)
+
+        # Check OriginatorHeadError is raised if the originator head is wrong.
+        event.__dict__['originator_head'] += 'damage'
+        with self.assertRaises(OriginatorHeadError):
+            aggregate._validate_originator_head(event)
+
 
 class ExampleAggregateRoot(AggregateRoot):
     class Event(AggregateRoot.Event):
@@ -219,7 +244,7 @@ class ExampleDDDApplication(object):
         """
         event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4())
         aggregate = ExampleAggregateRoot._mutate(event=event)
-        aggregate.__pending_events__.append(event)
+        aggregate._publish(event)
         return aggregate
 
     def close(self):

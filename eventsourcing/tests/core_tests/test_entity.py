@@ -7,7 +7,7 @@ from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.events import DomainEvent, publish, subscribe, unsubscribe
 from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
-from eventsourcing.exceptions import ConcurrencyError, MismatchedOriginatorIDError, MismatchedOriginatorVersionError, \
+from eventsourcing.exceptions import ConcurrencyError, OriginatorIDError, OriginatorVersionError, \
     MutatorRequiresTypeNotInstance, ProgrammingError, RepositoryKeyError
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
@@ -98,7 +98,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertRaises(AssertionError, entity1.discard)
 
         # Should fail to validate event with wrong entity ID.
-        with self.assertRaises(MismatchedOriginatorIDError):
+        with self.assertRaises(OriginatorIDError):
             entity2._validate_originator(
                 VersionedEntity.Event(
                     originator_id=uuid4(),
@@ -106,7 +106,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
                 )
             )
         # Should fail to validate event with wrong entity version.
-        with self.assertRaises(MismatchedOriginatorVersionError):
+        with self.assertRaises(OriginatorVersionError):
             entity2._validate_originator(
                 VersionedEntity.Event(
                     originator_id=entity2.id,

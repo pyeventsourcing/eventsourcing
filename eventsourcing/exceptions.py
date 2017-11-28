@@ -22,11 +22,11 @@ class MismatchedOriginatorError(ConsistencyError):
     """Raised when applying an event to an inappropriate object."""
 
 
-class MismatchedOriginatorIDError(MismatchedOriginatorError):
+class OriginatorIDError(MismatchedOriginatorError):
     """Raised when applying an event to the wrong entity or aggregate."""
 
 
-class MismatchedOriginatorVersionError(MismatchedOriginatorError):
+class OriginatorVersionError(MismatchedOriginatorError):
     """Raised when applying an event to the wrong version of an entity or aggregate."""
 
 
@@ -38,12 +38,12 @@ class DataIntegrityError(EventSourcingError):
     "Raised when a sequenced item data is damaged (hash doesn't match data)"
 
 
-class SealHashMismatch(DataIntegrityError):
+class EventHashError(DataIntegrityError):
     "Raised when an event's seal hash doesn't match the hash of the state of the event."
 
 
-class MismatchedLastHashError(DataIntegrityError, MismatchedOriginatorError):
-    """Raised when applying an event with last hash different to aggregate head hash."""
+class OriginatorHeadError(DataIntegrityError, MismatchedOriginatorError):
+    """Raised when applying an event with hash different from aggregate head."""
 
 
 class EntityIsDiscarded(AssertionError):

@@ -76,9 +76,8 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         data = self.serialize_event_attrs(event_attrs, is_encrypted=is_encrypted)
 
         if self.with_data_integrity:
-            algorithm = 'sha256'
-            hash = self.hash(algorithm, sequence_id, position, data)
-            data = '{}:{}:{}'.format(algorithm, hash, data)
+            hash = self.hash(sequence_id, position, data)
+            data = '{}:{}'.format(hash, data)
 
         # Get the 'other' args.
         # - these are meant to be derivative of the other attributes,
@@ -87,11 +86,8 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         return (sequence_id, position, topic, data) + other_args
 
-    def hash(self, algorithm, *args):
-        if algorithm == 'sha256':
-            return hashlib.sha256(self.json_dumps(args).encode()).hexdigest()
-        else:
-            raise ValueError('Algorithm not supported: {}'.format(algorithm))
+    def hash(self, *args):
+        return hashlib.sha256(self.json_dumps(args).encode()).hexdigest()
 
     def construct_sequenced_item(self, item_args):
         return self.sequenced_item_class(*item_args)
@@ -112,10 +108,9 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         data = getattr(sequenced_item, self.field_names.data)
 
         hash = None
-        algorithm = None
         if self.with_data_integrity:
             try:
-                algorithm, hash, data = data.split(':', 2)
+                hash, data = data.split(':', 1)
             except ValueError:
                 raise DataIntegrityError("failed split", sequenced_item[:2])
 
@@ -124,7 +119,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         position = getattr(sequenced_item, self.field_names.position)
 
         if self.with_data_integrity:
-            if hash != self.hash(algorithm, sequence_id, position, data):
+            if hash != self.hash(sequence_id, position, data):
                 raise DataIntegrityError('hash mismatch', sequenced_item[:2])
 
         # Set the sequence ID and position.

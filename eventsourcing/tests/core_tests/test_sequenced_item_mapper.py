@@ -154,7 +154,7 @@ class TestSequencedItemMapper(TestCase):
         )
 
         # Check the sequenced item has data with expected hash prefix.
-        prefix = 'sha256:6c3416b6b866f46c44e243cda0e5c70efd807c472e147cfa5e9ea01443c4604f:'
+        prefix = '6c3416b6b866f46c44e243cda0e5c70efd807c472e147cfa5e9ea01443c4604f:'
         sequenced_item = mapper.to_sequenced_item(orig_event)
         self.assertEqual(sequenced_item.data, prefix + '{"a":555}')
 
@@ -168,6 +168,17 @@ class TestSequencedItemMapper(TestCase):
             position=sequenced_item.position,
             topic=sequenced_item.topic,
             data=prefix + '{"a":554}',
+        )
+
+        with self.assertRaises(DataIntegrityError):
+            mapper.from_sequenced_item(damaged_item)
+
+        # Check a damaged item causes an exception.
+        damaged_item = SequencedItem(
+            sequence_id=sequenced_item.sequence_id,
+            position=sequenced_item.position,
+            topic=sequenced_item.topic,
+            data=prefix[:-1] + '{}',
         )
 
         with self.assertRaises(DataIntegrityError):

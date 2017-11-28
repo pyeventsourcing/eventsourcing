@@ -7,7 +7,7 @@ import os
 
 from eventsourcing.domain.model.entity import TimestampedVersionedEntity, WithReflexiveMutator
 from eventsourcing.domain.model.events import publish
-from eventsourcing.exceptions import MismatchedLastHashError, SealHashMismatch
+from eventsourcing.exceptions import OriginatorHeadError, EventHashError
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
 GENESIS_HASH = os.getenv('EVENTSOURCING_GENESIS_HASH', '')
@@ -24,14 +24,14 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
 
         def __init__(self, **kwargs):
             super(AggregateRoot.Event, self).__init__(**kwargs)
-            assert 'originator_hash' in self.__dict__
+            assert 'originator_head' in self.__dict__
             # Seal the event state.
             assert 'event_hash' not in self.__dict__
-            self.__dict__['event_hash'] = self.hash('sha256', self.__dict__)
+            self.__dict__['event_hash'] = self.hash(self.__dict__)
 
         @property
-        def originator_hash(self):
-            return self.__dict__['originator_hash']
+        def originator_head(self):
+            return self.__dict__['originator_head']
 
         @property
         def event_hash(self):
@@ -39,22 +39,19 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
 
         def validate(self):
             state = self.__dict__.copy()
-            seal_hash = state.pop('event_hash')
-            if seal_hash != self.hash('sha256', state):
-                raise SealHashMismatch(self.originator_id)
+            event_hash = state.pop('event_hash')
+            if event_hash != self.hash(state):
+                raise EventHashError(self.originator_id)
 
         @classmethod
-        def hash(cls, algorithm, *args):
+        def hash(cls, *args):
             json_dump = json.dumps(
                 args,
                 separators=(',', ':'),
                 sort_keys=True,
                 cls=cls.json_encoder_class,
             )
-            if algorithm == 'sha256':
-                return hashlib.sha256(json_dump.encode()).hexdigest()
-            else:
-                raise ValueError('Algorithm not supported: {}'.format(algorithm))
+            return hashlib.sha256(json_dump.encode()).hexdigest()
 
         @abstractmethod
         def mutate(self, aggregate):
@@ -67,8 +64,8 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         """Published when an AggregateRoot is created."""
 
         def __init__(self, **kwargs):
-            assert 'originator_hash' not in kwargs
-            kwargs['originator_hash'] = GENESIS_HASH
+            assert 'originator_head' not in kwargs
+            kwargs['originator_head'] = GENESIS_HASH
             super(AggregateRoot.Created, self).__init__(**kwargs)
 
         def mutate(self, cls):
@@ -81,7 +78,7 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
             kwargs['id'] = kwargs.pop('originator_id')
             kwargs['version'] = kwargs.pop('originator_version')
             kwargs.pop('event_hash')
-            kwargs.pop('originator_hash')
+            kwargs.pop('originator_head')
             return kwargs
 
     class AttributeChanged(Event, TimestampedVersionedEntity.AttributeChanged):
@@ -121,9 +118,9 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
 
     def _trigger(self, event_class, **kwargs):
         """
-        Triggers domain event of given class with originator_hash as current __head__.
+        Triggers domain event of given class with originator_head as current __head__.
         """
-        kwargs['originator_hash'] = self.__head__
+        kwargs['originator_head'] = self.__head__
         return super(AggregateRoot, self)._trigger(event_class, **kwargs)
 
     def _publish(self, event):
@@ -136,16 +133,19 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         """
         Checks a domain event against the aggregate.
         """
-        self._validate_last_hash(event)
         event.validate()
         self._validate_originator(event)
 
-    def _validate_last_hash(self, event):
+    def _validate_originator(self, event):
+        super(AggregateRoot, self)._validate_originator(event)
+        self._validate_originator_head(event)
+
+    def _validate_originator_head(self, event):
         """
         Checks the head hash matches the event's last hash.
         """
-        if self.__head__ != event.originator_hash:
-            raise MismatchedLastHashError(self.__head__, event.originator_hash)
+        if self.__head__ != event.originator_head:
+            raise OriginatorHeadError(self.__head__, event.originator_head)
 
     def increment_version(self):
         self._increment_version()
