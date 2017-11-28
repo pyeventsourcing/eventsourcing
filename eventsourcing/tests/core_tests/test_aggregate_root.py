@@ -185,7 +185,6 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         #     compound partition key in Cassandra,
         # self.assertFalse(aggregate2.id in self.app.aggregate1_repository)
 
-
     def test_validate_originator_head_error(self):
         # Check event has valid originator head.
         aggregate = Aggregate1(id='1', foo='bar', timestamp=0)
