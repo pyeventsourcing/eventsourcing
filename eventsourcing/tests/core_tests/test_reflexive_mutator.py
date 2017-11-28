@@ -41,7 +41,7 @@ class TestWithReflexiveMutatorDefaultsToBaseClass(TestCase):
         # Create an entity.
         entity_id = uuid4()
         created = ExampleWithReflexiveMutatorDefaultsToBaseClass.Created(originator_id=entity_id, a=1, b=2)
-        entity = ExampleWithReflexiveMutatorDefaultsToBaseClass._mutate(initial=None, event=created)
+        entity = ExampleWithReflexiveMutatorDefaultsToBaseClass._mutate(event=created)
         self.assertIsInstance(entity, ExampleWithReflexiveMutatorDefaultsToBaseClass)
         self.assertEqual(entity.id, entity_id)
         self.assertEqual(entity.a, 1)
