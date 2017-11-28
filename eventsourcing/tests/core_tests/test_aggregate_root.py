@@ -15,7 +15,6 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 
 
 class TestAggregateRootEvent(TestCase):
-
     def test_validate_aggregate_events(self):
         event1 = AggregateRoot.Created(
             originator_version=0,
@@ -190,13 +189,11 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         self.assertFalse(aggregate1.id in self.app.aggregate1_repository)
         self.assertTrue(aggregate2.id in self.app.aggregate2_repository)
 
-
-
     def test_validate_originator_head_error(self):
         # Check event has valid originator head.
-        aggregate = ExampleAggregateRoot(id='1', foo='bar', timestamp=0)
-        event = ExampleAggregateRoot.AttributeChanged(name='foo', value='bar', originator_id='1',
-                                                      originator_version=1, originator_head=aggregate.__head__)
+        aggregate = Aggregate1(id='1', foo='bar', timestamp=0)
+        event = Aggregate1.AttributeChanged(name='foo', value='bar', originator_id='1',
+                                            originator_version=1, originator_head=aggregate.__head__)
         aggregate._validate_originator_head(event)
 
         # Check OriginatorHeadError is raised if the originator head is wrong.
