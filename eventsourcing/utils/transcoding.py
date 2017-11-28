@@ -4,7 +4,7 @@ from uuid import UUID
 
 import dateutil.parser
 
-from eventsourcing.infrastructure.topic import get_topic, resolve_topic
+from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
 class ObjectJSONEncoder(JSONEncoder):

@@ -7,10 +7,10 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.exceptions import DataIntegrityError
-from eventsourcing.infrastructure.topic import get_topic, resolve_topic
+from eventsourcing.utils.topic import get_topic, resolve_topic
 from eventsourcing.infrastructure.cipher.base import AbstractCipher
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
-from eventsourcing.infrastructure.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 
 class AbstractSequencedItemMapper(six.with_metaclass(ABCMeta)):
@@ -34,7 +34,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
     def __init__(self, sequenced_item_class=SequencedItem, sequence_id_attr_name=None, position_attr_name=None,
                  json_encoder_class=ObjectJSONEncoder, json_decoder_class=ObjectJSONDecoder,
-                 always_encrypt=False, cipher=None, other_attr_names=(), check_data_integrity=True):
+                 always_encrypt=False, cipher=None, other_attr_names=(), with_data_integrity=False):
         self.sequenced_item_class = sequenced_item_class
         self.json_encoder_class = json_encoder_class
         self.json_decoder_class = json_decoder_class
@@ -44,7 +44,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         self.sequence_id_attr_name = sequence_id_attr_name or self.field_names.sequence_id
         self.position_attr_name = position_attr_name or self.field_names.position
         self.other_attr_names = other_attr_names or self.field_names[4:]
-        self.check_data_integrity = check_data_integrity
+        self.with_data_integrity = with_data_integrity
 
     def to_sequenced_item(self, domain_event):
         """
@@ -75,7 +75,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Serialise the remaining event attribute values.
         data = self.serialize_event_attrs(event_attrs, is_encrypted=is_encrypted)
 
-        if self.check_data_integrity:
+        if self.with_data_integrity:
             algorithm = 'sha256'
             hash = self.hash(algorithm, sequence_id, position, data)
             data = '{}:{}:{}'.format(algorithm, hash, data)
@@ -92,6 +92,14 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
             return hashlib.sha256(self.json_dumps(args).encode()).hexdigest()
         else:
             raise ValueError('Algorithm not supported: {}'.format(algorithm))
+
+    def json_dumps(self, obj):
+        return json.dumps(
+            obj,
+            separators=(',', ':'),
+            sort_keys=True,
+            cls=self.json_encoder_class,
+        )
 
     def construct_sequenced_item(self, item_args):
         return self.sequenced_item_class(*item_args)
@@ -113,7 +121,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         hash = None
         algorithm = None
-        if self.check_data_integrity:
+        if self.with_data_integrity:
             try:
                 algorithm, hash, data = data.split(':', 2)
             except ValueError:
@@ -123,7 +131,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         sequence_id = getattr(sequenced_item, self.field_names.sequence_id)
         position = getattr(sequenced_item, self.field_names.position)
 
-        if self.check_data_integrity:
+        if self.with_data_integrity:
             if hash != self.hash(algorithm, sequence_id, position, data):
                 raise DataIntegrityError('hash mismatch', sequenced_item[:2])
 

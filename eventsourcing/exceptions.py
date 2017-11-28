@@ -34,6 +34,18 @@ class MutatorRequiresTypeNotInstance(ConsistencyError):
     """Raised when mutator function received a class rather than an entity."""
 
 
+class DataIntegrityError(EventSourcingError):
+    "Raised when a sequenced item data is damaged (hash doesn't match data)"
+
+
+class SealHashMismatch(DataIntegrityError):
+    "Raised when an event's seal hash doesn't match the hash of the state of the event."
+
+
+class MismatchedLastHashError(DataIntegrityError, MismatchedOriginatorError):
+    """Raised when applying an event with last hash different to aggregate head hash."""
+
+
 class EntityIsDiscarded(AssertionError):
     """Raised when access to a recently discarded entity object is attempted."""
 
@@ -60,6 +72,3 @@ class SequencedItemConflict(EventSourcingError):
 
 class TimeSequenceError(EventSourcingError):
     "Raised when a time sequence error occurs e.g. trying to save a timestamp that already exists."
-
-class DataIntegrityError(EventSourcingError):
-    "Raised when a sequenced item data is damaged (hash doesn't match data)"

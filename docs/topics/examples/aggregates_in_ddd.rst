@@ -55,7 +55,7 @@ can operate on all the "example" objects of the aggregate.
         Root entity of example aggregate.
         """
         class Event(TimestampedVersionedEntity.Event):
-            """Layer supertype."""
+            """Supertype for events of example aggregates."""
 
         class Created(Event, TimestampedVersionedEntity.Created):
             """Published when aggregate is created."""

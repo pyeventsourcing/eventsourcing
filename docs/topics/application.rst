@@ -220,7 +220,7 @@ The aggregate can be discarded. After being saved, a discarded aggregate will no
     except KeyError:
         pass
     else:
-        raise Excpetion("Shouldn't get here.")
+        raise Exception("Shouldn't get here")
 
 
 Application events
@@ -265,19 +265,22 @@ active record strategy method ``get_items()``.
 
     assert items[0].originator_id == aggregate_id
     assert items[0].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Created'
-    assert '{"a":1,"timestamp":' in items[0].state
+    assert '"a":1' in items[0].state
+    assert '"timestamp":' in items[0].state
 
     assert items[1].originator_id == aggregate_id
     assert items[1].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
-    assert '{"name":"_a",' in items[1].state
+    assert '"name":"_a"' in items[1].state
+    assert '"timestamp":' in items[1].state
 
     assert items[2].originator_id == aggregate_id
     assert items[2].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
-    assert '{"name":"_a",' in items[2].state
+    assert '"name":"_a"' in items[2].state
+    assert '"timestamp":' in items[2].state
 
     assert items[3].originator_id == aggregate_id
     assert items[3].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Discarded'
-    assert '{"timestamp":' in items[3].state
+    assert '"timestamp":' in items[3].state
 
 
 Close

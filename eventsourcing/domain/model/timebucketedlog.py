@@ -31,7 +31,7 @@ BUCKET_SIZES = {
 
 class Timebucketedlog(TimestampedVersionedEntity):
     class Event(TimestampedVersionedEntity.Event):
-        """Layer supertype."""
+        """Supertype for events of time-bucketed log."""
 
     class Started(Event, TimestampedVersionedEntity.Created):
         pass

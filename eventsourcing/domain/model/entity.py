@@ -12,7 +12,7 @@ from eventsourcing.utils.time import timestamp_from_uuid
 
 class DomainEntity(QualnameABC):
     class Event(EventWithOriginatorID, DomainEvent):
-        """Layer supertype."""
+        """Supertype for events of domain entities."""
 
     class Created(Event, Created):
         """Published when a DomainEntity is created."""
@@ -39,32 +39,29 @@ class DomainEntity(QualnameABC):
 
     def change_attribute(self, name, value, **kwargs):
         """
-        Changes given attribute of the entity, by constructing
-        and applying an AttributeChanged event.
+        Changes named attribute with the given value, by triggering an AttributeChanged event.
         """
-        self._assert_not_discarded()
-        event = self.AttributeChanged(
-            name=name,
-            value=value,
-            originator_id=self._id,
-            **kwargs
-        )
-        self._apply_and_publish(event)
+        kwargs['name'] = name
+        kwargs['value'] = value
+        self._trigger(self.AttributeChanged, **kwargs)
 
     def discard(self, **kwargs):
+        """
+        Discards self, by triggering a Discarded event.
+        """
+        self._trigger(self.Discarded, **kwargs)
+
+    def _trigger(self, event_class, **kwargs):
+        """
+        Constructs, applies, and publishes domain event of given class, with given kwargs.
+        """
         self._assert_not_discarded()
-        event = self.Discarded(originator_id=self._id, **kwargs)
+        event = event_class(originator_id=self._id, **kwargs)
         self._apply_and_publish(event)
 
     def _validate_originator(self, event):
         """
-        Checks the event originated from (was published by) this entity.
-        """
-        self._validate_originator_id(event)
-
-    def _validate_originator_id(self, event):
-        """
-        Checks the event's entity ID matches this entity's ID.
+        Checks the event's originator ID matches this entity's ID.
         """
         if self._id != event.originator_id:
             raise MismatchedOriginatorIDError(
@@ -129,7 +126,7 @@ class WithReflexiveMutator(DomainEntity):
     @classmethod
     def _mutate(cls, initial=None, event=None):
         """
-        Calls the mutate() method of the event.
+        Attempts to call the mutate() method of given event.
 
         Passes cls if initial is None, so that handler of Created
         events can construct an entity object with the subclass.
@@ -143,11 +140,10 @@ class WithReflexiveMutator(DomainEntity):
 
 class VersionedEntity(DomainEntity):
     class Event(EventWithOriginatorVersion, DomainEntity.Event):
-        """Layer supertype."""
+        """Supertype for events of versioned entities."""
 
     class Created(Event, DomainEntity.Created):
         """Published when a VersionedEntity is created."""
-
         def __init__(self, originator_version=0, **kwargs):
             super(VersionedEntity.Created, self).__init__(originator_version=originator_version, **kwargs)
 
@@ -170,13 +166,10 @@ class VersionedEntity(DomainEntity):
             self._version += 1
 
     def _validate_originator(self, event):
+        """
+        Also checks the event's originator version matches this entity's version.
+        """
         super(VersionedEntity, self)._validate_originator(event)
-        self._validate_originator_version(event)
-
-    def _validate_originator_version(self, event):
-        """
-        Checks the event's entity version matches this entity's version.
-        """
         if self._version != event.originator_version:
             raise MismatchedOriginatorVersionError(
                 ("Event originated from entity at version {}, "
@@ -187,18 +180,17 @@ class VersionedEntity(DomainEntity):
                  )
             )
 
-    def change_attribute(self, name, value, **kwargs):
-        return super(VersionedEntity, self).change_attribute(
-            name, value, originator_version=self._version, **kwargs)
-
-    def discard(self, **kwargs):
-        return super(VersionedEntity, self).discard(
-            originator_version=self._version, **kwargs)
+    def _trigger(self, event_class, **kwargs):
+        """
+        Triggers domain event with entity's version number.
+        """
+        kwargs['originator_version'] = self.version
+        return super(VersionedEntity, self)._trigger(event_class, **kwargs)
 
 
 class TimestampedEntity(DomainEntity):
     class Event(EventWithTimestamp, DomainEntity.Event):
-        """Layer supertype."""
+        """Supertype for events of timestamped entities."""
 
     class Created(Event, DomainEntity.Created):
         """Published when a TimestampedEntity is created."""
@@ -240,7 +232,7 @@ class TimeuuidedEntity(DomainEntity):
 
 class TimestampedVersionedEntity(TimestampedEntity, VersionedEntity):
     class Event(TimestampedEntity.Event, VersionedEntity.Event):
-        """Layer supertype."""
+        """Supertype for events of timestamped, versioned entities."""
 
     class Created(Event, TimestampedEntity.Created, VersionedEntity.Created):
         """Published when a TimestampedVersionedEntity is created."""
@@ -330,7 +322,8 @@ class AbstractEntityRepository(with_metaclass(ABCMeta)):
         Returns True or False, according to whether or not entity exists.
         """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def event_store(self):
         """
         Returns event store object used by this repository.

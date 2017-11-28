@@ -6,13 +6,12 @@ from eventsourcing.example.domainmodel import Example
 
 
 class ExampleWithReflexiveMutatorDefaultsToBaseClass(WithReflexiveMutator, Example):
-    # Don't redefine events with mutate methods, should call super class.
-    pass
+    """Doesn't redefine events with mutate methods, calls parent method instead."""
 
 
 class ExampleWithReflexiveMutator(WithReflexiveMutator, Example):
     class Event(Example.Event):
-        """Layer supertype."""
+        """Supertype for events of example entities with reflexive mutator."""
 
     class Created(Event, Example.Created):
         def mutate(self, cls):

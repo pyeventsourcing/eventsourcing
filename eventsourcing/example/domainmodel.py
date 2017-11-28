@@ -11,7 +11,7 @@ class Example(TimestampedVersionedEntity):
     """
 
     class Event(TimestampedVersionedEntity.Event):
-        """Layer supertype."""
+        """Supertype for events of example entities."""
 
     class Created(Event, TimestampedVersionedEntity.Created):
         """Published when an Example is created."""

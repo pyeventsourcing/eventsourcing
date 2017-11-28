@@ -46,7 +46,7 @@ event classes have been pulled up to a layer supertype ``DomainEvent``.
 
     class DomainEvent(object):
         """
-        Layer supertype.
+        Supertype for domain event objects.
         """
         def __init__(self, originator_id, originator_version, **kwargs):
             self.originator_id = originator_id

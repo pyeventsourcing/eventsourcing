@@ -6,7 +6,7 @@ from uuid import uuid4
 from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import DataIntegrityError
-from eventsourcing.infrastructure.topic import get_topic
+from eventsourcing.utils.topic import get_topic
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
@@ -140,9 +140,10 @@ class TestSequencedItemMapper(TestCase):
         # self.assertEqual(domain_event.d, event3.d)
         self.assertEqual(domain_event.e, event3.e)
 
-    def test_check_data_integrity(self):
+    def test_with_data_integrity(self):
         mapper = SequencedItemMapper(
             sequenced_item_class=SequencedItem,
+            with_data_integrity=True,
         )
 
         # Create an event with a value.

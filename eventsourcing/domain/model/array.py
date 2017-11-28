@@ -14,8 +14,8 @@ class ItemAssigned(TimestampedVersionedEntity.Event):
     """Occurs when an item is set at a position in an array."""
 
     def __init__(self, item, index, *args, **kwargs):
-        super(ItemAssigned, self).__init__(item=item, originator_version=index, *args, **kwargs)
-        self.__dict__['item'] = item
+        kwargs['item'] = item
+        super(ItemAssigned, self).__init__(originator_version=index, *args, **kwargs)
 
     @property
     def item(self):
@@ -40,7 +40,7 @@ class Array(object):
     def __setitem__(self, index, item):
         """
         Sets item in array, at given index.
-        
+
         Won't overrun the end of the array, because
         the position is fixed to be less than base_size.
         """
@@ -142,12 +142,12 @@ class BigArray(Array):
     """
     A virtual array holding items in indexed
     positions, across a number of Array instances.
-    
+
     Getting and setting items at index position is
-    supported. Slices are supported, and operate 
+    supported. Slices are supported, and operate
     across the underlying arrays. Appending is also
     supported.
-    
+
     BigArray is designed to overcome the concern of
     needing a single large sequence that may not be
     suitably stored in any single partiton. In simple
@@ -156,7 +156,7 @@ class BigArray(Array):
     to make a tree of arrays that will certainly
     be capable of sequencing all the events of the
     application in a single stream.
-    
+
     With normal size base arrays, enterprise applications
     can expect read and write time to be approximately
     constant with respect to the number of items in the array.
@@ -173,7 +173,7 @@ class BigArray(Array):
     number of aggregates in the corresponding
     BigArray, that we can be confident it would
     be full.
-        
+
     Write access time in the worst case, and the time
     to identify the index of the last item in the big
     array, is proportional to the log of the highest
@@ -187,10 +187,10 @@ class BigArray(Array):
     and claiming the next position leads to contention and
     retries when there are lots of threads of execution all
     attempting to append items, which inherently limits throughput.
-    
+
     Todo: Not possible in Cassandra, but maybe do it in a
     transaction in SQLAlchemy?
-    
+
     An alternative to reading the last item before writing
     the next is to use an integer sequence generator to
     generate a stream of integers. Items can be assigned
@@ -198,11 +198,11 @@ class BigArray(Array):
     that are issued. Throughput will then be much better, and
     will be limited only by the rate at which the database can have
     events written to it (unless the number generator is quite slow).
-    
+
     An external integer sequence generator, such as Redis' INCR
     command, or an auto-incrementing database column, may
     constitute a single point of failure.
-    
+
     """
     def __init__(self, array_id, repo):
         assert isinstance(repo, AbstractArrayRepository), type(repo)

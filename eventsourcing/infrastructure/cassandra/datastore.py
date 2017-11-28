@@ -112,6 +112,6 @@ class CassandraDatastore(Datastore):
 
 
 class ActiveRecord(Model):
-    """Layer supertype."""
+    """Supertype for active records in Cassandra."""
     __abstract__ = True
 

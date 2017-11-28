@@ -324,7 +324,7 @@ sequenced item namedtuple ``SequencedItem``.
 
 .. code:: python
 
-    sequenced_item_mapper = SequencedItemMapper(check_data_integrity=False)
+    sequenced_item_mapper = SequencedItemMapper()
 
 
 The method ``from_sequenced_item()`` can be used to convert sequenced item objects to application-level objects.
@@ -357,8 +357,7 @@ using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 
     sequenced_item_mapper = SequencedItemMapper(
         sequence_id_attr_name='originator_id',
-        position_attr_name='originator_version',
-        check_data_integrity=False
+        position_attr_name='originator_version'
     )
 
     domain_event1 = sequenced_item_mapper.from_sequenced_item(sequenced_item1)
@@ -376,8 +375,7 @@ different from the default ``SequencedItem`` namedtuple, such as the library's `
 .. code:: python
 
     sequenced_item_mapper = SequencedItemMapper(
-        sequenced_item_class=StoredEvent,
-        check_data_integrity=False,
+        sequenced_item_class=StoredEvent
     )
 
     domain_event1 = sequenced_item_mapper.from_sequenced_item(stored_event1)
@@ -399,11 +397,27 @@ Please note, it is required of these application-level objects that the  "topic"
 .. code:: python
 
     from eventsourcing.domain.model.events import Created
-    from eventsourcing.infrastructure.topic import get_topic, resolve_topic
+    from eventsourcing.utils.topic import get_topic, resolve_topic
 
     topic = get_topic(Created)
     assert resolve_topic(topic) == Created
     assert topic == 'eventsourcing.domain.model.events#Created'
+
+
+Data integrity
+--------------
+
+Sequenced item records can be checked for accidental damage using a hash of the sequenced item data.
+This feature can be enable by setting ``with_data_integrity`` to ``True``.
+
+.. code:: python
+
+    SequencedItemMapper(with_data_integrity=True)
+
+
+This feature doesn't protect against malicious damage, since the hash value could be easily generated.
+The point is that a random mutation in the stored data would almost certainly be detected by checking
+the hash before mapping the sequenced item to an application-level object.
 
 
 Custom JSON transcoding
@@ -419,7 +433,7 @@ The code below extends the JSON transcoding to support sets.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
+    from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
 
 
     class CustomObjectJSONEncoder(ObjectJSONEncoder):
@@ -445,8 +459,7 @@ The code below extends the JSON transcoding to support sets.
 
     customized_sequenced_item_mapper = SequencedItemMapper(
         json_encoder_class=CustomObjectJSONEncoder,
-        json_decoder_class=CustomObjectJSONDecoder,
-        check_data_integrity=False,
+        json_decoder_class=CustomObjectJSONDecoder
     )
 
     domain_event = customized_sequenced_item_mapper.from_sequenced_item(
@@ -700,7 +713,7 @@ can be used to construct an event store that uses the SQLAlchemy classes.
 
     from eventsourcing.infrastructure.sqlalchemy import factory
 
-    event_store = factory.construct_sqlalchemy_eventstore(session=datastore.session)
+    event_store = factory.construct_sqlalchemy_eventstore(session=datastore.session, with_data_integrity=True)
 
 
 By default, the event store is constructed with the ``StoredEvent`` sequenced item namedtuple,
