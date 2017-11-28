@@ -30,42 +30,23 @@ interface that uses the application. Interfaces are outside the scope of
 the application layer.
 
 
-Event sourced application
-=========================
+Example application
+===================
 
-The example code below shows an event sourced application object class.
+The library provides a simple application class, called ``SimpleApplication``.
+
+The example below shows an event sourced application object class.
 
 .. code:: python
 
     from uuid import uuid4
 
-    from eventsourcing.application.policies import PersistencePolicy
-    from eventsourcing.domain.model.aggregate import AggregateRoot
-    from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-    from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
-
-    class SimpleApplication(object):
-        def __init__(self, event_store):
-            self.event_store = event_store
-
-            # Construct a persistence policy.
-            self.persistence_policy = PersistencePolicy(
-                event_store=self.event_store
-            )
-
-        def construct_repository(self, entity_class):
-            return EventSourcedRepository(
-                event_store=self.event_store,
-                mutator=entity_class._mutate
-            )
-
-        def close(self):
-            self.persistence_policy.close()
-
+    from eventsourcing.application.simple import SimpleApplication
 
     class MyApplication(SimpleApplication):
         def __init__(self, event_store):
             super(MyApplication, self).__init__(event_store)
+
             # Construct an event sourced repository.
             self.repository = self.construct_repository(CustomAggregate)
 
@@ -77,39 +58,18 @@ The example code below shows an event sourced application object class.
             return entity
 
 
+Aggregate
+---------
 
-The application has a domain model with one domain entity called ``CustomAggregate``,
-defined below. The entity has one attribute, called ``a``. It is a subclass
-of the library's ``AggregateRoot`` entity class.
+The example application code above depends on one entity class called ``CustomAggregate``,
+defined below. It is a subclass of the library's ``AggregateRoot`` entity class.
 
+The entity has an event sourced attribute, called ``a``.
 
-Repository
-----------
-
-The application has an event sourced repository for ``CustomAggregate`` instances. It
-uses the library class ``EventSourceRepository``, which uses an event store to get domain
-events for an aggregate, and the mutator function from the ``CustomAggregate`` class which
-it uses to reconstruct an aggregate instance from the events. An application needs one such
-repository for each type of aggregate in the application's domain model.
-
-
-Policy
-------
-
-The application object class has a persistence policy. It uses the library class
-``PersistencePolicy``. The persistence policy appends domain events to an event
-store whenever they are published.
-
-
-Aggregate factory
------------------
-
-The application also has an application service called ``create_aggregate()`` which can be used
-to create new ``CustomAggregate`` instances. The ``CustomAggregate`` is a very simple aggregate, which
-has an event sourced attribute called ``a``. To create such an aggregate, a value for ``a`` must be provided.
 
 .. code:: python
 
+    from eventsourcing.domain.model.aggregate import AggregateRoot
     from eventsourcing.domain.model.decorators import attribute
 
 
@@ -123,6 +83,37 @@ has an event sourced attribute called ``a``. To create such an aggregate, a valu
             """
             Event sourced attribute 'a'.
             """
+
+
+    assert CustomAggregate(a=1, id=1, timestamp=1).a == 1
+
+Repository
+----------
+
+The application has an event sourced repository for ``CustomAggregate`` instances.
+It is constructed using the method ``construct_repository()`` of ``SimpleApplication``.
+
+That method uses the library class ``EventSourcedRepository``, which uses an event store
+to get domain events for an aggregate. It also uses a mutator function from the aggregate
+class, which it uses to reconstruct an aggregate from its events. A simple application
+would normally have one such repository for each type of aggregate in the application's
+domain model.
+
+
+Policy
+------
+
+The ``SimpleApplication`` class has a persistence policy. It uses the library class
+``PersistencePolicy``. The persistence policy appends domain events to its event
+store whenever they are published.
+
+
+Aggregate factory
+-----------------
+
+The application above has an application service called ``create_aggregate()`` which can be used
+to create new ``CustomAggregate`` instances. To create such an aggregate using this factory
+method, a value for ``a`` must be provided.
 
 
 Database
@@ -143,10 +134,6 @@ used to setup a database.
     datastore = SQLAlchemyDatastore(settings=settings)
     datastore.setup_connection()
 
-    # Setup table in database.
-    # - done only once
-    datastore.setup_table(StoredEventRecord)
-
 
 Event store
 -----------
@@ -156,7 +143,14 @@ function ``construct_sqlalchemy_eventstore()``, and the database ``session``.
 
 .. code:: python
 
+    from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
+
+    # Construct event store.
     event_store = construct_sqlalchemy_eventstore(datastore.session)
+
+    # Setup table in database.
+    active_record_class = event_store.active_record_strategy.active_record_class
+    datastore.setup_table(active_record_class)
 
 
 Run the code
@@ -166,7 +160,7 @@ The application can be constructed with the event store.
 
 .. code:: python
 
-    # Construct application with session.
+    # Construct application object.
     app = MyApplication(event_store)
 
 
