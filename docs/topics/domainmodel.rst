@@ -560,13 +560,16 @@ A custom entity can also have custom methods that publish custom events. In the 
 ``make_it_so()`` publishes a domain event called ``SomethingHappened``.
 
 
-Custom mutator
---------------
+Custom events
+-------------
 
-To be applied to an entity, custom event classes must be supported by a custom mutator function. In the code below,
-the ``mutate_world()`` mutator function extends the library's ``mutate_entity`` function to support the event
-``SomethingHappened``. The ``_mutate()`` function of ``DomainEntity`` has been overridden so that ``mutate_world()``
-will be called when events are applied.
+To be applied to an entity, custom event classes must be supported by a custom mutator
+function. If this seems complicated, please skip to the next section about reflexive mutators.
+
+In the code below, the ``mutate_world()`` function extends the library's ``mutate_entity()``
+function to support  the event ``SomethingHappened``. The ``_mutate()`` function of
+``DomainEntity`` has been overridden so that ``mutate_world()`` will be called when
+events are applied.
 
 .. code:: python
 
@@ -599,6 +602,16 @@ will be called when events are applied.
         def _mutate(cls, initial=None, event=None):
             return mutate_world(initial=initial or cls, event=event)
 
+
+The ``mutate_world()`` function is decorated with the ``@mutator`` decorator, which,
+like singledispatch, allows functions to be registered by type. The decorated function
+dispatches calls to the registered functions, according to the type of the event (the
+last argument). The body of the decorated function defines the default behaviour: if the
+event type doesn't match any of the registered types, a call is made to the library
+function ``mutate_entity()``.
+
+.. code:: python
+
     @mutator
     def mutate_world(initial=None, event=None):
         return mutate_entity(initial, event)
@@ -610,6 +623,11 @@ will be called when events are applied.
         return self
 
 
+Now all the events are supported by the mutator, which can
+be used to project a sequence of events as an entity.
+
+.. code:: python
+
     world = World._mutate(event=World.Created(originator_id='1'))
 
     world.make_it_so('dinosaurs')
@@ -619,6 +637,9 @@ will be called when events are applied.
     assert world.history[0].what == 'dinosaurs'
     assert world.history[1].what == 'trucks'
     assert world.history[2].what == 'internet'
+
+
+In general, this technique can be used to define any projection of a sequence of events.
 
 
 Reflexive mutator
