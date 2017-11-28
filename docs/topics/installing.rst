@@ -7,36 +7,40 @@ Use pip to install the library from the
 
 ::
 
-    pip install eventsourcing
+    $ pip install eventsourcing
 
 
-If you want to use SQLAlchemy, then please install the library with the 'sqlalchemy' option.
-
-::
-
-    pip install eventsourcing[sqlalchemy]
-
-
-Similarly, if you want to use Cassandra, please install with the 'cassandra' option.
+If you want to use `SQLAlchemy <https://www.sqlalchemy.org/>`__, then install
+the library with the 'sqlalchemy' option. Also install your chosen
+`database driver <http://docs.sqlalchemy.org/en/latest/core/engines.html#database-urls>`__.
 
 ::
 
-    pip install eventsourcing[cassandra]
+    $ pip install eventsourcing[sqlalchemy]
+    $ pip install psycopg2
+
+
+Similarly, if you want to use `Apache Cassandra <http://cassandra.apache.org/>`__,
+then please install with the 'cassandra' option.
+
+::
+
+    $ pip install eventsourcing[cassandra]
 
 
 If you want to use encryption, please install with the 'crypto' option.
 
 ::
 
-    pip install eventsourcing[crypto]
+    $ pip install eventsourcing[crypto]
 
 
-You can install combinations of options at the same time, for exampe the follow
+You can install combinations of options at the same time, for example the following
 command will install dependencies for Cassandra and for encryption.
 
 ::
 
-    pip install eventsourcing[cassandra,crypto]
+    $ pip install eventsourcing[cassandra,crypto]
 
 Running the install command with different options will just install
 the extra dependencies associated with that option. If you installed

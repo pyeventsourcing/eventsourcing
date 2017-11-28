@@ -6,7 +6,7 @@ Install the library with the 'sqlalchemy' option.
 
 ::
 
-    pip install eventsourcing[sqlalchemy]
+    $ pip install eventsourcing[sqlalchemy]
 
 
 In this section, an event sourced application is developed that has minimal

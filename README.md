@@ -10,15 +10,15 @@ A library for event sourcing in Python.
 Use pip to install the [stable distribution](https://pypi.python.org/pypi/eventsourcing) from
 the Python Package Index.
 
-    pip install eventsourcing
+    $ pip install eventsourcing
 
 If you want to use SQLAlchemy, then please install with 'sqlalchemy'.
 
-    pip install eventsourcing[sqlalchemy]
+    $ pip install eventsourcing[sqlalchemy]
 
 Similarly, if you want to use Cassandra, then please install with 'cassandra'.
 
-    pip install eventsourcing[cassandra]
+    $ pip install eventsourcing[cassandra]
 
 ## Documentation
 
