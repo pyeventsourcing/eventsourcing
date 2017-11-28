@@ -61,22 +61,24 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         self.app.close()
         super(TestExampleAggregateRoot, self).tearDown()
 
-    def test_aggregate_lifecycle(self):
+    def test_aggregate1_lifecycle(self):
         # Create a new aggregate.
-        aggregate = self.app.create_example_aggregate()
+        aggregate = self.app.create_aggregate1()
+
+        self.assertIsInstance(aggregate, Aggregate1)
 
         # Check it's got a head hash.
         self.assertTrue(aggregate.__head__)
         last_next_hash = aggregate.__head__
 
         # Check it does not exist in the repository.
-        self.assertNotIn(aggregate.id, self.app.aggregate_repository)
+        self.assertNotIn(aggregate.id, self.app.aggregate1_repository)
 
         # Save the aggregate.
         aggregate.save()
 
         # Check it now exists in the repository.
-        self.assertIn(aggregate.id, self.app.aggregate_repository)
+        self.assertIn(aggregate.id, self.app.aggregate1_repository)
 
         # Change an attribute of the aggregate root entity.
         self.assertNotEqual(aggregate.foo, 'bar')
@@ -87,11 +89,11 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         self.assertNotEqual(aggregate.__head__, last_next_hash)
         last_next_hash = aggregate.__head__
 
-        self.assertIn(aggregate.id, self.app.aggregate_repository)
+        self.assertIn(aggregate.id, self.app.aggregate1_repository)
 
-        self.assertNotEqual(self.app.aggregate_repository[aggregate.id].foo, 'bar')
+        self.assertNotEqual(self.app.aggregate1_repository[aggregate.id].foo, 'bar')
         aggregate.save()
-        self.assertEqual(self.app.aggregate_repository[aggregate.id].foo, 'bar')
+        self.assertEqual(self.app.aggregate1_repository[aggregate.id].foo, 'bar')
 
         # Check the aggregate has zero entities.
         self.assertEqual(aggregate.count_examples(), 0)
@@ -106,7 +108,7 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         self.assertEqual(aggregate.count_examples(), 1)
 
         # Check the aggregate in the repo still has zero entities.
-        self.assertEqual(self.app.aggregate_repository[aggregate.id].count_examples(), 0)
+        self.assertEqual(self.app.aggregate1_repository[aggregate.id].count_examples(), 0)
 
         # Check the head hash has changed.
         self.assertNotEqual(aggregate.__head__, last_next_hash)
@@ -116,7 +118,7 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         aggregate.save()
 
         # Check the aggregate in the repo now has one entity.
-        self.assertEqual(self.app.aggregate_repository[aggregate.id].count_examples(), 1)
+        self.assertEqual(self.app.aggregate1_repository[aggregate.id].count_examples(), 1)
 
         # Create two more entities within the aggregate.
         aggregate.create_new_example()
@@ -126,13 +128,13 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         aggregate.save()
 
         # Check the aggregate in the repo now has three entities.
-        self.assertEqual(self.app.aggregate_repository[aggregate.id].count_examples(), 3)
+        self.assertEqual(self.app.aggregate1_repository[aggregate.id].count_examples(), 3)
 
         # Discard the aggregate, but don't call save() yet.
         aggregate.discard()
 
         # Check the aggregate still exists in the repo.
-        self.assertIn(aggregate.id, self.app.aggregate_repository)
+        self.assertIn(aggregate.id, self.app.aggregate1_repository)
 
         # Check the next hash has changed.
         self.assertNotEqual(aggregate.__head__, last_next_hash)
@@ -141,7 +143,54 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         aggregate.save()
 
         # Check the aggregate no longer exists in the repo.
-        self.assertNotIn(aggregate.id, self.app.aggregate_repository)
+        self.assertNotIn(aggregate.id, self.app.aggregate1_repository)
+
+    def test_both_types(self):
+        # Create a new aggregate.
+        aggregate1 = self.app.create_aggregate1()
+        aggregate2 = self.app.create_aggregate2()
+
+        aggregate1.save()
+        aggregate2.save()
+
+        self.assertIsInstance(aggregate1, Aggregate1)
+        self.assertIsInstance(aggregate2, Aggregate2)
+
+        self.assertEqual(aggregate1.foo, '')
+        self.assertEqual(aggregate2.foo, '')
+
+        aggregate1.foo = 'bar'
+        aggregate2.foo = 'baz'
+
+        aggregate1.save()
+        aggregate2.save()
+
+        # Todo: Somehow avoid IDs being valid in other repositories.
+        # - either namespace the UUIDs, with a UUID for each type,
+        #     with adjustments to repository and factory methods.
+        # - or make sequence type be a thing, with IDs being valid within the type
+        #     compound partition key in Cassandra,
+        # self.assertFalse(aggregate1.id in self.app.aggregate2_repository)
+        # self.assertFalse(aggregate2.id in self.app.aggregate1_repository)
+
+        aggregate1 = self.app.aggregate2_repository[aggregate1.id]
+        aggregate2 = self.app.aggregate1_repository[aggregate2.id]
+
+        aggregate1 = self.app.aggregate1_repository[aggregate1.id]
+        aggregate2 = self.app.aggregate2_repository[aggregate2.id]
+
+        self.assertIsInstance(aggregate1, Aggregate1)
+        self.assertIsInstance(aggregate2, Aggregate2)
+
+        self.assertEqual(aggregate1.foo, 'bar')
+        self.assertEqual(aggregate2.foo, 'baz')
+
+        aggregate1.discard()
+        aggregate1.save()
+        self.assertFalse(aggregate1.id in self.app.aggregate1_repository)
+        self.assertTrue(aggregate2.id in self.app.aggregate2_repository)
+
+
 
     def test_validate_originator_head_error(self):
         # Check event has valid originator head.
@@ -185,8 +234,28 @@ class ExampleAggregateRoot(AggregateRoot):
             aggregate._entities[entity.id] = entity
             return aggregate
 
+
+class Aggregate1(ExampleAggregateRoot):
     def __init__(self, foo='', **kwargs):
-        super(ExampleAggregateRoot, self).__init__(**kwargs)
+        super(Aggregate1, self).__init__(**kwargs)
+        self._entities = {}
+        self._foo = foo
+
+    @attribute
+    def foo(self):
+        """Simple event sourced attribute called 'foo'."""
+
+    def create_new_example(self):
+        assert not self._is_discarded
+        self._trigger(self.ExampleCreated, entity_id=uuid.uuid4())
+
+    def count_examples(self):
+        return len(self._entities)
+
+
+class Aggregate2(ExampleAggregateRoot):
+    def __init__(self, foo='', **kwargs):
+        super(Aggregate2, self).__init__(**kwargs)
         self._entities = {}
         self._foo = foo
 
@@ -227,8 +296,12 @@ class ExampleDDDApplication(object):
                 position_attr_name='originator_version',
             )
         )
-        self.aggregate_repository = EventSourcedRepository(
-            mutator=ExampleAggregateRoot._mutate,
+        self.aggregate1_repository = EventSourcedRepository(
+            mutator=Aggregate1._mutate,
+            event_store=event_store,
+        )
+        self.aggregate2_repository = EventSourcedRepository(
+            mutator=Aggregate2._mutate,
             event_store=event_store,
         )
         self.persistence_policy = PersistencePolicy(
@@ -236,14 +309,25 @@ class ExampleDDDApplication(object):
             event_store=event_store,
         )
 
-    def create_example_aggregate(self):
+    def create_aggregate1(self):
         """
-        Factory method, creates and returns a new example aggregate root object.
+        Factory method, creates and returns a new aggregate1 root entity.
 
-        :rtype: ExampleAggregateRoot
+        :rtype: Aggregate1
         """
-        event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4())
-        aggregate = ExampleAggregateRoot._mutate(event=event)
+        event = Aggregate1.Created(originator_id=uuid.uuid4())
+        aggregate = Aggregate1._mutate(event=event)
+        aggregate._publish(event)
+        return aggregate
+
+    def create_aggregate2(self):
+        """
+        Factory method, creates and returns a new aggregate1 root entity.
+
+        :rtype: Aggregate2
+        """
+        event = Aggregate2.Created(originator_id=uuid.uuid4())
+        aggregate = Aggregate2._mutate(event=event)
         aggregate._publish(event)
         return aggregate
 
