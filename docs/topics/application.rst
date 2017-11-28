@@ -34,8 +34,10 @@ Example application
 ===================
 
 The library provides a simple application class, called ``SimpleApplication``.
-
-The example below shows an event sourced application object class.
+The example below shows a simple event sourced application object class
+that extends this class, by constructing a repository when the application object is
+constructed, and by defining a factory method that can create new aggregates
+of the ``CustomAggregate`` type.
 
 .. code:: python
 
@@ -62,9 +64,8 @@ Aggregate
 ---------
 
 The example application code above depends on one entity class called ``CustomAggregate``,
-defined below. It is a subclass of the library's ``AggregateRoot`` entity class.
-
-The entity has an event sourced attribute, called ``a``.
+defined below. It extends the library's ``AggregateRoot`` entity with event sourced
+attribute ``a``.
 
 .. code:: python
 
@@ -82,10 +83,6 @@ The entity has an event sourced attribute, called ``a``.
             """
             Event sourced attribute 'a'.
             """
-
-
-    # It works just like a normal object.
-    assert CustomAggregate(a=1, id=1, timestamp=1).a == 1
 
 
 For more sophisticated domain models, please read
@@ -183,27 +180,23 @@ Now, a new aggregate instance can be created with the application service ``crea
     # Don't forget to save!
     aggregate.save()
 
-    # Aggregate is in the repository.
-    assert aggregate.id in app.repository
 
-    # Remember the aggregate's ID.
-    aggregate_id = aggregate.id
-
-    # Forget the aggregate (will still be saved in the database).
-    del(aggregate)
-
-
-An existing aggregate can be recovered by ID using the dictionary-like interface of the aggregate repository.
+The aggregate now exists in the repository. An existing aggregate can
+be retrieved by ID using the repository's dictionary-like interface.
 
 .. code:: python
 
+    # Aggregate is in the repository.
+    assert aggregate.id in app.repository
+
     # Get aggregate using dictionary-like interface.
-    aggregate = app.repository[aggregate_id]
+    aggregate = app.repository[aggregate.id]
 
     assert aggregate.a == 1
 
 
-Changes to the aggregate's attribute ``a`` are visible in the repository, but only after the aggregate has been saved.
+Changes to the aggregate's attribute ``a`` are visible in
+the repository, but only after the aggregate has been saved.
 
 .. code:: python
 
@@ -213,28 +206,36 @@ Changes to the aggregate's attribute ``a`` are visible in the repository, but on
     # Don't forget to save!
     aggregate.save()
 
-    del(aggregate)
+    # Retrieve again from repository.
+    aggregate = app.repository[aggregate.id]
 
-    aggregate = app.repository[aggregate_id]
-
+    # Check attribute has new value.
     assert aggregate.a == 3
 
 
-The aggregate can be discarded. After being saved, a discarded aggregate will not be available in the repository.
+The aggregate can be discarded. After being saved, a discarded
+aggregate will no longer be available in the repository.
 
 .. code:: python
 
+    # Discard the aggregate.
     aggregate.discard()
 
     # Don't forget to save!
     aggregate.save()
 
-    # Discarded aggregate no longer in repository.
-    assert aggregate_id not in app.repository
+    # Check discarded aggregate no longer exists in repository.
+    assert aggregate.id not in app.repository
+
+
+Attempts to retrieve an aggregate that does not
+exist will cause a ``KeyError`` to be raised.
+
+.. code:: python
 
     # Fail to get aggregate from dictionary-like interface.
     try:
-        app.repository[aggregate_id]
+        app.repository[aggregate.id]
     except KeyError:
         pass
     else:
@@ -249,24 +250,24 @@ It is always possible to get the domain events for an aggregate, using the appli
 
 .. code:: python
 
-    events = app.event_store.get_domain_events(originator_id=aggregate_id)
+    events = app.event_store.get_domain_events(originator_id=aggregate.id)
     assert len(events) == 4
 
-    assert events[0].originator_id == aggregate_id
+    assert events[0].originator_id == aggregate.id
     assert isinstance(events[0], CustomAggregate.Created)
     assert events[0].a == 1
 
-    assert events[1].originator_id == aggregate_id
+    assert events[1].originator_id == aggregate.id
     assert isinstance(events[1], CustomAggregate.AttributeChanged)
     assert events[1].name == '_a'
     assert events[1].value == 2
 
-    assert events[2].originator_id == aggregate_id
+    assert events[2].originator_id == aggregate.id
     assert isinstance(events[2], CustomAggregate.AttributeChanged)
     assert events[2].name == '_a'
     assert events[2].value == 3
 
-    assert events[3].originator_id == aggregate_id
+    assert events[3].originator_id == aggregate.id
     assert isinstance(events[3], CustomAggregate.Discarded)
 
 
@@ -278,25 +279,25 @@ active record strategy method ``get_items()``.
 
 .. code:: python
 
-    items = app.event_store.active_record_strategy.get_items(aggregate_id)
+    items = app.event_store.active_record_strategy.get_items(aggregate.id)
     assert len(items) == 4
 
-    assert items[0].originator_id == aggregate_id
+    assert items[0].originator_id == aggregate.id
     assert items[0].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Created'
     assert '"a":1' in items[0].state
     assert '"timestamp":' in items[0].state
 
-    assert items[1].originator_id == aggregate_id
+    assert items[1].originator_id == aggregate.id
     assert items[1].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
     assert '"name":"_a"' in items[1].state
     assert '"timestamp":' in items[1].state
 
-    assert items[2].originator_id == aggregate_id
+    assert items[2].originator_id == aggregate.id
     assert items[2].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
     assert '"name":"_a"' in items[2].state
     assert '"timestamp":' in items[2].state
 
-    assert items[3].originator_id == aggregate_id
+    assert items[3].originator_id == aggregate.id
     assert items[3].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Discarded'
     assert '"timestamp":' in items[3].state
 
@@ -304,8 +305,11 @@ active record strategy method ``get_items()``.
 Close
 -----
 
-It is useful to unsubscribe any handlers subscribed by the policies (avoids dangling
-handlers being called inappropriately, if the process isn't going to terminate immediately).
+It is useful to unsubscribe any handlers subscribed by the
+policies (avoids dangling handlers being called inappropriately,
+if the process isn't going to terminate immediately, such as
+when this documentation is tested as part of the library's
+test suite).
 
 .. code:: python
 
