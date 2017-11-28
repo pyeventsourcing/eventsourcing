@@ -93,14 +93,6 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         else:
             raise ValueError('Algorithm not supported: {}'.format(algorithm))
 
-    def json_dumps(self, obj):
-        return json.dumps(
-            obj,
-            separators=(',', ':'),
-            sort_keys=True,
-            cls=self.json_encoder_class,
-        )
-
     def construct_sequenced_item(self, item_args):
         return self.sequenced_item_class(*item_args)
 
