@@ -26,7 +26,7 @@ class TestAggregateRootEvent(TestCase):
         event2 = AggregateRoot.AttributeChanged(
             originator_version=1,
             originator_id='1',
-            __last_hash__=event1.__seal_hash__
+            originator_hash=event1.event_hash
         )
         event2.validate()
 
@@ -34,7 +34,7 @@ class TestAggregateRootEvent(TestCase):
         event3 = AggregateRoot.AttributeChanged(
             originator_version=2,
             originator_id='1',
-            __last_hash__=event2.__seal_hash__
+            originator_hash=event2.event_hash
         )
         event3.validate()
 
@@ -53,8 +53,8 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         aggregate = self.app.create_example_aggregate()
 
         # Check it's got a head hash.
-        self.assertTrue(aggregate.__head_hash__)
-        last_next_hash = aggregate.__head_hash__
+        self.assertTrue(aggregate.__head__)
+        last_next_hash = aggregate.__head__
 
         # Check it does not exist in the repository.
         self.assertNotIn(aggregate.id, self.app.aggregate_repository)
@@ -71,8 +71,8 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         self.assertEqual(aggregate.foo, 'bar')
 
         # Check the head hash has changed.
-        self.assertNotEqual(aggregate.__head_hash__, last_next_hash)
-        last_next_hash = aggregate.__head_hash__
+        self.assertNotEqual(aggregate.__head__, last_next_hash)
+        last_next_hash = aggregate.__head__
 
         self.assertIn(aggregate.id, self.app.aggregate_repository)
 
@@ -96,8 +96,8 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         self.assertEqual(self.app.aggregate_repository[aggregate.id].count_examples(), 0)
 
         # Check the head hash has changed.
-        self.assertNotEqual(aggregate.__head_hash__, last_next_hash)
-        last_next_hash = aggregate.__head_hash__
+        self.assertNotEqual(aggregate.__head__, last_next_hash)
+        last_next_hash = aggregate.__head__
 
         # Call save().
         aggregate.save()
@@ -122,7 +122,7 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         self.assertIn(aggregate.id, self.app.aggregate_repository)
 
         # Check the next hash has changed.
-        self.assertNotEqual(aggregate.__head_hash__, last_next_hash)
+        self.assertNotEqual(aggregate.__head__, last_next_hash)
 
         # Call save().
         aggregate.save()

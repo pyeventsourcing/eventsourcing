@@ -775,11 +775,11 @@ sequence becomes somehow jumbled through being stored, a ``DataIntegrityError`` 
 raised when the sequence is replayed.
 
 The hash of the last event applied to an aggregate root is available as an attribute called
-``__head_hash__``.
+``__head__``.
 
 .. code:: python
 
-    assert world.__head_hash__
+    assert world.__head__
 
 
 Any change to the aggregate's sequence of events will almost certainly result in a different

@@ -24,22 +24,22 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
 
         def __init__(self, **kwargs):
             super(AggregateRoot.Event, self).__init__(**kwargs)
-            assert '__last_hash__' in self.__dict__
+            assert 'originator_hash' in self.__dict__
             # Seal the event state.
-            assert '__seal_hash__' not in self.__dict__
-            self.__dict__['__seal_hash__'] = self.hash('sha256', self.__dict__)
+            assert 'event_hash' not in self.__dict__
+            self.__dict__['event_hash'] = self.hash('sha256', self.__dict__)
 
         @property
-        def __last_hash__(self):
-            return self.__dict__['__last_hash__']
+        def originator_hash(self):
+            return self.__dict__['originator_hash']
 
         @property
-        def __seal_hash__(self):
-            return self.__dict__['__seal_hash__']
+        def event_hash(self):
+            return self.__dict__['event_hash']
 
         def validate(self):
             state = self.__dict__.copy()
-            seal_hash = state.pop('__seal_hash__')
+            seal_hash = state.pop('event_hash')
             if seal_hash != self.hash('sha256', state):
                 raise SealHashMismatch(self.originator_id)
 
@@ -59,7 +59,7 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         @abstractmethod
         def mutate(self, aggregate):
             aggregate.validate_event(self)
-            aggregate.__head_hash__ = self.__seal_hash__
+            aggregate.__head__ = self.event_hash
             aggregate.increment_version()
             aggregate.set_last_modified(self.timestamp)
 
@@ -67,8 +67,8 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         """Published when an AggregateRoot is created."""
 
         def __init__(self, **kwargs):
-            assert '__last_hash__' not in kwargs
-            kwargs['__last_hash__'] = GENESIS_HASH
+            assert 'originator_hash' not in kwargs
+            kwargs['originator_hash'] = GENESIS_HASH
             super(AggregateRoot.Created, self).__init__(**kwargs)
 
         def mutate(self, cls):
@@ -80,8 +80,8 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
             kwargs = self.__dict__.copy()
             kwargs['id'] = kwargs.pop('originator_id')
             kwargs['version'] = kwargs.pop('originator_version')
-            kwargs.pop('__seal_hash__')
-            kwargs.pop('__last_hash__')
+            kwargs.pop('event_hash')
+            kwargs.pop('originator_hash')
             return kwargs
 
     class AttributeChanged(Event, TimestampedVersionedEntity.AttributeChanged):
@@ -104,7 +104,7 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
     def __init__(self, **kwargs):
         super(AggregateRoot, self).__init__(**kwargs)
         self.__pending_events__ = deque()
-        self.__head_hash__ = GENESIS_HASH
+        self.__head__ = GENESIS_HASH
 
     def save(self):
         """
@@ -121,9 +121,9 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
 
     def _trigger(self, event_class, **kwargs):
         """
-        Triggers domain event of given class with __last_hash__ as current __head_hash__.
+        Triggers domain event of given class with originator_hash as current __head__.
         """
-        kwargs['__last_hash__'] = self.__head_hash__
+        kwargs['originator_hash'] = self.__head__
         return super(AggregateRoot, self)._trigger(event_class, **kwargs)
 
     def _publish(self, event):
@@ -144,8 +144,8 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         """
         Checks the head hash matches the event's last hash.
         """
-        if self.__head_hash__ != event.__last_hash__:
-            raise MismatchedLastHashError(self.__head_hash__, event.__last_hash__)
+        if self.__head__ != event.originator_hash:
+            raise MismatchedLastHashError(self.__head__, event.originator_hash)
 
     def increment_version(self):
         self._increment_version()
