@@ -773,8 +773,8 @@ Timestamp-sequenced items are useful for storing events that are logically indep
 as messages in a log, things that do not risk causing a consistency error due to concurrent operations.
 
 
-.. The library function ``construct_cassandra_eventstore()`` can be used to
-construct an event store that uses the Apache Cassandra classes.
+.. Todo: The library function ``construct_cassandra_eventstore()`` can be used to
+.. construct an event store that uses the Apache Cassandra classes.
 
 .. .. code:: python
 
