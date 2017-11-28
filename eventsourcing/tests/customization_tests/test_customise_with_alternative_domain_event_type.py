@@ -53,7 +53,7 @@ class ExampleEntity(TimeuuidedEntity):
     @classmethod
     def start(cls):
         event = ExampleEntity.Started(originator_id=uuid4())
-        entity = ExampleEntity._mutate(None, event)
+        entity = ExampleEntity._mutate(event=event)
         publish(event)
         return entity
 

@@ -6,7 +6,7 @@ Install the library with the 'cassandra' option.
 
 ::
 
-    pip install eventsourcing[cassandra]
+    $ pip install eventsourcing[cassandra]
 
 
 Infrastructure

@@ -9,7 +9,7 @@ from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
     Logged
-from eventsourcing.infrastructure.topic import get_topic
+from eventsourcing.utils.topic import get_topic
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import SequencedItemConflict
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy

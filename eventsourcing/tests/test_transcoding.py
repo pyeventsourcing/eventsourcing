@@ -5,7 +5,7 @@ from uuid import NAMESPACE_URL
 from decimal import Decimal
 
 from eventsourcing.domain.model.events import QualnameABC
-from eventsourcing.infrastructure.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
+from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
 from eventsourcing.utils.time import utc_timezone
 
 

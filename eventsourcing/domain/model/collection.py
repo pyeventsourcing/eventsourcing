@@ -9,7 +9,7 @@ from eventsourcing.domain.model.events import publish
 
 class Collection(TimestampedVersionedEntity):
     class Event(TimestampedVersionedEntity.Event):
-        """Layer supertype."""
+        """Supertype for events of collection entities."""
 
     class Created(Event, TimestampedVersionedEntity.Created):
         """Published when collection is created."""

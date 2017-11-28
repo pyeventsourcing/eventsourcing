@@ -6,7 +6,7 @@ Install the library with the 'sqlalchemy' option.
 
 ::
 
-    pip install eventsourcing[sqlalchemy]
+    $ pip install eventsourcing[sqlalchemy]
 
 
 In this section, an event sourced application is developed that has minimal
@@ -46,7 +46,7 @@ event classes have been pulled up to a layer supertype ``DomainEvent``.
 
     class DomainEvent(object):
         """
-        Layer supertype.
+        Supertype for domain event objects.
         """
         def __init__(self, originator_id, originator_version, **kwargs):
             self.originator_id = originator_id

@@ -92,8 +92,8 @@ class DomainEvent(QualnameABC):
 
 class EventWithOriginatorID(DomainEvent):
     def __init__(self, originator_id, **kwargs):
+        kwargs['originator_id'] = originator_id
         super(EventWithOriginatorID, self).__init__(**kwargs)
-        self.__dict__['originator_id'] = originator_id
 
     @property
     def originator_id(self):
@@ -106,8 +106,8 @@ class EventWithTimestamp(DomainEvent):
     """
 
     def __init__(self, timestamp=None, **kwargs):
+        kwargs['timestamp'] = timestamp or time.time()
         super(EventWithTimestamp, self).__init__(**kwargs)
-        self.__dict__['timestamp'] = timestamp or time.time()
 
     @property
     def timestamp(self):
@@ -122,8 +122,8 @@ class EventWithOriginatorVersion(DomainEvent):
     def __init__(self, originator_version, **kwargs):
         if not isinstance(originator_version, six.integer_types):
             raise TypeError("Version must be an integer: {}".format(originator_version))
+        kwargs['originator_version'] = originator_version
         super(EventWithOriginatorVersion, self).__init__(**kwargs)
-        self.__dict__['originator_version'] = originator_version
 
     @property
     def originator_version(self):
@@ -136,8 +136,8 @@ class EventWithTimeuuid(DomainEvent):
     """
 
     def __init__(self, event_id=None, **kwargs):
+        kwargs['event_id'] = event_id or uuid1()
         super(EventWithTimeuuid, self).__init__(**kwargs)
-        self.__dict__['event_id'] = event_id or uuid1()
 
     @property
     def event_id(self):

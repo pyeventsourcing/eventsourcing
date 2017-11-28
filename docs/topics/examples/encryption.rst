@@ -7,7 +7,7 @@ Install the library with the 'crypto' option.
 
 ::
 
-    pip install eventsourcing[crypto]
+    $ pip install eventsourcing[crypto]
 
 
 To enable encryption, pass in a cipher strategy object when constructing

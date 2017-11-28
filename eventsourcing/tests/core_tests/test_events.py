@@ -6,7 +6,7 @@ from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmptyError, EventWithOriginatorID, \
     EventWithOriginatorVersion, EventWithTimestamp, _event_handlers, assert_event_handlers_empty, \
     create_timesequenced_event_id, publish, subscribe, unsubscribe, EventWithTimeuuid
-from eventsourcing.infrastructure.topic import resolve_topic
+from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.utils.time import timestamp_from_uuid

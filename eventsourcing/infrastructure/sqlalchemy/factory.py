@@ -2,7 +2,7 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, StoredEventRecord
-from eventsourcing.infrastructure.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
+from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
 
 
 def construct_sqlalchemy_eventstore(session,
@@ -14,6 +14,7 @@ def construct_sqlalchemy_eventstore(session,
                                     always_encrypt=False,
                                     cipher=None,
                                     active_record_class=StoredEventRecord,
+                                    with_data_integrity=False
                                     ):
     sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=sequenced_item_class,
@@ -23,6 +24,7 @@ def construct_sqlalchemy_eventstore(session,
         json_decoder_class=json_decoder_class,
         always_encrypt=always_encrypt,
         cipher=cipher,
+        with_data_integrity=with_data_integrity,
     )
     active_record_strategy = SQLAlchemyActiveRecordStrategy(
         session=session,

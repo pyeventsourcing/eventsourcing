@@ -596,12 +596,11 @@ will be called when events are applied.
             self._apply_and_publish(event)
 
         @classmethod
-        def _mutate(cls, initial, event):
-            return mutate_world(event=event, initial=initial)
-
+        def _mutate(cls, initial=None, event=None):
+            return mutate_world(initial=initial or cls, event=event)
 
     @mutator
-    def mutate_world(initial, event):
+    def mutate_world(initial=None, event=None):
         return mutate_entity(initial, event)
 
     @mutate_world.register(World.SomethingHappened)
@@ -611,7 +610,8 @@ will be called when events are applied.
         return self
 
 
-    world = World(id='1')
+    world = World._mutate(event=World.Created(originator_id='1'))
+
     world.make_it_so('dinosaurs')
     world.make_it_so('trucks')
     world.make_it_so('internet')
@@ -706,13 +706,12 @@ The ``AggregateRoot`` class inherits from both ``TimestampedVersionedEntity`` an
                 entity.history.append(self)
                 entity._increment_version()
 
-
-    # World factory.
-    def create_new_world():
-        created = World.Created(originator_id=1)
-        world = World._mutate(event=created)
-        world._publish(created)
-        return world
+        @classmethod
+        def create(cls):
+            event = cls.Created(originator_id=1)
+            self = cls._mutate(event=event)
+            self._publish(event)
+            return self
 
 
 An ``AggregateRoot`` entity will postpone the publishing of all events, pending the next call to its
@@ -723,8 +722,8 @@ An ``AggregateRoot`` entity will postpone the publishing of all events, pending 
     assert len(received_events) == 0
     subscribe(handler=receive_event)
 
-    # Create new entity.
-    world = create_new_world()
+    # Create new world.
+    world = World.create()
     assert isinstance(world, World)
 
     # Command that publishes many events.
@@ -748,6 +747,10 @@ single list of events to the publish-subscribe mechanism.
     assert len(received_events) == 1
     assert len(received_events[0]) == 4
 
+    # Clean up.
+    unsubscribe(handler=receive_event)
+    del received_events[:]  # received_events.clear()
+
 
 Publishing all events from a single command in a single list allows all the events to be written to a database as a
 single atomic operation.
@@ -759,7 +762,25 @@ same time, causing an inconsistent state that would also be difficult to repair.
 It also avoids the risk of other threads picking up only some events caused by a command, presenting the aggregate
 in an inconsistent or unusual and perhaps unworkable state.
 
+
+Hash-chained events
+-------------------
+
+The domain events of ``AggregateRoot`` are hash-chained together.
+
+That is, the state of each event is hashed, and the hash of the last event is included in
+the state of the next event. Before an event is applied to an aggregate, it is validated
+in itself and as a part of the chain. That means, if any event is randomly damaged, or the
+sequence becomes somehow jumbled through being stored, a ``DataIntegrityError`` will be
+raised when the sequence is replayed.
+
+The hash of the last event applied to an aggregate root is available as an attribute called
+``__head__``.
+
 .. code:: python
 
-    unsubscribe(handler=receive_event)
-    del received_events[:]  # received_events.clear()
+    assert world.__head__
+
+
+Any change to the aggregate's sequence of events will almost certainly result in a different
+head hash. So the entire history of an aggregate can be verified by checking the head hash.

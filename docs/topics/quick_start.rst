@@ -10,7 +10,7 @@ Please use pip to install the library with the 'sqlalchemy' option.
 
 ::
 
-    pip install eventsourcing[sqlalchemy]
+    $ pip install eventsourcing[sqlalchemy]
 
 
 Domain

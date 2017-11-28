@@ -31,7 +31,7 @@ BUCKET_SIZES = {
 
 class Timebucketedlog(TimestampedVersionedEntity):
     class Event(TimestampedVersionedEntity.Event):
-        """Layer supertype."""
+        """Supertype for events of time-bucketed log."""
 
     class Started(Event, TimestampedVersionedEntity.Created):
         pass
@@ -91,7 +91,7 @@ def start_new_timebucketedlog(name, bucket_size=None):
         name=name,
         bucket_size=bucket_size
     )
-    entity = Timebucketedlog._mutate(initial=None, event=event)
+    entity = Timebucketedlog._mutate(event=event)
     publish(event)
     return entity
 

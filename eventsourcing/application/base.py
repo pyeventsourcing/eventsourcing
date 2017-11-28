@@ -8,7 +8,7 @@ from eventsourcing.domain.model.events import Logged
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 
 class ApplicationWithEventStores(with_metaclass(ABCMeta)):

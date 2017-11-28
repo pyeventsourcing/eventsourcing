@@ -33,9 +33,7 @@ the application layer.
 Event sourced application
 =========================
 
-The example code below shows an event sourced application object class. It constructs
-an event store that uses the library's infrastructure with SQLAlchemy, using library
-function ``construct_sqlalchemy_eventstore()``.
+The example code below shows an event sourced application object class.
 
 .. code:: python
 
@@ -46,22 +44,30 @@ function ``construct_sqlalchemy_eventstore()``.
     from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
     from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
 
+    class SimpleApplication(object):
+        def __init__(self, event_store):
+            self.event_store = event_store
 
-    class Application(object):
-        def __init__(self, session):
-            # Construct event store.
-            self.event_store = construct_sqlalchemy_eventstore(
-                session=session
-            )
-            # Construct an event sourced repository.
-            self.repository = EventSourcedRepository(
-                event_store=self.event_store,
-                mutator=CustomAggregate._mutate
-            )
             # Construct a persistence policy.
             self.persistence_policy = PersistencePolicy(
                 event_store=self.event_store
             )
+
+        def construct_repository(self, entity_class):
+            return EventSourcedRepository(
+                event_store=self.event_store,
+                mutator=entity_class._mutate
+            )
+
+        def close(self):
+            self.persistence_policy.close()
+
+
+    class MyApplication(SimpleApplication):
+        def __init__(self, event_store):
+            super(MyApplication, self).__init__(event_store)
+            # Construct an event sourced repository.
+            self.repository = self.construct_repository(CustomAggregate)
 
         def create_aggregate(self, a):
             aggregate_id = uuid4()
@@ -70,8 +76,6 @@ function ``construct_sqlalchemy_eventstore()``.
             entity._publish(domain_event)  # Pending save().
             return entity
 
-        def close(self):
-            self.persistence_policy.close()
 
 
 The application has a domain model with one domain entity called ``CustomAggregate``,
@@ -144,18 +148,29 @@ used to setup a database.
     datastore.setup_table(StoredEventRecord)
 
 
+Event store
+-----------
+
+An event store can be constructed that uses SQLAlchemy, using library
+function ``construct_sqlalchemy_eventstore()``, and the database ``session``.
+
+.. code:: python
+
+    event_store = construct_sqlalchemy_eventstore(datastore.session)
+
+
 Run the code
 ------------
 
-After setting up the database connection, the application can be constructed with the session object.
+The application can be constructed with the event store.
 
 .. code:: python
 
     # Construct application with session.
-    app = Application(session=datastore.session)
+    app = MyApplication(event_store)
 
 
-Finally, a new aggregate instance can be created with the application service ``create_aggregate()``.
+Now, a new aggregate instance can be created with the application service ``create_aggregate()``.
 
 .. code:: python
 
@@ -220,7 +235,7 @@ The aggregate can be discarded. After being saved, a discarded aggregate will no
     except KeyError:
         pass
     else:
-        raise Excpetion("Shouldn't get here.")
+        raise Exception("Shouldn't get here")
 
 
 Application events
@@ -265,19 +280,22 @@ active record strategy method ``get_items()``.
 
     assert items[0].originator_id == aggregate_id
     assert items[0].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Created'
-    assert items[0].state.startswith('{"a":1,"timestamp":')
+    assert '"a":1' in items[0].state
+    assert '"timestamp":' in items[0].state
 
     assert items[1].originator_id == aggregate_id
     assert items[1].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
-    assert items[1].state.startswith('{"name":"_a",')
+    assert '"name":"_a"' in items[1].state
+    assert '"timestamp":' in items[1].state
 
     assert items[2].originator_id == aggregate_id
     assert items[2].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
-    assert items[2].state.startswith('{"name":"_a",')
+    assert '"name":"_a"' in items[2].state
+    assert '"timestamp":' in items[2].state
 
     assert items[3].originator_id == aggregate_id
     assert items[3].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Discarded'
-    assert items[3].state.startswith('{"timestamp":')
+    assert '"timestamp":' in items[3].state
 
 
 Close
@@ -292,27 +310,27 @@ handlers being called inappropriately, if the process isn't going to terminate i
     app.close()
 
 
-Todo: Something about the library's application class?
+.. Todo: Something about the library's application class?
 
-Todo: Something about using uuid5 to make UUIDs from things like email addresses.
+.. Todo: Something about using uuid5 to make UUIDs from things like email addresses.
 
-Todo: Something about using application log to get a sequence of all events.
+.. Todo: Something about using application log to get a sequence of all events.
 
-Todo: Something about using a policy to update views from published events.
+.. Todo: Something about using a policy to update views from published events.
 
-Todo: Something about using a policy to update a register of existant IDs from published events.
+.. Todo: Something about using a policy to update a register of existant IDs from published events.
 
-Todo: Something about having a worker application, that has policies that process events received by a worker.
+.. Todo: Something about having a worker application, that has policies that process events received by a worker.
 
-Todo: Something about having a policy to publish events to worker applications.
+.. Todo: Something about having a policy to publish events to worker applications.
 
-Todo: Something like a message queue strategy strategy.
+.. Todo: Something like a message queue strategy strategy.
 
-Todo: Something about publishing events to a message queue.
+.. Todo: Something about publishing events to a message queue.
 
-Todo: Something about receiving events in a message queue worker.
+.. Todo: Something about receiving events in a message queue worker.
 
-Todo: Something about publishing events to a message queue.
+.. Todo: Something about publishing events to a message queue.
 
-Todo: Something about receiving events in a message queue worker.
+.. Todo: Something about receiving events in a message queue worker.
 

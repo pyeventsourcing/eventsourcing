@@ -5,7 +5,8 @@ from uuid import uuid4
 
 from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.infrastructure.topic import get_topic
+from eventsourcing.exceptions import DataIntegrityError
+from eventsourcing.utils.topic import get_topic
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
@@ -138,3 +139,48 @@ class TestSequencedItemMapper(TestCase):
         self.assertEqual(domain_event.c, event3.c)
         # self.assertEqual(domain_event.d, event3.d)
         self.assertEqual(domain_event.e, event3.e)
+
+    def test_with_data_integrity(self):
+        mapper = SequencedItemMapper(
+            sequenced_item_class=SequencedItem,
+            with_data_integrity=True,
+        )
+
+        # Create an event with a value.
+        orig_event = DomainEvent(
+            sequence_id='1',
+            position=0,
+            a=555,
+        )
+
+        # Check the sequenced item has data with expected hash prefix.
+        prefix = '6c3416b6b866f46c44e243cda0e5c70efd807c472e147cfa5e9ea01443c4604f:'
+        sequenced_item = mapper.to_sequenced_item(orig_event)
+        self.assertEqual(sequenced_item.data, prefix + '{"a":555}')
+
+        # Check the sequenced item with a hash prefix maps to a domain event.
+        mapped_event = mapper.from_sequenced_item(sequenced_item)
+        self.assertEqual(mapped_event.a, 555)
+
+        # Check a damaged item causes an exception.
+        damaged_item = SequencedItem(
+            sequence_id=sequenced_item.sequence_id,
+            position=sequenced_item.position,
+            topic=sequenced_item.topic,
+            data=prefix + '{"a":554}',
+        )
+
+        with self.assertRaises(DataIntegrityError):
+            mapper.from_sequenced_item(damaged_item)
+
+        # Check a damaged item causes an exception.
+        damaged_item = SequencedItem(
+            sequence_id=sequenced_item.sequence_id,
+            position=sequenced_item.position,
+            topic=sequenced_item.topic,
+            data=prefix[:-1] + '{}',
+        )
+
+        with self.assertRaises(DataIntegrityError):
+            mapper.from_sequenced_item(damaged_item)
+

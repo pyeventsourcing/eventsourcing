@@ -1,9 +1,10 @@
 import uuid
+from unittest.case import TestCase
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.aggregate import AggregateRoot
-from eventsourcing.domain.model.entity import mutate_entity
-from eventsourcing.domain.model.decorators import mutator, attribute
+from eventsourcing.domain.model.decorators import attribute
+from eventsourcing.exceptions import EventHashError, OriginatorHeadError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
@@ -11,6 +12,44 @@ from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequenc
     SQLAlchemyActiveRecordStrategy
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
+
+
+class TestAggregateRootEvent(TestCase):
+
+    def test_validate_aggregate_events(self):
+        event1 = AggregateRoot.Created(
+            originator_version=0,
+            originator_id='1',
+        )
+        event1.validate()
+
+        # Chain another event.
+        event2 = AggregateRoot.AttributeChanged(
+            originator_version=1,
+            originator_id='1',
+            originator_head=event1.event_hash
+        )
+        event2.validate()
+
+        # Chain another event.
+        event3 = AggregateRoot.AttributeChanged(
+            originator_version=2,
+            originator_id='1',
+            originator_head=event2.event_hash
+        )
+        event3.validate()
+
+    def test_seal_hash_mismatch(self):
+        event1 = AggregateRoot.Created(
+            originator_version=0,
+            originator_id='1',
+        )
+        event1.validate()
+
+        # Break the seal hash.
+        event1.__dict__['event_hash'] = ''
+        with self.assertRaises(EventHashError):
+            event1.validate()
 
 
 class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
@@ -26,6 +65,10 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         # Create a new aggregate.
         aggregate = self.app.create_example_aggregate()
 
+        # Check it's got a head hash.
+        self.assertTrue(aggregate.__head__)
+        last_next_hash = aggregate.__head__
+
         # Check it does not exist in the repository.
         self.assertNotIn(aggregate.id, self.app.aggregate_repository)
 
@@ -39,6 +82,13 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         self.assertNotEqual(aggregate.foo, 'bar')
         aggregate.foo = 'bar'
         self.assertEqual(aggregate.foo, 'bar')
+
+        # Check the head hash has changed.
+        self.assertNotEqual(aggregate.__head__, last_next_hash)
+        last_next_hash = aggregate.__head__
+
+        self.assertIn(aggregate.id, self.app.aggregate_repository)
+
         self.assertNotEqual(self.app.aggregate_repository[aggregate.id].foo, 'bar')
         aggregate.save()
         self.assertEqual(self.app.aggregate_repository[aggregate.id].foo, 'bar')
@@ -57,6 +107,10 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
 
         # Check the aggregate in the repo still has zero entities.
         self.assertEqual(self.app.aggregate_repository[aggregate.id].count_examples(), 0)
+
+        # Check the head hash has changed.
+        self.assertNotEqual(aggregate.__head__, last_next_hash)
+        last_next_hash = aggregate.__head__
 
         # Call save().
         aggregate.save()
@@ -80,16 +134,31 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         # Check the aggregate still exists in the repo.
         self.assertIn(aggregate.id, self.app.aggregate_repository)
 
+        # Check the next hash has changed.
+        self.assertNotEqual(aggregate.__head__, last_next_hash)
+
         # Call save().
         aggregate.save()
 
         # Check the aggregate no longer exists in the repo.
         self.assertNotIn(aggregate.id, self.app.aggregate_repository)
 
+    def test_validate_originator_head_error(self):
+        # Check event has valid originator head.
+        aggregate = ExampleAggregateRoot(id='1', foo='bar', timestamp=0)
+        event = ExampleAggregateRoot.AttributeChanged(name='foo', value='bar', originator_id='1',
+                                                      originator_version=1, originator_head=aggregate.__head__)
+        aggregate._validate_originator_head(event)
+
+        # Check OriginatorHeadError is raised if the originator head is wrong.
+        event.__dict__['originator_head'] += 'damage'
+        with self.assertRaises(OriginatorHeadError):
+            aggregate._validate_originator_head(event)
+
 
 class ExampleAggregateRoot(AggregateRoot):
     class Event(AggregateRoot.Event):
-        """Layer supertype."""
+        """Supertype for events of example aggregates."""
 
     class Created(Event, AggregateRoot.Created):
         """Published when an ExampleAggregateRoot is created."""
@@ -110,6 +179,12 @@ class ExampleAggregateRoot(AggregateRoot):
         def entity_id(self):
             return self.__dict__['entity_id']
 
+        def mutate(self, aggregate):
+            super(ExampleAggregateRoot.ExampleCreated, self).mutate(aggregate)
+            entity = Example(entity_id=self.entity_id)
+            aggregate._entities[entity.id] = entity
+            return aggregate
+
     def __init__(self, foo='', **kwargs):
         super(ExampleAggregateRoot, self).__init__(**kwargs)
         self._entities = {}
@@ -126,10 +201,6 @@ class ExampleAggregateRoot(AggregateRoot):
     def count_examples(self):
         return len(self._entities)
 
-    @classmethod
-    def _mutate(cls, initial=None, event=None):
-        return mutate_example_aggregate(initial or cls, event)
-
 
 class Example(object):
     """
@@ -142,24 +213,6 @@ class Example(object):
     @property
     def id(self):
         return self._id
-
-
-@mutator
-def mutate_example_aggregate(self, event):
-    """
-    Mutator function for class ExampleAggregateRoot.
-    """
-    return mutate_entity(self, event)
-
-
-@mutate_example_aggregate.register(ExampleAggregateRoot.ExampleCreated)
-def _(self, event):
-    assert not self._is_discarded
-    entity = Example(entity_id=event.entity_id)
-    self._entities[entity.id] = entity
-    self._version += 1
-    self._last_modified = event.timestamp
-    return self
 
 
 class ExampleDDDApplication(object):
@@ -190,8 +243,8 @@ class ExampleDDDApplication(object):
         :rtype: ExampleAggregateRoot
         """
         event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4())
-        aggregate = ExampleAggregateRoot._mutate(initial=None, event=event)
-        aggregate._pending_events.append(event)
+        aggregate = ExampleAggregateRoot._mutate(event=event)
+        aggregate._publish(event)
         return aggregate
 
     def close(self):

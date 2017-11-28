@@ -11,7 +11,7 @@ class Example(TimestampedVersionedEntity):
     """
 
     class Event(TimestampedVersionedEntity.Event):
-        """Layer supertype."""
+        """Supertype for events of example entities."""
 
     class Created(Event, TimestampedVersionedEntity.Created):
         """Published when an Example is created."""
@@ -85,6 +85,6 @@ def create_new_example(foo='', a='', b=''):
     """
     entity_id = uuid.uuid4()
     event = Example.Created(originator_id=entity_id, foo=foo, a=a, b=b)
-    entity = Example._mutate(initial=None, event=event)
+    entity = Example._mutate(event=event)
     publish(event=event)
     return entity
