@@ -33,9 +33,7 @@ the application layer.
 Event sourced application
 =========================
 
-The example code below shows an event sourced application object class. It constructs
-an event store that uses the library's infrastructure with SQLAlchemy, using library
-function ``construct_sqlalchemy_eventstore()``.
+The example code below shows an event sourced application object class.
 
 .. code:: python
 
@@ -46,22 +44,30 @@ function ``construct_sqlalchemy_eventstore()``.
     from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
     from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
 
+    class SimpleApplication(object):
+        def __init__(self, event_store):
+            self.event_store = event_store
 
-    class Application(object):
-        def __init__(self, session):
-            # Construct event store.
-            self.event_store = construct_sqlalchemy_eventstore(
-                session=session
-            )
-            # Construct an event sourced repository.
-            self.repository = EventSourcedRepository(
-                event_store=self.event_store,
-                mutator=CustomAggregate._mutate
-            )
             # Construct a persistence policy.
             self.persistence_policy = PersistencePolicy(
                 event_store=self.event_store
             )
+
+        def construct_repository(self, entity_class):
+            return EventSourcedRepository(
+                event_store=self.event_store,
+                mutator=entity_class._mutate
+            )
+
+        def close(self):
+            self.persistence_policy.close()
+
+
+    class MyApplication(SimpleApplication):
+        def __init__(self, event_store):
+            super(MyApplication, self).__init__(event_store)
+            # Construct an event sourced repository.
+            self.repository = self.construct_repository(CustomAggregate)
 
         def create_aggregate(self, a):
             aggregate_id = uuid4()
@@ -70,8 +76,6 @@ function ``construct_sqlalchemy_eventstore()``.
             entity._publish(domain_event)  # Pending save().
             return entity
 
-        def close(self):
-            self.persistence_policy.close()
 
 
 The application has a domain model with one domain entity called ``CustomAggregate``,
@@ -144,18 +148,29 @@ used to setup a database.
     datastore.setup_table(StoredEventRecord)
 
 
+Event store
+-----------
+
+An event store can be constructed that uses SQLAlchemy, using library
+function ``construct_sqlalchemy_eventstore()``, and the database ``session``.
+
+.. code:: python
+
+    event_store = construct_sqlalchemy_eventstore(datastore.session)
+
+
 Run the code
 ------------
 
-After setting up the database connection, the application can be constructed with the session object.
+The application can be constructed with the event store.
 
 .. code:: python
 
     # Construct application with session.
-    app = Application(session=datastore.session)
+    app = MyApplication(event_store)
 
 
-Finally, a new aggregate instance can be created with the application service ``create_aggregate()``.
+Now, a new aggregate instance can be created with the application service ``create_aggregate()``.
 
 .. code:: python
 
