@@ -13,6 +13,12 @@ to databases in ways that can be easily extended and replaced.
     management system by introducing a new active record strategy. The database schema
     can be varied by using an alternative active record class.
 
+**Data integrity** - stored events can be hashed to check data integrity of individual
+records, so you cannot lose information in transit or get database corruption without
+being able to detect it. Sequences of events can be hash-chained, and the entire sequence
+of events checked for integrity, so if the last hash can be independently validated, then
+so can the entire sequence.
+
 **Optimistic concurrency control** — can be used to ensure a distributed or
 horizontally scaled application doesn't become inconsistent due to concurrent
 method execution. Leverages any optimistic concurrency controls in the database
