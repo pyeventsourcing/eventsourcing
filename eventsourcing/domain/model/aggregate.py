@@ -14,6 +14,7 @@ import os
 from eventsourcing.domain.model.entity import TimestampedVersionedEntity, WithReflexiveMutator
 from eventsourcing.domain.model.events import publish
 from eventsourcing.exceptions import OriginatorHeadError, EventHashError
+from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
 GENESIS_HASH = os.getenv('EVENTSOURCING_GENESIS_HASH', '')
@@ -28,9 +29,9 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         """Supertype for aggregate events."""
         json_encoder_class = ObjectJSONEncoder
 
-        def __init__(self, **kwargs):
+        def __init__(self, originator_head, **kwargs):
+            kwargs['originator_head'] = originator_head
             super(AggregateRoot.Event, self).__init__(**kwargs)
-            assert 'originator_head' in self.__dict__
             # Seal the event state.
             assert 'event_hash' not in self.__dict__
             self.__dict__['event_hash'] = self.hash(self.__dict__)
@@ -69,12 +70,20 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
     class Created(Event, TimestampedVersionedEntity.Created):
         """Published when an AggregateRoot is created."""
 
-        def __init__(self, **kwargs):
+        def __init__(self, originator_topic=None, **kwargs):
+            kwargs['originator_topic'] = originator_topic
             assert 'originator_head' not in kwargs
-            kwargs['originator_head'] = GENESIS_HASH
-            super(AggregateRoot.Created, self).__init__(**kwargs)
+            super(AggregateRoot.Created, self).__init__(
+                originator_head=GENESIS_HASH, **kwargs
+            )
+
+        @property
+        def originator_topic(self):
+            return self.__dict__['originator_topic']
 
         def mutate(self, cls):
+            if cls is None:
+                cls = resolve_topic(self.originator_topic)
             aggregate = cls(**self.constructor_kwargs())
             super(AggregateRoot.Created, self).mutate(aggregate)
             return aggregate
@@ -85,6 +94,7 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
             kwargs['version'] = kwargs.pop('originator_version')
             kwargs.pop('event_hash')
             kwargs.pop('originator_head')
+            kwargs.pop('originator_topic')
             return kwargs
 
     class AttributeChanged(Event, TimestampedVersionedEntity.AttributeChanged):

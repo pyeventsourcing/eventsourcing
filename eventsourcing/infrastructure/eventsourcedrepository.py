@@ -8,7 +8,10 @@ from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 # Todo: Change to inherit from EventPlayer, instead of delegating.
 
 
-class EventSourcedRepository(AbstractEntityRepository):
+class EventPlayer(object):
+    pass
+
+class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
     # The page size by which events are retrieved. If this
     # value is set to a positive integer, the events of
     # the entity will be retrieved in pages, using a series
