@@ -5,9 +5,19 @@ Module docs
 This document describes the packages, modules, classes, functions and other code
 details of the library.
 
+* :ref:`genindex`
+* :ref:`modindex`
+
+.. contents:: :local:
+
+
 -------------
 eventsourcing
 -------------
+
+The eventsourcing package contains packages for the application layer, the domain
+layer, the infrastructure layer, and the interface layer. There is also a module
+for exceptions, an example package, and a utils module.
 
 application
 ===========
@@ -41,11 +51,17 @@ simple
     :undoc-members:
 
 
-domain.model
-============
+domain
+======
 
-aggregate
----------
+The domain layer contains a domain model, and optionally services that work across
+different aggregates.
+
+model
+-----
+
+The domain model package contains classes and functions that can help develop an
+event sourced domain model.
 
 .. automodule:: eventsourcing.domain.model.aggregate
     :members:
@@ -54,7 +70,9 @@ aggregate
 
 
 array
------
+~~~~~
+
+A kind of collection, indexed by integer. Doesn't need to replay all events to exist.
 
 .. automodule:: eventsourcing.domain.model.array
     :members:
@@ -63,7 +81,9 @@ array
 
 
 collection
-----------
+~~~~~~~~~~
+
+Decorators useful in domain models based on the classes in this library.
 
 .. automodule:: eventsourcing.domain.model.decorators
     :members:
@@ -72,7 +92,9 @@ collection
 
 
 entity
-------
+~~~~~~
+
+Base classes for domain entities of different kinds.
 
 .. automodule:: eventsourcing.domain.model.entity
     :members:
@@ -81,7 +103,9 @@ entity
 
 
 events
-------
+~~~~~~
+
+Base classes for domain events of different kinds.
 
 .. automodule:: eventsourcing.domain.model.events
     :members:
@@ -90,7 +114,9 @@ events
 
 
 snapshot
---------
+~~~~~~~~
+
+Snapshotting is implemented in the domain layer as an event.
 
 .. automodule:: eventsourcing.domain.model.snapshot
     :members:
@@ -99,7 +125,11 @@ snapshot
 
 
 timebucketedlog
----------------
+~~~~~~~~~~~~~~~
+
+Time-bucketed logs allow a sequence of the items that is sequenced by timestamp to
+be split across a number of different database partitions, which avoids one
+partition becoming very large (and then unworkable).
 
 .. automodule:: eventsourcing.domain.model.timebucketedlog
     :members:
@@ -110,8 +140,13 @@ timebucketedlog
 infrastructure
 ==============
 
+The infrastructure layer adapts external devices in ways that are useful
+for the application, such as the way an event store encapsulates a database.
+
 activerecord
 ------------
+
+Abstract base class for active record strategies.
 
 .. automodule:: eventsourcing.infrastructure.activerecord
     :members:
@@ -120,6 +155,8 @@ activerecord
 
 cassandra
 ---------
+
+Classes for event sourcing with Apache Cassandra.
 
 .. automodule:: eventsourcing.infrastructure.cassandra.datastore
     :members:
@@ -134,6 +171,8 @@ cassandra
 
 cipher
 ------
+
+Classes for application-level encryption.
 
 .. automodule:: eventsourcing.infrastructure.cipher.base
     :members:
@@ -150,6 +189,8 @@ cipher
 datastore
 ---------
 
+Base classes for concrete datastore classes.
+
 .. automodule:: eventsourcing.infrastructure.datastore
     :members:
     :show-inheritance:
@@ -158,6 +199,8 @@ datastore
 
 eventplayer
 -----------
+
+Base classes for event players of different kinds.
 
 .. automodule:: eventsourcing.infrastructure.eventplayer
     :members:
@@ -168,6 +211,8 @@ eventplayer
 eventsourcedrepository
 ----------------------
 
+Base classes for event sourced repositories (not abstract, can be used directly).
+
 .. automodule:: eventsourcing.infrastructure.eventsourcedrepository
     :members:
     :show-inheritance:
@@ -177,6 +222,9 @@ eventsourcedrepository
 eventstore
 ----------
 
+The event store provides the application-level interface to the event sourcing
+persistence mechanism.
+
 .. automodule:: eventsourcing.infrastructure.eventstore
     :members:
     :show-inheritance:
@@ -185,6 +233,8 @@ eventstore
 
 integersequencegenerators
 -------------------------
+
+Different ways of generating sequences of integers.
 
 .. automodule:: eventsourcing.infrastructure.integersequencegenerators.base
     :members:
@@ -200,6 +250,8 @@ integersequencegenerators
 iterators
 ---------
 
+Different ways of getting sequenced items from a datastore.
+
 .. automodule:: eventsourcing.infrastructure.iterators
     :members:
     :show-inheritance:
@@ -208,6 +260,8 @@ iterators
 
 repositories
 ------------
+
+Repository base classes for entity classes defined in the library.
 
 .. automodule:: eventsourcing.infrastructure.repositories.array
     :members:
@@ -228,6 +282,8 @@ repositories
 sequenceditem
 -------------
 
+The persistence model for storing events.
+
 .. automodule:: eventsourcing.infrastructure.sequenceditem
     :members:
     :show-inheritance:
@@ -236,6 +292,8 @@ sequenceditem
 
 sequenceditemmapper
 -------------------
+
+The sequenced item mapper maps sequenced items to application-level objects.
 
 .. automodule:: eventsourcing.infrastructure.sequenceditemmapper
     :members:
@@ -246,6 +304,9 @@ sequenceditemmapper
 snapshotting
 ------------
 
+Snapshotting avoids having to replay an entire sequence of events to obtain
+the current state of a projection.
+
 .. automodule:: eventsourcing.infrastructure.snapshotting
     :members:
     :show-inheritance:
@@ -254,6 +315,8 @@ snapshotting
 
 sqlalchemy
 ----------
+
+Classes for event sourcing with SQLAlchemy.
 
 .. automodule:: eventsourcing.infrastructure.sqlalchemy.activerecords
     :members:
@@ -269,6 +332,8 @@ sqlalchemy
 timebucketedlog_reader
 ----------------------
 
+Reader for timebucketed logs.
+
 .. automodule:: eventsourcing.infrastructure.timebucketedlog_reader
     :members:
     :show-inheritance:
@@ -278,8 +343,12 @@ timebucketedlog_reader
 interface
 =========
 
+The interface layer uses an application to service client requests.
+
 notificationlog
 ---------------
+
+Notification log is a pull-based mechanism for updating other applications.
 
 .. automodule:: eventsourcing.interface.notificationlog
     :members:
@@ -289,6 +358,8 @@ notificationlog
 
 utils
 =====
+
+The utils package contains common functions that are used in more than one layer.
 
 .. automodule:: eventsourcing.utils.time
     :members:
@@ -306,9 +377,10 @@ utils
     :undoc-members:
 
 
-
 exceptions
 ==========
+
+A few exception classes are defined by the library to indicate particular kinds of error.
 
 .. automodule:: eventsourcing.exceptions
     :members:
@@ -318,6 +390,8 @@ exceptions
 
 example
 =======
+
+A simple, unit-tested, event sourced application.
 
 application
 -----------

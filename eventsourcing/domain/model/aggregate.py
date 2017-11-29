@@ -1,3 +1,9 @@
+"""
+aggregate
+~~~~~~~~~
+
+Base classes for aggregates in a domain driven design.
+"""
 import hashlib
 import json
 from abc import abstractmethod
