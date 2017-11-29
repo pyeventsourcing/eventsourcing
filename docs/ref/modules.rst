@@ -8,8 +8,6 @@ details of the library.
 * :ref:`genindex`
 * :ref:`modindex`
 
-.. contents:: :local:
-
 
 -------------
 eventsourcing
