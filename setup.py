@@ -35,7 +35,7 @@ testing_requires = [
     'celery<=4.1.99999',
 ] + cassandra_requires + crypto_requires + sqlalchemy_requires
 
-docs_requires = ['Sphinx', 'sphinx_rtd_theme'] + testing_requires
+docs_requires = ['Sphinx', 'sphinx_rtd_theme'] + testing_requires + install_requires
 
 
 long_description = """
