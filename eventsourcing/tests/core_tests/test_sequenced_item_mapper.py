@@ -154,7 +154,7 @@ class TestSequencedItemMapper(TestCase):
         )
 
         # Check the sequenced item has data with expected hash prefix.
-        prefix = '6c3416b6b866f46c44e243cda0e5c70efd807c472e147cfa5e9ea01443c4604f:'
+        prefix = '12e5000093b9d1d0972d16765019b05b9ea437dfe5cb337ff03c466072695d04:'
         sequenced_item = mapper.to_sequenced_item(orig_event)
         self.assertEqual(sequenced_item.data, prefix + '{"a":555}')
 

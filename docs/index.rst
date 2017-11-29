@@ -47,21 +47,19 @@ Please `register any issues, questions, and requests
 
    topics/release_notes
 
-
 Reference
 =========
 
-* :ref:`search`
+.. toctree::
+   :maxdepth: 1
+
+   ref/modules
+
 * :ref:`genindex`
 * :ref:`modindex`
 
 
 Modules
 =======
-
-.. toctree::
-   :maxdepth: 1
-
-   ref/modules
 
 

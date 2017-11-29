@@ -12,6 +12,15 @@ from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 
 class ApplicationWithEventStores(with_metaclass(ABCMeta)):
+    """
+    Event sourced application object class.
+
+    Can construct events stores using given active records.
+    Supports three different event stores: for log events,
+    for entity events, and for snapshot events.
+    """
+
+
     def __init__(self, entity_active_record_strategy=None,
                  log_active_record_strategy=None,
                  snapshot_active_record_strategy=None,

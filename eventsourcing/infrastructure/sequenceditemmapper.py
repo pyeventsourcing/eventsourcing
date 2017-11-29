@@ -69,14 +69,17 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Pop the position in the sequence.
         position = event_attrs.pop(self.position_attr_name)
 
-        # Decide if this event will be encrypted.
-        is_encrypted = self.is_encrypted(domain_event.__class__)
-
         # Serialise the remaining event attribute values.
-        data = self.serialize_event_attrs(event_attrs, is_encrypted=is_encrypted)
+        data = self.json_dumps(event_attrs)
 
+        # Encrypt (optional).
+        if self.is_encrypted(domain_event.__class__):
+            assert isinstance(self.cipher, AbstractCipher)
+            data = self.cipher.encrypt(data)
+
+        # Prefix with hash (optional).
         if self.with_data_integrity:
-            hash = self.hash(sequence_id, position, data)
+            hash = self.hash(data)
             data = '{}:{}'.format(hash, data)
 
         # Get the 'other' args.
@@ -103,24 +106,27 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         topic = getattr(sequenced_item, self.field_names.topic)
         domain_event_class = resolve_topic(topic)
 
-        # Deserialize, optionally with decryption.
-        is_encrypted = self.is_encrypted(domain_event_class)
+        # Get the serialised data.
         data = getattr(sequenced_item, self.field_names.data)
 
-        hash = None
+        # Check data integrity (optional).
         if self.with_data_integrity:
             try:
                 hash, data = data.split(':', 1)
             except ValueError:
-                raise DataIntegrityError("failed split", sequenced_item[:2])
+                raise DataIntegrityError('failed split', sequenced_item.sequence_id, sequenced_item.position)
+            if hash != self.hash(data):
+                raise DataIntegrityError('hash mismatch', sequenced_item.sequence_id, sequenced_item.position)
 
-        event_attrs = self.deserialize_event_attrs(data, is_encrypted)
+        # Decrypt (optional).
+        if self.is_encrypted(domain_event_class):
+            assert isinstance(self.cipher, AbstractCipher), self.cipher
+            data = self.cipher.decrypt(data)
+
+        # Deserialize.
+        event_attrs = self.json_loads(data)
         sequence_id = getattr(sequenced_item, self.field_names.sequence_id)
         position = getattr(sequenced_item, self.field_names.position)
-
-        if self.with_data_integrity:
-            if hash != self.hash(sequence_id, position, data):
-                raise DataIntegrityError('hash mismatch', sequenced_item[:2])
 
         # Set the sequence ID and position.
         event_attrs[self.sequence_id_attr_name] = sequence_id
@@ -129,15 +135,6 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Reconstruct the domain event object.
         return reconstruct_object(domain_event_class, event_attrs)
 
-    def serialize_event_attrs(self, event_attrs, is_encrypted=False):
-        event_data = self.json_dumps(event_attrs)
-        # Encrypt (optional).
-        if is_encrypted:
-            assert isinstance(self.cipher, AbstractCipher)
-            event_data = self.cipher.encrypt(event_data)
-
-        return event_data
-
     def json_dumps(self, obj):
         return json.dumps(
             obj,
@@ -145,15 +142,6 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
             sort_keys=True,
             cls=self.json_encoder_class,
         )
-
-    def deserialize_event_attrs(self, event_attrs, is_encrypted):
-        """
-        Deserialize event attributes from JSON, optionally with decryption.
-        """
-        if is_encrypted:
-            assert isinstance(self.cipher, AbstractCipher), self.cipher
-            event_attrs = self.cipher.decrypt(event_attrs)
-        return self.json_loads(event_attrs)
 
     def json_loads(self, s):
         return json.loads(s, cls=self.json_decoder_class)

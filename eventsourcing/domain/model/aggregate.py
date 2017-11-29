@@ -41,7 +41,7 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
             state = self.__dict__.copy()
             event_hash = state.pop('event_hash')
             if event_hash != self.hash(state):
-                raise EventHashError(self.originator_id)
+                raise EventHashError(self.originator_id, self.originator_version)
 
         @classmethod
         def hash(cls, *args):
@@ -145,7 +145,7 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         Checks the head hash matches the event's last hash.
         """
         if self.__head__ != event.originator_head:
-            raise OriginatorHeadError(self.__head__, event.originator_head)
+            raise OriginatorHeadError(self.id, self.version)
 
     def increment_version(self):
         self._increment_version()
