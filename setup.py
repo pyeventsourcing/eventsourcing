@@ -1,3 +1,4 @@
+import os
 from setuptools import find_packages, setup
 
 try:
@@ -8,6 +9,9 @@ except ImportError:
     singledispatch_requires = ['singledispatch==3.4.0.3']
 
 from eventsourcing import __version__
+
+if 'READTHEDOCS' in os.environ:
+    os.environ['CASS_DRIVER_NO_CYTHON'] = '1'
 
 install_requires = singledispatch_requires + [
     'python-dateutil<=2.6.99999',
