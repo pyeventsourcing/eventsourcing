@@ -426,7 +426,7 @@ to install drivers for your database management system.
 
 
 Similar to the support for storing events in SQLAlchemy, there
-are classes in the library for :doc:`Cassandra </topics/user_guide/cassandra>`.
+are classes in the library for :doc:`Cassandra </topics/examples/cassandra>`.
 The project `djangoevents <https://github.com/ApplauseOSS/djangoevents>`__ has
 support for storing events with this library using the Django ORM.
 Support for other databases such as DynamoDB is forthcoming.
@@ -555,7 +555,7 @@ the ``data`` field represents the state of the event (normally a JSON string).
 
 These are just default names. If it matters in your context that
 the persistence model uses other names, then you can
-:doc:`use a different sequenced item type </topics/user_guide/schema>`
+:doc:`use a different sequenced item type </topics/examples/schema>`
 which either extends or replaces the fields above.
 
 

@@ -189,7 +189,7 @@ Cassandra
 ---------
 
 Cassandra connections can be set up entirely independently of the application
-object. See the section about :doc:`using Cassandra</topics/user_guide/cassandra>`
+object. See the section about :doc:`using Cassandra</topics/examples/cassandra>`
 for more information.
 
 

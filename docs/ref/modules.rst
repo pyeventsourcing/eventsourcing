@@ -65,7 +65,7 @@ event sourced domain model.
 
 
 array
-~~~~~
+-----
 
 A kind of collection, indexed by integer. Doesn't need to replay all events to exist.
 
@@ -76,7 +76,7 @@ A kind of collection, indexed by integer. Doesn't need to replay all events to e
 
 
 collection
-~~~~~~~~~~
+----------
 
 Decorators useful in domain models based on the classes in this library.
 
@@ -87,7 +87,7 @@ Decorators useful in domain models based on the classes in this library.
 
 
 entity
-~~~~~~
+------
 
 Base classes for domain entities of different kinds.
 
@@ -98,7 +98,7 @@ Base classes for domain entities of different kinds.
 
 
 events
-~~~~~~
+------
 
 Base classes for domain events of different kinds.
 
@@ -109,7 +109,7 @@ Base classes for domain events of different kinds.
 
 
 snapshot
-~~~~~~~~
+--------
 
 Snapshotting is implemented in the domain layer as an event.
 
@@ -120,7 +120,7 @@ Snapshotting is implemented in the domain layer as an event.
 
 
 timebucketedlog
-~~~~~~~~~~~~~~~
+---------------
 
 Time-bucketed logs allow a sequence of the items that is sequenced by timestamp to
 be split across a number of different database partitions, which avoids one
