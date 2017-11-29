@@ -51,14 +51,11 @@ simple
     :undoc-members:
 
 
-domain
-======
+domain.model
+============
 
 The domain layer contains a domain model, and optionally services that work across
-different aggregates.
-
-model
------
+different entities or aggregates.
 
 The domain model package contains classes and functions that can help develop an
 event sourced domain model.
@@ -361,15 +358,24 @@ utils
 
 The utils package contains common functions that are used in more than one layer.
 
+time
+----
+
 .. automodule:: eventsourcing.utils.time
     :members:
     :show-inheritance:
     :undoc-members:
 
+topic
+-----
+
 .. automodule:: eventsourcing.utils.topic
     :members:
     :show-inheritance:
     :undoc-members:
+
+transcoding
+-----------
 
 .. automodule:: eventsourcing.utils.transcoding
     :members:
