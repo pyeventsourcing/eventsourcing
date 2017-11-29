@@ -1,3 +1,6 @@
+"""
+The entity module provides base classes for domain entities.
+"""
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 from six import with_metaclass
@@ -11,6 +14,8 @@ from eventsourcing.utils.time import timestamp_from_uuid
 
 
 class DomainEntity(QualnameABC):
+    """Base class for domain entities."""
+
     class Event(EventWithOriginatorID, DomainEvent):
         """Supertype for events of domain entities."""
 

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import types
 from os.path import abspath, dirname
 import sphinx_rtd_theme
 
@@ -172,3 +173,11 @@ texinfo_documents = [
 
 
 
+def skip(app, what, name, obj, skip, options):
+    if getattr(obj, '__doc__', None) and isinstance(obj, (types.FunctionType, types.MethodType)):
+        return False
+    else:
+        return skip
+
+def setup(app):
+    app.connect("autodoc-skip-member", skip)

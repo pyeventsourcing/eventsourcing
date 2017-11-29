@@ -1,9 +1,13 @@
-===============
-eventsourcing
-===============
+===========
+Module docs
+===========
 
 This document describes the packages, modules, classes, functions and other code
 details of the library.
+
+-------------
+eventsourcing
+-------------
 
 application
 ===========
