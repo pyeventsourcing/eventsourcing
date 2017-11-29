@@ -10,6 +10,7 @@ except ImportError:
 
 from eventsourcing import __version__
 
+# Read the docs doesn't need to build the Cassandra driver (and can't).
 if 'READTHEDOCS' in os.environ:
     os.environ['CASS_DRIVER_NO_CYTHON'] = '1'
 
@@ -39,7 +40,7 @@ testing_requires = [
     'celery<=4.1.99999',
 ] + cassandra_requires + crypto_requires + sqlalchemy_requires
 
-docs_requires = ['Sphinx', 'sphinx_rtd_theme'] + testing_requires + install_requires
+docs_requires = ['Sphinx', 'sphinx_rtd_theme'] + testing_requires
 
 
 long_description = """
