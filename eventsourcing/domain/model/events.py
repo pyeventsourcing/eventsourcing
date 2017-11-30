@@ -1,11 +1,20 @@
+import hashlib
 import itertools
+import json
 import time
 from abc import ABCMeta
 from collections import OrderedDict
 from uuid import uuid1
 
+import os
 import six
 from six import with_metaclass
+
+from eventsourcing.exceptions import EventHashError
+from eventsourcing.utils.topic import resolve_topic
+from eventsourcing.utils.transcoding import ObjectJSONEncoder
+
+GENESIS_HASH = os.getenv('EVENTSOURCING_GENESIS_HASH', '')
 
 
 class QualnameABCMeta(ABCMeta):
@@ -88,6 +97,9 @@ class DomainEvent(QualnameABC):
         """
         return self.__class__.__qualname__ + "(" + ', '.join(
             "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
+
+    def mutate(self, obj):
+        return obj
 
 
 class EventWithOriginatorID(DomainEvent):

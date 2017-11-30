@@ -5,6 +5,7 @@ from uuid import uuid4
 from eventsourcing.domain.model.decorators import mutator
 from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, mutate_entity
 from eventsourcing.domain.model.events import publish
+from eventsourcing.utils.topic import get_topic
 
 
 class Collection(TimestampedVersionedEntity):
@@ -17,15 +18,22 @@ class Collection(TimestampedVersionedEntity):
     class Discarded(Event, TimestampedVersionedEntity.Discarded):
         """Published when collection is discarded."""
 
-    class ItemAdded(Event):
+    class EventWithItem(Event):
         @property
         def item(self):
             return self.__dict__['item']
 
-    class ItemRemoved(Event):
-        @property
-        def item(self):
-            return self.__dict__['item']
+    class ItemAdded(EventWithItem):
+        def mutate(self, obj):
+            obj = super(Collection.ItemAdded, self).mutate(obj)
+            obj._items.add(self.item)
+            return obj
+
+    class ItemRemoved(EventWithItem):
+        def mutate(self, obj):
+            obj = super(Collection.ItemRemoved, self).mutate(obj)
+            obj._items.remove(self.item)
+            return obj
 
     def __init__(self, **kwargs):
         super(Collection, self).__init__(**kwargs)
@@ -40,22 +48,10 @@ class Collection(TimestampedVersionedEntity):
         return self._items
 
     def add_item(self, item):
-        self._assert_not_discarded()
-        event = self.ItemAdded(
-            originator_id=self.id,
-            originator_version=self._version,
-            item=item,
-        )
-        self._apply_and_publish(event)
+        self._trigger(self.ItemAdded, item=item)
 
     def remove_item(self, item):
-        self._assert_not_discarded()
-        event = self.ItemRemoved(
-            originator_id=self.id,
-            originator_version=self._version,
-            item=item,
-        )
-        self._apply_and_publish(event)
+        self._trigger(self.ItemRemoved, item=item)
 
     @classmethod
     def _mutate(cls, initial=None, event=None):
@@ -64,7 +60,7 @@ class Collection(TimestampedVersionedEntity):
 
 def register_new_collection(collection_id=None):
     collection_id = uuid4() if collection_id is None else collection_id
-    event = Collection.Created(originator_id=collection_id)
+    event = Collection.Created(originator_id=collection_id, originator_topic=get_topic(Collection))
     entity = collection_mutator(Collection, event)
     publish(event)
     return entity

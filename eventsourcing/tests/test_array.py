@@ -152,7 +152,7 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
     def setUp(self):
         super(TestBigArrayWithSQLAlchemy, self).setUp()
         self.repo = BigArrayRepository(
-            base_size=None,
+            array_size=None,
             event_store=self.entity_event_store,
         )
         self.subrepo = self.repo.subrepo

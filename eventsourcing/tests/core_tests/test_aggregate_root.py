@@ -297,11 +297,9 @@ class ExampleDDDApplication(object):
             )
         )
         self.aggregate1_repository = AggregateRepository(
-            mutator=Aggregate1._mutate,
             event_store=event_store,
         )
         self.aggregate2_repository = AggregateRepository(
-            # mutator=Aggregate2._mutate,
             event_store=event_store,
         )
         self.persistence_policy = PersistencePolicy(

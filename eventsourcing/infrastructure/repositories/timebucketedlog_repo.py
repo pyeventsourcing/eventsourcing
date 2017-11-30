@@ -6,8 +6,3 @@ class TimebucketedlogRepo(EventSourcedRepository, TimebucketedlogRepository):
     """
     Event sourced repository for the Example domain model entity.
     """
-    def __init__(self, *args, **kwargs):
-        super(TimebucketedlogRepo, self).__init__(
-            mutator=Timebucketedlog._mutate,
-            *args, **kwargs
-        )

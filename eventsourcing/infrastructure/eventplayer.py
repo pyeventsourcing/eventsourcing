@@ -11,16 +11,15 @@ class EventPlayer(AbstractEventPlayer):
     # of queries, rather than with one potentially large query.
     __page_size__ = None
 
-    def __init__(self, event_store, mutator=None,
-                 snapshot_strategy=None, use_cache=False, *args, **kwargs):
-        super(EventPlayer, self).__init__(*args, **kwargs)
+    def __init__(self, event_store, snapshot_strategy=None, use_cache=False, mutator_func=None):
+        super(EventPlayer, self).__init__()
         # Check we got an event store.
         assert isinstance(event_store, AbstractEventStore), type(event_store)
         self._event_store = event_store
-        self._mutator = mutator
         self._snapshot_strategy = snapshot_strategy
         self._cache = {}
         self._use_cache = use_cache
+        self._mutator_func = mutator_func
 
     @property
     def event_store(self):
@@ -30,7 +29,7 @@ class EventPlayer(AbstractEventPlayer):
         """
         Evolves initial state using the sequence of domain events and a mutator function.
         """
-        return reduce(self._mutator or self.mutate, domain_events, initial_state)
+        return reduce(self._mutator_func or self.mutate, domain_events, initial_state)
 
     @staticmethod
     def mutate(initial, event):

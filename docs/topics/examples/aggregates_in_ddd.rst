@@ -65,26 +65,27 @@ can operate on all the "example" objects of the aggregate.
 
         class ExampleCreated(Event):
             """Published when an "example" object in the aggregate is created."""
+            def mutate(self, obj):
+                super(ExampleAggregateRoot.ExampleCreated, self).mutate(obj)
+                entity = Example(example_id=self.example_id)
+                obj._examples[str(entity.id)] = entity
+                return obj
 
         def __init__(self, **kwargs):
             super(ExampleAggregateRoot, self).__init__(**kwargs)
             self._pending_events = []
             self._examples = {}
 
+        def create_new_example(self):
+            return self._trigger(
+                ExampleAggregateRoot.ExampleCreated,
+                example_id=uuid.uuid4()
+            )
+
         def count_examples(self):
             return len(self._examples)
 
-        def create_new_example(self):
-            assert not self._is_discarded
-            event = ExampleAggregateRoot.ExampleCreated(
-                example_id=uuid.uuid4(),
-                originator_id=self.id,
-                originator_version=self.version,
-            )
-            mutate_aggregate(self, event)
-            self._publish(event)
-
-        def _publish(self, event):
+        def publish(self, event):
             self._pending_events.append(event)
 
         def save(self):
@@ -104,73 +105,24 @@ can operate on all the "example" objects of the aggregate.
             return self._id
 
 
-The methods of the aggregate, and the factory below, are similar to previous
-examples. But instead of immediately publishing events using the ``publish()``
-function, the events are appended to an internal list of pending events
-using the aggregate's method ``_publish()``. The aggregate then has a ``save()``
-method which is used to publish all the pending events in a single list using
-the function ``publish()``.
 
-As before, we'll also need a factory and a mutator function. The factory function here
-works in the same way as before.
+The methods of the aggregate, and the factory below, are similar to previous
+examples. But instead of immediately publishing events to the publish-subscribe
+mechanism, the events are appended to an internal list of pending events. The
+aggregate then has a ``save()`` method which is used to publish all the pending
+events in a single list to the publish-subscribe mechanism.
 
 .. code:: python
+
+    from eventsourcing.utils.topic import get_topic
 
     def create_example_aggregate():
         """
         Factory function for example aggregate.
         """
         # Construct event.
-        event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4())
+        return ExampleAggregateRoot.create()
 
-        # Mutate aggregate.
-        aggregate = mutate_aggregate(aggregate=None, event=event)
-
-        # Publish event to internal list only.
-        aggregate._publish(event)
-
-        # Return the new aggregate object.
-        return aggregate
-
-
-The mutator function ``mutate_aggregate()`` below handles events ``Created`` and
-``Discarded`` similarly to the previous examples. It also handles ``ExampleCreated``,
-by constructing an object class ``Example`` that it adds to the aggregate's internal
-collection of examples.
-
-.. code:: python
-
-    def mutate_aggregate(aggregate, event):
-        """
-        Mutator function for example aggregate.
-        """
-        # Handle "created" events by constructing the aggregate object.
-        if isinstance(event, ExampleAggregateRoot.Created):
-            kwargs = event.__dict__.copy()
-            kwargs['version'] = kwargs.pop('originator_version')
-            kwargs['id'] = kwargs.pop('originator_id')
-            aggregate = ExampleAggregateRoot(**kwargs)
-            aggregate._version += 1
-            return aggregate
-
-        # Handle "example entity created" events by adding a new entity
-        # to the aggregate's dict of entities.
-        elif isinstance(event, ExampleAggregateRoot.ExampleCreated):
-            aggregate._assert_not_discarded()
-            entity = Example(example_id=event.example_id)
-            aggregate._examples[str(entity.id)] = entity
-            aggregate._version += 1
-            aggregate._last_modified = event.timestamp
-            return aggregate
-
-        # Handle "discarded" events by returning 'None'.
-        elif isinstance(event, ExampleAggregateRoot.Discarded):
-            aggregate._assert_not_discarded()
-            aggregate._version += 1
-            aggregate._is_discarded = True
-            return None
-        else:
-            raise NotImplementedError(type(event))
 
 
 Application and infrastructure
@@ -222,7 +174,6 @@ and policy classes from the library.
             )
             self.aggregate_repository = EventSourcedRepository(
                 event_store=self.event_store,
-                mutator=mutate_aggregate,
             )
             self.persistence_policy = PersistencePolicy(
                 event_store=self.event_store,

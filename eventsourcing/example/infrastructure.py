@@ -8,7 +8,7 @@ class ExampleRepository(EventSourcedRepository, AbstractExampleRepository):
     """
     __page_size__ = 1000
 
-    def __init__(self, *args, **kwargs):
-        super(ExampleRepository, self).__init__(
-            mutator=Example._mutate, *args, **kwargs
-        )
+    # def __init__(self, *args, **kwargs):
+    #     super(ExampleRepository, self).__init__(
+    #         mutator=Example._mutate, *args, **kwargs
+    #     )

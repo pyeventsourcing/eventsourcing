@@ -42,6 +42,11 @@ Aggregate model
 
         class ExampleCreated(Event):
             """Published when an "example" object in the aggregate is created."""
+            def mutate(self, obj):
+                obj = super(ExampleAggregateRoot.ExampleCreated, self).mutate(obj)
+                entity = Example(example_id=self.example_id)
+                obj._examples[str(entity.id)] = entity
+                return obj
 
         def __init__(self, foo, **kwargs):
             super(ExampleAggregateRoot, self).__init__(**kwargs)
@@ -57,14 +62,10 @@ Aggregate model
             return len(self._examples)
 
         def create_new_example(self):
-            assert not self._is_discarded
-            event = ExampleAggregateRoot.ExampleCreated(
-                example_id=uuid.uuid4(),
-                originator_id=self.id,
-                originator_version=self.version,
+            self._trigger(
+                ExampleAggregateRoot.ExampleCreated,
+                example_id=uuid.uuid4()
             )
-            self._apply_and_publish(event)
-            self._publish(event)
 
         def _publish(self, event):
             self._pending_events.append(event)
@@ -72,10 +73,6 @@ Aggregate model
         def save(self):
             publish(self._pending_events[:])
             self._pending_events = []
-
-        @classmethod
-        def _mutate(cls, initial, event):
-            return mutate_aggregate(initial or cls, event)
 
 
     class Example(object):
@@ -101,47 +98,8 @@ Aggregate factory
         """
         Factory function for example aggregate.
         """
-        # Construct event.
-        event = ExampleAggregateRoot.Created(originator_id=uuid.uuid4(), foo=foo)
+        return ExampleAggregateRoot.create(foo=foo)
 
-        # Mutate aggregate.
-        aggregate = mutate_aggregate(ExampleAggregateRoot, event)
-
-        # Publish event to internal list only.
-        aggregate._publish(event)
-
-        # Return the new aggregate object.
-        return aggregate
-
-
-Mutator function
-----------------
-
-.. code:: python
-
-    from eventsourcing.domain.model.decorators import mutator
-    from eventsourcing.domain.model.entity import mutate_entity
-
-    @mutator
-    def mutate_aggregate(aggregate, event):
-        """
-        Mutator function for example aggregate.
-        """
-        return mutate_entity(aggregate, event)
-
-
-    @mutate_aggregate.register(ExampleAggregateRoot.ExampleCreated)
-    def _(aggregate, event):
-        # Handle "ExampleCreated" events by adding a new entity to the aggregate's dict of entities.
-        try:
-            aggregate._assert_not_discarded()
-        except TypeError:
-            raise Exception(aggregate)
-        entity = Example(example_id=event.example_id)
-        aggregate._examples[str(entity.id)] = entity
-        aggregate._version += 1
-        aggregate._last_modified = event.timestamp
-        return aggregate
 
 
 Infrastructure
@@ -242,7 +200,6 @@ Application object
             # Construct the entity repository, this time with the snapshot strategy.
             self.example_repository = EventSourcedRepository(
                 event_store=self.entity_event_store,
-                mutator=ExampleAggregateRoot._mutate,
                 snapshot_strategy=self.snapshot_strategy
             )
 
@@ -289,7 +246,13 @@ Run the code
         aggregate.create_new_example()
 
         aggregate.save()
-        assert app.example_repository[aggregate.id].foo == 'bar1'
+
+        aggregate = app.example_repository[aggregate.id]
+        assert aggregate.foo == 'bar1'
+        assert aggregate.count_examples() == 1
+
+
+
 
         a = app.example_repository[aggregate.id]
         b = app.example_repository[aggregate.id]

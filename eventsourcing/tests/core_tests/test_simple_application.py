@@ -30,8 +30,8 @@ class TestSimpleApplication(SQLAlchemyDatastoreTestCase):
             originator_id=uuid.uuid4(),
             originator_topic=get_topic(ExampleAggregateRoot)
         )
-        aggregate = ExampleAggregateRoot._mutate(event=event)
-        aggregate._publish(event)
+        aggregate = event.mutate(None)
+        aggregate.publish(event)
         aggregate.save()
 
         # Check the application's persistence policy is effective.

@@ -9,11 +9,11 @@ class ArrayRepository(AbstractArrayRepository, EventSourcedRepository):
 class BigArrayRepository(AbstractBigArrayRepository, EventSourcedRepository):
     subrepo_class = ArrayRepository
 
-    def __init__(self, base_size=10000, *args, **kwargs):
+    def __init__(self, array_size=10000, *args, **kwargs):
         super(BigArrayRepository, self).__init__(*args, **kwargs)
         self._subrepo = self.subrepo_class(
             event_store=self.event_store,
-            array_size=base_size,
+            array_size=array_size,
         )
 
     @property

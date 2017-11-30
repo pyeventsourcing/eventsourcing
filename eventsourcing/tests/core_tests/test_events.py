@@ -6,7 +6,7 @@ from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmptyError, EventWithOriginatorID, \
     EventWithOriginatorVersion, EventWithTimestamp, _event_handlers, assert_event_handlers_empty, \
     create_timesequenced_event_id, publish, subscribe, unsubscribe, EventWithTimeuuid
-from eventsourcing.utils.topic import resolve_topic
+from eventsourcing.utils.topic import resolve_topic, get_topic
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.utils.time import timestamp_from_uuid
@@ -316,7 +316,11 @@ class TestEvents(unittest.TestCase):
 
     def test_event_attributes(self):
         entity_id1 = uuid4()
-        event = Example.Created(originator_id=entity_id1, a=1, b=2)
+        event = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2
+        )
 
         # Check constructor keyword args lead to read-only attributes.
         self.assertEqual(1, event.a)
@@ -328,7 +332,11 @@ class TestEvents(unittest.TestCase):
         self.assertIsInstance(event.timestamp, float)
 
         # Check timestamp value can be given to domain events.
-        event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
+        event1 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2, timestamp=3
+        )
         self.assertEqual(3, event1.timestamp)
 
     def test_publish_subscribe_unsubscribe(self):
@@ -376,15 +384,35 @@ class TestEvents(unittest.TestCase):
 
     def test_hash(self):
         entity_id1 = uuid4()
-        event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
-        event2 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
+        event1 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2, timestamp=3
+        )
+        event2 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2, timestamp=3
+        )
         self.assertEqual(hash(event1), hash(event2))
 
     def test_equality_comparison(self):
         entity_id1 = uuid4()
-        event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
-        event2 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
-        event3 = Example.Created(originator_id=entity_id1, a=3, b=2, timestamp=3)
+        event1 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2, timestamp=3
+        )
+        event2 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2, timestamp=3
+        )
+        event3 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=3, b=2, timestamp=3
+        )
         self.assertEqual(event1, event2)
         self.assertNotEqual(event1, event3)
         self.assertNotEqual(event2, event3)
@@ -392,16 +420,26 @@ class TestEvents(unittest.TestCase):
 
     def test_repr(self):
         entity_id1 = uuid4()
-        event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
+        event1 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2, timestamp=3
+        )
+        self.maxDiff = None
         self.assertEqual(
-            "Example.Created(a=1, b=2, originator_id={}, originator_version=0, timestamp=3)".format(
-                repr(entity_id1)),
+            ("Example.Created(a=1, b=2, event_hash='{}', originator_head='', originator_id={}, "
+             "originator_topic='eventsourcing.example.domainmodel#Example', originator_version=0, "
+            "timestamp=3)").format(event1.event_hash, repr(entity_id1)),
             repr(event1)
         )
 
     def test_subscribe_to_decorator(self):
         entity_id1 = uuid4()
-        event = Example.Created(originator_id=entity_id1, a=1, b=2)
+        event = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2
+        )
         handler = mock.Mock()
 
         # Check we can assert there are no event handlers subscribed.

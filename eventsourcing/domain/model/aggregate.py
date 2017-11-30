@@ -4,129 +4,31 @@ aggregate
 
 Base classes for aggregates in a domain driven design.
 """
-import hashlib
-import json
 from collections import deque
 
-import os
-from uuid import uuid4
-
-from eventsourcing.domain.model.entity import TimestampedVersionedEntity, WithReflexiveMutator
-from eventsourcing.domain.model.events import publish
-from eventsourcing.exceptions import OriginatorHeadError, EventHashError
-from eventsourcing.utils.topic import resolve_topic, get_topic
-from eventsourcing.utils.transcoding import ObjectJSONEncoder
-
-GENESIS_HASH = os.getenv('EVENTSOURCING_GENESIS_HASH', '')
+from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 
 
-class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
+class AggregateRoot(TimestampedVersionedEntity):
     """
     Root entity for an aggregate in a domain driven design.
     """
+
     class Event(TimestampedVersionedEntity.Event):
         """Supertype for aggregate events."""
-        json_encoder_class = ObjectJSONEncoder
-
-        def __init__(self, originator_head, **kwargs):
-            kwargs['originator_head'] = originator_head
-            super(AggregateRoot.Event, self).__init__(**kwargs)
-            # Seal the event state.
-            assert 'event_hash' not in self.__dict__
-            self.__dict__['event_hash'] = self.hash(self.__dict__)
-
-        @property
-        def originator_head(self):
-            return self.__dict__['originator_head']
-
-        @property
-        def event_hash(self):
-            return self.__dict__['event_hash']
-
-        def validate(self):
-            state = self.__dict__.copy()
-            event_hash = state.pop('event_hash')
-            if event_hash != self.hash(state):
-                raise EventHashError(self.originator_id, self.originator_version)
-
-        @classmethod
-        def hash(cls, *args):
-            json_dump = json.dumps(
-                args,
-                separators=(',', ':'),
-                sort_keys=True,
-                cls=cls.json_encoder_class,
-            )
-            return hashlib.sha256(json_dump.encode()).hexdigest()
-
-        def mutate(self, aggregate):
-            assert isinstance(aggregate, AggregateRoot)
-            self.validate()
-            aggregate.validate_originator(self)
-            aggregate.__head__ = self.event_hash
-            aggregate.increment_version()
-            aggregate.set_last_modified(self.timestamp)
-            return self._mutate(aggregate)
-
-        def _mutate(self, aggregate):
-            return aggregate
 
     class Created(Event, TimestampedVersionedEntity.Created):
         """Published when an AggregateRoot is created."""
-        def __init__(self, originator_topic, **kwargs):
-            kwargs['originator_topic'] = originator_topic
-            assert 'originator_head' not in kwargs
-            super(AggregateRoot.Created, self).__init__(
-                originator_head=GENESIS_HASH, **kwargs
-            )
-
-        @property
-        def originator_topic(self):
-            return self.__dict__['originator_topic']
-
-        def mutate(self, cls=None):
-            if cls is None:
-                cls = resolve_topic(self.originator_topic)
-            aggregate = cls(**self.constructor_kwargs())
-            super(AggregateRoot.Created, self).mutate(aggregate)
-            return aggregate
-
-        def constructor_kwargs(self):
-            kwargs = self.__dict__.copy()
-            kwargs['id'] = kwargs.pop('originator_id')
-            kwargs['version'] = kwargs.pop('originator_version')
-            kwargs.pop('event_hash')
-            kwargs.pop('originator_head')
-            kwargs.pop('originator_topic')
-            return kwargs
 
     class AttributeChanged(Event, TimestampedVersionedEntity.AttributeChanged):
         """Published when an AggregateRoot is changed."""
-        def _mutate(self, aggregate):
-            setattr(aggregate, self.name, self.value)
-            return aggregate
 
     class Discarded(Event, TimestampedVersionedEntity.Discarded):
         """Published when an AggregateRoot is discarded."""
-        def _mutate(self, aggregate):
-            aggregate.set_is_discarded()
-            return None
 
     def __init__(self, **kwargs):
         super(AggregateRoot, self).__init__(**kwargs)
         self.__pending_events__ = deque()
-        self.__head__ = GENESIS_HASH
-
-    @classmethod
-    def create(cls, **kwargs):
-        event = cls.Created(
-            originator_id=uuid4(),
-            originator_topic=get_topic(cls),
-            **kwargs
-        )
-        aggregate = event.mutate()
-        aggregate.publish(event)
-        return aggregate
 
     def save(self):
         """
@@ -139,43 +41,10 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         except IndexError:
             pass
         if batch_of_events:
-            publish(batch_of_events)
+            self._publish_to_subscribers(batch_of_events)
 
-    def _trigger(self, event_class, **kwargs):
-        """
-        Triggers domain event of given class with originator_head as current __head__.
-        """
-        kwargs['originator_head'] = self.__head__
-        return super(AggregateRoot, self)._trigger(event_class, **kwargs)
-
-    def _publish(self, event):
+    def publish(self, event):
         """
         Appends event to internal collection of pending events.
         """
         self.__pending_events__.append(event)
-
-    def publish(self, event):
-        self._publish(event)
-
-    def validate_originator(self, event):
-        """
-        Checks a domain event against the aggregate.
-        """
-        self._validate_originator(event)
-        self._validate_originator_head(event)
-
-    def _validate_originator_head(self, event):
-        """
-        Checks the head hash matches the event's last hash.
-        """
-        if self.__head__ != event.originator_head:
-            raise OriginatorHeadError(self.id, self.version)
-
-    def increment_version(self):
-        self._increment_version()
-
-    def set_last_modified(self, last_modified):
-        self._last_modified = last_modified
-
-    def set_is_discarded(self):
-        self._is_discarded = True

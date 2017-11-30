@@ -24,6 +24,11 @@ class Example(TimestampedVersionedEntity):
 
     class Heartbeat(Event, TimestampedVersionedEntity.Event):
         """Published when a heartbeat in the entity occurs (see below)."""
+        def mutate(self, obj):
+            super(Example.Heartbeat, self).mutate(obj)
+            assert isinstance(obj, Example), obj
+            obj._count_heartbeats += 1
+            return obj
 
     def __init__(self, foo='', a='', b='', **kwargs):
         super(Example, self).__init__(**kwargs)
@@ -47,8 +52,7 @@ class Example(TimestampedVersionedEntity):
     def beat_heart(self, number_of_beats=1):
         self._assert_not_discarded()
         while number_of_beats > 0:
-            event = self.Heartbeat(originator_id=self._id, originator_version=self._version)
-            self._apply_and_publish(event)
+            self._trigger(self.Heartbeat)
             number_of_beats -= 1
 
     def count_heartbeats(self):
@@ -83,6 +87,7 @@ def create_new_example(foo='', a='', b=''):
 
     :rtype: Example
     """
+    return Example.create(foo=foo, a=a, b=b)
     entity_id = uuid.uuid4()
     event = Example.Created(originator_id=entity_id, foo=foo, a=a, b=b)
     entity = Example._mutate(event=event)

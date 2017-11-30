@@ -9,6 +9,7 @@ from eventsourcing.domain.model.entity import AbstractEntityRepository, Timestam
 from eventsourcing.domain.model.events import publish, EventWithTimestamp, EventWithOriginatorID, Logged
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.utils.time import utc_timezone
+from eventsourcing.utils.topic import get_topic
 
 Namespace_Timebuckets = UUID('0d7ee297-a976-4c29-91ff-84ffc79d8155')
 
@@ -89,9 +90,10 @@ def start_new_timebucketedlog(name, bucket_size=None):
     event = Timebucketedlog.Started(
         originator_id=name,
         name=name,
-        bucket_size=bucket_size
+        bucket_size=bucket_size,
+        originator_topic=get_topic(Timebucketedlog)
     )
-    entity = Timebucketedlog._mutate(event=event)
+    entity = event.mutate(None)
     publish(event)
     return entity
 

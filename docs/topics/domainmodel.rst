@@ -219,38 +219,54 @@ A domain entity is an object that is not defined by its attributes, but rather b
 identity. The attributes of a domain entity can change, directly by assignment, or indirectly by calling a method of
 the object.
 
-The library provides a domain entity class ``VersionedEntity``, which has an ``id`` attribute, and a ``version``
-attribute.
+The library has a base class for domain entities called ``DomainEntity``, which has an ``id`` attribute.
 
 .. code:: python
 
-    from eventsourcing.domain.model.entity import VersionedEntity
+    from eventsourcing.domain.model.entity import DomainEntity
 
-    entity_id = uuid4()
+    DomainEntity(id=uuid4())
 
-    entity = VersionedEntity(id=entity_id, version=0)
 
-    assert entity.id == entity_id
-    assert entity.version == 0
+The ``DomainEntity`` has a class method ``create()`` which can construct a ``Created`` event,
+project the event into an entity object using the event's ``mutate()`` method, and then
+publish the event, and then return the new aggregate object.
+
+.. code:: python
+
+    entity = DomainEntity.create()
+
+    assert entity.id
 
 
 Entity library
 --------------
 
-There is a ``TimestampedEntity`` that has ``id`` and ``created_on`` attributes. It also has a ``last_modified``
-attribute which is normally updated as events are applied.
+The library also has a domain entity class called ``VersionedEntity``, which extends the ``DomainEntity`` class
+with a ``version`` attribute.
+
+.. code:: python
+
+    from eventsourcing.domain.model.entity import VersionedEntity
+
+    entity = VersionedEntity.create()
+
+    assert entity.id
+    assert entity.version == 1
+
+
+The library also has a domain entity class called ``TimestampedEntity``, which extends the ``DomainEntity`` class
+with a ``created_on`` and ``last_modified`` attributes.
 
 .. code:: python
 
     from eventsourcing.domain.model.entity import TimestampedEntity
 
-    entity_id = uuid4()
+    entity = TimestampedEntity.create()
 
-    entity = TimestampedEntity(id=entity_id, timestamp=123456789)
-
-    assert entity.id == entity_id
-    assert entity.created_on == 123456789
-    assert entity.last_modified == 123456789
+    assert entity.id
+    assert entity.created_on
+    assert entity.last_modified
 
 
 There is also a ``TimestampedVersionedEntity`` that has ``id``, ``version``, ``created_on``, and ``last_modified``
@@ -260,14 +276,12 @@ attributes.
 
     from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 
-    entity_id = uuid4()
+    entity = TimestampedVersionedEntity.create()
 
-    entity = TimestampedVersionedEntity(id=entity_id, version=0, timestamp=123456789)
-
-    assert entity.id == entity_id
-    assert entity.version == 0
-    assert entity.created_on == 123456789
-    assert entity.last_modified == 123456789
+    assert entity.id
+    assert entity.created_on
+    assert entity.last_modified
+    assert entity.version == 1
 
 
 A timestamped, versioned entity is both a timestamped entity and a versioned entity.
@@ -287,83 +301,100 @@ suitable arguments.
 
 .. code:: python
 
+    from eventsourcing.utils.topic import get_topic
+
+    entity_id = uuid4()
+
     created = VersionedEntity.Created(
         originator_version=0,
         originator_id=entity_id,
+        originator_topic=get_topic(VersionedEntity)
     )
 
     attribute_a_changed = VersionedEntity.AttributeChanged(
         name='a',
         value=1,
         originator_version=1,
-        originator_id=entity_id
+        originator_id=entity_id,
+        originator_head=created.event_hash,
     )
 
     attribute_b_changed = VersionedEntity.AttributeChanged(
         name='b',
         value=2,
         originator_version=2,
-        originator_id=entity_id
+        originator_id=entity_id,
+        originator_head=attribute_a_changed.event_hash,
     )
 
     entity_discarded = VersionedEntity.Discarded(
         originator_version=3,
-        originator_id=entity_id
+        originator_id=entity_id,
+        originator_head=attribute_b_changed.event_hash,
     )
 
 
-The class ``VersionedEntity`` has a method ``_increment_version()`` which can be used, for example by a mutator
-function, to increment the version number each time an event is applied.
+The events have a ``mutate()`` function, which can be used to mutate the
+state of a given object appropriately.
 
-.. code:: python
-
-    entity._increment_version()
-
-    assert entity.version == 1
-
-
-Mutator functions
------------------
-
-For an application to be event sourced, the state of the application must be mutated by applying domain events.
-
-The entity mutator function ``mutate_entity()`` can be used to apply a domain event to an entity.
+For example, the ``DomainEntity.Created`` event mutates ``None`` to an
+entity instance. The class that is instantiated is determined by the
+``originator_topic`` attribute of the ``DomainEntity.Created`` event.
 
 .. code:: python
 
     from eventsourcing.domain.model.entity import mutate_entity
 
-    entity = mutate_entity(entity, attribute_a_changed)
+    entity = created.mutate(None)
 
+    assert entity.id == entity_id
+
+
+As another example, when a versioned entity is mutated by an event of the
+``VersionedEntity`` class, the entity version number is incremented.
+
+.. code:: python
+
+    assert entity.version == 1
+
+    entity = attribute_a_changed.mutate(entity)
+    assert entity.version == 2
     assert entity.a == 1
 
-
-When a versioned entity is updated in this way, the version number is normally incremented.
-
-.. code:: python
-
-    assert entity.version == 2
+    entity = attribute_b_changed.mutate(entity)
+    assert entity.version == 3
+    assert entity.b == 2
 
 
-Apply and publish
+Similarly, when a timestamped entity is mutated by an event of the
+``TimestampedEntity`` class, the ``last_modified`` attribute is
+set to the event's ``timestamp``.
+
+
+Triggering events
 -----------------
 
-Events are normally published after they are applied. The method ``_apply_and_publish()``
-can be used to both apply and then publish, so the event mutates the entity
-and is then received by subscribers.
+Events are usually triggered by command methods of entities. Commands
+will construct, apply, and publish events, using the results from working
+on command arguments. The events need to be constructed with suitable arguments.
+
+To help construct events with suitable arguments in an extensible manner, the
+``DomainEntity`` class has a private method ``_trigger()``, extended by subclasses,
+which can be used to construct, apply, and publish events with suitable arguments.
 
 .. code:: python
 
-    # Apply and publish a domain event.
-    entity._apply_and_publish(attribute_b_changed)
+    # Trigger domain event.
+    entity._trigger(entity.AttributeChanged, name='b', value=3)
 
     # Check the event was applied.
-    assert entity.b == 2
-    assert entity.version == 3
+    assert entity.b == 3
+    assert entity.version == 4, entity.version
 
 
-For example, the method ``change_attribute()`` constructs an ``AttributeChanged`` event and then calls
-``_apply_and_publish()``. In the code below, the event is received and checked.
+For example, the command method ``change_attribute()`` triggers an
+``AttributeChanged`` event. In the code below, the attribute ``full_name``
+is triggered. A subscriber receives the event.
 
 .. code:: python
 
@@ -391,7 +422,7 @@ For example, the method ``change_attribute()`` constructs an ``AttributeChanged`
 Discarding entities
 -------------------
 
-The entity method ``discard()`` can be used to discard the entity, by applying and publishing
+The entity method ``discard()`` can be used to discard the entity, by triggering
 a ``Discarded`` event, after which the entity is unavailable for further changes.
 
 .. code:: python
@@ -409,21 +440,6 @@ a ``Discarded`` event, after which the entity is unavailable for further changes
         raise Exception("Shouldn't get here")
 
 
-The mutator function will return ``None`` after mutating an entity with a ``Discarded`` event.
-
-.. code:: python
-
-    entity = VersionedEntity(id=entity_id, version=3)
-
-    entity = mutate_entity(entity, entity_discarded)
-
-    assert entity is None
-
-
-That means a sequence of events that ends with a ``Discarded`` event will result in the same
-state as an empty sequence of events, when the sequence is replayed by an event player for example.
-
-
 Custom entities
 ---------------
 
@@ -431,30 +447,10 @@ The library entity classes can be subclassed.
 
 .. code:: python
 
-    from eventsourcing.domain.model.decorators import attribute
-
-
     class User(VersionedEntity):
         def __init__(self, full_name, *args, **kwargs):
             super(User, self).__init__(*args, **kwargs)
             self.full_name = full_name
-
-
-An entity factory method can construct, apply, and publish the first event of an entity's lifetime. After the event
-is published, the new entity will be returned by the factory method.
-
-.. code:: python
-
-    def create_user(full_name):
-        created_event = User.Created(full_name=full_name, originator_id='1')
-        assert created_event.originator_id
-        user_entity = mutate_entity(event=created_event, initial=User)
-        publish(created_event)
-        return user_entity
-
-    user = create_user(full_name='Mrs Boots')
-
-    assert user.full_name == 'Mrs Boots'
 
 
 Subclasses can extend the entity base classes, by adding event-based properties and methods.
@@ -463,7 +459,7 @@ Subclasses can extend the entity base classes, by adding event-based properties 
 Custom attributes
 -----------------
 
-The library's ``@attribute`` decorator provides a property getter and setter, which will apply and publish an
+The library's ``@attribute`` decorator provides a property getter and setter, which will triggers an
 ``AttributeChanged`` event when the property is assigned. Simple mutable attributes can be coded as
 decorated functions without a body, such as the ``full_name`` function of ``User`` below.
 
@@ -480,12 +476,12 @@ decorated functions without a body, such as the ``full_name`` function of ``User
 
         @attribute
         def full_name(self):
-            pass
+            """Full name of the user."""
 
 
-In the code below, after the entity has been created, assigning to the ``full_name`` attribute causes the entity to be
-updated, and an ``AttributeChanged`` event to be published. Both the ``Created`` and ``AttributeChanged`` events are
-received by a subscriber.
+In the code below, after the entity has been created, assigning to the ``full_name`` attribute causes
+the entity to be updated. An ``AttributeChanged`` event is published. Both the ``Created`` and
+``AttributeChanged`` events are received by a subscriber.
 
 .. code:: python
 
@@ -493,20 +489,22 @@ received by a subscriber.
     subscribe(handler=receive_event, predicate=is_domain_event)
 
     # Publish a Created event.
-    user = create_user('Mrs Boots')
-    assert user.full_name == 'Mrs Boots'
+    user = User.create(full_name='Mrs Boots')
 
     # Publish an AttributeChanged event.
     user.full_name = 'Mr Boots'
-    assert user.full_name == 'Mr Boots'
 
     assert len(received_events) == 2
     assert received_events[0].__class__ == VersionedEntity.Created
     assert received_events[0].full_name == 'Mrs Boots'
+    assert received_events[0].originator_version == 0
+    assert received_events[0].originator_id == user.id
 
     assert received_events[1].__class__ == VersionedEntity.AttributeChanged
     assert received_events[1].value == 'Mr Boots'
     assert received_events[1].name == '_full_name'
+    assert received_events[1].originator_version == 1
+    assert received_events[1].originator_id == user.id
 
     # Clean up.
     unsubscribe(handler=receive_event, predicate=is_domain_event)
@@ -516,13 +514,15 @@ received by a subscriber.
 Custom commands
 ---------------
 
-The entity base classes can also be extended by adding "command" methods that publish events. In general, the arguments
-of a command will be used to perform some work. Then, the result of the work will be used to construct a domain event
-that represents what happened. And then, the domain event will be applied and published.
+The entity base classes can be extended with custom command methods. In general,
+the arguments of a command will be used to perform some work. Then, the result
+of the work will be used to trigger a domain event that represents what happened.
+Please note, command methods normally have no return value.
 
-Methods like this, for example the ``set_password()`` method of the ``User`` entity below, normally have no return
-value. The method creates an encoded string from a raw password, and then uses the ``change_attribute()`` method to
-apply and publish an ``AttributeChanged`` event for the ``_password`` attribute with the encoded password.
+For example, the ``set_password()`` method of the ``User`` entity below is given
+a raw password. It creates an encoded string from the raw password, and then uses
+the ``change_attribute()`` method to trigger an ``AttributeChanged`` event for
+the ``_password`` attribute with the encoded password.
 
 .. code:: python
 
@@ -539,7 +539,7 @@ apply and publish an ``AttributeChanged`` event for the ``_password`` attribute 
             # Do some work using the arguments of a command.
             password = self._encode_password(raw_password)
 
-            # Construct, apply, and publish an event.
+            # Change private _password attribute.
             self.change_attribute('_password', password)
 
         def check_password(self, raw_password):
@@ -556,20 +556,19 @@ apply and publish an ``AttributeChanged`` event for the ``_password`` attribute 
     assert user.check_password('password')
 
 
-A custom entity can also have custom methods that publish custom events. In the example below, a method
-``make_it_so()`` publishes a domain event called ``SomethingHappened``.
-
-
 Custom events
 -------------
 
-To be applied to an entity, custom event classes must be supported by a custom mutator
-function. If this seems complicated, please skip to the next section about reflexive mutators.
+Custom events can be defined as inner or nested classes of the custom entity class.
+In the code below, the entity class ``World`` has a custom event called ``SomethingHappened``.
 
-In the code below, the ``mutate_world()`` function extends the library's ``mutate_entity()``
-function to support  the event ``SomethingHappened``. The ``_mutate()`` function of
-``DomainEntity`` has been overridden so that ``mutate_world()`` will be called when
-events are applied.
+Custom event classes normally extend the ``mutate()`` method, so it can affect
+entities in a way that is specific to that type of event.
+For example, the ``SomethingHappened`` event class extends the base ``mutate()``
+method, by appending the event to the entity's ``history`` attribute.
+
+Custom events are normally triggered by custom commands. In the example below,
+the command method ``make_it_so()`` triggers the custom event ``SomethingHappened``.
 
 .. code:: python
 
@@ -581,111 +580,29 @@ events are applied.
             super(World, self).__init__(*args, **kwargs)
             self.history = []
 
-        class SomethingHappened(VersionedEntity.Event):
-            """Published when something happens in the world."""
-
         def make_it_so(self, something):
             # Do some work using the arguments of a command.
             what_happened = something
 
-            # Construct an event with the results of the work.
-            event = World.SomethingHappened(
-                what=what_happened,
-                originator_id=self.id,
-                originator_version=self.version
-            )
-
-            # Apply and publish the event.
-            self._apply_and_publish(event)
-
-        @classmethod
-        def _mutate(cls, initial=None, event=None):
-            return mutate_world(initial=initial or cls, event=event)
-
-
-The ``mutate_world()`` function is decorated with the ``@mutator`` decorator, which,
-like singledispatch, allows functions to be registered by type. The decorated function
-dispatches calls to the registered functions, according to the type of the event (the
-last argument). The body of the decorated function defines the default behaviour: if the
-event type doesn't match any of the registered types, a call is made to the library
-function ``mutate_entity()``.
-
-.. code:: python
-
-    @mutator
-    def mutate_world(initial=None, event=None):
-        return mutate_entity(initial, event)
-
-    @mutate_world.register(World.SomethingHappened)
-    def _(self, event):
-        self.history.append(event)
-        self._increment_version()
-        return self
-
-
-Now all the events are supported by the mutator, which can
-be used to project a sequence of events as an entity.
-
-.. code:: python
-
-    world = World._mutate(event=World.Created(originator_id='1'))
-
-    world.make_it_so('dinosaurs')
-    world.make_it_so('trucks')
-    world.make_it_so('internet')
-
-    assert world.history[0].what == 'dinosaurs'
-    assert world.history[1].what == 'trucks'
-    assert world.history[2].what == 'internet'
-
-
-In general, this technique can be used to define any projection of a sequence of events.
-
-
-Reflexive mutator
------------------
-
-The ``WithReflexiveMutator`` class tries to call a function called ``mutate()`` on the
-event class itself. This means each event class can define how an entity is mutated by it.
-
-A custom base entity class, for example ``Entity`` in the code below, may help to adopt
-this style across all entity classes in an application.
-
-.. code:: python
-
-    from eventsourcing.domain.model.entity import WithReflexiveMutator
-
-
-    class Entity(WithReflexiveMutator, VersionedEntity):
-        """
-        Custom base class for domain entities in this example.
-        """
-
-    class World(Entity):
-        """
-        Example domain entity, with mutator function on domain event.
-        """
-        def __init__(self, *args, **kwargs):
-            super(World, self).__init__(*args, **kwargs)
-            self.history = []
-
-        def make_it_so(self, something):
-            what_happened = something
-            event = World.SomethingHappened(
-                what=what_happened,
-                originator_id=self.id,
-                originator_version=self.version
-            )
-            self._apply_and_publish(event)
+            # Trigger event with the results of the work.
+            self._trigger(World.SomethingHappened, what=what_happened)
 
         class SomethingHappened(VersionedEntity.Event):
-            # Define mutator function for entity on the event class.
-            def mutate(self, entity):
-                entity.history.append(self)
-                entity._increment_version()
+            """Published when something happens in the world."""
+            def mutate(self, obj):
+                obj = super(World.SomethingHappened, self).mutate(obj)
+                obj.history.append(self)
+                return obj
 
 
-    world = World(id='1')
+A new world can now be created, using the ``create()`` method. The command ``make_it_so()`` can
+be used to make things happen in this world. When something happens, the history of the world
+is augmented with the new event.
+
+.. code:: python
+
+    world = World.create()
+
     world.make_it_so('dinosaurs')
     world.make_it_so('trucks')
     world.make_it_so('internet')
@@ -698,22 +615,13 @@ this style across all entity classes in an application.
 Aggregate root
 ==============
 
-The library has a domain entity class called ``AggregateRoot`` that can be useful in a domain driven design, where a
-command can cause many events to be published. The ``AggregateRoot`` class has a ``save()`` method, which publishes
-a list of pending events, and overrides the ``_publish()`` method of the base class to append events to a pending list.
+The library has a domain entity class called ``AggregateRoot`` that can be useful
+in a domain driven design, especially where a single command can cause many events
+to be published.
 
-The ``AggregateRoot`` class inherits from both ``TimestampedVersionedEntity`` and
-``WithReflexiveMutator``, and can be subclassed to define custom aggregate root entities.
-
-The ``AggregateRoot`` class has a class method ``create()`` which will construct a ``Created`` event,
-project the event into an aggregate object, publish the event to the aggregate's list of pending events,
-and then return the new aggregate object.
-
-Events of ``AggregateRoot`` provide a ``mutate()`` method that validates the event and
-updates common attributes such as the version number and the timestamp, before calling
-a private method ``_mutate()`` that can be overridden on subclasses to do event-specific
-updates on the aggregate. The ``mutate()`` method can be extended, but the superclass
-method must be called.
+The ``AggregateRoot`` entity class extends ``TimestampedVersionedEntity``. It can
+be subclassed by custom aggregate root entities. In the example below, the entity
+class ``World`` inherits from ``AggregateRoot``.
 
 .. code:: python
 
@@ -737,8 +645,8 @@ method must be called.
                 aggregate.history.append(self)
 
 
-An ``AggregateRoot`` entity will postpone the publishing of all events, pending the next call to its
-``save()`` method.
+The ``AggregateRoot`` class overrides the ``publish()`` method of the base class,
+so that triggered events are published only to a private list of pending events.
 
 .. code:: python
 
@@ -757,16 +665,18 @@ An ``AggregateRoot`` entity will postpone the publishing of all events, pending 
     assert world.history[2].what == 'internet'
 
 
-When the ``save()`` method is called, all such pending events are published as a
-single list of events to the publish-subscribe mechanism.
+The ``AggregateRoot`` class defines a ``save()`` method, which publishes the
+pending events to the publish-subscribe mechanism as a single list.
 
 .. code:: python
 
     # Events are pending actual publishing until the save() method is called.
+    assert len(world.__pending_events__) == 4
     assert len(received_events) == 0
     world.save()
 
     # Pending events were published as a single list of events.
+    assert len(world.__pending_events__) == 0
     assert len(received_events) == 1
     assert len(received_events[0]) == 4
 
@@ -775,26 +685,30 @@ single list of events to the publish-subscribe mechanism.
     del received_events[:]  # received_events.clear()
 
 
-Publishing all events from a single command in a single list allows all the events to be written to a database as a
-single atomic operation.
+Publishing all events from a single command in a single list allows all the
+events to be written to a database as a single atomic operation.
 
-That avoids the risk that some events will be stored successfully but other events from the
-same command will fall into conflict and be lost, because another thread has operated on the same aggregate at the
-same time, causing an inconsistent state that would also be difficult to repair.
+That avoids the risk that some events will be stored successfully but other
+events from the same command will fall into conflict and be lost, because
+another thread has operated on the same  aggregate at the same time, causing
+an inconsistent state that would also be difficult to repair.
 
-It also avoids the risk of other threads picking up only some events caused by a command, presenting the aggregate
-in an inconsistent or unusual and perhaps unworkable state.
+It also avoids the risk of other threads picking up only some events caused
+by a command, presenting the aggregate in an inconsistent or unusual and
+perhaps unworkable state.
 
 
 Data integrity
 --------------
 
-The domain events of ``AggregateRoot`` are hash-chained together.
+The domain events of ``DomainEntity`` are hash-chained together.
 
 That is, the state of each event is hashed, and the hash of the last event is included in
-the state of the next event. Before an event is applied to an aggregate, it is validated
-in itself and as a part of the chain. That means, if the sequence of events is damaged,
-then a ``DataIntegrityError`` will be raised when the sequence is replayed.
+the state of the next event. Before an event is applied to a entity, it is validated
+in itself (the event hash represents the state of the event) and as a part of the chain
+(the previous event hash equals the next event originator hash). That means, if the sequence of
+events is accidentally damaged, then a ``DataIntegrityError`` will almost certainly be raised
+when the sequence is replayed.
 
 The hash of the last event applied to an aggregate root is available as an attribute called
 ``__head__``.
@@ -806,4 +720,4 @@ The hash of the last event applied to an aggregate root is available as an attri
 
 Any change to the aggregate's sequence of events that results in a valid sequence will almost
 certainly result in a different head hash. So the entire history of an aggregate can be verified
-by checking the head hash. This feature could be used to detect tampering.
+by checking the head hash. This feature could be used to protect against tampering.

@@ -51,6 +51,7 @@ class Array(object):
             originator_id=self.id,
             index=index,
             item=item,
+            originator_head=''  # NB Arrays aren't currently hash-chained.
         )
         publish(event)
 

@@ -36,6 +36,8 @@ class TestDocs(TestCase):
                 if name in skipped:
                     continue
                 if name.endswith('.rst'):
+                # if name.endswith('example_application.rst'):
+                # if name.endswith('everything.rst'):
                 # if name.endswith('domainmodel.rst'):
                 # if name.endswith('infrastructure.rst'):
                 # if name.endswith('application.rst'):
