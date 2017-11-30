@@ -33,7 +33,7 @@ class TestPersistencePolicy(unittest.TestCase):
         domain_event1 = VersionedEntity.Event(
             originator_id=entity_id,
             originator_version=0,
-            originator_head='',
+            originator_hash='',
         )
         publish(domain_event1)
 
@@ -43,7 +43,7 @@ class TestPersistencePolicy(unittest.TestCase):
         # Publish a timestamped entity event (should be ignored).
         domain_event2 = TimestampedEntity.Event(
             originator_id=entity_id,
-            originator_head='',
+            originator_hash='',
         )
         publish(domain_event2)
 

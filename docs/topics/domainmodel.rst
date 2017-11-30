@@ -146,10 +146,13 @@ Some are just useful for their distinct type, for example in subscription predic
 
 .. code:: python
 
-    from eventsourcing.domain.model.events import Created, Discarded
+    from eventsourcing.domain.model.events import Created, AttributeChanged, Discarded
 
     def is_created(event):
         return isinstance(event, Created)
+
+    def is_attribute_changed(event):
+        return isinstance(event, AttributeChanged)
 
     def is_discarded(event):
         return isinstance(event, Discarded)
@@ -310,17 +313,31 @@ The library's domain entity classes have domain events defined as inner classes:
     DomainEntity.Discarded
 
 
-These inner event classes are all subclasses of ``DomainEvent`` and can be freely constructed, with
-suitable arguments. ``Created`` events need an ``originator_topic`` and ``originator_id``, other
-events need an ``originator_id`` and an ``originator_head``. ``AttributeChanged`` events need a
-``name`` and a ``value``.
+All these domain events classes are subclasses of ``DomainEvent``.
 
-Events of versioned entities need an ``originator_version``. Events of timestamped entities
-generate a ``timestamp`` when constructed for the first time.
+The domain event class ``DomainEntity.Event`` is a super type of the others. The others also inherit
+from the library base classes ``Created``, ``AttributeChanged``, and ``Discarded``.
 
-All the events of ``DomainEntity`` generate an ``event_hash`` when constructed for the first time.
-Events can be chained together by setting the ``event_hash`` of one event as the ``originator_hash``
-of the next event.
+.. code:: python
+
+    assert issubclass(DomainEntity.Created, DomainEntity.Event)
+    assert issubclass(DomainEntity.AttributeChanged, DomainEntity.Event)
+    assert issubclass(DomainEntity.Discarded, DomainEntity.Event)
+
+    assert issubclass(DomainEntity.Created, Created)
+    assert issubclass(DomainEntity.AttributeChanged, AttributeChanged)
+    assert issubclass(DomainEntity.Discarded, Discarded)
+
+
+These entity event classes can be freely constructed, with
+suitable arguments. For example, all events need an ``originator_id``.
+
+Events of versioned entities also need an ``originator_version``. Events of timestamped entities
+generate a current ``timestamp`` value, unless one is given.
+
+``Created`` events also need an ``originator_topic``; the other events need an ``originator_hash``.
+
+``AttributeChanged`` events also need ``name`` and ``value`` arguments when constructed.
 
 .. code:: python
 
@@ -339,7 +356,7 @@ of the next event.
         value=1,
         originator_version=1,
         originator_id=entity_id,
-        originator_head=created.event_hash,
+        originator_hash=created.event_hash,
     )
 
     attribute_b_changed = VersionedEntity.AttributeChanged(
@@ -347,15 +364,18 @@ of the next event.
         value=2,
         originator_version=2,
         originator_id=entity_id,
-        originator_head=attribute_a_changed.event_hash,
+        originator_hash=attribute_a_changed.event_hash,
     )
 
     entity_discarded = VersionedEntity.Discarded(
         originator_version=3,
         originator_id=entity_id,
-        originator_head=attribute_b_changed.event_hash,
+        originator_hash=attribute_b_changed.event_hash,
     )
 
+All the events of ``DomainEntity`` use SHA256 to generate an ``event_hash`` from the event attribute
+values when constructed for the first time. Events are chained together by constructing each
+subsequent event to have its ``originator_hash`` as the ``event_hash`` of the previous event.
 
 The events have a ``mutate()`` function, which can be used to mutate the
 state of a given object appropriately.
@@ -413,8 +433,10 @@ The hash of the last event applied to an aggregate root is available as an attri
 
 .. code:: python
 
-    assert entity.__head__ == '9872f8ddcb62c4bd7162832393049a9ba9dec8112f8afb9e6f905db29ec484fa'
+    # Aggregate's head hash is determined by the entire state history.
+    assert entity.__head__ == '174ac52daa3436e92ac136440c585ff543d4b21e09d94b99cb9a25435a481dac'
 
+    # Aggregate's head hash is the event hash of the last applied event.
     assert entity.__head__ == attribute_b_changed.event_hash
 
 
@@ -427,12 +449,12 @@ Factory method
 --------------
 
 The ``DomainEntity`` has a class method ``create()`` which can return
-new entity objects. When called, it constructs a ``DomainEntity.Created``
-event with suitable arguments such as a unique ID, and a topic representing
+new entity objects. When called, it constructs the ``Created`` event of the
+concrete class with suitable arguments such as a unique ID, and a topic representing
 the concrete entity class, and then it projects that event into an entity
 object using the event's ``mutate()`` method. Then it publishes the
-event, and then it returns the new entity to the caller.
-
+event, and then it returns the new entity to the caller. This technique
+works correctly for subclasses of both the entity and the event class.
 
 .. code:: python
 

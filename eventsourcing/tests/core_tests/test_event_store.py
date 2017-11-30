@@ -73,7 +73,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
             a=1, b=2,
             originator_id=entity_id1,
             originator_version=1,
-            originator_head='',
+            originator_hash='',
         )
         event_store.append(event1)
 
@@ -131,7 +131,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
             a=1, b=2,
             originator_id=entity_id1,
             originator_version=1,
-            originator_head=event1.event_hash,
+            originator_hash=event1.event_hash,
         )
         event_store.append(event1)
 

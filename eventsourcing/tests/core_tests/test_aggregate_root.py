@@ -28,7 +28,7 @@ class TestAggregateRootEvent(TestCase):
         event2 = AggregateRoot.AttributeChanged(
             originator_version=1,
             originator_id='1',
-            originator_head=event1.event_hash
+            originator_hash=event1.event_hash
         )
         event2.validate()
 
@@ -36,7 +36,7 @@ class TestAggregateRootEvent(TestCase):
         event3 = AggregateRoot.AttributeChanged(
             originator_version=2,
             originator_id='1',
-            originator_head=event2.event_hash
+            originator_hash=event2.event_hash
         )
         event3.validate()
 
@@ -188,17 +188,17 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         #     compound partition key in Cassandra,
         # self.assertFalse(aggregate2.id in self.app.aggregate1_repository)
 
-    def test_validate_originator_head_error(self):
+    def test_validate_originator_hash_error(self):
         # Check event has valid originator head.
         aggregate = Aggregate1(id='1', foo='bar', timestamp=0)
         event = Aggregate1.AttributeChanged(name='foo', value='bar', originator_id='1',
-                                            originator_version=1, originator_head=aggregate.__head__)
-        aggregate._validate_originator_head(event)
+                                            originator_version=1, originator_hash=aggregate.__head__)
+        aggregate._validate_originator_hash(event)
 
         # Check OriginatorHeadError is raised if the originator head is wrong.
-        event.__dict__['originator_head'] += 'damage'
+        event.__dict__['originator_hash'] += 'damage'
         with self.assertRaises(OriginatorHeadError):
-            aggregate._validate_originator_head(event)
+            aggregate._validate_originator_hash(event)
 
 
 class ExampleAggregateRoot(AggregateRoot):

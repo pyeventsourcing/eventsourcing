@@ -26,8 +26,8 @@ class DomainEntity(QualnameABC):
 
         json_encoder_class = ObjectJSONEncoder
 
-        def __init__(self, originator_head, **kwargs):
-            kwargs['originator_head'] = originator_head
+        def __init__(self, originator_hash, **kwargs):
+            kwargs['originator_hash'] = originator_hash
             super(DomainEntity.Event, self).__init__(**kwargs)
 
             # Seal the event state.
@@ -35,8 +35,8 @@ class DomainEntity(QualnameABC):
             self.__dict__['event_hash'] = self.hash(self.__dict__)
 
         @property
-        def originator_head(self):
-            return self.__dict__['originator_head']
+        def originator_hash(self):
+            return self.__dict__['originator_hash']
 
         @property
         def event_hash(self):
@@ -72,9 +72,9 @@ class DomainEntity(QualnameABC):
 
         def __init__(self, originator_topic, **kwargs):
             kwargs['originator_topic'] = originator_topic
-            assert 'originator_head' not in kwargs
+            assert 'originator_hash' not in kwargs
             super(DomainEntity.Created, self).__init__(
-                originator_head=GENESIS_HASH, **kwargs
+                originator_hash=GENESIS_HASH, **kwargs
             )
 
         @property
@@ -91,7 +91,7 @@ class DomainEntity(QualnameABC):
         def constructor_kwargs(self):
             kwargs = self.__dict__.copy()
             kwargs.pop('event_hash')
-            kwargs.pop('originator_head')
+            kwargs.pop('originator_hash')
             kwargs.pop('originator_topic')
             kwargs['id'] = kwargs.pop('originator_id')
             return kwargs
@@ -147,7 +147,7 @@ class DomainEntity(QualnameABC):
         Constructs, applies, and publishes domain event of given class, with given kwargs.
         """
         self._assert_not_discarded()
-        kwargs['originator_head'] = self.__head__
+        kwargs['originator_hash'] = self.__head__
         event = event_class(originator_id=self._id, **kwargs)
         self._apply_and_publish(event)
 
@@ -156,7 +156,7 @@ class DomainEntity(QualnameABC):
         Checks the event's originator ID matches this entity's ID.
         """
         self._validate_originator_id(event)
-        self._validate_originator_head(event)
+        self._validate_originator_hash(event)
 
     def _validate_originator_id(self, event):
         if self._id != event.originator_id:
@@ -165,11 +165,11 @@ class DomainEntity(QualnameABC):
                 "".format(self.id, event.originator_id)
             )
 
-    def _validate_originator_head(self, event):
+    def _validate_originator_hash(self, event):
         """
         Checks the head hash matches the event originator hash.
         """
-        if self.__head__ != event.originator_head:
+        if self.__head__ != event.originator_hash:
             raise OriginatorHeadError(self.id, self.__head__, type(event))
 
     def _assert_not_discarded(self):

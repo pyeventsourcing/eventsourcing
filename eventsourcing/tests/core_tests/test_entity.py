@@ -103,7 +103,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
                 VersionedEntity.Event(
                     originator_id=uuid4(),
                     originator_version=0,
-                    originator_head='',
+                    originator_hash='',
                 )
             )
         # Should fail to validate event with wrong entity version.
@@ -112,7 +112,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
                 VersionedEntity.Event(
                     originator_id=entity2.id,
                     originator_version=0,
-                    originator_head=entity2.__head__,
+                    originator_hash=entity2.__head__,
                 )
             )
 
@@ -121,7 +121,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
             VersionedEntity.Event(
                 originator_id=entity2.id,
                 originator_version=entity2.version,
-                originator_head=entity2.__head__,
+                originator_hash=entity2.__head__,
             )
         )
 
