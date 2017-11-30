@@ -253,9 +253,9 @@ with a ``version`` attribute.
 
     from eventsourcing.domain.model.entity import VersionedEntity
 
-    entity = VersionedEntity.create()
+    entity = VersionedEntity(id=entity_id, version=1)
 
-    assert entity.id
+    assert entity.id == entity_id
     assert entity.version == 1
 
 
@@ -266,11 +266,11 @@ with a ``created_on`` and ``last_modified`` attributes.
 
     from eventsourcing.domain.model.entity import TimestampedEntity
 
-    entity = TimestampedEntity.create()
+    entity = TimestampedEntity(id=entity_id, timestamp=123)
 
-    assert entity.id
-    assert entity.created_on
-    assert entity.last_modified
+    assert entity.id == entity_id
+    assert entity.created_on == 123
+    assert entity.last_modified == 123
 
 
 There is also a ``TimestampedVersionedEntity`` that has ``id``, ``version``, ``created_on``, and ``last_modified``
@@ -280,11 +280,11 @@ attributes.
 
     from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 
-    entity = TimestampedVersionedEntity.create()
+    entity = TimestampedVersionedEntity(id=entity_id, version=1, timestamp=123)
 
-    assert entity.id
-    assert entity.created_on
-    assert entity.last_modified
+    assert entity.id == entity_id
+    assert entity.created_on == 123
+    assert entity.last_modified == 123
     assert entity.version == 1
 
 
@@ -365,8 +365,6 @@ entity instance. The class that is instantiated is determined by the
 ``originator_topic`` attribute of the ``DomainEntity.Created`` event.
 
 .. code:: python
-
-    from eventsourcing.domain.model.entity import mutate_entity
 
     entity = created.mutate()
 
@@ -749,8 +747,10 @@ class ``World`` inherits from ``AggregateRoot``.
                 self._trigger(World.SomethingHappened, what=something)
 
         class SomethingHappened(AggregateRoot.Event):
-            def _mutate(self, aggregate):
-                aggregate.history.append(self)
+            def mutate(self, obj):
+                obj = super(World.SomethingHappened, self).mutate(obj)
+                obj.history.append(self)
+                return obj
 
 
 The ``AggregateRoot`` class overrides the ``publish()`` method of the base class,

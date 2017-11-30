@@ -1,8 +1,5 @@
-import uuid
-
-from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, mutate_entity
-from eventsourcing.domain.model.events import publish
-from eventsourcing.domain.model.decorators import mutator, attribute
+from eventsourcing.domain.model.decorators import attribute
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 
 
 class Example(TimestampedVersionedEntity):
@@ -24,6 +21,7 @@ class Example(TimestampedVersionedEntity):
 
     class Heartbeat(Event, TimestampedVersionedEntity.Event):
         """Published when a heartbeat in the entity occurs (see below)."""
+
         def mutate(self, obj):
             super(Example.Heartbeat, self).mutate(obj)
             assert isinstance(obj, Example), obj
@@ -57,15 +55,6 @@ class Example(TimestampedVersionedEntity):
 
     def count_heartbeats(self):
         return self._count_heartbeats
-
-    @classmethod
-    def _mutate(cls, initial=None, event=None):
-        return example_mutator(initial or cls, event)
-
-
-@mutator
-def example_mutator(initial, event, ):
-    return mutate_entity(initial, event)
 
 
 class AbstractExampleRepository(AbstractEntityRepository):

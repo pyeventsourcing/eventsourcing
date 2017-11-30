@@ -35,10 +35,10 @@ class TestDocs(TestCase):
             for name in filenames:
                 if name in skipped:
                     continue
-                if name.endswith('.rst'):
+                # if name.endswith('.rst'):
                 # if name.endswith('example_application.rst'):
                 # if name.endswith('everything.rst'):
-                # if name.endswith('domainmodel.rst'):
+                if name.endswith('domainmodel.rst'):
                 # if name.endswith('infrastructure.rst'):
                 # if name.endswith('application.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
