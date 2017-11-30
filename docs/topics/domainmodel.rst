@@ -313,10 +313,9 @@ The library's domain entity classes have domain events defined as inner classes:
     DomainEntity.Discarded
 
 
-All these domain events classes are subclasses of ``DomainEvent``.
-
 The domain event class ``DomainEntity.Event`` is a super type of the others. The others also inherit
-from the library base classes ``Created``, ``AttributeChanged``, and ``Discarded``.
+from the library base classes ``Created``, ``AttributeChanged``, and ``Discarded``. All these domain
+events classes are subclasses of ``DomainEvent``.
 
 .. code:: python
 
@@ -328,16 +327,18 @@ from the library base classes ``Created``, ``AttributeChanged``, and ``Discarded
     assert issubclass(DomainEntity.AttributeChanged, AttributeChanged)
     assert issubclass(DomainEntity.Discarded, Discarded)
 
+    assert issubclass(DomainEntity.Event, DomainEvent)
+
 
 These entity event classes can be freely constructed, with
-suitable arguments. For example, all events need an ``originator_id``.
+suitable arguments. All events need an ``originator_id``. Events
+of versioned entities also need an ``originator_version``. Events
+of timestamped entities generate a current ``timestamp`` value,
+unless one is given.
 
-Events of versioned entities also need an ``originator_version``. Events of timestamped entities
-generate a current ``timestamp`` value, unless one is given.
-
-``Created`` events also need an ``originator_topic``; the other events need an ``originator_hash``.
-
-``AttributeChanged`` events also need ``name`` and ``value`` arguments when constructed.
+``Created`` events also need an ``originator_topic``. The other
+events need an ``originator_hash``. ``AttributeChanged`` events
+also need ``name`` and ``value``.
 
 .. code:: python
 
@@ -416,35 +417,6 @@ Similarly, when a timestamped entity is mutated by an event of the
 entity is set to have the event's ``timestamp`` value.
 
 
-Data integrity
---------------
-
-The domain events of ``DomainEntity`` are hash-chained together.
-
-That is, the state of each event is hashed, using SHA256, and the hash of the last event
-is included in the state of the next event. Before an event is applied to a entity, it
-is validated in itself (the event hash represents the state of the event) and as a part of the chain
-(the previous event hash equals the next event originator hash). That means, if the sequence of
-events is accidentally damaged, then a ``DataIntegrityError`` will almost certainly be raised
-when the sequence is replayed.
-
-The hash of the last event applied to an aggregate root is available as an attribute called
-``__head__``.
-
-.. code:: python
-
-    # Aggregate's head hash is determined by the entire state history.
-    assert entity.__head__ == '174ac52daa3436e92ac136440c585ff543d4b21e09d94b99cb9a25435a481dac'
-
-    # Aggregate's head hash is the event hash of the last applied event.
-    assert entity.__head__ == attribute_b_changed.event_hash
-
-
-Any change to the aggregate's sequence of events that results in a valid sequence will almost
-certainly result in a different head hash. So the entire history of an aggregate can be verified
-by checking the head hash. This feature could be used to protect against tampering.
-
-
 Factory method
 --------------
 
@@ -484,18 +456,16 @@ works correctly for subclasses of both the entity and the event class.
     assert entity.__class__ is TimestampedVersionedEntity
 
 
-
 Triggering events
 -----------------
 
-Events are usually triggered by command methods of entities. Commands
-will construct, apply, and publish events, using the results from working
+Commands methods will construct, apply, and publish events, using the results from working
 on command arguments. The events need to be constructed with suitable arguments.
 
-To help construct events with suitable arguments in an extensible manner, the
-``DomainEntity`` class has a private method ``_trigger()``, extended by subclasses,
-which can be used in command methods to construct, apply, and publish events
-with suitable arguments. The event ``mutate()`` methods update the entity appropriately.
+To help trigger events in an extensible manner, the ``DomainEntity`` class has a private
+method ``_trigger()``, extended by subclasses, which can be used in command methods to
+construct, apply, and publish events with suitable arguments. The events' ``mutate()``
+methods update the entity appropriately.
 
 For example, triggering an ``AttributeChanged`` event on a timestamped, versioned
 entity will cause the attribute value to be updated, but it will also
@@ -518,7 +488,7 @@ cause the version number to increase, and it will update the last modified time.
 
 The command method ``change_attribute()`` triggers an
 ``AttributeChanged`` event. In the code below, the attribute ``full_name``
-is triggered. A subscriber receives the event.
+is set to 'Mr Boots'. A subscriber receives the event.
 
 .. code:: python
 
@@ -527,7 +497,7 @@ is triggered. A subscriber receives the event.
     assert len(received_events) == 0
     subscribe(handler=receive_event, predicate=is_domain_event)
 
-    # Apply and publish an AttributeChanged event.
+    # Change an attribute.
     entity.change_attribute(name='full_name', value='Mr Boots')
 
     # Check the event was applied.
@@ -535,16 +505,46 @@ is triggered. A subscriber receives the event.
 
     # Check the event was published.
     assert len(received_events) == 1
-    assert received_events[0].__class__ == VersionedEntity.AttributeChanged
-    assert received_events[0].name == 'full_name'
-    assert received_events[0].value == 'Mr Boots'
+    last_event = received_events[0]
+    assert last_event.__class__ == VersionedEntity.AttributeChanged
+    assert last_event.name == 'full_name'
+    assert last_event.value == 'Mr Boots'
 
     # Check the event hash is the current entity head.
-    assert received_events[0].event_hash == entity.__head__
+    assert last_event.event_hash == entity.__head__
 
     # Clean up.
     unsubscribe(handler=receive_event, predicate=is_domain_event)
     del received_events[:]  # received_events.clear()
+
+
+Data integrity
+--------------
+
+Domain events that are triggered in this way are automatically hash-chained together.
+
+That is, the state of each event is hashed, using SHA256, and the hash of the last event
+is included in the state of the next event. Before an event is applied to a entity, it
+is validated in itself (the event hash represents the state of the event) and as a part of the chain
+(the previous event hash equals the next event originator hash). That means, if the sequence of
+events is accidentally damaged, then a ``DataIntegrityError`` will almost certainly be raised
+when the sequence is replayed.
+
+The hash of the last event applied to an aggregate root is available as an attribute called
+``__head__``.
+
+.. code:: python
+
+    # Aggregate's head hash is determined by the sequence of events.
+    assert entity.__head__ == '04c61b906cdd6194f8a87fdfd847ef362679c31fcc4983738ac2857437ae9ef8'
+
+    # Aggregate's head hash is simply the event hash of the last event that mutated the entity.
+    assert entity.__head__ == last_event.event_hash
+
+
+A slightly different sequence of events will almost certainly result a different
+head hash. So the entire history of an aggregate can be verified by checking the
+head hash. This feature could be used to protect against tampering.
 
 
 Discarding entities
