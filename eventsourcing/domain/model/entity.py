@@ -107,7 +107,7 @@ class DomainEntity(QualnameABC):
         """Published when a DomainEntity is discarded."""
         def mutate(self, obj):
             obj = super(DomainEntity.Discarded, self).mutate(obj)
-            obj._is_discarded = True
+            obj.set_is_discarded()
             return None
 
     def __init__(self, id):
@@ -212,13 +212,15 @@ class DomainEntity(QualnameABC):
         publish(event)
 
     @classmethod
-    def create(cls, **kwargs):
+    def create(cls, originator_id=None, **kwargs):
+        if originator_id is None:
+            originator_id = uuid4()
         event = cls.Created(
-            originator_id=uuid4(),
+            originator_id=originator_id,
             originator_topic=get_topic(cls),
             **kwargs
         )
-        obj = event.mutate(None)
+        obj = event.mutate()
         obj.publish(event)
         return obj
 
@@ -256,7 +258,7 @@ class VersionedEntity(DomainEntity):
                 obj._increment_version()
             return obj
 
-    class Created(Event, DomainEntity.Created):
+    class Created(DomainEntity.Created, Event):
         """Published when a VersionedEntity is created."""
         def __init__(self, originator_version=0, **kwargs):
             super(VersionedEntity.Created, self).__init__(originator_version=originator_version, **kwargs)
@@ -308,7 +310,7 @@ class VersionedEntity(DomainEntity):
 
 
 class TimestampedEntity(DomainEntity):
-    class Event(EventWithTimestamp, DomainEntity.Event):
+    class Event(DomainEntity.Event, EventWithTimestamp):
         """Supertype for events of timestamped entities."""
         def mutate(self, obj):
             obj = super(TimestampedEntity.Event, self).mutate(obj)
@@ -317,7 +319,7 @@ class TimestampedEntity(DomainEntity):
                 obj.set_last_modified(self.timestamp)
             return obj
 
-    class Created(Event, DomainEntity.Created):
+    class Created(DomainEntity.Created, Event):
         """Published when a TimestampedEntity is created."""
 
     class AttributeChanged(Event, DomainEntity.AttributeChanged):
@@ -362,7 +364,7 @@ class TimestampedVersionedEntity(TimestampedEntity, VersionedEntity):
     class Event(TimestampedEntity.Event, VersionedEntity.Event):
         """Supertype for events of timestamped, versioned entities."""
 
-    class Created(Event, TimestampedEntity.Created, VersionedEntity.Created):
+    class Created(TimestampedEntity.Created, VersionedEntity.Created, Event):
         """Published when a TimestampedVersionedEntity is created."""
 
     class AttributeChanged(Event, TimestampedEntity.AttributeChanged, VersionedEntity.AttributeChanged):

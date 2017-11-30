@@ -68,15 +68,6 @@ def example_mutator(initial, event, ):
     return mutate_entity(initial, event)
 
 
-@example_mutator.register(Example.Heartbeat)
-def heartbeat_mutator(self, event):
-    self._validate_originator(event)
-    assert isinstance(self, Example), self
-    self._count_heartbeats += 1
-    self._increment_version()
-    return self
-
-
 class AbstractExampleRepository(AbstractEntityRepository):
     pass
 
@@ -88,8 +79,3 @@ def create_new_example(foo='', a='', b=''):
     :rtype: Example
     """
     return Example.create(foo=foo, a=a, b=b)
-    entity_id = uuid.uuid4()
-    event = Example.Created(originator_id=entity_id, foo=foo, a=a, b=b)
-    entity = Example._mutate(event=event)
-    publish(event=event)
-    return entity

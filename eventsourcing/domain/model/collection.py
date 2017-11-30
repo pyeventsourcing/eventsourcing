@@ -1,11 +1,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from uuid import uuid4
-
-from eventsourcing.domain.model.decorators import mutator
-from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, mutate_entity
-from eventsourcing.domain.model.events import publish
-from eventsourcing.utils.topic import get_topic
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 
 
 class Collection(TimestampedVersionedEntity):
@@ -53,37 +48,9 @@ class Collection(TimestampedVersionedEntity):
     def remove_item(self, item):
         self._trigger(self.ItemRemoved, item=item)
 
-    @classmethod
-    def _mutate(cls, initial=None, event=None):
-        return collection_mutator(initial or cls, event)
-
 
 def register_new_collection(collection_id=None):
-    collection_id = uuid4() if collection_id is None else collection_id
-    event = Collection.Created(originator_id=collection_id, originator_topic=get_topic(Collection))
-    entity = collection_mutator(Collection, event)
-    publish(event)
-    return entity
-
-
-@mutator
-def collection_mutator(initial, event):
-    return mutate_entity(initial, event)
-
-
-@collection_mutator.register(Collection.ItemAdded)
-def collection_item_added_mutator(self, event):
-    assert isinstance(self, Collection)
-    self._items.add(event.item)
-    self._increment_version()
-    return self
-
-
-@collection_mutator.register(Collection.ItemRemoved)
-def collection_item_removed_mutator(self, event):
-    self._items.remove(event.item)
-    self._increment_version()
-    return self
+    return Collection.create(originator_id=collection_id)
 
 
 class AbstractCollectionRepository(AbstractEntityRepository):

@@ -43,7 +43,7 @@ class ExampleEntity(TimeuuidedEntity):
             originator_id=uuid4(),
             originator_topic=get_topic(ExampleEntity)
         )
-        entity = event.mutate(None)
+        entity = event.mutate()
         publish(event)
         return entity
 
