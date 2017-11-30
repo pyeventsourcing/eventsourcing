@@ -319,7 +319,7 @@ Events of versioned entities need an ``originator_version``. Events of timestamp
 generate a ``timestamp`` when constructed for the first time.
 
 All the events of ``DomainEntity`` generate an ``event_hash`` when constructed for the first time.
-Events can be chained together by setting the ``event_hash`` of one event as the `originator_hash``
+Events can be chained together by setting the ``event_hash`` of one event as the ``originator_hash``
 of the next event.
 
 .. code:: python
