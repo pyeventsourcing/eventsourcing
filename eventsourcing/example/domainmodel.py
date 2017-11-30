@@ -1,8 +1,5 @@
-import uuid
-
-from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, mutate_entity
-from eventsourcing.domain.model.events import publish
-from eventsourcing.domain.model.decorators import mutator, attribute
+from eventsourcing.domain.model.decorators import attribute
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 
 
 class Example(TimestampedVersionedEntity):
@@ -24,6 +21,7 @@ class Example(TimestampedVersionedEntity):
 
     class Heartbeat(Event, TimestampedVersionedEntity.Event):
         """Published when a heartbeat in the entity occurs (see below)."""
+
         def mutate(self, obj):
             super(Example.Heartbeat, self).mutate(obj)
             assert isinstance(obj, Example), obj
@@ -58,24 +56,6 @@ class Example(TimestampedVersionedEntity):
     def count_heartbeats(self):
         return self._count_heartbeats
 
-    @classmethod
-    def _mutate(cls, initial=None, event=None):
-        return example_mutator(initial or cls, event)
-
-
-@mutator
-def example_mutator(initial, event, ):
-    return mutate_entity(initial, event)
-
-
-@example_mutator.register(Example.Heartbeat)
-def heartbeat_mutator(self, event):
-    self._validate_originator(event)
-    assert isinstance(self, Example), self
-    self._count_heartbeats += 1
-    self._increment_version()
-    return self
-
 
 class AbstractExampleRepository(AbstractEntityRepository):
     pass
@@ -88,8 +68,3 @@ def create_new_example(foo='', a='', b=''):
     :rtype: Example
     """
     return Example.create(foo=foo, a=a, b=b)
-    entity_id = uuid.uuid4()
-    event = Example.Created(originator_id=entity_id, foo=foo, a=a, b=b)
-    entity = Example._mutate(event=event)
-    publish(event=event)
-    return entity

@@ -107,7 +107,7 @@ class DomainEntity(QualnameABC):
         """Published when a DomainEntity is discarded."""
         def mutate(self, obj):
             obj = super(DomainEntity.Discarded, self).mutate(obj)
-            obj._is_discarded = True
+            obj.set_is_discarded()
             return None
 
     def __init__(self, id):
@@ -212,13 +212,15 @@ class DomainEntity(QualnameABC):
         publish(event)
 
     @classmethod
-    def create(cls, **kwargs):
+    def create(cls, originator_id=None, **kwargs):
+        if originator_id is None:
+            originator_id = uuid4()
         event = cls.Created(
-            originator_id=uuid4(),
+            originator_id=originator_id,
             originator_topic=get_topic(cls),
             **kwargs
         )
-        obj = event.mutate(None)
+        obj = event.mutate()
         obj.publish(event)
         return obj
 
@@ -256,7 +258,7 @@ class VersionedEntity(DomainEntity):
                 obj._increment_version()
             return obj
 
-    class Created(Event, DomainEntity.Created):
+    class Created(DomainEntity.Created, Event):
         """Published when a VersionedEntity is created."""
         def __init__(self, originator_version=0, **kwargs):
             super(VersionedEntity.Created, self).__init__(originator_version=originator_version, **kwargs)
@@ -308,7 +310,7 @@ class VersionedEntity(DomainEntity):
 
 
 class TimestampedEntity(DomainEntity):
-    class Event(EventWithTimestamp, DomainEntity.Event):
+    class Event(DomainEntity.Event, EventWithTimestamp):
         """Supertype for events of timestamped entities."""
         def mutate(self, obj):
             obj = super(TimestampedEntity.Event, self).mutate(obj)
@@ -317,7 +319,7 @@ class TimestampedEntity(DomainEntity):
                 obj.set_last_modified(self.timestamp)
             return obj
 
-    class Created(Event, DomainEntity.Created):
+    class Created(DomainEntity.Created, Event):
         """Published when a TimestampedEntity is created."""
 
     class AttributeChanged(Event, DomainEntity.AttributeChanged):
@@ -362,7 +364,7 @@ class TimestampedVersionedEntity(TimestampedEntity, VersionedEntity):
     class Event(TimestampedEntity.Event, VersionedEntity.Event):
         """Supertype for events of timestamped, versioned entities."""
 
-    class Created(Event, TimestampedEntity.Created, VersionedEntity.Created):
+    class Created(TimestampedEntity.Created, VersionedEntity.Created, Event):
         """Published when a TimestampedVersionedEntity is created."""
 
     class AttributeChanged(Event, TimestampedEntity.AttributeChanged, VersionedEntity.AttributeChanged):
@@ -374,82 +376,6 @@ class TimestampedVersionedEntity(TimestampedEntity, VersionedEntity):
 
 class TimeuuidedVersionedEntity(TimeuuidedEntity, VersionedEntity):
     pass
-
-
-@mutator
-def mutate_entity(initial, event):
-    """Entity mutator function. Mutates initial state by the event.
-
-    Different handlers are registered for different types of event.
-    """
-    raise NotImplementedError("Event type not supported: {}".format(type(event)))
-
-
-@mutate_entity.register(DomainEntity.Created)
-def _(cls, event):
-    assert isinstance(event, Created), event
-    constructor_args = event.__dict__.copy()
-    # Make sure 'originator_topic' not in construct args.
-    if 'originator_topic' in constructor_args:
-        originator_topic = constructor_args.pop('originator_topic')
-    else:
-        originator_topic = None
-
-    # Prefer the cls arg over the resolved originator topic.
-    if cls is not None:
-        # Check the 'cls' arg is an object class.
-        if not isinstance(cls, type) or not issubclass(cls, object):
-            msg = ("Mutator initial value is not a class: {}".format(type(cls)))
-            raise MutatorRequiresTypeNotInstance(msg)
-    else:
-        assert originator_topic, "Mutator originator topic is required"
-        cls = resolve_topic(originator_topic)
-
-    # Pop originator_head and event_hash.
-    if 'originator_head' in constructor_args:
-        constructor_args.pop('originator_head')
-    if 'event_hash' in constructor_args:
-        constructor_args.pop('event_hash')
-
-    # Map originator_id.
-    constructor_args['id'] = constructor_args.pop('originator_id')
-
-    # Map originator_version.
-    if 'originator_version' in constructor_args:
-        constructor_args['version'] = constructor_args.pop('originator_version')
-
-    # Construct the entity object.
-    try:
-        obj = cls(**constructor_args)
-    except TypeError as e:
-        raise TypeError("Class {} {}. Given {} from event type {}"
-                        "".format(cls, e, event.__dict__, type(event)))
-    if isinstance(obj, VersionedEntity):
-        obj._increment_version()
-    return obj
-
-
-@mutate_entity.register(DomainEntity.AttributeChanged)
-def _(self, event):
-    self._validate_originator(event)
-    setattr(self, event.name, event.value)
-    if isinstance(event, TimestampedEntity.AttributeChanged):
-        self._last_modified = event.timestamp
-    if isinstance(event, VersionedEntity.AttributeChanged):
-        self._increment_version()
-    return self
-
-
-@mutate_entity.register(DomainEntity.Discarded)
-def _(self, event):
-    assert isinstance(self, DomainEntity), self
-    self._validate_originator(event)
-    self._is_discarded = True
-    if isinstance(event, TimestampedEntity.Discarded):
-        self._last_modified = event.timestamp
-    if isinstance(event, VersionedEntity.Discarded):
-        self._increment_version()
-    return None
 
 
 class AbstractEventPlayer(with_metaclass(ABCMeta)):

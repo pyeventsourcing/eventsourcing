@@ -98,9 +98,6 @@ class DomainEvent(QualnameABC):
         return self.__class__.__qualname__ + "(" + ', '.join(
             "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
 
-    def mutate(self, obj):
-        return obj
-
 
 class EventWithOriginatorID(DomainEvent):
     def __init__(self, originator_id, **kwargs):

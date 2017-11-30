@@ -30,7 +30,7 @@ class TestSimpleApplication(SQLAlchemyDatastoreTestCase):
             originator_id=uuid.uuid4(),
             originator_topic=get_topic(ExampleAggregateRoot)
         )
-        aggregate = event.mutate(None)
+        aggregate = event.mutate()
         aggregate.publish(event)
         aggregate.save()
 

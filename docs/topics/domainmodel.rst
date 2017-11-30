@@ -200,9 +200,8 @@ It is possible to code domain events as inner or nested classes.
             Published when the job is done.
             """
 
-
-Inner or nested classes can be used, and are used in the library, to define the domain events of a domain entity
-on the entity class itself.
+Inner or nested classes can be used, and are used in the library, to define
+the domain events of a domain entity on the entity class itself.
 
 .. code:: python
 
@@ -210,6 +209,18 @@ on the entity class itself.
     done = Job.Done(job_id='#1')
 
     assert done.timestamp > seen.timestamp
+
+
+So long as the entity event classes inherit ultimately from library class
+``QualnameABC``, which ``DomainEvent`` does, the utility functions ``get_topic()``
+and ``resolve_topic()`` can work with domain events defined as inner or nested
+classes in all versions of Python. These functions are used in the ``DomainEntity.Created``
+event class, and in the infrastructure class ``SequencedItemMapper``. The requirement
+to inherit from ``QualnameABC`` actually only applies when using nested classes in Python 2.7
+with the utility functions ``get_topic()`` and ``resolve_topic()``. Events classes that
+are not nested, or that will not be run with Python 2.7, do not need to
+inherit from ``QualnameABC`` in order to work with these two functions (and
+hence the library domain and infrastructure classes which use those functions).
 
 
 Domain entities
@@ -225,18 +236,11 @@ The library has a base class for domain entities called ``DomainEntity``, which 
 
     from eventsourcing.domain.model.entity import DomainEntity
 
-    DomainEntity(id=uuid4())
+    entity_id = uuid4()
 
+    entity = DomainEntity(id=entity_id)
 
-The ``DomainEntity`` has a class method ``create()`` which can construct a ``Created`` event,
-project the event into an entity object using the event's ``mutate()`` method, and then
-publish the event, and then return the new aggregate object.
-
-.. code:: python
-
-    entity = DomainEntity.create()
-
-    assert entity.id
+    assert entity.id == entity_id
 
 
 Entity library
@@ -249,9 +253,9 @@ with a ``version`` attribute.
 
     from eventsourcing.domain.model.entity import VersionedEntity
 
-    entity = VersionedEntity.create()
+    entity = VersionedEntity(id=entity_id, version=1)
 
-    assert entity.id
+    assert entity.id == entity_id
     assert entity.version == 1
 
 
@@ -262,11 +266,11 @@ with attributes ``created_on`` and ``last_modified``.
 
     from eventsourcing.domain.model.entity import TimestampedEntity
 
-    entity = TimestampedEntity.create()
+    entity = TimestampedEntity(id=entity_id, timestamp=123)
 
-    assert entity.id
-    assert entity.created_on
-    assert entity.last_modified
+    assert entity.id == entity_id
+    assert entity.created_on == 123
+    assert entity.last_modified == 123
 
 
 There is also a ``TimestampedVersionedEntity`` that has ``id``, ``version``, ``created_on``, and ``last_modified``
@@ -276,11 +280,11 @@ attributes.
 
     from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 
-    entity = TimestampedVersionedEntity.create()
+    entity = TimestampedVersionedEntity(id=entity_id, version=1, timestamp=123)
 
-    assert entity.id
-    assert entity.created_on
-    assert entity.last_modified
+    assert entity.id == entity_id
+    assert entity.created_on == 123
+    assert entity.last_modified == 123
     assert entity.version == 1
 
 
@@ -295,15 +299,34 @@ A timestamped, versioned entity is both a timestamped entity and a versioned ent
 Entity events
 -------------
 
-The library's domain entities have domain events as inner classes: ``Event``, ``Created``, ``AttributeChanged``, and
-``Discarded``. These inner event classes are all subclasses of ``DomainEvent`` and can be freely constructed, with
-suitable arguments.
+The library's domain entity classes have domain events defined as inner classes: ``Event``, ``Created``,
+``AttributeChanged``, and ``Discarded``.
+
+.. code:: python
+
+    DomainEntity.Event
+    DomainEntity.Created
+    DomainEntity.AttributeChanged
+    DomainEntity.Discarded
+
+
+These inner event classes are all subclasses of ``DomainEvent`` and can be freely constructed, with
+suitable arguments. ``Created`` events need an ``originator_topic`` and ``originator_id``, other
+events need an ``originator_id`` and an ``originator_head``. ``AttributeChanged`` events need a
+``name`` and a ``value``.
+
+Events of versioned entities need an ``originator_version``. Events of timestamped entities
+generate a ``timestamp`` when constructed for the first time.
+
+All the events of ``DomainEntity`` generate an ``event_hash`` when constructed for the first time.
+Events can be chained together by setting the ``event_hash`` of one event as the `originator_hash``
+of the next event.
 
 .. code:: python
 
     from eventsourcing.utils.topic import get_topic
 
-    entity_id = uuid4()
+    entity_id = UUID('b81d160d-d7ef-45ab-a629-c7278082a845')
 
     created = VersionedEntity.Created(
         originator_version=0,
@@ -337,18 +360,20 @@ suitable arguments.
 The events have a ``mutate()`` function, which can be used to mutate the
 state of a given object appropriately.
 
-For example, the ``DomainEntity.Created`` event mutates ``None`` to an
+For example, the ``DomainEntity.Created`` event mutates to an
 entity instance. The class that is instantiated is determined by the
 ``originator_topic`` attribute of the ``DomainEntity.Created`` event.
 
 .. code:: python
 
-    from eventsourcing.domain.model.entity import mutate_entity
-
-    entity = created.mutate(None)
+    entity = created.mutate()
 
     assert entity.id == entity_id
 
+The ``mutate()`` method normally requires an ``obj`` argument, but
+that is not required for ``DomainEntity.Created`` events. The default
+is ``None``, but if a value is provided it must be callable that
+returns an object, such as an object class.
 
 As another example, when a versioned entity is mutated by an event of the
 ``VersionedEntity`` class, the entity version number is incremented.
@@ -367,8 +392,75 @@ As another example, when a versioned entity is mutated by an event of the
 
 
 Similarly, when a timestamped entity is mutated by an event of the
-``TimestampedEntity`` class, the ``last_modified`` attribute is
-set to the event's ``timestamp``.
+``TimestampedEntity`` class, the ``last_modified`` attribute of the
+entity is set to have the event's ``timestamp`` value.
+
+
+Data integrity
+--------------
+
+The domain events of ``DomainEntity`` are hash-chained together.
+
+That is, the state of each event is hashed, using SHA256, and the hash of the last event
+is included in the state of the next event. Before an event is applied to a entity, it
+is validated in itself (the event hash represents the state of the event) and as a part of the chain
+(the previous event hash equals the next event originator hash). That means, if the sequence of
+events is accidentally damaged, then a ``DataIntegrityError`` will almost certainly be raised
+when the sequence is replayed.
+
+The hash of the last event applied to an aggregate root is available as an attribute called
+``__head__``.
+
+.. code:: python
+
+    assert entity.__head__ == '9872f8ddcb62c4bd7162832393049a9ba9dec8112f8afb9e6f905db29ec484fa'
+
+    assert entity.__head__ == attribute_b_changed.event_hash
+
+
+Any change to the aggregate's sequence of events that results in a valid sequence will almost
+certainly result in a different head hash. So the entire history of an aggregate can be verified
+by checking the head hash. This feature could be used to protect against tampering.
+
+
+Factory method
+--------------
+
+The ``DomainEntity`` has a class method ``create()`` which can return
+new entity objects. When called, it constructs a ``DomainEntity.Created``
+event with suitable arguments such as a unique ID, and a topic representing
+the concrete entity class, and then it projects that event into an entity
+object using the event's ``mutate()`` method. Then it publishes the
+event, and then it returns the new entity to the caller.
+
+
+.. code:: python
+
+    entity = DomainEntity.create()
+    assert entity.id
+    assert entity.__class__ is DomainEntity
+
+
+    entity = VersionedEntity.create()
+    assert entity.id
+    assert entity.version == 1
+    assert entity.__class__ is VersionedEntity
+
+
+    entity = TimestampedEntity.create()
+    assert entity.id
+    assert entity.created_on
+    assert entity.last_modified
+    assert entity.__class__ is TimestampedEntity
+
+
+    entity = TimestampedVersionedEntity.create()
+    assert entity.id
+    assert entity.created_on
+    assert entity.last_modified
+    assert entity.version == 1
+    assert entity.__class__ is TimestampedVersionedEntity
+
 
 
 Triggering events
@@ -380,19 +472,29 @@ on command arguments. The events need to be constructed with suitable arguments.
 
 To help construct events with suitable arguments in an extensible manner, the
 ``DomainEntity`` class has a private method ``_trigger()``, extended by subclasses,
-which can be used to construct, apply, and publish events with suitable arguments.
+which can be used in command methods to construct, apply, and publish events
+with suitable arguments. The event ``mutate()`` methods update the entity appropriately.
+
+For example, triggering an ``AttributeChanged`` event on a timestamped, versioned
+entity will cause the attribute value to be updated, but it will also
+cause the version number to increase, and it will update the last modified time.
 
 .. code:: python
 
+    entity = TimestampedVersionedEntity.create()
+    assert entity.version == 1
+    assert entity.created_on == entity.last_modified
+
     # Trigger domain event.
-    entity._trigger(entity.AttributeChanged, name='b', value=3)
+    entity._trigger(entity.AttributeChanged, name='c', value=3)
 
     # Check the event was applied.
-    assert entity.b == 3
-    assert entity.version == 4, entity.version
+    assert entity.c == 3
+    assert entity.version == 2
+    assert entity.last_modified > entity.created_on
 
 
-For example, the command method ``change_attribute()`` triggers an
+The command method ``change_attribute()`` triggers an
 ``AttributeChanged`` event. In the code below, the attribute ``full_name``
 is triggered. A subscriber receives the event.
 
@@ -410,9 +512,13 @@ is triggered. A subscriber receives the event.
     assert entity.full_name == 'Mr Boots'
 
     # Check the event was published.
+    assert len(received_events) == 1
     assert received_events[0].__class__ == VersionedEntity.AttributeChanged
     assert received_events[0].name == 'full_name'
     assert received_events[0].value == 'Mr Boots'
+
+    # Check the event hash is the current entity head.
+    assert received_events[0].event_hash == entity.__head__
 
     # Clean up.
     unsubscribe(handler=receive_event, predicate=is_domain_event)
@@ -641,8 +747,10 @@ class ``World`` inherits from ``AggregateRoot``.
                 self._trigger(World.SomethingHappened, what=something)
 
         class SomethingHappened(AggregateRoot.Event):
-            def _mutate(self, aggregate):
-                aggregate.history.append(self)
+            def mutate(self, obj):
+                obj = super(World.SomethingHappened, self).mutate(obj)
+                obj.history.append(self)
+                return obj
 
 
 The ``AggregateRoot`` class overrides the ``publish()`` method of the base class,
@@ -696,28 +804,3 @@ an inconsistent state that would also be difficult to repair.
 It also avoids the risk of other threads picking up only some events caused
 by a command, presenting the aggregate in an inconsistent or unusual and
 perhaps unworkable state.
-
-
-Data integrity
---------------
-
-The domain events of ``DomainEntity`` are hash-chained together.
-
-That is, the state of each event is hashed, and the hash of the last event is included in
-the state of the next event. Before an event is applied to a entity, it is validated
-in itself (the event hash represents the state of the event) and as a part of the chain
-(the previous event hash equals the next event originator hash). That means, if the sequence of
-events is accidentally damaged, then a ``DataIntegrityError`` will almost certainly be raised
-when the sequence is replayed.
-
-The hash of the last event applied to an aggregate root is available as an attribute called
-``__head__``.
-
-.. code:: python
-
-    assert world.__head__
-
-
-Any change to the aggregate's sequence of events that results in a valid sequence will almost
-certainly result in a different head hash. So the entire history of an aggregate can be verified
-by checking the head hash. This feature could be used to protect against tampering.
