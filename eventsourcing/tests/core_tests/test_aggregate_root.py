@@ -20,6 +20,7 @@ class TestAggregateRootEvent(TestCase):
         event1 = AggregateRoot.Created(
             originator_version=0,
             originator_id='1',
+            originator_topic=get_topic(AggregateRoot)
         )
         event1.validate()
 
@@ -43,6 +44,7 @@ class TestAggregateRootEvent(TestCase):
         event1 = AggregateRoot.Created(
             originator_version=0,
             originator_id='1',
+            originator_topic=get_topic(AggregateRoot)
         )
         event1.validate()
 
@@ -266,7 +268,7 @@ class Aggregate2(ExampleAggregateRoot):
 
 
 class AggregateRepository(EventSourcedRepository):
-    mutator = lambda initial, event: event.mutate(initial)
+    pass
 
 
 class Example(object):
@@ -313,12 +315,8 @@ class ExampleDDDApplication(object):
 
         :rtype: Aggregate1
         """
-        event = Aggregate1.Created(
-            originator_id=uuid.uuid4(),
-        )
-        aggregate = Aggregate1._mutate(event=event)
-        aggregate._publish(event)
-        return aggregate
+        return Aggregate1.create()
+
 
     def create_aggregate2(self):
         """
@@ -326,13 +324,7 @@ class ExampleDDDApplication(object):
 
         :rtype: Aggregate2
         """
-        event = Aggregate2.Created(
-            originator_id=uuid.uuid4(),
-            originator_topic=get_topic(Aggregate2),
-        )
-        aggregate = Aggregate2._mutate(event=event)
-        aggregate._publish(event)
-        return aggregate
+        return Aggregate2.create()
 
     def close(self):
         self.persistence_policy.close()

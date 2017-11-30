@@ -53,11 +53,7 @@ of the ``CustomAggregate`` type.
             self.repository = self.construct_repository(CustomAggregate)
 
         def create_aggregate(self, a):
-            aggregate_id = uuid4()
-            domain_event = CustomAggregate.Created(a=1, originator_id=aggregate_id)
-            entity = CustomAggregate._mutate(event=domain_event)
-            entity._publish(domain_event)  # Pending save().
-            return entity
+            return CustomAggregate.create(a=1)
 
 
 Aggregate

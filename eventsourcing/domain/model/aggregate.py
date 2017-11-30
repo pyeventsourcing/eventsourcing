@@ -6,15 +6,15 @@ Base classes for aggregates in a domain driven design.
 """
 import hashlib
 import json
-from abc import abstractmethod
 from collections import deque
 
 import os
+from uuid import uuid4
 
 from eventsourcing.domain.model.entity import TimestampedVersionedEntity, WithReflexiveMutator
 from eventsourcing.domain.model.events import publish
 from eventsourcing.exceptions import OriginatorHeadError, EventHashError
-from eventsourcing.utils.topic import resolve_topic
+from eventsourcing.utils.topic import resolve_topic, get_topic
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
 GENESIS_HASH = os.getenv('EVENTSOURCING_GENESIS_HASH', '')
@@ -24,7 +24,6 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
     """
     Root entity for an aggregate in a domain driven design.
     """
-
     class Event(TimestampedVersionedEntity.Event):
         """Supertype for aggregate events."""
         json_encoder_class = ObjectJSONEncoder
@@ -60,17 +59,21 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
             )
             return hashlib.sha256(json_dump.encode()).hexdigest()
 
-        @abstractmethod
         def mutate(self, aggregate):
-            aggregate.validate_event(self)
+            assert isinstance(aggregate, AggregateRoot)
+            self.validate()
+            aggregate.validate_originator(self)
             aggregate.__head__ = self.event_hash
             aggregate.increment_version()
             aggregate.set_last_modified(self.timestamp)
+            return self._mutate(aggregate)
+
+        def _mutate(self, aggregate):
+            return aggregate
 
     class Created(Event, TimestampedVersionedEntity.Created):
         """Published when an AggregateRoot is created."""
-
-        def __init__(self, originator_topic=None, **kwargs):
+        def __init__(self, originator_topic, **kwargs):
             kwargs['originator_topic'] = originator_topic
             assert 'originator_head' not in kwargs
             super(AggregateRoot.Created, self).__init__(
@@ -81,7 +84,7 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         def originator_topic(self):
             return self.__dict__['originator_topic']
 
-        def mutate(self, cls):
+        def mutate(self, cls=None):
             if cls is None:
                 cls = resolve_topic(self.originator_topic)
             aggregate = cls(**self.constructor_kwargs())
@@ -99,18 +102,13 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
 
     class AttributeChanged(Event, TimestampedVersionedEntity.AttributeChanged):
         """Published when an AggregateRoot is changed."""
-
-        def mutate(self, aggregate):
-            super(AggregateRoot.AttributeChanged, self).mutate(aggregate)
+        def _mutate(self, aggregate):
             setattr(aggregate, self.name, self.value)
             return aggregate
 
     class Discarded(Event, TimestampedVersionedEntity.Discarded):
         """Published when an AggregateRoot is discarded."""
-
-        def mutate(self, aggregate):
-            super(AggregateRoot.Discarded, self).mutate(aggregate)
-            assert isinstance(aggregate, AggregateRoot)
+        def _mutate(self, aggregate):
             aggregate.set_is_discarded()
             return None
 
@@ -118,6 +116,17 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         super(AggregateRoot, self).__init__(**kwargs)
         self.__pending_events__ = deque()
         self.__head__ = GENESIS_HASH
+
+    @classmethod
+    def create(cls, **kwargs):
+        event = cls.Created(
+            originator_id=uuid4(),
+            originator_topic=get_topic(cls),
+            **kwargs
+        )
+        aggregate = event.mutate()
+        aggregate.publish(event)
+        return aggregate
 
     def save(self):
         """
@@ -145,15 +154,14 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
         """
         self.__pending_events__.append(event)
 
-    def validate_event(self, event):
+    def publish(self, event):
+        self._publish(event)
+
+    def validate_originator(self, event):
         """
         Checks a domain event against the aggregate.
         """
-        event.validate()
         self._validate_originator(event)
-
-    def _validate_originator(self, event):
-        super(AggregateRoot, self)._validate_originator(event)
         self._validate_originator_head(event)
 
     def _validate_originator_head(self, event):

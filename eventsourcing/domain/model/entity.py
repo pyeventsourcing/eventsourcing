@@ -305,10 +305,12 @@ def _(self, event):
     return None
 
 
-class AbstractEntityRepository(with_metaclass(ABCMeta)):
+class AbstractEventPlayer(with_metaclass(ABCMeta)):
     def __init__(self, *args, **kwargs):
         pass
 
+
+class AbstractEntityRepository(AbstractEventPlayer):
     @abstractmethod
     def __getitem__(self, entity_id):
         """

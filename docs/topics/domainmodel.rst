@@ -705,6 +705,16 @@ a list of pending events, and overrides the ``_publish()`` method of the base cl
 The ``AggregateRoot`` class inherits from both ``TimestampedVersionedEntity`` and
 ``WithReflexiveMutator``, and can be subclassed to define custom aggregate root entities.
 
+The ``AggregateRoot`` class has a class method ``create()`` which will construct a ``Created`` event,
+project the event into an aggregate object, publish the event to the aggregate's list of pending events,
+and then return the new aggregate object.
+
+Events of ``AggregateRoot`` provide a ``mutate()`` method that validates the event and
+updates common attributes such as the version number and the timestamp, before calling
+a private method ``_mutate()`` that can be overridden on subclasses to do event-specific
+updates on the aggregate. The ``mutate()`` method can be extended, but the superclass
+method must be called.
+
 .. code:: python
 
     from eventsourcing.domain.model.aggregate import AggregateRoot
@@ -722,17 +732,9 @@ The ``AggregateRoot`` class inherits from both ``TimestampedVersionedEntity`` an
             for something in somethings:
                 self._trigger(World.SomethingHappened, what=something)
 
-        class SomethingHappened(VersionedEntity.Event):
-            def mutate(self, entity):
-                entity.history.append(self)
-                entity._increment_version()
-
-        @classmethod
-        def create(cls):
-            event = cls.Created(originator_id=1)
-            self = cls._mutate(event=event)
-            self._publish(event)
-            return self
+        class SomethingHappened(AggregateRoot.Event):
+            def _mutate(self, aggregate):
+                aggregate.history.append(self)
 
 
 An ``AggregateRoot`` entity will postpone the publishing of all events, pending the next call to its
@@ -784,16 +786,15 @@ It also avoids the risk of other threads picking up only some events caused by a
 in an inconsistent or unusual and perhaps unworkable state.
 
 
-Hash-chained events
--------------------
+Data integrity
+--------------
 
 The domain events of ``AggregateRoot`` are hash-chained together.
 
 That is, the state of each event is hashed, and the hash of the last event is included in
 the state of the next event. Before an event is applied to an aggregate, it is validated
-in itself and as a part of the chain. That means, if any event is randomly damaged, or the
-sequence becomes somehow jumbled through being stored, a ``DataIntegrityError`` will be
-raised when the sequence is replayed.
+in itself and as a part of the chain. That means, if the sequence of events is damaged,
+then a ``DataIntegrityError`` will be raised when the sequence is replayed.
 
 The hash of the last event applied to an aggregate root is available as an attribute called
 ``__head__``.
@@ -803,5 +804,6 @@ The hash of the last event applied to an aggregate root is available as an attri
     assert world.__head__
 
 
-Any change to the aggregate's sequence of events will almost certainly result in a different
-head hash. So the entire history of an aggregate can be verified by checking the head hash.
+Any change to the aggregate's sequence of events that results in a valid sequence will almost
+certainly result in a different head hash. So the entire history of an aggregate can be verified
+by checking the head hash. This feature could be used to detect tampering.
