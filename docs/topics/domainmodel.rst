@@ -256,7 +256,7 @@ with a ``version`` attribute.
 
 
 The library also has a domain entity class called ``TimestampedEntity``, which extends the ``DomainEntity`` class
-with a ``created_on`` and ``last_modified`` attributes.
+with attributes ``created_on`` and ``last_modified``.
 
 .. code:: python
 
