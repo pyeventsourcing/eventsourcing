@@ -14,7 +14,6 @@ class SimpleApplication(object):
     def construct_repository(self, entity_class):
         return EventSourcedRepository(
             event_store=self.event_store,
-            mutator=entity_class._mutate
         )
 
     def close(self):

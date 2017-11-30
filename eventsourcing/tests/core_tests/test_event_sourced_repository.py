@@ -9,6 +9,7 @@ from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     construct_integer_sequenced_active_record_strategy
+from eventsourcing.utils.topic import get_topic
 
 
 class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
@@ -43,10 +44,15 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
 
         # Put an event in the event store.
         entity_id = uuid4()
-        event_store.append(Example.Created(originator_id=entity_id, a=1, b=2))
+        event_store.append(Example.Created(
+            a=1,
+            b=2,
+            originator_id=entity_id,
+            originator_topic=get_topic(Example),
+        ))
 
         # Construct a repository.
-        event_sourced_repo = EventSourcedRepository(event_store=event_store, mutator=Example._mutate)
+        event_sourced_repo = EventSourcedRepository(event_store=event_store)
 
         # Check the entity attributes.
         example = event_sourced_repo[entity_id]

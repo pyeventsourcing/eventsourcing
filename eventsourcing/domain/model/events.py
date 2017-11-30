@@ -1,11 +1,20 @@
+import hashlib
 import itertools
+import json
 import time
 from abc import ABCMeta
 from collections import OrderedDict
 from uuid import uuid1
 
+import os
 import six
 from six import with_metaclass
+
+from eventsourcing.exceptions import EventHashError
+from eventsourcing.utils.topic import resolve_topic
+from eventsourcing.utils.transcoding import ObjectJSONEncoder
+
+GENESIS_HASH = os.getenv('EVENTSOURCING_GENESIS_HASH', '')
 
 
 class QualnameABCMeta(ABCMeta):

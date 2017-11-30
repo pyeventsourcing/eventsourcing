@@ -1,25 +1,24 @@
 from uuid import uuid4
 
-from eventsourcing.domain.model.entity import AttributeChanged, TimestampedVersionedEntity, VersionedEntity, \
-    mutate_entity, DomainEntity
-
 from eventsourcing.domain.model.decorators import attribute
-from eventsourcing.domain.model.events import DomainEvent, publish, subscribe, unsubscribe
+from eventsourcing.domain.model.entity import AttributeChanged, VersionedEntity
+from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.exceptions import ConcurrencyError, OriginatorIDError, OriginatorVersionError, \
-    MutatorRequiresTypeNotInstance, ProgrammingError, RepositoryKeyError
+    ProgrammingError, RepositoryKeyError
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
     WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
+from eventsourcing.utils.topic import get_topic
 
 
 class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
-        example1 = create_new_example(a=1, b=2)
+        example1 = Example.create(a=1, b=2)
         self.assertIsInstance(example1, Example)
 
         # Check the instance is equal to itself.
@@ -43,6 +42,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Check a different type with the same values is not "equal" to the first.
         class Subclass(Example): pass
+
         other = object.__new__(Subclass)
         other.__dict__.update(example1.__dict__)
         self.assertEqual(example1.__dict__, other.__dict__)
@@ -99,40 +99,41 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Should fail to validate event with wrong entity ID.
         with self.assertRaises(OriginatorIDError):
-            entity2._validate_originator(
+            entity2.validate_originator(
                 VersionedEntity.Event(
                     originator_id=uuid4(),
-                    originator_version=0
+                    originator_version=0,
+                    originator_head='',
                 )
             )
         # Should fail to validate event with wrong entity version.
         with self.assertRaises(OriginatorVersionError):
-            entity2._validate_originator(
+            entity2.validate_originator(
                 VersionedEntity.Event(
                     originator_id=entity2.id,
                     originator_version=0,
+                    originator_head=entity2.__head__,
                 )
             )
 
         # Should validate event with correct entity ID and version.
-        entity2._validate_originator(
+        entity2.validate_originator(
             VersionedEntity.Event(
                 originator_id=entity2.id,
                 originator_version=entity2.version,
+                originator_head=entity2.__head__,
             )
         )
 
         # Check an entity cannot be reregistered with the ID of a discarded entity.
-        replacement_event = Example.Created(originator_id=entity1.id, a=11, b=12)
+        replacement_event = Example.Created(
+            originator_id=entity1.id,
+            a=11,
+            b=12,
+            originator_topic=get_topic(Example),
+        )
         with self.assertRaises(ConcurrencyError):
             publish(event=replacement_event)
-
-    def test_not_implemented_error(self):
-        # Define an event class.
-        class UnsupportedEvent(DomainEvent): pass
-
-        # Check we get an error when attempting to mutate on the event.
-        self.assertRaises(NotImplementedError, Example._mutate, Example, UnsupportedEvent())
 
     def test_attribute(self):
         # Check we get an error when called with something other than a function.
@@ -205,22 +206,6 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertEqual(published_event.value, 'value1')
         self.assertTrue(published_event.originator_version, 1)
         self.assertEqual(published_event.originator_id, entity_id)
-
-    def test_mutator_errors(self):
-        with self.assertRaises(NotImplementedError):
-            TimestampedVersionedEntity._mutate(1, 2)
-
-        # Check the guard condition raises exception.
-        with self.assertRaises(MutatorRequiresTypeNotInstance):
-            mutate_entity('not a class', TimestampedVersionedEntity.Created(originator_id=uuid4()))
-
-        # Check the instantiation type error.
-        with self.assertRaises(TypeError):
-            # DomainEntity.Created doesn't have an originator_version,
-            # so the mutator fails to construct an instance with a type
-            # error from the constructor.
-            mutate_entity(TimestampedVersionedEntity, DomainEntity.Created(originator_id=uuid4()))
-
 
 
 class CustomValueObject(object):

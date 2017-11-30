@@ -30,14 +30,21 @@ class TestPersistencePolicy(unittest.TestCase):
 
         # Publish a versioned entity event.
         entity_id = uuid4()
-        domain_event1 = VersionedEntity.Event(originator_id=entity_id, originator_version=0)
+        domain_event1 = VersionedEntity.Event(
+            originator_id=entity_id,
+            originator_version=0,
+            originator_head='',
+        )
         publish(domain_event1)
 
         # Check the append method has been called once with the domain event.
         self.event_store.append.assert_called_once_with(domain_event1)
 
         # Publish a timestamped entity event (should be ignored).
-        domain_event2 = TimestampedEntity.Event(originator_id=entity_id)
+        domain_event2 = TimestampedEntity.Event(
+            originator_id=entity_id,
+            originator_head='',
+        )
         publish(domain_event2)
 
         # Check the append() has still only been called once with the first domain event.

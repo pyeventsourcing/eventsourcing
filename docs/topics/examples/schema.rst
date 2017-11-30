@@ -88,7 +88,6 @@ Then redefine the application class to use the new sequenced item and active rec
             )
             self.example_repository = EventSourcedRepository(
                 event_store=self.event_store,
-                mutator=Example._mutate,
             )
             self.persistence_policy = PersistencePolicy(self.event_store, event_type=Example.Event)
 

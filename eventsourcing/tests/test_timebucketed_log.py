@@ -18,11 +18,12 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 class TimebucketedlogTestCase(WithPersistencePolicies):
     def setUp(self):
         super(TimebucketedlogTestCase, self).setUp()
-        self.log_repo = TimebucketedlogRepo(self.log_event_store)
+        self.log_repo = TimebucketedlogRepo(self.entity_event_store)
 
     def test_entity_lifecycle(self):
         log_name = uuid4()
         log = self.log_repo.get_or_create(log_name=log_name, bucket_size='year')
+        log = self.log_repo[log_name]
         self.assertIsInstance(log, Timebucketedlog)
         self.assertEqual(log.name, log_name)
         self.assertEqual(log.bucket_size, 'year')

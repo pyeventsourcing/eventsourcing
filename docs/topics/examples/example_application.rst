@@ -268,11 +268,10 @@ the sequence to an evolving initial state.
             raise NotImplementedError(type(event))
 
 
-For the sake of simplicity in this example, we'll use an if-else block to structure
+For the sake of simplicity in this example, an if-else block is used to structure
 the mutator function. The library has a function decorator
-:func:`~eventsourcing.domain.model.decorators.mutator` that allows handlers
-for different types of event to be registered with a default mutator function,
-just like singledispatch.
+:func:`~eventsourcing.domain.model.decorators.mutator` that allows a default mutator
+function to register handlers for different types of event, much like singledispatch.
 
 
 Run the code
@@ -487,7 +486,14 @@ Entity repository
 It is common to retrieve entities from a repository. An event sourced repository
 for the ``example`` entity class can be constructed directly using library class
 :class:`~eventsourcing.infrastructure.eventsourcedrepository.EventSourcedRepository`.
-The repository is given the mutator function ``mutate()`` and the event store.
+
+In this example, the repository is given an event store object. Because the library
+base classes have been used directly, and the base classes do not have effective
+implementations for the ``mutate()`` method, the repository must also be given a
+custom mutator function ``mutate()``. This overrides the default behaviour of the
+``EventSourcedRepository`` class, which is to call the ``mutate()`` function of
+each event in turn. This isn't necessary when using the library entity classes,
+which have events that actually implement effective ``mutate()`` methods.
 
 .. code:: python
 
@@ -495,7 +501,7 @@ The repository is given the mutator function ``mutate()`` and the event store.
 
     example_repository = EventSourcedRepository(
         event_store=event_store,
-        mutator=mutate
+        mutator_func=mutate
     )
 
 
@@ -620,7 +626,7 @@ and unsubscribe from receiving further domain events.
             # Construct example repository.
             self.example_repository = EventSourcedRepository(
                 event_store=self.event_store,
-                mutator=mutate
+                mutator_func=mutate
             )
 
         def __enter__(self):

@@ -12,6 +12,7 @@ from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequenc
     SQLAlchemyActiveRecordStrategy
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
+from eventsourcing.utils.topic import get_topic
 
 
 class TestAggregateRootEvent(TestCase):
@@ -19,6 +20,7 @@ class TestAggregateRootEvent(TestCase):
         event1 = AggregateRoot.Created(
             originator_version=0,
             originator_id='1',
+            originator_topic=get_topic(AggregateRoot)
         )
         event1.validate()
 
@@ -42,6 +44,7 @@ class TestAggregateRootEvent(TestCase):
         event1 = AggregateRoot.Created(
             originator_version=0,
             originator_id='1',
+            originator_topic=get_topic(AggregateRoot)
         )
         event1.validate()
 
@@ -264,6 +267,10 @@ class Aggregate2(ExampleAggregateRoot):
         return len(self._entities)
 
 
+class AggregateRepository(EventSourcedRepository):
+    pass
+
+
 class Example(object):
     """
     Example domain entity.
@@ -289,12 +296,10 @@ class ExampleDDDApplication(object):
                 position_attr_name='originator_version',
             )
         )
-        self.aggregate1_repository = EventSourcedRepository(
-            mutator=Aggregate1._mutate,
+        self.aggregate1_repository = AggregateRepository(
             event_store=event_store,
         )
-        self.aggregate2_repository = EventSourcedRepository(
-            mutator=Aggregate2._mutate,
+        self.aggregate2_repository = AggregateRepository(
             event_store=event_store,
         )
         self.persistence_policy = PersistencePolicy(
@@ -308,10 +313,8 @@ class ExampleDDDApplication(object):
 
         :rtype: Aggregate1
         """
-        event = Aggregate1.Created(originator_id=uuid.uuid4())
-        aggregate = Aggregate1._mutate(event=event)
-        aggregate._publish(event)
-        return aggregate
+        return Aggregate1.create()
+
 
     def create_aggregate2(self):
         """
@@ -319,10 +322,7 @@ class ExampleDDDApplication(object):
 
         :rtype: Aggregate2
         """
-        event = Aggregate2.Created(originator_id=uuid.uuid4())
-        aggregate = Aggregate2._mutate(event=event)
-        aggregate._publish(event)
-        return aggregate
+        return Aggregate2.create()
 
     def close(self):
         self.persistence_policy.close()
