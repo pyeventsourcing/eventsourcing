@@ -57,67 +57,78 @@ import os
 
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.domain.model.aggregate import AggregateRoot
+from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.exceptions import ConcurrencyError
 
 # Configure environment.
 os.environ['AES_CIPHER_KEY'] = '0123456789abcdef'
 
-# Domain model aggregate.
+# Define domain model.
 class World(AggregateRoot):
-    def __init__(self, *args, **kwargs):
+    """The world, including all history."""
+    def __init__(self, ruler=None, *args, **kwargs):
         super(World, self).__init__(*args, **kwargs)
+        self._ruler = ruler
         self.history = []
+
+    # Mutable attribute.
+    @attribute
+    def ruler(self):
+        """The current ruler of the world."""
 
     # Command triggers events.
     def make_it_so(self, something):
+        """Makes things happen."""
         self._trigger(World.SomethingHappened, what=something)
 
     # Nested entity events.
     class SomethingHappened(AggregateRoot.Event):
-        def mutate(self, obj):
-            obj = super(World.SomethingHappened, self).mutate(obj)
+        def _mutate(self, obj):
+            """Appends event to history."""
             obj.history.append(self)
-            return obj
             
 
-# Application object as context manager.
+# Construct application (with SQLAlchemy-style URI).
 with SimpleApplication(uri='sqlite:///:memory:') as app:
 
-    # Aggregate factory.
-    world = World.create()
+    # Call aggregate factory.
+    world = World.create(ruler='god')
     
-    # Execute commands.
+    # Execute commands (events published pending save).
     world.make_it_so('dinosaurs')
     world.make_it_so('trucks')
     version = world.version # note version at this stage
     world.make_it_so('internet')
+    
+    # Assign to mutable attribute.
+    world.ruler = 'money'
 
-    # View current state.
+    # View current state of aggregate.
     assert world.history[0].what == 'dinosaurs'
     assert world.history[1].what == 'trucks'
     assert world.history[2].what == 'internet'
 
-    # Publish pending events.
+    # Publish pending events (to persistence subscriber).
     world.save()
 
-    # Retrieve aggregate from stored events.
-    obj = app.repository[world.id]
-    assert obj.__class__ == World
+    # Retrieve aggregate (replay stored events).
+    copy = app.repository[world.id]
+    assert copy.__class__ == World
     
-    # Verify retrieved aggregate state.
-    assert obj.__head__ == world.__head__
+    # View retrieved state.
+    assert copy.ruler == 'money'
+    assert copy.history[0].what == 'dinosaurs'
+    assert copy.history[1].what == 'trucks'
+    assert copy.history[2].what == 'internet'
+    
+    # Verify retrieved state.
+    assert copy.__head__ == world.__head__
 
-    # View retrieved aggregate state.
-    assert obj.id == world.id
-    assert obj.history[0].what == 'dinosaurs'
-    assert obj.history[1].what == 'trucks'
-    assert obj.history[2].what == 'internet'
-    
-    # Discard aggregate.
+    # Discard aggregate, and save.
     world.discard()
     world.save()
 
-    # Not found in repository. 
+    # Repository key error, if aggregate not found.
     assert world.id not in app.repository
     try:
         app.repository[world.id]
@@ -126,32 +137,32 @@ with SimpleApplication(uri='sqlite:///:memory:') as app:
     else:
         raise Exception("Shouldn't get here")
 
-    # Optimistic concurrency control.
-    obj.make_it_so('future')
+    # Optimistic concurrency control (no branches).
+    copy.make_it_so('future')
     try:
-        obj.save()
+        copy.save()
     except ConcurrencyError:
         pass
     else:
         raise Exception("Shouldn't get here")
 
-    # Historical state at version from above.
+    # Get historical state (at version from above).
     old = app.repository.get_entity(world.id, lt=version)
-    assert len(old.history) == 2
+    assert old.ruler == 'god'
     assert old.history[-1].what == 'trucks' # internet not happened
+    assert len(old.history) == 2
     
-    # Data integrity (also checked when events were replayed).
+    # Check data integrity (also happened during replay).
     events = app.event_store.get_domain_events(world.id)
-    assert len(events) == 5
     last_hash = ''
     for event in events:
         event.validate()
         assert event.originator_hash == last_hash
         last_hash = event.event_hash
 
-    # Encrypted records.
-    items = app.event_store.active_record_strategy.get_items(world.id)
-    assert len(items) == 5
+    # Check records are encrypted (values not visible in database).
+    active_record_strategy = app.event_store.active_record_strategy
+    items = active_record_strategy.get_items(world.id)
     for item in items:
         assert item.originator_id == world.id
         assert 'dinosaurs' not in item.state

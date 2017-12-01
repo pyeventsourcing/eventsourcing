@@ -59,13 +59,38 @@ class DomainEntity(QualnameABC):
             return hashlib.sha256(json_dump.encode()).hexdigest()
 
         def mutate(self, obj):
+            """
+            Update obj with values from self.
+
+            Can be extended, but subclasses must call super
+            method, and return an object.
+
+            :param obj: object to be mutated
+            :return: mutated object
+            """
             self.validate()
             obj.validate_originator(self)
             obj.__head__ = self.event_hash
-            return self._mutate(obj)
+            self._mutate(obj)
+            return obj
 
         def _mutate(self, aggregate):
-            return aggregate
+            """
+            Private "helper" for use in custom models, to
+            update obj with values from self without needing
+            to call super method, or return an object.
+
+            Can be overridden by subclasses. Should not return
+            a value. Values returned by this method are ignored.
+
+            Please note, subclasses that extend mutate() might
+            not have fully completed that method before this method
+            is called. To ensure all base classes have completed
+            their mutate behaviour before mutating an event in a concrete
+            class, extend mutate() instead of overriding this method.
+
+            :param obj: object to be mutated
+            """
 
     class Created(Event, Created):
         """Published when a DomainEntity is created."""
@@ -313,6 +338,7 @@ class TimestampedEntity(DomainEntity):
     class Event(DomainEntity.Event, EventWithTimestamp):
         """Supertype for events of timestamped entities."""
         def mutate(self, obj):
+            """Update obj with values from self."""
             obj = super(TimestampedEntity.Event, self).mutate(obj)
             if obj is not None:
                 assert isinstance(obj, TimestampedEntity), obj

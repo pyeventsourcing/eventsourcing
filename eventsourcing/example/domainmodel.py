@@ -21,12 +21,10 @@ class Example(TimestampedVersionedEntity):
 
     class Heartbeat(Event, TimestampedVersionedEntity.Event):
         """Published when a heartbeat in the entity occurs (see below)."""
-
-        def mutate(self, obj):
-            super(Example.Heartbeat, self).mutate(obj)
+        def _mutate(self, obj):
+            """Update obj with values from self."""
             assert isinstance(obj, Example), obj
             obj._count_heartbeats += 1
-            return obj
 
     def __init__(self, foo='', a='', b='', **kwargs):
         super(Example, self).__init__(**kwargs)
