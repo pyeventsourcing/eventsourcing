@@ -52,20 +52,9 @@ example domain events, and an example database table. Plus lots of examples in t
 
 ## Synopsis
 
+Develop a domain model.
+
 ```python
-# Generate cipher key.
-from eventsourcing.utils.random import generate_cipher_key
-
-aes_cipher_key = generate_cipher_key(num_bytes=32)
-
-
-# Configure environment.
-import os
-
-os.environ['DB_URI'] = 'sqlite:///:memory:'  # SQLAlchemy style
-os.environ['AES_CIPHER_KEY'] = aes_cipher_key
-
-
 # Define domain model.
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import attribute
@@ -97,8 +86,30 @@ class World(AggregateRoot):
         def _mutate(self, obj):
             """Appends event to history."""
             obj._history.append(self)
-            
+```
 
+Generate and store a strong cipher key.
+
+```python
+# Generate cipher key.
+from eventsourcing.utils.random import generate_cipher_key
+
+aes_cipher_key = generate_cipher_key(num_bytes=32)
+```
+
+Configure environment variables.
+
+```python
+# Configure environment.
+import os
+
+os.environ['DB_URI'] = 'sqlite:///:memory:'  # SQLAlchemy style
+os.environ['AES_CIPHER_KEY'] = aes_cipher_key
+```
+
+Run the model with infrastructure, as an application.
+
+```python
 # Construct application.
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.exceptions import ConcurrencyError
