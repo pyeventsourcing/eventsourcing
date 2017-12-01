@@ -35,8 +35,8 @@ Simple application
 ==================
 
 The library provides a simple application class ``SimpleApplication``
-which can be constructed directly. A SQLAlchemy-style database
-connection string can given, with the optional argument ``uri``.
+which can be constructed directly. The ``uri`` argument is an
+SQLAlchemy-style database connection string.
 
 .. code:: python
 
@@ -46,27 +46,39 @@ connection string can given, with the optional argument ``uri``.
 
 
 The ``SimpleApplication`` has an event store, provided by the library's
-``EventStore`` class, which it uses with SQLAlchemy infrastructure. It
-uses the library function ``construct_sqlalchemy_eventstore()`` to
-construct its event store. To use different infrastructure, override
-the application's ``setup_event_store()`` method, and read about
-alternatives in the :doc:`infrastructure layer </topics/infrastructure>`.
+``EventStore`` class, which it uses with SQLAlchemy infrastructure.
+It uses the library function ``construct_sqlalchemy_eventstore()`` to
+construct its event store.
 
 .. code:: python
 
     assert app.event_store
 
 
+To use different infrastructure with this class, extend the class by
+overriding the ``setup_event_store()`` method. Then read about the
+alternatives to the defaults available in the
+:doc:`infrastructure layer </topics/infrastructure>`.
+
 The ``SimpleApplication`` also has a persistence policy, provided by the
 library's ``PersistencePolicy`` class. The persistence policy appends
-domain events to its event store whenever they are published. It also has
-an aggregate repository, provided by the library's ``EventSourcedRepository``
-class. Both the persistence policy and the repository use the event store.
+domain events to its event store whenever they are published.
 
 .. code:: python
 
     assert app.persistence_policy
 
+
+The ``SimpleApplication`` also has an aggregate repository, provided
+by the library's ``EventSourcedRepository`` class. Both the persistence
+policy and the repository use the event store.
+
+.. code:: python
+
+    assert app.repository
+
+The aggregate repository is generic, and can retrieve all the types of
+aggregate in a model.
 
 The ``SimpleApplication`` can be used as a context manager. The library domain
 entity classes can be used to create read, update, and discard entity objects.
