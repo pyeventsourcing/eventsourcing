@@ -525,7 +525,7 @@ Data integrity
 Domain events that are triggered in this way are automatically hash-chained together.
 
 The state of each event, including the hash of the last event, is hashed using
-SHA-256. Before an event is applied to a entity, it is validated in itself (the
+SHA-256. Before an event is applied to an entity, it is validated in itself (the
 event hash represents the state of the event) and as a part of the chain
 (the previous event hash is included in the next event state). If the sequence
 of events is accidentally damaged in any way, then a ``DataIntegrityError`` will
