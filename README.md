@@ -110,7 +110,7 @@ Run the code.
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.exceptions import ConcurrencyError
 
-# Construct simple application (use as context manager).
+# Construct simple application (used here as a context manager).
 with SimpleApplication() as app:
 
     # Call aggregate factory.
