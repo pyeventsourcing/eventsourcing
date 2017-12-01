@@ -1,4 +1,4 @@
-from base64 import b64encode# Event Sourcing in Python
+# Event Sourcing in Python
 
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png)](https://travis-ci.org/johnbywater/eventsourcing)
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg)](https://coveralls.io/github/johnbywater/eventsourcing)
@@ -135,7 +135,7 @@ with SimpleApplication() as app:
     assert copy.history[1].what == 'trucks'
     assert copy.history[2].what == 'internet'
     
-    # Verify retrieved state (cryptographic).
+    # Verify retrieved state (cryptographically).
     assert copy.__head__ == world.__head__
 
     # Discard aggregate, and save.
@@ -173,7 +173,7 @@ with SimpleApplication() as app:
         assert event.originator_hash == last_hash
         last_hash = event.event_hash
         
-    # Verify sequence of events (cryptographic).
+    # Verify sequence of events (cryptographically).
     assert last_hash == world.__head__
 
     # Check records are encrypted (values not visible in database).

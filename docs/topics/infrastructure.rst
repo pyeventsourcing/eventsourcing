@@ -484,19 +484,31 @@ an AES cipher object class called ``AESCipher``.
 
 The ``AESCipher`` is given an encryption key, using constructor arg ``aes_key``, which must be either 16, 24, or 32
 random bytes (128, 192, or 256 bits). Longer keys take more time to encrypt plaintext, but produce more secure
-ciphertext. Generating and storing a secure key requires functionality beyond the scope of this library.
+ciphertext.
+
+Generating and storing a secure key requires functionality beyond the scope of this library.
+However, the utils package does contain a function ``generate_cipher_key()`` that may help
+to generate a unicode key string, representing random bytes encoded with Base64. A companion
+function ``decode_cipher_key()`` decodes the unicode key string into a sequence of bytes.
 
 
 .. code:: python
 
     from eventsourcing.infrastructure.cipher.aes import AESCipher
+    from eventsourcing.utils.random import generate_cipher_key, decode_cipher_key
 
-    cipher = AESCipher(aes_key=b'01234567890123456789012345678901')  # Key with 256 bits.
+    # Unicode string representing 256 random bits encoded with Base64.
+    cipher_key = generate_cipher_key(num_bytes=32)
 
+    # Construct AES-256 cipher.
+    cipher = AESCipher(aes_key=decode_cipher_key(cipher_key))
+
+    # Encrypt some plaintext.
     ciphertext = cipher.encrypt('plaintext')
-    plaintext = cipher.decrypt(ciphertext)
-
     assert ciphertext != 'plaintext'
+
+    # Decrypt some ciphertext.
+    plaintext = cipher.decrypt(ciphertext)
     assert plaintext == 'plaintext'
 
 
