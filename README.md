@@ -52,7 +52,7 @@ example domain events, and an example database table. Plus lots of examples in t
 
 ## Synopsis
 
-Declare domain model.
+Develop a domain model.
 
 ```python
 # Define domain model.
