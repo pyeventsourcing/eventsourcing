@@ -100,7 +100,10 @@ Configure environment variables.
 ```python
 import os
 
-os.environ['DB_URI'] = 'sqlite:///:memory:'  # SQLAlchemy style
+# SQLAlchemy-style database connection string. 
+os.environ['DB_URI'] = 'sqlite:///:memory:'
+
+# Cipher key (random bytes encoded with Base64).
 os.environ['AES_CIPHER_KEY'] = aes_cipher_key
 ```
 
