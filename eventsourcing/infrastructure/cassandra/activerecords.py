@@ -18,14 +18,14 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
                     self.active_record_class.batch(b).if_not_exists().create(**kwargs)
                 try:
                     b.execute()
-                except LWTException as e:
-                    self.raise_sequenced_item_error(sequenced_item_or_items, e)
+                except LWTException:
+                    self.raise_sequenced_item_error(sequenced_item_or_items)
         else:
             active_record = self.to_active_record(sequenced_item_or_items)
             try:
                 active_record.save()
-            except LWTException as e:
-                self.raise_sequenced_item_error(sequenced_item_or_items, e)
+            except LWTException:
+                self.raise_sequenced_item_error(sequenced_item_or_items)
 
     def get_item(self, sequence_id, eq):
         kwargs = {

@@ -52,10 +52,10 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
     def get_field_kwargs(self, item):
         return {name: getattr(item, name) for name in self.field_names}
 
-    def raise_sequenced_item_error(self, sequenced_item, e):
+    def raise_sequenced_item_error(self, sequenced_item):
         sequenced_item = sequenced_item[0] if isinstance(sequenced_item, list) else sequenced_item
-        raise SequencedItemConflict("Item at position '{}' already exists in sequence '{}': {}"
-                                 "".format(sequenced_item[1], sequenced_item[0], e))
+        raise SequencedItemConflict("Item at position '{}' already exists in sequence '{}'"
+                                 "".format(sequenced_item[1], sequenced_item[0]))
 
     def raise_index_error(self, eq):
         raise IndexError("Sequence index out of range: {}".format(eq))

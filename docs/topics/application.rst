@@ -2,72 +2,133 @@
 Applications
 ============
 
+Overview
+========
+
 The application layer combines objects from the domain and
 infrastructure layers.
 
-Repositories and policies
-=========================
+An application object normally has a repository and policies.
 
-An application object can have repositories, so that aggregates
-can be retrieved by ID using a dictionary-like interface.
-In general, aggregates implement commands that publish events.
+A repository allows aggregates to be retrieved by ID, using a
+dictionary-like interface.
 
-An application object can also have policies. In general, policies receive
-events and execute commands.
+In general, a policy subscribes to events, and then executes
+commands when it receives the events. Obversely, an aggregate
+implements commands that publish events.
 
+An application can be well understood by understanding the policies,
+the aggregates, the events, and the commands.
 
 Application services
-====================
+--------------------
 
 An application object can have methods ("application services")
-which provide a relatively simple interface for clients operations,
-hiding the complexity and usage of the application's domain and
-infrastructure layers.
+which provide a relatively simple interface for client (interface)
+operations, hiding the complexity and usage of the application's
+domain and infrastructure layers.
 
 Application services can be developed outside-in, with a
-test- or behaviour-driven development approach. A test suite can be imagined as an
-interface that uses the application. Interfaces are outside the scope of
-the application layer.
+test- or behaviour-driven development approach. A test suite can
+be imagined as an interface that uses the application. Interfaces
+are outside the scope of the application layer.
 
 
-Example application
-===================
+Simple application
+==================
 
-The library provides a simple application class, called ``SimpleApplication``.
-The example below shows a simple event sourced application object class
-that extends this class, by constructing a repository when the application object is
-constructed, and by defining a factory method that can create new aggregates
-of the ``CustomAggregate`` type.
+The library provides a simple application class, which can be constructed directly.
+
+The optional argument ``uri`` can be used to configure away from the default
+SQLAlchemy-style database connection string ``'sqlite:///:memory:'``.
 
 .. code:: python
 
-    from uuid import uuid4
-
     from eventsourcing.application.simple import SimpleApplication
 
-    class MyApplication(SimpleApplication):
-        def __init__(self, event_store):
-            super(MyApplication, self).__init__(event_store)
-
-            # Construct an event sourced repository.
-            self.repository = self.construct_repository(CustomAggregate)
-
-        def create_aggregate(self, a):
-            return CustomAggregate.create(a=1)
+    app = SimpleApplication(uri='sqlite:///:memory:')
 
 
-Aggregate
----------
+The ``SimpleApplication`` has an event store, provided by the library's ``EventStore`` class,
+which it uses with SQLAlchemy infrastructure. It uses the library
+function ``construct_sqlalchemy_eventstore()`` to construct its event store.
+To use different infrastructure, override the ``setup_event_store()`` method,
+and read about alternatives in the :doc:`infrastructure layer </topics/infrastructure>`.
 
-The example application code above depends on one entity class called ``CustomAggregate``,
-defined below. It extends the library's ``AggregateRoot`` entity with event sourced
-attribute ``a``.
+.. code:: python
+
+    assert app.event_store
+
+
+The ``SimpleApplication`` also has persistence policy, provided by the library's ``PersistencePolicy``
+class. The persistence policy appends domain events to its event
+store whenever they are published. It also has an aggregate repository,
+provided by the library's ``EventSourcedRepository`` class. Both the persistence
+policy and the repository use the event store.
+
+.. code:: python
+
+    assert app.persistence_policy
+
+
+The ``SimpleApplication`` can be used as a context manager. The library domain
+entity classes can be used to create read, update, and discard entity objects.
+The example below uses the ``AggregateRoot`` class directly.
 
 .. code:: python
 
     from eventsourcing.domain.model.aggregate import AggregateRoot
-    from eventsourcing.domain.model.decorators import attribute
 
+    with app:
+        obj = AggregateRoot.create()
+        obj.change_attribute(name='a', value=1)
+        assert obj.a == 1
+        obj.save()
+
+        # Check the repository has the latest values.
+        copy = app.repository[obj.id]
+        assert copy.a == 1
+
+        # Check the aggregate can be discarded.
+        copy.discard()
+        copy.save()
+        assert copy.id not in app.repository
+
+        # Check optimistic concurrency control is working ok.
+        from eventsourcing.exceptions import ConcurrencyError
+        try:
+            obj.change_attribute(name='a', value=2)
+            obj.save()
+        except ConcurrencyError:
+            pass
+        else:
+            raise Exception("Shouldn't get here")
+
+
+Custom application
+==================
+
+The ``SimpleApplication`` class can also be extended.
+
+The example below shows a custom application class ``MyApplication`` that
+extends ``SimpleApplication`` with application service ``create_aggregate()``
+that can create new ``CustomAggregate`` entities.
+
+.. code:: python
+
+    class MyApplication(SimpleApplication):
+        def create_aggregate(self, a):
+            return CustomAggregate.create(a=1)
+
+
+The application code above depends on an entity class called
+``CustomAggregate``, which is defined below. It extends the
+library's ``AggregateRoot`` entity with an event sourced, mutable
+attribute ``a``.
+
+.. code:: python
+
+    from eventsourcing.domain.model.decorators import attribute
 
     class CustomAggregate(AggregateRoot):
         def __init__(self, a, **kwargs):
@@ -76,104 +137,31 @@ attribute ``a``.
 
         @attribute
         def a(self):
-            """
-            Event sourced attribute 'a'.
-            """
+            """Mutable attribute a."""
 
 
-For more sophisticated domain models, please read
-more about the :doc:`domain model layer </topics/domainmodel>`.
-
-
-Repository
-----------
-
-The application has an event sourced repository for ``CustomAggregate`` instances.
-It is constructed using the method ``construct_repository()`` of ``SimpleApplication``.
-
-That method uses the library class ``EventSourcedRepository``, which uses an event store
-to get domain events for an aggregate. It also uses a mutator function from the aggregate
-class, which it uses to reconstruct an aggregate from its events. A simple application
-would normally have one such repository for each type of aggregate in the application's
-domain model.
-
-
-Policy
-------
-
-The ``SimpleApplication`` class has a persistence policy. It uses the library class
-``PersistencePolicy``. The persistence policy appends domain events to its event
-store whenever they are published.
-
-
-Aggregate factory
------------------
-
-The application above has an application service called ``create_aggregate()`` which can be used
-to create new ``CustomAggregate`` instances. To create such an aggregate using this factory
-method, a value for ``a`` must be provided.
-
-
-Database
---------
-
-The library classes ``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` can be
-used to setup a database.
-
-.. code:: python
-
-    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import StoredEventRecord
-
-    # Define database settings.
-    settings = SQLAlchemySettings(uri='sqlite:///:memory:')
-
-    # Setup connection to database.
-    datastore = SQLAlchemyDatastore(settings=settings)
-    datastore.setup_connection()
-
-
-Event store
------------
-
-An event store can be constructed that uses SQLAlchemy, using library
-function ``construct_sqlalchemy_eventstore()``, and the database ``session``.
-
-.. code:: python
-
-    from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
-
-    # Construct event store.
-    event_store = construct_sqlalchemy_eventstore(datastore.session)
-
-    # Setup table in database.
-    active_record_class = event_store.active_record_strategy.active_record_class
-    datastore.setup_table(active_record_class)
-
-
-For alternative infrastructure, please read more about
-the :doc:`infrastructure layer </topics/infrastructure>`.
+For more sophisticated domain models, please read about the custom
+entities, commands, and domain events that can be developed using
+classes from the library's :doc:`domain model layer </topics/domainmodel>`.
 
 
 Run the code
 ------------
 
-The application can be constructed with the event store.
+The custom application object can be constructed.
 
 .. code:: python
 
     # Construct application object.
-    app = MyApplication(event_store)
+    app = MyApplication()
 
 
-Now, a new aggregate instance can be created with the application service ``create_aggregate()``.
+The application service can be called.
 
 .. code:: python
 
-    # Create aggregate using application service.
+    # Create aggregate using application service, and save it.
     aggregate = app.create_aggregate(a=1)
-
-    # Don't forget to save!
     aggregate.save()
 
 
@@ -196,6 +184,7 @@ the repository, but only after the aggregate has been saved.
 
 .. code:: python
 
+    # Change attribute value.
     aggregate.a = 2
     aggregate.a = 3
 
@@ -241,8 +230,8 @@ exist will cause a ``KeyError`` to be raised.
 Application events
 ------------------
 
-It is always possible to get the domain events for an aggregate, using the application's event store method
-``get_domain_events()``.
+It is always possible to get the domain events for an aggregate,
+by using the application's event store method ``get_domain_events()``.
 
 .. code:: python
 
@@ -270,8 +259,8 @@ It is always possible to get the domain events for an aggregate, using the appli
 Sequenced items
 ---------------
 
-It is also possible to get the sequenced item namedtuples for an aggregate, using the application's event store's
-active record strategy method ``get_items()``.
+It is also possible to get the sequenced item namedtuples for an aggregate,
+by using the event store's active record strategy method ``get_items()``.
 
 .. code:: python
 
@@ -301,11 +290,10 @@ active record strategy method ``get_items()``.
 Close
 -----
 
-It is useful to unsubscribe any handlers subscribed by the
-policies (avoids dangling handlers being called inappropriately,
-if the process isn't going to terminate immediately, such as
-when this documentation is tested as part of the library's
-test suite).
+If the application isn't being used as a context manager, then it is useful to
+unsubscribe any handlers subscribed by the policies (avoids dangling handlers
+being called inappropriately, if the process isn't going to terminate immediately,
+such as when this documentation is tested as part of the library's test suite).
 
 .. code:: python
 
@@ -313,7 +301,6 @@ test suite).
     app.close()
 
 
-.. Todo: Something about the library's application class?
 
 .. Todo: Something about using uuid5 to make UUIDs from things like email addresses.
 

@@ -28,10 +28,10 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
             # Commit the transaction.
             self.session.commit()
 
-        except IntegrityError as e:
+        except IntegrityError:
             # Roll back the transaction.
             self.session.rollback()
-            self.raise_sequenced_item_error(sequenced_item_or_items, e)
+            self.raise_sequenced_item_error(sequenced_item_or_items)
         finally:
             # Begin new transaction.
             self.session.close()

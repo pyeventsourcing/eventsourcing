@@ -18,6 +18,47 @@ the Python Package Index.
 Please refer to [the documentation](http://eventsourcing.readthedocs.io/) for installation and usage guides.
 
 
+## Synopsis
+
+```python
+# Import library classes.
+from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.domain.model.aggregate import AggregateRoot
+
+# Construct application, use as context manager.
+with SimpleApplication(uri='sqlite:///:memory:') as app:
+
+    # Create new event sourced object.
+    obj = AggregateRoot.create()
+    
+    # Update object attribute.
+    obj.change_attribute(name='a', value=1)
+    assert obj.a == 1
+    
+    # Save all pending events atomically.
+    obj.save()
+
+    # Get object state from stored events.
+    copy = app.repository[obj.id]
+    assert copy.__class__ == AggregateRoot
+    assert copy.a == 1
+
+    # Discard the aggregate.
+    copy.discard()
+    copy.save()
+    assert copy.id not in app.repository
+
+    # Optimistic concurrency control.
+    from eventsourcing.exceptions import ConcurrencyError
+    try:
+        obj.change_attribute(name='a', value=2)
+        obj.save()
+    except ConcurrencyError:
+        pass
+    else:
+        raise Exception("Shouldn't get here")
+```
+
 ## Project
 
 This project is [hosted on GitHub](https://github.com/johnbywater/eventsourcing).
