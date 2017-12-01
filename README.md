@@ -193,4 +193,5 @@ Please [register your questions, requests and any other issues](https://github.c
 
 ## Slack Channel
 
-There is a [Slack channel](https://eventsourcinginpython.slack.com/messages/@slackbot/) for this project, which you are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTUwZGQ4MDk0ZDJmZmU0MjM4MjdmOTBlZGI0ZTY4NWIxMGFkZTcwNmUxM2U4NGM3YjY5MTVmZTBiYzljZjI3ZTE).
+There is a [Slack channel](https://eventsourcinginpython.slack.com/messages/) for this project, which you
+are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTUwZGQ4MDk0ZDJmZmU0MjM4MjdmOTBlZGI0ZTY4NWIxMGFkZTcwNmUxM2U4NGM3YjY5MTVmZTBiYzljZjI3ZTE).
