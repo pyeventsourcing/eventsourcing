@@ -92,6 +92,10 @@ can operate on all the "example" objects of the aggregate.
             publish(self._pending_events[:])
             self._pending_events = []
 
+        def discard(self):
+            super(ExampleAggregateRoot, self).discard()
+            self.save()
+
 
     class Example(object):
         """
@@ -237,14 +241,8 @@ method is called.
         # Check the aggregate in the repo now has three entities.
         assert app.aggregate_repository[aggregate.id].count_examples() == 3
 
-        # Discard the aggregate, but don't call save() yet.
+        # Discard the aggregate, calls save().
         aggregate.discard()
-
-        # Check the aggregate still exists in the repo.
-        assert aggregate.id in app.aggregate_repository
-
-        # Call save().
-        aggregate.save()
 
         # Check the aggregate no longer exists in the repo.
         assert aggregate.id not in app.aggregate_repository

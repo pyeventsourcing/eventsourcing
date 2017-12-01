@@ -48,3 +48,7 @@ class AggregateRoot(TimestampedVersionedEntity):
         Appends event to internal collection of pending events.
         """
         self.__pending_events__.append(event)
+
+    def discard(self):
+        super(AggregateRoot, self).discard()
+        self.save()

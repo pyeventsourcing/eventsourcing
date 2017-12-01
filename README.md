@@ -1,4 +1,4 @@
-# Event Sourcing in Python
+from base64 import b64encode# Event Sourcing in Python
 
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png)](https://travis-ci.org/johnbywater/eventsourcing)
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg)](https://coveralls.io/github/johnbywater/eventsourcing)
@@ -53,28 +53,39 @@ example domain events, and an example database table. Plus lots of examples in t
 ## Synopsis
 
 ```python
-import os
+# Generate cipher key.
+from eventsourcing.utils.random import generate_cipher_key
 
-from eventsourcing.application.simple import SimpleApplication
-from eventsourcing.domain.model.aggregate import AggregateRoot
-from eventsourcing.domain.model.decorators import attribute
-from eventsourcing.exceptions import ConcurrencyError
+aes_cipher_key = generate_cipher_key(num_bytes=32)
+
 
 # Configure environment.
-os.environ['AES_CIPHER_KEY'] = '0123456789abcdef'
+import os
+
+os.environ['DB_URI'] = 'sqlite:///:memory:'  # SQLAlchemy style
+os.environ['AES_CIPHER_KEY'] = aes_cipher_key
+
 
 # Define domain model.
+from eventsourcing.domain.model.aggregate import AggregateRoot
+from eventsourcing.domain.model.decorators import attribute
+
 class World(AggregateRoot):
-    """The world, including all history."""
+    """A model of the world, including all history."""
     def __init__(self, ruler=None, *args, **kwargs):
         super(World, self).__init__(*args, **kwargs)
         self._ruler = ruler
-        self.history = []
+        self._history = []
 
     # Mutable attribute.
     @attribute
     def ruler(self):
         """The current ruler of the world."""
+
+    # Immutable property (except via command).
+    @property
+    def history(self):
+        return tuple(self._history)
 
     # Command triggers events.
     def make_it_so(self, something):
@@ -85,11 +96,14 @@ class World(AggregateRoot):
     class SomethingHappened(AggregateRoot.Event):
         def _mutate(self, obj):
             """Appends event to history."""
-            obj.history.append(self)
+            obj._history.append(self)
             
 
-# Construct application (with SQLAlchemy-style URI).
-with SimpleApplication(uri='sqlite:///:memory:') as app:
+# Construct application.
+from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.exceptions import ConcurrencyError
+
+with SimpleApplication() as app:
 
     # Call aggregate factory.
     world = World.create(ruler='god')
@@ -121,12 +135,11 @@ with SimpleApplication(uri='sqlite:///:memory:') as app:
     assert copy.history[1].what == 'trucks'
     assert copy.history[2].what == 'internet'
     
-    # Verify retrieved state.
+    # Verify retrieved state (cryptographic).
     assert copy.__head__ == world.__head__
 
     # Discard aggregate, and save.
     world.discard()
-    world.save()
 
     # Repository key error, if aggregate not found.
     assert world.id not in app.repository
@@ -152,13 +165,16 @@ with SimpleApplication(uri='sqlite:///:memory:') as app:
     assert old.history[-1].what == 'trucks' # internet not happened
     assert len(old.history) == 2
     
-    # Check data integrity (also happened during replay).
+    # Check domain event data integrity (happens also during replay).
     events = app.event_store.get_domain_events(world.id)
     last_hash = ''
     for event in events:
         event.validate()
         assert event.originator_hash == last_hash
         last_hash = event.event_hash
+        
+    # Verify sequence of events (cryptographic).
+    assert last_hash == world.__head__
 
     # Check records are encrypted (values not visible in database).
     active_record_strategy = app.event_store.active_record_strategy

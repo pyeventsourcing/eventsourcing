@@ -132,17 +132,11 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         # Check the aggregate in the repo now has three entities.
         self.assertEqual(self.app.aggregate1_repository[aggregate.id].count_examples(), 3)
 
-        # Discard the aggregate, but don't call save() yet.
+        # Discard the aggregate, calls save().
         aggregate.discard()
-
-        # Check the aggregate still exists in the repo.
-        self.assertIn(aggregate.id, self.app.aggregate1_repository)
 
         # Check the next hash has changed.
         self.assertNotEqual(aggregate.__head__, last_next_hash)
-
-        # Call save().
-        aggregate.save()
 
         # Check the aggregate no longer exists in the repo.
         self.assertNotIn(aggregate.id, self.app.aggregate1_repository)

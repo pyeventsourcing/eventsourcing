@@ -1,10 +1,12 @@
 import os
+from base64 import b64decode
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.infrastructure.cipher.aes import AESCipher
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
+from eventsourcing.utils.random import decode_cipher_key
 
 
 class SimpleApplication(object):
@@ -26,7 +28,7 @@ class SimpleApplication(object):
         self.datastore.setup_connection()
 
         # Construct event store.
-        aes_key = os.getenv('AES_CIPHER_KEY', '').encode()
+        aes_key = decode_cipher_key(os.getenv('AES_CIPHER_KEY', ''))
         self.event_store = construct_sqlalchemy_eventstore(
             session=self.datastore.session,
             cipher=AESCipher(aes_key=aes_key),

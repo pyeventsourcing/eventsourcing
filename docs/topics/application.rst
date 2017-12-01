@@ -215,9 +215,6 @@ aggregate will no longer be available in the repository.
     # Discard the aggregate.
     aggregate.discard()
 
-    # Don't forget to save!
-    aggregate.save()
-
     # Check discarded aggregate no longer exists in repository.
     assert aggregate.id not in app.repository
 
