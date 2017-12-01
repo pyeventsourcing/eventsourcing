@@ -40,5 +40,4 @@ purposes. If you wanted to create a domain model that is entirely stand-alone (r
 purists for maximum longevity), you might start by replicating the library classes.
 
 **Worked examples** — a simple example application, with an example entity class,
-example domain events, an example factory method, an example mutator function, and
-an example database table.
+example domain events, and an example database table. Plus lots of examples in the documentation.

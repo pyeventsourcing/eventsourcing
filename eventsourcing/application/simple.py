@@ -1,4 +1,7 @@
+import os
+
 from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.infrastructure.cipher.aes import AESCipher
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
@@ -13,15 +16,22 @@ class SimpleApplication(object):
         self.persistence_policy = PersistencePolicy(self.event_store)
 
         # Construct an event sourced repository.
-        self.repository = EventSourcedRepository(event_store=self.event_store)
+        self.repository = EventSourcedRepository(self.event_store)
 
     def setup_event_store(self, setup_table=True, **kwargs):
         # Setup connection to database.
-        self.datastore = SQLAlchemyDatastore(settings=SQLAlchemySettings(**kwargs))
+        self.datastore = SQLAlchemyDatastore(
+            settings=SQLAlchemySettings(**kwargs)
+        )
         self.datastore.setup_connection()
 
         # Construct event store.
-        self.event_store = construct_sqlalchemy_eventstore(self.datastore.session)
+        aes_key = os.getenv('AES_CIPHER_KEY', '').encode()
+        self.event_store = construct_sqlalchemy_eventstore(
+            session=self.datastore.session,
+            cipher=AESCipher(aes_key=aes_key),
+            always_encrypt=bool(aes_key)
+        )
 
         # Setup table in database.
         if setup_table:
