@@ -52,7 +52,7 @@ example domain events, and an example database table. Plus lots of examples in t
 
 ## Synopsis
 
-Develop a domain model.
+Declare domain model.
 
 ```python
 # Define domain model.
@@ -88,7 +88,7 @@ class World(AggregateRoot):
             obj._history.append(self)
 ```
 
-Generate and store a strong cipher key.
+Generate cipher key.
 
 ```python
 # Generate cipher key.
@@ -107,7 +107,7 @@ os.environ['DB_URI'] = 'sqlite:///:memory:'  # SQLAlchemy style
 os.environ['AES_CIPHER_KEY'] = aes_cipher_key
 ```
 
-Run the model with infrastructure, as an application.
+Run the code.
 
 ```python
 # Construct application.
