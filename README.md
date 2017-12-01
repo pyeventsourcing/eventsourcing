@@ -60,12 +60,18 @@ from eventsourcing.domain.model.decorators import attribute
 
 class World(AggregateRoot):
     """A model of the world, including all history."""
+
     def __init__(self, ruler=None, *args, **kwargs):
         super(World, self).__init__(*args, **kwargs)
         self._ruler = ruler
         self._history = []
 
-    # Mutable attribute.
+    # Domain events as nested classes.
+    class SomethingHappened(AggregateRoot.Event):
+        def _mutate(self, obj):
+            obj._history.append(self)
+
+    # Mutable event-sourced attribute.
     @attribute
     def ruler(self):
         """The current ruler of the world."""
@@ -77,14 +83,7 @@ class World(AggregateRoot):
 
     # Command triggers events.
     def make_it_so(self, something):
-        """Makes things happen."""
         self._trigger(World.SomethingHappened, what=something)
-
-    # Nested entity events.
-    class SomethingHappened(AggregateRoot.Event):
-        def _mutate(self, obj):
-            """Appends event to history."""
-            obj._history.append(self)
 ```
 
 Generate cipher key.
@@ -100,11 +99,11 @@ Configure environment variables.
 ```python
 import os
 
-# SQLAlchemy-style database connection string. 
-os.environ['DB_URI'] = 'sqlite:///:memory:'
-
 # Cipher key (random bytes encoded with Base64).
 os.environ['AES_CIPHER_KEY'] = aes_cipher_key
+
+# SQLAlchemy-style database connection string. 
+os.environ['DB_URI'] = 'sqlite:///:memory:'
 ```
 
 Run the code.
@@ -118,13 +117,13 @@ with SimpleApplication() as app:
 
     # Call aggregate factory.
     world = World.create(ruler='god')
-    
+
     # Execute commands (events published pending save).
     world.make_it_so('dinosaurs')
     world.make_it_so('trucks')
     version = world.version # note version at this stage
     world.make_it_so('internet')
-    
+
     # Assign to mutable attribute.
     world.ruler = 'money'
 
@@ -139,13 +138,13 @@ with SimpleApplication() as app:
     # Retrieve aggregate (replay stored events).
     copy = app.repository[world.id]
     assert copy.__class__ == World
-    
+
     # View retrieved state.
     assert copy.ruler == 'money'
     assert copy.history[0].what == 'dinosaurs'
     assert copy.history[1].what == 'trucks'
     assert copy.history[2].what == 'internet'
-    
+
     # Verify retrieved state (cryptographically).
     assert copy.__head__ == world.__head__
 
@@ -166,7 +165,7 @@ with SimpleApplication() as app:
     assert old.ruler == 'god'
     assert old.history[-1].what == 'trucks' # internet not happened
     assert len(old.history) == 2
-    
+
     # Optimistic concurrency control (no branches).
     old.make_it_so('future')
     try:
@@ -183,7 +182,7 @@ with SimpleApplication() as app:
         event.validate()
         assert event.originator_hash == last_hash
         last_hash = event.event_hash
-        
+
     # Verify sequence of events (cryptographically).
     assert last_hash == world.__head__
 
