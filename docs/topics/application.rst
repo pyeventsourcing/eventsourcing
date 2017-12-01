@@ -8,12 +8,11 @@ Overview
 The application layer combines objects from the domain and
 infrastructure layers.
 
-An application object normally has a repository and policies.
+An application object normally has repositories and policies.
 A repository allows aggregates to be retrieved by ID, using a
 dictionary-like interface. Whereas aggregates implement
 commands that publish events, obversely, policies subscribe to
 events and then execute commands as events are received.
-
 An application can be well understood by understanding its policies,
 aggregates, commands, and events.
 
@@ -35,10 +34,9 @@ are outside the scope of the application layer.
 Simple application
 ==================
 
-The library provides a simple application class, which can be constructed directly.
-
-The optional argument ``uri`` can be used to configure away from the default
-SQLAlchemy-style database connection string ``'sqlite:///:memory:'``.
+The library provides a simple application class ``SimpleApplication``
+which can be constructed directly. A SQLAlchemy-style database
+connection string can given, with the optional argument ``uri``.
 
 .. code:: python
 
@@ -47,22 +45,23 @@ SQLAlchemy-style database connection string ``'sqlite:///:memory:'``.
     app = SimpleApplication(uri='sqlite:///:memory:')
 
 
-The ``SimpleApplication`` has an event store, provided by the library's ``EventStore`` class,
-which it uses with SQLAlchemy infrastructure. It uses the library
-function ``construct_sqlalchemy_eventstore()`` to construct its event store.
-To use different infrastructure, override the ``setup_event_store()`` method,
-and read about alternatives in the :doc:`infrastructure layer </topics/infrastructure>`.
+The ``SimpleApplication`` has an event store, provided by the library's
+``EventStore`` class, which it uses with SQLAlchemy infrastructure. It
+uses the library function ``construct_sqlalchemy_eventstore()`` to
+construct its event store. To use different infrastructure, override
+the application's ``setup_event_store()`` method, and read about
+alternatives in the :doc:`infrastructure layer </topics/infrastructure>`.
 
 .. code:: python
 
     assert app.event_store
 
 
-The ``SimpleApplication`` also has persistence policy, provided by the library's ``PersistencePolicy``
-class. The persistence policy appends domain events to its event
-store whenever they are published. It also has an aggregate repository,
-provided by the library's ``EventSourcedRepository`` class. Both the persistence
-policy and the repository use the event store.
+The ``SimpleApplication`` also has a persistence policy, provided by the
+library's ``PersistencePolicy`` class. The persistence policy appends
+domain events to its event store whenever they are published. It also has
+an aggregate repository, provided by the library's ``EventSourcedRepository``
+class. Both the persistence policy and the repository use the event store.
 
 .. code:: python
 
