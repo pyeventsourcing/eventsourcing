@@ -331,14 +331,17 @@ events classes are subclasses of ``DomainEvent``.
 
 
 These entity event classes can be freely constructed, with
-suitable arguments. All events need an ``originator_id``. Events
-of versioned entities also need an ``originator_version``. Events
-of timestamped entities generate a current ``timestamp`` value,
-unless one is given.
+suitable arguments.
 
-``Created`` events also need an ``originator_topic``. The other
-events need an ``originator_hash``. ``AttributeChanged`` events
-also need ``name`` and ``value``.
+All events need an ``originator_id``. Events of versioned entities also
+need an ``originator_version``. Events of timestamped entities generate
+a current ``timestamp`` value, unless one is given. ``Created`` events
+also need an ``originator_topic``. The other events need an ``originator_hash``.
+``AttributeChanged`` events also need ``name`` and ``value``.
+
+All the events of ``DomainEntity`` use SHA256 to generate an ``event_hash`` from the event attribute
+values when constructed for the first time. Events can be chained together by constructing each
+subsequent event to have its ``originator_hash`` as the ``event_hash`` of the previous event.
 
 .. code:: python
 
@@ -374,10 +377,6 @@ also need ``name`` and ``value``.
         originator_hash=attribute_b_changed.event_hash,
     )
 
-All the events of ``DomainEntity`` use SHA256 to generate an ``event_hash`` from the event attribute
-values when constructed for the first time. Events are chained together by constructing each
-subsequent event to have its ``originator_hash`` as the ``event_hash`` of the previous event.
-
 The events have a ``mutate()`` function, which can be used to mutate the
 state of a given object appropriately.
 
@@ -385,16 +384,18 @@ For example, the ``DomainEntity.Created`` event mutates to an
 entity instance. The class that is instantiated is determined by the
 ``originator_topic`` attribute of the ``DomainEntity.Created`` event.
 
+A domain event's ``mutate()`` method normally requires an ``obj`` argument, but
+that is not required for ``DomainEntity.Created`` events. The default
+is ``None``, but if a value is provided it must be callable that
+returns an object, such as a domain entity class. If a domain
+entity class is provided, the ``originator_topic`` will be ignored.
+
 .. code:: python
 
     entity = created.mutate()
 
     assert entity.id == entity_id
 
-The ``mutate()`` method normally requires an ``obj`` argument, but
-that is not required for ``DomainEntity.Created`` events. The default
-is ``None``, but if a value is provided it must be callable that
-returns an object, such as an object class.
 
 As another example, when a versioned entity is mutated by an event of the
 ``VersionedEntity`` class, the entity version number is incremented.
