@@ -141,7 +141,7 @@ with SimpleApplication() as app:
     # Discard aggregate.
     world.discard()
 
-    # Repository key error, if aggregate not found.
+    # Repository raises key error (when aggregate not found).
     assert world.id not in app.repository
     try:
         app.repository[world.id]
