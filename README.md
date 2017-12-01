@@ -161,21 +161,21 @@ with SimpleApplication() as app:
     else:
         raise Exception("Shouldn't get here")
 
-    # Optimistic concurrency control (no branches).
-    copy.make_it_so('future')
-    try:
-        copy.save()
-    except ConcurrencyError:
-        pass
-    else:
-        raise Exception("Shouldn't get here")
-
     # Get historical state (at version from above).
     old = app.repository.get_entity(world.id, lt=version)
     assert old.ruler == 'god'
     assert old.history[-1].what == 'trucks' # internet not happened
     assert len(old.history) == 2
     
+    # Optimistic concurrency control (no branches).
+    old.make_it_so('future')
+    try:
+        old.save()
+    except ConcurrencyError:
+        pass
+    else:
+        raise Exception("Shouldn't get here")
+
     # Check domain event data integrity (happens also during replay).
     events = app.event_store.get_domain_events(world.id)
     last_hash = ''
