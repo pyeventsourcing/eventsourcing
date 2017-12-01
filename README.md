@@ -52,8 +52,6 @@ example domain events, and an example database table. Plus lots of examples in t
 
 ## Synopsis
 
-Develop domain model.
-
 ```python
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import attribute
@@ -128,22 +126,23 @@ with SimpleApplication() as app:
     world.ruler = 'money'
 
     # View current state of aggregate.
-    assert world.history[0].what == 'dinosaurs'
-    assert world.history[1].what == 'trucks'
+    assert world.ruler == 'money'
     assert world.history[2].what == 'internet'
+    assert world.history[1].what == 'trucks'
+    assert world.history[0].what == 'dinosaurs'
 
     # Publish pending events (to persistence subscriber).
     world.save()
 
     # Retrieve aggregate (replay stored events).
     copy = app.repository[world.id]
-    assert copy.__class__ == World
+    assert isinstance(copy, World)
 
     # View retrieved state.
     assert copy.ruler == 'money'
-    assert copy.history[0].what == 'dinosaurs'
-    assert copy.history[1].what == 'trucks'
     assert copy.history[2].what == 'internet'
+    assert copy.history[1].what == 'trucks'
+    assert copy.history[0].what == 'dinosaurs'
 
     # Verify retrieved state (cryptographically).
     assert copy.__head__ == world.__head__
@@ -161,10 +160,10 @@ with SimpleApplication() as app:
         raise Exception("Shouldn't get here")
 
     # Get historical state (at version from above).
-    old = app.repository.get_entity(world.id, lt=version)
-    assert old.ruler == 'god'
+    old = app.repository.get_entity(world.id, lte=version)
     assert old.history[-1].what == 'trucks' # internet not happened
     assert len(old.history) == 2
+    assert old.ruler == 'god'
 
     # Optimistic concurrency control (no branches).
     old.make_it_so('future')
@@ -179,8 +178,8 @@ with SimpleApplication() as app:
     events = app.event_store.get_domain_events(world.id)
     last_hash = ''
     for event in events:
-        event.validate()
-        assert event.originator_hash == last_hash
+        event.validate_state()
+        assert event.previous_hash == last_hash
         last_hash = event.event_hash
 
     # Verify sequence of events (cryptographically).

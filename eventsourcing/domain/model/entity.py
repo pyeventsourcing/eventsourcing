@@ -12,7 +12,7 @@ from eventsourcing.domain.model.decorators import mutator
 from eventsourcing.domain.model.events import AttributeChanged, Created, Discarded, DomainEvent, \
     EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, QualnameABC, publish, GENESIS_HASH
 from eventsourcing.exceptions import EntityIsDiscarded, OriginatorIDError, \
-    OriginatorVersionError, MutatorRequiresTypeNotInstance, OriginatorHeadError, EventHashError
+    OriginatorVersionError, MutatorRequiresTypeNotInstance, HeadHashError, EventHashError
 from eventsourcing.utils.time import timestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
@@ -26,8 +26,8 @@ class DomainEntity(QualnameABC):
 
         json_encoder_class = ObjectJSONEncoder
 
-        def __init__(self, originator_hash, **kwargs):
-            kwargs['originator_hash'] = originator_hash
+        def __init__(self, previous_hash, **kwargs):
+            kwargs['previous_hash'] = previous_hash
             super(DomainEntity.Event, self).__init__(**kwargs)
 
             # Seal the event state.
@@ -35,14 +35,14 @@ class DomainEntity(QualnameABC):
             self.__dict__['event_hash'] = self.hash(self.__dict__)
 
         @property
-        def originator_hash(self):
-            return self.__dict__['originator_hash']
+        def previous_hash(self):
+            return self.__dict__['previous_hash']
 
         @property
         def event_hash(self):
             return self.__dict__['event_hash']
 
-        def validate(self):
+        def validate_state(self):
             state = self.__dict__.copy()
             event_hash = state.pop('event_hash')
             if event_hash != self.hash(state):
@@ -68,13 +68,34 @@ class DomainEntity(QualnameABC):
             :param obj: object to be mutated
             :return: mutated object
             """
-            self.validate()
-            obj.validate_originator(self)
+            self.validate_state()
+            self.validate_target(obj)
             obj.__head__ = self.event_hash
             self._mutate(obj)
             return obj
 
-        def _mutate(self, aggregate):
+        def validate_target(self, obj):
+            """
+            Checks the event's originator ID matches the target's ID.
+            """
+            self._validate_target_id(obj)
+            self._validate_previous_hash(obj)
+
+        def _validate_target_id(self, obj):
+            if self.originator_id != obj._id:
+                raise OriginatorIDError(
+                    "'{}' not equal to event originator ID '{}'"
+                    "".format(obj.id, self.originator_id)
+                )
+
+        def _validate_previous_hash(self, obj):
+            """
+            Checks the target's head hash matches the event's previous hash.
+            """
+            if self.previous_hash != obj.__head__:
+                raise HeadHashError(obj.id, obj.__head__, type(self))
+
+        def _mutate(self, obj):
             """
             Private "helper" for use in custom models, to
             update obj with values from self without needing
@@ -97,9 +118,9 @@ class DomainEntity(QualnameABC):
 
         def __init__(self, originator_topic, **kwargs):
             kwargs['originator_topic'] = originator_topic
-            assert 'originator_hash' not in kwargs
+            assert 'previous_hash' not in kwargs
             super(DomainEntity.Created, self).__init__(
-                originator_hash=GENESIS_HASH, **kwargs
+                previous_hash=GENESIS_HASH, **kwargs
             )
 
         @property
@@ -107,16 +128,17 @@ class DomainEntity(QualnameABC):
             return self.__dict__['originator_topic']
 
         def mutate(self, cls=None):
+            self.validate_state()
             if cls is None:
                 cls = resolve_topic(self.originator_topic)
             obj = cls(**self.constructor_kwargs())
-            obj = super(DomainEntity.Created, self).mutate(obj)
+            obj.__head__ = self.event_hash
             return obj
 
         def constructor_kwargs(self):
             kwargs = self.__dict__.copy()
             kwargs.pop('event_hash')
-            kwargs.pop('originator_hash')
+            kwargs.pop('previous_hash')
             kwargs.pop('originator_topic')
             kwargs['id'] = kwargs.pop('originator_id')
             return kwargs
@@ -172,30 +194,9 @@ class DomainEntity(QualnameABC):
         Constructs, applies, and publishes domain event of given class, with given kwargs.
         """
         self._assert_not_discarded()
-        kwargs['originator_hash'] = self.__head__
+        kwargs['previous_hash'] = self.__head__
         event = event_class(originator_id=self._id, **kwargs)
         self._apply_and_publish(event)
-
-    def validate_originator(self, event):
-        """
-        Checks the event's originator ID matches this entity's ID.
-        """
-        self._validate_originator_id(event)
-        self._validate_originator_hash(event)
-
-    def _validate_originator_id(self, event):
-        if self._id != event.originator_id:
-            raise OriginatorIDError(
-                "'{}' not equal to event originator ID '{}'"
-                "".format(self.id, event.originator_id)
-            )
-
-    def _validate_originator_hash(self, event):
-        """
-        Checks the head hash matches the event originator hash.
-        """
-        if self.__head__ != event.originator_hash:
-            raise OriginatorHeadError(self.id, self.__head__, type(event))
 
     def _assert_not_discarded(self):
         if self._is_discarded:
@@ -280,8 +281,23 @@ class VersionedEntity(DomainEntity):
         def mutate(self, obj):
             obj = super(VersionedEntity.Event, self).mutate(obj)
             if obj is not None:
-                obj._increment_version()
+                obj._version = self.originator_version
             return obj
+
+        def validate_target(self, obj):
+            """
+            Also checks the event's originator version matches this entity's version.
+            """
+            super(VersionedEntity.Event, self).validate_target(obj)
+            if obj.version + 1 != self.originator_version:
+                raise OriginatorVersionError(
+                    ("Event originated from entity at version {}, "
+                     "but entity is currently at version {}. "
+                     "Event type: '{}', entity type: '{}', entity ID: '{}'"
+                     "".format(self.originator_version, obj._version,
+                               type(self).__name__, type(obj).__name__, obj._id)
+                     )
+                )
 
     class Created(DomainEntity.Created, Event):
         """Published when a VersionedEntity is created."""
@@ -307,30 +323,11 @@ class VersionedEntity(DomainEntity):
     def version(self):
         return self._version
 
-    def _increment_version(self):
-        if self._version is not None:
-            self._version += 1
-
-    def validate_originator(self, event):
-        """
-        Also checks the event's originator version matches this entity's version.
-        """
-        super(VersionedEntity, self).validate_originator(event)
-        if self._version != event.originator_version:
-            raise OriginatorVersionError(
-                ("Event originated from entity at version {}, "
-                 "but entity is currently at version {}. "
-                 "Event type: '{}', entity type: '{}', entity ID: '{}'"
-                 "".format(event.originator_version, self._version,
-                           type(event).__name__, type(self).__name__, self._id)
-                 )
-            )
-
     def _trigger(self, event_class, **kwargs):
         """
         Triggers domain event with entity's version number.
         """
-        kwargs['originator_version'] = self.version
+        kwargs['originator_version'] = self._version + 1
         return super(VersionedEntity, self)._trigger(event_class, **kwargs)
 
 

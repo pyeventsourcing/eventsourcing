@@ -51,7 +51,7 @@ class Array(object):
             originator_id=self.id,
             index=index,
             item=item,
-            originator_hash=''  # NB Arrays aren't currently hash-chained.
+            previous_hash=''  # NB Arrays aren't currently hash-chained.
         )
         publish(event)
 

@@ -42,7 +42,7 @@ class EventHashError(DataIntegrityError):
     "Raised when an event's seal hash doesn't match the hash of the state of the event."
 
 
-class OriginatorHeadError(DataIntegrityError, MismatchedOriginatorError):
+class HeadHashError(DataIntegrityError, MismatchedOriginatorError):
     """Raised when applying an event with hash different from aggregate head."""
 
 

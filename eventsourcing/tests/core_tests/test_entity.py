@@ -35,7 +35,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Check the properties of the TimestampedVersionedEntity class.
         self.assertTrue(example1.id)
-        self.assertEqual(1, example1.version)
+        self.assertEqual(example1.version, 0)
         self.assertTrue(example1.created_on)
         self.assertTrue(example1.last_modified)
         self.assertEqual(example1.created_on, example1.last_modified)
@@ -99,31 +99,25 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Should fail to validate event with wrong entity ID.
         with self.assertRaises(OriginatorIDError):
-            entity2.validate_originator(
-                VersionedEntity.Event(
-                    originator_id=uuid4(),
-                    originator_version=0,
-                    originator_hash='',
-                )
-            )
+            VersionedEntity.Event(
+                originator_id=uuid4(),
+                originator_version=0,
+                previous_hash='',
+            ).validate_target(entity2)
         # Should fail to validate event with wrong entity version.
         with self.assertRaises(OriginatorVersionError):
-            entity2.validate_originator(
-                VersionedEntity.Event(
-                    originator_id=entity2.id,
-                    originator_version=0,
-                    originator_hash=entity2.__head__,
-                )
-            )
-
-        # Should validate event with correct entity ID and version.
-        entity2.validate_originator(
             VersionedEntity.Event(
                 originator_id=entity2.id,
-                originator_version=entity2.version,
-                originator_hash=entity2.__head__,
-            )
-        )
+                originator_version=0,
+                previous_hash=entity2.__head__,
+            ).validate_target(entity2)
+
+        # Should validate event with correct entity ID and version.
+        VersionedEntity.Event(
+            originator_id=entity2.id,
+            originator_version=entity2.version + 1,
+            previous_hash=entity2.__head__,
+        ).validate_target(entity2)
 
         # Check an entity cannot be reregistered with the ID of a discarded entity.
         replacement_event = Example.Created(

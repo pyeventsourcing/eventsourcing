@@ -347,26 +347,26 @@ Run the code
 
         # Get historical snapshots.
         snapshot = app.snapshot_strategy.get_snapshot(aggregate.id, lte=2)
-        assert snapshot.state['_version'] == 2  # one behind
+        assert snapshot.state['_version'] == 1  # one behind
         assert snapshot.state['_foo'] == 'bar2'
 
         snapshot = app.snapshot_strategy.get_snapshot(aggregate.id, lte=3)
-        assert snapshot.state['_version'] == 4
+        assert snapshot.state['_version'] == 3
         assert snapshot.state['_foo'] == 'bar4'
 
         # Get historical entities.
         aggregate = app.example_repository.get_entity(aggregate.id, lte=0)
-        assert aggregate.version == 1
+        assert aggregate.version == 0
         assert aggregate.foo == 'bar1', aggregate.foo
 
         aggregate = app.example_repository.get_entity(aggregate.id, lte=1)
-        assert aggregate.version == 2
+        assert aggregate.version == 1
         assert aggregate.foo == 'bar2', aggregate.foo
 
         aggregate = app.example_repository.get_entity(aggregate.id, lte=2)
-        assert aggregate.version == 3
+        assert aggregate.version == 2
         assert aggregate.foo == 'bar3', aggregate.foo
 
         aggregate = app.example_repository.get_entity(aggregate.id, lte=3)
-        assert aggregate.version == 4
+        assert aggregate.version == 3
         assert aggregate.foo == 'bar4', aggregate.foo

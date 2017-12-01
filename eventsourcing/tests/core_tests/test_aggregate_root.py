@@ -4,7 +4,7 @@ from unittest.case import TestCase
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import attribute
-from eventsourcing.exceptions import EventHashError, OriginatorHeadError
+from eventsourcing.exceptions import EventHashError, HeadHashError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
@@ -22,23 +22,23 @@ class TestAggregateRootEvent(TestCase):
             originator_id='1',
             originator_topic=get_topic(AggregateRoot)
         )
-        event1.validate()
+        event1.validate_state()
 
         # Chain another event.
         event2 = AggregateRoot.AttributeChanged(
             originator_version=1,
             originator_id='1',
-            originator_hash=event1.event_hash
+            previous_hash=event1.event_hash
         )
-        event2.validate()
+        event2.validate_state()
 
         # Chain another event.
         event3 = AggregateRoot.AttributeChanged(
             originator_version=2,
             originator_id='1',
-            originator_hash=event2.event_hash
+            previous_hash=event2.event_hash
         )
-        event3.validate()
+        event3.validate_state()
 
     def test_seal_hash_mismatch(self):
         event1 = AggregateRoot.Created(
@@ -46,12 +46,12 @@ class TestAggregateRootEvent(TestCase):
             originator_id='1',
             originator_topic=get_topic(AggregateRoot)
         )
-        event1.validate()
+        event1.validate_state()
 
         # Break the seal hash.
         event1.__dict__['event_hash'] = ''
         with self.assertRaises(EventHashError):
-            event1.validate()
+            event1.validate_state()
 
 
 class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
@@ -182,17 +182,17 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         #     compound partition key in Cassandra,
         # self.assertFalse(aggregate2.id in self.app.aggregate1_repository)
 
-    def test_validate_originator_hash_error(self):
+    def test_validate_previous_hash_error(self):
         # Check event has valid originator head.
         aggregate = Aggregate1(id='1', foo='bar', timestamp=0)
         event = Aggregate1.AttributeChanged(name='foo', value='bar', originator_id='1',
-                                            originator_version=1, originator_hash=aggregate.__head__)
-        aggregate._validate_originator_hash(event)
+                                            originator_version=1, previous_hash=aggregate.__head__)
+        event._validate_previous_hash(aggregate)
 
         # Check OriginatorHeadError is raised if the originator head is wrong.
-        event.__dict__['originator_hash'] += 'damage'
-        with self.assertRaises(OriginatorHeadError):
-            aggregate._validate_originator_hash(event)
+        event.__dict__['previous_hash'] += 'damage'
+        with self.assertRaises(HeadHashError):
+            event._validate_previous_hash(aggregate)
 
 
 class ExampleAggregateRoot(AggregateRoot):

@@ -336,12 +336,12 @@ suitable arguments.
 All events need an ``originator_id``. Events of versioned entities also
 need an ``originator_version``. Events of timestamped entities generate
 a current ``timestamp`` value, unless one is given. ``Created`` events
-also need an ``originator_topic``. The other events need an ``originator_hash``.
+also need an ``originator_topic``. The other events need an ``previous_hash``.
 ``AttributeChanged`` events also need ``name`` and ``value``.
 
 All the events of ``DomainEntity`` use SHA-256 to generate an ``event_hash`` from the event attribute
 values when constructed for the first time. Events can be chained together by constructing each
-subsequent event to have its ``originator_hash`` as the ``event_hash`` of the previous event.
+subsequent event to have its ``previous_hash`` as the ``event_hash`` of the previous event.
 
 .. code:: python
 
@@ -360,7 +360,7 @@ subsequent event to have its ``originator_hash`` as the ``event_hash`` of the pr
         value=1,
         originator_version=1,
         originator_id=entity_id,
-        originator_hash=created.event_hash,
+        previous_hash=created.event_hash,
     )
 
     attribute_b_changed = VersionedEntity.AttributeChanged(
@@ -368,13 +368,13 @@ subsequent event to have its ``originator_hash`` as the ``event_hash`` of the pr
         value=2,
         originator_version=2,
         originator_id=entity_id,
-        originator_hash=attribute_a_changed.event_hash,
+        previous_hash=attribute_a_changed.event_hash,
     )
 
     entity_discarded = VersionedEntity.Discarded(
         originator_version=3,
         originator_id=entity_id,
-        originator_hash=attribute_b_changed.event_hash,
+        previous_hash=attribute_b_changed.event_hash,
     )
 
 The events have a ``mutate()`` function, which can be used to mutate the
@@ -398,18 +398,19 @@ entity class is provided, the ``originator_topic`` will be ignored.
 
 
 As another example, when a versioned entity is mutated by an event of the
-``VersionedEntity`` class, the entity version number is incremented.
+``VersionedEntity`` class, the entity version number is set to the event
+``originator_version``.
 
 .. code:: python
 
-    assert entity.version == 1
+    assert entity.version == 0
 
     entity = attribute_a_changed.mutate(entity)
-    assert entity.version == 2
+    assert entity.version == 1
     assert entity.a == 1
 
     entity = attribute_b_changed.mutate(entity)
-    assert entity.version == 3
+    assert entity.version == 2
     assert entity.b == 2
 
 
@@ -438,7 +439,7 @@ works correctly for subclasses of both the entity and the event class.
 
     entity = VersionedEntity.create()
     assert entity.id
-    assert entity.version == 1
+    assert entity.version == 0
     assert entity.__class__ is VersionedEntity
 
 
@@ -453,7 +454,7 @@ works correctly for subclasses of both the entity and the event class.
     assert entity.id
     assert entity.created_on
     assert entity.last_modified
-    assert entity.version == 1
+    assert entity.version == 0
     assert entity.__class__ is TimestampedVersionedEntity
 
 
@@ -475,7 +476,7 @@ cause the version number to increase, and it will update the last modified time.
 .. code:: python
 
     entity = TimestampedVersionedEntity.create()
-    assert entity.version == 1
+    assert entity.version == 0
     assert entity.created_on == entity.last_modified
 
     # Trigger domain event.
@@ -483,7 +484,7 @@ cause the version number to increase, and it will update the last modified time.
 
     # Check the event was applied.
     assert entity.c == 3
-    assert entity.version == 2
+    assert entity.version == 1
     assert entity.last_modified > entity.created_on
 
 
@@ -493,10 +494,10 @@ is set to 'Mr Boots'. A subscriber receives the event.
 
 .. code:: python
 
-    entity = VersionedEntity(id=entity_id, version=0)
-
-    assert len(received_events) == 0
     subscribe(handler=receive_event, predicate=is_domain_event)
+    assert len(received_events) == 0
+
+    entity = VersionedEntity.create(entity_id)
 
     # Change an attribute.
     entity.change_attribute(name='full_name', value='Mr Boots')
@@ -504,12 +505,19 @@ is set to 'Mr Boots'. A subscriber receives the event.
     # Check the event was applied.
     assert entity.full_name == 'Mr Boots'
 
-    # Check the event was published.
-    assert len(received_events) == 1
-    last_event = received_events[0]
+    # Check two events were published.
+    assert len(received_events) == 2
+
+    first_event = received_events[0]
+    assert first_event.__class__ == VersionedEntity.Created
+    assert first_event.originator_id == entity_id
+    assert first_event.originator_version == 0
+
+    last_event = received_events[1]
     assert last_event.__class__ == VersionedEntity.AttributeChanged
     assert last_event.name == 'full_name'
     assert last_event.value == 'Mr Boots'
+    assert last_event.originator_version == 1
 
     # Check the event hash is the current entity head.
     assert last_event.event_hash == entity.__head__
@@ -538,7 +546,7 @@ The hash of the last event applied to an entity is available as an attribute cal
 
     # Entity's head hash is determined exclusively
     # by the entire sequence of events and SHA-256.
-    assert entity.__head__ == '04c61b906cdd6194f8a87fdfd847ef362679c31fcc4983738ac2857437ae9ef8'
+    assert entity.__head__ == 'a579cae7caa76e1db5d884c14f99d5ebf2276807ea3c44a07dffc9f04f167cb1'
 
     # Entity's head hash is simply the event hash
     # of the last event that mutated the entity.

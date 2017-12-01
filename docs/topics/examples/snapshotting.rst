@@ -217,26 +217,26 @@ event.
 
         # Get historical snapshots.
         snapshot = app.snapshot_strategy.get_snapshot(entity.id, lte=2)
-        assert snapshot.state['_version'] == 2  # one behind
+        assert snapshot.state['_version'] == 1  # one behind
         assert snapshot.state['_foo'] == 'bar2'
 
         snapshot = app.snapshot_strategy.get_snapshot(entity.id, lte=3)
-        assert snapshot.state['_version'] == 4
+        assert snapshot.state['_version'] == 3
         assert snapshot.state['_foo'] == 'bar4'
 
         # Get historical entities.
         entity = app.example_repository.get_entity(entity.id, lte=0)
-        assert entity.version == 1
+        assert entity.version == 0
         assert entity.foo == 'bar1', entity.foo
 
         entity = app.example_repository.get_entity(entity.id, lte=1)
-        assert entity.version == 2
+        assert entity.version == 1
         assert entity.foo == 'bar2', entity.foo
 
         entity = app.example_repository.get_entity(entity.id, lte=2)
-        assert entity.version == 3
+        assert entity.version == 2
         assert entity.foo == 'bar3', entity.foo
 
         entity = app.example_repository.get_entity(entity.id, lte=3)
-        assert entity.version == 4
+        assert entity.version == 3
         assert entity.foo == 'bar4', entity.foo
