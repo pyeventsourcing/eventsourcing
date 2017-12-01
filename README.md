@@ -21,37 +21,65 @@ Please refer to [the documentation](http://eventsourcing.readthedocs.io/) for in
 ## Synopsis
 
 ```python
-# Import library classes.
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.domain.model.aggregate import AggregateRoot
 
-# Construct application, use as context manager.
+
+class World(AggregateRoot):
+    def __init__(self, *args, **kwargs):
+        super(World, self).__init__(*args, **kwargs)
+        self.history = []
+
+    def make_it_so(self, something):
+        self._trigger(World.SomethingHappened, what=something)
+
+    class SomethingHappened(AggregateRoot.Event):
+        def mutate(self, obj):
+            obj = super(World.SomethingHappened, self).mutate(obj)
+            obj.history.append(self)
+            return obj
+            
+            
+# Construct application.
 with SimpleApplication(uri='sqlite:///:memory:') as app:
 
-    # Create new event sourced object.
-    obj = AggregateRoot.create()
+    # Create new aggregate.
+    world = World.create()
     
-    # Update object attribute.
-    obj.change_attribute(name='a', value=1)
-    assert obj.a == 1
+    # Execute commands.
+    world.make_it_so('dinosaurs')
+    world.make_it_so('trucks')
+    world.make_it_so('internet')
+
+    # Check current state.
+    assert world.history[0].what == 'dinosaurs'
+    assert world.history[1].what == 'trucks'
+    assert world.history[2].what == 'internet'
+
+    # Save pending events.
+    world.save()
+
+    # Replay stored events.
+    obj = app.repository[world.id]
+    assert obj.__class__ == World
     
-    # Save all pending events atomically.
-    obj.save()
+    # Check retrieved state.
+    assert obj.id == world.id
+    assert obj.history[0].what == 'dinosaurs'
+    assert obj.history[1].what == 'trucks'
+    assert obj.history[2].what == 'internet'
 
-    # Get object state from stored events.
-    copy = app.repository[obj.id]
-    assert copy.__class__ == AggregateRoot
-    assert copy.a == 1
+    # Discard aggregate.
+    world.discard()
+    world.save()
 
-    # Discard the aggregate.
-    copy.discard()
-    copy.save()
-    assert copy.id not in app.repository
+    # Aggregate not in repository. 
+    assert world.id not in app.repository
 
     # Optimistic concurrency control.
     from eventsourcing.exceptions import ConcurrencyError
+    obj.make_it_so('future')
     try:
-        obj.change_attribute(name='a', value=2)
         obj.save()
     except ConcurrencyError:
         pass
