@@ -138,7 +138,7 @@ with SimpleApplication() as app:
     # Verify retrieved state (cryptographically).
     assert copy.__head__ == world.__head__
 
-    # Discard aggregate, and save.
+    # Discard aggregate.
     world.discard()
 
     # Repository key error, if aggregate not found.
