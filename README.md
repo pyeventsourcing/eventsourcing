@@ -90,7 +90,6 @@ class World(AggregateRoot):
 Generate cipher key.
 
 ```python
-# Generate cipher key.
 from eventsourcing.utils.random import generate_cipher_key
 
 aes_cipher_key = generate_cipher_key(num_bytes=32)
@@ -99,7 +98,6 @@ aes_cipher_key = generate_cipher_key(num_bytes=32)
 Configure environment variables.
 
 ```python
-# Configure environment.
 import os
 
 os.environ['DB_URI'] = 'sqlite:///:memory:'  # SQLAlchemy style
@@ -109,10 +107,10 @@ os.environ['AES_CIPHER_KEY'] = aes_cipher_key
 Run the code.
 
 ```python
-# Construct application.
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.exceptions import ConcurrencyError
 
+# Construct simple application (use as context manager).
 with SimpleApplication() as app:
 
     # Call aggregate factory.
