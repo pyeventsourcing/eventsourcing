@@ -9,24 +9,22 @@ The application layer combines objects from the domain and
 infrastructure layers.
 
 An application object normally has a repository and policies.
-
 A repository allows aggregates to be retrieved by ID, using a
-dictionary-like interface.
+dictionary-like interface. Whereas aggregates implement
+commands that publish events, obversely, policies subscribe to
+events and then execute commands as events are received.
 
-In general, a policy subscribes to events, and then executes
-commands when it receives the events. Obversely, an aggregate
-implements commands that publish events.
+An application can be well understood by understanding its policies,
+aggregates, commands, and events.
 
-An application can be well understood by understanding the policies,
-the aggregates, the events, and the commands.
 
 Application services
 --------------------
 
 An application object can have methods ("application services")
-which provide a relatively simple interface for client (interface)
-operations, hiding the complexity and usage of the application's
-domain and infrastructure layers.
+which provide a relatively simple interface for client operations,
+hiding the complexity and usage of the application's domain and
+infrastructure layers.
 
 Application services can be developed outside-in, with a
 test- or behaviour-driven development approach. A test suite can
