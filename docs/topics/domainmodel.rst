@@ -339,7 +339,7 @@ a current ``timestamp`` value, unless one is given. ``Created`` events
 also need an ``originator_topic``. The other events need an ``originator_hash``.
 ``AttributeChanged`` events also need ``name`` and ``value``.
 
-All the events of ``DomainEntity`` use SHA256 to generate an ``event_hash`` from the event attribute
+All the events of ``DomainEntity`` use SHA-256 to generate an ``event_hash`` from the event attribute
 values when constructed for the first time. Events can be chained together by constructing each
 subsequent event to have its ``originator_hash`` as the ``event_hash`` of the previous event.
 
@@ -524,27 +524,29 @@ Data integrity
 
 Domain events that are triggered in this way are automatically hash-chained together.
 
-That is, the state of each event is hashed, using SHA256, and the hash of the last event
-is included in the state of the next event. Before an event is applied to a entity, it
-is validated in itself (the event hash represents the state of the event) and as a part of the chain
-(the previous event hash equals the next event originator hash). That means, if the sequence of
-events is accidentally damaged, then a ``DataIntegrityError`` will almost certainly be raised
-when the sequence is replayed.
+The state of each event, including the hash of the last event, is hashed using
+SHA-256. Before an event is applied to a entity, it is validated in itself (the
+event hash represents the state of the event) and as a part of the chain
+(the previous event hash is included in the next event state). If the sequence
+of events is accidentally damaged in any way, then a ``DataIntegrityError`` will
+almost certainly be raised from the domain layer when the sequence is replayed.
 
-The hash of the last event applied to an aggregate root is available as an attribute called
+The hash of the last event applied to an entity is available as an attribute called
 ``__head__``.
 
 .. code:: python
 
-    # Aggregate's head hash is determined by the sequence of events.
+    # Entity's head hash is determined exclusively
+    # by the entire sequence of events and SHA-256.
     assert entity.__head__ == '04c61b906cdd6194f8a87fdfd847ef362679c31fcc4983738ac2857437ae9ef8'
 
-    # Aggregate's head hash is simply the event hash of the last event that mutated the entity.
+    # Entity's head hash is simply the event hash
+    # of the last event that mutated the entity.
     assert entity.__head__ == last_event.event_hash
 
 
-A slightly different sequence of events will almost certainly result a different
-head hash. So the entire history of an aggregate can be verified by checking the
+A different sequence of events will almost certainly result a different
+head hash. So the entire history of an entity can be verified by checking the
 head hash. This feature could be used to protect against tampering.
 
 
