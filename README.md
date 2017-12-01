@@ -80,7 +80,7 @@ class World(AggregateRoot):
             return obj
             
 
-# Application as context manager.
+# Application object as context manager.
 with SimpleApplication(uri='sqlite:///:memory:') as app:
 
     # Aggregate factory.
