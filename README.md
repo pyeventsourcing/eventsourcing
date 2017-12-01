@@ -55,7 +55,6 @@ example domain events, and an example database table. Plus lots of examples in t
 Develop domain model.
 
 ```python
-# Define domain model.
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import attribute
 
