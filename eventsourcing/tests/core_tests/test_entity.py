@@ -202,6 +202,29 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertTrue(published_event.originator_version, 1)
         self.assertEqual(published_event.originator_id, entity_id)
 
+    def test_event_is_hashable(self):
+        event1 = Example.Event(originator_id=1, originator_version=0, __previous_hash__='', timestamp=1)
+        event2 = Example.Event(originator_id=1, originator_version=0, __previous_hash__='', timestamp=1)
+        event3 = Example.Event(originator_id=1, originator_version=0, __previous_hash__='', timestamp=2)
+
+        # Same type with same values.
+        self.assertEqual(event1, event2)
+        self.assertEqual(hash(event1), hash(event2))  # Same thing
+
+        # Same type with different values.
+        self.assertNotEqual(event1, event3)
+        self.assertNotEqual(hash(event1), hash(event3))  # Same thing
+
+        # Different type with same values.
+        class Subclass(Example.Event):
+            pass
+
+        event4 = Subclass(originator_id=1, originator_version=0, __previous_hash__='', timestamp=1)
+
+        self.assertNotEqual(event1, event4)
+        self.assertNotEqual(hash(event1), hash(event4))  # Same thing
+
+
 
 class CustomValueObject(object):
     def __init__(self, value):

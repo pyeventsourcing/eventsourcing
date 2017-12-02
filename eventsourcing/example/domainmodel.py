@@ -54,9 +54,6 @@ class Example(TimestampedVersionedEntity):
     def count_heartbeats(self):
         return self._count_heartbeats
 
-    def discard(self):
-        self.__discard__()
-
 
 class AbstractExampleRepository(AbstractEntityRepository):
     pass
