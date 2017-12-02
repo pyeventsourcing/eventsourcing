@@ -28,6 +28,8 @@ class DomainEntity(QualnameABC):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    __hash__ = None  # For Python 2.7, so hash(obj) raises TypeError.
+
     @property
     def id(self):
         return self._id
