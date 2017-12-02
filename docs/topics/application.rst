@@ -90,24 +90,23 @@ The example below uses the ``AggregateRoot`` class directly.
 
     with app:
         obj = AggregateRoot.create()
-        obj.change_attribute(name='a', value=1)
+        obj.__change_attribute__(name='a', value=1)
         assert obj.a == 1
-        obj.save()
+        obj.__save__()
 
         # Check the repository has the latest values.
         copy = app.repository[obj.id]
         assert copy.a == 1
 
         # Check the aggregate can be discarded.
-        copy.discard()
-        copy.save()
+        copy.__discard__()
         assert copy.id not in app.repository
 
         # Check optimistic concurrency control is working ok.
         from eventsourcing.exceptions import ConcurrencyError
         try:
-            obj.change_attribute(name='a', value=2)
-            obj.save()
+            obj.__change_attribute__(name='a', value=2)
+            obj.__save__()
         except ConcurrencyError:
             pass
         else:
@@ -171,7 +170,7 @@ The application service can be called.
 
     # Create aggregate using application service, and save it.
     aggregate = app.create_aggregate(a=1)
-    aggregate.save()
+    aggregate.__save__()
 
 
 The aggregate now exists in the repository. An existing aggregate can
@@ -198,7 +197,7 @@ the repository, but only after the aggregate has been saved.
     aggregate.a = 3
 
     # Don't forget to save!
-    aggregate.save()
+    aggregate.__save__()
 
     # Retrieve again from repository.
     aggregate = app.repository[aggregate.id]
@@ -213,7 +212,7 @@ aggregate will no longer be available in the repository.
 .. code:: python
 
     # Discard the aggregate.
-    aggregate.discard()
+    aggregate.__discard__()
 
     # Check discarded aggregate no longer exists in repository.
     assert aggregate.id not in app.repository

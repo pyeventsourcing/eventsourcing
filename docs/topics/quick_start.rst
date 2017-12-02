@@ -107,5 +107,5 @@ Now, use the application to create, read, update, and delete "example" entities.
         assert app.example_repository[example.id].foo == 'baz'
 
         # Delete.
-        example.discard()
+        example.__discard__()
         assert example.id not in app.example_repository

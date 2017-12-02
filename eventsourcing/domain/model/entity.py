@@ -1,62 +1,72 @@
 """
 The entity module provides base classes for domain entities.
 """
-import hashlib
-import json
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 from uuid import uuid4
 
 from six import with_metaclass
 
-from eventsourcing.domain.model.decorators import mutator
 from eventsourcing.domain.model.events import AttributeChanged, Created, Discarded, DomainEvent, \
-    EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, QualnameABC, publish, GENESIS_HASH
-from eventsourcing.exceptions import EntityIsDiscarded, OriginatorIDError, \
-    OriginatorVersionError, MutatorRequiresTypeNotInstance, HeadHashError, EventHashError
+    EventWithOriginatorID, \
+    EventWithOriginatorVersion, EventWithTimestamp, GENESIS_HASH, QualnameABC, publish
+from eventsourcing.exceptions import EntityIsDiscarded, EventHashError, HeadHashError, OriginatorIDError, \
+    OriginatorVersionError
 from eventsourcing.utils.time import timestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
-from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
 
 class DomainEntity(QualnameABC):
     """Base class for domain entities."""
+    def __init__(self, id):
+        self._id = id
+        self.__is_discarded__ = False
+        self.__head__ = GENESIS_HASH
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    __hash__ = None  # For Python 2.7, so hash(obj) raises TypeError.
+
+    @property
+    def id(self):
+        return self._id
 
     class Event(EventWithOriginatorID, DomainEvent):
-        """Supertype for events of domain entities."""
+        """
+        Supertype for events of domain entities.
+        """
 
-        json_encoder_class = ObjectJSONEncoder
+        def __init__(self, __previous_hash__, **kwargs):
+            super(DomainEntity.Event, self).__init__(
+                __previous_hash__=__previous_hash__,
+                __topic__=get_topic(type(self)),
+                **kwargs
+            )
+            assert '__event_hash__' not in self.__dict__
+            self.__dict__['__event_hash__'] = self.hash(self.__dict__)
 
-        def __init__(self, previous_hash, **kwargs):
-            kwargs['previous_hash'] = previous_hash
-            super(DomainEntity.Event, self).__init__(**kwargs)
-
-            # Seal the event state.
-            assert 'event_hash' not in self.__dict__
-            self.__dict__['event_hash'] = self.hash(self.__dict__)
+        def __hash__(self):
+            """
+            Computes a Python integer hash for an event, using its event hash string.
+            """
+            return hash(self.__event_hash__)
 
         @property
-        def previous_hash(self):
-            return self.__dict__['previous_hash']
+        def __event_hash__(self):
+            return self.__dict__['__event_hash__']
 
         @property
-        def event_hash(self):
-            return self.__dict__['event_hash']
+        def __previous_hash__(self):
+            return self.__dict__['__previous_hash__']
 
         def validate_state(self):
             state = self.__dict__.copy()
-            event_hash = state.pop('event_hash')
+            event_hash = state.pop('__event_hash__')
             if event_hash != self.hash(state):
                 raise EventHashError()
-
-        @classmethod
-        def hash(cls, *args):
-            json_dump = json.dumps(
-                args,
-                separators=(',', ':'),
-                sort_keys=True,
-                cls=cls.json_encoder_class,
-            )
-            return hashlib.sha256(json_dump.encode()).hexdigest()
 
         def mutate(self, obj):
             """
@@ -70,7 +80,7 @@ class DomainEntity(QualnameABC):
             """
             self.validate_state()
             self.validate_target(obj)
-            obj.__head__ = self.event_hash
+            obj.__head__ = self.__event_hash__
             self._mutate(obj)
             return obj
 
@@ -92,7 +102,7 @@ class DomainEntity(QualnameABC):
             """
             Checks the target's head hash matches the event's previous hash.
             """
-            if self.previous_hash != obj.__head__:
+            if self.__previous_hash__ != obj.__head__:
                 raise HeadHashError(obj.id, obj.__head__, type(self))
 
         def _mutate(self, obj):
@@ -113,14 +123,29 @@ class DomainEntity(QualnameABC):
             :param obj: object to be mutated
             """
 
-    class Created(Event, Created):
-        """Published when a DomainEntity is created."""
+    @classmethod
+    def create(cls, originator_id=None, **kwargs):
+        if originator_id is None:
+            originator_id = uuid4()
+        event = cls.Created(
+            originator_id=originator_id,
+            originator_topic=get_topic(cls),
+            **kwargs
+        )
+        obj = event.mutate()
+        obj.__publish__(event)
+        return obj
 
+    class Created(Event, Created):
+        """
+        Published when an entity is created.
+        """
         def __init__(self, originator_topic, **kwargs):
-            kwargs['originator_topic'] = originator_topic
-            assert 'previous_hash' not in kwargs
+            assert '__previous_hash__' not in kwargs
             super(DomainEntity.Created, self).__init__(
-                previous_hash=GENESIS_HASH, **kwargs
+                originator_topic=originator_topic,
+                __previous_hash__=GENESIS_HASH,
+                **kwargs
             )
 
         @property
@@ -132,104 +157,78 @@ class DomainEntity(QualnameABC):
             if cls is None:
                 cls = resolve_topic(self.originator_topic)
             obj = cls(**self.constructor_kwargs())
-            obj.__head__ = self.event_hash
+            obj.__head__ = self.__event_hash__
             return obj
 
         def constructor_kwargs(self):
             kwargs = self.__dict__.copy()
-            kwargs.pop('event_hash')
-            kwargs.pop('previous_hash')
+            kwargs.pop('__event_hash__')
+            kwargs.pop('__previous_hash__')
+            kwargs.pop('__topic__')
             kwargs.pop('originator_topic')
             kwargs['id'] = kwargs.pop('originator_id')
             return kwargs
 
+    def __change_attribute__(self, name, value):
+        """
+        Changes named attribute with the given value,
+        by triggering an AttributeChanged event.
+        """
+        self.__trigger_event__(self.AttributeChanged, name=name, value=value)
+
     class AttributeChanged(Event, AttributeChanged):
-        """Published when a DomainEntity is discarded."""
+        """
+        Published when a DomainEntity is discarded.
+        """
         def mutate(self, obj):
             obj = super(DomainEntity.AttributeChanged, self).mutate(obj)
             setattr(obj, self.name, self.value)
             return obj
 
-    class Discarded(Discarded, Event):
-        """Published when a DomainEntity is discarded."""
-        def mutate(self, obj):
-            obj = super(DomainEntity.Discarded, self).mutate(obj)
-            obj.set_is_discarded()
-            return None
-
-    def __init__(self, id):
-        self._id = id
-        self._is_discarded = False
-        self.__head__ = GENESIS_HASH
-
-    def __eq__(self, other):
-        return type(self) == type(other) and self.__dict__ == other.__dict__
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    @property
-    def id(self):
-        return self._id
-
-    def change_attribute(self, name, value, **kwargs):
-        """
-        Changes named attribute with the given value, by triggering an AttributeChanged event.
-        """
-        kwargs['name'] = name
-        kwargs['value'] = value
-        self._trigger(self.AttributeChanged, **kwargs)
-
-    def discard(self, **kwargs):
+    def __discard__(self):
         """
         Discards self, by triggering a Discarded event.
         """
-        self._trigger(self.Discarded, **kwargs)
+        self.__trigger_event__(self.Discarded)
 
-    def set_is_discarded(self):
-        self._is_discarded = True
-
-    def _trigger(self, event_class, **kwargs):
+    class Discarded(Discarded, Event):
         """
-        Constructs, applies, and publishes domain event of given class, with given kwargs.
+        Published when a DomainEntity is discarded.
         """
-        self._assert_not_discarded()
-        kwargs['previous_hash'] = self.__head__
-        event = event_class(originator_id=self._id, **kwargs)
-        self._apply_and_publish(event)
+        def mutate(self, obj):
+            obj = super(DomainEntity.Discarded, self).mutate(obj)
+            obj.__is_discarded__ = True
+            return None
 
-    def _assert_not_discarded(self):
-        if self._is_discarded:
+    def __assert_not_discarded__(self):
+        """
+        Raises exception if entity has been discarded already.
+        """
+        if self.__is_discarded__:
             raise EntityIsDiscarded("Entity is discarded")
 
-    def _apply_and_publish(self, event):
+    def __trigger_event__(self, event_class, **kwargs):
         """
-        Applies event to self and published event.
-
-        Must be an object method, since subclass AggregateRoot.publish()
-        will append events to a list internal to the entity object, hence
-        it needs to work with an instance rather than the type.
+        Constructs, applies, and publishes a domain event.
         """
-        self._apply(event)
-        self.publish(event)
-
-    def _apply(self, event):
-        """
-        Applies given event to self.
-
-        Must be an object method, so that self is an object instance.
-        """
+        self.__assert_not_discarded__()
+        event = event_class(
+            originator_id=self._id,
+            __previous_hash__=self.__head__,
+            **kwargs
+        )
         event.mutate(self)
+        self.__publish__(event)
 
-    def publish(self, event):
+    def __publish__(self, event):
         """
         Publishes given event for subscribers in the application.
 
         :param event: domain event or list of events
         """
-        self._publish_to_subscribers(event)
+        self.__publish_to_subscribers__(event)
 
-    def _publish_to_subscribers(self, event):
+    def __publish_to_subscribers__(self, event):
         """
         Actually dispatches given event to publish-subscribe mechanism.
 
@@ -237,51 +236,32 @@ class DomainEntity(QualnameABC):
         """
         publish(event)
 
-    @classmethod
-    def create(cls, originator_id=None, **kwargs):
-        if originator_id is None:
-            originator_id = uuid4()
-        event = cls.Created(
-            originator_id=originator_id,
-            originator_topic=get_topic(cls),
-            **kwargs
-        )
-        obj = event.mutate()
-        obj.publish(event)
-        return obj
-
-
-# class WithReflexiveMutator(DomainEntity):
-#     """
-#     Implements an entity mutator function by dispatching to the
-#     event itself all calls to mutate an entity with an event.
-#
-#     This is an alternative to using an independent mutator function
-#     implemented with the @mutator decorator, or an if-else block.
-#     """
-#
-#     @classmethod
-#     def _mutate(cls, initial=None, event=None):
-#         """
-#         Attempts to call the mutate() method of given event.
-#
-#         Passes cls if initial is None, so that handler of Created
-#         events can construct an entity object with the subclass.
-#         """
-#         if hasattr(event, 'mutate') and callable(event.mutate):
-#             entity = event.mutate(initial or cls)
-#         else:
-#             entity = super(WithReflexiveMutator, cls)._mutate(initial, event)
-#         return entity
-#
 
 class VersionedEntity(DomainEntity):
+    def __init__(self, __version__=None, **kwargs):
+        super(VersionedEntity, self).__init__(**kwargs)
+        self.___version__ = __version__
+
+    @property
+    def __version__(self):
+        return self.___version__
+
+    def __trigger_event__(self, event_class, **kwargs):
+        """
+        Triggers domain event with entity's version number.
+        """
+        return super(VersionedEntity, self).__trigger_event__(
+            event_class=event_class,
+            originator_version = self.__version__ + 1,
+            **kwargs
+        )
+
     class Event(EventWithOriginatorVersion, DomainEntity.Event):
         """Supertype for events of versioned entities."""
         def mutate(self, obj):
             obj = super(VersionedEntity.Event, self).mutate(obj)
             if obj is not None:
-                obj._version = self.originator_version
+                obj.___version__ = self.originator_version
             return obj
 
         def validate_target(self, obj):
@@ -289,12 +269,12 @@ class VersionedEntity(DomainEntity):
             Also checks the event's originator version matches this entity's version.
             """
             super(VersionedEntity.Event, self).validate_target(obj)
-            if obj.version + 1 != self.originator_version:
+            if obj.__version__ + 1 != self.originator_version:
                 raise OriginatorVersionError(
                     ("Event originated from entity at version {}, "
                      "but entity is currently at version {}. "
                      "Event type: '{}', entity type: '{}', entity ID: '{}'"
-                     "".format(self.originator_version, obj._version,
+                     "".format(self.originator_version, obj.__version__,
                                type(self).__name__, type(obj).__name__, obj._id)
                      )
                 )
@@ -306,7 +286,7 @@ class VersionedEntity(DomainEntity):
 
         def constructor_kwargs(self):
             kwargs = super(VersionedEntity.Created, self).constructor_kwargs()
-            kwargs['version'] = kwargs.pop('originator_version')
+            kwargs['__version__'] = kwargs.pop('originator_version')
             return kwargs
 
     class AttributeChanged(Event, DomainEntity.AttributeChanged):
@@ -315,23 +295,21 @@ class VersionedEntity(DomainEntity):
     class Discarded(Event, DomainEntity.Discarded):
         """Published when a VersionedEntity is discarded."""
 
-    def __init__(self, version=0, **kwargs):
-        super(VersionedEntity, self).__init__(**kwargs)
-        self._version = version
-
-    @property
-    def version(self):
-        return self._version
-
-    def _trigger(self, event_class, **kwargs):
-        """
-        Triggers domain event with entity's version number.
-        """
-        kwargs['originator_version'] = self._version + 1
-        return super(VersionedEntity, self)._trigger(event_class, **kwargs)
-
 
 class TimestampedEntity(DomainEntity):
+    def __init__(self, timestamp, **kwargs):
+        super(TimestampedEntity, self).__init__(**kwargs)
+        self.___created_on__ = timestamp
+        self.___last_modified__ = timestamp
+
+    @property
+    def __created_on__(self):
+        return self.___created_on__
+
+    @property
+    def __last_modified__(self):
+        return self.___last_modified__
+
     class Event(DomainEntity.Event, EventWithTimestamp):
         """Supertype for events of timestamped entities."""
         def mutate(self, obj):
@@ -339,7 +317,7 @@ class TimestampedEntity(DomainEntity):
             obj = super(TimestampedEntity.Event, self).mutate(obj)
             if obj is not None:
                 assert isinstance(obj, TimestampedEntity), obj
-                obj.set_last_modified(self.timestamp)
+                obj.___last_modified__ = self.timestamp
             return obj
 
     class Created(DomainEntity.Created, Event):
@@ -351,22 +329,6 @@ class TimestampedEntity(DomainEntity):
     class Discarded(Event, DomainEntity.Discarded):
         """Published when a TimestampedEntity is discarded."""
 
-    def __init__(self, timestamp, **kwargs):
-        super(TimestampedEntity, self).__init__(**kwargs)
-        self._created_on = timestamp
-        self._last_modified = timestamp
-
-    @property
-    def created_on(self):
-        return self._created_on
-
-    @property
-    def last_modified(self):
-        return self._last_modified
-
-    def set_last_modified(self, last_modified):
-        self._last_modified = last_modified
-
 
 class TimeuuidedEntity(DomainEntity):
     def __init__(self, event_id, **kwargs):
@@ -375,11 +337,11 @@ class TimeuuidedEntity(DomainEntity):
         self._last_event_id = event_id
 
     @property
-    def created_on(self):
+    def __created_on__(self):
         return timestamp_from_uuid(self._initial_event_id)
 
     @property
-    def last_modified(self):
+    def __last_modified__(self):
         return timestamp_from_uuid(self._last_event_id)
 
 
@@ -413,15 +375,15 @@ class AbstractEntityRepository(AbstractEventPlayer):
         """
 
     @abstractmethod
-    def get_entity(self, entity_id):
-        """
-        Returns entity for given ID.
-        """
-
-    @abstractmethod
     def __contains__(self, entity_id):
         """
         Returns True or False, according to whether or not entity exists.
+        """
+
+    @abstractmethod
+    def get_entity(self, entity_id):
+        """
+        Returns entity for given ID.
         """
 
     @property

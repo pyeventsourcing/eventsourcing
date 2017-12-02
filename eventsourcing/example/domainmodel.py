@@ -46,9 +46,9 @@ class Example(TimestampedVersionedEntity):
         """Another example attribute."""
 
     def beat_heart(self, number_of_beats=1):
-        self._assert_not_discarded()
+        self.__assert_not_discarded__()
         while number_of_beats > 0:
-            self._trigger(self.Heartbeat)
+            self.__trigger_event__(self.Heartbeat)
             number_of_beats -= 1
 
     def count_heartbeats(self):

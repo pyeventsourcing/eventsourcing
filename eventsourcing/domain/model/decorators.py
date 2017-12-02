@@ -17,14 +17,14 @@ from eventsourcing.exceptions import ProgrammingError
 def subscribe_to(event_class):
     """
     Decorator for making a custom event handler function subscribe to a certain event type
-    
+
     event_class: DomainEvent class or its child classes that the handler function should subscribe to
 
     The following example shows a custom handler that reacts to Todo.Created
     event and saves a projection of a Todo model object.
-        
+
     .. code::
-    
+
         @subscribe_to(Todo.Created)
         def new_todo_projection(event):
             todo = TodoProjection(id=event.originator_id, title=event.title)
@@ -47,7 +47,7 @@ def mutator(arg=None):
     the decorated function is called with an initial
     value and an event, it will call the handler that
     has been registered for that type of event.
-    
+
     It works like singledispatch, which it uses. The
     difference is that when the decorated function is
     called, this decorator dispatches according to the
@@ -63,7 +63,7 @@ def mutator(arg=None):
     singledispatch is coded to switch on the type of the first
     argument, which makes it unsuitable for structuring a mutator
     function without the modifications introduced here.
-    
+
     The other aspect introduced by this decorator function is the
     option to set the type of the handled entity in the decorator.
     When an entity is replayed from scratch, in other words when
@@ -82,7 +82,7 @@ def mutator(arg=None):
         class Entity(object):
             class Created(object):
                 pass
-    
+
         @mutator(Entity)
         def mutate(initial, event):
             raise NotImplementedError(type(event))
@@ -125,7 +125,7 @@ def attribute(getter):
     if isfunction(getter):
         def setter(self, value):
             name = '_' + getter.__name__
-            self.change_attribute(name=name, value=value)
+            self.__change_attribute__(name=name, value=value)
 
         def new_getter(self):
             name = '_' + getter.__name__

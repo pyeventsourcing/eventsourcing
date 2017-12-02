@@ -35,7 +35,7 @@ class ExampleEntity(TimeuuidedEntity):
         pass
 
     def finish(self):
-        self._trigger(self.Finished)
+        self.__trigger_event__(self.Finished)
 
     @classmethod
     def start(cls):
@@ -106,8 +106,8 @@ class TestDomainEventsWithTimeUUIDs(AbstractDatastoreTestCase):
             entity1 = app.start_entity()
             self.assertIsInstance(entity1._initial_event_id, UUID)
             expected_timestamp = timestamp_from_uuid(entity1._initial_event_id)
-            self.assertEqual(entity1.created_on, expected_timestamp)
-            self.assertTrue(entity1.last_modified, expected_timestamp)
+            self.assertEqual(entity1.__created_on__, expected_timestamp)
+            self.assertTrue(entity1.__last_modified__, expected_timestamp)
 
             # Read entity from repo.
             retrieved_obj = app.repository[entity1.id]

@@ -14,7 +14,7 @@ from eventsourcing.exceptions import EventHashError
 from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
-GENESIS_HASH = os.getenv('EVENTSOURCING_GENESIS_HASH', '')
+GENESIS_HASH = os.getenv('GENESIS_HASH', '')
 
 
 class QualnameABCMeta(ABCMeta):
@@ -59,6 +59,7 @@ class DomainEvent(QualnameABC):
     Implements methods to make instances read-only, comparable
     for equality, have recognisable representations, and hashable.
     """
+    __json_encoder_class__ = ObjectJSONEncoder
     __always_encrypt__ = False
 
     def __init__(self, **kwargs):
@@ -75,9 +76,9 @@ class DomainEvent(QualnameABC):
 
     def __eq__(self, other):
         """
-        Tests for equality of type and attribute values.
+        Tests for equality of two event objects.
         """
-        return type(self) == type(other) and self.__dict__ == other.__dict__
+        return self.__hash__() == other.__hash__()
 
     def __ne__(self, other):
         """
@@ -87,16 +88,28 @@ class DomainEvent(QualnameABC):
 
     def __hash__(self):
         """
-        Computes a unique hash for an event, using its type and attribute values.
+        Computes a Python integer hash for an event, using its type and attribute values.
         """
-        return hash(tuple(itertools.chain(sorted(self.__dict__.items()), [type(self)])))
+        return hash((self.hash(self.__dict__), self.__class__))
 
     def __repr__(self):
         """
         Returns string representing the type and attribute values of the event.
         """
-        return self.__class__.__qualname__ + "(" + ', '.join(
-            "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
+        sorted_items = tuple(sorted(self.__dict__.items()))
+        args_strings = ("{0}={1!r}".format(*item) for item in sorted_items)
+        args_string = ', '.join(args_strings)
+        return "{}({})".format(self.__class__.__qualname__, args_string)
+
+    @classmethod
+    def hash(cls, *args):
+        json_dump = json.dumps(
+            args,
+            separators=(',', ':'),
+            sort_keys=True,
+            cls=cls.__json_encoder_class__,
+        )
+        return hashlib.sha256(json_dump.encode()).hexdigest()
 
 
 class EventWithOriginatorID(DomainEvent):
