@@ -90,15 +90,16 @@ class DomainEvent(QualnameABC):
         """
         Computes a Python integer hash for an event, using its type and attribute values.
         """
-        return hash(self.hash(self.__dict__))
+        return hash((self.hash(self.__dict__), self.__class__))
 
     def __repr__(self):
         """
         Returns string representing the type and attribute values of the event.
         """
         sorted_items = tuple(sorted(self.__dict__.items()))
-        return self.__class__.__qualname__ + "(" + ', '.join(
-            "{0}={1!r}".format(*item) for item in sorted_items) + ')'
+        args_strings = ("{0}={1!r}".format(*item) for item in sorted_items)
+        args_string = ', '.join(args_strings)
+        return "{}({})".format(self.__class__.__qualname__, args_string)
 
     @classmethod
     def hash(cls, *args):
