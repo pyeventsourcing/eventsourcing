@@ -54,6 +54,10 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertEqual(type(example1), type(example2))
         self.assertNotEqual(example1, example2)
 
+        # Check entity not hashable.
+        with self.assertRaises(TypeError):
+            hash(example1)
+
         # Setup the repo.
         repo = ExampleRepository(self.entity_event_store)
 
@@ -223,7 +227,6 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         self.assertNotEqual(event1, event4)
         self.assertNotEqual(hash(event1), hash(event4))  # Same thing
-
 
 
 class CustomValueObject(object):

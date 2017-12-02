@@ -1,21 +1,18 @@
 """
 The entity module provides base classes for domain entities.
 """
-import hashlib
-import json
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 from uuid import uuid4
 
 from six import with_metaclass
 
-from eventsourcing.domain.model.decorators import mutator
 from eventsourcing.domain.model.events import AttributeChanged, Created, Discarded, DomainEvent, \
-    EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, QualnameABC, publish, GENESIS_HASH
-from eventsourcing.exceptions import EntityIsDiscarded, OriginatorIDError, \
-    OriginatorVersionError, MutatorRequiresTypeNotInstance, HeadHashError, EventHashError
+    EventWithOriginatorID, \
+    EventWithOriginatorVersion, EventWithTimestamp, GENESIS_HASH, QualnameABC, publish
+from eventsourcing.exceptions import EntityIsDiscarded, EventHashError, HeadHashError, OriginatorIDError, \
+    OriginatorVersionError
 from eventsourcing.utils.time import timestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
-from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
 
 class DomainEntity(QualnameABC):
@@ -39,7 +36,6 @@ class DomainEntity(QualnameABC):
         """
         Supertype for events of domain entities.
         """
-        json_encoder_class = ObjectJSONEncoder
 
         def __init__(self, __previous_hash__, **kwargs):
             super(DomainEntity.Event, self).__init__(
@@ -50,17 +46,10 @@ class DomainEntity(QualnameABC):
             assert '__event_hash__' not in self.__dict__
             self.__dict__['__event_hash__'] = self.hash(self.__dict__)
 
-        @classmethod
-        def hash(cls, *args):
-            json_dump = json.dumps(
-                args,
-                separators=(',', ':'),
-                sort_keys=True,
-                cls=cls.json_encoder_class,
-            )
-            return hashlib.sha256(json_dump.encode()).hexdigest()
-
         def __hash__(self):
+            """
+            Computes a Python integer hash for an event, using its event hash string.
+            """
             return hash(self.__event_hash__)
 
         @property

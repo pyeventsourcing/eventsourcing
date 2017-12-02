@@ -59,6 +59,7 @@ class DomainEvent(QualnameABC):
     Implements methods to make instances read-only, comparable
     for equality, have recognisable representations, and hashable.
     """
+    __json_encoder_class__ = ObjectJSONEncoder
     __always_encrypt__ = False
 
     def __init__(self, **kwargs):
@@ -75,9 +76,9 @@ class DomainEvent(QualnameABC):
 
     def __eq__(self, other):
         """
-        Tests for equality of type and attribute values.
+        Tests for equality of two event objects.
         """
-        return type(self) == type(other) and self.__dict__ == other.__dict__
+        return self.__hash__() == other.__hash__()
 
     def __ne__(self, other):
         """
@@ -87,9 +88,9 @@ class DomainEvent(QualnameABC):
 
     def __hash__(self):
         """
-        Computes a unique hash for an event, using its type and attribute values.
+        Computes a Python integer hash for an event, using its type and attribute values.
         """
-        return hash(tuple(itertools.chain(sorted(self.__dict__.items()), [type(self)])))
+        return hash(self.hash(self.__dict__))
 
     def __repr__(self):
         """
@@ -98,6 +99,16 @@ class DomainEvent(QualnameABC):
         sorted_items = tuple(sorted(self.__dict__.items()))
         return self.__class__.__qualname__ + "(" + ', '.join(
             "{0}={1!r}".format(*item) for item in sorted_items) + ')'
+
+    @classmethod
+    def hash(cls, *args):
+        json_dump = json.dumps(
+            args,
+            separators=(',', ':'),
+            sort_keys=True,
+            cls=cls.__json_encoder_class__,
+        )
+        return hashlib.sha256(json_dump.encode()).hexdigest()
 
 
 class EventWithOriginatorID(DomainEvent):
