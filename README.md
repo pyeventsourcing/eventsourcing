@@ -57,31 +57,26 @@ from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import attribute
 
 class World(AggregateRoot):
-    """A model of the world, including all history."""
 
-    def __init__(self, ruler=None, *args, **kwargs):
-        super(World, self).__init__(*args, **kwargs)
+    def __init__(self, ruler=None, **kwargs):
+        super(World, self).__init__(**kwargs)
         self._ruler = ruler
         self._history = []
 
-    # Domain events as nested classes.
-    class SomethingHappened(AggregateRoot.Event):
-        def _mutate(self, obj):
-            obj._history.append(self)
-
-    # Mutable event-sourced attribute.
-    @attribute
-    def ruler(self):
-        """The current ruler of the world."""
-
-    # Immutable property (except via command).
     @property
     def history(self):
         return tuple(self._history)
 
-    # Command triggers events.
+    @attribute
+    def ruler(self):
+        """A mutable event-sourced attribute."""
+
     def make_it_so(self, something):
         self._trigger(World.SomethingHappened, what=something)
+
+    class SomethingHappened(AggregateRoot.Event):
+        def _mutate(self, obj):
+            obj._history.append(self)
 ```
 
 Generate cipher key.
