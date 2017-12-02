@@ -51,7 +51,7 @@ class Timebucketedlog(TimestampedVersionedEntity):
 
     @property
     def started_on(self):
-        return self.created_on
+        return self.__created_on__
 
     @property
     def bucket_size(self):

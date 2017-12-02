@@ -105,7 +105,7 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
             self.assertEqual(active_record.sequence_id, entity1.id)
             self.assertEqual(active_record.position, 0)
             self.assertEqual(active_record.event_type, 'Example.Created', active_record.event_type)
-            self.assertEqual(active_record.timestamp, entity1.created_on)
+            self.assertEqual(active_record.timestamp, entity1.__created_on__)
 
             # Read entity from repo.
             retrieved_obj = app.repository[entity1.id]

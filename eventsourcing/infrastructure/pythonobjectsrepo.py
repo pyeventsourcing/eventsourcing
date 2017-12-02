@@ -25,8 +25,8 @@
 #         # Put the event in the various dicts.
 #         stored_entity_id = new_stored_event.entity_id
 #         if self.always_write_originator_version and new_version_number is not None:
-#             versions = self._originator_versions[stored_entity_id]
-#             if next(versions[new_version_number]) != 0:
+#             versions = self._originator___version__s[stored_entity_id]
+#             if next(__version__s[new_version_number]) != 0:
 #                 raise ConcurrencyError("New version {} for entity {} already exists"
 #                                        "".format(new_version_number, stored_entity_id))
 #             originator_version_id = self.make_originator_version_id(stored_entity_id, new_version_number)

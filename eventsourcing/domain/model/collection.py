@@ -39,14 +39,14 @@ class Collection(TimestampedVersionedEntity):
 
     @property
     def items(self):
-        self._assert_not_discarded()
+        self.__assert_not_discarded__()
         return self._items
 
     def add_item(self, item):
-        self._trigger(self.ItemAdded, item=item)
+        self.__trigger_event__(self.ItemAdded, item=item)
 
     def remove_item(self, item):
-        self._trigger(self.ItemRemoved, item=item)
+        self.__trigger_event__(self.ItemRemoved, item=item)
 
 
 def register_new_collection(collection_id=None):

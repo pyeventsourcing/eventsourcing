@@ -30,7 +30,7 @@ class AggregateRoot(TimestampedVersionedEntity):
         super(AggregateRoot, self).__init__(**kwargs)
         self.__pending_events__ = deque()
 
-    def save(self):
+    def __save__(self):
         """
         Publishes pending events for others in application.
         """
@@ -41,14 +41,14 @@ class AggregateRoot(TimestampedVersionedEntity):
         except IndexError:
             pass
         if batch_of_events:
-            self._publish_to_subscribers(batch_of_events)
+            self.__publish_to_subscribers__(batch_of_events)
 
-    def publish(self, event):
+    def __publish__(self, event):
         """
         Appends event to internal collection of pending events.
         """
         self.__pending_events__.append(event)
 
-    def discard(self):
-        super(AggregateRoot, self).discard()
-        self.save()
+    def __discard__(self):
+        super(AggregateRoot, self).__discard__()
+        self.__save__()

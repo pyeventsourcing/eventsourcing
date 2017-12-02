@@ -19,6 +19,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
         example1 = Example.create(a=1, b=2)
+
         self.assertIsInstance(example1, Example)
 
         # Check the instance is equal to itself.
@@ -35,10 +36,10 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Check the properties of the TimestampedVersionedEntity class.
         self.assertTrue(example1.id)
-        self.assertEqual(example1.version, 0)
-        self.assertTrue(example1.created_on)
-        self.assertTrue(example1.last_modified)
-        self.assertEqual(example1.created_on, example1.last_modified)
+        self.assertEqual(example1.__version__, 0)
+        self.assertTrue(example1.__created_on__)
+        self.assertTrue(example1.__last_modified__)
+        self.assertEqual(example1.__created_on__, example1.__last_modified__)
 
         # Check a different type with the same values is not "equal" to the first.
         class Subclass(Example): pass
@@ -73,9 +74,9 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         entity1.b = -200
         self.assertEqual(-200, repo[entity1.id].b)
 
-        self.assertEqual(repo[entity1.id].created_on, entity1.created_on)
-        self.assertEqual(repo[entity1.id].last_modified, entity1.last_modified)
-        self.assertNotEqual(entity1.last_modified, entity1.created_on)
+        self.assertEqual(repo[entity1.id].__created_on__, entity1.__created_on__)
+        self.assertEqual(repo[entity1.id].__last_modified__, entity1.__last_modified__)
+        self.assertNotEqual(entity1.__last_modified__, entity1.__created_on__)
 
         self.assertEqual(0, entity1.count_heartbeats())
         entity1.beat_heart()
@@ -89,34 +90,34 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertEqual(6, repo[entity1.id].count_heartbeats())
 
         # Check the entity can be discarded.
-        entity1.discard()
+        entity1.__discard__()
 
         # Check the repo now raises a KeyError.
         self.assertRaises(RepositoryKeyError, repo.__getitem__, entity1.id)
 
         # Check the entity can't be discarded twice.
-        self.assertRaises(AssertionError, entity1.discard)
+        self.assertRaises(AssertionError, entity1.__discard__)
 
         # Should fail to validate event with wrong entity ID.
         with self.assertRaises(OriginatorIDError):
             VersionedEntity.Event(
                 originator_id=uuid4(),
                 originator_version=0,
-                previous_hash='',
+                __previous_hash__='',
             ).validate_target(entity2)
         # Should fail to validate event with wrong entity version.
         with self.assertRaises(OriginatorVersionError):
             VersionedEntity.Event(
                 originator_id=entity2.id,
                 originator_version=0,
-                previous_hash=entity2.__head__,
+                __previous_hash__=entity2.__head__,
             ).validate_target(entity2)
 
         # Should validate event with correct entity ID and version.
         VersionedEntity.Event(
             originator_id=entity2.id,
-            originator_version=entity2.version + 1,
-            previous_hash=entity2.__head__,
+            originator_version=entity2.__version__ + 1,
+            __previous_hash__=entity2.__head__,
         ).validate_target(entity2)
 
         # Check an entity cannot be reregistered with the ID of a discarded entity.
@@ -148,7 +149,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
 
         # Pretend we decorated an object.
         entity_id = uuid4()
-        o = VersionedEntity(id=entity_id, version=0)
+        o = VersionedEntity(id=entity_id, __version__=0)
         o.__dict__['_<lambda>'] = 'value1'
 
         # Call the property's getter function.
@@ -183,7 +184,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         subscribe(*subscription)
         entity_id = uuid4()
         try:
-            aaa = Aaa(id=entity_id, version=1, a=1)
+            aaa = Aaa(id=entity_id, __version__=1, a=1)
             self.assertEqual(aaa.a, 1)
             aaa.a = 'value1'
             self.assertEqual(aaa.a, 'value1')

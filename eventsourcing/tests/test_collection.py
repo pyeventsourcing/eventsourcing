@@ -93,7 +93,7 @@ class TestCollection(TestCase):
         self.assertEqual(last_event.item, item1)
 
         # Discard the collection.
-        collection.discard()
+        collection.__discard__()
 
         # Check there has been a Collection.Discarded event.
         self.assertEqual(len(self.published_events), 5)
@@ -144,7 +144,7 @@ class TestCollectionRepo(WithSQLAlchemyActiveRecordStrategies, WithPersistencePo
         self.assertEqual(len(collection.items), 0)
 
         # Discard the collection.
-        collection.discard()
+        collection.__discard__()
 
         # Check the collection is not in the repo.
         with self.assertRaises(RepositoryKeyError):

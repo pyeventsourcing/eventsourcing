@@ -18,12 +18,12 @@
 #             assert isinstance(instance1, Example)
 #             assert isinstance(instance2, Example)
 #
-#             self.assertEqual(instance1.version, 1)
-#             self.assertEqual(instance2.version, 1)
+#             self.assertEqual(instance1.__version__, 1)
+#             self.assertEqual(instance2.__version__, 1)
 #
 #             # Evolve instance1 by a version.
 #             instance1.beat_heart()
-#             self.assertEqual(instance1.version, 2)
+#             self.assertEqual(instance1.__version__, 2)
 #
 #             # Fail to evolve instance2 in the same way.
 #             # Todo: This needs to be a deepcopy.
@@ -33,16 +33,16 @@
 #
 #             # Reset instance2 to its pre-op state.
 #             instance2.__dict__.update(preop_state)
-#             self.assertEqual(instance2.version, 1)
+#             self.assertEqual(instance2.__version__, 1)
 #
 #             # Fast forward instance2 from pre-op state.
 #             instance3 = app.example_repo.fastforward(instance2)
-#             self.assertEqual(instance2.version, 1)
-#             self.assertEqual(instance3.version, 2)
+#             self.assertEqual(instance2.__version__, 1)
+#             self.assertEqual(instance3.__version__, 2)
 #
 #             # Try again to beat heart.
 #             instance3.beat_heart()
-#             self.assertEqual(instance3.version, 3)
+#             self.assertEqual(instance3.__version__, 3)
 #
 #             # Try to evolve instance1 from its stale version.
 #             preop_state = instance1.__dict__.copy()
@@ -54,9 +54,9 @@
 #
 #             # Fast forward instance1 from pre-op state.
 #             instance4 = app.example_repo.fastforward(instance1)
-#             self.assertEqual(instance1.version, 2)
-#             self.assertEqual(instance4.version, 3)
+#             self.assertEqual(instance1.__version__, 2)
+#             self.assertEqual(instance4.__version__, 3)
 #
 #             # Try again to beat heart.
 #             instance4.beat_heart()
-#             self.assertEqual(instance4.version, 4)
+#             self.assertEqual(instance4.__version__, 4)

@@ -14,7 +14,7 @@ from eventsourcing.exceptions import EventHashError
 from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
-GENESIS_HASH = os.getenv('EVENTSOURCING_GENESIS_HASH', '')
+GENESIS_HASH = os.getenv('GENESIS_HASH', '')
 
 
 class QualnameABCMeta(ABCMeta):
@@ -95,8 +95,9 @@ class DomainEvent(QualnameABC):
         """
         Returns string representing the type and attribute values of the event.
         """
+        sorted_items = tuple(sorted(self.__dict__.items()))
         return self.__class__.__qualname__ + "(" + ', '.join(
-            "{0}={1!r}".format(*item) for item in sorted(self.__dict__.items())) + ')'
+            "{0}={1!r}".format(*item) for item in sorted_items) + ')'
 
 
 class EventWithOriginatorID(DomainEvent):

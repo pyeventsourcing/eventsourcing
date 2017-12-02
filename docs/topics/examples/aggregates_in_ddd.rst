@@ -54,47 +54,38 @@ can operate on all the "example" objects of the aggregate.
         """
         Root entity of example aggregate.
         """
-        class Event(TimestampedVersionedEntity.Event):
-            """Supertype for events of example aggregates."""
-
-        class Created(Event, TimestampedVersionedEntity.Created):
-            """Published when aggregate is created."""
-
-        class Discarded(Event, TimestampedVersionedEntity.Discarded):
-            """Published when aggregate is discarded."""
-
-        class ExampleCreated(Event):
-            """Published when an "example" object in the aggregate is created."""
-            def mutate(self, obj):
-                super(ExampleAggregateRoot.ExampleCreated, self).mutate(obj)
-                entity = Example(example_id=self.example_id)
-                obj._examples[str(entity.id)] = entity
-                return obj
-
         def __init__(self, **kwargs):
             super(ExampleAggregateRoot, self).__init__(**kwargs)
             self._pending_events = []
             self._examples = {}
 
         def create_new_example(self):
-            return self._trigger(
+            return self.__trigger_event__(
                 ExampleAggregateRoot.ExampleCreated,
                 example_id=uuid.uuid4()
             )
 
+        class ExampleCreated(TimestampedVersionedEntity.Event):
+            """Published when an "example" object in the aggregate is created."""
+            def _mutate(self, obj):
+                entity = Example(example_id=self.example_id)
+                obj._examples[str(entity.id)] = entity
+
         def count_examples(self):
             return len(self._examples)
 
-        def publish(self, event):
+        def __publish__(self, event):
             self._pending_events.append(event)
 
-        def save(self):
-            publish(self._pending_events[:])
-            self._pending_events = []
+        def __save__(self):
+            pending = []
+            while self._pending_events:
+                pending.append(self._pending_events.pop(0))
+            self.__publish_to_subscribers__(pending)
 
-        def discard(self):
-            super(ExampleAggregateRoot, self).discard()
-            self.save()
+        def __discard__(self):
+            super(ExampleAggregateRoot, self).__discard__()
+            self.__save__()
 
 
     class Example(object):
@@ -113,7 +104,7 @@ can operate on all the "example" objects of the aggregate.
 The methods of the aggregate, and the factory below, are similar to previous
 examples. But instead of immediately publishing events to the publish-subscribe
 mechanism, the events are appended to an internal list of pending events. The
-aggregate then has a ``save()`` method which is used to publish all the pending
+aggregate then has a ``__save__()`` method which is used to publish all the pending
 events in a single list to the publish-subscribe mechanism.
 
 .. code:: python
@@ -195,7 +186,7 @@ Run the code
 ------------
 
 The application can be used to create new aggregates, and aggregates can be used to
-create new entities. Events are published in batches when the aggregate's ``save()``
+create new entities. Events are published in batches when the aggregate's ``__save__()``
 method is called.
 
 
@@ -205,13 +196,10 @@ method is called.
 
         # Create a new aggregate.
         aggregate = create_example_aggregate()
-        aggregate.save()
+        aggregate.__save__()
 
         # Check it exists in the repository.
         assert aggregate.id in app.aggregate_repository, aggregate.id
-
-        # Check the aggregate has zero entities.
-        assert aggregate.count_examples() == 0
 
         # Check the aggregate has zero entities.
         assert aggregate.count_examples() == 0
@@ -223,10 +211,11 @@ method is called.
         assert aggregate.count_examples() == 1
 
         # Check the aggregate in the repo still has zero entities.
-        assert app.aggregate_repository[aggregate.id].count_examples() == 0
+        copy = app.aggregate_repository[aggregate.id]
+        assert copy.count_examples() == 0, copy.count_examples()
 
-        # Call save().
-        aggregate.save()
+        # Call __save__().
+        aggregate.__save__()
 
         # Check the aggregate in the repo now has one entity.
         assert app.aggregate_repository[aggregate.id].count_examples() == 1
@@ -236,13 +225,13 @@ method is called.
         aggregate.create_new_example()
 
         # Save both "entity created" events in one atomic transaction.
-        aggregate.save()
+        aggregate.__save__()
 
         # Check the aggregate in the repo now has three entities.
         assert app.aggregate_repository[aggregate.id].count_examples() == 3
 
-        # Discard the aggregate, calls save().
-        aggregate.discard()
+        # Discard the aggregate, calls __save__().
+        aggregate.__discard__()
 
         # Check the aggregate no longer exists in the repo.
         assert aggregate.id not in app.aggregate_repository

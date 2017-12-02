@@ -28,7 +28,7 @@ class TestAggregateRootEvent(TestCase):
         event2 = AggregateRoot.AttributeChanged(
             originator_version=1,
             originator_id='1',
-            previous_hash=event1.event_hash
+            __previous_hash__=event1.__event_hash__
         )
         event2.validate_state()
 
@@ -36,7 +36,7 @@ class TestAggregateRootEvent(TestCase):
         event3 = AggregateRoot.AttributeChanged(
             originator_version=2,
             originator_id='1',
-            previous_hash=event2.event_hash
+            __previous_hash__=event2.__event_hash__
         )
         event3.validate_state()
 
@@ -77,7 +77,7 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         self.assertNotIn(aggregate.id, self.app.aggregate1_repository)
 
         # Save the aggregate.
-        aggregate.save()
+        aggregate.__save__()
 
         # Check it now exists in the repository.
         self.assertIn(aggregate.id, self.app.aggregate1_repository)
@@ -94,7 +94,7 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         self.assertIn(aggregate.id, self.app.aggregate1_repository)
 
         self.assertNotEqual(self.app.aggregate1_repository[aggregate.id].foo, 'bar')
-        aggregate.save()
+        aggregate.__save__()
         self.assertEqual(self.app.aggregate1_repository[aggregate.id].foo, 'bar')
 
         # Check the aggregate has zero entities.
@@ -117,7 +117,7 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         last_next_hash = aggregate.__head__
 
         # Call save().
-        aggregate.save()
+        aggregate.__save__()
 
         # Check the aggregate in the repo now has one entity.
         self.assertEqual(self.app.aggregate1_repository[aggregate.id].count_examples(), 1)
@@ -127,13 +127,13 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         aggregate.create_new_example()
 
         # Save both "entity created" events in one atomic transaction.
-        aggregate.save()
+        aggregate.__save__()
 
         # Check the aggregate in the repo now has three entities.
         self.assertEqual(self.app.aggregate1_repository[aggregate.id].count_examples(), 3)
 
         # Discard the aggregate, calls save().
-        aggregate.discard()
+        aggregate.__discard__()
 
         # Check the next hash has changed.
         self.assertNotEqual(aggregate.__head__, last_next_hash)
@@ -146,8 +146,8 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         aggregate1 = self.app.create_aggregate1()
         aggregate2 = self.app.create_aggregate2()
 
-        aggregate1.save()
-        aggregate2.save()
+        aggregate1.__save__()
+        aggregate2.__save__()
 
         self.assertIsInstance(aggregate1, Aggregate1)
         self.assertIsInstance(aggregate2, Aggregate2)
@@ -158,8 +158,8 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         aggregate1.foo = 'bar'
         aggregate2.foo = 'baz'
 
-        aggregate1.save()
-        aggregate2.save()
+        aggregate1.__save__()
+        aggregate2.__save__()
 
         aggregate1 = self.app.aggregate1_repository[aggregate1.id]
         aggregate2 = self.app.aggregate2_repository[aggregate2.id]
@@ -170,8 +170,8 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         self.assertEqual(aggregate1.foo, 'bar')
         self.assertEqual(aggregate2.foo, 'baz')
 
-        aggregate1.discard()
-        aggregate1.save()
+        aggregate1.__discard__()
+        aggregate1.__save__()
         self.assertFalse(aggregate1.id in self.app.aggregate1_repository)
         self.assertTrue(aggregate2.id in self.app.aggregate2_repository)
 
@@ -186,11 +186,11 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
         # Check event has valid originator head.
         aggregate = Aggregate1(id='1', foo='bar', timestamp=0)
         event = Aggregate1.AttributeChanged(name='foo', value='bar', originator_id='1',
-                                            originator_version=1, previous_hash=aggregate.__head__)
+                                            originator_version=1, __previous_hash__=aggregate.__head__)
         event._validate_previous_hash(aggregate)
 
         # Check OriginatorHeadError is raised if the originator head is wrong.
-        event.__dict__['previous_hash'] += 'damage'
+        event.__dict__['__previous_hash__'] += 'damage'
         with self.assertRaises(HeadHashError):
             event._validate_previous_hash(aggregate)
 
@@ -236,8 +236,8 @@ class Aggregate1(ExampleAggregateRoot):
         """Simple event sourced attribute called 'foo'."""
 
     def create_new_example(self):
-        assert not self._is_discarded
-        self._trigger(self.ExampleCreated, entity_id=uuid.uuid4())
+        assert not self.__is_discarded__
+        self.__trigger_event__(self.ExampleCreated, entity_id=uuid.uuid4())
 
     def count_examples(self):
         return len(self._entities)
@@ -254,8 +254,8 @@ class Aggregate2(ExampleAggregateRoot):
         """Simple event sourced attribute called 'foo'."""
 
     def create_new_example(self):
-        assert not self._is_discarded
-        self._trigger(self.ExampleCreated, entity_id=uuid.uuid4())
+        assert not self.__is_discarded__
+        self.__trigger_event__(self.ExampleCreated, entity_id=uuid.uuid4())
 
     def count_examples(self):
         return len(self._entities)

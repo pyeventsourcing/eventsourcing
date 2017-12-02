@@ -203,7 +203,7 @@ event.
         assert snapshot.state['_foo'] == 'bar6'
 
         # Check snapshot state is None after discarding the entity on the eighth event.
-        entity.discard()
+        entity.__discard__()
         assert entity.id not in app.example_repository
         snapshot = app.snapshot_strategy.get_snapshot(entity.id)
         assert snapshot.state is None
@@ -217,26 +217,26 @@ event.
 
         # Get historical snapshots.
         snapshot = app.snapshot_strategy.get_snapshot(entity.id, lte=2)
-        assert snapshot.state['_version'] == 1  # one behind
+        assert snapshot.state['___version__'] == 1  # one behind
         assert snapshot.state['_foo'] == 'bar2'
 
         snapshot = app.snapshot_strategy.get_snapshot(entity.id, lte=3)
-        assert snapshot.state['_version'] == 3
+        assert snapshot.state['___version__'] == 3
         assert snapshot.state['_foo'] == 'bar4'
 
         # Get historical entities.
         entity = app.example_repository.get_entity(entity.id, lte=0)
-        assert entity.version == 0
+        assert entity.__version__ == 0
         assert entity.foo == 'bar1', entity.foo
 
         entity = app.example_repository.get_entity(entity.id, lte=1)
-        assert entity.version == 1
+        assert entity.__version__ == 1
         assert entity.foo == 'bar2', entity.foo
 
         entity = app.example_repository.get_entity(entity.id, lte=2)
-        assert entity.version == 2
+        assert entity.__version__ == 2
         assert entity.foo == 'bar3', entity.foo
 
         entity = app.example_repository.get_entity(entity.id, lte=3)
-        assert entity.version == 3
+        assert entity.__version__ == 3
         assert entity.foo == 'bar4', entity.foo

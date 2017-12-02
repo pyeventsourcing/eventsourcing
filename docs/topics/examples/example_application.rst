@@ -135,7 +135,7 @@ for the benefit of any subscribers, by using the function ``publish()``.
         """
         def __init__(self, originator_id, originator_version=0, foo=''):
             self._id = originator_id
-            self._version = originator_version
+            self.___version__ = originator_version
             self._is_discarded = False
             self._foo = foo
 
@@ -144,8 +144,8 @@ for the benefit of any subscribers, by using the function ``publish()``.
             return self._id
 
         @property
-        def version(self):
-            return self._version
+        def __version__(self):
+            return self.___version__
 
         @property
         def foo(self):
@@ -158,7 +158,7 @@ for the benefit of any subscribers, by using the function ``publish()``.
             # Construct an 'AttributeChanged' event object.
             event = AttributeChanged(
                 originator_id=self.id,
-                originator_version=self.version,
+                originator_version=self.__version__,
                 name='foo',
                 value=value,
             )
@@ -175,7 +175,7 @@ for the benefit of any subscribers, by using the function ``publish()``.
             # Construct a 'Discarded' event object.
             event = Discarded(
                 originator_id=self.id,
-                originator_version=self.version
+                originator_version=self.__version__
             )
 
             # Apply the event to self.
@@ -248,20 +248,20 @@ the sequence to an evolving initial state.
         # Handle "created" events by constructing the entity object.
         if isinstance(event, Created):
             entity = Example(**event.__dict__)
-            entity._version += 1
+            entity.___version__ += 1
             return entity
 
         # Handle "value changed" events by setting the named value.
         elif isinstance(event, AttributeChanged):
             assert not entity._is_discarded
             setattr(entity, '_' + event.name, event.value)
-            entity._version += 1
+            entity.___version__ += 1
             return entity
 
         # Handle "discarded" events by returning 'None'.
         elif isinstance(event, Discarded):
             assert not entity._is_discarded
-            entity._version += 1
+            entity.___version__ += 1
             entity._is_discarded = True
             return None
         else:
@@ -300,7 +300,7 @@ With this stand-alone code, we can create a new example entity object. We can up
     assert entity.id
 
     # Check the entity has a version number.
-    assert entity.version == 1
+    assert entity.__version__ == 1
 
     # Check the received events.
     assert len(received_events) == 1, received_events
@@ -319,7 +319,7 @@ With this stand-alone code, we can create a new example entity object. We can up
     assert entity.foo == 'baz'
 
     # Check the version number has increased.
-    assert entity.version == 2
+    assert entity.__version__ == 2
 
     # Check the received events.
     assert len(received_events) == 2, received_events

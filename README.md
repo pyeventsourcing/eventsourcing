@@ -72,7 +72,7 @@ class World(AggregateRoot):
         """A mutable event-sourced attribute."""
 
     def make_it_so(self, something):
-        self._trigger(World.SomethingHappened, what=something)
+        self.__trigger_event__(World.SomethingHappened, what=something)
 
     class SomethingHappened(AggregateRoot.Event):
         def _mutate(self, obj):
@@ -114,7 +114,7 @@ with SimpleApplication() as app:
     # Execute commands (events published pending save).
     world.make_it_so('dinosaurs')
     world.make_it_so('trucks')
-    version = world.version # note version at this stage
+    version = world.__version__ # note version at this stage
     world.make_it_so('internet')
 
     # Assign to mutable attribute.
@@ -127,7 +127,7 @@ with SimpleApplication() as app:
     assert world.history[0].what == 'dinosaurs'
 
     # Publish pending events (to persistence subscriber).
-    world.save()
+    world.__save__()
 
     # Retrieve aggregate (replay stored events).
     copy = app.repository[world.id]
@@ -143,7 +143,7 @@ with SimpleApplication() as app:
     assert copy.__head__ == world.__head__
 
     # Discard aggregate.
-    world.discard()
+    world.__discard__()
 
     # Repository raises key error (when aggregate not found).
     assert world.id not in app.repository
@@ -163,7 +163,7 @@ with SimpleApplication() as app:
     # Optimistic concurrency control (no branches).
     old.make_it_so('future')
     try:
-        old.save()
+        old.__save__()
     except ConcurrencyError:
         pass
     else:
@@ -174,8 +174,8 @@ with SimpleApplication() as app:
     last_hash = ''
     for event in events:
         event.validate_state()
-        assert event.previous_hash == last_hash
-        last_hash = event.event_hash
+        assert event.__previous_hash__ == last_hash
+        last_hash = event.__event_hash__
 
     # Verify sequence of events (cryptographically).
     assert last_hash == world.__head__

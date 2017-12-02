@@ -250,20 +250,20 @@ Entity library
 --------------
 
 The library also has a domain entity class called ``VersionedEntity``, which extends the ``DomainEntity`` class
-with a ``version`` attribute.
+with a ``__version__`` attribute.
 
 .. code:: python
 
     from eventsourcing.domain.model.entity import VersionedEntity
 
-    entity = VersionedEntity(id=entity_id, version=1)
+    entity = VersionedEntity(id=entity_id, __version__=1)
 
     assert entity.id == entity_id
-    assert entity.version == 1
+    assert entity.__version__ == 1
 
 
 The library also has a domain entity class called ``TimestampedEntity``, which extends the ``DomainEntity`` class
-with attributes ``created_on`` and ``last_modified``.
+with attributes ``__created_on__`` and ``__last_modified__``.
 
 .. code:: python
 
@@ -272,23 +272,23 @@ with attributes ``created_on`` and ``last_modified``.
     entity = TimestampedEntity(id=entity_id, timestamp=123)
 
     assert entity.id == entity_id
-    assert entity.created_on == 123
-    assert entity.last_modified == 123
+    assert entity.__created_on__ == 123
+    assert entity.__last_modified__ == 123
 
 
-There is also a ``TimestampedVersionedEntity`` that has ``id``, ``version``, ``created_on``, and ``last_modified``
+There is also a ``TimestampedVersionedEntity`` that has ``id``, ``__version__``, ``__created_on__``, and ``__last_modified__``
 attributes.
 
 .. code:: python
 
     from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 
-    entity = TimestampedVersionedEntity(id=entity_id, version=1, timestamp=123)
+    entity = TimestampedVersionedEntity(id=entity_id, __version__=1, timestamp=123)
 
     assert entity.id == entity_id
-    assert entity.created_on == 123
-    assert entity.last_modified == 123
-    assert entity.version == 1
+    assert entity.__created_on__ == 123
+    assert entity.__last_modified__ == 123
+    assert entity.__version__ == 1
 
 
 A timestamped, versioned entity is both a timestamped entity and a versioned entity.
@@ -336,12 +336,12 @@ suitable arguments.
 All events need an ``originator_id``. Events of versioned entities also
 need an ``originator_version``. Events of timestamped entities generate
 a current ``timestamp`` value, unless one is given. ``Created`` events
-also need an ``originator_topic``. The other events need an ``previous_hash``.
+also need an ``originator_topic``. The other events need an ``__previous_hash__``.
 ``AttributeChanged`` events also need ``name`` and ``value``.
 
 All the events of ``DomainEntity`` use SHA-256 to generate an ``event_hash`` from the event attribute
 values when constructed for the first time. Events can be chained together by constructing each
-subsequent event to have its ``previous_hash`` as the ``event_hash`` of the previous event.
+subsequent event to have its ``__previous_hash__`` as the ``event_hash`` of the previous event.
 
 .. code:: python
 
@@ -360,7 +360,7 @@ subsequent event to have its ``previous_hash`` as the ``event_hash`` of the prev
         value=1,
         originator_version=1,
         originator_id=entity_id,
-        previous_hash=created.event_hash,
+        __previous_hash__=created.__event_hash__,
     )
 
     attribute_b_changed = VersionedEntity.AttributeChanged(
@@ -368,13 +368,13 @@ subsequent event to have its ``previous_hash`` as the ``event_hash`` of the prev
         value=2,
         originator_version=2,
         originator_id=entity_id,
-        previous_hash=attribute_a_changed.event_hash,
+        __previous_hash__=attribute_a_changed.__event_hash__,
     )
 
     entity_discarded = VersionedEntity.Discarded(
         originator_version=3,
         originator_id=entity_id,
-        previous_hash=attribute_b_changed.event_hash,
+        __previous_hash__=attribute_b_changed.__event_hash__,
     )
 
 The events have a ``mutate()`` function, which can be used to mutate the
@@ -403,19 +403,19 @@ As another example, when a versioned entity is mutated by an event of the
 
 .. code:: python
 
-    assert entity.version == 0
+    assert entity.__version__ == 0
 
     entity = attribute_a_changed.mutate(entity)
-    assert entity.version == 1
+    assert entity.__version__ == 1
     assert entity.a == 1
 
     entity = attribute_b_changed.mutate(entity)
-    assert entity.version == 2
+    assert entity.__version__ == 2
     assert entity.b == 2
 
 
 Similarly, when a timestamped entity is mutated by an event of the
-``TimestampedEntity`` class, the ``last_modified`` attribute of the
+``TimestampedEntity`` class, the ``__last_modified__`` attribute of the
 entity is set to have the event's ``timestamp`` value.
 
 
@@ -439,22 +439,22 @@ works correctly for subclasses of both the entity and the event class.
 
     entity = VersionedEntity.create()
     assert entity.id
-    assert entity.version == 0
+    assert entity.__version__ == 0
     assert entity.__class__ is VersionedEntity
 
 
     entity = TimestampedEntity.create()
     assert entity.id
-    assert entity.created_on
-    assert entity.last_modified
+    assert entity.__created_on__
+    assert entity.__last_modified__
     assert entity.__class__ is TimestampedEntity
 
 
     entity = TimestampedVersionedEntity.create()
     assert entity.id
-    assert entity.created_on
-    assert entity.last_modified
-    assert entity.version == 0
+    assert entity.__created_on__
+    assert entity.__last_modified__
+    assert entity.__version__ == 0
     assert entity.__class__ is TimestampedVersionedEntity
 
 
@@ -476,16 +476,16 @@ cause the version number to increase, and it will update the last modified time.
 .. code:: python
 
     entity = TimestampedVersionedEntity.create()
-    assert entity.version == 0
-    assert entity.created_on == entity.last_modified
+    assert entity.__version__ == 0
+    assert entity.__created_on__ == entity.__last_modified__
 
     # Trigger domain event.
-    entity._trigger(entity.AttributeChanged, name='c', value=3)
+    entity.__trigger_event__(entity.AttributeChanged, name='c', value=3)
 
     # Check the event was applied.
     assert entity.c == 3
-    assert entity.version == 1
-    assert entity.last_modified > entity.created_on
+    assert entity.__version__ == 1
+    assert entity.__last_modified__ > entity.__created_on__
 
 
 The command method ``change_attribute()`` triggers an
@@ -500,7 +500,7 @@ is set to 'Mr Boots'. A subscriber receives the event.
     entity = VersionedEntity.create(entity_id)
 
     # Change an attribute.
-    entity.change_attribute(name='full_name', value='Mr Boots')
+    entity.__change_attribute__(name='full_name', value='Mr Boots')
 
     # Check the event was applied.
     assert entity.full_name == 'Mr Boots'
@@ -520,7 +520,7 @@ is set to 'Mr Boots'. A subscriber receives the event.
     assert last_event.originator_version == 1
 
     # Check the event hash is the current entity head.
-    assert last_event.event_hash == entity.__head__
+    assert last_event.__event_hash__ == entity.__head__
 
     # Clean up.
     unsubscribe(handler=receive_event, predicate=is_domain_event)
@@ -546,11 +546,11 @@ The hash of the last event applied to an entity is available as an attribute cal
 
     # Entity's head hash is determined exclusively
     # by the entire sequence of events and SHA-256.
-    assert entity.__head__ == 'a579cae7caa76e1db5d884c14f99d5ebf2276807ea3c44a07dffc9f04f167cb1'
+    assert entity.__head__ == '4b20420981ef4703c9b741c088862bbdbb3235d45428b37bf54691264fc9e616'
 
     # Entity's head hash is simply the event hash
     # of the last event that mutated the entity.
-    assert entity.__head__ == last_event.event_hash
+    assert entity.__head__ == last_event.__event_hash__
 
 
 A different sequence of events will almost certainly result a different
@@ -568,11 +568,11 @@ a ``Discarded`` event, after which the entity is unavailable for further changes
 
     from eventsourcing.exceptions import EntityIsDiscarded
 
-    entity.discard()
+    entity.__discard__()
 
     # Fail to change an attribute after entity was discarded.
     try:
-        entity.change_attribute('full_name', 'Mr Boots')
+        entity.__change_attribute__('full_name', 'Mr Boots')
     except EntityIsDiscarded:
         pass
     else:
@@ -660,7 +660,7 @@ Please note, command methods normally have no return value.
 
 For example, the ``set_password()`` method of the ``User`` entity below is given
 a raw password. It creates an encoded string from the raw password, and then uses
-the ``change_attribute()`` method to trigger an ``AttributeChanged`` event for
+the ``__change_attribute__()`` method to trigger an ``AttributeChanged`` event for
 the ``_password`` attribute with the encoded password.
 
 .. code:: python
@@ -679,7 +679,7 @@ the ``_password`` attribute with the encoded password.
             password = self._encode_password(raw_password)
 
             # Change private _password attribute.
-            self.change_attribute('_password', password)
+            self.__change_attribute__('_password', password)
 
         def check_password(self, raw_password):
             password = self._encode_password(raw_password)
@@ -689,7 +689,7 @@ the ``_password`` attribute with the encoded password.
             return ''.join(reversed(password))
 
 
-    user = User(id='1')
+    user = User(id='1', __version__=0)
 
     user.set_password('password')
     assert user.check_password('password')
@@ -724,7 +724,7 @@ the command method ``make_it_so()`` triggers the custom event ``SomethingHappene
             what_happened = something
 
             # Trigger event with the results of the work.
-            self._trigger(World.SomethingHappened, what=what_happened)
+            self.__trigger_event__(World.SomethingHappened, what=what_happened)
 
         class SomethingHappened(VersionedEntity.Event):
             """Published when something happens in the world."""
@@ -777,13 +777,11 @@ class ``World`` inherits from ``AggregateRoot``.
 
         def make_things_so(self, *somethings):
             for something in somethings:
-                self._trigger(World.SomethingHappened, what=something)
+                self.__trigger_event__(World.SomethingHappened, what=something)
 
         class SomethingHappened(AggregateRoot.Event):
-            def mutate(self, obj):
-                obj = super(World.SomethingHappened, self).mutate(obj)
+            def _mutate(self, obj):
                 obj.history.append(self)
-                return obj
 
 
 The ``AggregateRoot`` class overrides the ``publish()`` method of the base class,
@@ -814,7 +812,7 @@ pending events to the publish-subscribe mechanism as a single list.
     # Events are pending actual publishing until the save() method is called.
     assert len(world.__pending_events__) == 4
     assert len(received_events) == 0
-    world.save()
+    world.__save__()
 
     # Pending events were published as a single list of events.
     assert len(world.__pending_events__) == 0
