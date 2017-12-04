@@ -248,7 +248,7 @@ class VersionedEntity(DomainEntity):
 
     def __trigger_event__(self, event_class, **kwargs):
         """
-        Triggers domain event with entity's version number.
+        Triggers domain event with entity's next version number.
         """
         return super(VersionedEntity, self).__trigger_event__(
             event_class=event_class,
@@ -266,7 +266,7 @@ class VersionedEntity(DomainEntity):
 
         def validate_target(self, obj):
             """
-            Also checks the event's originator version matches this entity's version.
+            Also checks the event's originator version follows this entity's version.
             """
             super(VersionedEntity.Event, self).validate_target(obj)
             if obj.__version__ + 1 != self.originator_version:

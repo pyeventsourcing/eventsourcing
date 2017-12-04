@@ -5,11 +5,6 @@ from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 
 
 class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
-
-    # The mutator function used by this repository. Can either
-    # be set as a class attribute, or passed as a constructor arg.
-    # mutator = mutate_entity
-
     def __contains__(self, entity_id):
         """
         Returns a boolean value according to whether entity with given ID exists.
