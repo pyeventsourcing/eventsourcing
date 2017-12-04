@@ -36,14 +36,14 @@ class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
         # Return entity.
         return entity
 
-    def get_entity(self, entity_id, lt=None, lte=None):
+    def get_entity(self, entity_id, at=None):
         """
         Returns entity with given ID, optionally until position.
         """
 
         # Get a snapshot (None if none exist).
         if self._snapshot_strategy is not None:
-            snapshot = self._snapshot_strategy.get_snapshot(entity_id, lt=lt, lte=lte)
+            snapshot = self._snapshot_strategy.get_snapshot(entity_id, lte=at)
         else:
             snapshot = None
 
@@ -57,7 +57,7 @@ class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
             gt = snapshot.originator_version
 
         # Replay domain events.
-        return self.replay_entity(entity_id, gt=gt, lt=lt, lte=lte, initial_state=initial_state)
+        return self.replay_entity(entity_id, gt=gt, lte=at, initial_state=initial_state)
 
     def replay_entity(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, initial_state=None,
                       query_descending=False):

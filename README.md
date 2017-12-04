@@ -155,7 +155,7 @@ with SimpleApplication() as app:
         raise Exception("Shouldn't get here")
 
     # Get historical state (at version from above).
-    old = app.repository.get_entity(world.id, lte=version)
+    old = app.repository.get_entity(world.id, at=version)
     assert old.history[-1].what == 'trucks' # internet not happened
     assert len(old.history) == 2
     assert old.ruler == 'god'

@@ -381,7 +381,7 @@ class AbstractEntityRepository(AbstractEventPlayer):
         """
 
     @abstractmethod
-    def get_entity(self, entity_id):
+    def get_entity(self, entity_id, at=None):
         """
         Returns entity for given ID.
         """

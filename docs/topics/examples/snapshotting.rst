@@ -225,18 +225,18 @@ event.
         assert snapshot.state['_foo'] == 'bar4'
 
         # Get historical entities.
-        entity = app.example_repository.get_entity(entity.id, lte=0)
+        entity = app.example_repository.get_entity(entity.id, at=0)
         assert entity.__version__ == 0
         assert entity.foo == 'bar1', entity.foo
 
-        entity = app.example_repository.get_entity(entity.id, lte=1)
+        entity = app.example_repository.get_entity(entity.id, at=1)
         assert entity.__version__ == 1
         assert entity.foo == 'bar2', entity.foo
 
-        entity = app.example_repository.get_entity(entity.id, lte=2)
+        entity = app.example_repository.get_entity(entity.id, at=2)
         assert entity.__version__ == 2
         assert entity.foo == 'bar3', entity.foo
 
-        entity = app.example_repository.get_entity(entity.id, lte=3)
+        entity = app.example_repository.get_entity(entity.id, at=3)
         assert entity.__version__ == 3
         assert entity.foo == 'bar4', entity.foo

@@ -97,11 +97,11 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(100, entity1.a)
 
             # Check the old value is available in the repo.
-            entity1_v1 = app.example_repository.get_entity(entity1.id, lte=0)
+            entity1_v1 = app.example_repository.get_entity(entity1.id, at=0)
             self.assertEqual(entity1_v1.a, 10)
-            entity1_v2 = app.example_repository.get_entity(entity1.id, lte=1)
+            entity1_v2 = app.example_repository.get_entity(entity1.id, at=1)
             self.assertEqual(entity1_v2.a, 50)
-            entity1_v3 = app.example_repository.get_entity(entity1.id, lte=2)
+            entity1_v3 = app.example_repository.get_entity(entity1.id, at=2)
             self.assertEqual(entity1_v3.a, 100)
 
             # Take another snapshot of the entity.
@@ -122,10 +122,10 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(100, app.example_repository[example1.id].a)
 
             # Check only some of the old values are available in the repo.
-            entity1_v1 = app.example_repository.get_entity(entity1.id, lte=0)
+            entity1_v1 = app.example_repository.get_entity(entity1.id, at=0)
             self.assertEqual(entity1_v1, None)
-            entity1_v3 = app.example_repository.get_entity(entity1.id, lte=1)
+            entity1_v3 = app.example_repository.get_entity(entity1.id, at=1)
             self.assertEqual(entity1_v3.a, 50)
-            entity1_v3 = app.example_repository.get_entity(entity1.id, lte=2)
+            entity1_v3 = app.example_repository.get_entity(entity1.id, at=2)
             self.assertEqual(entity1_v3.a, 100)
 

@@ -359,18 +359,18 @@ Run the code
         assert snapshot.state['_foo'] == 'bar4'
 
         # Get historical entities.
-        aggregate = app.example_repository.get_entity(aggregate.id, lte=0)
+        aggregate = app.example_repository.get_entity(aggregate.id, at=0)
         assert aggregate.__version__ == 0
         assert aggregate.foo == 'bar1', aggregate.foo
 
-        aggregate = app.example_repository.get_entity(aggregate.id, lte=1)
+        aggregate = app.example_repository.get_entity(aggregate.id, at=1)
         assert aggregate.__version__ == 1
         assert aggregate.foo == 'bar2', aggregate.foo
 
-        aggregate = app.example_repository.get_entity(aggregate.id, lte=2)
+        aggregate = app.example_repository.get_entity(aggregate.id, at=2)
         assert aggregate.__version__ == 2
         assert aggregate.foo == 'bar3', aggregate.foo
 
-        aggregate = app.example_repository.get_entity(aggregate.id, lte=3)
+        aggregate = app.example_repository.get_entity(aggregate.id, at=3)
         assert aggregate.__version__ == 3
         assert aggregate.foo == 'bar4', aggregate.foo
