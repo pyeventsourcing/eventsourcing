@@ -154,6 +154,8 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 class IntegerSequencedItemRecord(ActiveRecord):
     __tablename__ = 'integer_sequenced_items'
 
+    id = Column(BigInteger(), index=True, autoincrement=True)
+
     # Sequence ID (e.g. an entity or aggregate ID).
     sequence_id = Column(UUIDType(), primary_key=True)
 
@@ -166,6 +168,9 @@ class IntegerSequencedItemRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
+    # Hash of the other fields.
+    hash = Column(Text())
+
     __table_args__ = (
         Index('integer_sequenced_items_index', 'sequence_id', 'position'),
     )
@@ -173,6 +178,8 @@ class IntegerSequencedItemRecord(ActiveRecord):
 
 class TimestampSequencedItemRecord(ActiveRecord):
     __tablename__ = 'timestamp_sequenced_items'
+
+    id = Column(BigInteger(), index=True, autoincrement=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
     sequence_id = Column(UUIDType(), primary_key=True)
@@ -185,6 +192,9 @@ class TimestampSequencedItemRecord(ActiveRecord):
 
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
+
+    # Hash of the other fields.
+    hash = Column(Text())
 
     __table_args__ = (
         Index('timestamp_sequenced_items_index', 'sequence_id', 'position'),
@@ -206,6 +216,9 @@ class SnapshotRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
+    # Hash of the other fields.
+    hash = Column(Text())
+
     __table_args__ = (
         Index('snapshots_index', 'sequence_id', 'position'),
     )
@@ -213,6 +226,8 @@ class SnapshotRecord(ActiveRecord):
 
 class StoredEventRecord(ActiveRecord):
     __tablename__ = 'stored_events'
+
+    id = Column(BigInteger(), index=True, autoincrement=True)
 
     # Originator ID (e.g. an entity or aggregate ID).
     originator_id = Column(UUIDType(), primary_key=True)
@@ -226,4 +241,7 @@ class StoredEventRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
 
-    __table_args__ = Index('index', 'originator_id', 'originator_version'),
+    # Hash of the other fields.
+    hash = Column(Text())
+
+    __table_args__ = Index('stored_events_index', 'originator_id', 'originator_version'),

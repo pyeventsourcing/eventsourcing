@@ -379,6 +379,9 @@ with each item positioned in its sequence by an integer index number.
         # State of the item (serialized dict, possibly encrypted).
         data = Column(Text())
 
+        # Hash of the other fields.
+        hash = Column(Text())
+
         __table_args__ = Index('index', 'sequence_id', 'position'),
 
 

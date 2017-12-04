@@ -65,12 +65,14 @@ The ``data`` holds the values of the item, perhaps serialized to JSON, and optio
         sequence_id=sequence1,
         position=0,
         topic='eventsourcing.domain.model.events#DomainEvent',
-        data='{"foo":"bar"}'
+        data='{"foo":"bar"}',
+        hash='',
     )
     assert sequenced_item1.sequence_id == sequence1
     assert sequenced_item1.position == 0
     assert sequenced_item1.topic == 'eventsourcing.domain.model.events#DomainEvent'
     assert sequenced_item1.data == '{"foo":"bar"}'
+
 
 
 StoredEvent namedtuple
@@ -99,7 +101,8 @@ The ``state`` holds the state of the domain event, and is equivalent to ``data``
         originator_id=aggregate1,
         originator_version=0,
         event_type='eventsourcing.domain.model.events#DomainEvent',
-        state='{"foo":"bar"}'
+        state='{"foo":"bar"}',
+        hash='',
     )
     assert stored_event1.originator_id == aggregate1
     assert stored_event1.originator_version == 0
@@ -467,7 +470,8 @@ The code below extends the JSON transcoding to support sets.
             sequence_id=sequence1,
             position=0,
             topic='eventsourcing.domain.model.events#DomainEvent',
-            data='{"foo":{"__set__":["bar","baz"]}}'
+            data='{"foo":{"__set__":["bar","baz"]}}',
+            hash='',
         )
     )
     assert domain_event.foo == set(["bar", "baz"])

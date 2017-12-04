@@ -56,6 +56,7 @@ class TestSequencedItemMapper(TestCase):
             position=sequenced_item.position,
             topic=sequenced_item.topic,
             data=sequenced_item.data,
+            hash=sequenced_item.hash,
         )
 
         # Check from_sequenced_item() returns an event.
@@ -92,6 +93,7 @@ class TestSequencedItemMapper(TestCase):
             position=sequenced_item.position,
             topic=sequenced_item.topic,
             data=sequenced_item.data,
+            hash=sequenced_item.hash,
         )
 
         # Check from_sequenced_item() returns an event.
@@ -128,6 +130,7 @@ class TestSequencedItemMapper(TestCase):
             position=sequenced_item.position,
             topic=sequenced_item.topic,
             data=sequenced_item.data,
+            hash=sequenced_item.hash,
         )
 
         # Check from_sequenced_item() returns an event.
@@ -154,9 +157,10 @@ class TestSequencedItemMapper(TestCase):
         )
 
         # Check the sequenced item has data with expected hash prefix.
-        prefix = '12e5000093b9d1d0972d16765019b05b9ea437dfe5cb337ff03c466072695d04:'
+        hash = '932e3707880ce65d2146f8b9b2422265a15d17f1703f73e81ef3bffb119afe17'
         sequenced_item = mapper.to_sequenced_item(orig_event)
-        self.assertEqual(sequenced_item.data, prefix + '{"a":555}')
+        self.assertEqual(sequenced_item.data, '{"a":555}')
+        self.assertEqual(sequenced_item.hash, hash)
 
         # Check the sequenced item with a hash prefix maps to a domain event.
         mapped_event = mapper.from_sequenced_item(sequenced_item)
@@ -167,7 +171,8 @@ class TestSequencedItemMapper(TestCase):
             sequence_id=sequenced_item.sequence_id,
             position=sequenced_item.position,
             topic=sequenced_item.topic,
-            data=prefix + '{"a":554}',
+            data='{"a":554}',
+            hash='',
         )
 
         with self.assertRaises(DataIntegrityError):
@@ -177,8 +182,9 @@ class TestSequencedItemMapper(TestCase):
         damaged_item = SequencedItem(
             sequence_id=sequenced_item.sequence_id,
             position=sequenced_item.position,
-            topic=sequenced_item.topic,
-            data=prefix[:-1] + '{}',
+            topic='mypackage.' + sequenced_item.topic,
+            data=sequenced_item.data,
+            hash=sequenced_item.hash,
         )
 
         with self.assertRaises(DataIntegrityError):

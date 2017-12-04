@@ -269,7 +269,7 @@ with attributes ``__created_on__`` and ``__last_modified__``.
 
     from eventsourcing.domain.model.entity import TimestampedEntity
 
-    entity = TimestampedEntity(id=entity_id, timestamp=123)
+    entity = TimestampedEntity(id=entity_id, __created_on__=123)
 
     assert entity.id == entity_id
     assert entity.__created_on__ == 123
@@ -283,7 +283,7 @@ attributes.
 
     from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 
-    entity = TimestampedVersionedEntity(id=entity_id, __version__=1, timestamp=123)
+    entity = TimestampedVersionedEntity(id=entity_id, __version__=1, __created_on__=123)
 
     assert entity.id == entity_id
     assert entity.__created_on__ == 123
@@ -546,7 +546,7 @@ The hash of the last event applied to an entity is available as an attribute cal
 
     # Entity's head hash is determined exclusively
     # by the entire sequence of events and SHA-256.
-    assert entity.__head__ == '4b20420981ef4703c9b741c088862bbdbb3235d45428b37bf54691264fc9e616'
+    assert entity.__head__ == '7186f91a1dbc9eb13bc4179e60a9062303dab8c00175ba290a10d9a231e0cc2f'
 
     # Entity's head hash is simply the event hash
     # of the last event that mutated the entity.

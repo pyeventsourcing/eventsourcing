@@ -173,7 +173,7 @@ with SimpleApplication() as app:
     events = app.event_store.get_domain_events(world.id)
     last_hash = ''
     for event in events:
-        event.validate_state()
+        event.__check_event_hash__()
         assert event.__previous_hash__ == last_hash
         last_hash = event.__event_hash__
 

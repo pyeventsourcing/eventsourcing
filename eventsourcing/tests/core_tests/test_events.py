@@ -428,7 +428,7 @@ class TestEvents(unittest.TestCase):
         self.maxDiff = None
         self.assertEqual(
             ("Example.Created(__event_hash__='{}', "
-             "__previous_hash__='', __topic__='eventsourcing.example.domainmodel#Example.Created', a=1, b=2, "
+             "a=1, b=2, "
              "originator_id={}, "
              "originator_topic='eventsourcing.example.domainmodel#Example', originator_version=0, timestamp=3)"
             ).format(event1.__event_hash__, repr(entity_id1)),
