@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+import datetime
+
 from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.entity import AttributeChanged, VersionedEntity
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
@@ -18,7 +20,7 @@ from eventsourcing.utils.topic import get_topic
 class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
-        example1 = Example.create(a=1, b=2)
+        example1 = Example.__create__(a=1, b=2)
 
         self.assertIsInstance(example1, Example)
 
@@ -40,6 +42,12 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertTrue(example1.__created_on__)
         self.assertTrue(example1.__last_modified__)
         self.assertEqual(example1.__created_on__, example1.__last_modified__)
+
+        # Check can get datetime from timestamps, and it corresponds to UTC.
+        dt = datetime.datetime.fromtimestamp(example1.__created_on__)
+        self.assertLess(dt, datetime.datetime.utcnow())
+        self.assertGreater(dt, datetime.datetime.utcnow() - datetime.timedelta(1))
+
 
         # Check a different type with the same values is not "equal" to the first.
         class Subclass(Example): pass
@@ -107,22 +115,21 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
             VersionedEntity.Event(
                 originator_id=uuid4(),
                 originator_version=0,
-                __previous_hash__='',
-            ).validate_target(entity2)
+            ).__check_obj__(entity2)
         # Should fail to validate event with wrong entity version.
         with self.assertRaises(OriginatorVersionError):
             VersionedEntity.Event(
                 originator_id=entity2.id,
                 originator_version=0,
                 __previous_hash__=entity2.__head__,
-            ).validate_target(entity2)
+            ).__check_obj__(entity2)
 
         # Should validate event with correct entity ID and version.
         VersionedEntity.Event(
             originator_id=entity2.id,
             originator_version=entity2.__version__ + 1,
             __previous_hash__=entity2.__head__,
-        ).validate_target(entity2)
+        ).__check_obj__(entity2)
 
         # Check an entity cannot be reregistered with the ID of a discarded entity.
         replacement_event = Example.Created(
@@ -207,9 +214,9 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertEqual(published_event.originator_id, entity_id)
 
     def test_event_is_hashable(self):
-        event1 = Example.Event(originator_id=1, originator_version=0, __previous_hash__='', timestamp=1)
-        event2 = Example.Event(originator_id=1, originator_version=0, __previous_hash__='', timestamp=1)
-        event3 = Example.Event(originator_id=1, originator_version=0, __previous_hash__='', timestamp=2)
+        event1 = Example.Event(originator_id=1, originator_version=0, timestamp=1)
+        event2 = Example.Event(originator_id=1, originator_version=0, timestamp=1)
+        event3 = Example.Event(originator_id=1, originator_version=0, timestamp=2)
 
         # Same type with same values.
         self.assertEqual(event1, event2)
@@ -223,10 +230,43 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         class Subclass(Example.Event):
             pass
 
-        event4 = Subclass(originator_id=1, originator_version=0, __previous_hash__='', timestamp=1)
+        event4 = Subclass(originator_id=1, originator_version=0, timestamp=1)
 
         self.assertNotEqual(event1, event4)
         self.assertNotEqual(hash(event1), hash(event4))  # Same thing
+
+    def test_without_dataintegrity(self):
+
+        # Different type with same values.
+        class SubclassEvent(Example.Event):
+            __with_data_integrity__ = False
+
+        event = SubclassEvent(originator_id=1, originator_version=0, timestamp=1)
+        self.assertFalse(hasattr(event, '__previous_hash__'))
+        self.assertIsNone(event.__event_hash__)
+
+        # Check the Python hash still works.
+        self.assertIsInstance(hash(event), int)
+
+        class SubclassCreated(Example.Created):
+            __with_data_integrity__ = False
+
+        event = SubclassCreated(originator_id=1, originator_topic='', timestamp=1)
+        self.assertFalse(hasattr(event, '__previous_hash__'))
+        self.assertIsNone(event.__event_hash__)
+
+        entity = SubclassEntity.__create__()
+        self.assertFalse(hasattr(entity, '__head__'))
+
+
+class SubclassEntity(Example):
+    __with_data_integrity__ = False
+
+    class Event(Example.Event):
+        __with_data_integrity__ = False
+
+    class Created(Event, Example.Created):
+        pass
 
 
 class CustomValueObject(object):

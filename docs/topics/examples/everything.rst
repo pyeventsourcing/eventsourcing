@@ -43,10 +43,8 @@ Aggregate model
         class ExampleCreated(Event):
             """Published when an "example" object in the aggregate is created."""
             def mutate(self, obj):
-                obj = super(ExampleAggregateRoot.ExampleCreated, self).mutate(obj)
                 entity = Example(example_id=self.example_id)
                 obj._examples[str(entity.id)] = entity
-                return obj
 
         def __init__(self, foo, **kwargs):
             super(ExampleAggregateRoot, self).__init__(**kwargs)
@@ -102,7 +100,7 @@ Aggregate factory
         """
         Factory function for example aggregate.
         """
-        return ExampleAggregateRoot.create(foo=foo)
+        return ExampleAggregateRoot.__create__(foo=foo)
 
 
 

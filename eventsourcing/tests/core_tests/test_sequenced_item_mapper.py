@@ -30,6 +30,9 @@ class ValueObject1(object):
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
+    def __ne__(self, other):
+        return self.__dict__ != other.__dict__
+
 
 class TestSequencedItemMapper(TestCase):
     def test_with_versioned_entity_event(self):
@@ -56,6 +59,7 @@ class TestSequencedItemMapper(TestCase):
             position=sequenced_item.position,
             topic=sequenced_item.topic,
             data=sequenced_item.data,
+            hash=sequenced_item.hash,
         )
 
         # Check from_sequenced_item() returns an event.
@@ -92,6 +96,7 @@ class TestSequencedItemMapper(TestCase):
             position=sequenced_item.position,
             topic=sequenced_item.topic,
             data=sequenced_item.data,
+            hash=sequenced_item.hash,
         )
 
         # Check from_sequenced_item() returns an event.
@@ -107,6 +112,10 @@ class TestSequencedItemMapper(TestCase):
             sequence_id_attr_name='originator_id',
             position_attr_name='a'
         )
+
+        # Check value objects can be compared ok.
+        self.assertEqual(ValueObject1('value1'), ValueObject1('value1'))
+        self.assertNotEqual(ValueObject1('value1'), ValueObject1('value2'))
 
         # Create an event with dates and datetimes.
         event3 = Event3(
@@ -128,6 +137,7 @@ class TestSequencedItemMapper(TestCase):
             position=sequenced_item.position,
             topic=sequenced_item.topic,
             data=sequenced_item.data,
+            hash=sequenced_item.hash,
         )
 
         # Check from_sequenced_item() returns an event.
@@ -153,10 +163,11 @@ class TestSequencedItemMapper(TestCase):
             a=555,
         )
 
-        # Check the sequenced item has data with expected hash prefix.
-        prefix = '12e5000093b9d1d0972d16765019b05b9ea437dfe5cb337ff03c466072695d04:'
+        # Check the sequenced item has expected hash.
+        hash = '932e3707880ce65d2146f8b9b2422265a15d17f1703f73e81ef3bffb119afe17'
         sequenced_item = mapper.to_sequenced_item(orig_event)
-        self.assertEqual(sequenced_item.data, prefix + '{"a":555}')
+        self.assertEqual('{"a":555}', sequenced_item.data)
+        self.assertEqual(hash, sequenced_item.hash)
 
         # Check the sequenced item with a hash prefix maps to a domain event.
         mapped_event = mapper.from_sequenced_item(sequenced_item)
@@ -167,7 +178,8 @@ class TestSequencedItemMapper(TestCase):
             sequence_id=sequenced_item.sequence_id,
             position=sequenced_item.position,
             topic=sequenced_item.topic,
-            data=prefix + '{"a":554}',
+            data='{"a":554}',
+            hash='',
         )
 
         with self.assertRaises(DataIntegrityError):
@@ -177,8 +189,9 @@ class TestSequencedItemMapper(TestCase):
         damaged_item = SequencedItem(
             sequence_id=sequenced_item.sequence_id,
             position=sequenced_item.position,
-            topic=sequenced_item.topic,
-            data=prefix[:-1] + '{}',
+            topic='mypackage.' + sequenced_item.topic,
+            data=sequenced_item.data,
+            hash=sequenced_item.hash,
         )
 
         with self.assertRaises(DataIntegrityError):

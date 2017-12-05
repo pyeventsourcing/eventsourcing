@@ -28,7 +28,7 @@ class ExampleEntity(TimeuuidedEntity):
         super(ExampleEntity, self).__init__(**kwargs)
         self._is_finished = False
 
-    class Started(EventWithTimeuuid, TimeuuidedEntity.Created):
+    class Started(TimeuuidedEntity.Created, EventWithTimeuuid):
         pass
 
     class Finished(EventWithTimeuuid, TimeuuidedEntity.Discarded):
@@ -39,13 +39,7 @@ class ExampleEntity(TimeuuidedEntity):
 
     @classmethod
     def start(cls):
-        event = ExampleEntity.Started(
-            originator_id=uuid4(),
-            originator_topic=get_topic(ExampleEntity)
-        )
-        entity = event.mutate()
-        publish(event)
-        return entity
+        return cls.__create__(event_class=ExampleEntity.Started)
 
 
 # Define a suitable active record class.

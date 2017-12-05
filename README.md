@@ -75,8 +75,12 @@ class World(AggregateRoot):
         self.__trigger_event__(World.SomethingHappened, what=something)
 
     class SomethingHappened(AggregateRoot.Event):
-        def _mutate(self, obj):
+        def mutate(self, obj):
             obj._history.append(self)
+            
+    # Wrap library methods.
+    def send_news(self):
+        self.__save__()  # save the world means something else
 ```
 
 Generate cipher key.
@@ -108,16 +112,17 @@ from eventsourcing.exceptions import ConcurrencyError
 # Construct simple application (used here as a context manager).
 with SimpleApplication() as app:
 
-    # Call aggregate factory.
-    world = World.create(ruler='god')
+    # Call library factory method.
+    world = World.__create__(ruler='god')
 
-    # Execute commands (events published pending save).
+    # Execute commands.
     world.make_it_so('dinosaurs')
     world.make_it_so('trucks')
+    
     version = world.__version__ # note version at this stage
     world.make_it_so('internet')
 
-    # Assign to mutable attribute.
+    # Assign to event-sourced attribute.
     world.ruler = 'money'
 
     # View current state of aggregate.
@@ -127,7 +132,7 @@ with SimpleApplication() as app:
     assert world.history[0].what == 'dinosaurs'
 
     # Publish pending events (to persistence subscriber).
-    world.__save__()
+    world.send_news()
 
     # Retrieve aggregate (replay stored events).
     copy = app.repository[world.id]
@@ -163,7 +168,7 @@ with SimpleApplication() as app:
     # Optimistic concurrency control (no branches).
     old.make_it_so('future')
     try:
-        old.__save__()
+        old.send_news()
     except ConcurrencyError:
         pass
     else:
@@ -173,7 +178,7 @@ with SimpleApplication() as app:
     events = app.event_store.get_domain_events(world.id)
     last_hash = ''
     for event in events:
-        event.validate_state()
+        event.__check_hash__()
         assert event.__previous_hash__ == last_hash
         last_hash = event.__event_hash__
 

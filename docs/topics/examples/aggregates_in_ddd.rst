@@ -67,7 +67,7 @@ can operate on all the "example" objects of the aggregate.
 
         class ExampleCreated(TimestampedVersionedEntity.Event):
             """Published when an "example" object in the aggregate is created."""
-            def _mutate(self, obj):
+            def mutate(self, obj):
                 entity = Example(example_id=self.example_id)
                 obj._examples[str(entity.id)] = entity
 
@@ -116,7 +116,7 @@ events in a single list to the publish-subscribe mechanism.
         Factory function for example aggregate.
         """
         # Construct event.
-        return ExampleAggregateRoot.create()
+        return ExampleAggregateRoot.__create__()
 
 
 

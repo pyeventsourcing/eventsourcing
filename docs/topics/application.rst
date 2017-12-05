@@ -89,7 +89,7 @@ The example below uses the ``AggregateRoot`` class directly.
     from eventsourcing.domain.model.aggregate import AggregateRoot
 
     with app:
-        obj = AggregateRoot.create()
+        obj = AggregateRoot.__create__()
         obj.__change_attribute__(name='a', value=1)
         assert obj.a == 1
         obj.__save__()
@@ -126,7 +126,7 @@ that can create new ``CustomAggregate`` entities.
 
     class MyApplication(SimpleApplication):
         def create_aggregate(self, a):
-            return CustomAggregate.create(a=1)
+            return CustomAggregate.__create__(a=1)
 
 
 The application code above depends on an entity class called

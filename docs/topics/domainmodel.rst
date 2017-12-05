@@ -269,7 +269,7 @@ with attributes ``__created_on__`` and ``__last_modified__``.
 
     from eventsourcing.domain.model.entity import TimestampedEntity
 
-    entity = TimestampedEntity(id=entity_id, timestamp=123)
+    entity = TimestampedEntity(id=entity_id, __created_on__=123)
 
     assert entity.id == entity_id
     assert entity.__created_on__ == 123
@@ -283,7 +283,7 @@ attributes.
 
     from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 
-    entity = TimestampedVersionedEntity(id=entity_id, __version__=1, timestamp=123)
+    entity = TimestampedVersionedEntity(id=entity_id, __version__=1, __created_on__=123)
 
     assert entity.id == entity_id
     assert entity.__created_on__ == 123
@@ -384,7 +384,7 @@ For example, the ``DomainEntity.Created`` event mutates to an
 entity instance. The class that is instantiated is determined by the
 ``originator_topic`` attribute of the ``DomainEntity.Created`` event.
 
-A domain event's ``mutate()`` method normally requires an ``obj`` argument, but
+A domain event's ``__mutate__()`` method normally requires an ``obj`` argument, but
 that is not required for ``DomainEntity.Created`` events. The default
 is ``None``, but if a value is provided it must be callable that
 returns an object, such as a domain entity class. If a domain
@@ -392,7 +392,7 @@ entity class is provided, the ``originator_topic`` will be ignored.
 
 .. code:: python
 
-    entity = created.mutate()
+    entity = created.__mutate__()
 
     assert entity.id == entity_id
 
@@ -405,11 +405,11 @@ As another example, when a versioned entity is mutated by an event of the
 
     assert entity.__version__ == 0
 
-    entity = attribute_a_changed.mutate(entity)
+    entity = attribute_a_changed.__mutate__(entity)
     assert entity.__version__ == 1
     assert entity.a == 1
 
-    entity = attribute_b_changed.mutate(entity)
+    entity = attribute_b_changed.__mutate__(entity)
     assert entity.__version__ == 2
     assert entity.b == 2
 
@@ -426,31 +426,31 @@ The ``DomainEntity`` has a class method ``create()`` which can return
 new entity objects. When called, it constructs the ``Created`` event of the
 concrete class with suitable arguments such as a unique ID, and a topic representing
 the concrete entity class, and then it projects that event into an entity
-object using the event's ``mutate()`` method. Then it publishes the
+object using the event's ``__mutate__()`` method. Then it publishes the
 event, and then it returns the new entity to the caller. This technique
 works correctly for subclasses of both the entity and the event class.
 
 .. code:: python
 
-    entity = DomainEntity.create()
+    entity = DomainEntity.__create__()
     assert entity.id
     assert entity.__class__ is DomainEntity
 
 
-    entity = VersionedEntity.create()
+    entity = VersionedEntity.__create__()
     assert entity.id
     assert entity.__version__ == 0
     assert entity.__class__ is VersionedEntity
 
 
-    entity = TimestampedEntity.create()
+    entity = TimestampedEntity.__create__()
     assert entity.id
     assert entity.__created_on__
     assert entity.__last_modified__
     assert entity.__class__ is TimestampedEntity
 
 
-    entity = TimestampedVersionedEntity.create()
+    entity = TimestampedVersionedEntity.__create__()
     assert entity.id
     assert entity.__created_on__
     assert entity.__last_modified__
@@ -466,7 +466,7 @@ on command arguments. The events need to be constructed with suitable arguments.
 
 To help trigger events in an extensible manner, the ``DomainEntity`` class has a private
 method ``_trigger()``, extended by subclasses, which can be used in command methods to
-construct, apply, and publish events with suitable arguments. The events' ``mutate()``
+construct, apply, and publish events with suitable arguments. The events' ``__mutate__()``
 methods update the entity appropriately.
 
 For example, triggering an ``AttributeChanged`` event on a timestamped, versioned
@@ -475,7 +475,7 @@ cause the version number to increase, and it will update the last modified time.
 
 .. code:: python
 
-    entity = TimestampedVersionedEntity.create()
+    entity = TimestampedVersionedEntity.__create__()
     assert entity.__version__ == 0
     assert entity.__created_on__ == entity.__last_modified__
 
@@ -497,7 +497,7 @@ is set to 'Mr Boots'. A subscriber receives the event.
     subscribe(handler=receive_event, predicate=is_domain_event)
     assert len(received_events) == 0
 
-    entity = VersionedEntity.create(entity_id)
+    entity = VersionedEntity.__create__(entity_id)
 
     # Change an attribute.
     entity.__change_attribute__(name='full_name', value='Mr Boots')
@@ -546,7 +546,7 @@ The hash of the last event applied to an entity is available as an attribute cal
 
     # Entity's head hash is determined exclusively
     # by the entire sequence of events and SHA-256.
-    assert entity.__head__ == '4b20420981ef4703c9b741c088862bbdbb3235d45428b37bf54691264fc9e616'
+    assert entity.__head__ == '8bb9576ab80b26b2561f653ee61fc4a42b367605d40ee998c97808431e656262'
 
     # Entity's head hash is simply the event hash
     # of the last event that mutated the entity.
@@ -628,7 +628,7 @@ the entity to be updated. An ``AttributeChanged`` event is published. Both the `
     subscribe(handler=receive_event, predicate=is_domain_event)
 
     # Publish a Created event.
-    user = User.create(full_name='Mrs Boots')
+    user = User.__create__(full_name='Mrs Boots')
 
     # Publish an AttributeChanged event.
     user.full_name = 'Mr Boots'
@@ -701,10 +701,12 @@ Custom events
 Custom events can be defined as inner or nested classes of the custom entity class.
 In the code below, the entity class ``World`` has a custom event called ``SomethingHappened``.
 
-Custom event classes normally extend the ``mutate()`` method, so it can affect
-entities in a way that is specific to that type of event.
-For example, the ``SomethingHappened`` event class extends the base ``mutate()``
-method, by appending the event to the entity's ``history`` attribute.
+Custom event classes can extend the ``__mutate__()`` method, so it affects
+entities in a way that is specific to that type of event. More conveniently, event
+classes can implement a ``mutate()`` method, which avoids the need to call the
+super method and return the obj. For example, the ``SomethingHappened`` event class
+has a ``_mutate()`` which simple appends the event object to the entity's ``history``
+attribute.
 
 Custom events are normally triggered by custom commands. In the example below,
 the command method ``make_it_so()`` triggers the custom event ``SomethingHappened``.
@@ -729,9 +731,7 @@ the command method ``make_it_so()`` triggers the custom event ``SomethingHappene
         class SomethingHappened(VersionedEntity.Event):
             """Published when something happens in the world."""
             def mutate(self, obj):
-                obj = super(World.SomethingHappened, self).mutate(obj)
                 obj.history.append(self)
-                return obj
 
 
 A new world can now be created, using the ``create()`` method. The command ``make_it_so()`` can
@@ -740,7 +740,7 @@ is augmented with the new event.
 
 .. code:: python
 
-    world = World.create()
+    world = World.__create__()
 
     world.make_it_so('dinosaurs')
     world.make_it_so('trucks')
@@ -780,11 +780,11 @@ class ``World`` inherits from ``AggregateRoot``.
                 self.__trigger_event__(World.SomethingHappened, what=something)
 
         class SomethingHappened(AggregateRoot.Event):
-            def _mutate(self, obj):
+            def mutate(self, obj):
                 obj.history.append(self)
 
 
-The ``AggregateRoot`` class overrides the ``publish()`` method of the base class,
+The ``AggregateRoot`` class overrides the ``__publish__()`` method of the base class,
 so that triggered events are published only to a private list of pending events.
 
 .. code:: python
@@ -793,7 +793,7 @@ so that triggered events are published only to a private list of pending events.
     subscribe(handler=receive_event)
 
     # Create new world.
-    world = World.create()
+    world = World.__create__()
     assert isinstance(world, World)
 
     # Command that publishes many events.
@@ -804,7 +804,7 @@ so that triggered events are published only to a private list of pending events.
     assert world.history[2].what == 'internet'
 
 
-The ``AggregateRoot`` class defines a ``save()`` method, which publishes the
+The ``AggregateRoot`` class defines a ``__save__()`` method, which publishes the
 pending events to the publish-subscribe mechanism as a single list.
 
 .. code:: python

@@ -51,7 +51,6 @@ class Array(object):
             originator_id=self.id,
             index=index,
             item=item,
-            __previous_hash__=''  # NB Arrays aren't currently hash-chained.
         )
         publish(event)
 
@@ -138,6 +137,8 @@ class Array(object):
     def __eq__(self, other):
         return isinstance(other, type(self)) and self.id == other.id
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 class BigArray(Array):
     """

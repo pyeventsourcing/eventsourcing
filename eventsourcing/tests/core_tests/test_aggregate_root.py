@@ -22,7 +22,7 @@ class TestAggregateRootEvent(TestCase):
             originator_id='1',
             originator_topic=get_topic(AggregateRoot)
         )
-        event1.validate_state()
+        event1.__check_hash__()
 
         # Chain another event.
         event2 = AggregateRoot.AttributeChanged(
@@ -30,7 +30,7 @@ class TestAggregateRootEvent(TestCase):
             originator_id='1',
             __previous_hash__=event1.__event_hash__
         )
-        event2.validate_state()
+        event2.__check_hash__()
 
         # Chain another event.
         event3 = AggregateRoot.AttributeChanged(
@@ -38,20 +38,20 @@ class TestAggregateRootEvent(TestCase):
             originator_id='1',
             __previous_hash__=event2.__event_hash__
         )
-        event3.validate_state()
+        event3.__check_hash__()
 
-    def test_seal_hash_mismatch(self):
+    def test_event_hash_error(self):
         event1 = AggregateRoot.Created(
             originator_version=0,
             originator_id='1',
             originator_topic=get_topic(AggregateRoot)
         )
-        event1.validate_state()
+        event1.__check_hash__()
 
-        # Break the seal hash.
-        event1.__dict__['event_hash'] = ''
+        # Break the hash.
+        event1.__dict__['event_hash'] = 'damage'
         with self.assertRaises(EventHashError):
-            event1.validate_state()
+            event1.__check_hash__()
 
 
 class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
@@ -184,15 +184,15 @@ class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
 
     def test_validate_previous_hash_error(self):
         # Check event has valid originator head.
-        aggregate = Aggregate1(id='1', foo='bar', timestamp=0)
+        aggregate = Aggregate1(id='1', foo='bar', __created_on__=0, __version__=0)
         event = Aggregate1.AttributeChanged(name='foo', value='bar', originator_id='1',
                                             originator_version=1, __previous_hash__=aggregate.__head__)
-        event._validate_previous_hash(aggregate)
+        event.__check_obj__(aggregate)
 
         # Check OriginatorHeadError is raised if the originator head is wrong.
         event.__dict__['__previous_hash__'] += 'damage'
         with self.assertRaises(HeadHashError):
-            event._validate_previous_hash(aggregate)
+            event.__check_obj__(aggregate)
 
 
 class ExampleAggregateRoot(AggregateRoot):
@@ -218,8 +218,8 @@ class ExampleAggregateRoot(AggregateRoot):
         def entity_id(self):
             return self.__dict__['entity_id']
 
-        def mutate(self, aggregate):
-            super(ExampleAggregateRoot.ExampleCreated, self).mutate(aggregate)
+        def __mutate__(self, aggregate):
+            super(ExampleAggregateRoot.ExampleCreated, self).__mutate__(aggregate)
             entity = Example(entity_id=self.entity_id)
             aggregate._entities[entity.id] = entity
             return aggregate
@@ -307,7 +307,7 @@ class ExampleDDDApplication(object):
 
         :rtype: Aggregate1
         """
-        return Aggregate1.create()
+        return Aggregate1.__create__()
 
 
     def create_aggregate2(self):
@@ -316,7 +316,7 @@ class ExampleDDDApplication(object):
 
         :rtype: Aggregate2
         """
-        return Aggregate2.create()
+        return Aggregate2.__create__()
 
     def close(self):
         self.persistence_policy.close()

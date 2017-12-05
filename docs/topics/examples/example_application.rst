@@ -379,6 +379,9 @@ with each item positioned in its sequence by an integer index number.
         # State of the item (serialized dict, possibly encrypted).
         data = Column(Text())
 
+        # Hash of the other fields.
+        hash = Column(Text())
+
         __table_args__ = Index('index', 'sequence_id', 'position'),
 
 
@@ -401,11 +404,10 @@ and ``setup_tables()``.
     datastore = SQLAlchemyDatastore(
         base=ActiveRecord,
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-        tables=(SequencedItemRecord,),
     )
 
     datastore.setup_connection()
-    datastore.setup_tables()
+    datastore.setup_table(SequencedItemRecord)
 
 
 As you can see from the ``uri`` argument above, this example is using SQLite to manage
@@ -487,13 +489,8 @@ It is common to retrieve entities from a repository. An event sourced repository
 for the ``example`` entity class can be constructed directly using library class
 :class:`~eventsourcing.infrastructure.eventsourcedrepository.EventSourcedRepository`.
 
-In this example, the repository is given an event store object. Because the library
-base classes have been used directly, and the base classes do not have effective
-implementations for the ``mutate()`` method, the repository must also be given a
-custom mutator function ``mutate()``. This overrides the default behaviour of the
-``EventSourcedRepository`` class, which is to call the ``mutate()`` function of
-each event in turn. This isn't necessary when using the library entity classes,
-which have events that actually implement effective ``mutate()`` methods.
+In this example, the repository is given an event store object. The repository is
+also given the mutator function ``mutate()`` defined above.
 
 .. code:: python
 

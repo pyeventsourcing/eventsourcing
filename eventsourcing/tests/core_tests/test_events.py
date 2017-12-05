@@ -17,15 +17,23 @@ except ImportError:
     import mock
 
 
+class Event(DomainEvent):
+    pass
+
+
+# Check not equal to different type with same values.
+class SubclassEvent(Event):
+    pass
+
+
 class TestAbstractDomainEvent(unittest.TestCase):
+
     def test(self):
         # Check base class can be sub-classed.
-        class Event(DomainEvent):
-            pass
 
         # Check subclass can be instantiated.
         event1 = Event()
-        self.assertEqual(event1.__always_encrypt__, False)
+        self.assertEqual(type(event1).__qualname__, 'Event')
 
         # Check subclass can be instantiated with other parameters.
         event2 = Event(name='value')
@@ -44,10 +52,6 @@ class TestAbstractDomainEvent(unittest.TestCase):
 
         # Check not equal to same event type with different values.
         self.assertNotEqual(event2, Event(name='another value'))
-
-        # Check not equal to different type with same values.
-        class SubclassEvent(Event):
-            pass
 
         self.assertNotEqual(event2, SubclassEvent(name='value'))
 
@@ -428,7 +432,7 @@ class TestEvents(unittest.TestCase):
         self.maxDiff = None
         self.assertEqual(
             ("Example.Created(__event_hash__='{}', "
-             "__previous_hash__='', __topic__='eventsourcing.example.domainmodel#Example.Created', a=1, b=2, "
+             "__event_topic__='eventsourcing.example.domainmodel#Example.Created', a=1, b=2, "
              "originator_id={}, "
              "originator_topic='eventsourcing.example.domainmodel#Example', originator_version=0, timestamp=3)"
             ).format(event1.__event_hash__, repr(entity_id1)),

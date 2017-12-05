@@ -78,6 +78,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data1,
+            hash='',
         )
         self.active_record_strategy.append(item1)
 
@@ -88,6 +89,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data2,
+            hash='',
         )
         self.active_record_strategy.append(item2)
 
@@ -116,6 +118,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC2,
             data=data3,
+            hash='',
         )
         self.assertEqual(item1.sequence_id, item3.sequence_id)
         self.assertEqual(position1, item3.position)
@@ -130,12 +133,14 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             position=position2,
             topic=self.EXAMPLE_EVENT_TOPIC2,
             data=data3,
+            hash='',
         )
         item5 = SequencedItem(
             sequence_id=item1.sequence_id,
             position=position3,
             topic=self.EXAMPLE_EVENT_TOPIC2,
             data=data3,
+            hash='',
         )
         # - check appending item as a list of items (none should be appended)
         with self.assertRaises(SequencedItemConflict):
@@ -419,7 +424,8 @@ class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
                 topic='eventsourcing.example.domain_model#Example.Created',
                 data='{"i":%s,"entity_id":"%s","timestamp":%s}' % (
                     i, self.entity_id, time()
-                )
+                ),
+                hash='',
             )
             self.sequenced_items.append(sequenced_item)
             self.entity_active_record_strategy.append(sequenced_item)

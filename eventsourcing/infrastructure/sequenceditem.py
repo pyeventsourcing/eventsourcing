@@ -1,8 +1,8 @@
 from collections import namedtuple
 
-SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data'])
+SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data', 'hash'])
 
-StoredEvent = namedtuple('StoredEvent', ['originator_id', 'originator_version', 'event_type', 'state'])
+StoredEvent = namedtuple('StoredEvent', ['originator_id', 'originator_version', 'event_type', 'state', 'hash'])
 
 
 class SequencedItemFieldNames(object):
@@ -28,6 +28,11 @@ class SequencedItemFieldNames(object):
     def data(self):
         # Data is assumed to be the fourth field of a sequenced item.
         return self._field_names[3]
+
+    @property
+    def hash(self):
+        # Hash is assumed to be the fifth field of a sequenced item.
+        return self._field_names[4]
 
     def __getitem__(self, i):
         return self._field_names[i]

@@ -19,14 +19,14 @@ class Collection(TimestampedVersionedEntity):
             return self.__dict__['item']
 
     class ItemAdded(EventWithItem):
-        def mutate(self, obj):
-            obj = super(Collection.ItemAdded, self).mutate(obj)
+        def __mutate__(self, obj):
+            obj = super(Collection.ItemAdded, self).__mutate__(obj)
             obj._items.add(self.item)
             return obj
 
     class ItemRemoved(EventWithItem):
-        def mutate(self, obj):
-            obj = super(Collection.ItemRemoved, self).mutate(obj)
+        def __mutate__(self, obj):
+            obj = super(Collection.ItemRemoved, self).__mutate__(obj)
             obj._items.remove(self.item)
             return obj
 
@@ -50,7 +50,7 @@ class Collection(TimestampedVersionedEntity):
 
 
 def register_new_collection(collection_id=None):
-    return Collection.create(originator_id=collection_id)
+    return Collection.__create__(originator_id=collection_id)
 
 
 class AbstractCollectionRepository(AbstractEntityRepository):
