@@ -41,6 +41,8 @@ class TestArrayWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithPersiste
         array = self.repo[array_id]
         self.assertIsInstance(array, Array)
         self.assertEqual(array.id, array_id)
+        self.assertEqual(array, array)
+        self.assertNotEqual(array, self.repo[uuid4()])
 
         # Add some items.
         array[0] = 'item1'
