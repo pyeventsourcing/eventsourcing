@@ -30,6 +30,9 @@ class ValueObject1(object):
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
+    def __ne__(self, other):
+        return self.__dict__ != other.__dict__
+
 
 class TestSequencedItemMapper(TestCase):
     def test_with_versioned_entity_event(self):
@@ -109,6 +112,10 @@ class TestSequencedItemMapper(TestCase):
             sequence_id_attr_name='originator_id',
             position_attr_name='a'
         )
+
+        # Check value objects can be compared ok.
+        self.assertEqual(ValueObject1('value1'), ValueObject1('value1'))
+        self.assertNotEqual(ValueObject1('value1'), ValueObject1('value2'))
 
         # Create an event with dates and datetimes.
         event3 = Event3(

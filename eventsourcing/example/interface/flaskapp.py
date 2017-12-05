@@ -28,6 +28,7 @@ class IntegerSequencedItem(db.Model):
     position = db.Column(db.BigInteger(), primary_key=True)
     topic = db.Column(db.String(255))
     data = db.Column(db.Text())
+    hash = db.Column(db.Text())
     __table_args__ = db.Index('index', 'sequence_id', 'position'),
 
 

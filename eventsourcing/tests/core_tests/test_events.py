@@ -17,15 +17,23 @@ except ImportError:
     import mock
 
 
+class Event(DomainEvent):
+    pass
+
+
+# Check not equal to different type with same values.
+class SubclassEvent(Event):
+    pass
+
+
 class TestAbstractDomainEvent(unittest.TestCase):
+
     def test(self):
         # Check base class can be sub-classed.
-        class Event(DomainEvent):
-            pass
 
         # Check subclass can be instantiated.
         event1 = Event()
-        self.assertEqual(type(event1).__qualname__, 'TestAbstractDomainEvent.test.<locals>.Event')
+        self.assertEqual(type(event1).__qualname__, 'Event')
 
         # Check subclass can be instantiated with other parameters.
         event2 = Event(name='value')
@@ -44,10 +52,6 @@ class TestAbstractDomainEvent(unittest.TestCase):
 
         # Check not equal to same event type with different values.
         self.assertNotEqual(event2, Event(name='another value'))
-
-        # Check not equal to different type with same values.
-        class SubclassEvent(Event):
-            pass
 
         self.assertNotEqual(event2, SubclassEvent(name='value'))
 
