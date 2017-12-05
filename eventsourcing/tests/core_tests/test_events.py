@@ -25,7 +25,7 @@ class TestAbstractDomainEvent(unittest.TestCase):
 
         # Check subclass can be instantiated.
         event1 = Event()
-        self.assertEqual(event1.__always_encrypt__, False)
+        self.assertEqual(type(event1).__qualname__, 'TestAbstractDomainEvent.test.<locals>.Event')
 
         # Check subclass can be instantiated with other parameters.
         event2 = Event(name='value')
@@ -428,7 +428,7 @@ class TestEvents(unittest.TestCase):
         self.maxDiff = None
         self.assertEqual(
             ("Example.Created(__event_hash__='{}', "
-             "a=1, b=2, "
+             "__event_topic__='eventsourcing.example.domainmodel#Example.Created', a=1, b=2, "
              "originator_id={}, "
              "originator_topic='eventsourcing.example.domainmodel#Example', originator_version=0, timestamp=3)"
             ).format(event1.__event_hash__, repr(entity_id1)),

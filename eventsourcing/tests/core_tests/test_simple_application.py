@@ -13,6 +13,6 @@ class TestSimpleApplication(SQLAlchemyDatastoreTestCase):
         with SimpleApplication() as app:
             # Check the application's persistence policy,
             # repository, and event store, are working.
-            aggregate = ExampleAggregateRoot.create()
+            aggregate = ExampleAggregateRoot.__create__()
             aggregate.__save__()
             self.assertTrue(aggregate.id in app.repository)

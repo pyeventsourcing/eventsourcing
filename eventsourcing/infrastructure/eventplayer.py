@@ -33,7 +33,7 @@ class EventPlayer(AbstractEventPlayer):
 
     @staticmethod
     def mutate(initial, event):
-        return event.mutate(initial)
+        return event.__mutate__(initial)
 
 # def clone_object(initial_state):
 #     initial_state_copy = object.__new__(type(initial_state))

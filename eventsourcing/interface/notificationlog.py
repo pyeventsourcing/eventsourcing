@@ -26,10 +26,10 @@ class AbstractNotificationLog(six.with_metaclass(ABCMeta)):
 class Section(object):
     """
     Section of a notification log.
-    
+
     Contains items, and has an ID.
-    
-    May also have either IDs of previous and next sections of the notification log. 
+
+    May also have either IDs of previous and next sections of the notification log.
     """
 
     def __init__(self, section_id, items, previous_id=None, next_id=None):
@@ -38,7 +38,8 @@ class Section(object):
         self.previous_id = previous_id
         self.next_id = next_id
 
-
+# Todo: Refactor this, into subclass that works with BigArray, and another that works with ActiveRecord that has an
+# auto-incrementing id field.
 class NotificationLog(AbstractNotificationLog):
     def __init__(self, big_array, section_size):
         assert isinstance(big_array, BigArray)
@@ -54,10 +55,10 @@ class NotificationLog(AbstractNotificationLog):
 
     def __getitem__(self, section_id):
         # Get section of notification log.
-        position = self.big_array.get_next_position()
+        next_position = self.big_array.get_next_position()
         if section_id == 'current':
-            start = position // self.section_size * self.section_size
-            stop = position
+            start = next_position // self.section_size * self.section_size
+            stop = next_position
             section_id = self.format_section_id(start + 1, start + self.section_size)
         else:
             try:
@@ -77,7 +78,7 @@ class NotificationLog(AbstractNotificationLog):
                 ))
         self.last_start = start
         self.last_stop = stop
-        items = self.big_array[start:min(stop, position)]
+        items = self.big_array[start:min(stop, next_position)]
 
         # Decide the IDs of previous and next sections.
         if self.last_start:
@@ -86,7 +87,7 @@ class NotificationLog(AbstractNotificationLog):
             previous_id = self.format_section_id(first_item_number, last_item_number)
         else:
             previous_id = None
-        if self.last_stop < position:
+        if self.last_stop < next_position:
             first_item_number = self.last_start + 1 + self.section_size
             last_item_number = first_item_number - 1 + self.section_size
             next_id = self.format_section_id(first_item_number, last_item_number)

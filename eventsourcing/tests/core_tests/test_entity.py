@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+import datetime
+
 from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.entity import AttributeChanged, VersionedEntity
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
@@ -18,7 +20,7 @@ from eventsourcing.utils.topic import get_topic
 class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
-        example1 = Example.create(a=1, b=2)
+        example1 = Example.__create__(a=1, b=2)
 
         self.assertIsInstance(example1, Example)
 
@@ -40,6 +42,12 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertTrue(example1.__created_on__)
         self.assertTrue(example1.__last_modified__)
         self.assertEqual(example1.__created_on__, example1.__last_modified__)
+
+        # Check can get datetime from timestamps, and it corresponds to UTC.
+        dt = datetime.datetime.fromtimestamp(example1.__created_on__)
+        self.assertLess(dt, datetime.datetime.utcnow())
+        self.assertGreater(dt, datetime.datetime.utcnow() - datetime.timedelta(1))
+
 
         # Check a different type with the same values is not "equal" to the first.
         class Subclass(Example): pass
@@ -247,7 +255,7 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertFalse(hasattr(event, '__previous_hash__'))
         self.assertIsNone(event.__event_hash__)
 
-        entity = SubclassEntity.create()
+        entity = SubclassEntity.__create__()
         self.assertFalse(hasattr(entity, '__head__'))
 
 
@@ -258,8 +266,7 @@ class SubclassEntity(Example):
         __with_data_integrity__ = False
 
     class Created(Event, Example.Created):
-        __with_data_integrity__ = False
-
+        pass
 
 
 class CustomValueObject(object):

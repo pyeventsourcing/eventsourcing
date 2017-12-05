@@ -156,11 +156,11 @@ class TestSequencedItemMapper(TestCase):
             a=555,
         )
 
-        # Check the sequenced item has data with expected hash prefix.
+        # Check the sequenced item has expected hash.
         hash = '932e3707880ce65d2146f8b9b2422265a15d17f1703f73e81ef3bffb119afe17'
         sequenced_item = mapper.to_sequenced_item(orig_event)
-        self.assertEqual(sequenced_item.data, '{"a":555}')
-        self.assertEqual(sequenced_item.hash, hash)
+        self.assertEqual('{"a":555}', sequenced_item.data)
+        self.assertEqual(hash, sequenced_item.hash)
 
         # Check the sequenced item with a hash prefix maps to a domain event.
         mapped_event = mapper.from_sequenced_item(sequenced_item)

@@ -22,7 +22,7 @@ class TestAggregateRootEvent(TestCase):
             originator_id='1',
             originator_topic=get_topic(AggregateRoot)
         )
-        event1.__check_event_hash__()
+        event1.__check_hash__()
 
         # Chain another event.
         event2 = AggregateRoot.AttributeChanged(
@@ -30,7 +30,7 @@ class TestAggregateRootEvent(TestCase):
             originator_id='1',
             __previous_hash__=event1.__event_hash__
         )
-        event2.__check_event_hash__()
+        event2.__check_hash__()
 
         # Chain another event.
         event3 = AggregateRoot.AttributeChanged(
@@ -38,7 +38,7 @@ class TestAggregateRootEvent(TestCase):
             originator_id='1',
             __previous_hash__=event2.__event_hash__
         )
-        event3.__check_event_hash__()
+        event3.__check_hash__()
 
     def test_event_hash_error(self):
         event1 = AggregateRoot.Created(
@@ -46,12 +46,12 @@ class TestAggregateRootEvent(TestCase):
             originator_id='1',
             originator_topic=get_topic(AggregateRoot)
         )
-        event1.__check_event_hash__()
+        event1.__check_hash__()
 
         # Break the hash.
         event1.__dict__['event_hash'] = 'damage'
         with self.assertRaises(EventHashError):
-            event1.__check_event_hash__()
+            event1.__check_hash__()
 
 
 class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
@@ -218,8 +218,8 @@ class ExampleAggregateRoot(AggregateRoot):
         def entity_id(self):
             return self.__dict__['entity_id']
 
-        def mutate(self, aggregate):
-            super(ExampleAggregateRoot.ExampleCreated, self).mutate(aggregate)
+        def __mutate__(self, aggregate):
+            super(ExampleAggregateRoot.ExampleCreated, self).__mutate__(aggregate)
             entity = Example(entity_id=self.entity_id)
             aggregate._entities[entity.id] = entity
             return aggregate
@@ -307,7 +307,7 @@ class ExampleDDDApplication(object):
 
         :rtype: Aggregate1
         """
-        return Aggregate1.create()
+        return Aggregate1.__create__()
 
 
     def create_aggregate2(self):
@@ -316,7 +316,7 @@ class ExampleDDDApplication(object):
 
         :rtype: Aggregate2
         """
-        return Aggregate2.create()
+        return Aggregate2.__create__()
 
     def close(self):
         self.persistence_policy.close()

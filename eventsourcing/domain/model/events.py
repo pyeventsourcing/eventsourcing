@@ -60,7 +60,6 @@ class DomainEvent(QualnameABC):
     for equality, have recognisable representations, and hashable.
     """
     __json_encoder_class__ = ObjectJSONEncoder
-    __always_encrypt__ = False
 
     def __init__(self, **kwargs):
         """
