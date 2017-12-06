@@ -21,7 +21,10 @@ class TestAESCipher(TestCase):
         cipher_key = encode_random_bytes(num_bytes=32)
 
         # Construct AES-256 cipher.
-        cipher = AESCipher(aes_key=decode_random_bytes(cipher_key), mode=mode_name)
+        cipher = AESCipher(
+            aes_key=decode_random_bytes(cipher_key),
+            mode_name=mode_name
+        )
 
         # Check mode.
         self.assertEqual(cipher.mode, expect_mode)

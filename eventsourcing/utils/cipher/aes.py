@@ -6,6 +6,8 @@ from Crypto.Cipher import AES
 
 from eventsourcing.utils.cipher.base import AbstractCipher
 
+DEFAULT_AES_MODE = 'GCM'
+
 
 class AESCipher(AbstractCipher):
     """
@@ -18,7 +20,7 @@ class AESCipher(AbstractCipher):
     SUPPORTED_MODES = ['CBC', 'EAX', 'GCM']
     PADDED_MODES = ['CBC']
 
-    def __init__(self, aes_key, mode_name='GCM'):
+    def __init__(self, aes_key, mode_name=DEFAULT_AES_MODE):
         self.aes_key = aes_key
         self.mode_name = mode_name
 

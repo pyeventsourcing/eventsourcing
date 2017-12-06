@@ -1,7 +1,7 @@
 import os
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.utils.cipher.aes import AESCipher
+from eventsourcing.utils.cipher.aes import AESCipher, DEFAULT_AES_MODE
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
@@ -24,7 +24,7 @@ class SimpleApplication(object):
             event_store=self.event_store
         )
 
-    def setup_event_store(self, setup_table=True, **kwargs):
+    def setup_event_store(self, setup_table=True, mode_name=DEFAULT_AES_MODE, **kwargs):
         # Setup connection to database.
         self.datastore = SQLAlchemyDatastore(
             settings=SQLAlchemySettings(**kwargs)
@@ -35,7 +35,7 @@ class SimpleApplication(object):
         aes_key = decode_random_bytes(os.getenv('AES_CIPHER_KEY', ''))
         self.event_store = construct_sqlalchemy_eventstore(
             session=self.datastore.session,
-            cipher=AESCipher(aes_key=aes_key),
+            cipher=AESCipher(aes_key=aes_key, mode_name=mode_name),
             always_encrypt=bool(aes_key)
         )
 
