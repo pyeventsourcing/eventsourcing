@@ -11,6 +11,9 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 
+class DomainEvent(DomainEvent):
+    __with_data_integrity__ = False
+
 class Event1(VersionedEntity.Event):
     pass
 
@@ -164,7 +167,7 @@ class TestSequencedItemMapper(TestCase):
         )
 
         # Check the sequenced item has expected hash.
-        hash = '932e3707880ce65d2146f8b9b2422265a15d17f1703f73e81ef3bffb119afe17'
+        hash = 'ebb1d85d8ecddd94e9d6f06743a929c780f19f707fe03eb30f8026f2a4acb970'
         sequenced_item = mapper.to_sequenced_item(orig_event)
         self.assertEqual('{"a":555}', sequenced_item.data)
         self.assertEqual(hash, sequenced_item.hash)

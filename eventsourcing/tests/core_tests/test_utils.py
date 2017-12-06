@@ -5,7 +5,7 @@ from uuid import uuid1
 
 import sys
 
-from eventsourcing.utils.random import generate_cipher_key, decode_cipher_key
+from eventsourcing.utils.random import encode_random_bytes, decode_random_bytes
 from eventsourcing.utils.time import timestamp_from_uuid, utc_timezone
 
 
@@ -27,12 +27,12 @@ class TestUtils(TestCase):
         expected_dst = None if int(sys.version[0]) > 2 else timedelta(0)
         self.assertEqual(utc_timezone.dst(now), expected_dst)
 
-    def test_generate_cipher_key(self):
-        key = generate_cipher_key(num_bytes=16)
-        self.assertEqual(len(decode_cipher_key(key)), 16)
+    def test_encode_random_bytes(self):
+        key = encode_random_bytes(num_bytes=16)
+        self.assertEqual(len(decode_random_bytes(key)), 16)
 
-        key = generate_cipher_key(num_bytes=24)
-        self.assertEqual(len(decode_cipher_key(key)), 24)
+        key = encode_random_bytes(num_bytes=24)
+        self.assertEqual(len(decode_random_bytes(key)), 24)
 
-        key = generate_cipher_key(num_bytes=32)
-        self.assertEqual(len(decode_cipher_key(key)), 32)
+        key = encode_random_bytes(num_bytes=32)
+        self.assertEqual(len(decode_random_bytes(key)), 32)

@@ -9,17 +9,19 @@ from six import with_metaclass
 from eventsourcing.domain.model.events import AttributeChanged, Created, Discarded, DomainEvent, \
     EventWithOriginatorID, \
     EventWithOriginatorVersion, EventWithTimestamp, GENESIS_HASH, QualnameABC, publish
-from eventsourcing.exceptions import EntityIsDiscarded, EventHashError, HeadHashError, OriginatorIDError, \
+from eventsourcing.exceptions import EntityIsDiscarded, HeadHashError, OriginatorIDError, \
     OriginatorVersionError
 from eventsourcing.utils.time import timestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
 class DomainEntity(QualnameABC):
+    """
+    Base class for domain entities.
+    """
     __with_data_integrity__ = True
     __genesis_hash__ = GENESIS_HASH
 
-    """Base class for domain entities."""
     def __init__(self, id):
         self._id = id
         self.__is_discarded__ = False
@@ -38,52 +40,23 @@ class DomainEntity(QualnameABC):
         """
         Supertype for events of domain entities.
         """
-        __with_data_integrity__ = True
 
         def __init__(self, **kwargs):
-            if self.__with_data_integrity__:
-                kwargs['__event_topic__'] = get_topic(type(self))
             super(DomainEntity.Event, self).__init__(**kwargs)
-            # Seal the event with a hash of the other values.
-            if self.__with_data_integrity__:
-                assert '__event_hash__' not in self.__dict__
-                self.__dict__['__event_hash__'] = self.hash(self.__dict__)
-
-        @property
-        def __event_hash__(self):
-            return self.__dict__.get('__event_hash__')
 
         def __mutate__(self, obj):
-            """
-            Update obj with values from self.
-
-            Can be extended, but subclasses must call super
-            method, and return an object.
-
-            :param obj: object to be mutated
-            :return: mutated object
-            """
-            # Check the event and the object.
-            if self.__with_data_integrity__:
-                assert self.__dict__['__event_topic__'] == get_topic(type(self))
-                self.__check_hash__()
+            # Check the object.
             self.__check_obj__(obj)
 
-            # Call mutate() method.
-            self.mutate(obj)
+            # Call super method.
+            obj = super(DomainEntity.Event, self).__mutate__(obj)
 
-            # Set the __head__ hash of the object.
+            # Update __head__.
             if getattr(type(obj), '__with_data_integrity__', True):
                 assert self.__with_data_integrity__
                 obj.__head__ = self.__event_hash__
 
             return obj
-
-        def __check_hash__(self):
-            state = self.__dict__.copy()
-            event_hash = state.pop('__event_hash__')
-            if event_hash != self.hash(state):
-                raise EventHashError()
 
         def __check_obj__(self, obj):
             """
@@ -100,36 +73,6 @@ class DomainEntity(QualnameABC):
                 assert self.__with_data_integrity__
                 if obj.__head__ != self.__dict__.get('__previous_hash__'):
                     raise HeadHashError(obj.id, obj.__head__, type(self))
-
-        def mutate(self, obj):
-            """
-            Convenience for use in custom models, to update
-            obj with values from self without needing to call
-            super method and return obj (two extra lines).
-
-            Can be overridden by subclasses. Any value returned
-            by this method will be ignored.
-
-            Please note, subclasses that extend mutate() might
-            not have fully completed that method before this method
-            is called. To ensure all base classes have completed
-            their mutate behaviour before mutating an event in a concrete
-            class, extend mutate() instead of overriding this method.
-
-            :param obj: object to be mutated
-            """
-
-        def __hash__(self):
-            """
-            Computes a Python integer hash for an event,
-            using its event hash string if available.
-
-            Supports equality and inequality comparisons.
-            """
-            if '__event_hash__' in self.__dict__:
-                return hash((self.__event_hash__, type(self)))
-            else:
-                return hash(super(DomainEntity.Event, self).__hash__())
 
     @classmethod
     def __create__(cls, originator_id=None, event_class=None, **kwargs):
@@ -151,6 +94,7 @@ class DomainEntity(QualnameABC):
         """
         Published when an entity is created.
         """
+
         def __init__(self, originator_topic, **kwargs):
             super(DomainEntity.Created, self).__init__(
                 originator_topic=originator_topic,
@@ -193,6 +137,7 @@ class DomainEntity(QualnameABC):
         """
         Published when a DomainEntity is discarded.
         """
+
         def __mutate__(self, obj):
             obj = super(DomainEntity.AttributeChanged, self).__mutate__(obj)
             setattr(obj, self.name, self.value)
@@ -208,6 +153,7 @@ class DomainEntity(QualnameABC):
         """
         Published when a DomainEntity is discarded.
         """
+
         def __mutate__(self, obj):
             obj = super(DomainEntity.Discarded, self).__mutate__(obj)
             obj.__is_discarded__ = True
@@ -274,12 +220,13 @@ class VersionedEntity(DomainEntity):
         """
         return super(VersionedEntity, self).__trigger_event__(
             event_class=event_class,
-            originator_version = self.__version__ + 1,
+            originator_version=self.__version__ + 1,
             **kwargs
         )
 
     class Event(EventWithOriginatorVersion, DomainEntity.Event):
         """Supertype for events of versioned entities."""
+
         def __mutate__(self, obj):
             obj = super(VersionedEntity.Event, self).__mutate__(obj)
             if obj is not None:
@@ -298,11 +245,12 @@ class VersionedEntity(DomainEntity):
                      "Event type: '{}', entity type: '{}', entity ID: '{}'"
                      "".format(self.originator_version, obj.__version__,
                                type(self).__name__, type(obj).__name__, obj._id)
-                     )
+                    )
                 )
 
     class Created(DomainEntity.Created, Event):
         """Published when a VersionedEntity is created."""
+
         def __init__(self, originator_version=0, **kwargs):
             super(VersionedEntity.Created, self).__init__(originator_version=originator_version, **kwargs)
 
@@ -335,6 +283,7 @@ class TimestampedEntity(DomainEntity):
 
     class Event(DomainEntity.Event, EventWithTimestamp):
         """Supertype for events of timestamped entities."""
+
         def __mutate__(self, obj):
             """Update obj with values from self."""
             obj = super(TimestampedEntity.Event, self).__mutate__(obj)
@@ -345,13 +294,12 @@ class TimestampedEntity(DomainEntity):
 
     class Created(DomainEntity.Created, Event):
         """Published when a TimestampedEntity is created."""
+
         @property
         def __entity_kwargs__(self):
             kwargs = super(TimestampedEntity.Created, self).__entity_kwargs__
             kwargs['__created_on__'] = kwargs.pop('timestamp')
             return kwargs
-
-
 
     class AttributeChanged(Event, DomainEntity.AttributeChanged):
         """Published when a TimestampedEntity is changed."""
@@ -363,16 +311,16 @@ class TimestampedEntity(DomainEntity):
 class TimeuuidedEntity(DomainEntity):
     def __init__(self, event_id, **kwargs):
         super(TimeuuidedEntity, self).__init__(**kwargs)
-        self._initial_event_id = event_id
-        self._last_event_id = event_id
+        self.___initial_event_id__ = event_id
+        self.___last_event_id__ = event_id
 
     @property
     def __created_on__(self):
-        return timestamp_from_uuid(self._initial_event_id)
+        return timestamp_from_uuid(self.___initial_event_id__)
 
     @property
     def __last_modified__(self):
-        return timestamp_from_uuid(self._last_event_id)
+        return timestamp_from_uuid(self.___last_event_id__)
 
 
 class TimestampedVersionedEntity(TimestampedEntity, VersionedEntity):

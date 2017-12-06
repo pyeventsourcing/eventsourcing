@@ -1,17 +1,15 @@
-import hashlib
-import itertools
-import json
+import os
 import time
 from abc import ABCMeta
 from collections import OrderedDict
 from uuid import uuid1
 
-import os
 import six
 from six import with_metaclass
 
 from eventsourcing.exceptions import EventHashError
-from eventsourcing.utils.topic import resolve_topic
+from eventsourcing.utils.hashing import hash_for_data_integrity
+from eventsourcing.utils.topic import get_topic
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
 GENESIS_HASH = os.getenv('GENESIS_HASH', '')
@@ -59,12 +57,20 @@ class DomainEvent(QualnameABC):
     Implements methods to make instances read-only, comparable
     for equality, have recognisable representations, and hashable.
     """
+    __with_data_integrity__ = True
     __json_encoder_class__ = ObjectJSONEncoder
 
     def __init__(self, **kwargs):
         """
         Initialises event attribute values directly from constructor kwargs.
         """
+        if self.__with_data_integrity__:
+            kwargs['__event_topic__'] = get_topic(type(self))
+            # Seal the event with a hash of the other values.
+            assert '__event_hash__' not in kwargs
+            event_hash = self.__hash_for_data_integrity__(kwargs)
+            kwargs['__event_hash__'] = event_hash
+
         self.__dict__.update(kwargs)
 
     def __setattr__(self, key, value):
@@ -87,9 +93,16 @@ class DomainEvent(QualnameABC):
 
     def __hash__(self):
         """
-        Computes a Python integer hash for an event, using its type and attribute values.
+        Computes a Python integer hash for an event,
+        using its event hash string if available.
+
+        Supports equality and inequality comparisons.
         """
-        return hash((self.hash(self.__dict__), self.__class__))
+        return hash((
+            self.__event_hash__ or self.__hash_for_data_integrity__(
+                self.__dict__
+            ), self.__class__
+        ))
 
     def __repr__(self):
         """
@@ -101,14 +114,57 @@ class DomainEvent(QualnameABC):
         return "{}({})".format(self.__class__.__qualname__, args_string)
 
     @classmethod
-    def hash(cls, *args):
-        json_dump = json.dumps(
-            args,
-            separators=(',', ':'),
-            sort_keys=True,
-            cls=cls.__json_encoder_class__,
-        )
-        return hashlib.sha256(json_dump.encode()).hexdigest()
+    def __hash_for_data_integrity__(cls, obj):
+        return hash_for_data_integrity(cls.__json_encoder_class__, obj)
+
+    @property
+    def __event_hash__(self):
+        return self.__dict__.get('__event_hash__')
+
+    def __check_hash__(self):
+        state = self.__dict__.copy()
+        event_hash = state.pop('__event_hash__')
+        if event_hash != self.__hash_for_data_integrity__(state):
+            raise EventHashError()
+
+    def __mutate__(self, obj):
+        """
+        Update obj with values from self.
+
+        Can be extended, but subclasses must call super
+        method, and return an object.
+
+        :param obj: object to be mutated
+        :return: mutated object
+        """
+        # Check the event and the object.
+        if self.__with_data_integrity__:
+            # Todo: Refactor: "replace assert with test" (ie, an if statement).
+            assert self.__dict__['__event_topic__'] == get_topic(type(self))
+            self.__check_hash__()
+
+        # Call mutate() method.
+        self.mutate(obj)
+
+        return obj
+
+    def mutate(self, obj):
+        """
+        Convenience for use in custom models, to update
+        obj with values from self without needing to call
+        super method and return obj (two extra lines).
+
+        Can be overridden by subclasses. Any value returned
+        by this method will be ignored.
+
+        Please note, subclasses that extend mutate() might
+        not have fully completed that method before this method
+        is called. To ensure all base classes have completed
+        their mutate behaviour before mutating an event in a concrete
+        class, extend mutate() instead of overriding this method.
+
+        :param obj: object to be mutated
+        """
 
 
 class EventWithOriginatorID(DomainEvent):
@@ -175,6 +231,7 @@ class AttributeChanged(DomainEvent):
     """
     Can be published when an attribute of an entity is created.
     """
+
     @property
     def name(self):
         return self.__dict__['name']

@@ -1,5 +1,5 @@
 import datetime
-from json import JSONDecoder, JSONEncoder
+from json import JSONDecoder, JSONEncoder, dumps, loads
 from uuid import UUID
 
 import dateutil.parser
@@ -68,3 +68,16 @@ class ObjectJSONDecoder(JSONDecoder):
         obj = object.__new__(obj_class)
         obj.__dict__.update(state)
         return obj
+
+
+def json_dumps(obj, cls):
+    return dumps(
+        obj,
+        separators=(',', ':'),
+        sort_keys=True,
+        cls=cls,
+    )
+
+
+def json_loads(s, cls):
+    return loads(s, cls=cls)
