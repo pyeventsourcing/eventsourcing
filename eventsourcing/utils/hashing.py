@@ -6,9 +6,9 @@ from eventsourcing.utils.transcoding import json_dumps
 SALT_FOR_DATA_INTEGRITY = os.getenv('SALT_FOR_DATA_INTEGRITY', '')
 
 
-def hash_for_data_integrity(json_encoder_class, *args):
+def hash_for_data_integrity(json_encoder_class, obj):
     s = json_dumps(
-        args + (SALT_FOR_DATA_INTEGRITY,),
+        (obj, SALT_FOR_DATA_INTEGRITY),
         cls=json_encoder_class,
     )
     return hashlib.sha256(s.encode()).hexdigest()

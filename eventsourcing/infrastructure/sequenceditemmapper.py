@@ -79,8 +79,9 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Hash sequence ID, position, topic, and data.
         hash = ''
         if self.with_data_integrity:
-            args = (sequence_id, position, topic, data)
-            hash = self.hash_for_data_integrity(args)
+            hash = self.hash_for_data_integrity(
+                sequence_id, position, topic, data
+            )
 
         # Get the 'other' args.
         # - these are meant to be derivative of the other attributes,
@@ -89,8 +90,9 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         return (sequence_id, position, topic, data, hash) + other_args
 
-    def hash_for_data_integrity(self, args):
-        return hash_for_data_integrity(self.json_encoder_class, *args)
+    def hash_for_data_integrity(self, sequence_id, position, topic, data):
+        obj = (sequence_id, position, topic, data)
+        return hash_for_data_integrity(self.json_encoder_class, obj)
 
     def construct_sequenced_item(self, item_args):
         return self.sequenced_item_class(*item_args)
@@ -113,8 +115,9 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         # Check data integrity (optional).
         if self.with_data_integrity:
-            args = (sequence_id, position, topic, data)
-            expected = self.hash_for_data_integrity(args)
+            expected = self.hash_for_data_integrity(
+                sequence_id, position, topic, data
+            )
             if hash != expected:
                 raise DataIntegrityError(
                     'hash mismatch',
