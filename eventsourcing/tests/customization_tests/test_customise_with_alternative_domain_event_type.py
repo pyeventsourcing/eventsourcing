@@ -85,7 +85,7 @@ class TestDomainEventsWithTimeUUIDs(AbstractDatastoreTestCase):
 
     def tearDown(self):
         self.datastore.drop_tables()
-        self.datastore.drop_connection()
+        self.datastore.close_connection()
         super(TestDomainEventsWithTimeUUIDs, self).setUp()
 
     def construct_datastore(self):

@@ -35,7 +35,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self._active_record_strategy = None
         if self.datastore is not None:
             self.datastore.drop_tables()
-            self.datastore.drop_connection()
+            self.datastore.close_connection()
         super(ActiveRecordStrategyTestCase, self).tearDown()
 
     @property
@@ -78,7 +78,6 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data1,
-            hash='',
         )
         self.active_record_strategy.append(item1)
 
@@ -89,7 +88,6 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data2,
-            hash='',
         )
         self.active_record_strategy.append(item2)
 
@@ -118,7 +116,6 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC2,
             data=data3,
-            hash='',
         )
         self.assertEqual(item1.sequence_id, item3.sequence_id)
         self.assertEqual(position1, item3.position)
@@ -133,14 +130,12 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             position=position2,
             topic=self.EXAMPLE_EVENT_TOPIC2,
             data=data3,
-            hash='',
         )
         item5 = SequencedItem(
             sequence_id=item1.sequence_id,
             position=position3,
             topic=self.EXAMPLE_EVENT_TOPIC2,
             data=data3,
-            hash='',
         )
         # - check appending item as a list of items (none should be appended)
         with self.assertRaises(SequencedItemConflict):
@@ -309,7 +304,7 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
         if self._datastore is not None:
             if self.drop_tables:
                 self._datastore.drop_tables()
-                self._datastore.drop_connection()
+                self._datastore.close_connection()
                 self._datastore = None
             else:
                 self._datastore.truncate_tables()
@@ -425,7 +420,6 @@ class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
                 data='{"i":%s,"entity_id":"%s","timestamp":%s}' % (
                     i, self.entity_id, time()
                 ),
-                hash='',
             )
             self.sequenced_items.append(sequenced_item)
             self.entity_active_record_strategy.append(sequenced_item)

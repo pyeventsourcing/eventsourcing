@@ -9,19 +9,16 @@ class TestIntegerSequencedItem(TestCase):
         position = 0
         topic = 'topic1'
         data = '{}'
-        hash = ''
         item = SequencedItem(
             sequence_id=sequence_id,
             position=position,
             topic=topic,
             data=data,
-            hash=hash,
         )
         self.assertEqual(item.sequence_id, sequence_id)
         self.assertEqual(item.position, position)
         self.assertEqual(item.topic, topic)
         self.assertEqual(item.data, data)
-        self.assertEqual(item.hash, hash)
 
         with self.assertRaises(AttributeError):
             item.sequence_id = 'sequence2'
@@ -33,13 +30,11 @@ class TestTimeSequencedItem(TestCase):
         position = 0
         topic = 'topic1'
         data = '{}'
-        hash = ''
         item = SequencedItem(
             sequence_id=sequence_id,
             position=position,
             topic=topic,
             data=data,
-            hash=hash,
         )
         self.assertEqual(item.sequence_id, sequence_id)
         self.assertEqual(item.position, position)

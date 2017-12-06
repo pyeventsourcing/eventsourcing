@@ -20,15 +20,12 @@ Let's firstly construct a cipher strategy object. This example uses the
 library AES cipher strategy :class:`~eventsourcing.infrastructure.cipher.aes.AESCipher`.
 
 The library AES cipher strategy uses the AES cipher from the Python Cryptography
-Toolkit, as forked by the actively maintained `PyCryptodome project <https://pycryptodome.readthedocs.io/>`__,
-by default in CBC mode with 128 bit blocksize and a 16 byte encryption key. It generates
-a unique 16 byte initialization vector for each encryption. In this cipher strategy,
-serialized event data is compressed before it is encrypted, which can mean application
-performance is improved when encryption is enabled.
+Toolkit, as forked by the actively maintained
+`PyCryptodome project <https://pycryptodome.readthedocs.io/>`__ project.
 
 With encryption enabled, event attribute values are encrypted inside the application
-before they are mapped to the database. The values are decrypted before domain events
-are replayed.
+before they are mapped to the database. The values are decrypted and verified before
+domain events are replayed.
 
 .. code:: python
 

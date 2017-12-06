@@ -18,7 +18,7 @@ class TestExampleApplicationSingleInstanceFunctions(SQLAlchemyDatastoreTestCase)
 
         # Teardown the database.
         self.datastore.drop_tables()
-        self.datastore.drop_connection()
+        self.datastore.close_connection()
         super(TestExampleApplicationSingleInstanceFunctions, self).tearDown()
 
     def test(self):

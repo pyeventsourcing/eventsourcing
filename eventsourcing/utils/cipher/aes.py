@@ -11,28 +11,27 @@ DEFAULT_AES_MODE = 'GCM'
 
 class AESCipher(AbstractCipher):
     """
-    Cipher strategy that uses the AES cipher from the Crypto library.
-
-    Defaults to GCM mode. Unlike CBC, GCM doesn't need padding so avoids
-    potential padding oracle attacks. GCM will be faster than EAX on
-    x86 architectures, especially those with AES opcodes.
+    Cipher strategy that uses Crypto library AES cipher in GCM mode.
     """
-    SUPPORTED_MODES = ['CBC', 'EAX', 'GCM']
+
+    # Todo: Follow docs http://pycryptodome.readthedocs.io/en/latest/src/examples.html#encrypt-data-with-aes
+
+    SUPPORTED_MODES = ['CBC', 'EAX', 'GCM', 'CCM']
     PADDED_MODES = ['CBC']
 
-    def __init__(self, aes_key, mode_name=DEFAULT_AES_MODE):
+    def __init__(self, aes_key, mode_name=None):
         self.aes_key = aes_key
-        self.mode_name = mode_name
+        self.mode_name = mode_name or DEFAULT_AES_MODE
 
         # Check mode name is supported.
-        assert mode_name in self.SUPPORTED_MODES, (
+        assert self.mode_name in self.SUPPORTED_MODES, (
             "Mode '{}' not in supported list: {}".format(
-                mode_name, self.SUPPORTED_MODES
+                self.mode_name, self.SUPPORTED_MODES
             )
         )
 
         # Pick AES mode (an integer).
-        self.mode = getattr(AES, 'MODE_{}'.format(mode_name))
+        self.mode = getattr(AES, 'MODE_{}'.format(self.mode_name))
 
         # Fix the block size.
         self.bs = AES.block_size

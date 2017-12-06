@@ -66,7 +66,6 @@ The ``data`` holds the values of the item, perhaps serialized to JSON, and optio
         position=0,
         topic='eventsourcing.domain.model.events#DomainEvent',
         data='{"foo":"bar"}',
-        hash='',
     )
     assert sequenced_item1.sequence_id == sequence1
     assert sequenced_item1.position == 0
@@ -102,7 +101,6 @@ The ``state`` holds the state of the domain event, and is equivalent to ``data``
         originator_version=0,
         event_type='eventsourcing.domain.model.events#DomainEvent',
         state='{"foo":"bar"}',
-        hash='',
     )
     assert stored_event1.originator_id == aggregate1
     assert stored_event1.originator_version == 0
@@ -275,7 +273,7 @@ The ``CassandraDatastore`` class uses the ``CassandraSettings`` class to setup a
     assert results[0] == stored_event1
 
     cassandra_datastore.drop_tables()
-    cassandra_datastore.drop_connection()
+    cassandra_datastore.close_connection()
 
 
 Please refer to ``CassandraSettings`` class for information about configuring away from default settings.
@@ -407,36 +405,6 @@ Please note, it is required of these application-level objects that the  "topic"
     assert topic == 'eventsourcing.domain.model.events#Created'
 
 
-Data integrity
---------------
-
-Sequenced item records can be checked for accidental damage using a hash of the sequenced item data.
-This feature can be enable by setting ``with_data_integrity`` to ``True``.
-
-.. code:: python
-
-    SequencedItemMapper(with_data_integrity=True)
-
-
-This feature doesn't protect against malicious damage, since the hash value could be regenerated.
-The point is that a random mutation in the stored data would almost certainly be detected by checking
-the hash before mapping the sequenced item to an application-level object.
-
-The hashes can be salted by setting environment variable ``SALT_FOR_DATA_INTEGRITY``,
-perhaps with random bytes encoded as Base64.
-
-.. code:: python
-
-    from eventsourcing.utils.random import encode_random_bytes
-
-    # Keep this safe.
-    salt = encode_random_bytes(num_bytes=32)
-
-    # Configure environment (before importing library).
-    import os
-    os.environ['SALT_FOR_DATA_INTEGRITY'] = salt
-
-
 Custom JSON transcoding
 -----------------------
 
@@ -485,7 +453,6 @@ The code below extends the JSON transcoding to support sets.
             position=0,
             topic='eventsourcing.domain.model.events#DomainEvent',
             data='{"foo":{"__set__":["bar","baz"]}}',
-            hash='',
         )
     )
     assert domain_event.foo == set(["bar", "baz"])
@@ -497,12 +464,24 @@ The code below extends the JSON transcoding to support sets.
 Application-level encryption
 ----------------------------
 
-The ``SequencedItemMapper`` can be constructed with a symmetric cipher object. The library provides
-an AES cipher object class called ``AESCipher``.
+The ``SequencedItemMapper`` can be constructed with a symmetric cipher. If
+a cipher is given, then the ``state`` field of every sequenced item will be
+encrypted before being sent to the database. The data retrieved from the
+database will be decrypted and verified, which protects against tampering.
 
-The ``AESCipher`` is given an encryption key, using constructor arg ``aes_key``, which must be either 16, 24, or 32
-random bytes (128, 192, or 256 bits). Longer keys take more time to encrypt plaintext, but produce more secure
-ciphertext.
+The library provides an AES cipher object class called ``AESCipher``. It
+uses the AES cipher from the Python Cryptography Toolkit, as forked by
+the actively maintained `PyCryptodome project <https://pycryptodome.readthedocs.io/>`__.
+
+The ``AESCipher`` class uses AES in GCM mode, which is an padding-less,
+authenticated encryption mode. Unlike CBC, GCM doesn't need padding so
+avoids potential padding oracle attacks. GCM will be faster than EAX
+on x86 architectures, especially those with AES opcodes. Other modes
+aren't supported by this class, at the moment.
+
+The ``AESCipher`` constructor arg ``aes_key`` is required. The key must
+be either 16, 24, or 32 random bytes (128, 192, or 256 bits). Longer keys
+take more time to encrypt plaintext, but produce more secure ciphertext.
 
 Generating and storing a secure key requires functionality beyond the scope of this library.
 However, the utils package does contain a function ``encode_random_bytes()`` that may help
@@ -530,9 +509,8 @@ function ``decode_random_bytes()`` decodes the unicode key string into a sequenc
     assert plaintext == 'plaintext'
 
 
-If the ``SequencedItemMapper`` has an optional constructor arg ``cipher``. If ``always_encrypt`` is True, then
-the ``state`` field of every stored event will be encrypted with the cipher.
-
+The ``SequencedItemMapper`` has constructor arg ``cipher``, which can
+be used to pass in a cipher object, and thereby enable encryption.
 
 .. code:: python
 
@@ -540,7 +518,6 @@ the ``state`` field of every stored event will be encrypted with the cipher.
     ciphered_sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=StoredEvent,
         cipher=cipher,
-        always_encrypt=True,
     )
 
     # Domain event attribute ``foo`` has value ``'bar'``.
@@ -560,10 +537,9 @@ the ``state`` field of every stored event will be encrypted with the cipher.
     assert domain_event.foo == 'bar'
 
 
-Please note, the sequence ID and position values are necessarily not encrypted. However, by encrypting the state of
-the event, sensitive information, such as personally identifiable information, will be encrypted at the level
-of the application, before being sent to the database, and so it will be encrypted in the database (and in all
-backups of the database).
+Please note, the sequence ID and position values are not encrypted, necessarily. However, by encrypting the state of
+the item within the application, potentially sensitive information, for example personally identifiable information,
+will be encrypted in transit to the database, at rest in the database, and in all backups and other copies.
 
 
 Event store
@@ -743,7 +719,7 @@ can be used to construct an event store that uses the SQLAlchemy classes.
 
     from eventsourcing.infrastructure.sqlalchemy import factory
 
-    event_store = factory.construct_sqlalchemy_eventstore(session=datastore.session, with_data_integrity=True)
+    event_store = factory.construct_sqlalchemy_eventstore(session=datastore.session)
 
 
 By default, the event store is constructed with the ``StoredEvent`` sequenced item namedtuple,

@@ -21,7 +21,7 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 # Define the sequenced item class.
 ExtendedSequencedItem = namedtuple('ExtendedSequencedItem',
-                                   ['sequence_id', 'position', 'topic', 'data', 'hash', 'timestamp', 'event_type'])
+                                   ['sequence_id', 'position', 'topic', 'data', 'timestamp', 'event_type'])
 
 
 # Extend the database table definition to support the extra fields.
@@ -80,7 +80,7 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
 
     def tearDown(self):
         self.datastore.drop_tables()
-        self.datastore.drop_connection()
+        self.datastore.close_connection()
         super(TestExampleWithExtendedSequencedItemType, self).setUp()
 
     def construct_datastore(self):

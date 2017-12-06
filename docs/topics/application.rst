@@ -35,8 +35,10 @@ Simple application
 ==================
 
 The library provides a simple application class ``SimpleApplication``
-which can be constructed directly. The ``uri`` argument is an
-SQLAlchemy-style database connection string.
+which can be constructed directly.
+
+Its ``uri`` argument takes an SQLAlchemy-style database connection
+string. A thread scoped session will be setup using the ``uri``.
 
 .. code:: python
 
@@ -45,20 +47,25 @@ SQLAlchemy-style database connection string.
     app = SimpleApplication(uri='sqlite:///:memory:')
 
 
-The ``SimpleApplication`` has an event store, provided by the library's
-``EventStore`` class, which it uses with SQLAlchemy infrastructure.
-It uses the library function ``construct_sqlalchemy_eventstore()`` to
-construct its event store.
+Alternatively to the ``uri`` argument, the argument ``session`` can be
+used to pass in an already existing SQLAlchemy session, for example
+a session object provided by `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
+
+Once constructed, the ``SimpleApplication`` has an event store, provided
+by the library's ``EventStore`` class, which it uses with SQLAlchemy
+infrastructure.
 
 .. code:: python
 
     assert app.event_store
 
+The ``SimpleApplication`` uses the library function
+``construct_sqlalchemy_eventstore()`` to construct its event store.
 
 To use different infrastructure with this class, extend the class by
-overriding the ``setup_event_store()`` method. Then read about the
-alternatives to the defaults available in the
-:doc:`infrastructure layer </topics/infrastructure>`.
+overriding its ``setup_event_store()`` method. You can read about the
+available alternatives in the
+:doc:`infrastructure layer </topics/infrastructure>` documentation.
 
 The ``SimpleApplication`` also has a persistence policy, provided by the
 library's ``PersistencePolicy`` class. The persistence policy appends
@@ -69,7 +76,7 @@ domain events to its event store whenever they are published.
     assert app.persistence_policy
 
 
-The ``SimpleApplication`` also has an aggregate repository, provided
+The ``SimpleApplication`` also has an event sourced repository, provided
 by the library's ``EventSourcedRepository`` class. Both the persistence
 policy and the repository use the event store.
 
@@ -77,8 +84,9 @@ policy and the repository use the event store.
 
     assert app.repository
 
-The aggregate repository is generic, and can retrieve all the types of
-aggregate in a model.
+The aggregate repository is generic, and can retrieve all types of aggregate
+in a model. The aggregate class is normally represented in the first event as
+the ``originator_topic``.
 
 The ``SimpleApplication`` can be used as a context manager. The library domain
 entity classes can be used to create read, update, and discard entity objects.
