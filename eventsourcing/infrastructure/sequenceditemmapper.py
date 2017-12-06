@@ -31,7 +31,6 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     """
     Uses JSON to transcode domain events.
     """
-
     def __init__(self, sequenced_item_class=SequencedItem, sequence_id_attr_name=None, position_attr_name=None,
                  json_encoder_class=ObjectJSONEncoder, json_decoder_class=ObjectJSONDecoder,
                  always_encrypt=False, cipher=None, other_attr_names=(), with_data_integrity=False):
