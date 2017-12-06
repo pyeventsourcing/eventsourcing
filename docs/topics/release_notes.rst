@@ -6,10 +6,16 @@ number are backwards compatible, within the scope of the documented
 examples. New major versions indicate a backward incompatible changes
 have been introduced since the previous major version.
 
-Version 4.x series will introduce typed sequences (previously sequences
-were untyped which isn't ideal for aggregate repositories).
+Version 4.x series was released after quite a lot of refactoring made
+things backward-incompatible. Object namespaces for entity and event
+classes was cleaned up, by moving library names to double-underscore
+prefixed and postfixed names. Data integrity feature was introduced.
+Created events were changed to have originator_topic, which allowed
+other things to be greatly simplified. Mutators for entity are now by
+default expected to be implemented on entity event classes.
 
-Version 3.x series was a released after quite of a lot of refactoring.
+Version 3.x series was a released after quite of a lot of refactoring
+made things backwards-incompatible.
 
 Version 2.x series was a major rewrite that implemented two distinct
 kinds of sequences: events sequenced by integer version numbers and
