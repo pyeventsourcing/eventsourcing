@@ -15,7 +15,7 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
     """
     Event sourced application object class.
 
-    Can construct events stores using given active records.
+    Can construct event stores using given active records.
     Supports three different event stores: for log events,
     for entity events, and for snapshot events.
     """
