@@ -50,7 +50,9 @@ class AESCipher(AbstractCipher):
         # Decode from Base64.
         try:
             combined = base64.b64decode(cipherbytes)
-        except base64.binascii.Error as e:
+        except (base64.binascii.Error, TypeError) as e:
+            # base64.binascii.Error for Python 3.
+            # TypeError for Python 2.
             raise DataIntegrityError("Cipher text is damaged: {}".format(e))
 
         # Split out the nonce, tag, and encrypted data.
