@@ -86,9 +86,10 @@ class World(AggregateRoot):
 Generate cipher key.
 
 ```python
-from eventsourcing.utils.random import generate_cipher_key
+from eventsourcing.utils.random import encode_random_bytes
 
-aes_cipher_key = generate_cipher_key(num_bytes=32)
+# Keep this safe.
+aes_cipher_key = encode_random_bytes(num_bytes=32)
 ```
 
 Configure environment variables.

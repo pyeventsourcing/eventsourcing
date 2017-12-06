@@ -1,17 +1,13 @@
-import hashlib
-import itertools
-import json
+import os
 import time
 from abc import ABCMeta
 from collections import OrderedDict
 from uuid import uuid1
 
-import os
 import six
 from six import with_metaclass
 
-from eventsourcing.exceptions import EventHashError
-from eventsourcing.utils.topic import resolve_topic
+from eventsourcing.utils.hashing import hash_for_data_integrity
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
 GENESIS_HASH = os.getenv('GENESIS_HASH', '')
@@ -89,7 +85,8 @@ class DomainEvent(QualnameABC):
         """
         Computes a Python integer hash for an event, using its type and attribute values.
         """
-        return hash((self.hash(self.__dict__), self.__class__))
+        event_hash = self.__hash_for_data_integrity__(self.__dict__)
+        return hash((event_hash, self.__class__))
 
     def __repr__(self):
         """
@@ -101,14 +98,8 @@ class DomainEvent(QualnameABC):
         return "{}({})".format(self.__class__.__qualname__, args_string)
 
     @classmethod
-    def hash(cls, *args):
-        json_dump = json.dumps(
-            args,
-            separators=(',', ':'),
-            sort_keys=True,
-            cls=cls.__json_encoder_class__,
-        )
-        return hashlib.sha256(json_dump.encode()).hexdigest()
+    def __hash_for_data_integrity__(cls, *args):
+        return hash_for_data_integrity(cls.__json_encoder_class__, *args)
 
 
 class EventWithOriginatorID(DomainEvent):
@@ -175,6 +166,7 @@ class AttributeChanged(DomainEvent):
     """
     Can be published when an attribute of an entity is created.
     """
+
     @property
     def name(self):
         return self.__dict__['name']

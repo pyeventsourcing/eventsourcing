@@ -98,8 +98,8 @@ class TestDomainEventsWithTimeUUIDs(AbstractDatastoreTestCase):
         with ExampleApplicationWithTimeuuidSequencedItems() as app:
             # Create entity.
             entity1 = app.start_entity()
-            self.assertIsInstance(entity1._initial_event_id, UUID)
-            expected_timestamp = timestamp_from_uuid(entity1._initial_event_id)
+            self.assertIsInstance(entity1.___initial_event_id__, UUID)
+            expected_timestamp = timestamp_from_uuid(entity1.___initial_event_id__)
             self.assertEqual(entity1.__created_on__, expected_timestamp)
             self.assertTrue(entity1.__last_modified__, expected_timestamp)
 

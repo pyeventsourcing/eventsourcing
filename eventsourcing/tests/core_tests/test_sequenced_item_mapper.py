@@ -164,7 +164,7 @@ class TestSequencedItemMapper(TestCase):
         )
 
         # Check the sequenced item has expected hash.
-        hash = '932e3707880ce65d2146f8b9b2422265a15d17f1703f73e81ef3bffb119afe17'
+        hash = '67e5d9c563c59ee7c078bac03053bcd7db207944b91dde2e956382bac309a35c'
         sequenced_item = mapper.to_sequenced_item(orig_event)
         self.assertEqual('{"a":555}', sequenced_item.data)
         self.assertEqual(hash, sequenced_item.hash)

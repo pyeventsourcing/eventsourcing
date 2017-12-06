@@ -61,11 +61,14 @@ class TestDocs(TestCase):
                 failed.append(path)
                 print(str(e).strip('\n'))
                 print('FAIL')
-                print()
+                print('')
             else:
                 passed.append(path)
                 print('PASS')
-                print()
+                print('')
+            finally:
+                os.environ['SALT_FOR_DATA_INTEGRITY'] = ''
+
         print("{} failed, {} passed".format(len(failed), len(passed)))
 
         if failures:

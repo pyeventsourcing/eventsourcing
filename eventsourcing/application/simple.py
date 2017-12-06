@@ -6,19 +6,24 @@ from eventsourcing.infrastructure.cipher.aes import AESCipher
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
-from eventsourcing.utils.random import decode_cipher_key
+from eventsourcing.utils.random import decode_random_bytes
 
 
 class SimpleApplication(object):
-    def __init__(self, **kwargs):
+    def __init__(self, persist_event_type=None, **kwargs):
         # Setup the event store.
         self.setup_event_store(**kwargs)
 
         # Construct a persistence policy.
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(
+            event_store=self.event_store,
+            event_type=persist_event_type
+        )
 
         # Construct an event sourced repository.
-        self.repository = EventSourcedRepository(self.event_store)
+        self.repository = EventSourcedRepository(
+            event_store=self.event_store
+        )
 
     def setup_event_store(self, setup_table=True, **kwargs):
         # Setup connection to database.
@@ -28,7 +33,7 @@ class SimpleApplication(object):
         self.datastore.setup_connection()
 
         # Construct event store.
-        aes_key = decode_cipher_key(os.getenv('AES_CIPHER_KEY', ''))
+        aes_key = decode_random_bytes(os.getenv('AES_CIPHER_KEY', ''))
         self.event_store = construct_sqlalchemy_eventstore(
             session=self.datastore.session,
             cipher=AESCipher(aes_key=aes_key),

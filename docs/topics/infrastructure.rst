@@ -418,9 +418,23 @@ This feature can be enable by setting ``with_data_integrity`` to ``True``.
     SequencedItemMapper(with_data_integrity=True)
 
 
-This feature doesn't protect against malicious damage, since the hash value could be easily generated.
+This feature doesn't protect against malicious damage, since the hash value could be regenerated.
 The point is that a random mutation in the stored data would almost certainly be detected by checking
 the hash before mapping the sequenced item to an application-level object.
+
+The hashes can be salted by setting environment variable ``SALT_FOR_DATA_INTEGRITY``,
+perhaps with random bytes encoded as Base64.
+
+.. code:: python
+
+    from eventsourcing.utils.random import encode_random_bytes
+
+    # Keep this safe.
+    salt = encode_random_bytes(num_bytes=32)
+
+    # Configure environment (before importing library).
+    import os
+    os.environ['SALT_FOR_DATA_INTEGRITY'] = salt
 
 
 Custom JSON transcoding
@@ -491,21 +505,21 @@ random bytes (128, 192, or 256 bits). Longer keys take more time to encrypt plai
 ciphertext.
 
 Generating and storing a secure key requires functionality beyond the scope of this library.
-However, the utils package does contain a function ``generate_cipher_key()`` that may help
+However, the utils package does contain a function ``encode_random_bytes()`` that may help
 to generate a unicode key string, representing random bytes encoded with Base64. A companion
-function ``decode_cipher_key()`` decodes the unicode key string into a sequence of bytes.
+function ``decode_random_bytes()`` decodes the unicode key string into a sequence of bytes.
 
 
 .. code:: python
 
     from eventsourcing.infrastructure.cipher.aes import AESCipher
-    from eventsourcing.utils.random import generate_cipher_key, decode_cipher_key
+    from eventsourcing.utils.random import encode_random_bytes, decode_random_bytes
 
     # Unicode string representing 256 random bits encoded with Base64.
-    cipher_key = generate_cipher_key(num_bytes=32)
+    cipher_key = encode_random_bytes(num_bytes=32)
 
     # Construct AES-256 cipher.
-    cipher = AESCipher(aes_key=decode_cipher_key(cipher_key))
+    cipher = AESCipher(aes_key=decode_random_bytes(cipher_key))
 
     # Encrypt some plaintext.
     ciphertext = cipher.encrypt('plaintext')

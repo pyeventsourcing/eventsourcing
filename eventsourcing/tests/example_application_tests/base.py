@@ -20,7 +20,6 @@ class WithExampleApplication(WithActiveRecordStrategies):
             snapshot_active_record_strategy=self.snapshot_active_record_strategy,
             always_encrypt=bool(cipher),
             cipher=cipher,
-            with_data_integrity=Example.__with_data_integrity__
         )
         return app
 

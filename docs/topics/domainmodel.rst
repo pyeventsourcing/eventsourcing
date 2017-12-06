@@ -530,7 +530,7 @@ is set to 'Mr Boots'. A subscriber receives the event.
 Data integrity
 --------------
 
-Domain events that are triggered in this way are automatically hash-chained together.
+Domain events that are triggered in this way are hash-chained together by default.
 
 The state of each event, including the hash of the last event, is hashed using
 SHA-256. Before an event is applied to an entity, it is validated in itself (the
@@ -546,7 +546,7 @@ The hash of the last event applied to an entity is available as an attribute cal
 
     # Entity's head hash is determined exclusively
     # by the entire sequence of events and SHA-256.
-    assert entity.__head__ == '8bb9576ab80b26b2561f653ee61fc4a42b367605d40ee998c97808431e656262'
+    assert entity.__head__ == 'ae7688000c38b2bd504b3eb3cd8e015144dd9a3c4992951c87cef9cce047f86c', entity.__head__
 
     # Entity's head hash is simply the event hash
     # of the last event that mutated the entity.
@@ -556,6 +556,20 @@ The hash of the last event applied to an entity is available as an attribute cal
 A different sequence of events will almost certainly result a different
 head hash. So the entire history of an entity can be verified by checking the
 head hash. This feature could be used to protect against tampering.
+
+The hashes can be salted by setting environment variable ``SALT_FOR_DATA_INTEGRITY``,
+perhaps with random bytes encoded as Base64.
+
+.. code:: python
+
+    from eventsourcing.utils.random import encode_random_bytes
+
+    # Keep this safe.
+    salt = encode_random_bytes(num_bytes=32)
+
+    # Configure environment (before importing library).
+    import os
+    os.environ['SALT_FOR_DATA_INTEGRITY'] = salt
 
 
 Discarding entities
