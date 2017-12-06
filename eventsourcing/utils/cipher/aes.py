@@ -1,98 +1,77 @@
 import base64
 import zlib
 
-from Crypto import Random
 from Crypto.Cipher import AES
 
+from eventsourcing.exceptions import DataIntegrityError
 from eventsourcing.utils.cipher.base import AbstractCipher
-
-DEFAULT_AES_MODE = 'GCM'
 
 
 class AESCipher(AbstractCipher):
     """
     Cipher strategy that uses Crypto library AES cipher in GCM mode.
     """
-
-    # Todo: Follow docs http://pycryptodome.readthedocs.io/en/latest/src/examples.html#encrypt-data-with-aes
-
-    SUPPORTED_MODES = ['CBC', 'EAX', 'GCM', 'CCM']
-    PADDED_MODES = ['CBC']
-
-    def __init__(self, aes_key, mode_name=None):
+    def __init__(self, aes_key):
         self.aes_key = aes_key
-        self.mode_name = mode_name or DEFAULT_AES_MODE
-
-        # Check mode name is supported.
-        assert self.mode_name in self.SUPPORTED_MODES, (
-            "Mode '{}' not in supported list: {}".format(
-                self.mode_name, self.SUPPORTED_MODES
-            )
-        )
-
-        # Pick AES mode (an integer).
-        self.mode = getattr(AES, 'MODE_{}'.format(self.mode_name))
-
-        # Fix the block size.
-        self.bs = AES.block_size
 
     def encrypt(self, plaintext):
         """Return ciphertext for given plaintext."""
 
-        # Create a unique initialisation vector each time something is encrypted.
-        iv = Random.new().read(self.bs)
+        # String to bytes.
+        plainbytes = plaintext.encode('utf8')
 
-        # Create an AES cipher.
-        cipher = AES.new(self.aes_key, self.mode, iv)
+        # Compress plaintext bytes.
+        compressed = zlib.compress(plainbytes)
 
-        # Construct the ciphertext string.
-        ciphertext = base64.b64encode(
-            iv + cipher.encrypt(
-                self.pad(
-                    base64.b64encode(
-                        zlib.compress(
-                            plaintext.encode('utf8')
-                        )
-                    )
-                )
-            )
-        ).decode('utf8')
+        # Construct AES cipher, with new nonce.
+        cipher = AES.new(self.aes_key, AES.MODE_GCM)
 
+        # Encrypt and digest.
+        encrypted, tag = cipher.encrypt_and_digest(compressed)
+
+        # Combine with nonce.
+        combined = cipher.nonce + tag + encrypted
+
+        # Encode as Base64.
+        cipherbytes = base64.b64encode(combined)
+
+        # Bytes to string.
+        ciphertext = cipherbytes.decode('utf8')
+
+        # Return ciphertext.
         return ciphertext
 
     def decrypt(self, ciphertext):
         """Return plaintext for given ciphertext."""
 
-        # Recover the initialisation vector.
-        ciphertext_bytes_base64 = ciphertext.encode('utf8')
-        ciphertext_bytes = base64.b64decode(ciphertext_bytes_base64)
-        iv = ciphertext_bytes[:self.bs]
+        # String to bytes.
+        cipherbytes = ciphertext.encode('utf8')
 
-        # Create the AES cipher.
-        cipher = AES.new(self.aes_key, self.mode, iv)
+        # Decode from Base64.
+        try:
+            combined = base64.b64decode(cipherbytes)
+        except base64.binascii.Error as e:
+            raise DataIntegrityError("Cipher text is damaged: {}".format(e))
 
-        # Construct the plaintext string.
-        plaintext = zlib.decompress(
-            base64.b64decode(
-                self.unpad(
-                    cipher.decrypt(
-                        ciphertext_bytes[self.bs:]
-                    )
-                )
-            )
-        ).decode('utf8')
+        # Split out the nonce, tag, and encrypted data.
+        nonce = combined[:16]
+        tag = combined[16:32]
+        encrypted = combined[32:]
 
+        # Construct AES cipher, with old nonce.
+        cipher = AES.new(self.aes_key, AES.MODE_GCM, nonce)
+
+        # Decrypt and verify.
+        try:
+            compressed = cipher.decrypt_and_verify(encrypted, tag)
+        except ValueError as e:
+            raise DataIntegrityError("Cipher text is damaged: {}".format(e))
+
+        # Decompress plaintext bytes.
+        plainbytes = zlib.decompress(compressed)
+
+        # Bytes to string.
+        plaintext = plainbytes.decode('utf8')
+
+        # Return plaintext.
         return plaintext
-
-    def pad(self, s):
-        if self.mode_name in self.PADDED_MODES:
-            padding_size = self.bs - len(s) % self.bs
-            return s + padding_size * chr(padding_size).encode('utf8')
-        else:
-            return s
-
-    def unpad(self, s):
-        if self.mode_name in self.PADDED_MODES:
-            return s[:-ord(s[len(s) - 1:])]
-        else:
-            return s
