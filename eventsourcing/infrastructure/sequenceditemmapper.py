@@ -5,7 +5,7 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.exceptions import DataIntegrityError
-from eventsourcing.infrastructure.cipher.base import AbstractCipher
+from eventsourcing.utils.cipher.base import AbstractCipher
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 from eventsourcing.utils.hashing import hash_for_data_integrity
 from eventsourcing.utils.topic import get_topic, resolve_topic

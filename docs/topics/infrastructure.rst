@@ -512,7 +512,7 @@ function ``decode_random_bytes()`` decodes the unicode key string into a sequenc
 
 .. code:: python
 
-    from eventsourcing.infrastructure.cipher.aes import AESCipher
+    from eventsourcing.utils.cipher.aes import AESCipher
     from eventsourcing.utils.random import encode_random_bytes, decode_random_bytes
 
     # Unicode string representing 256 random bits encoded with Base64.

@@ -32,7 +32,7 @@ are replayed.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.cipher.aes import AESCipher
+    from eventsourcing.utils.cipher.aes import AESCipher
 
     # Construct the cipher strategy.
     aes_key = b'0123456789abcdef'

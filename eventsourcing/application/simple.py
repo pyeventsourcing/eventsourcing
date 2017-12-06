@@ -1,8 +1,7 @@
 import os
-from base64 import b64decode
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.infrastructure.cipher.aes import AESCipher
+from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
