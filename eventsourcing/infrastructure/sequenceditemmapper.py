@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import random
 from abc import ABCMeta, abstractmethod
 
 import six
@@ -69,17 +70,19 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         # Encrypt (optional).
         if self.cipher:
-            # Use sequence and position to give unique value for nonce,
-            # but add 3 random bytes to make encrypted messages that will
-            # be rejected by the database due to concurrency control have
-            # nonces that are almost certainly different from each other.
-            # Otherwise contention could be used to generate ciphertexts
-            # all with the same nonce, and if connection to database isn't
-            # secure, such messages could be seen and used to break the
-            # encryption, even though such messages can't end up actually
-            # in the database. The three random bytes is just a precaution
-            # against that.
-            nonce_args = (sequence_id, position, encode_random_bytes(3))
+            # Sequence and position will give a unique nonce for
+            # of ciphertext in database. However that is insufficient,
+            # because items are ciphered before controlled for concurrency.
+            # If only the sequence and position are used for the nonce
+            # then many items could be ciphered with the same nonce.
+            # If such messages could somehow be seen before being rejected
+            # by the database, they could be used to break the encryption,
+            # even though such messages can't end up actually in the database.
+            # Involving a pseudo-random number generator avoids this issue
+            # with a very high degree of probability. Using random.getrandbits()
+            # instead of os.urandom() is much faster, and is acceptable here since
+            # the nonce doesn't have to be random, just unique.
+            nonce_args = (sequence_id, position, random.getrandbits(24))
             data = self.cipher.encrypt(data, nonce_args)
 
         # Get the 'other' args.
