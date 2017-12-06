@@ -32,10 +32,8 @@ class SimpleApplication(object):
         )
 
         # Construct cipher (optional).
-        cipher = None
         aes_key = decode_random_bytes(os.getenv('AES_CIPHER_KEY', ''))
-        if aes_key:
-            cipher = AESCipher(aes_key)
+        cipher = AESCipher(aes_key) if aes_key else None
 
         # Construct event store.
         self.event_store = construct_sqlalchemy_eventstore(
