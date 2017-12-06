@@ -4,10 +4,8 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.exceptions import DataIntegrityError
-from eventsourcing.utils.cipher.base import AbstractCipher
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
-from eventsourcing.utils.hashing import hash_for_data_integrity
+from eventsourcing.utils.random import encode_random_bytes
 from eventsourcing.utils.topic import get_topic, resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder, json_dumps, json_loads
 
@@ -71,7 +69,18 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         # Encrypt (optional).
         if self.cipher:
-            data = self.cipher.encrypt(data)
+            # Use sequence and position to give unique value for nonce,
+            # but add 3 random bytes to make encrypted messages that will
+            # be rejected by the database due to concurrency control have
+            # nonces that are almost certainly different from each other.
+            # Otherwise contention could be used to generate ciphertexts
+            # all with the same nonce, and if connection to database isn't
+            # secure, such messages could be seen and used to break the
+            # encryption, even though such messages can't end up actually
+            # in the database. The three random bytes is just a precaution
+            # against that.
+            nonce_args = (sequence_id, position, encode_random_bytes(3))
+            data = self.cipher.encrypt(data, nonce_args)
 
         # Get the 'other' args.
         # - these are meant to be derivative of the other attributes,

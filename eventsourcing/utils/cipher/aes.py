@@ -1,20 +1,21 @@
 import base64
+import hashlib
 import zlib
 
 from Crypto.Cipher import AES
 
 from eventsourcing.exceptions import DataIntegrityError
-from eventsourcing.utils.cipher.base import AbstractCipher
 
 
-class AESCipher(AbstractCipher):
+class AESCipher(object):
     """
     Cipher strategy that uses Crypto library AES cipher in GCM mode.
     """
+
     def __init__(self, aes_key):
         self.aes_key = aes_key
 
-    def encrypt(self, plaintext):
+    def encrypt(self, plaintext, nonce_args):
         """Return ciphertext for given plaintext."""
 
         # String to bytes.
@@ -23,8 +24,9 @@ class AESCipher(AbstractCipher):
         # Compress plaintext bytes.
         compressed = zlib.compress(plainbytes)
 
-        # Construct AES cipher, with new nonce.
-        cipher = AES.new(self.aes_key, AES.MODE_GCM)
+        # Construct AES cipher, with 92-bit nonce.
+        nonce = hashlib.sha256(str(nonce_args).encode()).digest()[:12]
+        cipher = AES.new(self.aes_key, AES.MODE_GCM, nonce=nonce)
 
         # Encrypt and digest.
         encrypted, tag = cipher.encrypt_and_digest(compressed)
@@ -56,9 +58,9 @@ class AESCipher(AbstractCipher):
             raise DataIntegrityError("Cipher text is damaged: {}".format(e))
 
         # Split out the nonce, tag, and encrypted data.
-        nonce = combined[:16]
-        tag = combined[16:32]
-        encrypted = combined[32:]
+        nonce = combined[:12]
+        tag = combined[12:28]
+        encrypted = combined[28:]
 
         # Construct AES cipher, with old nonce.
         cipher = AES.new(self.aes_key, AES.MODE_GCM, nonce)

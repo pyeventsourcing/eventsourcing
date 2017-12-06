@@ -1,4 +1,5 @@
 from unittest import TestCase
+from uuid import uuid4
 
 from eventsourcing.exceptions import DataIntegrityError
 
@@ -16,7 +17,7 @@ class TestAESCipher(TestCase):
         cipher = AESCipher(aes_key=decode_random_bytes(cipher_key))
 
         # Encrypt some plaintext.
-        ciphertext = cipher.encrypt('plaintext')
+        ciphertext = cipher.encrypt('plaintext', nonce_args=(uuid4(), 17))
         self.assertNotEqual(ciphertext, 'plaintext')
 
         # Decrypt some ciphertext.
