@@ -1,8 +1,8 @@
 from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 
-
 WITH_DATA_INTEGRITY = False
+
 
 class Example(TimestampedVersionedEntity):
     """
