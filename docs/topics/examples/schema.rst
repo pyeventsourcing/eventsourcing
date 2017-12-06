@@ -22,7 +22,7 @@ strategy when constructing the application object.
 
     from collections import namedtuple
 
-    StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'event_type', 'state', 'hash'])
+    StoredEvent = namedtuple('StoredEvent', ['aggregate_id', 'aggregate_version', 'event_type', 'state'])
 
 
 Then define a suitable active record class.
@@ -50,9 +50,6 @@ Then define a suitable active record class.
 
         # State of the item (serialized dict, possibly encrypted).
         state = Column(Text())
-
-        # Hash of the other fields.
-        hash = Column(Text())
 
         __table_args__ = Index('index', 'aggregate_id', 'aggregate_version'),
 

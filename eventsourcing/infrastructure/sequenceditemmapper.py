@@ -5,7 +5,7 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.exceptions import DataIntegrityError
-from eventsourcing.infrastructure.cipher.base import AbstractCipher
+from eventsourcing.utils.cipher.base import AbstractCipher
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 from eventsourcing.utils.hashing import hash_for_data_integrity
 from eventsourcing.utils.topic import get_topic, resolve_topic
@@ -33,17 +33,15 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
     def __init__(self, sequenced_item_class=SequencedItem, sequence_id_attr_name=None, position_attr_name=None,
                  json_encoder_class=ObjectJSONEncoder, json_decoder_class=ObjectJSONDecoder,
-                 always_encrypt=False, cipher=None, other_attr_names=(), with_data_integrity=False):
+                 cipher=None, other_attr_names=()):
         self.sequenced_item_class = sequenced_item_class
         self.json_encoder_class = json_encoder_class
         self.json_decoder_class = json_decoder_class
         self.cipher = cipher
-        self.always_encrypt = always_encrypt
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
         self.sequence_id_attr_name = sequence_id_attr_name or self.field_names.sequence_id
         self.position_attr_name = position_attr_name or self.field_names.position
-        self.other_attr_names = other_attr_names or self.field_names[5:]
-        self.with_data_integrity = with_data_integrity
+        self.other_attr_names = other_attr_names or self.field_names.other_names
 
     def to_sequenced_item(self, domain_event):
         """
@@ -72,27 +70,15 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         data = json_dumps(event_attrs, cls=self.json_encoder_class)
 
         # Encrypt (optional).
-        if self.always_encrypt:
-            assert isinstance(self.cipher, AbstractCipher)
+        if self.cipher:
             data = self.cipher.encrypt(data)
-
-        # Hash sequence ID, position, topic, and data.
-        hash = ''
-        if self.with_data_integrity:
-            hash = self.hash_for_data_integrity(
-                sequence_id, position, topic, data
-            )
 
         # Get the 'other' args.
         # - these are meant to be derivative of the other attributes,
         #   to populate database fields, and shouldn't affect the hash.
         other_args = tuple((getattr(domain_event, name) for name in self.other_attr_names))
 
-        return (sequence_id, position, topic, data, hash) + other_args
-
-    def hash_for_data_integrity(self, sequence_id, position, topic, data):
-        obj = (sequence_id, position, topic, data)
-        return hash_for_data_integrity(self.json_encoder_class, obj)
+        return (sequence_id, position, topic, data) + other_args
 
     def construct_sequenced_item(self, item_args):
         return self.sequenced_item_class(*item_args)
@@ -111,23 +97,9 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         position = getattr(sequenced_item, self.field_names.position)
         topic = getattr(sequenced_item, self.field_names.topic)
         data = getattr(sequenced_item, self.field_names.data)
-        hash = getattr(sequenced_item, self.field_names.hash)
-
-        # Check data integrity (optional).
-        if self.with_data_integrity:
-            expected = self.hash_for_data_integrity(
-                sequence_id, position, topic, data
-            )
-            if hash != expected:
-                raise DataIntegrityError(
-                    'hash mismatch',
-                    sequenced_item.sequence_id,
-                    sequenced_item.position
-                )
 
         # Decrypt (optional).
-        if self.always_encrypt:
-            assert isinstance(self.cipher, AbstractCipher), self.cipher
+        if self.cipher:
             data = self.cipher.decrypt(data)
 
         # Deserialize.

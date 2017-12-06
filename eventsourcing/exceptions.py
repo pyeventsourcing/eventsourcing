@@ -34,7 +34,7 @@ class MutatorRequiresTypeNotInstance(ConsistencyError):
     """Raised when mutator function received a class rather than an entity."""
 
 
-class DataIntegrityError(EventSourcingError):
+class DataIntegrityError(ValueError, EventSourcingError):
     "Raised when a sequenced item data is damaged (hash doesn't match data)"
 
 

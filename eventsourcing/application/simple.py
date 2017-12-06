@@ -1,8 +1,7 @@
 import os
-from base64 import b64decode
 
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.infrastructure.cipher.aes import AESCipher
+from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
@@ -25,19 +24,21 @@ class SimpleApplication(object):
             event_store=self.event_store
         )
 
-    def setup_event_store(self, setup_table=True, **kwargs):
+    def setup_event_store(self, uri=None, session=None, setup_table=True):
         # Setup connection to database.
         self.datastore = SQLAlchemyDatastore(
-            settings=SQLAlchemySettings(**kwargs)
+            settings=SQLAlchemySettings(uri=uri),
+            session=session,
         )
-        self.datastore.setup_connection()
+
+        # Construct cipher (optional).
+        aes_key = decode_random_bytes(os.getenv('AES_CIPHER_KEY', ''))
+        cipher = AESCipher(aes_key) if aes_key else None
 
         # Construct event store.
-        aes_key = decode_random_bytes(os.getenv('AES_CIPHER_KEY', ''))
         self.event_store = construct_sqlalchemy_eventstore(
             session=self.datastore.session,
-            cipher=AESCipher(aes_key=aes_key),
-            always_encrypt=bool(aes_key)
+            cipher=cipher,
         )
 
         # Setup table in database.
@@ -53,6 +54,9 @@ class SimpleApplication(object):
     def close(self):
         # Close the persistence policy.
         self.persistence_policy.close()
+
+        # Close database connection.
+        self.datastore.close_connection()
 
     def __enter__(self):
         return self

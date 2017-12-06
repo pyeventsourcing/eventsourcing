@@ -78,7 +78,7 @@ class CassandraDatastore(Datastore):
             retry_connect=True,
         )
 
-    def drop_connection(self):
+    def close_connection(self):
         if cassandra.cqlengine.connection.session:
             cassandra.cqlengine.connection.session.shutdown()
         if cassandra.cqlengine.connection.cluster:

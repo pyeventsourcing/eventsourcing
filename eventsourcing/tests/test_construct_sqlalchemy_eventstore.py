@@ -13,7 +13,7 @@ class TestFactory(TestCase):
         datastore = SQLAlchemyDatastore(settings=SQLAlchemySettings())
         datastore.setup_connection()
 
-        event_store = construct_sqlalchemy_eventstore(datastore.session, with_data_integrity=True)
+        event_store = construct_sqlalchemy_eventstore(datastore.session)
         datastore.setup_table(event_store.active_record_strategy.active_record_class)
 
         self.assertIsInstance(event_store, EventStore)

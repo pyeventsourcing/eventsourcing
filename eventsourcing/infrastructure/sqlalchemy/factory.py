@@ -11,10 +11,8 @@ def construct_sqlalchemy_eventstore(session,
                                     position_attr_name=None,
                                     json_encoder_class=ObjectJSONEncoder,
                                     json_decoder_class=ObjectJSONDecoder,
-                                    always_encrypt=False,
                                     cipher=None,
                                     active_record_class=StoredEventRecord,
-                                    with_data_integrity=False
                                     ):
     sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=sequenced_item_class,
@@ -22,9 +20,7 @@ def construct_sqlalchemy_eventstore(session,
         position_attr_name=position_attr_name,
         json_encoder_class=json_encoder_class,
         json_decoder_class=json_decoder_class,
-        always_encrypt=always_encrypt,
         cipher=cipher,
-        with_data_integrity=with_data_integrity,
     )
     active_record_strategy = SQLAlchemyActiveRecordStrategy(
         session=session,

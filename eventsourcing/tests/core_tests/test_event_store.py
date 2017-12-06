@@ -20,7 +20,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
     def tearDown(self):
         if self.datastore is not None:
             self.datastore.drop_tables()
-            self.datastore.drop_connection()
+            self.datastore.close_connection()
         super(TestEventStore, self).tearDown()
 
     def construct_event_store(self):

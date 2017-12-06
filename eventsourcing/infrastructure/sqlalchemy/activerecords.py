@@ -168,9 +168,6 @@ class IntegerSequencedItemRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Hash of the other fields.
-    hash = Column(Text())
-
     __table_args__ = (
         Index('integer_sequenced_items_index', 'sequence_id', 'position'),
     )
@@ -193,9 +190,6 @@ class TimestampSequencedItemRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Hash of the other fields.
-    hash = Column(Text())
-
     __table_args__ = (
         Index('timestamp_sequenced_items_index', 'sequence_id', 'position'),
     )
@@ -215,9 +209,6 @@ class SnapshotRecord(ActiveRecord):
 
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
-
-    # Hash of the other fields.
-    hash = Column(Text())
 
     __table_args__ = (
         Index('snapshots_index', 'sequence_id', 'position'),
@@ -240,8 +231,5 @@ class StoredEventRecord(ActiveRecord):
 
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
-
-    # Hash of the other fields.
-    hash = Column(Text())
 
     __table_args__ = Index('stored_events_index', 'originator_id', 'originator_version'),

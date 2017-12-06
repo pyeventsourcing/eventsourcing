@@ -88,7 +88,7 @@ class TestFlaskWsgi(TestFlaskApp):
         )
         datastore.setup_connection()
         datastore.setup_tables()
-        datastore.drop_connection()
+        datastore.close_connection()
 
         # Run uwsgi.
         path_to_uwsgi = join(path_to_virtualenv, 'bin', 'uwsgi')
