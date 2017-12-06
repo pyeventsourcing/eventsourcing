@@ -1,14 +1,18 @@
 from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 
+WITH_DATA_INTEGRITY = False
+
 
 class Example(TimestampedVersionedEntity):
     """
     An example event sourced domain model entity.
     """
+    __with_data_integrity__ = WITH_DATA_INTEGRITY
 
     class Event(TimestampedVersionedEntity.Event):
         """Supertype for events of example entities."""
+        __with_data_integrity__ = WITH_DATA_INTEGRITY
 
     class Created(Event, TimestampedVersionedEntity.Created):
         """Published when an Example is created."""
