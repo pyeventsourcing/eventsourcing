@@ -46,7 +46,7 @@ class TestSequencedItemMapper(TestCase):
             position_attr_name='originator_version'
         )
         entity_id1 = uuid4()
-        event1 = Event1(originator_id=entity_id1, originator_version=101, __previous_hash__='')
+        event1 = Event1(originator_id=entity_id1, originator_version=101)
 
         # Check to_sequenced_item() method results in a sequenced item.
         sequenced_item = mapper.to_sequenced_item(event1)
@@ -79,7 +79,7 @@ class TestSequencedItemMapper(TestCase):
         )
         before = time()
         sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
-        event2 = Event2(originator_id='entity2', __previous_hash__='')
+        event2 = Event2(originator_id='entity2')
         sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
         after = time()
 
