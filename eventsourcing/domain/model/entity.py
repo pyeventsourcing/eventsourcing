@@ -40,6 +40,7 @@ class DomainEntity(QualnameABC):
         """
         Supertype for events of domain entities.
         """
+        __with_data_integrity__ = True
 
         def __init__(self, **kwargs):
             super(DomainEntity.Event, self).__init__(**kwargs)
