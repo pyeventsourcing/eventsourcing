@@ -11,7 +11,7 @@ from eventsourcing.domain.model.events import AttributeChanged, Created, Discard
     EventWithOriginatorVersion, EventWithTimestamp, GENESIS_HASH, QualnameABC, publish
 from eventsourcing.exceptions import EntityIsDiscarded, HeadHashError, OriginatorIDError, \
     OriginatorVersionError
-from eventsourcing.utils.time import timestamp_from_uuid
+from eventsourcing.utils.times import timestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 

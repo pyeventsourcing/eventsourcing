@@ -4,7 +4,7 @@
 # from eventsourcing.exceptions import ConcurrencyError, DatasourceOperationError
 # from eventsourcing.infrastructure.eventstore import AbstractStoredEventRepository
 # from eventsourcing.infrastructure.transcoding import EntityVersion
-# from eventsourcing.utils.time import timestamp_from_uuid
+# from eventsourcing.utils.times import timestamp_from_uuid
 #
 #
 # class PythonObjectsStoredEventRepository(AbstractStoredEventRepository):

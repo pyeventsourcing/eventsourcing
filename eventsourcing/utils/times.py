@@ -53,4 +53,4 @@ def time_from_uuid(uuid_arg):
 
 
 def now_time_decimal():
-    return Decimal('{:.7f}'.format(time()))
+    return Decimal('{:.6f}'.format(time()))

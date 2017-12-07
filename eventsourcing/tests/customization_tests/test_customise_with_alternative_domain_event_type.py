@@ -12,7 +12,7 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
-from eventsourcing.utils.time import timestamp_from_uuid
+from eventsourcing.utils.times import timestamp_from_uuid
 
 
 # This test has events with TimeUUID value as the 'event ID'. How easy is it to customize

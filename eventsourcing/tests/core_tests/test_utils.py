@@ -6,7 +6,7 @@ from uuid import uuid1
 import sys
 
 from eventsourcing.utils.random import encode_random_bytes, decode_random_bytes
-from eventsourcing.utils.time import timestamp_from_uuid, utc_timezone
+from eventsourcing.utils.times import timestamp_from_uuid, utc_timezone
 
 
 class TestUtils(TestCase):

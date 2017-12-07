@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 from eventsourcing.domain.model.events import publish, EventWithTimestamp, EventWithOriginatorID, Logged
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.utils.time import utc_timezone
+from eventsourcing.utils.times import utc_timezone
 from eventsourcing.utils.topic import get_topic
 
 Namespace_Timebuckets = UUID('0d7ee297-a976-4c29-91ff-84ffc79d8155')

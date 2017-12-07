@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from eventsourcing.domain.model.events import QualnameABC
 from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
-from eventsourcing.utils.time import utc_timezone
+from eventsourcing.utils.times import utc_timezone
 
 
 class TestObjectJSONEncoder(TestCase):

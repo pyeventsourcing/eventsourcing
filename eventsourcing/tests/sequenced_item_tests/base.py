@@ -10,7 +10,7 @@ from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
     Logged
-from eventsourcing.utils.time import now_time_decimal
+from eventsourcing.utils.times import now_time_decimal
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import SequencedItemConflict
@@ -382,7 +382,7 @@ class TimestampSequencedItemTestCase(ActiveRecordStrategyTestCase):
 
     def construct_positions(self):
         t1 = now_time_decimal()
-        return t1, t1 + Decimal('0.00001'), t1 + Decimal('0.00002')
+        return t1, t1 + Decimal('0.000001'), t1 + Decimal('0.000002')
 
 
 class SequencedItemIteratorTestCase(WithActiveRecordStrategies):

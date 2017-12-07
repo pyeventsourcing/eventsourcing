@@ -11,7 +11,7 @@ from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmpty
 from eventsourcing.utils.topic import resolve_topic, get_topic
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.exceptions import TopicResolutionError
-from eventsourcing.utils.time import timestamp_from_uuid, now_time_decimal
+from eventsourcing.utils.times import timestamp_from_uuid, now_time_decimal
 
 try:
     from unittest import mock
