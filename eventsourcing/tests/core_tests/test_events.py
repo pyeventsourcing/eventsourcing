@@ -11,7 +11,7 @@ from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmpty
 from eventsourcing.utils.topic import resolve_topic, get_topic
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.exceptions import TopicResolutionError
-from eventsourcing.utils.times import timestamp_from_uuid, now_time_decimal
+from eventsourcing.utils.times import decimaltimestamp_from_uuid, decimaltimestamp
 
 try:
     from unittest import mock
@@ -130,7 +130,7 @@ class TestEventWithTimestamp(unittest.TestCase):
         # Check the timestamp value can't be reassigned.
         with self.assertRaises(AttributeError):
             # noinspection PyPropertyAccess
-            event.timestamp = now_time_decimal()
+            event.timestamp = decimaltimestamp()
 
 
 class TestEventWithTimeuuid(unittest.TestCase):
@@ -147,8 +147,8 @@ class TestEventWithTimeuuid(unittest.TestCase):
         # Check event can be instantiated without an event_id.
         time1 = time()
         event = Event()
-        self.assertGreater(timestamp_from_uuid(event.event_id), time1)
-        self.assertLess(timestamp_from_uuid(event.event_id), time())
+        self.assertGreater(decimaltimestamp_from_uuid(event.event_id), time1)
+        self.assertLess(decimaltimestamp_from_uuid(event.event_id), time())
 
         # Check the event_id can't be reassigned.
         with self.assertRaises(AttributeError):

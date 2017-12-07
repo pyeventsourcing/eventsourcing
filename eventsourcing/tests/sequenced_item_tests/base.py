@@ -10,7 +10,7 @@ from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
     Logged
-from eventsourcing.utils.times import now_time_decimal
+from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import SequencedItemConflict
@@ -169,9 +169,9 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
 
         self.assertIsInstance(retrieved_items[1], SequencedItem)
         self.assertEqual(retrieved_items[1].sequence_id, item3.sequence_id)
-        self.assertEqual(retrieved_items[1].position, position2)
         self.assertEqual(retrieved_items[1].topic, item3.topic)
         self.assertEqual(retrieved_items[1].data, item3.data)
+        self.assertEqual(retrieved_items[1].position, position2)
 
         self.assertIsInstance(retrieved_items[2], SequencedItem)
         self.assertEqual(retrieved_items[2].sequence_id, item5.sequence_id)
@@ -381,8 +381,9 @@ class TimestampSequencedItemTestCase(ActiveRecordStrategyTestCase):
     EXAMPLE_EVENT_TOPIC2 = get_topic(TimestampedEventExample2)
 
     def construct_positions(self):
-        t1 = now_time_decimal()
+        t1 = decimaltimestamp()
         return t1, t1 + Decimal('0.000001'), t1 + Decimal('0.000002')
+        # return t1, t1 + Decimal('0.000001000'), t1 + Decimal('0.000002000')
 
 
 class SequencedItemIteratorTestCase(WithActiveRecordStrategies):

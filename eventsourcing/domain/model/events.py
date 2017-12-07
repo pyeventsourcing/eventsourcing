@@ -9,7 +9,7 @@ from six import with_metaclass
 
 from eventsourcing.exceptions import EventHashError
 from eventsourcing.utils.hashing import hash_for_data_integrity
-from eventsourcing.utils.times import now_time_decimal
+from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
@@ -185,7 +185,7 @@ class EventWithTimestamp(DomainEvent):
     """
 
     def __init__(self, timestamp=None, **kwargs):
-        kwargs['timestamp'] = timestamp or now_time_decimal()
+        kwargs['timestamp'] = timestamp or decimaltimestamp()
         super(EventWithTimestamp, self).__init__(**kwargs)
 
     @property

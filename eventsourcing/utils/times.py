@@ -1,6 +1,6 @@
 import datetime
 from decimal import Decimal
-from time import time
+import time
 from uuid import UUID
 
 import six
@@ -22,15 +22,15 @@ else:
     utc_timezone = UTC()
 
 
-def timestamp_from_uuid(uuid_arg):
+def decimaltimestamp_from_uuid(uuid_arg):
     """
-    Return a floating point unix timestamp to 6 decimal places.
+    Return a floating point unix timestamp.
 
     :param uuid_arg:
     :return: Unix timestamp in seconds, with microsecond precision.
     :rtype: float
     """
-    return timestamp_long_from_uuid(uuid_arg) / 1e7
+    return decimaltimestamp(timestamp_long_from_uuid(uuid_arg) / 1e7)
 
 
 def timestamp_long_from_uuid(uuid_arg):
@@ -41,16 +41,25 @@ def timestamp_long_from_uuid(uuid_arg):
     :return: Unix timestamp integer in tenths of microseconds.
     :rtype: int
     """
-    return time_from_uuid(uuid_arg) - 0x01B21DD213814000
-
-
-def time_from_uuid(uuid_arg):
     if isinstance(uuid_arg, six.string_types):
         uuid_arg = UUID(uuid_arg)
     assert isinstance(uuid_arg, UUID), uuid_arg
     uuid_time = uuid_arg.time
-    return uuid_time
+    return uuid_time - 0x01B21DD213814000
 
 
-def now_time_decimal():
-    return Decimal('{:.6f}'.format(time()))
+def decimaltimestamp(t=None):
+    """
+    A UNIX timestamp as a Decimal object (exact number type).
+
+    Returns current time when called without args, otherwise
+    converts given floating point number ``t`` to a Decimal
+    with 9 decimal places.
+
+    :param t: Floating point UNIX timestamp ("seconds since epoch").
+    :return: A Decimal with 6 decimal places, representing the
+            given floating point, or the value returned by time.time().
+    """
+    t = time.time() if t is None else t
+    return Decimal('{:.6f}'.format(t))
+    # return Decimal('{:.9f}'.format(t))

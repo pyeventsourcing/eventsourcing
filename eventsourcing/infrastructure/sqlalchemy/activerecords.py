@@ -192,6 +192,7 @@ class TimestampSequencedItemRecord(ActiveRecord):
 
     # Position (timestamp) of item in sequence.
     position = Column(DECIMAL(24, 6, 6), nullable=False)
+    # position = Column(DECIMAL(27, 9, 9), nullable=False)
 
     # Topic of the item (e.g. path to domain event class).
     topic = Column(String(255), nullable=False)
