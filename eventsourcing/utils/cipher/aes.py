@@ -15,7 +15,7 @@ class AESCipher(object):
     def __init__(self, aes_key):
         self.aes_key = aes_key
 
-    def encrypt(self, plaintext, nonce_args):
+    def encrypt(self, plaintext, nonce):
         """Return ciphertext for given plaintext."""
 
         # String to bytes.
@@ -24,8 +24,8 @@ class AESCipher(object):
         # Compress plaintext bytes.
         compressed = zlib.compress(plainbytes)
 
-        # Construct AES cipher, with 92-bit nonce.
-        nonce = hashlib.sha256(str(nonce_args).encode()).digest()[:12]
+        # Construct AES-GCM cipher, with 92-bit nonce.
+        assert len(nonce) == 12, len(nonce)
         cipher = AES.new(self.aes_key, AES.MODE_GCM, nonce=nonce)
 
         # Encrypt and digest.

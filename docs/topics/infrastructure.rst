@@ -501,7 +501,7 @@ function ``decode_random_bytes()`` decodes the unicode key string into a sequenc
     cipher = AESCipher(aes_key=decode_random_bytes(cipher_key))
 
     # Encrypt some plaintext (using nonce arguments).
-    ciphertext = cipher.encrypt('plaintext', nonce_args=('sequence3', 'item12'))
+    ciphertext = cipher.encrypt('plaintext', nonce=b'000000000000')
     assert ciphertext != 'plaintext'
 
     # Decrypt some ciphertext.
