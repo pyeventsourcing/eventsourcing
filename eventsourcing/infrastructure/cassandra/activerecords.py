@@ -150,9 +150,6 @@ class IntegerSequencedItemRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = columns.Text(required=True)
 
-    # Hash of the item.
-    hash = columns.Text()
-
 
 class TimestampSequencedItemRecord(ActiveRecord):
     """Stores timestamp-sequenced items in Cassandra."""
@@ -170,9 +167,6 @@ class TimestampSequencedItemRecord(ActiveRecord):
 
     # State of the item (serialized dict, possibly encrypted).
     data = columns.Text(required=True)
-
-    # Hash of the item.
-    hash = columns.Text()
 
 
 class CqlTimeuuidSequencedItem(ActiveRecord):
@@ -192,9 +186,6 @@ class CqlTimeuuidSequencedItem(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = columns.Text(required=True)
 
-    # Hash of the item.
-    hash = columns.Text()
-
 
 class SnapshotRecord(ActiveRecord):
     """Stores snapshots in Cassandra."""
@@ -213,9 +204,6 @@ class SnapshotRecord(ActiveRecord):
     # State of the entity (serialized dict, possibly encrypted).
     data = columns.Text(required=True)
 
-    # Hash of the item.
-    hash = columns.Text()
-
 
 class StoredEventRecord(ActiveRecord):
     """Stores integer-sequenced items in Cassandra."""
@@ -233,6 +221,3 @@ class StoredEventRecord(ActiveRecord):
 
     # State of the item (serialized dict, possibly encrypted).
     state = columns.Text(required=True)
-
-    # Hash of the item.
-    hash = columns.Text()
