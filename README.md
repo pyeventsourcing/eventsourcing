@@ -101,9 +101,9 @@ import os
 os.environ['AES_CIPHER_KEY'] = aes_cipher_key
 
 # SQLAlchemy-style database connection string. 
-# os.environ['DB_URI'] = 'sqlite:///:memory:'
+os.environ['DB_URI'] = 'sqlite:///:memory:'
 # os.environ['DB_URI'] = 'mysql://username:password@localhost/eventsourcing'
-os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
+# os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
 
 
 ```
