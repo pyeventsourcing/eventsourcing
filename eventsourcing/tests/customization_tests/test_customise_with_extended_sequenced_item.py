@@ -44,7 +44,7 @@ class ExtendedIntegerSequencedItemRecord(ActiveRecord):
     data = Column(Text())
 
     # Timestamp of the event.
-    timestamp = Column(DECIMAL(56, 6, 6), nullable=False)
+    timestamp = Column(DECIMAL(24, 6, 6), nullable=False)
 
     # Type of the event (class name).
     event_type = Column(String(255))

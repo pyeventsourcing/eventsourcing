@@ -191,7 +191,7 @@ class TimestampSequencedItemRecord(ActiveRecord):
     sequence_id = Column(UUIDType(), nullable=False)
 
     # Position (timestamp) of item in sequence.
-    position = Column(DECIMAL(56, 6, 6), nullable=False)
+    position = Column(DECIMAL(24, 6, 6), nullable=False)
 
     # Topic of the item (e.g. path to domain event class).
     topic = Column(String(255), nullable=False)
