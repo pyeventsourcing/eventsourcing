@@ -220,10 +220,6 @@ class SnapshotRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text(), nullable=False)
 
-    __table_args__ = (
-        Index('snapshots_index', 'sequence_id', 'position'),
-    )
-
 
 class StoredEventRecord(ActiveRecord):
     __tablename__ = 'stored_events'
