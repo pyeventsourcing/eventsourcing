@@ -116,7 +116,7 @@ class ExampleApplicationTestCase(WithExampleApplication):
             # Remove all the stored items and check the new value is still available (must be in snapshot).
             record_strategy = self.entity_active_record_strategy
             self.assertEqual(len(list(record_strategy.all_records())), 3)
-            for record, _ in record_strategy.all_records():
+            for record in record_strategy.all_records():
                 record_strategy.delete_record(record)
             self.assertFalse(list(record_strategy.all_records()))
             self.assertEqual(100, app.example_repository[example1.id].a)

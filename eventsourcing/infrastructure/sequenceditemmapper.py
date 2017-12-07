@@ -55,10 +55,10 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         event_attrs = domain_event.__dict__.copy()
 
         # Get the sequence ID.
-        sequence_id = event_attrs.pop(self.sequence_id_attr_name)
+        sequence_id = event_attrs.get(self.sequence_id_attr_name)
 
         # Get the position in the sequence.
-        position = event_attrs.pop(self.position_attr_name)
+        position = event_attrs.get(self.position_attr_name)
 
         # Get the topic from the event attrs, otherwise from the class.
         topic = get_topic(domain_event.__class__)
@@ -89,9 +89,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
             self.sequenced_item_class, type(sequenced_item)
         )
 
-        # Get the sequence ID, position, topic, data, and hash.
-        sequence_id = getattr(sequenced_item, self.field_names.sequence_id)
-        position = getattr(sequenced_item, self.field_names.position)
+        # Get the topic and data.
         topic = getattr(sequenced_item, self.field_names.topic)
         data = getattr(sequenced_item, self.field_names.data)
 
@@ -104,10 +102,6 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         # Resolve topic to event class.
         domain_event_class = resolve_topic(topic)
-
-        # Set the sequence ID and position.
-        event_attrs[self.sequence_id_attr_name] = sequence_id
-        event_attrs[self.position_attr_name] = position
 
         # Reconstruct the domain event object.
         return reconstruct_object(domain_event_class, event_attrs)

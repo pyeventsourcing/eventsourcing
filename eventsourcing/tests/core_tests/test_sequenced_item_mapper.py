@@ -5,14 +5,10 @@ from uuid import uuid4
 
 from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.exceptions import DataIntegrityError
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
-
-class DomainEvent(DomainEvent):
-    __with_data_integrity__ = False
 
 class Event1(VersionedEntity.Event):
     pass

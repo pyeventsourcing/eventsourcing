@@ -1,4 +1,6 @@
 import datetime
+from decimal import Decimal
+from time import time
 from uuid import UUID
 
 import six
@@ -48,3 +50,7 @@ def time_from_uuid(uuid_arg):
     assert isinstance(uuid_arg, UUID), uuid_arg
     uuid_time = uuid_arg.time
     return uuid_time
+
+
+def now_time_decimal():
+    return Decimal('{:.7f}'.format(time()))

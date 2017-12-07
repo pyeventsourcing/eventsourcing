@@ -1,8 +1,9 @@
 import six
+from sqlalchemy import DECIMAL
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Index
-from sqlalchemy.sql.sqltypes import BigInteger, Float, String, Text
+from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
@@ -92,8 +93,11 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         return events
 
     def filter(self, **kwargs):
-        query = self.session.query(self.active_record_class)
-        return query.filter_by(**kwargs)
+        return self.query.filter_by(**kwargs)
+
+    @property
+    def query(self):
+        return self.session.query(self.active_record_class)
 
     def add_record_to_session(self, active_record):
         """
@@ -116,8 +120,9 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Returns all items across all sequences.
         """
-        all_records = (r for r, _ in self.all_records())
-        return map(self.from_active_record, all_records)
+        mapobj = map(self.from_active_record, self.all_records())
+        all_items = list(mapobj)
+        return all_items
 
     def from_active_record(self, active_record):
         """
@@ -130,14 +135,18 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Returns all records in the table.
         """
-        query = self.filter(**kwargs)
-        if resume is not None:
-            query = query.offset(resume + 1)
-        else:
-            resume = 0
-        query = query.limit(100)
-        for i, record in enumerate(query):
-            yield record, i + resume
+        # query = self.filter(**kwargs)
+        # if resume is not None:
+        #     query = query.offset(resume + 1)
+        # else:
+        #     resume = 0
+        # query = query.limit(100)
+        # for i, record in enumerate(query):
+        #     yield record, i + resume
+
+        all = list(self.query.all())
+        self.session.close()
+        return all
 
     def delete_record(self, record):
         """
@@ -154,44 +163,44 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
 class IntegerSequencedItemRecord(ActiveRecord):
     __tablename__ = 'integer_sequenced_items'
 
-    id = Column(BigInteger(), index=True, autoincrement=True)
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(UUIDType(), primary_key=True)
+    sequence_id = Column(UUIDType(), nullable=False)
 
     # Position (index) of item in sequence.
-    position = Column(BigInteger(), primary_key=True)
+    position = Column(BigInteger(), nullable=False)
 
     # Topic of the item (e.g. path to domain event class).
-    topic = Column(String(255))
+    topic = Column(String(255), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
     __table_args__ = (
-        Index('integer_sequenced_items_index', 'sequence_id', 'position'),
+        Index('integer_sequenced_items_index', 'sequence_id', 'position', unique=True),
     )
 
 
 class TimestampSequencedItemRecord(ActiveRecord):
     __tablename__ = 'timestamp_sequenced_items'
 
-    id = Column(BigInteger(), index=True, autoincrement=True)
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(UUIDType(), primary_key=True)
+    sequence_id = Column(UUIDType(), nullable=False)
 
     # Position (timestamp) of item in sequence.
-    position = Column(Float(), primary_key=True)
+    position = Column(DECIMAL(56, 7, 7), nullable=False)
 
     # Topic of the item (e.g. path to domain event class).
-    topic = Column(String(255))
+    topic = Column(String(255), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
     __table_args__ = (
-        Index('timestamp_sequenced_items_index', 'sequence_id', 'position'),
+        Index('timestamp_sequenced_items_index', 'sequence_id', 'position', unique=True),
     )
 
 
@@ -208,7 +217,7 @@ class SnapshotRecord(ActiveRecord):
     topic = Column(String(255))
 
     # State of the item (serialized dict, possibly encrypted).
-    data = Column(Text())
+    data = Column(Text(), nullable=False)
 
     __table_args__ = (
         Index('snapshots_index', 'sequence_id', 'position'),
@@ -218,18 +227,18 @@ class SnapshotRecord(ActiveRecord):
 class StoredEventRecord(ActiveRecord):
     __tablename__ = 'stored_events'
 
-    id = Column(BigInteger(), index=True, autoincrement=True)
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
     # Originator ID (e.g. an entity or aggregate ID).
-    originator_id = Column(UUIDType(), primary_key=True)
+    originator_id = Column(UUIDType(), nullable=False)
 
     # Originator version of item in sequence.
-    originator_version = Column(BigInteger(), primary_key=True)
+    originator_version = Column(BigInteger(), nullable=False)
 
     # Type of the event (class name).
-    event_type = Column(String(100))
+    event_type = Column(String(100), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
 
-    __table_args__ = Index('stored_events_index', 'originator_id', 'originator_version'),
+    __table_args__ = Index('stored_events_index', 'originator_id', 'originator_version', unique=True),

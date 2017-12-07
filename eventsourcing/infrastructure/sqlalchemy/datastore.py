@@ -8,7 +8,10 @@ from eventsourcing.infrastructure.datastore import Datastore, DatastoreConnectio
 
 ActiveRecord = declarative_base()
 
-DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///:memory:'
+# DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///:memory:'
+DEFAULT_SQLALCHEMY_DB_URI = 'mysql://username:password@localhost/eventsourcing'
+# DEFAULT_SQLALCHEMY_DB_URI = 'postgresql://username:password@localhost:5432/eventsourcing'
+
 
 
 class SQLAlchemySettings(DatastoreSettings):

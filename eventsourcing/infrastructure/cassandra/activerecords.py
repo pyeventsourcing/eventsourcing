@@ -80,7 +80,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         return items
 
     def all_items(self):
-        for record, _ in self.all_records():
+        for record in self.all_records():
             sequenced_item = self.from_active_record(record)
             yield sequenced_item
 
@@ -92,7 +92,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             record_page = list(record_query)
             while record_page:
                 for record in record_page:
-                    yield record, record.pk
+                    yield record
                 last_record = record_page[-1]
                 kwargs = {'{}__gt'.format(position_field_name): getattr(last_record, position_field_name)}
                 record_page = list(record_query.filter(**kwargs))
@@ -160,7 +160,7 @@ class TimestampSequencedItemRecord(ActiveRecord):
     sequence_id = columns.UUID(partition_key=True)
 
     # Position (in time) of item in sequence.
-    position = columns.Double(clustering_order='DESC', primary_key=True)
+    position = columns.Decimal(clustering_order='DESC', primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
     topic = columns.Text(required=True)

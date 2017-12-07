@@ -2,6 +2,8 @@ import unittest
 from time import time
 from uuid import UUID, uuid4, uuid1
 
+from decimal import Decimal
+
 from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmptyError, EventWithOriginatorID, \
     EventWithOriginatorVersion, EventWithTimestamp, _event_handlers, assert_event_handlers_empty, \
@@ -9,7 +11,7 @@ from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmpty
 from eventsourcing.utils.topic import resolve_topic, get_topic
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.exceptions import TopicResolutionError
-from eventsourcing.utils.time import timestamp_from_uuid
+from eventsourcing.utils.time import timestamp_from_uuid, now_time_decimal
 
 try:
     from unittest import mock
@@ -128,7 +130,7 @@ class TestEventWithTimestamp(unittest.TestCase):
         # Check the timestamp value can't be reassigned.
         with self.assertRaises(AttributeError):
             # noinspection PyPropertyAccess
-            event.timestamp = time()
+            event.timestamp = now_time_decimal()
 
 
 class TestEventWithTimeuuid(unittest.TestCase):
@@ -240,7 +242,7 @@ class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
 
         # Check event has a domain event ID, and a timestamp.
         self.assertTrue(event1.timestamp)
-        self.assertIsInstance(event1.timestamp, float)
+        self.assertIsInstance(event1.timestamp, Decimal)
 
         # Check subclass can be instantiated with 'timestamp' parameter.
         DOMAIN_EVENT_ID1 = create_timesequenced_event_id()
@@ -333,7 +335,7 @@ class TestEvents(unittest.TestCase):
         self.assertRaises(AttributeError, setattr, event, 'c', 3)
 
         # Check domain event has auto-generated timestamp.
-        self.assertIsInstance(event.timestamp, float)
+        self.assertIsInstance(event.timestamp, Decimal)
 
         # Check timestamp value can be given to domain events.
         event1 = Example.Created(

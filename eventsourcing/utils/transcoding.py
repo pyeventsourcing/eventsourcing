@@ -1,8 +1,11 @@
 import datetime
+from _pydecimal import _WorkRep
 from json import JSONDecoder, JSONEncoder, dumps, loads
 from uuid import UUID
 
 import dateutil.parser
+from decimal import Decimal
+
 
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
@@ -13,12 +16,18 @@ class ObjectJSONEncoder(JSONEncoder):
         super(ObjectJSONEncoder, self).__init__(sort_keys=sort_keys, *args, **kwargs)
 
     def default(self, obj):
-        if isinstance(obj, datetime.datetime):
+        if isinstance(obj, UUID):
+            return {'UUID': obj.hex}
+        elif isinstance(obj, datetime.datetime):
             return {'ISO8601_datetime': obj.strftime('%Y-%m-%dT%H:%M:%S.%f%z')}
         elif isinstance(obj, datetime.date):
             return {'ISO8601_date': obj.isoformat()}
-        elif isinstance(obj, UUID):
-            return {'UUID': obj.hex}
+        elif isinstance(obj, datetime.time):
+            return {'ISO8601_time': obj.strftime('%H:%M:%S.%f')}
+        elif isinstance(obj, Decimal):
+            return {
+                '__decimal__': str(obj),
+            }
         elif hasattr(obj, '__class__') and hasattr(obj, '__dict__'):
             topic = get_topic(obj.__class__)
             state = obj.__dict__.copy()
@@ -28,6 +37,7 @@ class ObjectJSONEncoder(JSONEncoder):
                     'state': state,
                 }
             }
+
         # Let the base class default method raise the TypeError.
         return JSONEncoder.default(self, obj)
 
@@ -44,9 +54,23 @@ class ObjectJSONDecoder(JSONDecoder):
             return cls._decode_date(d)
         elif 'UUID' in d:
             return cls._decode_uuid(d)
+        elif '__decimal__' in d:
+            return cls._decode_decimal(d)
+        elif 'ISO8601_time' in d:
+            return cls._decode_time(d)
         elif '__class__' in d:
             return cls._decode_object(d)
         return d
+
+    @classmethod
+    def _decode_time(cls, d):
+        hour, minute, seconds = d['ISO8601_time'].split(':')
+        second, microsecond = seconds.split('.')
+        return datetime.time(int(hour), int(minute), int(second), int(microsecond))
+
+    @classmethod
+    def _decode_decimal(cls, d):
+        return Decimal(d['__decimal__'])
 
     @staticmethod
     def _decode_date(d):
