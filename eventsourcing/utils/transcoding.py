@@ -1,11 +1,9 @@
 import datetime
-from _pydecimal import _WorkRep
+from decimal import Decimal
 from json import JSONDecoder, JSONEncoder, dumps, loads
 from uuid import UUID
 
 import dateutil.parser
-from decimal import Decimal
-
 
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
