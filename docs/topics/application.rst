@@ -16,10 +16,6 @@ events and then execute commands as events are received.
 An application can be well understood by understanding its policies,
 aggregates, commands, and events.
 
-
-Application services
---------------------
-
 An application object can have methods ("application services")
 which provide a relatively simple interface for client operations,
 hiding the complexity and usage of the application's domain and
@@ -68,29 +64,30 @@ available alternatives in the
 :doc:`infrastructure layer </topics/infrastructure>` documentation.
 
 The ``SimpleApplication`` also has a persistence policy, provided by the
-library's ``PersistencePolicy`` class. The persistence policy appends
-domain events to its event store whenever they are published.
+library's ``PersistencePolicy`` class.
 
 .. code:: python
 
     assert app.persistence_policy
 
+The persistence policy appends domain events to its event store whenever
+they are published.
 
-The ``SimpleApplication`` also has an event sourced repository, provided
-by the library's ``EventSourcedRepository`` class. Both the persistence
-policy and the repository use the event store.
+The ``SimpleApplication`` also has a repository, an instance of
+the library's ``EventSourcedRepository`` class. The application's
+persistence policy and its repository use the event store.
 
 .. code:: python
 
     assert app.repository
 
 The aggregate repository is generic, and can retrieve all types of aggregate
-in a model. The aggregate class is normally represented in the first event as
-the ``originator_topic``.
+in a model.
 
-The ``SimpleApplication`` can be used as a context manager. The library domain
-entity classes can be used to create read, update, and discard entity objects.
-The example below uses the ``AggregateRoot`` class directly.
+The ``SimpleApplication`` can be used as a context manager.
+The example below uses the ``AggregateRoot`` class directly
+to create a new aggregate object that is available in the
+application's repository.
 
 .. code:: python
 
@@ -277,7 +274,7 @@ by using the event store's active record strategy method ``get_items()``.
 
 .. code:: python
 
-    items = app.event_store.active_record_strategy.get_items(aggregate.id)
+    items = app.event_store.active_record_strategy.list_items(aggregate.id)
     assert len(items) == 4
 
     assert items[0].originator_id == aggregate.id

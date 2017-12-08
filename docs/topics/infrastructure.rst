@@ -222,7 +222,7 @@ All the previously appended items of a sequence can be retrieved by using the ``
 
 .. code:: python
 
-    results = active_record_strategy.get_items(aggregate1)
+    results = active_record_strategy.list_items(aggregate1)
 
 
 Since by now only one item was stored, so there is only one item in the results.

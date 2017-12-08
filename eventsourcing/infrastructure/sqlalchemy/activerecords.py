@@ -1,6 +1,7 @@
 import six
 from sqlalchemy import DECIMAL
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Index
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
@@ -24,17 +25,13 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         try:
             # Add active record(s) to the transaction.
             for active_record in active_records:
-                self.add_record_to_session(active_record)
+                self.session.add(active_record)
 
-            # Commit the transaction.
             self.session.commit()
-
         except IntegrityError:
-            # Roll back the transaction.
             self.session.rollback()
             self.raise_sequenced_item_error(sequenced_item_or_items)
         finally:
-            # Begin new transaction.
             self.session.close()
 
     def get_item(self, sequence_id, eq):
@@ -43,15 +40,17 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
             query = self.filter(**filter_args)
             position_field = getattr(self.active_record_class, self.field_names.position)
             query = query.filter(position_field == eq)
-            events = six.moves.map(self.from_active_record, query)
-            events = list(events)
+            result = query.one()
+        except (NoResultFound, MultipleResultsFound):
+            raise IndexError
         finally:
             self.session.close()
+        return self.from_active_record(result)
 
-        try:
-            return events[0]
-        except IndexError:
-            self.raise_index_error(eq)
+        # try:
+        #     return events[0]
+        # except IndexError:
+        #     self.raise_index_error(eq)
 
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
@@ -81,16 +80,17 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
             if limit is not None:
                 query = query.limit(limit)
 
-            events = six.moves.map(self.from_active_record, query)
-            events = list(events)
+            results = query.all()
 
         finally:
             self.session.close()
 
         if results_ascending != query_ascending:
-            events.reverse()
+            # This code path is under test, but not otherwise used ATM.
+            results.reverse()
 
-        return events
+        for item in six.moves.map(self.from_active_record, results):
+            yield item
 
     def filter(self, **kwargs):
         return self.query.filter_by(**kwargs)
@@ -98,12 +98,6 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
     @property
     def query(self):
         return self.session.query(self.active_record_class)
-
-    def add_record_to_session(self, active_record):
-        """
-        Adds active record to session.
-        """
-        self.session.add(active_record)
 
     def to_active_record(self, sequenced_item):
         """
@@ -120,9 +114,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Returns all items across all sequences.
         """
-        mapobj = map(self.from_active_record, self.all_records())
-        all_items = list(mapobj)
-        return all_items
+        return six.moves.map(self.from_active_record, self.all_records())
 
     def from_active_record(self, active_record):
         """
@@ -143,10 +135,10 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         # query = query.limit(100)
         # for i, record in enumerate(query):
         #     yield record, i + resume
-
-        all = list(self.query.all())
-        self.session.close()
-        return all
+        try:
+            return self.query.all()
+        finally:
+            self.session.close()
 
     def delete_record(self, record):
         """
@@ -155,8 +147,10 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         try:
             self.session.delete(record)
             self.session.commit()
+        except:
+            self.session.rollback()
+            raise
         finally:
-            # Begin new transaction.
             self.session.close()
 
 

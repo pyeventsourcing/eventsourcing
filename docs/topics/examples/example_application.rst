@@ -540,7 +540,7 @@ the ``data`` field represents the state of the event (normally a JSON string).
 
 .. code:: python
 
-    sequenced_items = event_store.active_record_strategy.get_items(entity.id)
+    sequenced_items = event_store.active_record_strategy.list_items(entity.id)
 
     assert len(sequenced_items) == 2
 

@@ -16,7 +16,7 @@ other things such as mutators and repositories to be greatly
 simplified. Mutators are now by default expected to be implemented
 on entity event classes. Event timestamps were changed from floats
 to decimal objects, an exact number type. Cipher was changed to use
-AES-GCM to allow authentication of encrypted data retrieved from a
+AES-GCM to allow verification of encrypted data retrieved from a
 database.
 
 Also, the active record classes for SQLAlchemy were changed to have an

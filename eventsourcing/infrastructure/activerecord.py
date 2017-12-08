@@ -24,6 +24,9 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
         Reads sequenced item from the datastore.
         """
 
+    def list_items(self, *args, **kwargs):
+        return list(self.get_items(*args, **kwargs))
+
     @abstractmethod
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):

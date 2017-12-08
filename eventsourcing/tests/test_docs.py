@@ -51,7 +51,7 @@ class TestDocs(TestCase):
         print("Testing code snippets in docs:")
         for path in file_paths:
             print(path)
-        print()
+        print('')
         for path in file_paths:
             # print("Testing code snippets in file: {}".format(path))
             try:
