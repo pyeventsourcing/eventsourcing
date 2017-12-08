@@ -38,7 +38,7 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def all_records(self, resume=None, *arg, **kwargs):
+    def all_records(self, *arg, **kwargs):
         """
         Returns all records in the table (possibly in chronological order, depending on database).
         """

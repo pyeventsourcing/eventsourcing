@@ -84,9 +84,9 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             sequenced_item = self.from_active_record(record)
             yield sequenced_item
 
-    def all_records(self, resume=None, *args, **kwargs):
+    def all_records(self, *args, **kwargs):
         position_field_name = self.field_names.position
-        for sequence_id in self.all_sequence_ids(resume=resume):
+        for sequence_id in self.all_sequence_ids():
             kwargs = {self.field_names.sequence_id: sequence_id}
             record_query = self.filter(**kwargs).limit(100).order_by(position_field_name)
             record_page = list(record_query)
@@ -97,12 +97,15 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
                 kwargs = {'{}__gt'.format(position_field_name): getattr(last_record, position_field_name)}
                 record_page = list(record_query.filter(**kwargs))
 
-    def all_sequence_ids(self, resume=None):
+    def all_sequence_ids(self):
         query = self.active_record_class.objects.all().limit(1)
-        if resume is None:
-            page = list(query)
-        else:
-            page = list(query.filter(pk__token__gt=Token(resume)))
+
+        # Todo: If there were a resume token, it could be used like this:
+        # if resume is None:
+        #     page = list(query)
+        # else:
+        #     page = list(query.filter(pk__token__gt=Token(resume)))
+        page = list(query)
 
         while page:
             for record in page:

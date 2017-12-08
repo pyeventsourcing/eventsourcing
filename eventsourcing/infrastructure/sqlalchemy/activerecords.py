@@ -131,7 +131,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         kwargs = self.get_field_kwargs(active_record)
         return self.sequenced_item_class(**kwargs)
 
-    def all_records(self, resume=None, *args, **kwargs):
+    def all_records(self, *args, **kwargs):
         """
         Returns all records in the table.
         """
