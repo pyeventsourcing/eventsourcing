@@ -131,7 +131,7 @@ the library's ``EventSourcedRepository`` class.
 
 .. code:: python
 
-    assert app.repository
+    app.repository
 
 Both the repository and persistence policy use the event store.
 
