@@ -63,3 +63,13 @@ def decimaltimestamp(t=None):
     t = time.time() if t is None else t
     return Decimal('{:.6f}'.format(t))
     # return Decimal('{:.9f}'.format(t))
+
+
+def datetime_from_timestamp(t):
+    """
+    Returns a datetime from a decimal UNIX timestamp.
+
+    :param t: timestamp, either Decimal or float
+    :return: datetime.datetime object
+    """
+    return datetime.datetime.fromtimestamp(float(t))

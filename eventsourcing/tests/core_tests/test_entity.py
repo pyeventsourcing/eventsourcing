@@ -14,6 +14,7 @@ from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strat
     WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
+from eventsourcing.utils.times import datetime_from_timestamp
 from eventsourcing.utils.topic import get_topic
 
 
@@ -44,10 +45,9 @@ class TestExampleEntity(WithSQLAlchemyActiveRecordStrategies, WithPersistencePol
         self.assertEqual(example1.__created_on__, example1.__last_modified__)
 
         # Check can get datetime from timestamps, and it corresponds to UTC.
-        dt = datetime.datetime.fromtimestamp(example1.__created_on__)
+        dt = datetime_from_timestamp(example1.__created_on__)
         self.assertLess(dt, datetime.datetime.utcnow())
         self.assertGreater(dt, datetime.datetime.utcnow() - datetime.timedelta(1))
-
 
         # Check a different type with the same values is not "equal" to the first.
         class Subclass(Example): pass
