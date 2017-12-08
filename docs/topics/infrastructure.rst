@@ -758,10 +758,10 @@ record class ``TimestampedSequencedItemRecord``.
 
 .. code:: python
 
-    import time
     from uuid import uuid4
 
     from eventsourcing.infrastructure.sqlalchemy.activerecords import TimestampSequencedItemRecord
+    from eventsourcing.utils.times import decimaltimestamp
 
     # Setup database table for timestamped sequenced items.
     datastore.setup_table(TimestampSequencedItemRecord)
@@ -779,7 +779,7 @@ record class ``TimestampedSequencedItemRecord``.
     aggregate_id = uuid4()
     event = DomainEvent(
         originator_id=aggregate_id,
-        timestamp=time.time(),
+        timestamp=decimaltimestamp(),
     )
 
     # Store the event.
@@ -789,7 +789,7 @@ record class ``TimestampedSequencedItemRecord``.
     events = timestamped_event_store.get_domain_events(aggregate_id)
     assert len(events) == 1
     assert events[0].originator_id == aggregate_id
-    assert events[0].timestamp < time.time()
+    assert events[0].timestamp < decimaltimestamp()
 
 
 Please note, optimistic concurrent control doesn't work to maintain entity consistency, because each

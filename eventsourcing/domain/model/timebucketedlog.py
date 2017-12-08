@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 from eventsourcing.domain.model.events import publish, EventWithTimestamp, EventWithOriginatorID, Logged
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.utils.times import utc_timezone
+from eventsourcing.utils.times import utc_timezone, decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 
 Namespace_Timebuckets = UUID('0d7ee297-a976-4c29-91ff-84ffc79d8155')
@@ -59,7 +59,7 @@ class Timebucketedlog(TimestampedVersionedEntity):
 
     def append_message(self, message):
         assert isinstance(message, six.string_types)
-        bucket_id = make_timebucket_id(self.name, time(), self.bucket_size)
+        bucket_id = make_timebucket_id(self.name, decimaltimestamp(), self.bucket_size)
         event = MessageLogged(
             originator_id=bucket_id,
             message=message,
@@ -108,7 +108,7 @@ class MessageLogged(EventWithTimestamp, EventWithOriginatorID, Logged):
 
 
 def make_timebucket_id(log_id, timestamp, bucket_size):
-    d = datetime.datetime.utcfromtimestamp(timestamp)
+    d = datetime.datetime.utcfromtimestamp(float(timestamp))
 
     assert isinstance(d, datetime.datetime)
     if bucket_size.startswith('year'):

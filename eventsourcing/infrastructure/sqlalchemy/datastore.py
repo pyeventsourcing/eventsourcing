@@ -13,7 +13,6 @@ DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///:memory:'
 # DEFAULT_SQLALCHEMY_DB_URI = 'postgresql://username:password@localhost:5432/eventsourcing'
 
 
-
 class SQLAlchemySettings(DatastoreSettings):
     DB_URI = os.getenv('DB_URI', DEFAULT_SQLALCHEMY_DB_URI)
 

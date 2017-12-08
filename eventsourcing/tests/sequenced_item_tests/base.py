@@ -424,7 +424,7 @@ class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
                 position=i,
                 topic='eventsourcing.example.domain_model#Example.Created',
                 data='{"i":%s,"entity_id":"%s","timestamp":%s}' % (
-                    i, self.entity_id, time()
+                    i, self.entity_id, decimaltimestamp()
                 ),
             )
             self.sequenced_items.append(sequenced_item)

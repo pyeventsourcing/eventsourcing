@@ -6,14 +6,14 @@ from uuid import uuid1
 import sys
 
 from eventsourcing.utils.random import encode_random_bytes, decode_random_bytes
-from eventsourcing.utils.times import decimaltimestamp_from_uuid, utc_timezone
+from eventsourcing.utils.times import decimaltimestamp_from_uuid, utc_timezone, decimaltimestamp
 
 
 class TestUtils(TestCase):
     def test_timestamp_from_uuid(self):
-        until = time.time()
+        until = decimaltimestamp()
         uuid = uuid1()
-        after = time.time()
+        after = decimaltimestamp()
         uuid_timestamp = decimaltimestamp_from_uuid(uuid)
         self.assertLess(until, uuid_timestamp)
         self.assertGreater(after, uuid_timestamp)
