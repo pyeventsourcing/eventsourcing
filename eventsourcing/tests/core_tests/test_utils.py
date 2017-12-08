@@ -6,20 +6,20 @@ from uuid import uuid1
 import sys
 
 from eventsourcing.utils.random import encode_random_bytes, decode_random_bytes
-from eventsourcing.utils.time import timestamp_from_uuid, utc_timezone
+from eventsourcing.utils.times import decimaltimestamp_from_uuid, utc_timezone, decimaltimestamp
 
 
 class TestUtils(TestCase):
     def test_timestamp_from_uuid(self):
-        until = time.time()
+        until = decimaltimestamp()
         uuid = uuid1()
-        after = time.time()
-        uuid_timestamp = timestamp_from_uuid(uuid)
+        after = decimaltimestamp()
+        uuid_timestamp = decimaltimestamp_from_uuid(uuid)
         self.assertLess(until, uuid_timestamp)
         self.assertGreater(after, uuid_timestamp)
 
         # Check timestamp_from_uuid() works with hex strings, as well as UUID objects.
-        self.assertEqual(timestamp_from_uuid(uuid.hex), timestamp_from_uuid(uuid))
+        self.assertEqual(decimaltimestamp_from_uuid(uuid.hex), decimaltimestamp_from_uuid(uuid))
 
     def test_utc(self):
         now = datetime.now(tz=utc_timezone)

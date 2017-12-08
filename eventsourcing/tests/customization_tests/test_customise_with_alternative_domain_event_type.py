@@ -12,7 +12,7 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
-from eventsourcing.utils.time import timestamp_from_uuid
+from eventsourcing.utils.times import decimaltimestamp_from_uuid
 
 
 # This test has events with TimeUUID value as the 'event ID'. How easy is it to customize
@@ -99,7 +99,7 @@ class TestDomainEventsWithTimeUUIDs(AbstractDatastoreTestCase):
             # Create entity.
             entity1 = app.start_entity()
             self.assertIsInstance(entity1.___initial_event_id__, UUID)
-            expected_timestamp = timestamp_from_uuid(entity1.___initial_event_id__)
+            expected_timestamp = decimaltimestamp_from_uuid(entity1.___initial_event_id__)
             self.assertEqual(entity1.__created_on__, expected_timestamp)
             self.assertTrue(entity1.__last_modified__, expected_timestamp)
 

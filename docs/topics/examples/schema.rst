@@ -39,11 +39,13 @@ Then define a suitable active record class.
     class StoredEventRecord(Base):
         __tablename__ = 'stored_events'
 
+        id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+
         # Sequence ID (e.g. an entity or aggregate ID).
-        aggregate_id = Column(UUIDType(), primary_key=True)
+        aggregate_id = Column(UUIDType(), nullable=False)
 
         # Position (timestamp) of item in sequence.
-        aggregate_version = Column(BigInteger(), primary_key=True)
+        aggregate_version = Column(BigInteger(), nullable=False)
 
         # Type of the event (class name).
         event_type = Column(String(100))
@@ -51,7 +53,7 @@ Then define a suitable active record class.
         # State of the item (serialized dict, possibly encrypted).
         state = Column(Text())
 
-        __table_args__ = Index('index', 'aggregate_id', 'aggregate_version'),
+        __table_args__ = Index('index', 'aggregate_id', 'aggregate_version', unique=True),
 
 
 

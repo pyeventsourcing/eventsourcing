@@ -11,6 +11,8 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 # Todo: Support stopping and resuming when iterating over all events.
 
 class TestGetAllEventFromSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithExampleApplication):
+    drop_tables = True
+
     def test(self):
         with self.construct_application() as app:
             # Create three domain entities.

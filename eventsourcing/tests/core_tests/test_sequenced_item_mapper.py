@@ -5,14 +5,11 @@ from uuid import uuid4
 
 from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.exceptions import DataIntegrityError
+from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
-
-class DomainEvent(DomainEvent):
-    __with_data_integrity__ = False
 
 class Event1(VersionedEntity.Event):
     pass
@@ -46,7 +43,7 @@ class TestSequencedItemMapper(TestCase):
             position_attr_name='originator_version'
         )
         entity_id1 = uuid4()
-        event1 = Event1(originator_id=entity_id1, originator_version=101, __previous_hash__='')
+        event1 = Event1(originator_id=entity_id1, originator_version=101)
 
         # Check to_sequenced_item() method results in a sequenced item.
         sequenced_item = mapper.to_sequenced_item(event1)
@@ -77,11 +74,11 @@ class TestSequencedItemMapper(TestCase):
             sequence_id_attr_name='originator_id',
             position_attr_name='timestamp'
         )
-        before = time()
+        before = decimaltimestamp()
         sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
-        event2 = Event2(originator_id='entity2', __previous_hash__='')
+        event2 = Event2(originator_id='entity2')
         sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
-        after = time()
+        after = decimaltimestamp()
 
         # Check to_sequenced_item() method results in a sequenced item.
         sequenced_item = mapper.to_sequenced_item(event2)

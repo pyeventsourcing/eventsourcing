@@ -13,6 +13,7 @@ from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strat
     WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
+from eventsourcing.utils.times import decimaltimestamp
 
 
 class TimebucketedlogTestCase(WithPersistencePolicies):
@@ -38,7 +39,7 @@ class TimebucketedlogTestCase(WithPersistencePolicies):
         event1 = log.append_message(message1)
         event2 = log.append_message(message2)
         event3 = log.append_message(message3)
-        halfway = time.time()
+        halfway = decimaltimestamp()
         event4 = log.append_message(message4)
         event5 = log.append_message(message5)
         event6 = log.append_message(message6)
@@ -349,10 +350,10 @@ class TimebucketedlogTestCase(WithPersistencePolicies):
         # Check the helper methods are protected against invalid bucket sizes.
         with self.assertRaises(ValueError):
             log_id10 = uuid4()
-            make_timebucket_id(log_id10, time.time(), bucket_size='invalid')
+            make_timebucket_id(log_id10, decimaltimestamp(), bucket_size='invalid')
 
         with self.assertRaises(ValueError):
-            bucket_starts(time.time(), bucket_size='invalid')
+            bucket_starts(decimaltimestamp(), bucket_size='invalid')
 
         with self.assertRaises(ValueError):
             bucket_duration(bucket_size='invalid')

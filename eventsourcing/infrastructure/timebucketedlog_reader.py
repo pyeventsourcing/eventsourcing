@@ -7,6 +7,7 @@ from eventsourcing.domain.model.events import QualnameABCMeta
 from eventsourcing.domain.model.timebucketedlog import MessageLogged, Timebucketedlog, make_timebucket_id, \
     next_bucket_starts, previous_bucket_starts
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
+from eventsourcing.utils.times import decimaltimestamp
 
 
 def get_timebucketedlog_reader(log, event_store):
@@ -38,7 +39,7 @@ class TimebucketedlogReader(with_metaclass(QualnameABCMeta)):
         assert limit is None or limit > 0
 
         # Identify the first time bucket.
-        now = time()
+        now = decimaltimestamp()
         started_on = self.log.started_on
         absolute_latest = min(now, lt or now, lte or now)
         absolute_earlyist = max(started_on, gt or 0, gte or 0)

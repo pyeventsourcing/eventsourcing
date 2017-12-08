@@ -9,10 +9,16 @@ have been introduced since the previous major version.
 Version 4.x series was released after quite a lot of refactoring made
 things backward-incompatible. Object namespaces for entity and event
 classes was cleaned up, by moving library names to double-underscore
-prefixed and postfixed names. Data integrity feature was introduced.
+prefixed and postfixed names. Domain events can be hashed, and also
+hash-chained together, allowing entity state to be verified.
 Created events were changed to have originator_topic, which allowed
-other things to be greatly simplified. Mutators for entity are now by
-default expected to be implemented on entity event classes.
+other things such as mutators and repositories to be greatly
+simplified. Mutators are now by default expected to be implemented
+on entity event classes. Event timestamps were changed from floats
+to decimal objects, an exact number type. Cipher was changed to use
+AES-GCM to allow authentication of encrypted data returned by database.
+Documentation was improved, in particular with pages for each of the
+layers in the library (infrastructure, domain model, application).
 
 Version 3.x series was a released after quite of a lot of refactoring
 made things backwards-incompatible.

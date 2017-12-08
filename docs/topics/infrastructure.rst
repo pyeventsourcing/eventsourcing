@@ -233,6 +233,39 @@ Since by now only one item was stored, so there is only one item in the results.
     assert len(results) == 1
     assert results[0] == stored_event1
 
+MySQL
+~~~~~
+
+For MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
+can be used.
+
+.. code::
+
+    $ pip install mysqlclient
+
+The ``uri`` for MySQL would look something like this.
+
+.. code::
+
+    mysql://username:password@localhost/eventsourcing
+
+
+PostgreSQL
+~~~~~~~~~~
+
+For PostgreSQL, the Python package `psycopg2 <https://pypi.python.org/pypi/psycopg2>`__
+can be used.
+
+.. code::
+
+    $ pip install psycopg2
+
+The ``uri`` for PostgreSQL would look something like this.
+
+.. code::
+
+    postgresql://username:password@localhost:5432/eventsourcing
+
 
 Apache Cassandra
 ----------------
@@ -335,8 +368,6 @@ The method ``from_sequenced_item()`` can be used to convert sequenced item objec
 
     domain_event = sequenced_item_mapper.from_sequenced_item(sequenced_item1)
 
-    assert domain_event.sequence_id == sequence1
-    assert domain_event.position == 0
     assert domain_event.foo == 'bar'
 
 
@@ -345,7 +376,7 @@ The method ``to_sequenced_item()`` can be used to convert application-level obje
 
 .. code:: python
 
-    assert sequenced_item_mapper.to_sequenced_item(domain_event) == sequenced_item1
+    assert sequenced_item_mapper.to_sequenced_item(domain_event).data == sequenced_item1.data
 
 
 If the names of the first two fields of the sequenced item namedtuple (e.g. ``sequence_id`` and ``position``) do not
@@ -356,17 +387,23 @@ using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 
 .. code:: python
 
+    from eventsourcing.domain.model.events import DomainEvent
+
+    domain_event1 = DomainEvent(
+        originator_id=aggregate1,
+        originator_version=1,
+        foo='baz',
+    )
+
     sequenced_item_mapper = SequencedItemMapper(
         sequence_id_attr_name='originator_id',
         position_attr_name='originator_version'
     )
 
-    domain_event1 = sequenced_item_mapper.from_sequenced_item(sequenced_item1)
 
-    assert domain_event1.foo == 'bar', domain_event1
-    assert domain_event1.originator_id == sequence1
-    assert domain_event1.originator_version == 0
-    assert sequenced_item_mapper.to_sequenced_item(domain_event1) == sequenced_item1
+    assert domain_event1.foo == 'baz'
+
+    assert sequenced_item_mapper.to_sequenced_item(domain_event1).sequence_id == aggregate1
 
 
 Alternatively, the constructor arg ``sequenced_item_class`` can be set with a sequenced item namedtuple type that is
@@ -382,8 +419,6 @@ different from the default ``SequencedItem`` namedtuple, such as the library's `
     domain_event1 = sequenced_item_mapper.from_sequenced_item(stored_event1)
 
     assert domain_event1.foo == 'bar', domain_event1
-    assert domain_event1.originator_id == aggregate1
-    assert sequenced_item_mapper.to_sequenced_item(domain_event1) == stored_event1
 
 
 Since the alternative ``StoredEvent`` namedtuple can be used instead of the default
@@ -501,7 +536,7 @@ function ``decode_random_bytes()`` decodes the unicode key string into a sequenc
     cipher = AESCipher(aes_key=decode_random_bytes(cipher_key))
 
     # Encrypt some plaintext (using nonce arguments).
-    ciphertext = cipher.encrypt('plaintext', nonce_args=('sequence3', 'item12'))
+    ciphertext = cipher.encrypt('plaintext')
     assert ciphertext != 'plaintext'
 
     # Decrypt some ciphertext.
@@ -568,10 +603,7 @@ The event store's ``append()`` method can append a domain event to its sequence.
 
 In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at position ``1``.
 
-
 .. code:: python
-
-    from eventsourcing.domain.model.events import DomainEvent
 
     event_store.append(
         DomainEvent(
@@ -599,10 +631,7 @@ Since by now two domain events have been stored, so there are two domain events 
 
     assert len(results) == 2
 
-    assert results[0].originator_id == aggregate1
     assert results[0].foo == 'bar'
-
-    assert results[1].originator_id == aggregate1
     assert results[1].foo == 'baz'
 
 
@@ -627,29 +656,21 @@ order of the results. Hence, it can affect both the content of the results and t
     # Get events below and at position 0.
     result = event_store.get_domain_events(aggregate1, lte=0)
     assert len(result) == 1, result
-    assert result[0].originator_id == aggregate1
-    assert result[0].originator_version == 0
     assert result[0].foo == 'bar'
 
     # Get events at and above position 1.
     result = event_store.get_domain_events(aggregate1, gte=1)
     assert len(result) == 1, result
-    assert result[0].originator_id == aggregate1
-    assert result[0].originator_version == 1
     assert result[0].foo == 'baz'
 
     # Get the first event in the sequence.
     result = event_store.get_domain_events(aggregate1, limit=1)
     assert len(result) == 1, result
-    assert result[0].originator_id == aggregate1
-    assert result[0].originator_version == 0
     assert result[0].foo == 'bar'
 
     # Get the last event in the sequence.
     result = event_store.get_domain_events(aggregate1, limit=1, is_ascending=False)
     assert len(result) == 1, result
-    assert result[0].originator_id == aggregate1
-    assert result[0].originator_version == 1
     assert result[0].foo == 'baz'
 
 
@@ -737,10 +758,10 @@ record class ``TimestampedSequencedItemRecord``.
 
 .. code:: python
 
-    import time
     from uuid import uuid4
 
     from eventsourcing.infrastructure.sqlalchemy.activerecords import TimestampSequencedItemRecord
+    from eventsourcing.utils.times import decimaltimestamp
 
     # Setup database table for timestamped sequenced items.
     datastore.setup_table(TimestampSequencedItemRecord)
@@ -758,7 +779,7 @@ record class ``TimestampedSequencedItemRecord``.
     aggregate_id = uuid4()
     event = DomainEvent(
         originator_id=aggregate_id,
-        timestamp=time.time(),
+        timestamp=decimaltimestamp(),
     )
 
     # Store the event.
@@ -768,7 +789,7 @@ record class ``TimestampedSequencedItemRecord``.
     events = timestamped_event_store.get_domain_events(aggregate_id)
     assert len(events) == 1
     assert events[0].originator_id == aggregate_id
-    assert events[0].timestamp < time.time()
+    assert events[0].timestamp < decimaltimestamp()
 
 
 Please note, optimistic concurrent control doesn't work to maintain entity consistency, because each

@@ -2,6 +2,8 @@ import unittest
 from time import time
 from uuid import UUID, uuid4, uuid1
 
+from decimal import Decimal
+
 from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmptyError, EventWithOriginatorID, \
     EventWithOriginatorVersion, EventWithTimestamp, _event_handlers, assert_event_handlers_empty, \
@@ -9,7 +11,7 @@ from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmpty
 from eventsourcing.utils.topic import resolve_topic, get_topic
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.exceptions import TopicResolutionError
-from eventsourcing.utils.time import timestamp_from_uuid
+from eventsourcing.utils.times import decimaltimestamp_from_uuid, decimaltimestamp
 
 try:
     from unittest import mock
@@ -116,19 +118,19 @@ class TestEventWithTimestamp(unittest.TestCase):
             pass
 
         # Check event can be instantiated with a timestamp.
-        time1 = time()
+        time1 = decimaltimestamp()
         event = Event(timestamp=time1)
         self.assertEqual(event.timestamp, time1)
 
         # Check event can be instantiated without a timestamp.
         event = Event()
         self.assertGreater(event.timestamp, time1)
-        self.assertLess(event.timestamp, time())
+        self.assertLess(event.timestamp, decimaltimestamp())
 
         # Check the timestamp value can't be reassigned.
         with self.assertRaises(AttributeError):
             # noinspection PyPropertyAccess
-            event.timestamp = time()
+            event.timestamp = decimaltimestamp()
 
 
 class TestEventWithTimeuuid(unittest.TestCase):
@@ -143,15 +145,15 @@ class TestEventWithTimeuuid(unittest.TestCase):
         self.assertEqual(event.event_id, event_id)
 
         # Check event can be instantiated without an event_id.
-        time1 = time()
+        time1 = decimaltimestamp()
         event = Event()
-        self.assertGreater(timestamp_from_uuid(event.event_id), time1)
-        self.assertLess(timestamp_from_uuid(event.event_id), time())
+        self.assertGreater(decimaltimestamp_from_uuid(event.event_id), time1)
+        self.assertLess(decimaltimestamp_from_uuid(event.event_id), decimaltimestamp())
 
         # Check the event_id can't be reassigned.
         with self.assertRaises(AttributeError):
             # noinspection PyPropertyAccess
-            event.event_id = time()
+            event.event_id = decimaltimestamp()
 
 
 class TestEventWithOriginatorVersionAndID(unittest.TestCase):
@@ -200,7 +202,7 @@ class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
             Event()
 
         # Get timestamp before events.
-        time1 = time()
+        time1 = decimaltimestamp()
 
         # Construct events.
         event1 = Event(originator_id='1')
@@ -213,7 +215,7 @@ class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
         # Check the event timestamps.
         self.assertLess(time1, event1.timestamp)
         self.assertLess(event1.timestamp, event2.timestamp)
-        self.assertLess(event2.timestamp, time())
+        self.assertLess(event2.timestamp, decimaltimestamp())
 
         # Check the events are not equal to each other, whilst being equal to themselves.
         self.assertEqual(event1, event1)
@@ -240,7 +242,7 @@ class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
 
         # Check event has a domain event ID, and a timestamp.
         self.assertTrue(event1.timestamp)
-        self.assertIsInstance(event1.timestamp, float)
+        self.assertIsInstance(event1.timestamp, Decimal)
 
         # Check subclass can be instantiated with 'timestamp' parameter.
         DOMAIN_EVENT_ID1 = create_timesequenced_event_id()
@@ -333,7 +335,7 @@ class TestEvents(unittest.TestCase):
         self.assertRaises(AttributeError, setattr, event, 'c', 3)
 
         # Check domain event has auto-generated timestamp.
-        self.assertIsInstance(event.timestamp, float)
+        self.assertIsInstance(event.timestamp, Decimal)
 
         # Check timestamp value can be given to domain events.
         event1 = Example.Created(

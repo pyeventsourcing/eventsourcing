@@ -116,10 +116,11 @@ Timestamps can be used to sequence events.
 
     from eventsourcing.domain.model.events import EventWithTimestamp
     from eventsourcing.domain.model.events import EventWithTimeuuid
+    from decimal import Decimal
     from uuid import UUID
 
     # Automatic timestamp.
-    assert isinstance(EventWithTimestamp().timestamp, float)
+    assert isinstance(EventWithTimestamp().timestamp, Decimal)
 
     # Automatic UUIDv1.
     assert isinstance(EventWithTimeuuid().event_id, UUID)

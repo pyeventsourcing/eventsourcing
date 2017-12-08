@@ -1,16 +1,17 @@
 from collections import namedtuple
 from uuid import UUID
 
-from sqlalchemy.sql.schema import Column
-from sqlalchemy.sql.sqltypes import Float, String
+from sqlalchemy import DECIMAL
+from sqlalchemy.sql.schema import Column, Index
+from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
+from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
-    IntegerSequencedItemRecord
+from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord, SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
@@ -25,12 +26,33 @@ ExtendedSequencedItem = namedtuple('ExtendedSequencedItem',
 
 
 # Extend the database table definition to support the extra fields.
-class ExtendedIntegerSequencedItemRecord(IntegerSequencedItemRecord):
+class ExtendedIntegerSequencedItemRecord(ActiveRecord):
+    __tablename__ = 'extended_integer_sequenced_items'
+
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+
+    # Sequence ID (e.g. an entity or aggregate ID).
+    sequence_id = Column(UUIDType(), nullable=False)
+
+    # Position (index) of item in sequence.
+    position = Column(BigInteger(), nullable=False)
+
+    # Topic of the item (e.g. path to domain event class).
+    topic = Column(String(255), nullable=False)
+
+    # State of the item (serialized dict, possibly encrypted).
+    data = Column(Text())
+
     # Timestamp of the event.
-    timestamp = Column(Float())
+    timestamp = Column(DECIMAL(24, 6, 6), nullable=False)
+    # timestamp = Column(DECIMAL(27, 9, 9), nullable=False)
 
     # Type of the event (class name).
-    event_type = Column(String(100))
+    event_type = Column(String(255))
+
+    __table_args__ = (
+        Index('integer_sequenced_items_index', 'sequence_id', 'position', unique=True),
+    )
 
 
 # Extend the sequenced item mapper to derive the extra values.
@@ -101,7 +123,7 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
             # Check there is a stored event.
             all_records = list(app.event_store.active_record_strategy.all_records())
             self.assertEqual(len(all_records), 1)
-            active_record, _ = all_records[0]
+            active_record = all_records[0]
             self.assertEqual(active_record.sequence_id, entity1.id)
             self.assertEqual(active_record.position, 0)
             self.assertEqual(active_record.event_type, 'Example.Created', active_record.event_type)

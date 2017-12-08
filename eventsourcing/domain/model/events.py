@@ -9,6 +9,7 @@ from six import with_metaclass
 
 from eventsourcing.exceptions import EventHashError
 from eventsourcing.utils.hashing import hash_for_data_integrity
+from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
@@ -16,7 +17,8 @@ GENESIS_HASH = os.getenv('GENESIS_HASH', '')
 
 
 class QualnameABCMeta(ABCMeta):
-    """Supplies __qualname__ to object classes with this metaclass.
+    """
+    Supplies __qualname__ to object classes with this metaclass.
     """
     __outer_classes = {}
 
@@ -57,7 +59,7 @@ class DomainEvent(QualnameABC):
     Implements methods to make instances read-only, comparable
     for equality, have recognisable representations, and hashable.
     """
-    __with_data_integrity__ = True
+    __with_data_integrity__ = False
     __json_encoder_class__ = ObjectJSONEncoder
 
     def __init__(self, **kwargs):
@@ -72,46 +74,6 @@ class DomainEvent(QualnameABC):
             kwargs['__event_hash__'] = event_hash
 
         self.__dict__.update(kwargs)
-
-    def __setattr__(self, key, value):
-        """
-        Inhibits event attributes from being updated by assignment.
-        """
-        raise AttributeError("DomainEvent attributes are read-only")
-
-    def __eq__(self, other):
-        """
-        Tests for equality of two event objects.
-        """
-        return self.__hash__() == other.__hash__()
-
-    def __ne__(self, other):
-        """
-        Negates the equality test.
-        """
-        return not (self == other)
-
-    def __hash__(self):
-        """
-        Computes a Python integer hash for an event,
-        using its event hash string if available.
-
-        Supports equality and inequality comparisons.
-        """
-        return hash((
-            self.__event_hash__ or self.__hash_for_data_integrity__(
-                self.__dict__
-            ), self.__class__
-        ))
-
-    def __repr__(self):
-        """
-        Returns string representing the type and attribute values of the event.
-        """
-        sorted_items = tuple(sorted(self.__dict__.items()))
-        args_strings = ("{0}={1!r}".format(*item) for item in sorted_items)
-        args_string = ', '.join(args_strings)
-        return "{}({})".format(self.__class__.__qualname__, args_string)
 
     @classmethod
     def __hash_for_data_integrity__(cls, obj):
@@ -166,6 +128,46 @@ class DomainEvent(QualnameABC):
         :param obj: object to be mutated
         """
 
+    def __setattr__(self, key, value):
+        """
+        Inhibits event attributes from being updated by assignment.
+        """
+        raise AttributeError("DomainEvent attributes are read-only")
+
+    def __eq__(self, other):
+        """
+        Tests for equality of two event objects.
+        """
+        return self.__hash__() == other.__hash__()
+
+    def __ne__(self, other):
+        """
+        Negates the equality test.
+        """
+        return not (self == other)
+
+    def __hash__(self):
+        """
+        Computes a Python integer hash for an event,
+        using its event hash string if available.
+
+        Supports equality and inequality comparisons.
+        """
+        return hash((
+            self.__event_hash__ or self.__hash_for_data_integrity__(
+                self.__dict__
+            ), self.__class__
+        ))
+
+    def __repr__(self):
+        """
+        Returns string representing the type and attribute values of the event.
+        """
+        sorted_items = tuple(sorted(self.__dict__.items()))
+        args_strings = ("{0}={1!r}".format(*item) for item in sorted_items)
+        args_string = ', '.join(args_strings)
+        return "{}({})".format(self.__class__.__qualname__, args_string)
+
 
 class EventWithOriginatorID(DomainEvent):
     def __init__(self, originator_id, **kwargs):
@@ -183,7 +185,7 @@ class EventWithTimestamp(DomainEvent):
     """
 
     def __init__(self, timestamp=None, **kwargs):
-        kwargs['timestamp'] = timestamp or time.time()
+        kwargs['timestamp'] = timestamp or decimaltimestamp()
         super(EventWithTimestamp, self).__init__(**kwargs)
 
     @property

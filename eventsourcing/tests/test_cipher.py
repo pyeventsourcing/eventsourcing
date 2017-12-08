@@ -17,7 +17,7 @@ class TestAESCipher(TestCase):
         cipher = AESCipher(aes_key=decode_random_bytes(cipher_key))
 
         # Encrypt some plaintext.
-        ciphertext = cipher.encrypt('plaintext', nonce_args=(uuid4(), 17))
+        ciphertext = cipher.encrypt('plaintext')
         self.assertNotEqual(ciphertext, 'plaintext')
 
         # Decrypt some ciphertext.

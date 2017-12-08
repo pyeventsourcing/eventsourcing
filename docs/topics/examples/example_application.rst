@@ -367,11 +367,13 @@ with each item positioned in its sequence by an integer index number.
     class SequencedItemRecord(ActiveRecord):
         __tablename__ = 'sequenced_items'
 
+        id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+
         # Sequence ID (e.g. an entity or aggregate ID).
-        sequence_id = Column(UUIDType(), primary_key=True)
+        sequence_id = Column(UUIDType(), nullable=False)
 
         # Position (index) of item in sequence.
-        position = Column(BigInteger(), primary_key=True)
+        position = Column(BigInteger(), nullable=False)
 
         # Topic of the item (e.g. path to domain event class).
         topic = Column(String(255))
@@ -379,7 +381,7 @@ with each item positioned in its sequence by an integer index number.
         # State of the item (serialized dict, possibly encrypted).
         data = Column(Text())
 
-        __table_args__ = Index('index', 'sequence_id', 'position'),
+        __table_args__ = Index('index', 'sequence_id', 'position', unique=True),
 
 
 

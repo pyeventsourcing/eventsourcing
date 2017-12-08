@@ -359,7 +359,7 @@ The utils package contains common functions that are used in more than one layer
 time
 ----
 
-.. automodule:: eventsourcing.utils.time
+.. automodule:: eventsourcing.utils.times
     :members:
     :show-inheritance:
     :undoc-members:

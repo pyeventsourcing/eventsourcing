@@ -80,29 +80,32 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         return items
 
     def all_items(self):
-        for record, _ in self.all_records():
+        for record in self.all_records():
             sequenced_item = self.from_active_record(record)
             yield sequenced_item
 
-    def all_records(self, resume=None, *args, **kwargs):
+    def all_records(self, *args, **kwargs):
         position_field_name = self.field_names.position
-        for sequence_id in self.all_sequence_ids(resume=resume):
+        for sequence_id in self.all_sequence_ids():
             kwargs = {self.field_names.sequence_id: sequence_id}
             record_query = self.filter(**kwargs).limit(100).order_by(position_field_name)
             record_page = list(record_query)
             while record_page:
                 for record in record_page:
-                    yield record, record.pk
+                    yield record
                 last_record = record_page[-1]
                 kwargs = {'{}__gt'.format(position_field_name): getattr(last_record, position_field_name)}
                 record_page = list(record_query.filter(**kwargs))
 
-    def all_sequence_ids(self, resume=None):
+    def all_sequence_ids(self):
         query = self.active_record_class.objects.all().limit(1)
-        if resume is None:
-            page = list(query)
-        else:
-            page = list(query.filter(pk__token__gt=Token(resume)))
+
+        # Todo: If there were a resume token, it could be used like this:
+        # if resume is None:
+        #     page = list(query)
+        # else:
+        #     page = list(query.filter(pk__token__gt=Token(resume)))
+        page = list(query)
 
         while page:
             for record in page:
@@ -150,9 +153,6 @@ class IntegerSequencedItemRecord(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = columns.Text(required=True)
 
-    # Hash of the item.
-    hash = columns.Text()
-
 
 class TimestampSequencedItemRecord(ActiveRecord):
     """Stores timestamp-sequenced items in Cassandra."""
@@ -163,16 +163,13 @@ class TimestampSequencedItemRecord(ActiveRecord):
     sequence_id = columns.UUID(partition_key=True)
 
     # Position (in time) of item in sequence.
-    position = columns.Double(clustering_order='DESC', primary_key=True)
+    position = columns.Decimal(clustering_order='DESC', primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
     topic = columns.Text(required=True)
 
     # State of the item (serialized dict, possibly encrypted).
     data = columns.Text(required=True)
-
-    # Hash of the item.
-    hash = columns.Text()
 
 
 class CqlTimeuuidSequencedItem(ActiveRecord):
@@ -192,9 +189,6 @@ class CqlTimeuuidSequencedItem(ActiveRecord):
     # State of the item (serialized dict, possibly encrypted).
     data = columns.Text(required=True)
 
-    # Hash of the item.
-    hash = columns.Text()
-
 
 class SnapshotRecord(ActiveRecord):
     """Stores snapshots in Cassandra."""
@@ -213,9 +207,6 @@ class SnapshotRecord(ActiveRecord):
     # State of the entity (serialized dict, possibly encrypted).
     data = columns.Text(required=True)
 
-    # Hash of the item.
-    hash = columns.Text()
-
 
 class StoredEventRecord(ActiveRecord):
     """Stores integer-sequenced items in Cassandra."""
@@ -233,6 +224,3 @@ class StoredEventRecord(ActiveRecord):
 
     # State of the item (serialized dict, possibly encrypted).
     state = columns.Text(required=True)
-
-    # Hash of the item.
-    hash = columns.Text()

@@ -11,7 +11,7 @@ from eventsourcing.domain.model.events import AttributeChanged, Created, Discard
     EventWithOriginatorVersion, EventWithTimestamp, GENESIS_HASH, QualnameABC, publish
 from eventsourcing.exceptions import EntityIsDiscarded, HeadHashError, OriginatorIDError, \
     OriginatorVersionError
-from eventsourcing.utils.time import timestamp_from_uuid
+from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
@@ -40,6 +40,7 @@ class DomainEntity(QualnameABC):
         """
         Supertype for events of domain entities.
         """
+        __with_data_integrity__ = True
 
         def __init__(self, **kwargs):
             super(DomainEntity.Event, self).__init__(**kwargs)
@@ -316,11 +317,11 @@ class TimeuuidedEntity(DomainEntity):
 
     @property
     def __created_on__(self):
-        return timestamp_from_uuid(self.___initial_event_id__)
+        return decimaltimestamp_from_uuid(self.___initial_event_id__)
 
     @property
     def __last_modified__(self):
-        return timestamp_from_uuid(self.___last_event_id__)
+        return decimaltimestamp_from_uuid(self.___last_event_id__)
 
 
 class TimestampedVersionedEntity(TimestampedEntity, VersionedEntity):

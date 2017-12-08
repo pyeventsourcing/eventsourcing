@@ -1,10 +1,10 @@
 import base64
-import hashlib
 import zlib
 
 from Crypto.Cipher import AES
 
 from eventsourcing.exceptions import DataIntegrityError
+from eventsourcing.utils.random import random_bytes
 
 
 class AESCipher(object):
@@ -15,7 +15,7 @@ class AESCipher(object):
     def __init__(self, aes_key):
         self.aes_key = aes_key
 
-    def encrypt(self, plaintext, nonce_args):
+    def encrypt(self, plaintext):
         """Return ciphertext for given plaintext."""
 
         # String to bytes.
@@ -24,9 +24,8 @@ class AESCipher(object):
         # Compress plaintext bytes.
         compressed = zlib.compress(plainbytes)
 
-        # Construct AES cipher, with 92-bit nonce.
-        nonce = hashlib.sha256(str(nonce_args).encode()).digest()[:12]
-        cipher = AES.new(self.aes_key, AES.MODE_GCM, nonce=nonce)
+        # Construct AES-GCM cipher, with 96-bit nonce.
+        cipher = AES.new(self.aes_key, AES.MODE_GCM, nonce=random_bytes(12))
 
         # Encrypt and digest.
         encrypted, tag = cipher.encrypt_and_digest(compressed)

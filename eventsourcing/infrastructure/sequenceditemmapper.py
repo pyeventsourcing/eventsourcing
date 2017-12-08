@@ -1,12 +1,10 @@
 from __future__ import unicode_literals
 
-import random
 from abc import ABCMeta, abstractmethod
 
 import six
 
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
-from eventsourcing.utils.random import encode_random_bytes
 from eventsourcing.utils.topic import get_topic, resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder, json_dumps, json_loads
 
@@ -57,10 +55,10 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         event_attrs = domain_event.__dict__.copy()
 
         # Get the sequence ID.
-        sequence_id = event_attrs.pop(self.sequence_id_attr_name)
+        sequence_id = event_attrs.get(self.sequence_id_attr_name)
 
         # Get the position in the sequence.
-        position = event_attrs.pop(self.position_attr_name)
+        position = event_attrs.get(self.position_attr_name)
 
         # Get the topic from the event attrs, otherwise from the class.
         topic = get_topic(domain_event.__class__)
@@ -70,20 +68,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         # Encrypt (optional).
         if self.cipher:
-            # Sequence and position will give a unique nonce for
-            # of ciphertext in database. However that is insufficient,
-            # because items are ciphered before controlled for concurrency.
-            # If only the sequence and position are used for the nonce
-            # then many items could be ciphered with the same nonce.
-            # If such messages could somehow be seen before being rejected
-            # by the database, they could be used to break the encryption,
-            # even though such messages can't end up actually in the database.
-            # Involving a pseudo-random number generator avoids this issue
-            # with a very high degree of probability. Using random.getrandbits()
-            # instead of os.urandom() is much faster, and is acceptable here since
-            # the nonce doesn't have to be random, just unique.
-            nonce_args = (sequence_id, position, random.getrandbits(24))
-            data = self.cipher.encrypt(data, nonce_args)
+            data = self.cipher.encrypt(data)
 
         # Get the 'other' args.
         # - these are meant to be derivative of the other attributes,
@@ -104,9 +89,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
             self.sequenced_item_class, type(sequenced_item)
         )
 
-        # Get the sequence ID, position, topic, data, and hash.
-        sequence_id = getattr(sequenced_item, self.field_names.sequence_id)
-        position = getattr(sequenced_item, self.field_names.position)
+        # Get the topic and data.
         topic = getattr(sequenced_item, self.field_names.topic)
         data = getattr(sequenced_item, self.field_names.data)
 
@@ -119,10 +102,6 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         # Resolve topic to event class.
         domain_event_class = resolve_topic(topic)
-
-        # Set the sequence ID and position.
-        event_attrs[self.sequence_id_attr_name] = sequence_id
-        event_attrs[self.position_attr_name] = position
 
         # Reconstruct the domain event object.
         return reconstruct_object(domain_event_class, event_attrs)
