@@ -125,6 +125,14 @@ sequenced item namedtuple.
 SQLAlchemy
 ----------
 
+To run the examples below, please install the library with the
+'sqlalchemy' option.
+
+.. code::
+
+    $ pip install eventsourcing[sqlalchemy]
+
+
 The library has a concrete active record strategy for SQLAlchemy provided by the object class
 ``SQLAlchemyActiveRecordStrategy``.
 
@@ -270,15 +278,21 @@ The ``uri`` for PostgreSQL would look something like this.
 Apache Cassandra
 ----------------
 
+To run the examples below, please install the library with the
+'cassandra' option.
+
+.. code::
+
+    $ pip install eventsourcing[cassandra]
+
+
 The library also has a concrete active record strategy for Apache Cassandra provided by
 ``CassandraActiveRecordStrategy`` class.
 
 Similarly, for the ``CassandraActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
-from ``eventsourcing.infrastructure.cassandra.activerecords`` matches the ``SequencedItem`` namedtuple.
-The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` namedtuple.
-
-The ``CassandraDatastore`` class uses the ``CassandraSettings`` class to setup a Cassandra database.
-
+from ``eventsourcing.infrastructure.cassandra.activerecords`` matches the ``SequencedItem``
+namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
+namedtuple.
 
 .. code:: python
 
@@ -309,7 +323,10 @@ The ``CassandraDatastore`` class uses the ``CassandraSettings`` class to setup a
     cassandra_datastore.close_connection()
 
 
-Please refer to ``CassandraSettings`` class for information about configuring away from default settings.
+The ``CassandraDatastore`` and ``CassandraSettings`` are be used in the same was as
+``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` above. Please investigate
+library class :class:`~eventsourcing.infrastructure.cassandra.datastore.CassandraSettings`
+for information about configuring away from default settings.
 
 
 Sequenced item conflicts
@@ -336,6 +353,14 @@ record strategy.
 This feature is implemented using optimistic concurrency control features of the underlying database. With
 SQLAlchemy, the primary key constraint involves both the sequence and the position columns. With Cassandra
 the position is the primary key in the sequence partition, and the "IF NOT EXISTS" feature is applied.
+
+The Cassandra database management system, which implements the Paxos protocol,
+can accomplish linearly-scalable distributed optimistic concurrency control,
+guaranteeing sequential consistency of the events of an entity despite the
+database being distributed. It is also possible to serialize calls to the
+methods of an entity, but that is out of the scope of this package — if you
+wish to do that, perhaps something like
+`Zookeeper <https://zookeeper.apache.org/>`__ might help.
 
 
 Sequenced item mapper

@@ -24,7 +24,7 @@ class SimpleApplication(object):
             event_store=self.event_store
         )
 
-    def setup_event_store(self, uri=None, session=None, setup_table=True):
+    def setup_event_store(self, uri=None, session=None, setup_table=True, aes_key=None):
         # Setup connection to database.
         self.datastore = SQLAlchemyDatastore(
             settings=SQLAlchemySettings(uri=uri),
@@ -32,13 +32,13 @@ class SimpleApplication(object):
         )
 
         # Construct cipher (optional).
-        aes_key = decode_random_bytes(os.getenv('AES_CIPHER_KEY', ''))
-        cipher = AESCipher(aes_key) if aes_key else None
+        aes_key = decode_random_bytes(aes_key or os.getenv('AES_CIPHER_KEY', ''))
+        self.cipher = AESCipher(aes_key) if aes_key else None
 
         # Construct event store.
         self.event_store = construct_sqlalchemy_eventstore(
             session=self.datastore.session,
-            cipher=cipher,
+            cipher=self.cipher,
         )
 
         # Setup table in database.

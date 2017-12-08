@@ -13,6 +13,12 @@ class AESCipher(object):
     """
 
     def __init__(self, aes_key):
+        """
+        Initialises AES cipher strategy with ``aes_key``.
+
+        :param aes_key: 16, 24, or 32 random bytes
+        """
+        assert len(aes_key) in [16, 24, 32]
         self.aes_key = aes_key
 
     def encrypt(self, plaintext):

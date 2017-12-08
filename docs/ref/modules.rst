@@ -164,23 +164,6 @@ Classes for event sourcing with Apache Cassandra.
     :undoc-members:
 
 
-cipher
-------
-
-Classes for application-level encryption.
-
-.. automodule:: eventsourcing.infrastructure.cipher.base
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
-
-.. automodule:: eventsourcing.infrastructure.cipher.aes
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
-
 datastore
 ---------
 
@@ -355,6 +338,15 @@ utils
 =====
 
 The utils package contains common functions that are used in more than one layer.
+
+cipher
+------
+
+.. automodule:: eventsourcing.utils.cipher.aes
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
 
 time
 ----

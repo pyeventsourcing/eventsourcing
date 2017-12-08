@@ -769,13 +769,56 @@ is augmented with the new event.
 Aggregate root
 ==============
 
-The library has a domain entity class called ``AggregateRoot`` that can be useful
-in a domain driven design, especially where a single command can cause many events
-to be published.
+Eric Evans' book Domain Driven Design describes an abstraction called
+"aggregate":
 
-The ``AggregateRoot`` entity class extends ``TimestampedVersionedEntity``. It can
-be subclassed by custom aggregate root entities. In the example below, the entity
-class ``World`` inherits from ``AggregateRoot``.
+.. pull-quote::
+
+    *"An aggregate is a cluster of associated objects that we treat as a unit
+    for the purpose of data changes. Each aggregate has a root and a boundary."*
+
+Therefore,
+
+.. pull-quote::
+
+    *"Cluster the entities and value objects into aggregates and define
+    boundaries around each. Choose one entity to be the root of each
+    aggregate, and control all access to the objects inside the boundary
+    through the root. Allow external objects to hold references to the
+    root only."*
+
+In this situation, one aggregate command may result in many events.
+We need to prevent the situation where other threads pick up only
+some of the events, but not all of them, which could present the
+aggregate in an inconsistent, or unusual, and perhaps unworkable state.
+
+In other words, we need to avoid the situation where some of the events
+have been stored successfully but others have not been. If the events
+from a command were stored in a series of independent database transactions,
+then events could be lost due to an inconvenient database connection problem.
+Later events in the series could fall into conflict because another thread
+has started appending events to the same sequence, potentially causing an
+incoherent state that would be difficult to repair.
+
+Therefore, all the events from a command on an aggregate must be appended
+to the event store in a single atomic transaction, so that if some of the
+events resulting from executing a command cannot be stored then none of them
+will be stored. If all the events from an aggregate are to be written to a
+database as a single atomic operation, they must also be published all together
+as a single list.
+
+The library has a domain entity class called
+:class:`~eventsourcing.domain.model.aggregate.AggregateRoot` that can be
+useful in a domain driven design, especially where a single command can cause
+many events to be published. The ``AggregateRoot`` entity class extends
+``TimestampedVersionedEntity``. It overrides the ``__publish__()`` method of
+the base class, so that triggered events are published only to a private list
+of pending events, rather than directly to the publish-subscribe mechanism. It
+also adds a method called ``__save__()``, which publishes all
+pending events to the publish-subscribe mechanism as a single list.
+
+It can be subclassed by custom aggregate root entities. In the example below, the
+entity class ``World`` inherits from ``AggregateRoot``.
 
 .. code:: python
 
@@ -799,8 +842,11 @@ class ``World`` inherits from ``AggregateRoot``.
                 obj.history.append(self)
 
 
-The ``AggregateRoot`` class overrides the ``__publish__()`` method of the base class,
-so that triggered events are published only to a private list of pending events.
+The ``World`` aggregate root has a command method ``make_things_so()`` which publishes
+``SomethingHappened`` events. The ``mutate()`` method of the ``SomethingHappened`` class
+simply appends the event (``self``) to the aggregate object ``obj``.
+
+We can see the events that are published by subscribing to the handler ``receive_events()``.
 
 .. code:: python
 
@@ -814,39 +860,31 @@ so that triggered events are published only to a private list of pending events.
     # Command that publishes many events.
     world.make_things_so('dinosaurs', 'trucks', 'internet')
 
+    # State of aggregate object has changed
+    # but no events have been published yet.
+    assert len(received_events) == 0
     assert world.history[0].what == 'dinosaurs'
     assert world.history[1].what == 'trucks'
     assert world.history[2].what == 'internet'
 
 
-The ``AggregateRoot`` class defines a ``__save__()`` method, which publishes the
-pending events to the publish-subscribe mechanism as a single list.
+Events are pending, and will not be published until the ``__save__()`` method is called.
 
 .. code:: python
 
-    # Events are pending actual publishing until the save() method is called.
+    # Has pending events.
     assert len(world.__pending_events__) == 4
-    assert len(received_events) == 0
+
+    # Publish pending events.
     world.__save__()
 
-    # Pending events were published as a single list of events.
-    assert len(world.__pending_events__) == 0
+    # Pending events published as a list.
     assert len(received_events) == 1
     assert len(received_events[0]) == 4
+
+    # No longer any pending events.
+    assert len(world.__pending_events__) == 0
 
     # Clean up.
     unsubscribe(handler=receive_event)
     del received_events[:]  # received_events.clear()
-
-
-Publishing all events from a single command in a single list allows all the
-events to be written to a database as a single atomic operation.
-
-That avoids the risk that some events will be stored successfully but other
-events from the same command will fall into conflict and be lost, because
-another thread has operated on the same  aggregate at the same time, causing
-an inconsistent state that would also be difficult to repair.
-
-It also avoids the risk of other threads picking up only some events caused
-by a command, presenting the aggregate in an inconsistent or unusual and
-perhaps unworkable state.

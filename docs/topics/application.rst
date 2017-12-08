@@ -1,6 +1,6 @@
-============
-Applications
-============
+===========
+Application
+===========
 
 Overview
 ========
@@ -26,41 +26,94 @@ test- or behaviour-driven development approach. A test suite can
 be imagined as an interface that uses the application. Interfaces
 are outside the scope of the application layer.
 
+To run the examples below, please install the library with the
+'sqlalchemy' option.
+
+::
+
+    $ pip install eventsourcing[sqlalchemy]
+
 
 Simple application
 ==================
 
+
 The library provides a simple application class ``SimpleApplication``
 which can be constructed directly.
 
-Its ``uri`` argument takes an SQLAlchemy-style database connection
-string. A thread scoped session will be setup using the ``uri``.
+Its ``uri`` attribute is an SQLAlchemy-style database connection
+string. An SQLAlchemy thread-scoped session facade will be setup
+using the ``uri`` value.
+
+.. code:: python
+
+    uri = 'sqlite:///:memory:'
+
+
+As you can see, this example is using SQLite to manage
+an in memory relational database. You can change ``uri``
+to any valid connection string.
+
+Here are some example connection strings: for an SQLite
+file; for a PostgreSQL database; or for a MySQL database.
+See SQLAlchemy's create_engine() documentation for details.
+You may need to install drivers for your database management
+system (such as ``psycopg2`` or ``mysqlclient``).
+
+::
+
+    sqlite:////tmp/mydatabase
+
+    postgresql://scott:tiger@localhost:5432/mydatabase
+
+    mysql://scott:tiger@hostname/dbname
+
+
+Encryption is optionally enabled in ``SimpleApplication`` with a
+suitable AES key (16, 24, or 32 random bytes encoded as Base64).
+
+.. code:: python
+
+    from eventsourcing.utils.random import encode_random_bytes
+
+    # Keep this safe (random bytes encoded with Base64).
+    aes_key = encode_random_bytes(num_bytes=32)
+
+An application object can be constructed with these values
+as constructor argument. The ``uri`` value can alternatively
+be set as environment variable ``DB_URI``. The ``aes_key``
+value can be set as environment variable ``AES_CIPHER_KEY``.
 
 .. code:: python
 
     from eventsourcing.application.simple import SimpleApplication
 
-    app = SimpleApplication(uri='sqlite:///:memory:')
+    app = SimpleApplication(
+        uri='sqlite:///:memory:',
+        aes_key=aes_key
+    )
 
 
-Alternatively to the ``uri`` argument, the argument ``session`` can be
-used to pass in an already existing SQLAlchemy session, for example
-a session object provided by `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
+Alternatively to using the ``uri`` argument, an already existing SQLAlchemy
+session can be passed in with the ``session`` argument, for example
+a session object provided by a framework such as
+`Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
 
-Once constructed, the ``SimpleApplication`` has an event store, provided
-by the library's ``EventStore`` class, which it uses with SQLAlchemy
-infrastructure.
+Once constructed, the ``SimpleApplication`` will have an event store, provided
+by the library's ``EventStore`` class, for which it uses the library's
+infrastructure classes for SQLAlchemy.
 
 .. code:: python
 
-    assert app.event_store
+    app.event_store
 
 The ``SimpleApplication`` uses the library function
-``construct_sqlalchemy_eventstore()`` to construct its event store.
+``construct_sqlalchemy_eventstore()`` to construct its event store,
+for integer-sequenced items with SQLAlchemy.
 
-To use different infrastructure with this class, extend the class by
-overriding its ``setup_event_store()`` method. You can read about the
-available alternatives in the
+To use different infrastructure for storing events, subclass the
+``SimpleApplication`` class and override the method ``setup_event_store()``.
+You can read about the available alternatives in the
 :doc:`infrastructure layer </topics/infrastructure>` documentation.
 
 The ``SimpleApplication`` also has a persistence policy, provided by the
@@ -68,21 +121,22 @@ library's ``PersistencePolicy`` class.
 
 .. code:: python
 
-    assert app.persistence_policy
+    app.persistence_policy
 
 The persistence policy appends domain events to its event store whenever
 they are published.
 
 The ``SimpleApplication`` also has a repository, an instance of
-the library's ``EventSourcedRepository`` class. The application's
-persistence policy and its repository use the event store.
+the library's ``EventSourcedRepository`` class.
 
 .. code:: python
 
     assert app.repository
 
-The aggregate repository is generic, and can retrieve all types of aggregate
-in a model.
+Both the repository and persistence policy use the event store.
+
+The aggregate repository is generic, and can retrieve all
+aggregates in an application, regardless of their class.
 
 The ``SimpleApplication`` can be used as a context manager.
 The example below uses the ``AggregateRoot`` class directly
@@ -117,11 +171,17 @@ application's repository.
         else:
             raise Exception("Shouldn't get here")
 
+Because of the unique constraint on the sequenced item table, it isn't
+possible to branch the evolution of an entity and store two events
+at the same version. Hence, if the entity you are working on has been
+updated elsewhere, an attempt to update your object will cause a
+``ConcurrencyError`` exception to be raised.
+
 
 Custom application
 ==================
 
-The ``SimpleApplication`` class can also be extended.
+The ``SimpleApplication`` class can be extended.
 
 The example below shows a custom application class ``MyApplication`` that
 extends ``SimpleApplication`` with application service ``create_aggregate()``
@@ -166,10 +226,11 @@ The custom application object can be constructed.
 .. code:: python
 
     # Construct application object.
-    app = MyApplication()
+    app = MyApplication(uri='sqlite:///:memory:')
 
 
-The application service can be called.
+The application service aggregate factor method ``create_aggregate()``
+can be called.
 
 .. code:: python
 
@@ -178,8 +239,8 @@ The application service can be called.
     aggregate.__save__()
 
 
-The aggregate now exists in the repository. An existing aggregate can
-be retrieved by ID using the repository's dictionary-like interface.
+Existing aggregates can be retrieved by ID using the repository's
+dictionary-like interface.
 
 .. code:: python
 
@@ -193,7 +254,7 @@ be retrieved by ID using the repository's dictionary-like interface.
 
 
 Changes to the aggregate's attribute ``a`` are visible in
-the repository, but only after the aggregate has been saved.
+the repository once pending events have been published.
 
 .. code:: python
 
@@ -237,8 +298,8 @@ exist will cause a ``KeyError`` to be raised.
         raise Exception("Shouldn't get here")
 
 
-Application events
-------------------
+Stored events
+-------------
 
 It is always possible to get the domain events for an aggregate,
 by using the application's event store method ``get_domain_events()``.
@@ -279,7 +340,7 @@ by using the event store's active record strategy method ``get_items()``.
 
     assert items[0].originator_id == aggregate.id
     assert items[0].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Created'
-    assert '"a":1' in items[0].state
+    assert '"a":1' in items[0].state, items[0].state
     assert '"timestamp":' in items[0].state
 
     assert items[1].originator_id == aggregate.id
@@ -296,6 +357,27 @@ by using the event store's active record strategy method ``get_items()``.
     assert items[3].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Discarded'
     assert '"timestamp":' in items[3].state
 
+In this example, the ``aes_key`` was not set, so the stored data is visible.
+
+Database records
+----------------
+
+Of course, it is also possible to just use the active record class directly
+to obtain records. After all, it's just an SQLAlchemy ORM object.
+
+.. code:: python
+
+    app.event_store.active_record_strategy.active_record_class
+
+The ``query`` property of the SQLAlchemy active record strategy
+is a convenient way to get a query object for the active record
+class from the session.
+
+.. code:: python
+
+    active_records = app.event_store.active_record_strategy.query.all()
+
+    assert len(active_records) == 4
 
 Close
 -----

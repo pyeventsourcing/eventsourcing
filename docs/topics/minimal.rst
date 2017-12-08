@@ -1,13 +1,6 @@
 ===================
-Example application
+Stand-alone example
 ===================
-
-Install the library with the 'sqlalchemy' option.
-
-::
-
-    $ pip install eventsourcing[sqlalchemy]
-
 
 In this section, an event sourced application is developed that has minimal
 dependencies on the library.
@@ -17,6 +10,7 @@ how event sourcing in Python can work. The stand-alone code examples here are
 simplified versions of the library classes. Infrastructure classes from the
 library are used explicitly to show the different components involved,
 so you can understand how to make variations.
+
 
 .. contents:: :local:
 
@@ -345,6 +339,13 @@ infrastructure, partly to demonstrate how the core capabilities may
 be applied, but also as a convenient way of reusing foundational code
 so that attention can remain on the problem domain (framework).
 
+To run the code in this section, please install the library with the
+'sqlalchemy' option.
+
+.. code::
+
+    $ pip install eventsourcing[sqlalchemy]
+
 
 Database table
 --------------
@@ -384,8 +385,6 @@ with each item positioned in its sequence by an integer index number.
         __table_args__ = Index('index', 'sequence_id', 'position', unique=True),
 
 
-
-
 The library has a class
 :class:`~eventsourcing.infrastructure.sqlalchemy.activerecords.IntegerSequencedItemRecord`
 which is very similar to the above.
@@ -423,13 +422,6 @@ to install drivers for your database management system.
 
     mysql://scott:tiger@hostname/dbname
 
-
-
-Similar to the support for storing events in SQLAlchemy, there
-are classes in the library for :doc:`Cassandra </topics/examples/cassandra>`.
-The project `djangoevents <https://github.com/ApplauseOSS/djangoevents>`__ has
-support for storing events with this library using the Django ORM.
-Support for other databases such as DynamoDB is forthcoming.
 
 
 Event store
@@ -555,12 +547,6 @@ the ``data`` field represents the state of the event (normally a JSON string).
     assert 'baz' in sequenced_items[1].data
 
 
-These are just default names. If it matters in your context that
-the persistence model uses other names, then you can
-:doc:`use a different sequenced item type </topics/examples/schema>`
-which either extends or replaces the fields above.
-
-
 Application
 ===========
 
@@ -664,7 +650,3 @@ exception instead of returning an entity.
         # Delete.
         example.discard()
         assert example.id not in app.example_repository
-
-
-
-Congratulations. You have created yourself an event sourced application.
