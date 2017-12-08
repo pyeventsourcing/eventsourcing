@@ -16,12 +16,24 @@ other things such as mutators and repositories to be greatly
 simplified. Mutators are now by default expected to be implemented
 on entity event classes. Event timestamps were changed from floats
 to decimal objects, an exact number type. Cipher was changed to use
-AES-GCM to allow authentication of encrypted data returned by database.
-Documentation was improved, in particular with pages for each of the
-layers in the library (infrastructure, domain model, application).
+AES-GCM to allow authentication of encrypted data retrieved from a
+database.
+
+Also, the active record classes for SQLAlchemy were changed to have an
+auto-incrementing ID, to make it easy to follow the events of an
+application, for example when updating view models, without additional
+complication of a separate application log. This change makes the
+SQLAlchemy library classes ultimately less "scalable" than the Cassandra
+classes, because an auto-incrementing ID must operate from a single thread.
+Overall, it seems like a good trade-off for early-stage development. Later,
+when the auto-incrementing ID bottleneck would otherwise throttle
+performance, "scaling-up" could involve switching application
+infrastructure to use a separate application log.
 
 Version 3.x series was a released after quite of a lot of refactoring
-made things backwards-incompatible.
+made things backwards-incompatible. Documentation was greatly improved, in
+particular with pages reflecting the architectural layers of the library
+(infrastructure, domain, application).
 
 Version 2.x series was a major rewrite that implemented two distinct
 kinds of sequences: events sequenced by integer version numbers and
