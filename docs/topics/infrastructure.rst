@@ -539,7 +539,7 @@ avoids potential padding oracle attacks. GCM will be faster than EAX
 on x86 architectures, especially those with AES opcodes. The other AES
 modes aren't supported by this class, at the moment.
 
-The ``AESCipher`` constructor arg ``aes_key`` is required. The key must
+The ``AESCipher`` constructor arg ``cipher_key`` is required. The key must
 be either 16, 24, or 32 random bytes (128, 192, or 256 bits). Longer keys
 take more time to encrypt plaintext, but produce more secure ciphertext.
 
@@ -558,7 +558,7 @@ function ``decode_random_bytes()`` decodes the unicode key string into a sequenc
     cipher_key = encode_random_bytes(num_bytes=32)
 
     # Construct AES-256 cipher.
-    cipher = AESCipher(aes_key=decode_random_bytes(cipher_key))
+    cipher = AESCipher(cipher_key=decode_random_bytes(cipher_key))
 
     # Encrypt some plaintext (using nonce arguments).
     ciphertext = cipher.encrypt('plaintext')

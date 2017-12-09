@@ -62,7 +62,7 @@ Generate cipher key (optional).
     from eventsourcing.utils.random import encode_random_bytes
 
     # Keep this safe.
-    aes_cipher_key = encode_random_bytes(num_bytes=32)
+    cipher_key = encode_random_bytes(num_bytes=32)
 
 
 Configure environment variables.
@@ -72,7 +72,7 @@ Configure environment variables.
     import os
 
     # Optional cipher key (random bytes encoded with Base64).
-    os.environ['AES_CIPHER_KEY'] = aes_cipher_key
+    os.environ['AES_CIPHER_KEY'] = cipher_key
 
     # SQLAlchemy-style database connection string.
     os.environ['DB_URI'] = 'sqlite:///:memory:'

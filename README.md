@@ -75,7 +75,7 @@ Generate cipher key.
 from eventsourcing.utils.random import encode_random_bytes
 
 # Keep this safe.
-aes_cipher_key = encode_random_bytes(num_bytes=32)
+cipher_key = encode_random_bytes(num_bytes=32)
 ```
 
 Configure environment variables.
@@ -84,14 +84,10 @@ Configure environment variables.
 import os
 
 # Cipher key (random bytes encoded with Base64).
-os.environ['AES_CIPHER_KEY'] = aes_cipher_key
+os.environ['CIPHER_KEY'] = cipher_key
 
 # SQLAlchemy-style database connection string. 
 os.environ['DB_URI'] = 'sqlite:///:memory:'
-# os.environ['DB_URI'] = 'mysql://username:password@localhost/eventsourcing'
-# os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
-
-
 ```
 
 Run the code.

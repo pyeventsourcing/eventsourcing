@@ -14,7 +14,7 @@ class TestAESCipher(TestCase):
         cipher_key = encode_random_bytes(num_bytes=32)
 
         # Construct AES cipher.
-        cipher = AESCipher(aes_key=decode_random_bytes(cipher_key))
+        cipher = AESCipher(cipher_key=decode_random_bytes(cipher_key))
 
         # Encrypt some plaintext.
         ciphertext = cipher.encrypt('plaintext')

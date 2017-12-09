@@ -77,12 +77,12 @@ suitable AES key (16, 24, or 32 random bytes encoded as Base64).
     from eventsourcing.utils.random import encode_random_bytes
 
     # Keep this safe (random bytes encoded with Base64).
-    aes_key = encode_random_bytes(num_bytes=32)
+    cipher_key = encode_random_bytes(num_bytes=32)
 
 An application object can be constructed with these values
 as constructor argument. The ``uri`` value can alternatively
-be set as environment variable ``DB_URI``. The ``aes_key``
-value can be set as environment variable ``AES_CIPHER_KEY``.
+be set as environment variable ``DB_URI``. The ``cipher_key``
+value can be set as environment variable ``CIPHER_KEY``.
 
 .. code:: python
 
@@ -90,7 +90,7 @@ value can be set as environment variable ``AES_CIPHER_KEY``.
 
     app = SimpleApplication(
         uri='sqlite:///:memory:',
-        aes_key=aes_key
+        cipher_key=cipher_key
     )
 
 
@@ -357,7 +357,7 @@ by using the event store's active record strategy method ``get_items()``.
     assert items[3].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Discarded'
     assert '"timestamp":' in items[3].state
 
-In this example, the ``aes_key`` was not set, so the stored data is visible.
+In this example, the ``cipher_key`` was not set, so the stored data is visible.
 
 Database records
 ----------------

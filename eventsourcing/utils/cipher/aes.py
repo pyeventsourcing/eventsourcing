@@ -12,14 +12,14 @@ class AESCipher(object):
     Cipher strategy that uses Crypto library AES cipher in GCM mode.
     """
 
-    def __init__(self, aes_key):
+    def __init__(self, cipher_key):
         """
-        Initialises AES cipher strategy with ``aes_key``.
+        Initialises AES cipher strategy with ``cipher_key``.
 
-        :param aes_key: 16, 24, or 32 random bytes
+        :param cipher_key: 16, 24, or 32 random bytes
         """
-        assert len(aes_key) in [16, 24, 32]
-        self.aes_key = aes_key
+        assert len(cipher_key) in [16, 24, 32]
+        self.cipher_key = cipher_key
 
     def encrypt(self, plaintext):
         """Return ciphertext for given plaintext."""
@@ -31,7 +31,7 @@ class AESCipher(object):
         compressed = zlib.compress(plainbytes)
 
         # Construct AES-GCM cipher, with 96-bit nonce.
-        cipher = AES.new(self.aes_key, AES.MODE_GCM, nonce=random_bytes(12))
+        cipher = AES.new(self.cipher_key, AES.MODE_GCM, nonce=random_bytes(12))
 
         # Encrypt and digest.
         encrypted, tag = cipher.encrypt_and_digest(compressed)
@@ -68,7 +68,7 @@ class AESCipher(object):
         encrypted = combined[28:]
 
         # Construct AES cipher, with old nonce.
-        cipher = AES.new(self.aes_key, AES.MODE_GCM, nonce)
+        cipher = AES.new(self.cipher_key, AES.MODE_GCM, nonce)
 
         # Decrypt and verify.
         try:
