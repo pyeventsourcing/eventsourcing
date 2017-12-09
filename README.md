@@ -54,33 +54,19 @@ example domain events, and an example database table. Plus lots of examples in t
 
 ```python
 from eventsourcing.domain.model.aggregate import AggregateRoot
-from eventsourcing.domain.model.decorators import attribute
 
 class World(AggregateRoot):
 
-    def __init__(self, ruler=None, **kwargs):
+    def __init__(self, **kwargs):
         super(World, self).__init__(**kwargs)
-        self._ruler = ruler
-        self._history = []
-
-    @property
-    def history(self):
-        return tuple(self._history)
-
-    @attribute
-    def ruler(self):
-        """A mutable event-sourced attribute."""
+        self.history = []
 
     def make_it_so(self, something):
         self.__trigger_event__(World.SomethingHappened, what=something)
 
     class SomethingHappened(AggregateRoot.Event):
         def mutate(self, obj):
-            obj._history.append(self)
-            
-    # Wrap library methods.
-    def send_news(self):
-        self.__save__()  # save the world means something else
+            obj.history.append(self)            
 ```
 
 Generate cipher key.
@@ -118,7 +104,7 @@ from eventsourcing.exceptions import ConcurrencyError
 with SimpleApplication() as app:
 
     # Call library factory method.
-    world = World.__create__(ruler='god')
+    world = World.__create__()
 
     # Execute commands.
     world.make_it_so('dinosaurs')
@@ -127,24 +113,19 @@ with SimpleApplication() as app:
     version = world.__version__ # note version at this stage
     world.make_it_so('internet')
 
-    # Assign to event-sourced attribute.
-    world.ruler = 'money'
-
     # View current state of aggregate.
-    assert world.ruler == 'money'
     assert world.history[2].what == 'internet'
     assert world.history[1].what == 'trucks'
     assert world.history[0].what == 'dinosaurs'
 
     # Publish pending events (to persistence subscriber).
-    world.send_news()
+    world.__save__()
 
     # Retrieve aggregate (replay stored events).
     copy = app.repository[world.id]
     assert isinstance(copy, World)
 
     # View retrieved state.
-    assert copy.ruler == 'money'
     assert copy.history[2].what == 'internet'
     assert copy.history[1].what == 'trucks'
     assert copy.history[0].what == 'dinosaurs'
@@ -168,12 +149,11 @@ with SimpleApplication() as app:
     old = app.repository.get_entity(world.id, at=version)
     assert old.history[-1].what == 'trucks' # internet not happened
     assert len(old.history) == 2
-    assert old.ruler == 'god'
 
     # Optimistic concurrency control (no branches).
     old.make_it_so('future')
     try:
-        old.send_news()
+        old.__save__()
     except ConcurrencyError:
         pass
     else:

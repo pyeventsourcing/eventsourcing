@@ -28,21 +28,7 @@ then please install with the 'cassandra' option.
     $ pip install eventsourcing[cassandra]
 
 
-If you want to use encryption, please install with the 'crypto' option.
-
-::
-
-    $ pip install eventsourcing[crypto]
-
-
-You can install combinations of options at the same time, for example the following
-command will install dependencies for Cassandra and for encryption.
-
-::
-
-    $ pip install eventsourcing[cassandra,crypto]
-
-Running the install command with different options will just install
+Running the install command with again different options will just install
 the extra dependencies associated with that option. If you installed
 without any options, you can easily install optional dependencies
 later by running the install command again with the options you want.
