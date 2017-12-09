@@ -72,7 +72,7 @@ Configure environment variables.
     import os
 
     # Optional cipher key (random bytes encoded with Base64).
-    os.environ['AES_CIPHER_KEY'] = cipher_key
+    os.environ['CIPHER_KEY'] = cipher_key
 
     # SQLAlchemy-style database connection string.
     os.environ['DB_URI'] = 'sqlite:///:memory:'
