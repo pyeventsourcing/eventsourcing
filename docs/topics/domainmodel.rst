@@ -465,10 +465,10 @@ Triggering events
 Commands methods will construct, apply, and publish events, using the results from working
 on command arguments. The events need to be constructed with suitable arguments.
 
-To help trigger events in an extensible manner, the ``DomainEntity`` class has a private
-method ``_trigger()``, extended by subclasses, which can be used in command methods to
-construct, apply, and publish events with suitable arguments. The events' ``__mutate__()``
-methods update the entity appropriately.
+To help trigger events in an extensible manner, the ``DomainEntity`` class has a
+method called ``__trigger_event__()``, that is extended by subclasses in the library,
+which can be used in command  methods to construct, apply, and publish events with
+suitable arguments. The events' ``__mutate__()`` methods update the entity appropriately.
 
 For example, triggering an ``AttributeChanged`` event on a timestamped, versioned
 entity will cause the attribute value to be updated, but it will also
@@ -547,7 +547,7 @@ The hash of the last event applied to an entity is available as an attribute cal
 
     # Entity's head hash is determined exclusively
     # by the entire sequence of events and SHA-256.
-    assert entity.__head__ == 'ae7688000c38b2bd504b3eb3cd8e015144dd9a3c4992951c87cef9cce047f86c', entity.__head__
+    assert entity.__head__ == 'ae7688000c38b2bd504b3eb3cd8e015144dd9a3c4992951c87cef9cce047f86c'
 
     # Entity's head hash is simply the event hash
     # of the last event that mutated the entity.

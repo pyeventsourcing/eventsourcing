@@ -16,13 +16,13 @@ Please use pip to install the library with the 'sqlalchemy' option.
 Define model
 ============
 
-Firstly, import the example entity class :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`
-and its factory function :func:`~eventsourcing.domain.model.decorators.attribute`.
+Firstly, import the example entity class
+and the model decorator :func:`~eventsourcing.domain.model.decorators.attribute`.
 
-The ``World`` aggregate is a subclass of ``AggregateRoot``. It has a read-only property called
-``history``, and a mutatable attribute called ``ruler``. It has a command method called ``make_it_so``
-which triggers a domain event called ``SomethingHappened``. And it has a nested domain event class
-called ``SomethingHappened``.
+The ``World`` aggregate is a subclass of :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`.
+It has a read-only property called ``history``, and a mutatable attribute called ``ruler``. It has a
+command method called ``make_it_so`` which triggers a domain event called ``SomethingHappened``. And
+it has a nested domain event class called ``SomethingHappened``.
 
 .. code:: python
 
