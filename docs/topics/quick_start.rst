@@ -6,6 +6,8 @@ This section shows how to make a simple event sourced
 application using classes from the library. It shows the
 general story, which is elaborated over the following pages.
 
+.. contents:: :local:
+
 Please use pip to install the library with the 'sqlalchemy' option.
 
 ::

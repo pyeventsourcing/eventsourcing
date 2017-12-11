@@ -6,6 +6,8 @@ The library's domain layer has base classes for domain events and entities. Thes
 write a domain model that uses the library's event sourcing infrastructure. They can also be used to
 develop an event-sourced application as a domain driven design.
 
+.. contents:: :local:
+
 
 Domain events
 =============

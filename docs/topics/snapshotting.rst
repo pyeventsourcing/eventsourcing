@@ -5,6 +5,8 @@ Snapshotting
 Snapshots provide a fast path for obtaining the state of an entity or aggregate
 that skips replaying some or all of the entity's events.
 
+.. contents:: :local:
+
 If a repository is constructed with a snapshot strategy object, it will try to get
 the closest snapshot to the required version of a requested entity, and then replay
 only those events that will take the snapshot up to the state at that version.

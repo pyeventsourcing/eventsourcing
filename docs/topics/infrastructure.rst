@@ -2,14 +2,19 @@
 Infrastructure
 ==============
 
-The library's infrastructure layer provides a cohesive mechanism for storing events as sequences of items.
-The entire mechanism is encapsulated by the library's :class:`~eventsourcing.infrastructure.eventstore.EventStore`
-class.
+The library's infrastructure layer provides a cohesive
+mechanism for storing events as sequences of items.
 
-The event store uses a "sequenced item mapper" and an "active record strategy".
-The sequenced item mapper and the active record strategy share a common "sequenced item" type.
-The sequenced item mapper can convert objects such as domain events to sequenced items, and the active
-record strategy can write sequenced items to a database.
+.. contents:: :local:
+
+The entire mechanism is encapsulated by the library's
+:class:`~eventsourcing.infrastructure.eventstore.EventStore`
+class. The event store uses a "sequenced item mapper" and an
+"active record strategy". The sequenced item mapper and the
+active record strategy share a common "sequenced item" type.
+The sequenced item mapper can convert objects such as domain
+events to sequenced items, and the active record strategy can
+write sequenced items to a database.
 
 
 Sequenced items

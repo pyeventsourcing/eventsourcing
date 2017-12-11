@@ -2,11 +2,14 @@
 Application
 ===========
 
-Overview
-========
-
 The application layer combines objects from the domain and
 infrastructure layers.
+
+.. contents:: :local:
+
+
+Overview
+========
 
 An application object normally has repositories and policies.
 A repository allows aggregates to be retrieved by ID, using a

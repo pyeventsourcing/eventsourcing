@@ -11,6 +11,8 @@ and assumes your projections and your persistent projections
 can be coded using techniques for coding mutator functions and
 snapshots introduced in previous sections.
 
+.. contents:: :local:
+
 
 Synchronous update
 ------------------
