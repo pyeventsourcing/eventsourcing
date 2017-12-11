@@ -2,7 +2,6 @@ from django.db import models
 
 
 class IntegerSequencedItemRecord(models.Model):
-    id = models.BigIntegerField(primary_key=True, auto_created=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
     sequence_id = models.UUIDField()
