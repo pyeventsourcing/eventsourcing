@@ -52,6 +52,8 @@ example domain events, and an example database table. Plus lots of examples in t
 
 ## Synopsis
 
+Define a domain model.
+
 ```python
 from eventsourcing.domain.model.aggregate import AggregateRoot
 
@@ -64,13 +66,13 @@ class World(AggregateRoot):
 
     def make_it_so(self, something):
         self.__trigger_event__(World.SomethingHappened, what=something)
-
+    
     class SomethingHappened(AggregateRoot.Event):
         def mutate(self, obj):
-            obj.history.append(self)            
+            obj.history.append(self)
 ```
 
-Generate cipher key.
+Generate a cipher key (optional).
 
 ```python
 from eventsourcing.utils.random import encode_random_bytes
