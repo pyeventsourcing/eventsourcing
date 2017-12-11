@@ -72,6 +72,15 @@ class DjangoActiveRecordStrategy(AbstractActiveRecordStrategy):
         for item in six.moves.map(self.from_active_record, results):
             yield item
 
+    # def filter(self, **kwargs):
+    #     pass
+    #     # return self.query.filter_by(**kwargs)
+
+    # @property
+    # def query(self):
+    #     pass
+    #     # return self.session.query(self.active_record_class)
+
     def to_active_record(self, sequenced_item):
         """
         Returns an active record, from given sequenced item.
