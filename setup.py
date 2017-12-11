@@ -29,6 +29,10 @@ cassandra_requires = [
     'cassandra-driver<=3.12.99999'
 ]
 
+django_requires = [
+    'django<=2.0.99999',
+]
+
 testing_requires = [
     'mock<=2.0.99999',
     'requests<=2.13.99999',
@@ -37,7 +41,7 @@ testing_requires = [
     'uwsgi<=2.0.99999',
     'redis<=2.10.99999',
     'celery<=4.1.99999',
-] + cassandra_requires + sqlalchemy_requires
+] + cassandra_requires + sqlalchemy_requires + django_requires
 
 docs_requires = ['Sphinx', 'sphinx_rtd_theme', 'sphinx-autobuild'] + testing_requires
 

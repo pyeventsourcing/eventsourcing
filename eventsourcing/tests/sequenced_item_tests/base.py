@@ -65,7 +65,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         sequence_id1 = uuid.uuid1()
         sequence_id2 = uuid.uuid1()
 
-        # Check repo returns None when there aren't any items.
+        # Check repo returns empty list when there aren't any items.
         self.assertEqual(self.active_record_strategy.list_items(sequence_id1), [])
 
         position1, position2, position3 = self.construct_positions()
@@ -105,7 +105,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
 
         # Check repo returns the item.
         retrieved_items = self.active_record_strategy.list_items(sequence_id1)
-        self.assertEqual(len(retrieved_items), 1)
+        self.assertEqual(1, len(retrieved_items), str(retrieved_items))
         self.assertIsInstance(retrieved_items[0], SequencedItem)
         self.assertEqual(retrieved_items[0].sequence_id, item1.sequence_id)
         self.assertEqual(position1, retrieved_items[0].position)
@@ -231,14 +231,14 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         # Get items with a limit, and with descending query (so that we get the last ones).
         retrieved_items = self.active_record_strategy.list_items(sequence_id1, limit=2,
                                                                 query_ascending=False)
-        self.assertEqual(len(retrieved_items), 2)
+        self.assertEqual(2, len(retrieved_items))
         self.assertEqual(retrieved_items[0].position, position2)
         self.assertEqual(retrieved_items[1].position, position3)
 
         # Get items with a limit and descending query, greater than a position.
         retrieved_items = self.active_record_strategy.list_items(sequence_id1, limit=2, gt=position2,
                                                                 query_ascending=False)
-        self.assertEqual(len(retrieved_items), 1)
+        self.assertEqual(1, len(retrieved_items))
         self.assertEqual(retrieved_items[0].position, position3)
 
         # Get items with a limit and descending query, less than a position.
