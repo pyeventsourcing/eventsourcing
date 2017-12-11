@@ -57,6 +57,7 @@ from eventsourcing.domain.model.aggregate import AggregateRoot
 
 
 class World(AggregateRoot):
+
     def __init__(self, **kwargs):
         super(World, self).__init__(**kwargs)
         self.history = []
