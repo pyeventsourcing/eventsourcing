@@ -1,4 +1,5 @@
 import datetime
+from collections import deque
 from unittest import TestCase
 from uuid import NAMESPACE_URL
 
@@ -46,6 +47,10 @@ class TestObjectJSONEncoder(TestCase):
                   '"topic": "eventsourcing.tests.test_transcoding#Object"}}')
         self.assertEqual(encoder.encode(value), expect)
 
+        value = deque()
+        expect = '{"__deque__": []}'
+        self.assertEqual(encoder.encode(value), expect)
+
         # Check defers to base class to raise TypeError.
         # - a type isn't supported at the moment, hence this test works
         with self.assertRaises(TypeError):
@@ -79,6 +84,10 @@ class TestObjectJSONDecoder(TestCase):
 
         value = '{"__decimal__": "59.123456"}'
         expect = Decimal('59.123456')
+        self.assertEqual(decoder.decode(value), expect)
+
+        value = '{"__deque__": []}'
+        expect = deque()
         self.assertEqual(decoder.decode(value), expect)
 
         value = ('{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04fd430c8"}}, '
