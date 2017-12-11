@@ -23,10 +23,10 @@ class DjangoTestCase(TestCase):
 
     def setUp(self):
         super(DjangoTestCase, self).setUp()
-        call_command('migrate')
+        call_command('migrate', verbose=False)
 
 
-@skipIf(six.PY2, 'Django 2.0 does not support Python 2.7')
+# @skipIf(six.PY2, 'Django 2.0 does not support Python 2.7')
 class TestDjangoActiveRecordStrategyWithIntegerSequences(DjangoTestCase, IntegerSequencedItemTestCase):
     def construct_active_record_strategy(self):
         return construct_integer_sequenced_active_record_strategy()

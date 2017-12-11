@@ -22,14 +22,8 @@ class DjangoActiveRecordStrategy(AbstractActiveRecordStrategy):
             raise SequencedItemConflict(e)
 
     def get_item(self, sequence_id, eq):
-        try:
-            records = self.active_record_class.objects.filter(sequence_id=sequence_id, position=eq).all()
-        except self.active_record_class.DoesNotExist:
-            raise IndexError
-        else:
-            if len(records) != 1:
-                raise IndexError(len(records))
-            return self.from_active_record(records[0])
+        records = self.active_record_class.objects.filter(sequence_id=sequence_id, position=eq).all()
+        return self.from_active_record(records[0])
 
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
@@ -115,12 +109,4 @@ class DjangoActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Permanently removes record from table.
         """
-        pass
-        # try:
-        #     self.session.delete(record)
-        #     self.session.commit()
-        # except Exception as e:
-        #     self.session.rollback()
-        #     raise ProgrammingError(e)
-        # finally:
-        #     self.session.close()
+        record.delete()
