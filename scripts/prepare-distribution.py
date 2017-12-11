@@ -8,6 +8,7 @@ try:
 except KeyError:
     pass
 
+os.environ['CASS_DRIVER_NO_CYTHON'] = '1'
 sys.path.insert(0, '../')
 from eventsourcing import __version__
 
