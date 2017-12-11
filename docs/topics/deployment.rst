@@ -11,14 +11,14 @@ with the framework. Your event sourcing application can be
 constructed just after the database is configured, and before
 requests are handled.
 
-.. contents:: :local:
-
 Please note, unlike the code snippets in the other examples,
 the snippets of code in this section are merely
 suggestive, and do not form a complete working program.
 For a working example using Flask and SQLAlchemy, please refer
 to the library module :mod:`eventsourcing.example.interface.flaskapp`,
 which is tested both stand-alone and with uWSGI.
+
+.. contents:: :local:
 
 
 Application object
