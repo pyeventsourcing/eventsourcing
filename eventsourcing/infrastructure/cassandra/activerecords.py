@@ -1,8 +1,10 @@
 import six
+from cassandra import InvalidRequest
 from cassandra.cqlengine.functions import Token
 from cassandra.cqlengine.models import columns
 from cassandra.cqlengine.query import BatchQuery, LWTException
 
+from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.cassandra.datastore import ActiveRecord
 
@@ -115,7 +117,10 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
 
     def delete_record(self, record):
         assert isinstance(record, self.active_record_class), type(record)
-        record.delete()
+        try:
+            record.delete()
+        except InvalidRequest as e:
+            raise ProgrammingError(e)
 
     def to_active_record(self, sequenced_item):
         """

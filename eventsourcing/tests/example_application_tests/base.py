@@ -1,12 +1,13 @@
-from time import sleep
 from uuid import uuid4
+
+from time import sleep
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.example.infrastructure import ExampleRepository
-from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies
 
@@ -28,6 +29,8 @@ class WithExampleApplication(WithActiveRecordStrategies):
 
 
 class ExampleApplicationTestCase(WithExampleApplication):
+    drop_tables = True
+
     def test(self):
         """
         Checks the example application works in the way an example application should.
@@ -129,3 +132,20 @@ class ExampleApplicationTestCase(WithExampleApplication):
             entity1_v3 = app.example_repository.get_entity(entity1.id, at=2)
             self.assertEqual(entity1_v3.a, 100)
 
+            # Test 'except' clause in delete_record() method.
+            # - register a new example.
+            example1 = app.create_new_example(a=10, b=20)
+            self.assertIsInstance(example1, Example)
+
+            # - get the records to delete
+            all_records = list(record_strategy.all_records())
+
+            # - drop the table...
+            self.datastore.drop_table(record_strategy.active_record_class)
+
+            # - check exception is raised when records can't be deleted, so that
+            #   test case runs through 'except' block, when rollback() is called
+            with self.assertRaises(ProgrammingError):
+                for record in all_records:
+                    record_strategy.delete_record(record)
+                    record_strategy.session.commit()

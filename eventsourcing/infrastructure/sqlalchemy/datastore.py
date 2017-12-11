@@ -59,7 +59,10 @@ class SQLAlchemyDatastore(Datastore):
     def drop_tables(self):
         if self._tables is not None:
             for table in self._tables:
-                table.__table__.drop(self._engine, checkfirst=True)
+                self.drop_table(table)
+
+    def drop_table(self, table):
+        table.__table__.drop(self._engine, checkfirst=True)
 
     def truncate_tables(self):
         self.drop_tables()

@@ -2,7 +2,7 @@
 Quick start
 ===========
 
-This section shows how to write a very simple event sourced
+This section shows how to make a simple event sourced
 application using classes from the library. It shows the
 general story, which is elaborated over the following pages.
 
@@ -16,13 +16,18 @@ Please use pip to install the library with the 'sqlalchemy' option.
 Define model
 ============
 
-Firstly, import the example entity class
-and the model decorator :func:`~eventsourcing.domain.model.decorators.attribute`.
+Define a domain model aggregate.
 
-The ``World`` aggregate is a subclass of :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`.
-It has a read-only property called ``history``, and a mutatable attribute called ``ruler``. It has a
-command method called ``make_it_so`` which triggers a domain event called ``SomethingHappened``. And
-it has a nested domain event class called ``SomethingHappened``.
+The class ``World`` defined below is a subclass of
+:class:`~eventsourcing.domain.model.aggregate.AggregateRoot`.
+
+The ``World`` has a property called ``history``. It also has an event sourced
+attribute called ``ruler``.
+
+It has a command method called ``make_it_so`` which triggers a domain event
+of type ``SomethingHappened`` which is defined as a nested class.
+The domain event class ``SomethingHappened`` has a ``mutate()`` method,
+which happens to append triggered events to the history.
 
 .. code:: python
 
@@ -33,8 +38,8 @@ it has a nested domain event class called ``SomethingHappened``.
 
         def __init__(self, ruler=None, **kwargs):
             super(World, self).__init__(**kwargs)
-            self._ruler = ruler
             self._history = []
+            self._ruler = ruler
 
         @property
         def history(self):
@@ -50,6 +55,22 @@ it has a nested domain event class called ``SomethingHappened``.
         class SomethingHappened(AggregateRoot.Event):
             def mutate(self, obj):
                 obj._history.append(self)
+
+
+This class can be used and completely tested without any infrastructure.
+
+Although every aggregate is a "little world", developing a more realistic
+domain model would involve defining attributes, command methods, and domain
+events particular to a concrete domain.
+
+Basically, you can understand everything if you understand that command methods,
+such as ``make_it_so()`` in the example above, should not update the
+state of the aggregate directly with the results of their work, but instead
+trigger events using domain event classes which have ``mutate()`` methods
+that can update the state of the aggregate using the values given to the
+event when it was triggered. By refactoring the updating of the aggregate
+state, from the command method, to a domain event object class, triggered
+events can be stored and replayed to obtain persistent aggregates.
 
 
 Configure environment
@@ -76,14 +97,19 @@ Configure environment variables.
 
     # SQLAlchemy-style database connection string.
     os.environ['DB_URI'] = 'sqlite:///:memory:'
-    # os.environ['DB_URI'] = 'mysql://username:password@localhost/eventsourcing'
-    # os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
 
 
 Run application
 ===============
 
-Now, use the ``SimpleApplication`` to create, read, update, and delete ``World`` aggregates.
+With the ``SimpleApplication`` from the library, you can create,
+read, update, and delete ``World`` aggregates that are persisted
+in the database identified above.
+
+The code below demonstrates many of the features of the library,
+such as optimistic concurrency control, data integrity, and
+application-level encryption.
+
 
 .. code:: python
 
@@ -94,7 +120,7 @@ Now, use the ``SimpleApplication`` to create, read, update, and delete ``World``
     with SimpleApplication() as app:
 
         # Call library factory method.
-        world = World.__create__(ruler='god')
+        world = World.__create__(ruler='gods')
 
         # Execute commands.
         world.make_it_so('dinosaurs')
@@ -144,7 +170,7 @@ Now, use the ``SimpleApplication`` to create, read, update, and delete ``World``
         old = app.repository.get_entity(world.id, at=version)
         assert old.history[-1].what == 'trucks' # internet not happened
         assert len(old.history) == 2
-        assert old.ruler == 'god'
+        assert old.ruler == 'gods'
 
         # Optimistic concurrency control (no branches).
         old.make_it_so('future')

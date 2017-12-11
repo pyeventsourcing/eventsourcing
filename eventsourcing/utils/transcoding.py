@@ -6,6 +6,7 @@ from uuid import UUID
 import dateutil.parser
 
 from eventsourcing.utils.topic import get_topic, resolve_topic
+from collections import deque
 
 
 class ObjectJSONEncoder(JSONEncoder):
@@ -35,6 +36,9 @@ class ObjectJSONEncoder(JSONEncoder):
                     'state': state,
                 }
             }
+        elif isinstance(obj, deque):
+            assert list(obj) == []
+            return {'__deque__': []}
 
         # Let the base class default method raise the TypeError.
         return JSONEncoder.default(self, obj)
@@ -58,6 +62,8 @@ class ObjectJSONDecoder(JSONDecoder):
             return cls._decode_time(d)
         elif '__class__' in d:
             return cls._decode_object(d)
+        elif '__deque__' in d:
+            return deque([])
         return d
 
     @classmethod

@@ -1,4 +1,5 @@
 from eventsourcing.domain.model.events import subscribe, unsubscribe
+from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 
@@ -23,3 +24,30 @@ class PersistencePolicy(object):
 
     def close(self):
         unsubscribe(self.store_event, self.is_event)
+
+
+class SnapshottingPolicy(object):
+    def __init__(self, repository, period=2):
+        self.repository = repository
+        self.period = period
+        subscribe(predicate=self.condition, handler=self.take_snapshot)
+
+    def close(self):
+        unsubscribe(predicate=self.condition, handler=self.take_snapshot)
+
+    def condition(self, event):
+        # Periodically by default.
+        if isinstance(event, (list, tuple)):
+            for e in event:
+                if self.condition(e):
+                    return True
+            else:
+                return False
+        else:
+            if not isinstance(event, Snapshot):
+                return (event.originator_version + 1) % self.period == 0
+
+    def take_snapshot(self, event):
+        if isinstance(event, (list, tuple)):
+            event = event[-1]  # snapshot at the last version
+        self.repository.take_snapshot(event.originator_id, lte=event.originator_version)

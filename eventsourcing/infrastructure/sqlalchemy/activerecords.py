@@ -7,6 +7,7 @@ from sqlalchemy.sql.schema import Column, Index
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
+from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord
 
@@ -147,9 +148,9 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         try:
             self.session.delete(record)
             self.session.commit()
-        except:
+        except Exception as e:
             self.session.rollback()
-            raise
+            raise ProgrammingError(e)
         finally:
             self.session.close()
 
