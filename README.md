@@ -55,8 +55,8 @@ example domain events, and an example database table. Plus lots of examples in t
 ```python
 from eventsourcing.domain.model.aggregate import AggregateRoot
 
-class World(AggregateRoot):
 
+class World(AggregateRoot):
     def __init__(self, **kwargs):
         super(World, self).__init__(**kwargs)
         self.history = []
