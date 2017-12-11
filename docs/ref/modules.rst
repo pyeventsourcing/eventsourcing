@@ -15,7 +15,7 @@ eventsourcing
 
 The eventsourcing package contains packages for the application layer, the domain
 layer, the infrastructure layer, and the interface layer. There is also a module
-for exceptions, an example package, and a utils module.
+for exceptions, an example package, and a utils package.
 
 application
 ===========
