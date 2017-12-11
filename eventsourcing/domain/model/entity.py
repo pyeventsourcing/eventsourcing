@@ -371,3 +371,10 @@ class AbstractEntityRepository(AbstractEventPlayer):
         """
         Returns event store object used by this repository.
         """
+
+    @abstractmethod
+    def take_snapshot(self, entity_id, lt=None, lte=None):
+        """
+        Takes snapshot of entity state, using stored events.
+        :return: Snapshot
+        """

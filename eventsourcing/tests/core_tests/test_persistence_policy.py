@@ -1,9 +1,10 @@
 import unittest
 from uuid import uuid4
 
-from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
+from eventsourcing.application.policies import PersistencePolicy, SnapshottingPolicy
+from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity, AbstractEntityRepository
 from eventsourcing.domain.model.events import publish
+from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 try:
@@ -47,3 +48,35 @@ class TestPersistencePolicy(unittest.TestCase):
 
         # Check the append() has still only been called once with the first domain event.
         self.event_store.append.assert_called_once_with(domain_event1)
+
+
+class TestSnapshottingPolicy(unittest.TestCase):
+    def setUp(self):
+        self.repository = mock.Mock(spec=AbstractEntityRepository)
+        self.policy = SnapshottingPolicy(
+            repository=self.repository,
+            period=1,
+        )
+
+    def tearDown(self):
+        self.policy.close()
+
+    def test_published_events_are_appended_to_event_store(self):
+        # Check the event store's append method has NOT been called.
+        assert isinstance(self.repository, AbstractEntityRepository)
+        self.assertEqual(0, self.repository.take_snapshot.call_count)
+
+        # Publish a versioned entity event.
+        entity_id = uuid4()
+        domain_event1 = VersionedEntity.Event(
+            originator_id=entity_id,
+            originator_version=0,
+        )
+        domain_event2 = VersionedEntity.Event(
+            originator_id=entity_id,
+            originator_version=1,
+        )
+        publish([domain_event1, domain_event2])
+
+        # Check the append method has been called once with the domain event.
+        self.assertEqual(1, self.repository.take_snapshot.call_count)
