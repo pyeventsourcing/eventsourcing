@@ -1,3 +1,4 @@
+import os
 from setuptools import find_packages, setup
 
 try:
@@ -9,21 +10,24 @@ except ImportError:
 
 from eventsourcing import __version__
 
+# Read the docs doesn't need to build the Cassandra driver (and can't).
+if 'READTHEDOCS' in os.environ:
+    os.environ['CASS_DRIVER_NO_CYTHON'] = '1'
+
 install_requires = singledispatch_requires + [
     'python-dateutil<=2.6.99999',
     'six<=1.10.99999',
+    'pycryptodome<=3.4.99999',
 ]
 
 sqlalchemy_requires = [
-    'sqlalchemy<=1.1.99999',
+    'sqlalchemy<=1.1.99999,>=0.9',
     'sqlalchemy-utils<=0.32.99999',
 ]
 
 cassandra_requires = [
     'cassandra-driver<=3.12.99999'
 ]
-
-crypto_requires = ['pycryptodome<=3.4.99999']
 
 testing_requires = [
     'mock<=2.0.99999',
@@ -33,9 +37,9 @@ testing_requires = [
     'uwsgi<=2.0.99999',
     'redis<=2.10.99999',
     'celery<=4.1.99999',
-] + cassandra_requires + crypto_requires + sqlalchemy_requires
+] + cassandra_requires + sqlalchemy_requires
 
-docs_requires = ['sphinx_rtd_theme'] + testing_requires
+docs_requires = ['Sphinx', 'sphinx_rtd_theme', 'sphinx-autobuild'] + testing_requires
 
 
 long_description = """
@@ -65,7 +69,6 @@ setup(
     install_requires=install_requires,
     extras_require={
         'cassandra': cassandra_requires,
-        'crypto': crypto_requires,
         'sqlalchemy': sqlalchemy_requires,
         'testing': testing_requires,
         'docs': docs_requires,

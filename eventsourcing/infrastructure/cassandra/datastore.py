@@ -78,7 +78,7 @@ class CassandraDatastore(Datastore):
             retry_connect=True,
         )
 
-    def drop_connection(self):
+    def close_connection(self):
         if cassandra.cqlengine.connection.session:
             cassandra.cqlengine.connection.session.shutdown()
         if cassandra.cqlengine.connection.cluster:
@@ -101,6 +101,9 @@ class CassandraDatastore(Datastore):
     def drop_tables(self):
         drop_keyspace(name=self.settings.default_keyspace)
 
+    def drop_table(self, *_):
+        self.drop_tables()
+
     @retry(NoHostAvailable, max_retries=10, wait=0.5)
     def truncate_tables(self):
         for table in self.tables:
@@ -112,6 +115,6 @@ class CassandraDatastore(Datastore):
 
 
 class ActiveRecord(Model):
-    """Layer supertype."""
+    """Supertype for active records in Cassandra."""
     __abstract__ = True
 

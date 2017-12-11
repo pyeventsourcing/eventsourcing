@@ -1,113 +1,210 @@
-============
-Applications
-============
+===========
+Application
+===========
 
 The application layer combines objects from the domain and
 infrastructure layers.
 
-Repositories and policies
-=========================
-
-An application object can have repositories, so that aggregates
-can be retrieved by ID using a dictionary-like interface.
-In general, aggregates implement commands that publish events.
-
-An application object can also have policies. In general, policies receive
-events and execute commands.
+.. contents:: :local:
 
 
-Application services
-====================
+Overview
+========
+
+An application object normally has repositories and policies.
+A repository allows aggregates to be retrieved by ID, using a
+dictionary-like interface. Whereas aggregates implement
+commands that publish events, obversely, policies subscribe to
+events and then execute commands as events are received.
+An application can be well understood by understanding its policies,
+aggregates, commands, and events.
 
 An application object can have methods ("application services")
-which provide a relatively simple interface for clients operations,
+which provide a relatively simple interface for client operations,
 hiding the complexity and usage of the application's domain and
 infrastructure layers.
 
 Application services can be developed outside-in, with a
-test- or behaviour-driven development approach. A test suite can be imagined as an
-interface that uses the application. Interfaces are outside the scope of
-the application layer.
+test- or behaviour-driven development approach. A test suite can
+be imagined as an interface that uses the application. Interfaces
+are outside the scope of the application layer.
+
+To run the examples below, please install the library with the
+'sqlalchemy' option.
+
+::
+
+    $ pip install eventsourcing[sqlalchemy]
 
 
-Event sourced application
-=========================
+Simple application
+==================
 
-The example code below shows an event sourced application object class. It constructs
-an event store that uses the library's infrastructure with SQLAlchemy, using library
-function ``construct_sqlalchemy_eventstore()``.
+
+The library provides a simple application class ``SimpleApplication``
+which can be constructed directly.
+
+Its ``uri`` attribute is an SQLAlchemy-style database connection
+string. An SQLAlchemy thread-scoped session facade will be setup
+using the ``uri`` value.
 
 .. code:: python
 
-    from uuid import uuid4
+    uri = 'sqlite:///:memory:'
 
-    from eventsourcing.application.policies import PersistencePolicy
+
+As you can see, this example is using SQLite to manage
+an in memory relational database. You can change ``uri``
+to any valid connection string.
+
+Here are some example connection strings: for an SQLite
+file; for a PostgreSQL database; or for a MySQL database.
+See SQLAlchemy's create_engine() documentation for details.
+You may need to install drivers for your database management
+system (such as ``psycopg2`` or ``mysqlclient``).
+
+::
+
+    sqlite:////tmp/mydatabase
+
+    postgresql://scott:tiger@localhost:5432/mydatabase
+
+    mysql://scott:tiger@hostname/dbname
+
+
+Encryption is optionally enabled in ``SimpleApplication`` with a
+suitable AES key (16, 24, or 32 random bytes encoded as Base64).
+
+.. code:: python
+
+    from eventsourcing.utils.random import encode_random_bytes
+
+    # Keep this safe (random bytes encoded with Base64).
+    cipher_key = encode_random_bytes(num_bytes=32)
+
+An application object can be constructed with these values
+as constructor argument. The ``uri`` value can alternatively
+be set as environment variable ``DB_URI``. The ``cipher_key``
+value can be set as environment variable ``CIPHER_KEY``.
+
+.. code:: python
+
+    from eventsourcing.application.simple import SimpleApplication
+
+    app = SimpleApplication(
+        uri='sqlite:///:memory:',
+        cipher_key=cipher_key
+    )
+
+
+Alternatively to using the ``uri`` argument, an already existing SQLAlchemy
+session can be passed in with the ``session`` argument, for example
+a session object provided by a framework such as
+`Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
+
+Once constructed, the ``SimpleApplication`` will have an event store, provided
+by the library's ``EventStore`` class, for which it uses the library's
+infrastructure classes for SQLAlchemy.
+
+.. code:: python
+
+    app.event_store
+
+The ``SimpleApplication`` uses the library function
+``construct_sqlalchemy_eventstore()`` to construct its event store,
+for integer-sequenced items with SQLAlchemy.
+
+To use different infrastructure for storing events, subclass the
+``SimpleApplication`` class and override the method ``setup_event_store()``.
+You can read about the available alternatives in the
+:doc:`infrastructure layer </topics/infrastructure>` documentation.
+
+The ``SimpleApplication`` also has a persistence policy, provided by the
+library's ``PersistencePolicy`` class.
+
+.. code:: python
+
+    app.persistence_policy
+
+The persistence policy appends domain events to its event store whenever
+they are published.
+
+The ``SimpleApplication`` also has a repository, an instance of
+the library's ``EventSourcedRepository`` class.
+
+.. code:: python
+
+    app.repository
+
+Both the repository and persistence policy use the event store.
+
+The aggregate repository is generic, and can retrieve all
+aggregates in an application, regardless of their class.
+
+The ``SimpleApplication`` can be used as a context manager.
+The example below uses the ``AggregateRoot`` class directly
+to create a new aggregate object that is available in the
+application's repository.
+
+.. code:: python
+
     from eventsourcing.domain.model.aggregate import AggregateRoot
-    from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-    from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
+
+    with app:
+        obj = AggregateRoot.__create__()
+        obj.__change_attribute__(name='a', value=1)
+        assert obj.a == 1
+        obj.__save__()
+
+        # Check the repository has the latest values.
+        copy = app.repository[obj.id]
+        assert copy.a == 1
+
+        # Check the aggregate can be discarded.
+        copy.__discard__()
+        assert copy.id not in app.repository
+
+        # Check optimistic concurrency control is working ok.
+        from eventsourcing.exceptions import ConcurrencyError
+        try:
+            obj.__change_attribute__(name='a', value=2)
+            obj.__save__()
+        except ConcurrencyError:
+            pass
+        else:
+            raise Exception("Shouldn't get here")
+
+Because of the unique constraint on the sequenced item table, it isn't
+possible to branch the evolution of an entity and store two events
+at the same version. Hence, if the entity you are working on has been
+updated elsewhere, an attempt to update your object will cause a
+``ConcurrencyError`` exception to be raised.
 
 
-    class Application(object):
-        def __init__(self, session):
-            # Construct event store.
-            self.event_store = construct_sqlalchemy_eventstore(
-                session=session
-            )
-            # Construct an event sourced repository.
-            self.repository = EventSourcedRepository(
-                event_store=self.event_store,
-                mutator=CustomAggregate._mutate
-            )
-            # Construct a persistence policy.
-            self.persistence_policy = PersistencePolicy(
-                event_store=self.event_store
-            )
+Custom application
+==================
 
+The ``SimpleApplication`` class can be extended.
+
+The example below shows a custom application class ``MyApplication`` that
+extends ``SimpleApplication`` with application service ``create_aggregate()``
+that can create new ``CustomAggregate`` entities.
+
+.. code:: python
+
+    class MyApplication(SimpleApplication):
         def create_aggregate(self, a):
-            aggregate_id = uuid4()
-            domain_event = CustomAggregate.Created(a=1, originator_id=aggregate_id)
-            entity = CustomAggregate._mutate(event=domain_event)
-            entity._publish(domain_event)  # Pending save().
-            return entity
-
-        def close(self):
-            self.persistence_policy.close()
+            return CustomAggregate.__create__(a=1)
 
 
-The application has a domain model with one domain entity called ``CustomAggregate``,
-defined below. The entity has one attribute, called ``a``. It is a subclass
-of the library's ``AggregateRoot`` entity class.
-
-
-Repository
-----------
-
-The application has an event sourced repository for ``CustomAggregate`` instances. It
-uses the library class ``EventSourceRepository``, which uses an event store to get domain
-events for an aggregate, and the mutator function from the ``CustomAggregate`` class which
-it uses to reconstruct an aggregate instance from the events. An application needs one such
-repository for each type of aggregate in the application's domain model.
-
-
-Policy
-------
-
-The application object class has a persistence policy. It uses the library class
-``PersistencePolicy``. The persistence policy appends domain events to an event
-store whenever they are published.
-
-
-Aggregate factory
------------------
-
-The application also has an application service called ``create_aggregate()`` which can be used
-to create new ``CustomAggregate`` instances. The ``CustomAggregate`` is a very simple aggregate, which
-has an event sourced attribute called ``a``. To create such an aggregate, a value for ``a`` must be provided.
+The application code above depends on an entity class called
+``CustomAggregate``, which is defined below. It extends the
+library's ``AggregateRoot`` entity with an event sourced, mutable
+attribute ``a``.
 
 .. code:: python
 
     from eventsourcing.domain.model.decorators import attribute
-
 
     class CustomAggregate(AggregateRoot):
         def __init__(self, a, **kwargs):
@@ -116,175 +213,182 @@ has an event sourced attribute called ``a``. To create such an aggregate, a valu
 
         @attribute
         def a(self):
-            """
-            Event sourced attribute 'a'.
-            """
+            """Mutable attribute a."""
 
 
-Database
---------
-
-The library classes ``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` can be
-used to setup a database.
-
-.. code:: python
-
-    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import StoredEventRecord
-
-    # Define database settings.
-    settings = SQLAlchemySettings(uri='sqlite:///:memory:')
-
-    # Setup connection to database.
-    datastore = SQLAlchemyDatastore(settings=settings)
-    datastore.setup_connection()
-
-    # Setup table in database.
-    # - done only once
-    datastore.setup_table(StoredEventRecord)
+For more sophisticated domain models, please read about the custom
+entities, commands, and domain events that can be developed using
+classes from the library's :doc:`domain model layer </topics/domainmodel>`.
 
 
 Run the code
 ------------
 
-After setting up the database connection, the application can be constructed with the session object.
+The custom application object can be constructed.
 
 .. code:: python
 
-    # Construct application with session.
-    app = Application(session=datastore.session)
+    # Construct application object.
+    app = MyApplication(uri='sqlite:///:memory:')
 
 
-Finally, a new aggregate instance can be created with the application service ``create_aggregate()``.
+The application service aggregate factor method ``create_aggregate()``
+can be called.
 
 .. code:: python
 
-    # Create aggregate using application service.
+    # Create aggregate using application service, and save it.
     aggregate = app.create_aggregate(a=1)
+    aggregate.__save__()
 
-    # Don't forget to save!
-    aggregate.save()
+
+Existing aggregates can be retrieved by ID using the repository's
+dictionary-like interface.
+
+.. code:: python
 
     # Aggregate is in the repository.
     assert aggregate.id in app.repository
 
-    # Remember the aggregate's ID.
-    aggregate_id = aggregate.id
-
-    # Forget the aggregate (will still saved be in the database).
-    del(aggregate)
-
-
-An existing aggregate can be recovered by ID using the dictionary-like interface of the aggregate repository.
-
-.. code:: python
-
     # Get aggregate using dictionary-like interface.
-    aggregate = app.repository[aggregate_id]
+    aggregate = app.repository[aggregate.id]
 
     assert aggregate.a == 1
 
 
-Changes to the aggregate's attribute ``a`` are visible in the repository, but only after the aggregate has been saved.
+Changes to the aggregate's attribute ``a`` are visible in
+the repository once pending events have been published.
 
 .. code:: python
 
+    # Change attribute value.
     aggregate.a = 2
     aggregate.a = 3
 
     # Don't forget to save!
-    aggregate.save()
+    aggregate.__save__()
 
-    del(aggregate)
+    # Retrieve again from repository.
+    aggregate = app.repository[aggregate.id]
 
-    aggregate = app.repository[aggregate_id]
-
+    # Check attribute has new value.
     assert aggregate.a == 3
 
 
-The aggregate can be discarded. After being saved, a discarded aggregate will not be available in the repository.
+The aggregate can be discarded. After being saved, a discarded
+aggregate will no longer be available in the repository.
 
 .. code:: python
 
-    aggregate.discard()
+    # Discard the aggregate.
+    aggregate.__discard__()
 
-    # Don't forget to save!
-    aggregate.save()
+    # Check discarded aggregate no longer exists in repository.
+    assert aggregate.id not in app.repository
 
-    # Discarded aggregate no longer in repository.
-    assert aggregate_id not in app.repository
+
+Attempts to retrieve an aggregate that does not
+exist will cause a ``KeyError`` to be raised.
+
+.. code:: python
 
     # Fail to get aggregate from dictionary-like interface.
     try:
-        app.repository[aggregate_id]
+        app.repository[aggregate.id]
     except KeyError:
         pass
     else:
-        raise Excpetion("Shouldn't get here.")
+        raise Exception("Shouldn't get here")
 
 
-Application events
-------------------
+Stored events
+-------------
 
-It is always possible to get the domain events for an aggregate, using the application's event store method
-``get_domain_events()``.
+It is always possible to get the domain events for an aggregate,
+by using the application's event store method ``get_domain_events()``.
 
 .. code:: python
 
-    events = app.event_store.get_domain_events(originator_id=aggregate_id)
+    events = app.event_store.get_domain_events(originator_id=aggregate.id)
     assert len(events) == 4
 
-    assert events[0].originator_id == aggregate_id
+    assert events[0].originator_id == aggregate.id
     assert isinstance(events[0], CustomAggregate.Created)
     assert events[0].a == 1
 
-    assert events[1].originator_id == aggregate_id
+    assert events[1].originator_id == aggregate.id
     assert isinstance(events[1], CustomAggregate.AttributeChanged)
     assert events[1].name == '_a'
     assert events[1].value == 2
 
-    assert events[2].originator_id == aggregate_id
+    assert events[2].originator_id == aggregate.id
     assert isinstance(events[2], CustomAggregate.AttributeChanged)
     assert events[2].name == '_a'
     assert events[2].value == 3
 
-    assert events[3].originator_id == aggregate_id
+    assert events[3].originator_id == aggregate.id
     assert isinstance(events[3], CustomAggregate.Discarded)
 
 
 Sequenced items
 ---------------
 
-It is also possible to get the sequenced item namedtuples for an aggregate, using the application's event store's
-active record strategy method ``get_items()``.
+It is also possible to get the sequenced item namedtuples for an aggregate,
+by using the event store's active record strategy method ``get_items()``.
 
 .. code:: python
 
-    items = app.event_store.active_record_strategy.get_items(aggregate_id)
+    items = app.event_store.active_record_strategy.list_items(aggregate.id)
     assert len(items) == 4
 
-    assert items[0].originator_id == aggregate_id
+    assert items[0].originator_id == aggregate.id
     assert items[0].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Created'
-    assert items[0].state.startswith('{"a":1,"timestamp":')
+    assert '"a":1' in items[0].state, items[0].state
+    assert '"timestamp":' in items[0].state
 
-    assert items[1].originator_id == aggregate_id
+    assert items[1].originator_id == aggregate.id
     assert items[1].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
-    assert items[1].state.startswith('{"name":"_a",')
+    assert '"name":"_a"' in items[1].state
+    assert '"timestamp":' in items[1].state
 
-    assert items[2].originator_id == aggregate_id
+    assert items[2].originator_id == aggregate.id
     assert items[2].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
-    assert items[2].state.startswith('{"name":"_a",')
+    assert '"name":"_a"' in items[2].state
+    assert '"timestamp":' in items[2].state
 
-    assert items[3].originator_id == aggregate_id
+    assert items[3].originator_id == aggregate.id
     assert items[3].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Discarded'
-    assert items[3].state.startswith('{"timestamp":')
+    assert '"timestamp":' in items[3].state
 
+In this example, the ``cipher_key`` was not set, so the stored data is visible.
+
+Database records
+----------------
+
+Of course, it is also possible to just use the active record class directly
+to obtain records. After all, it's just an SQLAlchemy ORM object.
+
+.. code:: python
+
+    app.event_store.active_record_strategy.active_record_class
+
+The ``query`` property of the SQLAlchemy active record strategy
+is a convenient way to get a query object for the active record
+class from the session.
+
+.. code:: python
+
+    active_records = app.event_store.active_record_strategy.query.all()
+
+    assert len(active_records) == 4
 
 Close
 -----
 
-It is useful to unsubscribe any handlers subscribed by the policies (avoids dangling
-handlers being called inappropriately, if the process isn't going to terminate immediately).
+If the application isn't being used as a context manager, then it is useful to
+unsubscribe any handlers subscribed by the policies (avoids dangling handlers
+being called inappropriately, if the process isn't going to terminate immediately,
+such as when this documentation is tested as part of the library's test suite).
 
 .. code:: python
 
@@ -292,27 +396,26 @@ handlers being called inappropriately, if the process isn't going to terminate i
     app.close()
 
 
-Todo: Something about the library's application class?
 
-Todo: Something about using uuid5 to make UUIDs from things like email addresses.
+.. Todo: Something about using uuid5 to make UUIDs from things like email addresses.
 
-Todo: Something about using application log to get a sequence of all events.
+.. Todo: Something about using application log to get a sequence of all events.
 
-Todo: Something about using a policy to update views from published events.
+.. Todo: Something about using a policy to update views from published events.
 
-Todo: Something about using a policy to update a register of existant IDs from published events.
+.. Todo: Something about using a policy to update a register of existant IDs from published events.
 
-Todo: Something about having a worker application, that has policies that process events received by a worker.
+.. Todo: Something about having a worker application, that has policies that process events received by a worker.
 
-Todo: Something about having a policy to publish events to worker applications.
+.. Todo: Something about having a policy to publish events to worker applications.
 
-Todo: Something like a message queue strategy strategy.
+.. Todo: Something like a message queue strategy strategy.
 
-Todo: Something about publishing events to a message queue.
+.. Todo: Something about publishing events to a message queue.
 
-Todo: Something about receiving events in a message queue worker.
+.. Todo: Something about receiving events in a message queue worker.
 
-Todo: Something about publishing events to a message queue.
+.. Todo: Something about publishing events to a message queue.
 
-Todo: Something about receiving events in a message queue worker.
+.. Todo: Something about receiving events in a message queue worker.
 

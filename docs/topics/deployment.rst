@@ -11,6 +11,8 @@ with the framework. Your event sourcing application can be
 constructed just after the database is configured, and before
 requests are handled.
 
+.. contents:: :local:
+
 Please note, unlike the code snippets in the other examples,
 the snippets of code in this section are merely
 suggestive, and do not form a complete working program.
@@ -189,8 +191,7 @@ Cassandra
 ---------
 
 Cassandra connections can be set up entirely independently of the application
-object. See the section about :doc:`using Cassandra</topics/user_guide/cassandra>`
-for more information.
+object.
 
 
 Web interfaces
@@ -295,11 +296,13 @@ object that is scoped to the request.
     class IntegerSequencedItem(db.Model):
         __tablename__ = 'integer_sequenced_items'
 
+        id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+
         # Sequence ID (e.g. an entity or aggregate ID).
-        sequence_id = db.Column(UUIDType(), primary_key=True)
+        sequence_id = db.Column(UUIDType(), nullable=False)
 
         # Position (index) of item in sequence.
-        position = db.Column(db.BigInteger(), primary_key=True)
+        position = db.Column(db.BigInteger(), nullable=False)
 
         # Topic of the item (e.g. path to domain event class).
         topic = db.Column(db.String(255))
@@ -308,7 +311,7 @@ object that is scoped to the request.
         data = db.Column(db.Text())
 
         # Index.
-        __table_args__ = db.Index('index', 'sequence_id', 'position'),
+        __table_args__ = db.Index('index', 'sequence_id', 'position', unique=True),
 
 
     # Construct eventsourcing application with db table and session.

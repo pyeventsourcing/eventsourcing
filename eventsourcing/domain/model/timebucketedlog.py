@@ -8,7 +8,8 @@ from dateutil.relativedelta import relativedelta
 from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 from eventsourcing.domain.model.events import publish, EventWithTimestamp, EventWithOriginatorID, Logged
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.utils.time import utc_timezone
+from eventsourcing.utils.times import utc_timezone, decimaltimestamp, datetime_from_timestamp
+from eventsourcing.utils.topic import get_topic
 
 Namespace_Timebuckets = UUID('0d7ee297-a976-4c29-91ff-84ffc79d8155')
 
@@ -31,9 +32,9 @@ BUCKET_SIZES = {
 
 class Timebucketedlog(TimestampedVersionedEntity):
     class Event(TimestampedVersionedEntity.Event):
-        """Layer supertype."""
+        """Supertype for events of time-bucketed log."""
 
-    class Started(Event, TimestampedVersionedEntity.Created):
+    class Started(TimestampedVersionedEntity.Created, Event):
         pass
 
     class BucketSizeChanged(Event, TimestampedVersionedEntity.AttributeChanged):
@@ -50,7 +51,7 @@ class Timebucketedlog(TimestampedVersionedEntity):
 
     @property
     def started_on(self):
-        return self.created_on
+        return self.__created_on__
 
     @property
     def bucket_size(self):
@@ -58,7 +59,7 @@ class Timebucketedlog(TimestampedVersionedEntity):
 
     def append_message(self, message):
         assert isinstance(message, six.string_types)
-        bucket_id = make_timebucket_id(self.name, time(), self.bucket_size)
+        bucket_id = make_timebucket_id(self.name, decimaltimestamp(), self.bucket_size)
         event = MessageLogged(
             originator_id=bucket_id,
             message=message,
@@ -89,9 +90,10 @@ def start_new_timebucketedlog(name, bucket_size=None):
     event = Timebucketedlog.Started(
         originator_id=name,
         name=name,
-        bucket_size=bucket_size
+        bucket_size=bucket_size,
+        originator_topic=get_topic(Timebucketedlog)
     )
-    entity = Timebucketedlog._mutate(initial=None, event=event)
+    entity = event.__mutate__()
     publish(event)
     return entity
 
@@ -106,7 +108,7 @@ class MessageLogged(EventWithTimestamp, EventWithOriginatorID, Logged):
 
 
 def make_timebucket_id(log_id, timestamp, bucket_size):
-    d = datetime.datetime.utcfromtimestamp(timestamp)
+    d = datetime_from_timestamp(timestamp)
 
     assert isinstance(d, datetime.datetime)
     if bucket_size.startswith('year'):
@@ -166,7 +168,7 @@ def previous_bucket_starts(timestamp, bucket_size):
 
 
 def bucket_starts(timestamp, bucket_size):
-    dt = datetime.datetime.utcfromtimestamp(timestamp)
+    dt = datetime_from_timestamp(timestamp)
     assert isinstance(dt, datetime.datetime)
     if bucket_size.startswith('year'):
         return datetime.datetime(dt.year, 1, 1, tzinfo=utc_timezone)

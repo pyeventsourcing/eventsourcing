@@ -1,13 +1,6 @@
 ===================
-Example application
+Stand-alone example
 ===================
-
-Install the library with the 'sqlalchemy' option.
-
-::
-
-    pip install eventsourcing[sqlalchemy]
-
 
 In this section, an event sourced application is developed that has minimal
 dependencies on the library.
@@ -46,7 +39,7 @@ event classes have been pulled up to a layer supertype ``DomainEvent``.
 
     class DomainEvent(object):
         """
-        Layer supertype.
+        Supertype for domain event objects.
         """
         def __init__(self, originator_id, originator_version, **kwargs):
             self.originator_id = originator_id
@@ -135,7 +128,7 @@ for the benefit of any subscribers, by using the function ``publish()``.
         """
         def __init__(self, originator_id, originator_version=0, foo=''):
             self._id = originator_id
-            self._version = originator_version
+            self.___version__ = originator_version
             self._is_discarded = False
             self._foo = foo
 
@@ -144,8 +137,8 @@ for the benefit of any subscribers, by using the function ``publish()``.
             return self._id
 
         @property
-        def version(self):
-            return self._version
+        def __version__(self):
+            return self.___version__
 
         @property
         def foo(self):
@@ -158,7 +151,7 @@ for the benefit of any subscribers, by using the function ``publish()``.
             # Construct an 'AttributeChanged' event object.
             event = AttributeChanged(
                 originator_id=self.id,
-                originator_version=self.version,
+                originator_version=self.__version__,
                 name='foo',
                 value=value,
             )
@@ -175,7 +168,7 @@ for the benefit of any subscribers, by using the function ``publish()``.
             # Construct a 'Discarded' event object.
             event = Discarded(
                 originator_id=self.id,
-                originator_version=self.version
+                originator_version=self.__version__
             )
 
             # Apply the event to self.
@@ -248,31 +241,30 @@ the sequence to an evolving initial state.
         # Handle "created" events by constructing the entity object.
         if isinstance(event, Created):
             entity = Example(**event.__dict__)
-            entity._version += 1
+            entity.___version__ += 1
             return entity
 
         # Handle "value changed" events by setting the named value.
         elif isinstance(event, AttributeChanged):
             assert not entity._is_discarded
             setattr(entity, '_' + event.name, event.value)
-            entity._version += 1
+            entity.___version__ += 1
             return entity
 
         # Handle "discarded" events by returning 'None'.
         elif isinstance(event, Discarded):
             assert not entity._is_discarded
-            entity._version += 1
+            entity.___version__ += 1
             entity._is_discarded = True
             return None
         else:
             raise NotImplementedError(type(event))
 
 
-For the sake of simplicity in this example, we'll use an if-else block to structure
+For the sake of simplicity in this example, an if-else block is used to structure
 the mutator function. The library has a function decorator
-:func:`~eventsourcing.domain.model.decorators.mutator` that allows handlers
-for different types of event to be registered with a default mutator function,
-just like singledispatch.
+:func:`~eventsourcing.domain.model.decorators.mutator` that allows a default mutator
+function to register handlers for different types of event, much like singledispatch.
 
 
 Run the code
@@ -301,7 +293,7 @@ With this stand-alone code, we can create a new example entity object. We can up
     assert entity.id
 
     # Check the entity has a version number.
-    assert entity.version == 1
+    assert entity.__version__ == 1
 
     # Check the received events.
     assert len(received_events) == 1, received_events
@@ -320,7 +312,7 @@ With this stand-alone code, we can create a new example entity object. We can up
     assert entity.foo == 'baz'
 
     # Check the version number has increased.
-    assert entity.version == 2
+    assert entity.__version__ == 2
 
     # Check the received events.
     assert len(received_events) == 2, received_events
@@ -346,6 +338,13 @@ infrastructure, partly to demonstrate how the core capabilities may
 be applied, but also as a convenient way of reusing foundational code
 so that attention can remain on the problem domain (framework).
 
+To run the code in this section, please install the library with the
+'sqlalchemy' option.
+
+.. code::
+
+    $ pip install eventsourcing[sqlalchemy]
+
 
 Database table
 --------------
@@ -368,11 +367,13 @@ with each item positioned in its sequence by an integer index number.
     class SequencedItemRecord(ActiveRecord):
         __tablename__ = 'sequenced_items'
 
+        id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+
         # Sequence ID (e.g. an entity or aggregate ID).
-        sequence_id = Column(UUIDType(), primary_key=True)
+        sequence_id = Column(UUIDType(), nullable=False)
 
         # Position (index) of item in sequence.
-        position = Column(BigInteger(), primary_key=True)
+        position = Column(BigInteger(), nullable=False)
 
         # Topic of the item (e.g. path to domain event class).
         topic = Column(String(255))
@@ -380,9 +381,7 @@ with each item positioned in its sequence by an integer index number.
         # State of the item (serialized dict, possibly encrypted).
         data = Column(Text())
 
-        __table_args__ = Index('index', 'sequence_id', 'position'),
-
-
+        __table_args__ = Index('index', 'sequence_id', 'position', unique=True),
 
 
 The library has a class
@@ -402,11 +401,10 @@ and ``setup_tables()``.
     datastore = SQLAlchemyDatastore(
         base=ActiveRecord,
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
-        tables=(SequencedItemRecord,),
     )
 
     datastore.setup_connection()
-    datastore.setup_tables()
+    datastore.setup_table(SequencedItemRecord)
 
 
 As you can see from the ``uri`` argument above, this example is using SQLite to manage
@@ -423,13 +421,6 @@ to install drivers for your database management system.
 
     mysql://scott:tiger@hostname/dbname
 
-
-
-Similar to the support for storing events in SQLAlchemy, there
-are classes in the library for :doc:`Cassandra </topics/user_guide/cassandra>`.
-The project `djangoevents <https://github.com/ApplauseOSS/djangoevents>`__ has
-support for storing events with this library using the Django ORM.
-Support for other databases such as DynamoDB is forthcoming.
 
 
 Event store
@@ -487,7 +478,9 @@ Entity repository
 It is common to retrieve entities from a repository. An event sourced repository
 for the ``example`` entity class can be constructed directly using library class
 :class:`~eventsourcing.infrastructure.eventsourcedrepository.EventSourcedRepository`.
-The repository is given the mutator function ``mutate()`` and the event store.
+
+In this example, the repository is given an event store object. The repository is
+also given the mutator function ``mutate()`` defined above.
 
 .. code:: python
 
@@ -495,7 +488,7 @@ The repository is given the mutator function ``mutate()`` and the event store.
 
     example_repository = EventSourcedRepository(
         event_store=event_store,
-        mutator=mutate
+        mutator_func=mutate
     )
 
 
@@ -538,7 +531,7 @@ the ``data`` field represents the state of the event (normally a JSON string).
 
 .. code:: python
 
-    sequenced_items = event_store.active_record_strategy.get_items(entity.id)
+    sequenced_items = event_store.active_record_strategy.list_items(entity.id)
 
     assert len(sequenced_items) == 2
 
@@ -551,12 +544,6 @@ the ``data`` field represents the state of the event (normally a JSON string).
     assert sequenced_items[1].position == 1
     assert 'AttributeChanged' in sequenced_items[1].topic
     assert 'baz' in sequenced_items[1].data
-
-
-These are just default names. If it matters in your context that
-the persistence model uses other names, then you can
-:doc:`use a different sequenced item type </topics/user_guide/schema>`
-which either extends or replaces the fields above.
 
 
 Application
@@ -620,7 +607,7 @@ and unsubscribe from receiving further domain events.
             # Construct example repository.
             self.example_repository = EventSourcedRepository(
                 event_store=self.event_store,
-                mutator=mutate
+                mutator_func=mutate
             )
 
         def __enter__(self):
@@ -662,7 +649,3 @@ exception instead of returning an entity.
         # Delete.
         example.discard()
         assert example.id not in app.example_repository
-
-
-
-Congratulations. You have created yourself an event sourced application.

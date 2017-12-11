@@ -12,7 +12,7 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 from eventsourcing.tests.datastore_tests.test_cassandra import DEFAULT_KEYSPACE_FOR_TESTING
-from eventsourcing.utils.time import timestamp_from_uuid
+from eventsourcing.utils.times import decimaltimestamp_from_uuid
 
 
 # This test has events with TimeUUID value as the 'event ID'. How easy is it to customize
@@ -20,42 +20,26 @@ from eventsourcing.utils.time import timestamp_from_uuid
 # define a suitable database table, and configure the other components. It's easy.
 
 # Firstly, define and entity that uses events with TimeUUIDs.
+from eventsourcing.utils.topic import get_topic
+
+
 class ExampleEntity(TimeuuidedEntity):
     def __init__(self, **kwargs):
         super(ExampleEntity, self).__init__(**kwargs)
         self._is_finished = False
 
-    class Started(EventWithTimeuuid):
+    class Started(TimeuuidedEntity.Created, EventWithTimeuuid):
         pass
 
-    class Finished(EventWithTimeuuid):
+    class Finished(EventWithTimeuuid, TimeuuidedEntity.Discarded):
         pass
 
     def finish(self):
-        event = ExampleEntity.Finished(
-            originator_id=self.id,
-        )
-        self._apply_and_publish(event)
-
-    @classmethod
-    def _mutate(cls, initial=None, event=None):
-        if isinstance(event, ExampleEntity.Started):
-            constructor_args = event.__dict__.copy()
-            if 'originator_id' in constructor_args:
-                constructor_args['id'] = constructor_args.pop('originator_id')
-            if 'originator_version' in constructor_args:
-                constructor_args['version'] = constructor_args.pop('originator_version')
-            return cls(**constructor_args)
-        elif isinstance(event, ExampleEntity.Finished):
-            initial._is_finished = True
-            return None
+        self.__trigger_event__(self.Finished)
 
     @classmethod
     def start(cls):
-        event = ExampleEntity.Started(originator_id=uuid4())
-        entity = ExampleEntity._mutate(None, event)
-        publish(event)
-        return entity
+        return cls.__create__(event_class=ExampleEntity.Started)
 
 
 # Define a suitable active record class.
@@ -76,7 +60,6 @@ class ExampleApplicationWithTimeuuidSequencedItems(object):
             )
         )
         self.repository = EventSourcedRepository(
-            mutator=ExampleEntity._mutate,
             event_store=self.event_store,
         )
         self.persistence_policy = PersistencePolicy(self.event_store)
@@ -102,7 +85,7 @@ class TestDomainEventsWithTimeUUIDs(AbstractDatastoreTestCase):
 
     def tearDown(self):
         self.datastore.drop_tables()
-        self.datastore.drop_connection()
+        self.datastore.close_connection()
         super(TestDomainEventsWithTimeUUIDs, self).setUp()
 
     def construct_datastore(self):
@@ -115,10 +98,10 @@ class TestDomainEventsWithTimeUUIDs(AbstractDatastoreTestCase):
         with ExampleApplicationWithTimeuuidSequencedItems() as app:
             # Create entity.
             entity1 = app.start_entity()
-            self.assertIsInstance(entity1._initial_event_id, UUID)
-            expected_timestamp = timestamp_from_uuid(entity1._initial_event_id)
-            self.assertEqual(entity1.created_on, expected_timestamp)
-            self.assertTrue(entity1.last_modified, expected_timestamp)
+            self.assertIsInstance(entity1.___initial_event_id__, UUID)
+            expected_timestamp = decimaltimestamp_from_uuid(entity1.___initial_event_id__)
+            self.assertEqual(entity1.__created_on__, expected_timestamp)
+            self.assertTrue(entity1.__last_modified__, expected_timestamp)
 
             # Read entity from repo.
             retrieved_obj = app.repository[entity1.id]

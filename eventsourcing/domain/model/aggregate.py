@@ -1,15 +1,21 @@
+"""
+aggregate
+~~~~~~~~~
+
+Base classes for aggregates in a domain driven design.
+"""
 from collections import deque
 
-from eventsourcing.domain.model.entity import TimestampedVersionedEntity, WithReflexiveMutator
-from eventsourcing.domain.model.events import publish
+from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 
 
-class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
+class AggregateRoot(TimestampedVersionedEntity):
     """
     Root entity for an aggregate in a domain driven design.
     """
+
     class Event(TimestampedVersionedEntity.Event):
-        """Layer supertype."""
+        """Supertype for aggregate events."""
 
     class Created(Event, TimestampedVersionedEntity.Created):
         """Published when an AggregateRoot is created."""
@@ -22,34 +28,27 @@ class AggregateRoot(WithReflexiveMutator, TimestampedVersionedEntity):
 
     def __init__(self, **kwargs):
         super(AggregateRoot, self).__init__(**kwargs)
-        self._pending_events = deque()
+        self.__pending_events__ = deque()
 
-    def save(self):
+    def __save__(self):
         """
         Publishes pending events for others in application.
         """
         batch_of_events = []
         try:
             while True:
-                batch_of_events.append(self._pending_events.popleft())
+                batch_of_events.append(self.__pending_events__.popleft())
         except IndexError:
             pass
         if batch_of_events:
-            publish(batch_of_events)
+            self.__publish_to_subscribers__(batch_of_events)
 
-    def _trigger(self, event_class, **kwargs):
-        """
-        Constructs, applies, and publishes domain event of given class, with given kwargs.
-        """
-        domain_event = event_class(
-            originator_id=self.id,
-            originator_version=self.version,
-            **kwargs
-        )
-        self._apply_and_publish(domain_event)
-
-    def _publish(self, event):
+    def __publish__(self, event):
         """
         Appends event to internal collection of pending events.
         """
-        self._pending_events.append(event)
+        self.__pending_events__.append(event)
+
+    def __discard__(self):
+        super(AggregateRoot, self).__discard__()
+        self.__save__()

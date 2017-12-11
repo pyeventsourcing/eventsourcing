@@ -11,6 +11,9 @@ and assumes your projections and your persistent projections
 can be coded using techniques for coding mutator functions and
 snapshots introduced in previous sections.
 
+.. contents:: :local:
+
+
 Synchronous update
 ------------------
 
@@ -526,62 +529,62 @@ It has the same interface as :class:`~eventsourcing.interface.notificationlog.No
 and so can be used by :class:`~eventsourcing.interface.notificationlog.NotificationLogReader`
 progressively to obtain unseen notifications.
 
-Todo: Pulling from remote notification log.
+.. Todo: Pulling from remote notification log.
 
-Todo: Publishing and subscribing to remote notification log.
+.. Todo: Publishing and subscribing to remote notification log.
 
-Todo: Deduplicating domain events in receiving context.
-Events may appear twice in the notification log if there is
-contention over the command that generates the logged event,
-or if the event cannot be appended to the aggregate stream
-for whatever reason and then the command is retried successfully.
-So events need to be deduplicated. One approach is to have a
-UUID5 namespace for received events, and use concurrency control
-to make sure each event is acted on only once. That leads to the
-question of when to insert the event, before or after it is
-successfully applied to the context? If before, and the event
-is not successfully applied, then the event maybe lost. Does
-the context need to apply the events in order?
-It may help to to construct a sequenced command log, also using
-a big array, so that the command sequence can be constructed in a
-distributed manner. The command sequence can then be executed in
-a distributed manner. This approach would support creating another
-application log that is entirely correct.
+.. Todo: Deduplicating domain events in receiving context.
+.. Events may appear twice in the notification log if there is
+.. contention over the command that generates the logged event,
+.. or if the event cannot be appended to the aggregate stream
+.. for whatever reason and then the command is retried successfully.
+.. So events need to be deduplicated. One approach is to have a
+.. UUID5 namespace for received events, and use concurrency control
+.. to make sure each event is acted on only once. That leads to the
+.. question of when to insert the event, before or after it is
+.. successfully applied to the context? If before, and the event
+.. is not successfully applied, then the event maybe lost. Does
+.. the context need to apply the events in order?
+.. It may help to to construct a sequenced command log, also using
+.. a big array, so that the command sequence can be constructed in a
+.. distributed manner. The command sequence can then be executed in
+.. a distributed manner. This approach would support creating another
+.. application log that is entirely correct.
 
-Todo: Race conditions around reading events being assigned using
-central integer sequence generator, could potentially read when a
-later index has been assigned but a previous one has not yet been
-assigned. Reading the previous as None, when it just being assigned
-is an error. So perhaps something can wait until previous has
-been assigned, or until it can safely be assumed the integer was lost.
-If an item is None, perhaps the notification log could stall for
-a moment before yielding the item, to allow time for the race condition
-to pass. Perhaps it should only do it when the item has been assigned
-recently (timestamp of the ItemAdded event could be checked) or when
-there have been lots of event since (the highest assigned index could
-be checked). A permanent None value should be something that occurs
-very rarely, when an issued integer is not followed by a successful
-assignment to the big array. A permanent "None" will exist in the
-sequence if an integer is lost perhaps due to a database operation
-error that somehow still failed after many retries, or because the
-client process crashed before the database operation could be executed
-but after the integer had been issued, so the integer became lost.
-This needs code.
+.. Todo: Race conditions around reading events being assigned using
+.. central integer sequence generator, could potentially read when a
+.. later index has been assigned but a previous one has not yet been
+.. assigned. Reading the previous as None, when it just being assigned
+.. is an error. So perhaps something can wait until previous has
+.. been assigned, or until it can safely be assumed the integer was lost.
+.. If an item is None, perhaps the notification log could stall for
+.. a moment before yielding the item, to allow time for the race condition
+.. to pass. Perhaps it should only do it when the item has been assigned
+.. recently (timestamp of the ItemAdded event could be checked) or when
+.. there have been lots of event since (the highest assigned index could
+.. be checked). A permanent None value should be something that occurs
+.. very rarely, when an issued integer is not followed by a successful
+.. assignment to the big array. A permanent "None" will exist in the
+.. sequence if an integer is lost perhaps due to a database operation
+.. error that somehow still failed after many retries, or because the
+.. client process crashed before the database operation could be executed
+.. but after the integer had been issued, so the integer became lost.
+.. This needs code.
 
-Todo: Automatic initialisation of the integer sequence generator RedisIncr
-from getting highest assigned index. Or perhaps automatic update with
-the current highest assigned index if there continues to be contention
-after a number of increments, indicating the issued values are far behind.
-If processes all reset the value whilst they are also incrementing it, then
-there will be a few concurrency errors, but it should level out quickly.
-This also needs code.
+.. Todo: Automatic initialisation of the integer sequence generator RedisIncr
+.. from getting highest assigned index. Or perhaps automatic update with
+.. the current highest assigned index if there continues to be contention
+.. after a number of increments, indicating the issued values are far behind.
+.. If processes all reset the value whilst they are also incrementing it, then
+.. there will be a few concurrency errors, but it should level out quickly.
+.. This also needs code.
 
-Todo: Use actual domain event objects, and log references to them. Have an
-iterator that returns actual domain events, rather than the logged references.
-Could log the domain events, but their variable size makes the application log
-less stable (predictable) in its usage of database partitions. Perhaps
-deferencing to real domain events could be an option of the notification log?
-Perhaps something could encapsulate the notification log and generate domain
-events?
+.. Todo: Use actual domain event objects, and log references to them. Have an
+.. iterator that returns actual domain events, rather than the logged references.
+.. Could log the domain events, but their variable size makes the application log
+.. less stable (predictable) in its usage of database partitions. Perhaps
+.. deferencing to real domain events could be an option of the notification log?
+.. Perhaps something could encapsulate the notification log and generate domain
+.. events?
 
-Todo: Configuration of remote reader, to allow URL to be completely configurable.
+.. Todo: Configuration of remote reader, to allow URL to be completely configurable.

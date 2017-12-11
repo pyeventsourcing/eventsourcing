@@ -70,14 +70,8 @@ class DatastoreTestCase(AbstractDatastoreTestCase):
         with self.assertRaises(DatastoreTableError):
             self.create_record()
 
-        # Drop the tables.
-        self.datastore.drop_connection()
-
-        # Check the stored event class doesn't function after the connection has been dropped.
-        with self.assertRaises(DatastoreConnectionError):
-            self.list_records()
-        with self.assertRaises(DatastoreConnectionError):
-            self.create_record()
+        # Drop the connection.
+        self.datastore.close_connection()
 
     @abstractmethod
     def list_records(self):
@@ -91,5 +85,5 @@ class DatastoreTestCase(AbstractDatastoreTestCase):
         # Try to remove any tables.
         self.datastore.setup_connection()
         self.datastore.drop_tables()
-        self.datastore.drop_connection()
+        self.datastore.close_connection()
         super(DatastoreTestCase, self).tearDown()

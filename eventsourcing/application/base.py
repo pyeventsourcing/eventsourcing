@@ -8,10 +8,17 @@ from eventsourcing.domain.model.events import Logged
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 
 class ApplicationWithEventStores(with_metaclass(ABCMeta)):
+    """
+    Event sourced application object class.
+
+    Can construct event stores using given active records.
+    Supports three different event stores: for log events,
+    for entity events, and for snapshot events.
+    """
     def __init__(self, entity_active_record_strategy=None,
                  log_active_record_strategy=None,
                  snapshot_active_record_strategy=None,
@@ -54,7 +61,7 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
             event_sequence_id_attr=event_sequence_id_attr,
             event_position_attr=event_position_attr,
             always_encrypt=always_encrypt,
-            cipher=cipher
+            cipher=cipher,
         )
         event_store = EventStore(
             active_record_strategy=active_record_strategy,
@@ -71,8 +78,7 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
             position_attr_name=event_position_attr,
             json_encoder_class=json_encoder_class,
             json_decoder_class=json_decoder_class,
-            always_encrypt=always_encrypt,
-            cipher=cipher
+            cipher=cipher,
         )
 
     def close(self):

@@ -1,19 +1,22 @@
 import datetime
+from collections import deque
 from unittest import TestCase
 from uuid import NAMESPACE_URL
 
 from decimal import Decimal
 
 from eventsourcing.domain.model.events import QualnameABC
-from eventsourcing.infrastructure.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
-from eventsourcing.utils.time import utc_timezone
+from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
+from eventsourcing.utils.times import utc_timezone
 
 
 class TestObjectJSONEncoder(TestCase):
     def test_encode(self):
         encoder = ObjectJSONEncoder()
+
+        value = 1
         expect = '1'
-        self.assertEqual(encoder.encode(1), expect)
+        self.assertEqual(encoder.encode(value), expect)
 
         value = datetime.datetime(2011, 1, 1, 1, 1, 1)
         expect = '{"ISO8601_datetime": "2011-01-01T01:01:01.000000"}'
@@ -25,6 +28,14 @@ class TestObjectJSONEncoder(TestCase):
 
         value = datetime.date(2011, 1, 1)
         expect = '{"ISO8601_date": "2011-01-01"}'
+        self.assertEqual(expect, encoder.encode(value))
+
+        value = datetime.time(23, 59, 59, 123456)
+        expect = '{"ISO8601_time": "23:59:59.123456"}'
+        self.assertEqual(encoder.encode(value), expect)
+
+        value = Decimal('59.123456')
+        expect = '{"__decimal__": "59.123456"}'
         self.assertEqual(encoder.encode(value), expect)
 
         value = NAMESPACE_URL
@@ -36,11 +47,14 @@ class TestObjectJSONEncoder(TestCase):
                   '"topic": "eventsourcing.tests.test_transcoding#Object"}}')
         self.assertEqual(encoder.encode(value), expect)
 
+        value = deque()
+        expect = '{"__deque__": []}'
+        self.assertEqual(encoder.encode(value), expect)
+
         # Check defers to base class to raise TypeError.
-        # - a Decimal isn't supported at the moment, hence this test works
-        # - but maybe it should, in which case we need a different unsupported type here
+        # - a type isn't supported at the moment, hence this test works
         with self.assertRaises(TypeError):
-            encoder.encode(Decimal(1.0))
+            encoder.encode(object)
 
 
 class TestObjectJSONDecoder(TestCase):
@@ -64,6 +78,18 @@ class TestObjectJSONDecoder(TestCase):
         expect = NAMESPACE_URL
         self.assertEqual(decoder.decode(value), expect)
 
+        value = '{"ISO8601_time": "23:59:59.123456"}'
+        expect = datetime.time(23, 59, 59, 123456)
+        self.assertEqual(decoder.decode(value), expect)
+
+        value = '{"__decimal__": "59.123456"}'
+        expect = Decimal('59.123456')
+        self.assertEqual(decoder.decode(value), expect)
+
+        value = '{"__deque__": []}'
+        expect = deque()
+        self.assertEqual(decoder.decode(value), expect)
+
         value = ('{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04fd430c8"}}, '
                  '"topic": "eventsourcing.tests.test_transcoding#Object"}}')
         expect = Object(NAMESPACE_URL)
@@ -76,3 +102,6 @@ class Object(QualnameABC):
 
     def __eq__(self, other):
         return self.a == other.a
+
+    def __ne__(self, other):
+        return not self.__eq__(other)

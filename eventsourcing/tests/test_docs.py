@@ -36,9 +36,13 @@ class TestDocs(TestCase):
                 if name in skipped:
                     continue
                 if name.endswith('.rst'):
+                # if name.endswith('aggregates_in_ddd.rst'):
+                # if name.endswith('example_application.rst'):
+                # if name.endswith('everything.rst'):
                 # if name.endswith('domainmodel.rst'):
                 # if name.endswith('infrastructure.rst'):
                 # if name.endswith('application.rst'):
+                # if name.endswith('snapshotting.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)
@@ -48,7 +52,7 @@ class TestDocs(TestCase):
         print("Testing code snippets in docs:")
         for path in file_paths:
             print(path)
-        print()
+        print('')
         for path in file_paths:
             # print("Testing code snippets in file: {}".format(path))
             try:
@@ -58,11 +62,14 @@ class TestDocs(TestCase):
                 failed.append(path)
                 print(str(e).strip('\n'))
                 print('FAIL')
-                print()
+                print('')
             else:
                 passed.append(path)
                 print('PASS')
-                print()
+                print('')
+            finally:
+                os.environ['SALT_FOR_DATA_INTEGRITY'] = ''
+
         print("{} failed, {} passed".format(len(failed), len(passed)))
 
         if failures:

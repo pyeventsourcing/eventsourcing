@@ -13,16 +13,18 @@ from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strat
     WithCassandraActiveRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
+from eventsourcing.utils.times import decimaltimestamp
 
 
 class TimebucketedlogTestCase(WithPersistencePolicies):
     def setUp(self):
         super(TimebucketedlogTestCase, self).setUp()
-        self.log_repo = TimebucketedlogRepo(self.log_event_store)
+        self.log_repo = TimebucketedlogRepo(self.entity_event_store)
 
     def test_entity_lifecycle(self):
         log_name = uuid4()
         log = self.log_repo.get_or_create(log_name=log_name, bucket_size='year')
+        log = self.log_repo[log_name]
         self.assertIsInstance(log, Timebucketedlog)
         self.assertEqual(log.name, log_name)
         self.assertEqual(log.bucket_size, 'year')
@@ -37,7 +39,7 @@ class TimebucketedlogTestCase(WithPersistencePolicies):
         event1 = log.append_message(message1)
         event2 = log.append_message(message2)
         event3 = log.append_message(message3)
-        halfway = time.time()
+        halfway = decimaltimestamp()
         event4 = log.append_message(message4)
         event5 = log.append_message(message5)
         event6 = log.append_message(message6)
@@ -348,10 +350,10 @@ class TimebucketedlogTestCase(WithPersistencePolicies):
         # Check the helper methods are protected against invalid bucket sizes.
         with self.assertRaises(ValueError):
             log_id10 = uuid4()
-            make_timebucket_id(log_id10, time.time(), bucket_size='invalid')
+            make_timebucket_id(log_id10, decimaltimestamp(), bucket_size='invalid')
 
         with self.assertRaises(ValueError):
-            bucket_starts(time.time(), bucket_size='invalid')
+            bucket_starts(decimaltimestamp(), bucket_size='invalid')
 
         with self.assertRaises(ValueError):
             bucket_duration(bucket_size='invalid')

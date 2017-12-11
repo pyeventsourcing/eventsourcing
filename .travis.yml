@@ -16,7 +16,7 @@ python:
 
 install:
 - pip install -U pip wheel
-- CASS_DRIVER_NO_CYTHON=1 pip install -e .[cassandra,sqlalchemy,crypto,testing]
+- CASS_DRIVER_NO_CYTHON=1 pip install -e .[testing]
 - pip install python-coveralls
 
 env:

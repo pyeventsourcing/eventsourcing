@@ -1,8 +1,7 @@
 from tempfile import NamedTemporaryFile
 from uuid import uuid4
 
-from sqlalchemy.exc import OperationalError
-# from sqlalchemy.pool import StaticPool
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from eventsourcing.infrastructure.datastore import DatastoreTableError
 from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord, TimestampSequencedItemRecord, \
@@ -42,16 +41,24 @@ class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, DatastoreTestCase):
         try:
             query = self.datastore.session.query(IntegerSequencedItemRecord)
             return list(query)
-        except OperationalError as e:
+        except (OperationalError, ProgrammingError) as e:
+            # OperationalError from sqlite, ProgrammingError from psycopg2.
             self.datastore.session.rollback()
             raise DatastoreTableError(e)
+        finally:
+            self.datastore.session.close()
 
     def create_record(self):
         try:
-            record = IntegerSequencedItemRecord(sequence_id=uuid4(), position=0)
+            record = IntegerSequencedItemRecord(
+                sequence_id=uuid4(),
+                position=0,
+                topic='topic',
+                data='{}'
+            )
             self.datastore.session.add(record)
             self.datastore.session.commit()
-        except OperationalError as e:
+        except (OperationalError, ProgrammingError) as e:
             self.datastore.session.rollback()
             raise DatastoreTableError(e)
         return record

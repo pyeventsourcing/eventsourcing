@@ -2,14 +2,16 @@ import unittest
 from time import time
 from uuid import UUID, uuid4, uuid1
 
+from decimal import Decimal
+
 from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmptyError, EventWithOriginatorID, \
     EventWithOriginatorVersion, EventWithTimestamp, _event_handlers, assert_event_handlers_empty, \
     create_timesequenced_event_id, publish, subscribe, unsubscribe, EventWithTimeuuid
-from eventsourcing.infrastructure.topic import resolve_topic
+from eventsourcing.utils.topic import resolve_topic, get_topic
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.exceptions import TopicResolutionError
-from eventsourcing.utils.time import timestamp_from_uuid
+from eventsourcing.utils.times import decimaltimestamp_from_uuid, decimaltimestamp
 
 try:
     from unittest import mock
@@ -17,15 +19,23 @@ except ImportError:
     import mock
 
 
+class Event(DomainEvent):
+    pass
+
+
+# Check not equal to different type with same values.
+class SubclassEvent(Event):
+    pass
+
+
 class TestAbstractDomainEvent(unittest.TestCase):
+
     def test(self):
         # Check base class can be sub-classed.
-        class Event(DomainEvent):
-            pass
 
         # Check subclass can be instantiated.
         event1 = Event()
-        self.assertEqual(event1.__always_encrypt__, False)
+        self.assertEqual(type(event1).__qualname__, 'Event')
 
         # Check subclass can be instantiated with other parameters.
         event2 = Event(name='value')
@@ -44,10 +54,6 @@ class TestAbstractDomainEvent(unittest.TestCase):
 
         # Check not equal to same event type with different values.
         self.assertNotEqual(event2, Event(name='another value'))
-
-        # Check not equal to different type with same values.
-        class SubclassEvent(Event):
-            pass
 
         self.assertNotEqual(event2, SubclassEvent(name='value'))
 
@@ -112,19 +118,19 @@ class TestEventWithTimestamp(unittest.TestCase):
             pass
 
         # Check event can be instantiated with a timestamp.
-        time1 = time()
+        time1 = decimaltimestamp()
         event = Event(timestamp=time1)
         self.assertEqual(event.timestamp, time1)
 
         # Check event can be instantiated without a timestamp.
         event = Event()
         self.assertGreater(event.timestamp, time1)
-        self.assertLess(event.timestamp, time())
+        self.assertLess(event.timestamp, decimaltimestamp())
 
         # Check the timestamp value can't be reassigned.
         with self.assertRaises(AttributeError):
             # noinspection PyPropertyAccess
-            event.timestamp = time()
+            event.timestamp = decimaltimestamp()
 
 
 class TestEventWithTimeuuid(unittest.TestCase):
@@ -139,15 +145,15 @@ class TestEventWithTimeuuid(unittest.TestCase):
         self.assertEqual(event.event_id, event_id)
 
         # Check event can be instantiated without an event_id.
-        time1 = time()
+        time1 = decimaltimestamp()
         event = Event()
-        self.assertGreater(timestamp_from_uuid(event.event_id), time1)
-        self.assertLess(timestamp_from_uuid(event.event_id), time())
+        self.assertGreater(decimaltimestamp_from_uuid(event.event_id), time1)
+        self.assertLess(decimaltimestamp_from_uuid(event.event_id), decimaltimestamp())
 
         # Check the event_id can't be reassigned.
         with self.assertRaises(AttributeError):
             # noinspection PyPropertyAccess
-            event.event_id = time()
+            event.event_id = decimaltimestamp()
 
 
 class TestEventWithOriginatorVersionAndID(unittest.TestCase):
@@ -196,7 +202,7 @@ class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
             Event()
 
         # Get timestamp before events.
-        time1 = time()
+        time1 = decimaltimestamp()
 
         # Construct events.
         event1 = Event(originator_id='1')
@@ -209,7 +215,7 @@ class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
         # Check the event timestamps.
         self.assertLess(time1, event1.timestamp)
         self.assertLess(event1.timestamp, event2.timestamp)
-        self.assertLess(event2.timestamp, time())
+        self.assertLess(event2.timestamp, decimaltimestamp())
 
         # Check the events are not equal to each other, whilst being equal to themselves.
         self.assertEqual(event1, event1)
@@ -236,7 +242,7 @@ class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
 
         # Check event has a domain event ID, and a timestamp.
         self.assertTrue(event1.timestamp)
-        self.assertIsInstance(event1.timestamp, float)
+        self.assertIsInstance(event1.timestamp, Decimal)
 
         # Check subclass can be instantiated with 'timestamp' parameter.
         DOMAIN_EVENT_ID1 = create_timesequenced_event_id()
@@ -316,7 +322,11 @@ class TestEvents(unittest.TestCase):
 
     def test_event_attributes(self):
         entity_id1 = uuid4()
-        event = Example.Created(originator_id=entity_id1, a=1, b=2)
+        event = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2
+        )
 
         # Check constructor keyword args lead to read-only attributes.
         self.assertEqual(1, event.a)
@@ -325,10 +335,14 @@ class TestEvents(unittest.TestCase):
         self.assertRaises(AttributeError, setattr, event, 'c', 3)
 
         # Check domain event has auto-generated timestamp.
-        self.assertIsInstance(event.timestamp, float)
+        self.assertIsInstance(event.timestamp, Decimal)
 
         # Check timestamp value can be given to domain events.
-        event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
+        event1 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2, timestamp=3
+        )
         self.assertEqual(3, event1.timestamp)
 
     def test_publish_subscribe_unsubscribe(self):
@@ -376,15 +390,35 @@ class TestEvents(unittest.TestCase):
 
     def test_hash(self):
         entity_id1 = uuid4()
-        event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
-        event2 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
+        event1 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2, timestamp=3
+        )
+        event2 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2, timestamp=3
+        )
         self.assertEqual(hash(event1), hash(event2))
 
     def test_equality_comparison(self):
         entity_id1 = uuid4()
-        event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
-        event2 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
-        event3 = Example.Created(originator_id=entity_id1, a=3, b=2, timestamp=3)
+        event1 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2, timestamp=3
+        )
+        event2 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2, timestamp=3
+        )
+        event3 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=3, b=2, timestamp=3
+        )
         self.assertEqual(event1, event2)
         self.assertNotEqual(event1, event3)
         self.assertNotEqual(event2, event3)
@@ -392,16 +426,28 @@ class TestEvents(unittest.TestCase):
 
     def test_repr(self):
         entity_id1 = uuid4()
-        event1 = Example.Created(originator_id=entity_id1, a=1, b=2, timestamp=3)
+        event1 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2, timestamp=3
+        )
+        self.maxDiff = None
         self.assertEqual(
-            "Example.Created(a=1, b=2, originator_id={}, originator_version=0, timestamp=3)".format(
-                repr(entity_id1)),
+            ("Example.Created(__event_hash__='{}', "
+             "__event_topic__='eventsourcing.example.domainmodel#Example.Created', a=1, b=2, "
+             "originator_id={}, "
+             "originator_topic='eventsourcing.example.domainmodel#Example', originator_version=0, timestamp=3)"
+            ).format(event1.__event_hash__, repr(entity_id1)),
             repr(event1)
         )
 
     def test_subscribe_to_decorator(self):
         entity_id1 = uuid4()
-        event = Example.Created(originator_id=entity_id1, a=1, b=2)
+        event = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2
+        )
         handler = mock.Mock()
 
         # Check we can assert there are no event handlers subscribed.

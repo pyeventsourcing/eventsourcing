@@ -41,6 +41,8 @@ class TestArrayWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithPersiste
         array = self.repo[array_id]
         self.assertIsInstance(array, Array)
         self.assertEqual(array.id, array_id)
+        self.assertEqual(array, array)
+        self.assertNotEqual(array, self.repo[uuid4()])
 
         # Add some items.
         array[0] = 'item1'
@@ -152,7 +154,7 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
     def setUp(self):
         super(TestBigArrayWithSQLAlchemy, self).setUp()
         self.repo = BigArrayRepository(
-            base_size=None,
+            array_size=None,
             event_store=self.entity_event_store,
         )
         self.subrepo = self.repo.subrepo

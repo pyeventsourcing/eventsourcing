@@ -2,14 +2,19 @@
 Infrastructure
 ==============
 
-The library's infrastructure layer provides a cohesive mechanism for storing events as sequences of items.
-The entire mechanism is encapsulated by the library's :class:`~eventsourcing.infrastructure.eventstore.EventStore`
-class.
+The library's infrastructure layer provides a cohesive
+mechanism for storing events as sequences of items.
 
-The event store uses a "sequenced item mapper" and an "active record strategy".
-The sequenced item mapper and the active record strategy share a common "sequenced item" type.
-The sequenced item mapper can convert objects such as domain events to sequenced items, and the active
-record strategy can write sequenced items to a database.
+.. contents:: :local:
+
+The entire mechanism is encapsulated by the library's
+:class:`~eventsourcing.infrastructure.eventstore.EventStore`
+class. The event store uses a "sequenced item mapper" and an
+"active record strategy". The sequenced item mapper and the
+active record strategy share a common "sequenced item" type.
+The sequenced item mapper can convert objects such as domain
+events to sequenced items, and the active record strategy can
+write sequenced items to a database.
 
 
 Sequenced items
@@ -65,12 +70,13 @@ The ``data`` holds the values of the item, perhaps serialized to JSON, and optio
         sequence_id=sequence1,
         position=0,
         topic='eventsourcing.domain.model.events#DomainEvent',
-        data='{"foo":"bar"}'
+        data='{"foo":"bar"}',
     )
     assert sequenced_item1.sequence_id == sequence1
     assert sequenced_item1.position == 0
     assert sequenced_item1.topic == 'eventsourcing.domain.model.events#DomainEvent'
     assert sequenced_item1.data == '{"foo":"bar"}'
+
 
 
 StoredEvent namedtuple
@@ -99,7 +105,7 @@ The ``state`` holds the state of the domain event, and is equivalent to ``data``
         originator_id=aggregate1,
         originator_version=0,
         event_type='eventsourcing.domain.model.events#DomainEvent',
-        state='{"foo":"bar"}'
+        state='{"foo":"bar"}',
     )
     assert stored_event1.originator_id == aggregate1
     assert stored_event1.originator_version == 0
@@ -123,6 +129,14 @@ sequenced item namedtuple.
 
 SQLAlchemy
 ----------
+
+To run the examples below, please install the library with the
+'sqlalchemy' option.
+
+.. code::
+
+    $ pip install eventsourcing[sqlalchemy]
+
 
 The library has a concrete active record strategy for SQLAlchemy provided by the object class
 ``SQLAlchemyActiveRecordStrategy``.
@@ -221,7 +235,7 @@ All the previously appended items of a sequence can be retrieved by using the ``
 
 .. code:: python
 
-    results = active_record_strategy.get_items(aggregate1)
+    results = active_record_strategy.list_items(aggregate1)
 
 
 Since by now only one item was stored, so there is only one item in the results.
@@ -232,19 +246,58 @@ Since by now only one item was stored, so there is only one item in the results.
     assert len(results) == 1
     assert results[0] == stored_event1
 
+MySQL
+~~~~~
+
+For MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
+can be used.
+
+.. code::
+
+    $ pip install mysqlclient
+
+The ``uri`` for MySQL would look something like this.
+
+.. code::
+
+    mysql://username:password@localhost/eventsourcing
+
+
+PostgreSQL
+~~~~~~~~~~
+
+For PostgreSQL, the Python package `psycopg2 <https://pypi.python.org/pypi/psycopg2>`__
+can be used.
+
+.. code::
+
+    $ pip install psycopg2
+
+The ``uri`` for PostgreSQL would look something like this.
+
+.. code::
+
+    postgresql://username:password@localhost:5432/eventsourcing
+
 
 Apache Cassandra
 ----------------
+
+To run the examples below, please install the library with the
+'cassandra' option.
+
+.. code::
+
+    $ pip install eventsourcing[cassandra]
+
 
 The library also has a concrete active record strategy for Apache Cassandra provided by
 ``CassandraActiveRecordStrategy`` class.
 
 Similarly, for the ``CassandraActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
-from ``eventsourcing.infrastructure.cassandra.activerecords`` matches the ``SequencedItem`` namedtuple.
-The ``StoredEventRecord`` from the same module matches the ``StoredEvent`` namedtuple.
-
-The ``CassandraDatastore`` class uses the ``CassandraSettings`` class to setup a Cassandra database.
-
+from ``eventsourcing.infrastructure.cassandra.activerecords`` matches the ``SequencedItem``
+namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
+namedtuple.
 
 .. code:: python
 
@@ -272,10 +325,13 @@ The ``CassandraDatastore`` class uses the ``CassandraSettings`` class to setup a
     assert results[0] == stored_event1
 
     cassandra_datastore.drop_tables()
-    cassandra_datastore.drop_connection()
+    cassandra_datastore.close_connection()
 
 
-Please refer to ``CassandraSettings`` class for information about configuring away from default settings.
+The ``CassandraDatastore`` and ``CassandraSettings`` are be used in the same was as
+``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` above. Please investigate
+library class :class:`~eventsourcing.infrastructure.cassandra.datastore.CassandraSettings`
+for information about configuring away from default settings.
 
 
 Sequenced item conflicts
@@ -302,6 +358,14 @@ record strategy.
 This feature is implemented using optimistic concurrency control features of the underlying database. With
 SQLAlchemy, the primary key constraint involves both the sequence and the position columns. With Cassandra
 the position is the primary key in the sequence partition, and the "IF NOT EXISTS" feature is applied.
+
+The Cassandra database management system, which implements the Paxos protocol,
+can accomplish linearly-scalable distributed optimistic concurrency control,
+guaranteeing sequential consistency of the events of an entity despite the
+database being distributed. It is also possible to serialize calls to the
+methods of an entity, but that is out of the scope of this package — if you
+wish to do that, perhaps something like
+`Zookeeper <https://zookeeper.apache.org/>`__ might help.
 
 
 Sequenced item mapper
@@ -334,8 +398,6 @@ The method ``from_sequenced_item()`` can be used to convert sequenced item objec
 
     domain_event = sequenced_item_mapper.from_sequenced_item(sequenced_item1)
 
-    assert domain_event.sequence_id == sequence1
-    assert domain_event.position == 0
     assert domain_event.foo == 'bar'
 
 
@@ -344,7 +406,7 @@ The method ``to_sequenced_item()`` can be used to convert application-level obje
 
 .. code:: python
 
-    assert sequenced_item_mapper.to_sequenced_item(domain_event) == sequenced_item1
+    assert sequenced_item_mapper.to_sequenced_item(domain_event).data == sequenced_item1.data
 
 
 If the names of the first two fields of the sequenced item namedtuple (e.g. ``sequence_id`` and ``position``) do not
@@ -355,17 +417,23 @@ using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 
 .. code:: python
 
+    from eventsourcing.domain.model.events import DomainEvent
+
+    domain_event1 = DomainEvent(
+        originator_id=aggregate1,
+        originator_version=1,
+        foo='baz',
+    )
+
     sequenced_item_mapper = SequencedItemMapper(
         sequence_id_attr_name='originator_id',
         position_attr_name='originator_version'
     )
 
-    domain_event1 = sequenced_item_mapper.from_sequenced_item(sequenced_item1)
 
-    assert domain_event1.foo == 'bar', domain_event1
-    assert domain_event1.originator_id == sequence1
-    assert domain_event1.originator_version == 0
-    assert sequenced_item_mapper.to_sequenced_item(domain_event1) == sequenced_item1
+    assert domain_event1.foo == 'baz'
+
+    assert sequenced_item_mapper.to_sequenced_item(domain_event1).sequence_id == aggregate1
 
 
 Alternatively, the constructor arg ``sequenced_item_class`` can be set with a sequenced item namedtuple type that is
@@ -375,14 +443,12 @@ different from the default ``SequencedItem`` namedtuple, such as the library's `
 .. code:: python
 
     sequenced_item_mapper = SequencedItemMapper(
-        sequenced_item_class=StoredEvent,
+        sequenced_item_class=StoredEvent
     )
 
     domain_event1 = sequenced_item_mapper.from_sequenced_item(stored_event1)
 
     assert domain_event1.foo == 'bar', domain_event1
-    assert domain_event1.originator_id == aggregate1
-    assert sequenced_item_mapper.to_sequenced_item(domain_event1) == stored_event1
 
 
 Since the alternative ``StoredEvent`` namedtuple can be used instead of the default
@@ -397,7 +463,7 @@ Please note, it is required of these application-level objects that the  "topic"
 .. code:: python
 
     from eventsourcing.domain.model.events import Created
-    from eventsourcing.infrastructure.topic import get_topic, resolve_topic
+    from eventsourcing.utils.topic import get_topic, resolve_topic
 
     topic = get_topic(Created)
     assert resolve_topic(topic) == Created
@@ -417,7 +483,7 @@ The code below extends the JSON transcoding to support sets.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
+    from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
 
 
     class CustomObjectJSONEncoder(ObjectJSONEncoder):
@@ -443,7 +509,7 @@ The code below extends the JSON transcoding to support sets.
 
     customized_sequenced_item_mapper = SequencedItemMapper(
         json_encoder_class=CustomObjectJSONEncoder,
-        json_decoder_class=CustomObjectJSONDecoder,
+        json_decoder_class=CustomObjectJSONDecoder
     )
 
     domain_event = customized_sequenced_item_mapper.from_sequenced_item(
@@ -451,7 +517,7 @@ The code below extends the JSON transcoding to support sets.
             sequence_id=sequence1,
             position=0,
             topic='eventsourcing.domain.model.events#DomainEvent',
-            data='{"foo":{"__set__":["bar","baz"]}}'
+            data='{"foo":{"__set__":["bar","baz"]}}',
         )
     )
     assert domain_event.foo == set(["bar", "baz"])
@@ -463,30 +529,53 @@ The code below extends the JSON transcoding to support sets.
 Application-level encryption
 ----------------------------
 
-The ``SequencedItemMapper`` can be constructed with a symmetric cipher object. The library provides
-an AES cipher object class called ``AESCipher``.
+The ``SequencedItemMapper`` can be constructed with a symmetric cipher. If
+a cipher is given, then the ``state`` field of every sequenced item will be
+encrypted before being sent to the database. The data retrieved from the
+database will be decrypted and verified, which protects against tampering.
 
-The ``AESCipher`` is given an encryption key, using constructor arg ``aes_key``, which must be either 16, 24, or 32
-random bytes (128, 192, or 256 bits). Longer keys take more time to encrypt plaintext, but produce more secure
-ciphertext. Generating and storing a secure key requires functionality beyond the scope of this library.
+The library provides an AES cipher object class called ``AESCipher``. It
+uses the AES cipher from the Python Cryptography Toolkit, as forked by
+the actively maintained `PyCryptodome project <https://pycryptodome.readthedocs.io/>`__.
+
+The ``AESCipher`` class uses AES in GCM mode, which is a padding-less,
+authenticated encryption mode. Unlike CBC, GCM doesn't need padding so
+avoids potential padding oracle attacks. GCM will be faster than EAX
+on x86 architectures, especially those with AES opcodes. The other AES
+modes aren't supported by this class, at the moment.
+
+The ``AESCipher`` constructor arg ``cipher_key`` is required. The key must
+be either 16, 24, or 32 random bytes (128, 192, or 256 bits). Longer keys
+take more time to encrypt plaintext, but produce more secure ciphertext.
+
+Generating and storing a secure key requires functionality beyond the scope of this library.
+However, the utils package does contain a function ``encode_random_bytes()`` that may help
+to generate a unicode key string, representing random bytes encoded with Base64. A companion
+function ``decode_random_bytes()`` decodes the unicode key string into a sequence of bytes.
 
 
 .. code:: python
 
-    from eventsourcing.infrastructure.cipher.aes import AESCipher
+    from eventsourcing.utils.cipher.aes import AESCipher
+    from eventsourcing.utils.random import encode_random_bytes, decode_random_bytes
 
-    cipher = AESCipher(aes_key=b'01234567890123456789012345678901')  # Key with 256 bits.
+    # Unicode string representing 256 random bits encoded with Base64.
+    cipher_key = encode_random_bytes(num_bytes=32)
 
+    # Construct AES-256 cipher.
+    cipher = AESCipher(cipher_key=decode_random_bytes(cipher_key))
+
+    # Encrypt some plaintext (using nonce arguments).
     ciphertext = cipher.encrypt('plaintext')
-    plaintext = cipher.decrypt(ciphertext)
-
     assert ciphertext != 'plaintext'
+
+    # Decrypt some ciphertext.
+    plaintext = cipher.decrypt(ciphertext)
     assert plaintext == 'plaintext'
 
 
-If the ``SequencedItemMapper`` has an optional constructor arg ``cipher``. If ``always_encrypt`` is True, then
-the ``state`` field of every stored event will be encrypted with the cipher.
-
+The ``SequencedItemMapper`` has constructor arg ``cipher``, which can
+be used to pass in a cipher object, and thereby enable encryption.
 
 .. code:: python
 
@@ -494,7 +583,6 @@ the ``state`` field of every stored event will be encrypted with the cipher.
     ciphered_sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=StoredEvent,
         cipher=cipher,
-        always_encrypt=True,
     )
 
     # Domain event attribute ``foo`` has value ``'bar'``.
@@ -514,10 +602,9 @@ the ``state`` field of every stored event will be encrypted with the cipher.
     assert domain_event.foo == 'bar'
 
 
-Please note, the sequence ID and position values are necessarily not encrypted. However, by encrypting the state of
-the event, sensitive information, such as personally identifiable information, will be encrypted at the level
-of the application, before being sent to the database, and so it will be encrypted in the database (and in all
-backups of the database).
+Please note, the sequence ID and position values are not encrypted, necessarily. However, by encrypting the state of
+the item within the application, potentially sensitive information, for example personally identifiable information,
+will be encrypted in transit to the database, at rest in the database, and in all backups and other copies.
 
 
 Event store
@@ -546,10 +633,7 @@ The event store's ``append()`` method can append a domain event to its sequence.
 
 In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at position ``1``.
 
-
 .. code:: python
-
-    from eventsourcing.domain.model.events import DomainEvent
 
     event_store.append(
         DomainEvent(
@@ -577,10 +661,7 @@ Since by now two domain events have been stored, so there are two domain events 
 
     assert len(results) == 2
 
-    assert results[0].originator_id == aggregate1
     assert results[0].foo == 'bar'
-
-    assert results[1].originator_id == aggregate1
     assert results[1].foo == 'baz'
 
 
@@ -605,29 +686,21 @@ order of the results. Hence, it can affect both the content of the results and t
     # Get events below and at position 0.
     result = event_store.get_domain_events(aggregate1, lte=0)
     assert len(result) == 1, result
-    assert result[0].originator_id == aggregate1
-    assert result[0].originator_version == 0
     assert result[0].foo == 'bar'
 
     # Get events at and above position 1.
     result = event_store.get_domain_events(aggregate1, gte=1)
     assert len(result) == 1, result
-    assert result[0].originator_id == aggregate1
-    assert result[0].originator_version == 1
     assert result[0].foo == 'baz'
 
     # Get the first event in the sequence.
     result = event_store.get_domain_events(aggregate1, limit=1)
     assert len(result) == 1, result
-    assert result[0].originator_id == aggregate1
-    assert result[0].originator_version == 0
     assert result[0].foo == 'bar'
 
     # Get the last event in the sequence.
     result = event_store.get_domain_events(aggregate1, limit=1, is_ascending=False)
     assert len(result) == 1, result
-    assert result[0].originator_id == aggregate1
-    assert result[0].originator_version == 1
     assert result[0].foo == 'baz'
 
 
@@ -715,10 +788,10 @@ record class ``TimestampedSequencedItemRecord``.
 
 .. code:: python
 
-    import time
     from uuid import uuid4
 
     from eventsourcing.infrastructure.sqlalchemy.activerecords import TimestampSequencedItemRecord
+    from eventsourcing.utils.times import decimaltimestamp
 
     # Setup database table for timestamped sequenced items.
     datastore.setup_table(TimestampSequencedItemRecord)
@@ -736,7 +809,7 @@ record class ``TimestampedSequencedItemRecord``.
     aggregate_id = uuid4()
     event = DomainEvent(
         originator_id=aggregate_id,
-        timestamp=time.time(),
+        timestamp=decimaltimestamp(),
     )
 
     # Store the event.
@@ -746,7 +819,7 @@ record class ``TimestampedSequencedItemRecord``.
     events = timestamped_event_store.get_domain_events(aggregate_id)
     assert len(events) == 1
     assert events[0].originator_id == aggregate_id
-    assert events[0].timestamp < time.time()
+    assert events[0].timestamp < decimaltimestamp()
 
 
 Please note, optimistic concurrent control doesn't work to maintain entity consistency, because each
@@ -757,8 +830,8 @@ Timestamp-sequenced items are useful for storing events that are logically indep
 as messages in a log, things that do not risk causing a consistency error due to concurrent operations.
 
 
-.. The library function ``construct_cassandra_eventstore()`` can be used to
-construct an event store that uses the Apache Cassandra classes.
+.. Todo: The library function ``construct_cassandra_eventstore()`` can be used to
+.. construct an event store that uses the Apache Cassandra classes.
 
 .. .. code:: python
 

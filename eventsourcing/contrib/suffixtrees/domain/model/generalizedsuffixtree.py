@@ -507,7 +507,7 @@
 #     def add_child(self, child_node_id, edge_len):
 #         event = SuffixTreeNodeChildCollection.ChildNodeAdded(
 #             originator_id=self.id,
-#             originator_version=self.version,
+#             originator_version=self.__version__,
 #             child_node_id=child_node_id,
 #             edge_len=edge_len,
 #         )
@@ -517,7 +517,7 @@
 #     def switch_child(self, old_node_id, new_node_id, new_edge_len):
 #         event = SuffixTreeNodeChildCollection.ChildNodeSwitched(
 #             originator_id=self.id,
-#             originator_version=self.version,
+#             originator_version=self.__version__,
 #             old_node_id=old_node_id,
 #             new_node_id=new_node_id,
 #             new_edge_len=new_edge_len,
@@ -615,7 +615,7 @@
 #         self._assert_not_discarded()
 #         event = SuffixTreeEdge.Shortened(
 #             originator_id=self._id,
-#             originator_version=self._version,
+#             originator_version=self.___version__,
 #             label=label,
 #             dest_node_id=dest_node_id,
 #         )

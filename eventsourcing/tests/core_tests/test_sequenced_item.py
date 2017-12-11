@@ -13,7 +13,7 @@ class TestIntegerSequencedItem(TestCase):
             sequence_id=sequence_id,
             position=position,
             topic=topic,
-            data=data
+            data=data,
         )
         self.assertEqual(item.sequence_id, sequence_id)
         self.assertEqual(item.position, position)

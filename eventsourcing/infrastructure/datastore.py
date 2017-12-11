@@ -17,7 +17,7 @@ class Datastore(six.with_metaclass(ABCMeta)):
         """Sets up a connection to a datastore."""
 
     @abstractmethod
-    def drop_connection(self):
+    def close_connection(self):
         """Drops connection to a datastore."""
 
     @abstractmethod

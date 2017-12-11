@@ -1,12 +1,13 @@
-from time import sleep
 from uuid import uuid4
+
+from time import sleep
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.example.infrastructure import ExampleRepository
-from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies
 
@@ -28,6 +29,8 @@ class WithExampleApplication(WithActiveRecordStrategies):
 
 
 class ExampleApplicationTestCase(WithExampleApplication):
+    drop_tables = True
+
     def test(self):
         """
         Checks the example application works in the way an example application should.
@@ -74,7 +77,7 @@ class ExampleApplicationTestCase(WithExampleApplication):
             # Take a snapshot of the entity.
             snapshot1 = app.example_repository.take_snapshot(entity1.id)
             self.assertEqual(snapshot1.originator_id, entity1.id)
-            self.assertEqual(snapshot1.originator_version, entity1.version - 1)
+            self.assertEqual(snapshot1.originator_version, entity1.__version__)
 
             # Take another snapshot of the entity (should be the same event).
             sleep(0.0001)
@@ -97,11 +100,11 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(100, entity1.a)
 
             # Check the old value is available in the repo.
-            entity1_v1 = app.example_repository.get_entity(entity1.id, lte=0)
+            entity1_v1 = app.example_repository.get_entity(entity1.id, at=0)
             self.assertEqual(entity1_v1.a, 10)
-            entity1_v2 = app.example_repository.get_entity(entity1.id, lte=1)
+            entity1_v2 = app.example_repository.get_entity(entity1.id, at=1)
             self.assertEqual(entity1_v2.a, 50)
-            entity1_v3 = app.example_repository.get_entity(entity1.id, lte=2)
+            entity1_v3 = app.example_repository.get_entity(entity1.id, at=2)
             self.assertEqual(entity1_v3.a, 100)
 
             # Take another snapshot of the entity.
@@ -116,16 +119,33 @@ class ExampleApplicationTestCase(WithExampleApplication):
             # Remove all the stored items and check the new value is still available (must be in snapshot).
             record_strategy = self.entity_active_record_strategy
             self.assertEqual(len(list(record_strategy.all_records())), 3)
-            for record, _ in record_strategy.all_records():
+            for record in record_strategy.all_records():
                 record_strategy.delete_record(record)
             self.assertFalse(list(record_strategy.all_records()))
             self.assertEqual(100, app.example_repository[example1.id].a)
 
             # Check only some of the old values are available in the repo.
-            entity1_v1 = app.example_repository.get_entity(entity1.id, lte=0)
+            entity1_v1 = app.example_repository.get_entity(entity1.id, at=0)
             self.assertEqual(entity1_v1, None)
-            entity1_v3 = app.example_repository.get_entity(entity1.id, lte=1)
+            entity1_v3 = app.example_repository.get_entity(entity1.id, at=1)
             self.assertEqual(entity1_v3.a, 50)
-            entity1_v3 = app.example_repository.get_entity(entity1.id, lte=2)
+            entity1_v3 = app.example_repository.get_entity(entity1.id, at=2)
             self.assertEqual(entity1_v3.a, 100)
 
+            # Test 'except' clause in delete_record() method.
+            # - register a new example.
+            example1 = app.create_new_example(a=10, b=20)
+            self.assertIsInstance(example1, Example)
+
+            # - get the records to delete
+            all_records = list(record_strategy.all_records())
+
+            # - drop the table...
+            self.datastore.drop_table(record_strategy.active_record_class)
+
+            # - check exception is raised when records can't be deleted, so that
+            #   test case runs through 'except' block, when rollback() is called
+            with self.assertRaises(ProgrammingError):
+                for record in all_records:
+                    record_strategy.delete_record(record)
+                    record_strategy.session.commit()

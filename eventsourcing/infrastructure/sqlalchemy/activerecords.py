@@ -1,10 +1,13 @@
 import six
+from sqlalchemy import DECIMAL
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.sql.schema import Column, Index
-from sqlalchemy.sql.sqltypes import BigInteger, Float, String, Text
+from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
+from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord
 
@@ -23,17 +26,13 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         try:
             # Add active record(s) to the transaction.
             for active_record in active_records:
-                self.add_record_to_session(active_record)
+                self.session.add(active_record)
 
-            # Commit the transaction.
             self.session.commit()
-
-        except IntegrityError as e:
-            # Roll back the transaction.
+        except IntegrityError:
             self.session.rollback()
-            self.raise_sequenced_item_error(sequenced_item_or_items, e)
+            self.raise_sequenced_item_error(sequenced_item_or_items)
         finally:
-            # Begin new transaction.
             self.session.close()
 
     def get_item(self, sequence_id, eq):
@@ -42,15 +41,17 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
             query = self.filter(**filter_args)
             position_field = getattr(self.active_record_class, self.field_names.position)
             query = query.filter(position_field == eq)
-            events = six.moves.map(self.from_active_record, query)
-            events = list(events)
+            result = query.one()
+        except (NoResultFound, MultipleResultsFound):
+            raise IndexError
         finally:
             self.session.close()
+        return self.from_active_record(result)
 
-        try:
-            return events[0]
-        except IndexError:
-            self.raise_index_error(eq)
+        # try:
+        #     return events[0]
+        # except IndexError:
+        #     self.raise_index_error(eq)
 
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
@@ -80,26 +81,24 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
             if limit is not None:
                 query = query.limit(limit)
 
-            events = six.moves.map(self.from_active_record, query)
-            events = list(events)
+            results = query.all()
 
         finally:
             self.session.close()
 
         if results_ascending != query_ascending:
-            events.reverse()
+            # This code path is under test, but not otherwise used ATM.
+            results.reverse()
 
-        return events
+        for item in six.moves.map(self.from_active_record, results):
+            yield item
 
     def filter(self, **kwargs):
-        query = self.session.query(self.active_record_class)
-        return query.filter_by(**kwargs)
+        return self.query.filter_by(**kwargs)
 
-    def add_record_to_session(self, active_record):
-        """
-        Adds active record to session.
-        """
-        self.session.add(active_record)
+    @property
+    def query(self):
+        return self.session.query(self.active_record_class)
 
     def to_active_record(self, sequenced_item):
         """
@@ -116,8 +115,7 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Returns all items across all sequences.
         """
-        all_records = (r for r, _ in self.all_records())
-        return map(self.from_active_record, all_records)
+        return six.moves.map(self.from_active_record, self.all_records())
 
     def from_active_record(self, active_record):
         """
@@ -126,18 +124,22 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         kwargs = self.get_field_kwargs(active_record)
         return self.sequenced_item_class(**kwargs)
 
-    def all_records(self, resume=None, *args, **kwargs):
+    def all_records(self, *args, **kwargs):
         """
         Returns all records in the table.
         """
-        query = self.filter(**kwargs)
-        if resume is not None:
-            query = query.offset(resume + 1)
-        else:
-            resume = 0
-        query = query.limit(100)
-        for i, record in enumerate(query):
-            yield record, i + resume
+        # query = self.filter(**kwargs)
+        # if resume is not None:
+        #     query = query.offset(resume + 1)
+        # else:
+        #     resume = 0
+        # query = query.limit(100)
+        # for i, record in enumerate(query):
+        #     yield record, i + resume
+        try:
+            return self.query.all()
+        finally:
+            self.session.close()
 
     def delete_record(self, record):
         """
@@ -146,48 +148,55 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
         try:
             self.session.delete(record)
             self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            raise ProgrammingError(e)
         finally:
-            # Begin new transaction.
             self.session.close()
 
 
 class IntegerSequencedItemRecord(ActiveRecord):
     __tablename__ = 'integer_sequenced_items'
 
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(UUIDType(), primary_key=True)
+    sequence_id = Column(UUIDType(), nullable=False)
 
     # Position (index) of item in sequence.
-    position = Column(BigInteger(), primary_key=True)
+    position = Column(BigInteger(), nullable=False)
 
     # Topic of the item (e.g. path to domain event class).
-    topic = Column(String(255))
+    topic = Column(String(255), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
     __table_args__ = (
-        Index('integer_sequenced_items_index', 'sequence_id', 'position'),
+        Index('integer_sequenced_items_index', 'sequence_id', 'position', unique=True),
     )
 
 
 class TimestampSequencedItemRecord(ActiveRecord):
     __tablename__ = 'timestamp_sequenced_items'
 
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(UUIDType(), primary_key=True)
+    sequence_id = Column(UUIDType(), nullable=False)
 
     # Position (timestamp) of item in sequence.
-    position = Column(Float(), primary_key=True)
+    position = Column(DECIMAL(24, 6, 6), nullable=False)
+    # position = Column(DECIMAL(27, 9, 9), nullable=False)
 
     # Topic of the item (e.g. path to domain event class).
-    topic = Column(String(255))
+    topic = Column(String(255), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
     __table_args__ = (
-        Index('timestamp_sequenced_items_index', 'sequence_id', 'position'),
+        Index('timestamp_sequenced_items_index', 'sequence_id', 'position', unique=True),
     )
 
 
@@ -204,26 +213,24 @@ class SnapshotRecord(ActiveRecord):
     topic = Column(String(255))
 
     # State of the item (serialized dict, possibly encrypted).
-    data = Column(Text())
-
-    __table_args__ = (
-        Index('snapshots_index', 'sequence_id', 'position'),
-    )
+    data = Column(Text(), nullable=False)
 
 
 class StoredEventRecord(ActiveRecord):
     __tablename__ = 'stored_events'
 
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+
     # Originator ID (e.g. an entity or aggregate ID).
-    originator_id = Column(UUIDType(), primary_key=True)
+    originator_id = Column(UUIDType(), nullable=False)
 
     # Originator version of item in sequence.
-    originator_version = Column(BigInteger(), primary_key=True)
+    originator_version = Column(BigInteger(), nullable=False)
 
     # Type of the event (class name).
-    event_type = Column(String(100))
+    event_type = Column(String(100), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
 
-    __table_args__ = Index('index', 'originator_id', 'originator_version'),
+    __table_args__ = Index('stored_events_index', 'originator_id', 'originator_version', unique=True),

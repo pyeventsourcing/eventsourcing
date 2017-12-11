@@ -6,4 +6,3 @@ class CollectionRepository(EventSourcedRepository, AbstractCollectionRepository)
     """
     Event sourced repository for the Collection domain model entity.
     """
-    mutator = Collection._mutate
