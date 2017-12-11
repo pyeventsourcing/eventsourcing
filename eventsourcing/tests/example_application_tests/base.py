@@ -141,11 +141,16 @@ class ExampleApplicationTestCase(WithExampleApplication):
             all_records = list(record_strategy.all_records())
 
             # - drop the table...
-            self.datastore.drop_table(record_strategy.active_record_class)
+            if self.datastore:
+                self.datastore.drop_table(record_strategy.active_record_class)
+            else:
+                # Todo: Fix this so that we don't have this special case.
+                if hasattr(self, '_fixture_teardown'):
+                    self._fixture_teardown()  # For DjangoTestCase, refactor.
+                    self._fixture_setup()  # For DjangoTestCase, refactor.
 
             # - check exception is raised when records can't be deleted, so that
             #   test case runs through 'except' block, when rollback() is called
             with self.assertRaises(ProgrammingError):
                 for record in all_records:
                     record_strategy.delete_record(record)
-                    record_strategy.session.commit()

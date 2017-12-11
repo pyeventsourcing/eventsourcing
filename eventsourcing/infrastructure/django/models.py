@@ -44,20 +44,22 @@ class TimestampSequencedItemRecord(models.Model):
 
 
 class SnapshotRecord(models.Model):
-    __tablename__ = 'snapshots'
 
-    # # Sequence ID (e.g. an entity or aggregate ID).
-    # sequence_id = Column(UUIDType(), primary_key=True)
-    #
-    # # Position (index) of item in sequence.
-    # position = Column(BigInteger(), primary_key=True)
-    #
-    # # Topic of the item (e.g. path to domain entity class).
-    # topic = Column(String(255))
-    #
-    # # State of the item (serialized dict, possibly encrypted).
-    # data = Column(Text(), nullable=False)
+    # Sequence ID (e.g. an entity or aggregate ID).
+    sequence_id = models.UUIDField()
 
+    # Position (index) of item in sequence.
+    position = models.BigIntegerField()
+
+    # Topic of the item (e.g. path to domain event class).
+    topic = models.CharField(max_length=255)
+
+    # State of the item (serialized dict, possibly encrypted).
+    data = models.TextField()
+
+    class Meta:
+        unique_together = (("sequence_id", "position"),)
+        db_table = 'snapshots'
 
 class StoredEventRecord(models.Model):
     __tablename__ = 'stored_events'

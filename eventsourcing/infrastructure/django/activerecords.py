@@ -1,7 +1,7 @@
 import six
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, transaction, OperationalError
 
-from eventsourcing.exceptions import SequencedItemConflict
+from eventsourcing.exceptions import SequencedItemConflict, ProgrammingError
 from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
 
 
@@ -109,4 +109,7 @@ class DjangoActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         Permanently removes record from table.
         """
-        record.delete()
+        try:
+            record.delete()
+        except OperationalError:
+            raise ProgrammingError

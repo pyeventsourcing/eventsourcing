@@ -306,10 +306,11 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
 
     def setUp(self):
         super(WithActiveRecordStrategies, self).setUp()
-        self.datastore.setup_connection()
-        if self.drop_tables:
-            self.datastore.drop_tables()
-        self.datastore.setup_tables()
+        if self.datastore:
+            self.datastore.setup_connection()
+            if self.drop_tables:
+                self.datastore.drop_tables()
+            self.datastore.setup_tables()
 
     def tearDown(self):
         self._log_active_record_strategy = None
