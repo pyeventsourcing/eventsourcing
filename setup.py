@@ -30,7 +30,7 @@ cassandra_requires = [
 ]
 
 django_requires = [
-    'django<=2.0.99999',
+    'django==1.11',
 ]
 
 testing_requires = [

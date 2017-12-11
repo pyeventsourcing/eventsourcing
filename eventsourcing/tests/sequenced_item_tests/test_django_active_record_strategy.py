@@ -1,19 +1,20 @@
 import os
+from unittest import skipIf
 
+import six
 from django.core.management import call_command
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
 
 import django
+
 django.setup()
 
 from django.test import TestCase
 
-
 from eventsourcing.infrastructure.django.activerecords import DjangoActiveRecordStrategy
 
-from eventsourcing.infrastructure.django.models import  IntegerSequencedItemRecord, SnapshotRecord, \
-    TimestampSequencedItemRecord
+from eventsourcing.infrastructure.django.models import IntegerSequencedItemRecord
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase
 
@@ -25,6 +26,7 @@ class DjangoTestCase(TestCase):
         call_command('migrate')
 
 
+@skipIf(six.PY2, 'Django 2.0 does not support Python 2.7')
 class TestDjangoActiveRecordStrategyWithIntegerSequences(DjangoTestCase, IntegerSequencedItemTestCase):
     def construct_active_record_strategy(self):
         return construct_integer_sequenced_active_record_strategy()
@@ -35,7 +37,6 @@ def construct_integer_sequenced_active_record_strategy():
         active_record_class=IntegerSequencedItemRecord,
         sequenced_item_class=SequencedItem,
     )
-
 
 # def construct_timestamp_sequenced_active_record_strategy():
 #     return DjangoActiveRecordStrategy(
