@@ -11,9 +11,6 @@ import django
 
 django.setup()
 
-import sqlite3
-sqlite3.register_converter("decimal", None)
-
 from django.test import TransactionTestCase
 
 from eventsourcing.infrastructure.django.activerecords import DjangoActiveRecordStrategy
@@ -63,7 +60,6 @@ class TestDjangoActiveRecordStrategyWithIntegerSequences(DjangoTestCase, Integer
 class TestDjangoActiveRecordStrategyWithTimestampSequences(DjangoTestCase, TimestampSequencedItemTestCase):
     def construct_active_record_strategy(self):
         return self.construct_timestamp_sequenced_active_record_strategy()
-
 
 
 # def construct_timestamp_sequenced_active_record_strategy():

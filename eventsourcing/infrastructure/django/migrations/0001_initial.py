@@ -41,7 +41,14 @@ class Migration(migrations.Migration):
             name='StoredEventRecord',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('originator_id', models.UUIDField()),
+                ('originator_version', models.DecimalField(decimal_places=6, max_digits=24)),
+                ('event_type', models.CharField(max_length=255)),
+                ('state', models.TextField()),
             ],
+            options={
+                'db_table': 'stored_events',
+            },
         ),
         migrations.CreateModel(
             name='TimestampSequencedItemRecord',
@@ -67,5 +74,9 @@ class Migration(migrations.Migration):
         migrations.AlterUniqueTogether(
             name='integersequenceditemrecord',
             unique_together={('sequence_id', 'position')},
+        ),
+        migrations.AlterUniqueTogether(
+            name='storedeventrecord',
+            unique_together={('originator_id', 'originator_version')},
         ),
     ]
