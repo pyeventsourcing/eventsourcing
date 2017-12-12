@@ -23,7 +23,7 @@ class DjangoTestCase(TestCase):
 
     def setUp(self):
         super(DjangoTestCase, self).setUp()
-        call_command('migrate', verbose=False)
+        call_command('migrate')
 
     def construct_entity_active_record_strategy(self):
         return DjangoActiveRecordStrategy(

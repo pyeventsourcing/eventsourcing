@@ -8,30 +8,25 @@ from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.relationalactiverecordstrategy import RelationalActiveRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord
 
 
-class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
+class SQLAlchemyActiveRecordStrategy(RelationalActiveRecordStrategy):
     def __init__(self, session, *args, **kwargs):
         super(SQLAlchemyActiveRecordStrategy, self).__init__(*args, **kwargs)
         self.session = session
 
-    def append(self, sequenced_item_or_items):
-        # Convert sequenced item(s) to active_record(s).
-        if isinstance(sequenced_item_or_items, list):
-            active_records = [self.to_active_record(i) for i in sequenced_item_or_items]
-        else:
-            active_records = [self.to_active_record(sequenced_item_or_items)]
+    def _write_active_records(self, active_records, sequenced_items):
         try:
             # Add active record(s) to the transaction.
             for active_record in active_records:
                 self.session.add(active_record)
 
             self.session.commit()
-        except IntegrityError:
+        except IntegrityError as e:
             self.session.rollback()
-            self.raise_sequenced_item_error(sequenced_item_or_items)
+            self.raise_sequenced_item_error(sequenced_items)
         finally:
             self.session.close()
 
@@ -99,17 +94,6 @@ class SQLAlchemyActiveRecordStrategy(AbstractActiveRecordStrategy):
     @property
     def query(self):
         return self.session.query(self.active_record_class)
-
-    def to_active_record(self, sequenced_item):
-        """
-        Returns an active record, from given sequenced item.
-        """
-        # Check we got a sequenced item.
-        assert isinstance(sequenced_item, self.sequenced_item_class), (self.sequenced_item_class, type(sequenced_item))
-
-        # Construct and return an ORM object.
-        kwargs = self.get_field_kwargs(sequenced_item)
-        return self.active_record_class(**kwargs)
 
     def all_items(self):
         """

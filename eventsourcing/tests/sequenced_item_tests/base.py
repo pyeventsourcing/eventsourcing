@@ -287,11 +287,11 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         #     self.assertEqual(len(retrieved_items), 3)
 
         # Delete some items.
-        records = self.active_record_strategy.all_records()
+        records = list(self.active_record_strategy.all_records())
         self.assertTrue(len(records))
         for records in records:
             self.active_record_strategy.delete_record(records)
-        records = self.active_record_strategy.all_records()
+        records = list(self.active_record_strategy.all_records())
         self.assertFalse(len(records))
 
 
