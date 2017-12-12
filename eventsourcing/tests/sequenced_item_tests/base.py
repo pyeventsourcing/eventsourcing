@@ -95,9 +95,9 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
 
         # Check the get_item() method returns item at position.
         retrieved_item = self.active_record_strategy.get_item(sequence_id1, position1)
-        self.assertEqual(retrieved_item.sequence_id, sequence_id1)
-        self.assertEqual(retrieved_item.position, position1)
-        self.assertEqual(retrieved_item.data, data1)
+        self.assertEqual(sequence_id1, retrieved_item.sequence_id)
+        self.assertEqual(position1, retrieved_item.position)
+        self.assertEqual(data1, retrieved_item.data)
 
         # Check index error is raised when item does not exist at position.
         with self.assertRaises(IndexError):

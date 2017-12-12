@@ -1,13 +1,33 @@
-import six
-from django.db import IntegrityError, transaction, OperationalError
+from decimal import Decimal
 
-from eventsourcing.exceptions import SequencedItemConflict, ProgrammingError
+import six
+from django.db import IntegrityError, OperationalError, transaction
+
+from eventsourcing.exceptions import ProgrammingError, SequencedItemConflict
 from eventsourcing.infrastructure.relationalactiverecordstrategy import RelationalActiveRecordStrategy
 
 
 class DjangoActiveRecordStrategy(RelationalActiveRecordStrategy):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, cancel_sqlite3_decimal_converter=False, *args, **kwargs):
+        self.cancel_sqlite3_decimal_converter = cancel_sqlite3_decimal_converter
         super(DjangoActiveRecordStrategy, self).__init__(*args, **kwargs)
+
+        # Somehow when the Decimal converter is registered with sqlite3,
+        # decimal values that are stored successfully with 6 places are
+        # returned as bytes rounded to 5 places, before being converted
+        # to a Decimal. Somehow the bytes passed to the converter has
+        # less than the float received without a converter being registered.
+        # So to get 6 places, suspend the converter, and convert to Decimal
+        # by using the accurate float value as a str to make a Decimal. So
+        # how does sqlite3 round the float when passing bytes to the converter?
+        # Django registers converter in django.db.backends.sqlite3.base line 42
+        # in Django v2.0.0. The sqlite3 library behaves in the same way when Django
+        # is not involved, so there's nothing that Django is doing to break sqlite3.
+        # And the reason SQLAlchemy works is because it doesn't register converters,
+        # but rather manages the conversion to Decimal itself.
+        if self.cancel_sqlite3_decimal_converter:
+            import sqlite3
+            sqlite3.register_converter("decimal", None)
 
     def _write_active_records(self, active_records, sequenced_items):
         try:
@@ -33,7 +53,7 @@ class DjangoActiveRecordStrategy(RelationalActiveRecordStrategy):
         if query_ascending:
             query = query.order_by(position_field_name)
         else:
-            query = query.order_by('-'+position_field_name)
+            query = query.order_by('-' + position_field_name)
 
         if gt is not None:
             arg = '{}__gt'.format(position_field_name)
@@ -81,6 +101,13 @@ class DjangoActiveRecordStrategy(RelationalActiveRecordStrategy):
         Returns a sequenced item, from given active record.
         """
         kwargs = self.get_field_kwargs(active_record)
+
+        # Does this if the Django sqlite3 Decimal converter has been cancelled.
+        if self.cancel_sqlite3_decimal_converter:
+            position_field_name = self.field_names.position
+            if isinstance(kwargs[position_field_name], float):
+                kwargs[position_field_name] = Decimal(str(kwargs[position_field_name]))
+
         return self.sequenced_item_class(**kwargs)
 
     def all_records(self, *args, **kwargs):

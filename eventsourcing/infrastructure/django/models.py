@@ -20,27 +20,26 @@ class IntegerSequencedItemRecord(models.Model):
         db_table = 'integer_sequenced_items'
 
 
-
 class TimestampSequencedItemRecord(models.Model):
-    pass
-    # id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
-    #
-    # # Sequence ID (e.g. an entity or aggregate ID).
-    # sequence_id = Column(UUIDType(), nullable=False)
-    #
-    # # Position (timestamp) of item in sequence.
-    # position = Column(DECIMAL(24, 6, 6), nullable=False)
-    # # position = Column(DECIMAL(27, 9, 9), nullable=False)
-    #
-    # # Topic of the item (e.g. path to domain event class).
-    # topic = Column(String(255), nullable=False)
-    #
-    # # State of the item (serialized dict, possibly encrypted).
-    # data = Column(Text())
-    #
-    # __table_args__ = (
-    #     Index('timestamp_sequenced_items_index', 'sequence_id', 'position', unique=True),
-    # )
+
+    def __init__(self, *args, **kwargs):
+        super(TimestampSequencedItemRecord, self).__init__(*args, **kwargs)
+
+    # Sequence ID (e.g. an entity or aggregate ID).
+    sequence_id = models.UUIDField()
+
+    # Position (timestamp) of item in sequence.
+    position = models.DecimalField(max_digits=24, decimal_places=6)
+
+    # Topic of the item (e.g. path to domain event class).
+    topic = models.CharField(max_length=255)
+
+    # State of the item (serialized dict, possibly encrypted).
+    data = models.TextField()
+
+    class Meta:
+        unique_together = (("sequence_id", "position"),)
+        db_table = 'timestamp_sequenced_items'
 
 
 class SnapshotRecord(models.Model):
