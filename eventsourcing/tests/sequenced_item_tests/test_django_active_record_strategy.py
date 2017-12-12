@@ -1,8 +1,9 @@
 import os
-from unittest import skipIf
+import unittest
 
-import six
 from django.core.management import call_command
+
+from eventsourcing.infrastructure.django.apps import DjangoConfig
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
 
@@ -37,11 +38,11 @@ class DjangoTestCase(TestCase):
             sequenced_item_class=SequencedItem,
         )
 
+
 # @skipIf(six.PY2, 'Django 2.0 does not support Python 2.7')  # using 1.11
 class TestDjangoActiveRecordStrategyWithIntegerSequences(DjangoTestCase, IntegerSequencedItemTestCase):
     def construct_active_record_strategy(self):
         return self.construct_entity_active_record_strategy()
-
 
 
 # def construct_timestamp_sequenced_active_record_strategy():
@@ -83,3 +84,8 @@ class TestDjangoActiveRecordStrategyWithIntegerSequences(DjangoTestCase, Integer
 # class TestThreadedSequencedItemIteratorWithDjango(WithDjangoActiveRecordStrategies,
 #                                                   ThreadedSequencedItemIteratorTestCase):
 #     pass
+
+class TestConfigClass(unittest.TestCase):
+
+    def test(self):
+        self.assertEqual('eventsourcing.infrastructure.django', DjangoConfig.name)
