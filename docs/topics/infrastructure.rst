@@ -20,9 +20,9 @@ write sequenced items to a database.
 Sequenced items
 ===============
 
-A sequenced item type provides a common persistence model across the components of
-the mechanism. The sequenced item type is normally declared as a namedtuple.
-
+A sequenced item type provides a common persistence model across the
+library's infrastructure layer. For the library, a sequenced item class
+is declared as a namedtuple. Below is an example of a sequenced item namedtuple.
 
 .. code:: python
 
@@ -30,10 +30,9 @@ the mechanism. The sequenced item type is normally declared as a namedtuple.
 
     SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data'])
 
-
-The names of the fields are arbitrary. However, the first field of a sequenced item namedtuple represents
-the identity of a sequence to which an item belongs, the second field represents the position of the item in its
-sequence, the third field represents a topic to which the item pertains, and the fourth
+The first field of a sequenced item namedtuple represents the identity of a sequence
+to which an item belongs. The second field represents the position of the item in its
+sequence. The third field represents a topic to which the item pertains. And the fourth
 field represents the data associated with the item.
 
 
@@ -51,14 +50,16 @@ The library provides a sequenced item namedtuple called
 
 The attributes of ``SequencedItem`` are ``sequence_id``, ``position``, ``topic``, and ``data``.
 
-The ``sequence_id`` identifies the sequence in which the item belongs.
+As in the example above, the library's ``SequencedItem`` namedtuple has four fields. The
+``sequence_id`` identifies the sequence in which the item belongs. The ``position``
+identifies the position of the item in its sequence. The ``topic`` identifies the
+dimension of concern to which the item pertains. The ``data`` holds the data associated
+with the item.
 
-The ``position`` identifies the position of the item in its sequence.
-
-The ``topic`` identifies the dimension of concern to which the item pertains.
-
-The ``data`` holds the values of the item, perhaps serialized to JSON, and optionally encrypted.
-
+A sequenced item is just a namedtuple, and can be used in the normal way. In the example
+below, a sequenced item is constructed using a UUID to identify a sequence. The item
+is positioned at the start of the sequence (position 0). It has a domain event topic,
+and it has a JSON object that states the value of ``foo`` is ``bar``.
 
 .. code:: python
 
@@ -86,12 +87,9 @@ As an alternative, the library also provides a sequenced item namedtuple called 
 ``StoredEvent`` namedtuple are ``originator_id``, ``originator_version``, ``event_type``, and ``state``.
 
 The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to ``sequence_id`` above.
-
 The ``originator_version`` is the version of the aggregate that published the event, and is equivalent to
 ``position`` above.
-
 The ``event_type`` identifies the class of the domain event that is stored, and is equivalent to ``topic`` above.
-
 The ``state`` holds the state of the domain event, and is equivalent to ``data`` above.
 
 
