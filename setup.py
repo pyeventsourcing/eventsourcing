@@ -74,6 +74,7 @@ setup(
     extras_require={
         'cassandra': cassandra_requires,
         'sqlalchemy': sqlalchemy_requires,
+        'django': django_requires,
         'testing': testing_requires,
         'docs': docs_requires,
     },

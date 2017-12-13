@@ -11,31 +11,11 @@ Use pip to install the [stable distribution](https://pypi.python.org/pypi/events
 the Python Package Index.
 
     $ pip install eventsourcing
-
-The library includes support for three different backend persistence mechanisms: SQLAlchemy,
-Django ORM, and Apache Cassandra. Before using the library with one of the included backends,
-you need to install the library with the corresponding option.
-
-To use the library with SQLAlchemy, install the library with the ``sqlalchemy`` option.
-
-    $ pip install eventsourcing[sqlalchemy]
-    
-To use the library with Django instead of SQLAlchemy, install with the ``django`` option instead.
-
-    $ pip install eventsourcing[django]
     
 
-Similarly, to use the library with Cassandra, install with the ``cassandra`` option.
+Please refer to the [documentation](http://eventsourcing.readthedocs.io/) for installation and usage guides.
 
-    $ pip install eventsourcing[cassandra]
-    
-
-### Documentation and support
-
-Refer to the [documentation](http://eventsourcing.readthedocs.io/) for installation and usage guides.
-
-Please register your questions, requests and any other [issues on
-GitHub](https://github.com/johnbywater/eventsourcing/issues).
+Register questions, requests and [issues on GitHub](https://github.com/johnbywater/eventsourcing/issues).
 
 There is a [Slack channel](https://eventsourcinginpython.slack.com/messages/) for this project, which you
 are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTUwZGQ4MDk0ZDJmZmU0MjM4MjdmOTBlZGI0ZTY4NWIxMGFkZTcwNmUxM2U4NGM3YjY5MTVmZTBiYzljZjI3ZTE).
@@ -201,29 +181,29 @@ with SimpleApplication() as app:
         assert event.__previous_hash__ == last_hash
         last_hash = event.__event_hash__
 
-    # Verify sequence of events (cryptographically).
+    # Verify stored sequence of events against known value.
     assert last_hash == world.__head__
 
     # Check records are encrypted (values not visible in database).
     active_record_strategy = app.event_store.active_record_strategy
     items = active_record_strategy.get_items(world.id)
     for item in items:
-        assert item.originator_id == world.id
-        assert 'dinosaurs' not in item.state
-        assert 'trucks' not in item.state
-        assert 'internet' not in item.state
+        for what in ['dinosaurs', 'trucks', 'internet']:         
+            assert what not in item.state
+        assert world.id == item.originator_id 
+
 ```
 
-Double underscore pre- and post-fixed names are used consistently
-in the library classes for domain entities (and domain events) so that
-you are free to use the names that work best for your domain,
-without your having to dodge around library names on model base
-classes. The exception to the rule is the ``id`` attribute of
-the domain entity base class, which is assumed to be required
-by every domain entity or aggregate in every domain. This rule
-breaks PEP8 but it seems be worthwhile in order to keep the
-"normal" Python object namespace free for domain modelling
-(it is also a style used by other libraries for similar reasons).
+The double leading and trailing underscore naming style (``__create__()``, ``__save__()``)
+is used consistently in the library domain entity base classes (also domain
+events) so that users are free to use model names that work best for their
+domain, without their having to dodge around library names on model base
+classes. The exception to the rule is the ``id`` attribute of the domain
+entity base class, which is assumed to be required by every domain entity
+or aggregate in every domain. This style breaks PEP8 but it seems be
+worthwhile in order to keep the "normal" Python object namespace free for
+domain modelling, it is a style used by other libraries for similar
+reasons.
 
 ## Project
 
