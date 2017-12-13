@@ -150,6 +150,7 @@ The library has a concrete active record strategy for SQLAlchemy provided by the
 The library also provides active record classes for SQLAlchemy, such as ``IntegerSequencedItemRecord`` and
 ``StoredEventRecord``. The ``IntegerSequencedItemRecord`` class matches the default ``SequencedItem``
 namedtuple. The ``StoredEventRecord`` class matches the alternative ``StoredEvent`` namedtuple.
+There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRecord``.
 
 The code below uses the namedtuple ``StoredEvent`` and the active record ``StoredEventRecord``.
 
@@ -206,6 +207,9 @@ requires a scoped session object, passed using the constructor arg ``session``. 
 wish to use a different scoped session facade, such as a request-scoped session object provided by a Web
 framework.
 
+With the database setup, the ``SQLAlchemyActiveRecordStrategy`` can be constructed,
+and used to store events using SQLAlchemy.
+
 
 .. code:: python
 
@@ -246,6 +250,14 @@ Since by now only one item was stored, so there is only one item in the results.
     assert len(results) == 1
     assert results[0] == stored_event1
 
+
+SQLAlchemy Dialects
+~~~~~~~~~~~~~~~~~~~
+
+The databases supported by core `SQLAlchemy dialects <http://docs.sqlalchemy.org/en/latest/dialects/>`
+are Firebird, Microsoft SQL Server, MySQL, Oracle, PostgreSQL, SQLite, and Sybase. This library's
+infrastructure classes for SQLAlchemy have been tested with MySQL, PostgreSQL, and SQLite.
+
 MySQL
 ~~~~~
 
@@ -280,6 +292,165 @@ The ``uri`` for PostgreSQL would look something like this.
     postgresql://username:password@localhost:5432/eventsourcing
 
 
+SQLite
+~~~~~~
+
+SQLite is shipped with core Python packages, so nothing extra needs to be installed.
+
+The ``uri`` for a temporary SQLite database might look something like this.
+
+.. code::
+
+    sqlite:::////tmp/eventsourcing.db
+
+
+Please note, the library's SQLAlchemy insfrastructure defaults to using
+an in memory SQLite database, which is the fastest way to run the library,
+and is recommended as a convenience for development.
+
+
+Django ORM
+----------
+
+The library also has a concrete active record strategy for the Django ORM provided by
+``DjangoActiveRecordStrategy`` class.
+
+To run the examples below, please install the library with the
+'django' option.
+
+.. code::
+
+    $ pip install eventsourcing[django]
+
+
+For the ``DjangoActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
+from ``eventsourcing.infrastructure.django.models`` matches the ``SequencedItem``
+namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
+namedtuple. There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRecord``.
+
+The package ``eventsourcing.infrastructure.django`` is a Django application. To include
+these models in your Django project, either include the application by name in your list
+of ``INSTALLED_APPS``, or import the classes you want into one of your application's ``models.py``.
+
+.. code:: python
+
+    INSTALLED_APPS = [
+        'django.contrib.admin',
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.messages',
+        'django.contrib.staticfiles',
+        'eventsourcing.infrastructure.django'
+    ]
+
+
+The library has a little Django project for testing the app, it used here to help run the app.
+
+.. code:: python
+
+    import os
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
+
+
+Having setup the environment, before running the example below, we need to setup Django.
+
+.. code:: python
+
+    import django
+
+    django.setup()
+
+
+Before using the database, make the migrations have been applied. If you import
+the classes into your own application, you will firstly need to ``makemigrations``.
+Otherwise, the application at ``eventsourcing.infrastructure.django`` has migrations
+that will add four tables, one for each of the sequenced item active record classes
+mentioned above.
+
+.. code::
+
+    $ python manage.py migrate
+
+An alternative to using the ``manage.py`` command line interface is using the
+``call_command()`` function, provided by Django.
+
+.. code:: python
+
+    from django.core.management import call_command
+
+    call_command('migrate')
+
+
+With the database setup, the ``DjangoActiveRecordStrategy`` can be constructed,
+and used to store events using the Django ORM.
+
+.. code:: python
+
+    from eventsourcing.infrastructure.django.activerecords import DjangoActiveRecordStrategy
+    from eventsourcing.infrastructure.django.models import StoredEventRecord
+
+
+    django_active_record_strategy = DjangoActiveRecordStrategy(
+        active_record_class=StoredEventRecord,
+        sequenced_item_class=StoredEvent,
+    )
+
+    results = django_active_record_strategy.list_items(aggregate1)
+    assert len(results) == 0
+
+    django_active_record_strategy.append(stored_event1)
+
+    results = django_active_record_strategy.list_items(aggregate1)
+    assert results[0] == stored_event1
+
+
+Please note, if you want to use the Django ORM as infrastructure for
+an event sourced application, the you can use the application classes
+in the :doc:`application </topcis/application>` section of this documentation.
+
+When it comes to deployment, just remember that you need only one
+instance of the application in any given process, otherwise subscribers
+will be registered too many times. There are perhaps three different
+processes to consider. Firstly, running the test suite for your Django
+project. Secondly, running the Django project with WSGI (or equivalent).
+Thirdly, running the Django project from a task queue worker, such as RabbitMQ.
+
+For the first case, it is recommended either to have a base test case class,
+which initialises the application during ``setUp()`` and closes the application
+during ``tearDown()``. Another option is to use a generator fixtures in pytest.
+Just make sure the application is constructed and then closed, for each test if
+necessary, otherwise for the whole suite. Tests can then get the application
+object freely.
+
+For the second case, it is recommended to construct the application object from
+the project's ``wsgi.py`` file, which doesn't get used when running Django from a test suite,
+or from a task queue worker. Views can then get the application object freely.
+Closing the application doesn't matter, because it will be used until the process
+ends.
+
+For the third case, it is recommended to construct the application in a suitable
+signal from the task queue framework, so that the application is constructed
+before request threads begin. Jobs can then get the application object freely.
+Closing the application doesn't matter, because it will be used until the process
+ends.
+
+In each case, to make things very clear for others, it is recommended to construct
+the application object with a module level function called ``init_application()``
+that assigns to a module level variable, and then obtain the application object with
+another module level function called ``get_application()``, which raises an exception
+if the application has not been constructed. See the
+:doc:`deployment </topics/deployment>` section for more information.
+
+
+Django Backends
+~~~~~~~~~~~~~~~
+
+The supported `Django backends <https://docs.djangoproject.com/en/2.0/ref/databases/>`
+are PostgreSQL, MySQL, SQLite, and Oracle. This library's Django infrastructure classes
+have been tested with PostgreSQL, MySQL, SQLite.
+
+
 Apache Cassandra
 ----------------
 
@@ -294,7 +465,7 @@ To run the examples below, please install the library with the
 The library also has a concrete active record strategy for Apache Cassandra provided by
 ``CassandraActiveRecordStrategy`` class.
 
-Similarly, for the ``CassandraActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
+For the ``CassandraActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
 from ``eventsourcing.infrastructure.cassandra.activerecords`` matches the ``SequencedItem``
 namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
 namedtuple.  There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRecord``.
@@ -334,144 +505,12 @@ library class :class:`~eventsourcing.infrastructure.cassandra.datastore.Cassandr
 for information about configuring away from default settings.
 
 
-Django ORM
-----------------
-
-To run the examples below, please install the library with the
-'django' option.
-
-.. code::
-
-    $ pip install eventsourcing[django]
-
-
-The library also has a concrete active record strategy for the Django ORM provided by
-``DjangoActiveRecordStrategy`` class.
-
-Similarly, for the ``DjangoActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
-from ``eventsourcing.infrastructure.django.models`` matches the ``SequencedItem``
-namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
-namedtuple. There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRecord``.
-
-The package ``eventsourcing.infrastructure.django`` is a Django application. To include
-these models in your Django project, either include the application by name in your list
-of ``INSTALLED_APPS``, or import the classes you want into one of your application's ``models.py``.
-
-.. code:: python
-
-    INSTALLED_APPS = [
-        'django.contrib.admin',
-        'django.contrib.auth',
-        'django.contrib.contenttypes',
-        'django.contrib.sessions',
-        'django.contrib.messages',
-        'django.contrib.staticfiles',
-        'eventsourcing.infrastructure.django'
-    ]
-
-
-The library has a little Django project, used for testing. We can used it here for demonstration purposes.
-
-.. code:: python
-
-    import os
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
-
-
-Having setup the environment, before running the example below, we need to setup Django.
-
-.. code:: python
-
-    import django
-
-    django.setup()
-
-
-Before using the database, make the migrations have been applied. If you import
-the classes into your own application, you will firstly need to ``makemigrations``.
-Otherwise, the application at ``eventsourcing.infrastructure.django`` has migrations
-that will add four tables, one for each of the sequenced item active record classes
-mentioned above.
-
-.. code::
-
-    $ python manage.py migrate
-
-An alternative to using the ``manage.py`` command line interface is using the
-``call_command()`` function, provided by Django.
-
-.. code:: python
-
-    from django.core.management import call_command
-
-    call_command('migrate')
-
-
-.. code:: python
-
-    from eventsourcing.infrastructure.django.activerecords import DjangoActiveRecordStrategy
-    from eventsourcing.infrastructure.django.models import StoredEventRecord
-
-
-    django_active_record_strategy = DjangoActiveRecordStrategy(
-        active_record_class=StoredEventRecord,
-        sequenced_item_class=StoredEvent,
-    )
-
-    results = django_active_record_strategy.list_items(aggregate1)
-    assert len(results) == 0
-
-    django_active_record_strategy.append(stored_event1)
-
-    results = django_active_record_strategy.list_items(aggregate1)
-    assert results[0] == stored_event1
-
-
-Please note, if you want to use the Django ORM as infrastructure for
-an event sourced application, the you can develop an application in
-the normal wasy described in other sections of this documentation.
-
-When it comes to deployment, just remember that you need only one
-instance of the application in any given process, otherwise subscribers
-will be registered too many times. There are perhaps three different
-processes to consider. Firstly, running the test suite for your Django
-project. Secondly, running the Django project with WSGI (or equivalent).
-Thirdly, running the Django project from a task queue worker, such as RabbitMQ.
-
-For the first case, it is recommended either to have a base test case class,
-which initialises the application during ``setUp()`` and closes the application
-during ``tearDown()``. Another option is to use a generator fixtures in pytest.
-Just make sure the application is constructed and then closed, for each test if
-necessary, otherwise for the whole suite. Tests can then get the application
-object freely.
-
-For the second case, it is recommended to construct the application object from
-the wsgi.py file, which doesn't get used when running Django from a test suite,
-or from a task queue worker. Views can then get the application object freely.
-Closing the application doesn't matter, because it will be used until the process
-ends.
-
-For the third case, it is recommended to construct the application in a suitable
-signal from the task queue framework, so that the application is constructed
-before request threads begin. Jobs can then get the application object freely.
-Closing the application doesn't matter, because it will be used until the process
-ends.
-
-In each case, to make things very clear for others, it is recommended to construct
-the application object with a module level function called ``init_application()``
-that assigns to a module level variable, and then obtain the application object with
-another module level function called ``get_application()``, which raises an exception
-if the application has not been constructed. See the
-:doc:`deployment </topics/infrastructure>` section for more information.
-
-
 Sequenced item conflicts
 ------------------------
 
-It is a feature of the active record strategy that it isn't possible successfully to append two items at the same
-position in the same sequence. If such an attempt is made, a ``SequencedItemConflict`` will be raised by the active
-record strategy.
-
+It is a common feature of the active record strategy classes that it isn't possible successfully
+to append two items at the same position in the same sequence. If such an attempt is made, a
+``SequencedItemConflict`` will be raised.
 
 .. code:: python
 
@@ -488,6 +527,7 @@ record strategy.
 
 This feature is implemented using optimistic concurrency control features of the underlying database. With
 SQLAlchemy, a unique constraint is used that involves both the sequence and the position columns.
+The Django ORM strategy works in the same way.
 
 With Cassandra the position is the primary key in the sequence partition, and the "IF NOT
 EXISTS" feature is applied. The Cassandra database management system implements the Paxos
@@ -497,7 +537,6 @@ being distributed. It is also possible to serialize calls to the methods of an e
 that is out of the scope of this package — if you wish to do that, perhaps something like
 `Zookeeper <https://zookeeper.apache.org/>`__ might help.
 
-The Django ORM strategy works in the same way as the SQLAlchemy strategy.
 
 
 Sequenced item mapper
