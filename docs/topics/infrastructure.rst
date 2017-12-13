@@ -327,12 +327,7 @@ namedtuple. There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRec
 There are all standard Django models.
 
 The package ``eventsourcing.infrastructure.django`` is a Django application. To use
-these models in your Django project, include the application by name in your
-list of ``INSTALLED_APPS``.
-
-This Djanngo application at ``eventsourcing.infrastructure.django`` has database
-migrations that will add four tables, one for each of the sequenced item active
-record classes mentioned above.
+these models in your Django project, include the application in your list of ``INSTALLED_APPS``.
 
 .. code:: python
 
@@ -348,15 +343,21 @@ record classes mentioned above.
 
 
 Alternatively, import or write the classes you want into one of your own Django app's ``models.py``.
-If you import the classes into your own application, you will firstly need to ``makemigrations``. But
-this way you won't get tables you won't use.
 
-The library has a Django project for testing the library's Django app, it is used here to help run the app.
+The Django application at ``eventsourcing.infrastructure.django`` has database
+migrations that will add four tables, one for each of the sequenced item active
+record classes mentioned above. If you import some of these model classes into
+your own application, you will need to ``makemigrations``. But this way you won't
+get tables you won't use.
+
+The library has a Django project for testing the library's Django app, it is used
+here to help run the app.
 
 .. code:: python
 
     import os
     os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
+
 
 This Django project is simply the files that ``django-admin.py startproject`` generates, with the SQLite
 database set to be in memory, and with the library's Django app added to the ``INSTALLED_APPS`` setting.
@@ -376,7 +377,10 @@ Before using the database, make sure the migrations have been applied, so the ne
 
     $ python manage.py migrate
 
-An alternative to ``python manage.py migrate`` is the ``call_command()`` function, provided by Django.
+An alternative to ``python manage.py migrate`` is the ``call_command()``
+function, provided by Django. If you aren't running tests with the Django
+test runner, this can help e.g. to setup an SQLite database in memory
+before each test by calling it in the ``setUp()`` method of a test case.
 
 .. code:: python
 
@@ -393,7 +397,6 @@ can be used to store events using the Django ORM.
     from eventsourcing.infrastructure.django.activerecords import DjangoActiveRecordStrategy
     from eventsourcing.infrastructure.django.models import StoredEventRecord
 
-
     django_active_record_strategy = DjangoActiveRecordStrategy(
         active_record_class=StoredEventRecord,
         sequenced_item_class=StoredEvent,
@@ -409,8 +412,9 @@ can be used to store events using the Django ORM.
 
 
 Please note, if you want to use the Django ORM as infrastructure for
-an event sourced application, the you can use the application classes
-in the :doc:`application </topcis/application>` section of this documentation.
+an event sourced application, you can of course use the application
+classes described in the :doc:`application </topcis/application>`
+section of this documentation.
 
 When it comes to deployment, just remember that there must only be one
 instance of the application in any given process, otherwise its subscribers
