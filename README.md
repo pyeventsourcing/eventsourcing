@@ -12,9 +12,36 @@ the Python Package Index.
 
     $ pip install eventsourcing
 
-Please refer to [the documentation](http://eventsourcing.readthedocs.io/) for installation and usage guides.
+The library includes support for three different backend persistence mechanisms: SQLAlchemy,
+Django ORM, and Apache Cassandra. Before using the library with one of the included backends,
+you need to install the library with the corresponding option.
 
-# Features
+To use the library with SQLAlchemy, install the library with the ``sqlalchemy`` option.
+
+    $ pip install eventsourcing[sqlalchemy]
+    
+To use the library with Django instead of SQLAlchemy, install with the ``django`` option instead.
+
+    $ pip install eventsourcing[django]
+    
+
+Similarly, to use the library with Cassandra, install with the ``cassandra`` option.
+
+    $ pip install eventsourcing[cassandra]
+    
+
+### Documentation and support
+
+Refer to the [documentation](http://eventsourcing.readthedocs.io/) for installation and usage guides.
+
+Please register your questions, requests and any other [issues on
+GitHub](https://github.com/johnbywater/eventsourcing/issues).
+
+There is a [Slack channel](https://eventsourcinginpython.slack.com/messages/) for this project, which you
+are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTUwZGQ4MDk0ZDJmZmU0MjM4MjdmOTBlZGI0ZTY4NWIxMGFkZTcwNmUxM2U4NGM3YjY5MTVmZTBiYzljZjI3ZTE).
+
+
+## Features
 
 **Event store** — appends and retrieves domain events. Uses a
 sequenced item mapper with an active record strategy to map domain events
@@ -201,9 +228,3 @@ breaks PEP8 but it seems be worthwhile in order to keep the
 ## Project
 
 This project is [hosted on GitHub](https://github.com/johnbywater/eventsourcing).
-Please [register your questions, requests and any other issues](https://github.com/johnbywater/eventsourcing/issues).
-
-## Slack Channel
-
-There is a [Slack channel](https://eventsourcinginpython.slack.com/messages/) for this project, which you
-are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTUwZGQ4MDk0ZDJmZmU0MjM4MjdmOTBlZGI0ZTY4NWIxMGFkZTcwNmUxM2U4NGM3YjY5MTVmZTBiYzljZjI3ZTE).
