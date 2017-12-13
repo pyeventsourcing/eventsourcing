@@ -128,7 +128,6 @@ the object wasn't constructed by another thread before the lock was acquired.
         return application
 
 
-
 Database connection
 ===================
 
@@ -224,45 +223,11 @@ after child workers have been forked.
 Other decorators are available.
 
 
-Flask with Cassandra
---------------------
+Flask
+-----
 
-The `Cassandra Driver FAQ <https://datastax.github.io/python-driver/faq.html>`__
-has a code snippet about establishing the connection with the uWSGI `postfork`
-decorator, when running in a forked mode.
-
-.. code:: python
-
-    from flask import Flask
-    from uwsgidecorators import postfork
-    from cassandra.cluster import Cluster
-
-    session = None
-    prepared = None
-
-    @postfork
-    def connect():
-        global session, prepared
-        session = Cluster().connect()
-        prepared = session.prepare("SELECT release_version FROM system.local WHERE key=?")
-
-    app = Flask(__name__)
-
-    @app.route('/')
-    def server_version():
-        row = session.execute(prepared, ('local',))[0]
-        return row.release_version
-
-
-Flask-Cassandra
----------------
-
-The `Flask-Cassandra <https://github.com/TerbiumLabs/flask-cassandra>`__
-project serves a similar function to Flask-SQLAlchemy.
-
-
-Flask-SQLAlchemy
-----------------
+Flask with SQLAlchemy
+~~~~~~~~~~~~~~~~~~~~~
 
 If you wish to use eventsourcing with Flask and SQLAlchemy, then you may wish
 to use `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
@@ -332,6 +297,40 @@ module can be imported by the test suite, without immediately constructing
 the application.
 
 
+Flask with Cassandra
+~~~~~~~~~~~~~~~~~~~~
+
+The `Cassandra Driver FAQ <https://datastax.github.io/python-driver/faq.html>`__
+has a code snippet about establishing the connection with the uWSGI `postfork`
+decorator, when running in a forked mode.
+
+.. code:: python
+
+    from flask import Flask
+    from uwsgidecorators import postfork
+    from cassandra.cluster import Cluster
+
+    session = None
+    prepared = None
+
+    @postfork
+    def connect():
+        global session, prepared
+        session = Cluster().connect()
+        prepared = session.prepare("SELECT release_version FROM system.local WHERE key=?")
+
+    app = Flask(__name__)
+
+    @app.route('/')
+    def server_version():
+        row = session.execute(prepared, ('local',))[0]
+        return row.release_version
+
+
+The `Flask-Cassandra <https://github.com/TerbiumLabs/flask-cassandra>`__
+project serves a similar function to Flask-SQLAlchemy.
+
+
 Django
 ------
 
@@ -374,12 +373,12 @@ which raises an exception if the application has not been constructed.
 
 
 Django-ORM
-----------
+~~~~~~~~~~
 
 If you wish to use eventsourcing with Django ORM, the simplest way is having
 your application's event store use this library's ``DjangoActiveRecordStrategy``,
 and making sure the active record classes (Django models) are included in your Django
-project (see `infrastructure doc </topics/infrastructure>`) for more information.
+project. See :doc:`infrastructure doc </topics/infrastructure>` for more information.
 
 The independent project `djangoevents <https://github.com/ApplauseOSS/djangoevents>`__
 by `Applause <https://www.applause.com/>`__ is a Django app that provides a more
@@ -391,8 +390,8 @@ currently works with a much older version of this library which isn't recommende
 for new projects.
 
 
-Django-Cassandra
-----------------
+Django with Cassandra
+~~~~~~~~~~~~~~~~~~~~~
 
 If you wish to use eventsourcing with Django and Cassandra, regardless of any event sourcing,
 you may wish to use `Django-Cassandra <https://pypi.python.org/pypi/django-cassandra-engine/>`__.
@@ -408,8 +407,11 @@ requests in a way that is correct for your configuration (which is what Django-C
 tries to make easy).
 
 
-Zope-SQLAlchemy
----------------
+Zope
+----
+
+Zope with SQLAlchemy
+~~~~~~~~~~~~~~~~~~~~
 
 The `Zope-SQLAlchemy <https://pypi.python.org/pypi/zope.sqlalchemy>`__
 project serves a similar function to Flask-SQLAlchemy.
