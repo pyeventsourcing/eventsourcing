@@ -82,7 +82,7 @@ and it has a JSON object that states the value of ``foo`` is ``bar``.
 StoredEvent namedtuple
 ----------------------
 
-As an alternative, the library also provides a sequenced item namedtuple called ``StoredEvent``. The attributes of the
+As an alternative, the library provides a sequenced item namedtuple called ``StoredEvent``. The attributes of the
 ``StoredEvent`` namedtuple are ``originator_id``, ``originator_version``, ``event_type``, and ``state``.
 
 The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to ``sequence_id`` above.
@@ -384,7 +384,7 @@ The library has a concrete active record strategy for SQLAlchemy provided by the
     from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
 
 
-The library also provides active record classes for SQLAlchemy, such as ``IntegerSequencedItemRecord`` and
+The library provides active record classes for SQLAlchemy, such as ``IntegerSequencedItemRecord`` and
 ``StoredEventRecord``. The ``IntegerSequencedItemRecord`` class matches the default ``SequencedItem``
 namedtuple. The ``StoredEventRecord`` class matches the alternative ``StoredEvent`` namedtuple.
 There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRecord``.
@@ -564,7 +564,7 @@ For the ``DjangoActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
 from ``eventsourcing.infrastructure.django.models`` matches the ``SequencedItem``
 namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
 namedtuple. There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRecord``.
-There are all standard Django models.
+These are all standard Django model classes.
 
 The package ``eventsourcing.infrastructure.django`` is a Django application. To use
 these models in your Django project, include the application in your list of ``INSTALLED_APPS``.
@@ -706,7 +706,7 @@ have been tested with PostgreSQL, MySQL, SQLite.
 Apache Cassandra
 ----------------
 
-The library also has a concrete active record strategy for
+The library has a concrete active record strategy for
 `Apache Cassandra <http://cassandra.apache.org/>`__
 provided by the ``CassandraActiveRecordStrategy`` class.
 
