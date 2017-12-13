@@ -564,10 +564,11 @@ For the ``DjangoActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
 from ``eventsourcing.infrastructure.django.models`` matches the ``SequencedItem``
 namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
 namedtuple. There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRecord``.
-These are all standard Django model classes.
+These are all Django models.
 
-The package ``eventsourcing.infrastructure.django`` is a Django application. To use
-these models in your Django project, include the application in your list of ``INSTALLED_APPS``.
+The package ``eventsourcing.infrastructure.django`` is a little Django app. To involve
+its models in your Django project, simply include the application in your project's list
+of ``INSTALLED_APPS``.
 
 .. code:: python
 
@@ -586,12 +587,16 @@ Alternatively, import or write the classes you want into one of your own Django 
 
 The Django application at ``eventsourcing.infrastructure.django`` has database
 migrations that will add four tables, one for each of the sequenced item active
-record classes mentioned above. If you import some of these model classes into
-your own application, you will need to ``makemigrations``. But this way you won't
-get tables you won't use.
+record classes mentioned above. So if you use the application directly in
+``INSTALLED_APPS`` then the app's migrations will be picked up by Django.
 
-The library has a Django project for testing the library's Django app, it is used
-here to help run the app.
+If, instead of using the app directly, you import some of its model classes
+into your own application's ``models.py``, you will need to run
+``python manage.py makemigrations`` before tables for event sourcing can be
+created by Django. This way you can avoid creating tables you won't use.
+
+The library has a little Django project for testing the library's Django app,
+it is used in this example to help run the library's Django app.
 
 .. code:: python
 
@@ -602,7 +607,8 @@ here to help run the app.
 This Django project is simply the files that ``django-admin.py startproject`` generates, with the SQLite
 database set to be in memory, and with the library's Django app added to the ``INSTALLED_APPS`` setting.
 
-With the environment configured with the library's Django project settings file, start django.
+With the environment variable ``DJANGO_SETTINGS_MODULE`` referring to the Django project, Django can be
+started. If you aren't running tests with the Django test runner, you may need to run ``django.setup()``.
 
 .. code:: python
 
@@ -612,10 +618,6 @@ With the environment configured with the library's Django project settings file,
 
 
 Before using the database, make sure the migrations have been applied, so the necessary database tables exist.
-
-.. code::
-
-    $ python manage.py migrate
 
 An alternative to ``python manage.py migrate`` is the ``call_command()``
 function, provided by Django. If you aren't running tests with the Django
