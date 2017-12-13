@@ -254,7 +254,7 @@ Since by now only one item was stored, so there is only one item in the results.
 SQLAlchemy Dialects
 ~~~~~~~~~~~~~~~~~~~
 
-The databases supported by core `SQLAlchemy dialects <http://docs.sqlalchemy.org/en/latest/dialects/>`
+The databases supported by core `SQLAlchemy dialects <http://docs.sqlalchemy.org/en/latest/dialects/>`__
 are Firebird, Microsoft SQL Server, MySQL, Oracle, PostgreSQL, SQLite, and Sybase. This library's
 infrastructure classes for SQLAlchemy have been tested with MySQL, PostgreSQL, and SQLite.
 
@@ -446,7 +446,7 @@ if the application has not been constructed. See the
 Django Backends
 ~~~~~~~~~~~~~~~
 
-The supported `Django backends <https://docs.djangoproject.com/en/2.0/ref/databases/>`
+The supported `Django backends <https://docs.djangoproject.com/en/2.0/ref/databases/>`__
 are PostgreSQL, MySQL, SQLite, and Oracle. This library's Django infrastructure classes
 have been tested with PostgreSQL, MySQL, SQLite.
 
@@ -536,7 +536,6 @@ control, guaranteeing sequential consistency of the events of an entity despite 
 being distributed. It is also possible to serialize calls to the methods of an entity, but
 that is out of the scope of this package — if you wish to do that, perhaps something like
 `Zookeeper <https://zookeeper.apache.org/>`__ might help.
-
 
 
 Sequenced item mapper
