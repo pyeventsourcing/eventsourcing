@@ -966,7 +966,7 @@ Timestamped event store
 The examples so far have used an integer sequenced event store, where the items are sequenced by integer version.
 
 The example below constructs an event store for timestamp-sequenced domain events, using the library active
-record class ``TimestampedSequencedItemRecord``.
+record class ``TimestampSequencedItemRecord``.
 
 .. code:: python
 
@@ -1004,12 +1004,24 @@ record class ``TimestampedSequencedItemRecord``.
     assert events[0].timestamp < decimaltimestamp()
 
 
-Please note, optimistic concurrent control doesn't work to maintain entity consistency, because each
-event is likely to have a unique timestamp, and so conflicts are very unlikely to arise when concurrent
-operations appending to the same sequence. For this reason, although domain events can be timestamped,
+Please note, optimistic concurrent control doesn't work with timestamped sequenced items to maintain
+consistency of a domain entity, because each event is likely to have a unique timestamp, and so
+branches can occur without restraint. Optimistic concurrency control will prevent one timestamp
+sequenced event from overwritting another. For this reason, although domain events are usefully timestamped,
 it is not a very good idea to store the events of an entity or aggregate as timestamp-sequenced items.
 Timestamp-sequenced items are useful for storing events that are logically independent of others, such
 as messages in a log, things that do not risk causing a consistency error due to concurrent operations.
+It remains that timestamp sequenced items can happen to occur at the same timestamp, in which case
+there would be a concurrency error exception, and the event could be retried with a later timestamp.
+
+
+TimeUUIDs
+~~~~~~~~~
+
+If throughput is so high that such conflicts are too frequent, the library also supports sequencing
+items by TimeUUID, which includes a random component that makes it very unlikely two events will
+conflict. This feature currently works with Apache Cassandra only. Tests exist in the library, other
+documentation is forthcoming.
 
 
 .. Todo: The library function ``construct_cassandra_eventstore()`` can be used to
