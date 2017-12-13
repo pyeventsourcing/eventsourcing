@@ -659,43 +659,8 @@ an event sourced application, you can of course use the application
 classes described in the :doc:`application </topics/application>`
 section of this documentation.
 
-When it comes to deployment, just remember that there must only be one
-instance of the application in any given process, otherwise its subscribers
-will be registered too many times. There are perhaps three different
-processes to consider. Firstly, running the test suite for your Django
-project or app. Secondly, running the Django project with WSGI (or equivalent).
-Thirdly, running the Django project from a task queue worker, such as RabbitMQ.
-
-For the first case, if your application needs to be created fresh for each test,
-it is recommended to have a base test case class, which initialises the
-application during ``setUp()`` and closes the application during ``tearDown()``.
-Another option is to use a yield fixture in pytest with the application object
-yielded whilst acting as a context manager. Just make sure the application is
-constructed once, and then closed if it is constructed again.
-
-Of course if you only have one application object to test, then you could perhaps
-just create it at the start of the test suite. If so, closing the application
-doesn't matter, because no other application object will be created before the process
-ends.
-
-For the second case, it is recommended to construct the application object from
-the project's ``wsgi.py`` file, which doesn't get used when running Django from a test suite,
-or from a task queue worker. Views can then get the application object freely.
-Closing the application doesn't matter, because it will be used until the process
-ends.
-
-For the third case, it is recommended to construct the application in a suitable
-signal from the task queue framework, so that the application is constructed
-before request threads begin. Jobs can then get the application object freely.
-Closing the application doesn't matter, because it will be used until the process
-ends.
-
-In each case, to make things very clear for others, it is recommended to construct
-the application object with a module level function called ``init_application()``
-that assigns to a module level variable, and then obtain the application object with
-another module level function called ``get_application()``, which raises an exception
-if the application has not been constructed. See the
-:doc:`deployment </topics/deployment>` section for more information.
+See also the :doc:`deployment </topics/deployment>` section for
+information about deploying an event sourced application with Django.
 
 
 Django Backends
