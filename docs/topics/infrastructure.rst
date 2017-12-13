@@ -601,6 +601,7 @@ it is used in this example to help run the library's Django app.
 .. code:: python
 
     import os
+
     os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
 
 
