@@ -372,7 +372,7 @@ application object with another module level function called ``get_application()
 which raises an exception if the application has not been constructed.
 
 
-Django-ORM
+Django ORM
 ~~~~~~~~~~
 
 If you wish to use eventsourcing with Django ORM, the simplest way is having
