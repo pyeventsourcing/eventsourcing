@@ -656,7 +656,7 @@ can be used to store events using the Django ORM.
 
 Please note, if you want to use the Django ORM as infrastructure for
 an event sourced application, you can of course use the application
-classes described in the :doc:`application </topcis/application>`
+classes described in the :doc:`application </topics/application>`
 section of this documentation.
 
 When it comes to deployment, just remember that there must only be one
