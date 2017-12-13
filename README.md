@@ -52,7 +52,7 @@ example domain events, and an example database table. Plus lots of examples in t
 
 ## Synopsis
 
-Define a domain model.
+Develop a domain model.
 
 ```python
 from eventsourcing.domain.model.aggregate import AggregateRoot
@@ -102,37 +102,45 @@ from eventsourcing.exceptions import ConcurrencyError
 # Construct simple application (used here as a context manager).
 with SimpleApplication() as app:
 
-    # Call library factory method.
+    # Create new aggregate.
     world = World.__create__()
+
+    # Aggregate not yet in repository.
+    assert world.id not in app.repository
 
     # Execute commands.
     world.make_it_so('dinosaurs')
     world.make_it_so('trucks')
     
-    version = world.__version__ # note version at this stage
+    # View current state of aggregate object.
+    assert world.history[0].what == 'dinosaurs'
+    assert world.history[1].what == 'trucks'
+
+    # Note version of object at this stage.
+    version = world.__version__ 
+
+    # Execute another command.
     world.make_it_so('internet')
 
-    # View current state of aggregate.
-    assert world.history[2].what == 'internet'
-    assert world.history[1].what == 'trucks'
-    assert world.history[0].what == 'dinosaurs'
-
-    # Publish pending events (to persistence subscriber).
+    # Store pending domain events.
     world.__save__()
 
-    # Retrieve aggregate (replay stored events).
+    # Aggregate now exists in repository.
+    assert world.id in app.repository
+
+    # Replay stored events.
     copy = app.repository[world.id]
-    assert isinstance(copy, World)
 
     # View retrieved state.
-    assert copy.history[2].what == 'internet'
-    assert copy.history[1].what == 'trucks'
+    assert isinstance(copy, World)
     assert copy.history[0].what == 'dinosaurs'
+    assert copy.history[1].what == 'trucks'
+    assert copy.history[2].what == 'internet'
 
     # Verify retrieved state (cryptographically).
     assert copy.__head__ == world.__head__
 
-    # Discard aggregate.
+    # Delete.
     world.__discard__()
 
     # Repository raises key error (when aggregate not found).
@@ -178,6 +186,17 @@ with SimpleApplication() as app:
         assert 'trucks' not in item.state
         assert 'internet' not in item.state
 ```
+
+Double underscore pre- and post-fixed names are used consistently
+in the library classes for domain entities (and domain events) so that
+you are free to use the names that work best for your domain,
+without your having to dodge around library names on model base
+classes. The exception to the rule is the ``id`` attribute of
+the domain entity base class, which is assumed to be required
+by every domain entity or aggregate in every domain. This rule
+breaks PEP8 but it seems be worthwhile in order to keep the
+"normal" Python object namespace free for domain modelling
+(it is also a style used by other libraries for similar reasons).
 
 ## Project
 
