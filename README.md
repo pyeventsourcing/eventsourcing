@@ -1,7 +1,7 @@
 # Event Sourcing in Python
 
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png)](https://travis-ci.org/johnbywater/eventsourcing)
-[![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg)](https://coveralls.io/github/johnbywater/eventsourcing)
+[![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg#)](https://coveralls.io/github/johnbywater/eventsourcing)
 
 A library for event sourcing in Python.
 
@@ -11,10 +11,17 @@ Use pip to install the [stable distribution](https://pypi.python.org/pypi/events
 the Python Package Index.
 
     $ pip install eventsourcing
+    
 
-Please refer to [the documentation](http://eventsourcing.readthedocs.io/) for installation and usage guides.
+Please refer to the [documentation](http://eventsourcing.readthedocs.io/) for installation and usage guides.
 
-# Features
+Register questions, requests and [issues on GitHub](https://github.com/johnbywater/eventsourcing/issues).
+
+There is a [Slack channel](https://eventsourcinginpython.slack.com/messages/) for this project, which you
+are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTUwZGQ4MDk0ZDJmZmU0MjM4MjdmOTBlZGI0ZTY4NWIxMGFkZTcwNmUxM2U4NGM3YjY5MTVmZTBiYzljZjI3ZTE).
+
+
+## Features
 
 **Event store** — appends and retrieves domain events. Uses a
 sequenced item mapper with an active record strategy to map domain events
@@ -52,7 +59,7 @@ example domain events, and an example database table. Plus lots of examples in t
 
 ## Synopsis
 
-Define a domain model.
+Develop a domain model.
 
 ```python
 from eventsourcing.domain.model.aggregate import AggregateRoot
@@ -102,37 +109,45 @@ from eventsourcing.exceptions import ConcurrencyError
 # Construct simple application (used here as a context manager).
 with SimpleApplication() as app:
 
-    # Call library factory method.
+    # Create new aggregate.
     world = World.__create__()
+
+    # Aggregate not yet in repository.
+    assert world.id not in app.repository
 
     # Execute commands.
     world.make_it_so('dinosaurs')
     world.make_it_so('trucks')
     
-    version = world.__version__ # note version at this stage
+    # View current state of aggregate object.
+    assert world.history[0].what == 'dinosaurs'
+    assert world.history[1].what == 'trucks'
+
+    # Note version of object at this stage.
+    version = world.__version__ 
+
+    # Execute another command.
     world.make_it_so('internet')
 
-    # View current state of aggregate.
-    assert world.history[2].what == 'internet'
-    assert world.history[1].what == 'trucks'
-    assert world.history[0].what == 'dinosaurs'
-
-    # Publish pending events (to persistence subscriber).
+    # Store pending domain events.
     world.__save__()
 
-    # Retrieve aggregate (replay stored events).
+    # Aggregate now exists in repository.
+    assert world.id in app.repository
+
+    # Replay stored events.
     copy = app.repository[world.id]
-    assert isinstance(copy, World)
 
     # View retrieved state.
-    assert copy.history[2].what == 'internet'
-    assert copy.history[1].what == 'trucks'
+    assert isinstance(copy, World)
     assert copy.history[0].what == 'dinosaurs'
+    assert copy.history[1].what == 'trucks'
+    assert copy.history[2].what == 'internet'
 
     # Verify retrieved state (cryptographically).
     assert copy.__head__ == world.__head__
 
-    # Discard aggregate.
+    # Delete.
     world.__discard__()
 
     # Repository raises key error (when aggregate not found).
@@ -166,25 +181,30 @@ with SimpleApplication() as app:
         assert event.__previous_hash__ == last_hash
         last_hash = event.__event_hash__
 
-    # Verify sequence of events (cryptographically).
+    # Verify stored sequence of events against known value.
     assert last_hash == world.__head__
 
     # Check records are encrypted (values not visible in database).
     active_record_strategy = app.event_store.active_record_strategy
     items = active_record_strategy.get_items(world.id)
     for item in items:
-        assert item.originator_id == world.id
-        assert 'dinosaurs' not in item.state
-        assert 'trucks' not in item.state
-        assert 'internet' not in item.state
+        for what in ['dinosaurs', 'trucks', 'internet']:         
+            assert what not in item.state
+        assert world.id == item.originator_id 
+
 ```
+
+The double leading and trailing underscore naming style (``__create__()``, ``__save__()``)
+is used consistently in the library domain entity base classes (also domain
+events) so that users are free to use model names that work best for their
+domain, without their having to dodge around library names on model base
+classes. The exception to the rule is the ``id`` attribute of the domain
+entity base class, which is assumed to be required by every domain entity
+or aggregate in every domain. This style breaks PEP8 but it seems be
+worthwhile in order to keep the "normal" Python object namespace free for
+domain modelling, it is a style used by other libraries for similar
+reasons.
 
 ## Project
 
 This project is [hosted on GitHub](https://github.com/johnbywater/eventsourcing).
-Please [register your questions, requests and any other issues](https://github.com/johnbywater/eventsourcing/issues).
-
-## Slack Channel
-
-There is a [Slack channel](https://eventsourcinginpython.slack.com/messages/) for this project, which you
-are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTUwZGQ4MDk0ZDJmZmU0MjM4MjdmOTBlZGI0ZTY4NWIxMGFkZTcwNmUxM2U4NGM3YjY5MTVmZTBiYzljZjI3ZTE).
