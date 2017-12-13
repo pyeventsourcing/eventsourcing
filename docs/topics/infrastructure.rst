@@ -35,6 +35,9 @@ to which an item belongs. The second field represents the position of the item i
 sequence. The third field represents a topic to which the item pertains. And the fourth
 field represents the data associated with the item.
 
+From the point of view of the library code, the field names of a sequenced item namedtuple
+are arbitrary, however a suitable database table will have matching column names.
+
 
 SequencedItem namedtuple
 ------------------------
@@ -42,15 +45,12 @@ SequencedItem namedtuple
 The library provides a sequenced item namedtuple called
 :class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`.
 
-
 .. code:: python
 
     from eventsourcing.infrastructure.sequenceditem import SequencedItem
 
 
-The attributes of ``SequencedItem`` are ``sequence_id``, ``position``, ``topic``, and ``data``.
-
-As in the example above, the library's ``SequencedItem`` namedtuple has four fields. The
+Like in the example above, the library's ``SequencedItem`` namedtuple has four fields. The
 ``sequence_id`` identifies the sequence in which the item belongs. The ``position``
 identifies the position of the item in its sequence. The ``topic`` identifies the
 dimension of concern to which the item pertains. The ``data`` holds the data associated
@@ -77,7 +77,6 @@ and it has a JSON object that states the value of ``foo`` is ``bar``.
     assert sequenced_item1.position == 0
     assert sequenced_item1.topic == 'eventsourcing.domain.model.events#DomainEvent'
     assert sequenced_item1.data == '{"foo":"bar"}'
-
 
 
 StoredEvent namedtuple
