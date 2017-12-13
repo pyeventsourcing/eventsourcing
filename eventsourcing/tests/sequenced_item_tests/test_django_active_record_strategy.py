@@ -5,11 +5,13 @@ from django.core.management import call_command
 
 from eventsourcing.infrastructure.django.apps import DjangoConfig
 
-os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
+
 
 import django
 
+os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
 django.setup()
+
 
 from django.test import TransactionTestCase
 
@@ -21,11 +23,12 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, TimestampSequencedItemTestCase
 
 
+
+
 class DjangoTestCase(TransactionTestCase):
 
     def setUp(self):
         super(DjangoTestCase, self).setUp()
-        django.setup()
         call_command('migrate')
 
     def construct_entity_active_record_strategy(self):
