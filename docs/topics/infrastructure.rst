@@ -130,7 +130,7 @@ sequenced item namedtuple.
 SQLAlchemy
 ----------
 
-To run the examples below, please install the library with the
+To run the example below, please install the library with the
 'sqlalchemy' option.
 
 .. code::
@@ -315,7 +315,7 @@ Django ORM
 The library also has a concrete active record strategy for the Django ORM provided by
 ``DjangoActiveRecordStrategy`` class.
 
-To run the examples below, please install the library with the
+To run the example below, please install the library with the
 'django' option.
 
 .. code::
@@ -454,21 +454,35 @@ have been tested with PostgreSQL, MySQL, SQLite.
 Apache Cassandra
 ----------------
 
-To run the examples below, please install the library with the
+The library also has a concrete active record strategy for
+`Apache Cassandra <http://cassandra.apache.org/>`__
+provided by the ``CassandraActiveRecordStrategy`` class.
+
+To run the example below, please install the library with the
 'cassandra' option.
 
 .. code::
 
     $ pip install eventsourcing[cassandra]
 
+It takes a while to build the driver. If you want to do that last step
+quickly, set the environment variable ``CASS_DRIVER_NO_CYTHON``.
 
-The library also has a concrete active record strategy for Apache Cassandra provided by
-``CassandraActiveRecordStrategy`` class.
+.. code::
+
+    $ CASS_DRIVER_NO_CYTHON=1 pip install eventsourcing[cassandra]
+
 
 For the ``CassandraActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
 from ``eventsourcing.infrastructure.cassandra.activerecords`` matches the ``SequencedItem``
 namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
 namedtuple.  There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRecord``.
+
+
+The ``CassandraDatastore`` and ``CassandraSettings`` can be used in the same was as
+``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` above. Please investigate
+library class :class:`~eventsourcing.infrastructure.cassandra.datastore.CassandraSettings`
+for information about configuring away from default settings.
 
 .. code:: python
 
@@ -481,6 +495,13 @@ namedtuple.  There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRe
     )
     cassandra_datastore.setup_connection()
     cassandra_datastore.setup_tables()
+
+
+With the database setup, the ``CassandraActiveRecordStrategy`` can be constructed,
+and used to store events using Apache Cassandra.
+
+.. code:: python
+
 
     cassandra_active_record_strategy = CassandraActiveRecordStrategy(
         active_record_class=StoredEventRecord,
@@ -497,12 +518,6 @@ namedtuple.  There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRe
 
     cassandra_datastore.drop_tables()
     cassandra_datastore.close_connection()
-
-
-The ``CassandraDatastore`` and ``CassandraSettings`` are be used in the same was as
-``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` above. Please investigate
-library class :class:`~eventsourcing.infrastructure.cassandra.datastore.CassandraSettings`
-for information about configuring away from default settings.
 
 
 Sequenced item conflicts
