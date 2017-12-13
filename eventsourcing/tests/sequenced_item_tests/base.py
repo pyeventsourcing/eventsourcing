@@ -65,7 +65,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         sequence_id1 = uuid.uuid1()
         sequence_id2 = uuid.uuid1()
 
-        # Check repo returns None when there aren't any items.
+        # Check repo returns empty list when there aren't any items.
         self.assertEqual(self.active_record_strategy.list_items(sequence_id1), [])
 
         position1, position2, position3 = self.construct_positions()
@@ -95,9 +95,9 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
 
         # Check the get_item() method returns item at position.
         retrieved_item = self.active_record_strategy.get_item(sequence_id1, position1)
-        self.assertEqual(retrieved_item.sequence_id, sequence_id1)
-        self.assertEqual(retrieved_item.position, position1)
-        self.assertEqual(retrieved_item.data, data1)
+        self.assertEqual(sequence_id1, retrieved_item.sequence_id)
+        self.assertEqual(position1, retrieved_item.position)
+        self.assertEqual(data1, retrieved_item.data)
 
         # Check index error is raised when item does not exist at position.
         with self.assertRaises(IndexError):
@@ -105,7 +105,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
 
         # Check repo returns the item.
         retrieved_items = self.active_record_strategy.list_items(sequence_id1)
-        self.assertEqual(len(retrieved_items), 1)
+        self.assertEqual(1, len(retrieved_items), str(retrieved_items))
         self.assertIsInstance(retrieved_items[0], SequencedItem)
         self.assertEqual(retrieved_items[0].sequence_id, item1.sequence_id)
         self.assertEqual(position1, retrieved_items[0].position)
@@ -231,14 +231,14 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         # Get items with a limit, and with descending query (so that we get the last ones).
         retrieved_items = self.active_record_strategy.list_items(sequence_id1, limit=2,
                                                                 query_ascending=False)
-        self.assertEqual(len(retrieved_items), 2)
+        self.assertEqual(2, len(retrieved_items))
         self.assertEqual(retrieved_items[0].position, position2)
         self.assertEqual(retrieved_items[1].position, position3)
 
         # Get items with a limit and descending query, greater than a position.
         retrieved_items = self.active_record_strategy.list_items(sequence_id1, limit=2, gt=position2,
                                                                 query_ascending=False)
-        self.assertEqual(len(retrieved_items), 1)
+        self.assertEqual(1, len(retrieved_items))
         self.assertEqual(retrieved_items[0].position, position3)
 
         # Get items with a limit and descending query, less than a position.
@@ -286,6 +286,14 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         # else:
         #     self.assertEqual(len(retrieved_items), 3)
 
+        # Delete some items.
+        records = list(self.active_record_strategy.all_records())
+        self.assertTrue(len(records))
+        for records in records:
+            self.active_record_strategy.delete_record(records)
+        records = list(self.active_record_strategy.all_records())
+        self.assertFalse(len(records))
+
 
 class WithActiveRecordStrategies(AbstractDatastoreTestCase):
     drop_tables = False
@@ -298,10 +306,11 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
 
     def setUp(self):
         super(WithActiveRecordStrategies, self).setUp()
-        self.datastore.setup_connection()
-        if self.drop_tables:
-            self.datastore.drop_tables()
-        self.datastore.setup_tables()
+        if self.datastore:
+            self.datastore.setup_connection()
+            if self.drop_tables:
+                self.datastore.drop_tables()
+            self.datastore.setup_tables()
 
     def tearDown(self):
         self._log_active_record_strategy = None
