@@ -495,6 +495,7 @@ for information about configuring away from default settings.
 .. code:: python
 
     from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
+    from eventsourcing.infrastructure.cassandra.activerecords import StoredEventRecord
 
     cassandra_datastore = CassandraDatastore(
         settings=CassandraSettings(),
@@ -509,7 +510,7 @@ and used to store events using Apache Cassandra.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, StoredEventRecord
+    from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy
 
     cassandra_active_record_strategy = CassandraActiveRecordStrategy(
         active_record_class=StoredEventRecord,
