@@ -175,6 +175,22 @@ Base classes for concrete datastore classes.
     :undoc-members:
 
 
+django
+------
+
+A Django application for event sourcing with the Django ORM.
+
+.. automodule:: eventsourcing.infrastructure.django.activerecords
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+.. automodule:: eventsourcing.infrastructure.django.models
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
 eventplayer
 -----------
 
