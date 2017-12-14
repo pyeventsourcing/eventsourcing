@@ -488,7 +488,7 @@ Since by now only one item was stored, so there is only one item in the results.
     assert results[0] == stored_event1
 
 
-SQLAlchemy Dialects
+SQLAlchemy dialects
 ~~~~~~~~~~~~~~~~~~~
 
 The databases supported by core `SQLAlchemy dialects <http://docs.sqlalchemy.org/en/latest/dialects/>`__
@@ -663,7 +663,7 @@ See also the :doc:`deployment </topics/deployment>` section for
 information about deploying an event sourced application with Django.
 
 
-Django Backends
+Django backends
 ~~~~~~~~~~~~~~~
 
 The supported `Django backends <https://docs.djangoproject.com/en/2.0/ref/databases/>`__
@@ -671,8 +671,8 @@ are PostgreSQL, MySQL, SQLite, and Oracle. This library's Django infrastructure 
 have been tested with PostgreSQL, MySQL, SQLite.
 
 
-Apache Cassandra
-----------------
+Cassandra
+---------
 
 The library has a concrete active record strategy for
 `Apache Cassandra <http://cassandra.apache.org/>`__
