@@ -1,6 +1,6 @@
 from abc import abstractmethod
 
-from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.base import AbstractActiveRecordStrategy
 
 
 class RelationalActiveRecordStrategy(AbstractActiveRecordStrategy):

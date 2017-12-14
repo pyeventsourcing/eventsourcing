@@ -3,7 +3,7 @@ from threading import Thread
 
 import six
 
-from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.base import AbstractActiveRecordStrategy
 
 
 class AbstractSequencedItemIterator(six.with_metaclass(ABCMeta)):

@@ -361,11 +361,11 @@ with each item positioned in its sequence by an integer index number.
     from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
     from sqlalchemy_utils import UUIDType
 
-    ActiveRecord = declarative_base()
+    Base = declarative_base()
 
 
-    class SequencedItemRecord(ActiveRecord):
-        __tablename__ = 'sequenced_items'
+    class IntegerSequencedRecord(Base):
+        __tablename__ = 'integer_sequenced_items'
 
         id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
@@ -385,7 +385,7 @@ with each item positioned in its sequence by an integer index number.
 
 
 The library has a class
-:class:`~eventsourcing.infrastructure.sqlalchemy.activerecords.IntegerSequencedItemRecord`
+:class:`~eventsourcing.infrastructure.sqlalchemy.models.IntegerSequencedRecord`
 which is very similar to the above.
 
 Next, create the database table. For convenience, the SQLAlchemy objects can be adapted
@@ -399,12 +399,12 @@ and ``setup_tables()``.
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
 
     datastore = SQLAlchemyDatastore(
-        base=ActiveRecord,
+        base=Base,
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
     )
 
     datastore.setup_connection()
-    datastore.setup_table(SequencedItemRecord)
+    datastore.setup_table(IntegerSequencedRecord)
 
 
 As you can see from the ``uri`` argument above, this example is using SQLite to manage
@@ -445,12 +445,12 @@ alternative active record strategy.
 .. code:: python
 
     from eventsourcing.infrastructure.eventstore import EventStore
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
+    from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyActiveRecordStrategy
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
     active_record_strategy = SQLAlchemyActiveRecordStrategy(
         session=datastore.session,
-        active_record_class=SequencedItemRecord,
+        active_record_class=IntegerSequencedRecord,
     )
 
     sequenced_item_mapper = SequencedItemMapper(
@@ -592,7 +592,7 @@ and unsubscribe from receiving further domain events.
             # Construct event store.
             self.event_store = EventStore(
                 active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    active_record_class=SequencedItemRecord,
+                    active_record_class=IntegerSequencedRecord,
                     session=session,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(

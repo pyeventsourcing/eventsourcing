@@ -1,14 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
 import sys
 import types
 from os.path import abspath, dirname
+
+import django
 import sphinx_rtd_theme
 
 sys.path.append(str(dirname(dirname(abspath(__file__)))))
 
 from eventsourcing import __version__
+
+
+os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
+django.setup()
 
 #
 # eventsourcing documentation build configuration file, created by
@@ -90,7 +97,6 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
-
 # -- Options for HTML output ----------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -101,7 +107,6 @@ todo_include_todos = False
 html_theme = "sphinx_rtd_theme"
 
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -114,12 +119,10 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'eventsourcingdoc'
-
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -149,7 +152,6 @@ latex_documents = [
      'John Bywater', 'manual'),
 ]
 
-
 # -- Options for manual page output ---------------------------------------
 
 # One entry per manual page. List of tuples
@@ -158,7 +160,6 @@ man_pages = [
     (master_doc, 'eventsourcing', 'eventsourcing Documentation',
      [author], 1)
 ]
-
 
 # -- Options for Texinfo output -------------------------------------------
 
@@ -172,12 +173,12 @@ texinfo_documents = [
 ]
 
 
-
 def skip(app, what, name, obj, skip, options):
     if getattr(obj, '__doc__', None) and isinstance(obj, (types.FunctionType, types.MethodType)):
         return False
     else:
         return skip
+
 
 def setup(app):
     app.connect("autodoc-skip-member", skip)

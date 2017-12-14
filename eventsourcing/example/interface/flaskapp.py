@@ -4,8 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.example.application import get_example_application, init_example_application
-from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
-
+from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyActiveRecordStrategy
 
 # Read DB URI from environment.
 uri = os.environ.get('DB_URI', 'sqlite:///:memory:')

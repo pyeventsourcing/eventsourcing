@@ -7,7 +7,8 @@ from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepo
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
-from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, SnapshotRecord
+from eventsourcing.infrastructure.sqlalchemy.models import SnapshotRecord
+from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyActiveRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
 from eventsourcing.utils.cipher.aes import AESCipher
@@ -15,7 +16,8 @@ from eventsourcing.utils.random import decode_random_bytes
 
 
 class SimpleApplication(object):
-    def __init__(self, persist_event_type=None, uri=None, session=None, cipher_key=None, setup_table=True):
+    def __init__(self, persist_event_type=None, uri=None, session=None, cipher_key=None,
+                 stored_event_record_class=None, setup_table=True):
         # Setup cipher (optional).
         self.setup_cipher(cipher_key)
 
@@ -23,6 +25,7 @@ class SimpleApplication(object):
         self.setup_datastore(session, uri)
 
         # Setup the event store.
+        self.stored_event_record_class = stored_event_record_class
         self.setup_event_store()
 
         # Setup an event sourced repository.
@@ -50,6 +53,7 @@ class SimpleApplication(object):
         self.event_store = construct_sqlalchemy_eventstore(
             session=self.datastore.session,
             cipher=self.cipher,
+            active_record_class=self.stored_event_record_class
         )
 
     def setup_repository(self, **kwargs):
@@ -85,8 +89,9 @@ class SimpleApplication(object):
 
 
 class SnapshottingApplication(SimpleApplication):
-    def __init__(self, period=10, **kwargs):
+    def __init__(self, period=10, snapshot_record_class=None, **kwargs):
         self.period = period
+        self.snapshot_record_class = snapshot_record_class
         super(SnapshottingApplication, self).__init__(**kwargs)
 
     def setup_event_store(self):
@@ -96,7 +101,7 @@ class SnapshottingApplication(SimpleApplication):
         self.snapshot_store = EventStore(
             SQLAlchemyActiveRecordStrategy(
                 session=self.datastore.session,
-                active_record_class=SnapshotRecord
+                active_record_class=self.snapshot_record_class or SnapshotRecord
             ),
             SequencedItemMapper(
                 sequence_id_attr_name='originator_id',

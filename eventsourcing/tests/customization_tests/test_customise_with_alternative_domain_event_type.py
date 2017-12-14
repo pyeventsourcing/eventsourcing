@@ -1,11 +1,11 @@
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import TimeuuidedEntity
-from eventsourcing.domain.model.events import EventWithTimeuuid, publish
-from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, \
-    CqlTimeuuidSequencedItem
+from eventsourcing.domain.model.events import EventWithTimeuuid
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
+from eventsourcing.infrastructure.cassandra.models import TimeuuidSequencedRecord
+from eventsourcing.infrastructure.cassandra.strategy import CassandraActiveRecordStrategy
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
@@ -20,7 +20,6 @@ from eventsourcing.utils.times import decimaltimestamp_from_uuid
 # define a suitable database table, and configure the other components. It's easy.
 
 # Firstly, define and entity that uses events with TimeUUIDs.
-from eventsourcing.utils.topic import get_topic
 
 
 class ExampleEntity(TimeuuidedEntity):
@@ -43,14 +42,14 @@ class ExampleEntity(TimeuuidedEntity):
 
 
 # Define a suitable active record class.
-#  - class CqlTimeuuidSequencedItem has been moved into the library
+#  - class TimeuuidSequencedItem has been moved into the library
 
 # Define an application that uses the entity class and the table
 class ExampleApplicationWithTimeuuidSequencedItems(object):
     def __init__(self):
         self.event_store = EventStore(
             active_record_strategy=CassandraActiveRecordStrategy(
-                active_record_class=CqlTimeuuidSequencedItem,
+                active_record_class=TimeuuidSequencedRecord,
                 sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(
@@ -91,7 +90,7 @@ class TestDomainEventsWithTimeUUIDs(AbstractDatastoreTestCase):
     def construct_datastore(self):
         return CassandraDatastore(
             settings=CassandraSettings(default_keyspace=DEFAULT_KEYSPACE_FOR_TESTING),
-            tables=(CqlTimeuuidSequencedItem,),
+            tables=(TimeuuidSequencedRecord,),
         )
 
     def test(self):

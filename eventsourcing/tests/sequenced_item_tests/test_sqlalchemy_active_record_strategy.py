@@ -1,6 +1,8 @@
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
-from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
-    IntegerSequencedItemRecord, SnapshotRecord, TimestampSequencedItemRecord
+from eventsourcing.infrastructure.sqlalchemy.models import IntegerSequencedRecord, SnapshotRecord, \
+    TimestampSequencedRecord
+
+from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyActiveRecordStrategy
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \
     SimpleSequencedItemteratorTestCase, ThreadedSequencedItemIteratorTestCase, TimestampSequencedItemTestCase, \
@@ -9,7 +11,7 @@ from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTe
 
 def construct_integer_sequenced_active_record_strategy(datastore):
     return SQLAlchemyActiveRecordStrategy(
-        active_record_class=IntegerSequencedItemRecord,
+        active_record_class=IntegerSequencedRecord,
         sequenced_item_class=SequencedItem,
         session=datastore.session,
     )
@@ -17,7 +19,7 @@ def construct_integer_sequenced_active_record_strategy(datastore):
 
 def construct_timestamp_sequenced_active_record_strategy(datastore):
     return SQLAlchemyActiveRecordStrategy(
-        active_record_class=TimestampSequencedItemRecord,
+        active_record_class=TimestampSequencedRecord,
         sequenced_item_class=SequencedItem,
         session=datastore.session,
     )

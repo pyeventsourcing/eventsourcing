@@ -1,12 +1,10 @@
 import six
 from cassandra import InvalidRequest
 from cassandra.cqlengine.functions import Token
-from cassandra.cqlengine.models import columns
 from cassandra.cqlengine.query import BatchQuery, LWTException
 
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.cassandra.datastore import ActiveRecord
+from eventsourcing.infrastructure.base import AbstractActiveRecordStrategy
 
 
 class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
@@ -139,93 +137,3 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
 
     def filter(self, **kwargs):
         return self.active_record_class.objects.filter(**kwargs)
-
-
-class IntegerSequencedItemRecord(ActiveRecord):
-    """Stores integer-sequenced items in Cassandra."""
-    __table_name__ = 'integer_sequenced_items'
-    _if_not_exists = True
-
-    # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = columns.UUID(partition_key=True)
-
-    # Position (index) of item in sequence.
-    position = columns.BigInt(clustering_order='DESC', primary_key=True)
-
-    # Topic of the item (e.g. path to domain event class).
-    topic = columns.Text(required=True)
-
-    # State of the item (serialized dict, possibly encrypted).
-    data = columns.Text(required=True)
-
-
-class TimestampSequencedItemRecord(ActiveRecord):
-    """Stores timestamp-sequenced items in Cassandra."""
-    __table_name__ = 'timestamp_sequenced_items'
-    _if_not_exists = True
-
-    # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = columns.UUID(partition_key=True)
-
-    # Position (in time) of item in sequence.
-    position = columns.Decimal(clustering_order='DESC', primary_key=True)
-
-    # Topic of the item (e.g. path to domain event class).
-    topic = columns.Text(required=True)
-
-    # State of the item (serialized dict, possibly encrypted).
-    data = columns.Text(required=True)
-
-
-class CqlTimeuuidSequencedItem(ActiveRecord):
-    """Stores timeuuid-sequenced items in Cassandra."""
-    __table_name__ = 'timeuuid_sequenced_items'
-    _if_not_exists = True
-
-    # Sequence UUID (e.g. an entity or aggregate ID).
-    sequence_id = columns.UUID(partition_key=True)
-
-    # Position (in time) of item in sequence.
-    position = columns.TimeUUID(clustering_order='DESC', primary_key=True)
-
-    # Topic of the item (e.g. path to domain event class).
-    topic = columns.Text(required=True)
-
-    # State of the item (serialized dict, possibly encrypted).
-    data = columns.Text(required=True)
-
-
-class SnapshotRecord(ActiveRecord):
-    """Stores snapshots in Cassandra."""
-    __table_name__ = 'snapshots'
-    _if_not_exists = True
-
-    # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = columns.UUID(partition_key=True)
-
-    # Position (index) of item in sequence.
-    position = columns.BigInt(clustering_order='DESC', primary_key=True)
-
-    # Topic of the item (e.g. path to domain entity class).
-    topic = columns.Text(required=True)
-
-    # State of the entity (serialized dict, possibly encrypted).
-    data = columns.Text(required=True)
-
-
-class StoredEventRecord(ActiveRecord):
-    """Stores integer-sequenced items in Cassandra."""
-    __table_name__ = 'stored_events'
-    _if_not_exists = True
-
-    # Aggregate ID (e.g. an entity or aggregate ID).
-    originator_id = columns.UUID(partition_key=True)
-
-    # Aggregate version (index) of item in sequence.
-    originator_version = columns.BigInt(clustering_order='DESC', primary_key=True)
-
-    # Topic of the item (e.g. path to domain event class).
-    event_type = columns.Text(required=True)
-
-    # State of the item (serialized dict, possibly encrypted).
-    state = columns.Text(required=True)

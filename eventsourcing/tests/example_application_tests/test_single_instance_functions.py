@@ -1,7 +1,7 @@
 from eventsourcing.example.application import close_example_application, get_example_application, \
     init_example_application
-from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy, \
-    IntegerSequencedItemRecord
+from eventsourcing.infrastructure.sqlalchemy.models import IntegerSequencedRecord
+from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyActiveRecordStrategy
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 
 
@@ -25,7 +25,7 @@ class TestExampleApplicationSingleInstanceFunctions(SQLAlchemyDatastoreTestCase)
         self.datastore.setup_connection()
         self.datastore.setup_tables()
         active_record_strategy = SQLAlchemyActiveRecordStrategy(
-            active_record_class=IntegerSequencedItemRecord,
+            active_record_class=IntegerSequencedRecord,
             session=self.datastore.session,
         )
 

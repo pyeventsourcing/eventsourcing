@@ -138,12 +138,12 @@ infrastructure
 The infrastructure layer adapts external devices in ways that are useful
 for the application, such as the way an event store encapsulates a database.
 
-activerecord
-------------
+base
+----
 
-Abstract base class for active record strategies.
+Abstract base classes for the infrastructure layer.
 
-.. automodule:: eventsourcing.infrastructure.activerecord
+.. automodule:: eventsourcing.infrastructure.base
     :members:
     :show-inheritance:
     :undoc-members:
@@ -153,12 +153,12 @@ cassandra
 
 Classes for event sourcing with Apache Cassandra.
 
-.. automodule:: eventsourcing.infrastructure.cassandra.datastore
+.. automodule:: eventsourcing.infrastructure.cassandra.models
     :members:
     :show-inheritance:
     :undoc-members:
 
-.. automodule:: eventsourcing.infrastructure.cassandra.activerecords
+.. automodule:: eventsourcing.infrastructure.cassandra.datastore
     :members:
     :show-inheritance:
     :undoc-members:
@@ -180,12 +180,12 @@ django
 
 A Django application for event sourcing with the Django ORM.
 
-.. automodule:: eventsourcing.infrastructure.django.activerecords
+.. automodule:: eventsourcing.infrastructure.django.models
     :members:
     :show-inheritance:
     :undoc-members:
 
-.. automodule:: eventsourcing.infrastructure.django.models
+.. automodule:: eventsourcing.infrastructure.django.strategy
     :members:
     :show-inheritance:
     :undoc-members:
@@ -312,7 +312,12 @@ sqlalchemy
 
 Classes for event sourcing with SQLAlchemy.
 
-.. automodule:: eventsourcing.infrastructure.sqlalchemy.activerecords
+.. automodule:: eventsourcing.infrastructure.sqlalchemy.models
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+.. automodule:: eventsourcing.infrastructure.sqlalchemy.strategy
     :members:
     :show-inheritance:
     :undoc-members:

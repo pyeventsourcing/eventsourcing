@@ -21,7 +21,7 @@ class TestDocs(TestCase):
     def test_docs(self):
 
         skipped = [
-            'deployment.rst'
+            # 'deployment.rst'
         ]
 
         self._out = ''
@@ -84,9 +84,10 @@ class TestDocs(TestCase):
         is_code = False
         is_md = False
         is_rst = False
+        last_line = ''
         with open(doc_path) as doc_file:
-            for line in doc_file:
-                line = line.strip('\n')
+            for orig_line in doc_file:
+                line = orig_line.strip('\n')
                 if line.startswith('```python'):
                     # Start markdown code block.
                     if is_rst:
@@ -104,7 +105,7 @@ class TestDocs(TestCase):
                 elif is_code and is_rst and line.startswith('```'):
                     # Can't finish restructured text block with markdown.
                     self.fail("Restructured text block terminated with markdown format '```'")
-                elif line.startswith('.. code:: python'):
+                elif line.startswith('.. code:: python') and 'exclude-when-testing' not in last_line:
                     # Start restructured text code block.
                     if is_md:
                         self.fail("Restructured text code block found after markdown block in same file.")
@@ -134,6 +135,7 @@ class TestDocs(TestCase):
                 else:
                     line = ''
                 lines.append(line)
+                last_line = orig_line
 
         print("{} lines of code in {}".format(num_code_lines, doc_path))
 
@@ -151,8 +153,10 @@ class TestDocs(TestCase):
         # Run the code and catch errors.
         p = Popen([sys.executable, temp_path], stdout=PIPE, stderr=PIPE)
         out, err = p.communicate()
-        out = out.decode('utf8').replace(temp_path, doc_path)
-        err = err.decode('utf8').replace(temp_path, doc_path)
+        out = out.decode('utf8')
+        err = err.decode('utf8')
+        out = out.replace(temp_path, doc_path)
+        err = err.replace(temp_path, doc_path)
         exit_status = p.wait()
 
         # Check for errors running the code.

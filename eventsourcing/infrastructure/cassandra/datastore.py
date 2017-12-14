@@ -5,7 +5,6 @@ from cassandra import ConsistencyLevel, OperationTimedOut
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import NoHostAvailable
 from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
-from cassandra.cqlengine.models import Model
 
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import DatasourceSettingsError
@@ -112,9 +111,3 @@ class CassandraDatastore(Datastore):
                 for obj in remaining_objects:
                     obj.delete()
                 remaining_objects = table.objects.all().limit(10)
-
-
-class ActiveRecord(Model):
-    """Supertype for active records in Cassandra."""
-    __abstract__ = True
-

@@ -8,8 +8,8 @@ from eventsourcing.exceptions import EventHashError, HeadHashError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord, \
-    SQLAlchemyActiveRecordStrategy
+from eventsourcing.infrastructure.sqlalchemy.models import IntegerSequencedRecord
+from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyActiveRecordStrategy
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
     WithSQLAlchemyActiveRecordStrategies
 from eventsourcing.utils.topic import get_topic
@@ -283,7 +283,7 @@ class ExampleDDDApplication(object):
         event_store = EventStore(
             active_record_strategy=SQLAlchemyActiveRecordStrategy(
                 session=datastore.session,
-                active_record_class=IntegerSequencedItemRecord,
+                active_record_class=IntegerSequencedRecord,
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequence_id_attr_name='originator_id',

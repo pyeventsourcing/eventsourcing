@@ -1,13 +1,13 @@
 from django.db import models
 
 
-class IntegerSequencedItemRecord(models.Model):
+class IntegerSequencedRecord(models.Model):
 
     # Sequence ID (e.g. an entity or aggregate ID).
     sequence_id = models.UUIDField()
 
     # Position (index) of item in sequence.
-    position = models.BigIntegerField()
+    position = models.IntegerField()
 
     # Topic of the item (e.g. path to domain event class).
     topic = models.CharField(max_length=255)
@@ -20,10 +20,10 @@ class IntegerSequencedItemRecord(models.Model):
         db_table = 'integer_sequenced_items'
 
 
-class TimestampSequencedItemRecord(models.Model):
+class TimestampSequencedRecord(models.Model):
 
     def __init__(self, *args, **kwargs):
-        super(TimestampSequencedItemRecord, self).__init__(*args, **kwargs)
+        super(TimestampSequencedRecord, self).__init__(*args, **kwargs)
 
     # Sequence ID (e.g. an entity or aggregate ID).
     sequence_id = models.UUIDField()
@@ -48,7 +48,7 @@ class SnapshotRecord(models.Model):
     sequence_id = models.UUIDField()
 
     # Position (index) of item in sequence.
-    position = models.BigIntegerField()
+    position = models.IntegerField()
 
     # Topic of the item (e.g. path to domain event class).
     topic = models.CharField(max_length=255)
@@ -67,7 +67,7 @@ class StoredEventRecord(models.Model):
     originator_id = models.UUIDField()
 
     # Position (index) of item in sequence.
-    originator_version = models.BigIntegerField()
+    originator_version = models.IntegerField()
 
     # Topic of the item (e.g. path to domain event class).
     event_type = models.CharField(max_length=255)

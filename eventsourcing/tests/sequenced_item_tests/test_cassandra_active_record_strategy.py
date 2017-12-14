@@ -1,5 +1,6 @@
-from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, \
-    IntegerSequencedItemRecord, SnapshotRecord, TimestampSequencedItemRecord
+from eventsourcing.infrastructure.cassandra.models import IntegerSequencedRecord, SnapshotRecord, TimestampSequencedRecord
+
+from eventsourcing.infrastructure.cassandra.strategy import CassandraActiveRecordStrategy
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \
@@ -9,14 +10,14 @@ from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTe
 
 def construct_integer_sequenced_active_record_strategy():
     return CassandraActiveRecordStrategy(
-        active_record_class=IntegerSequencedItemRecord,
+        active_record_class=IntegerSequencedRecord,
         sequenced_item_class=SequencedItem,
     )
 
 
 def construct_timestamp_sequenced_active_record_strategy():
     return CassandraActiveRecordStrategy(
-        active_record_class=TimestampSequencedItemRecord,
+        active_record_class=TimestampSequencedRecord,
         sequenced_item_class=SequencedItem,
     )
 

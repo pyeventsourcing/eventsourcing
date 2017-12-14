@@ -30,6 +30,8 @@ when the auto-incrementing ID bottleneck would otherwise throttle
 performance, "scaling-up" could involve switching application
 infrastructure to use a separate application log.
 
+Also, support for Django ORM was added in version 4.1.0.
+
 Version 3.x series was a released after quite of a lot of refactoring
 made things backwards-incompatible. Documentation was greatly improved, in
 particular with pages reflecting the architectural layers of the library

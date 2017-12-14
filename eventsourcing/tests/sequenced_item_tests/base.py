@@ -14,7 +14,7 @@ from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import SequencedItemConflict
-from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.base import AbstractActiveRecordStrategy
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
@@ -23,6 +23,9 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 
 class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
+
+    cancel_sqlite3_decimal_converter = False
+
     def __init__(self, *args, **kwargs):
         super(ActiveRecordStrategyTestCase, self).__init__(*args, **kwargs)
         self._active_record_strategy = None
@@ -94,6 +97,10 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.active_record_strategy.append(item2)
 
         # Check the get_item() method returns item at position.
+        if self.cancel_sqlite3_decimal_converter:
+            import sqlite3
+            sqlite3.register_converter("decimal", None)
+
         retrieved_item = self.active_record_strategy.get_item(sequence_id1, position1)
         self.assertEqual(sequence_id1, retrieved_item.sequence_id)
         self.assertEqual(position1, retrieved_item.position)
