@@ -425,7 +425,7 @@ entity is set to have the event's ``timestamp`` value.
 Factory method
 --------------
 
-The ``DomainEntity`` has a class method ``create()`` which can return
+The ``DomainEntity`` has a class method ``__create__()`` which can return
 new entity objects. When called, it constructs the ``Created`` event of the
 concrete class with suitable arguments such as a unique ID, and a topic representing
 the concrete entity class, and then it projects that event into an entity
@@ -751,7 +751,7 @@ the command method ``make_it_so()`` triggers the custom event ``SomethingHappene
                 obj.history.append(self)
 
 
-A new world can now be created, using the ``create()`` method. The command ``make_it_so()`` can
+A new world can now be created, using the ``__create__()`` method. The command ``make_it_so()`` can
 be used to make things happen in this world. When something happens, the history of the world
 is augmented with the new event.
 
