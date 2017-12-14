@@ -15,7 +15,9 @@ from eventsourcing import __version__
 
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
-django.setup()
+
+
+# django.setup()
 
 #
 # eventsourcing documentation build configuration file, created by
