@@ -191,19 +191,23 @@ with SimpleApplication() as app:
         for what in ['dinosaurs', 'trucks', 'internet']:         
             assert what not in item.state
         assert world.id == item.originator_id 
-
 ```
 
-The double leading and trailing underscore naming style (``__create__()``, ``__save__()``)
-is used consistently in the library domain entity base classes (also domain
-events) so that users are free to use model names that work best for their
-domain, without their having to dodge around library names on model base
-classes. The exception to the rule is the ``id`` attribute of the domain
-entity base class, which is assumed to be required by every domain entity
-or aggregate in every domain. This style breaks PEP8 but it seems be
-worthwhile in order to keep the "normal" Python object namespace free for
-domain modelling, it is a style used by other libraries for similar
-reasons.
+The double leading and trailing underscore naming style, seen above,
+is used consistently in the library's domain entity and event
+base classes for attribute and method names, so that developers can
+begin with a clean namespace. The intention is that the library
+functionality is included in the application by aliasing these library
+names with names that work within the project's ubiquitous language.
+
+This style breaks PEP8, but it seems worthwhile in order to keep the
+"normal" Python object namespace free for domain modelling. It is a style
+used by other libraries (such as SQLAlchemy and Django) for similar reasons.
+
+The exception is the ``id`` attribute of the domain entity base class,
+which is assumed to be required by all domain entities (or aggregates) in
+all domains.
+
 
 ## Project
 
