@@ -82,10 +82,11 @@ suitable AES key (16, 24, or 32 random bytes encoded as Base64).
     # Keep this safe (random bytes encoded with Base64).
     cipher_key = encode_random_bytes(num_bytes=32)
 
-An application object can be constructed with these values
-as constructor argument. The ``uri`` value can alternatively
-be set as environment variable ``DB_URI``. The ``cipher_key``
-value can be set as environment variable ``CIPHER_KEY``.
+These values can be given to the application object as
+constructor arguments ``uri`` and ``cipher_key``. Alternatively,
+the ``uri`` value can be set as environment variable ``DB_URI``,
+and the ``cipher_key`` value can be set as environment variable
+``CIPHER_KEY``.
 
 .. code:: python
 
@@ -97,9 +98,9 @@ value can be set as environment variable ``CIPHER_KEY``.
     )
 
 
-Alternatively to using the ``uri`` argument, an already existing SQLAlchemy
-session can be passed in with the ``session`` argument, for example
-a session object provided by a framework such as
+As an alternative to providing a URI, an already existing SQLAlchemy
+session can be passed in with a constructor argument called ``session``,
+for example a session object provided by a framework extension such as
 `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
 
 Once constructed, the ``SimpleApplication`` will have an event store, provided
