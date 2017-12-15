@@ -35,7 +35,9 @@ class DjangoActiveRecordStrategy(RelationalActiveRecordStrategy):
 
     def _write_active_records(self, active_records, sequenced_items):
         try:
-            self.active_record_class.objects.bulk_create(active_records)
+            with transaction.atomic(self.active_record_class.objects.db):
+                for active_record in active_records:
+                    active_record.save()
         except IntegrityError as e:
             raise SequencedItemConflict(e)
 
