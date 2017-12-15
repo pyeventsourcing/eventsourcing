@@ -8,21 +8,22 @@ mechanism for storing events as sequences of items.
 The entire mechanism is encapsulated by the library's
 :class:`~eventsourcing.infrastructure.eventstore.EventStore`
 class. The event store uses a "sequenced item mapper" and an
-"active record strategy". The sequenced item mapper and the
-active record strategy share a common "sequenced item" type.
-The sequenced item mapper converts objects such as domain
-events to sequenced items, and the active record strategy
-writes sequenced items to a database.
+"active record strategy". The sequenced item mapper converts
+objects such as domain events to sequenced items, and the
+active record strategy writes sequenced items to database
+records. The sequenced item mapper and the
+active record strategy operate by reflection of a common
+"sequenced item" type.
 
 .. contents:: :local:
 
 
-Sequenced items
-===============
+Sequenced item type
+====================
 
-A sequenced item type provides a common persistence model across the
-library's infrastructure layer. For the library, a sequenced item class
-is declared as a namedtuple. Below is an example of a sequenced item namedtuple.
+For the library, a sequenced item type is declared as a namedtuple.
+
+Below is an example of a sequenced item namedtuple.
 
 .. code:: python
 
@@ -36,7 +37,7 @@ sequence. The third field represents a topic to which the item pertains. And the
 field represents the data associated with the item.
 
 From the point of view of the library code, the field names of a sequenced item namedtuple
-are arbitrary, however a suitable database table will have matching column names.
+can vary, however a suitable database table will have matching column names.
 
 
 SequencedItem namedtuple
@@ -352,7 +353,7 @@ will be encrypted in transit to the database, at rest in the database, and in al
 Active record strategy
 ======================
 
-The event store uses an active record strategy to write sequenced items as database records.
+The event store uses an active record strategy to write sequenced items to database records.
 
 The library has an abstract base class ``AbstractActiveRecordStrategy`` with abstract methods ``append()`` and
 ``get_items()``, which can be used on concrete implementations to read and write sequenced items in a
@@ -366,21 +367,15 @@ sequenced item namedtuple.
 SQLAlchemy
 ----------
 
+The library has an active record strategy for SQLAlchemy provided by the object class
+``SQLAlchemyRecordStrategy``.
+
 To run the example below, please install the library with the
 'sqlalchemy' option.
 
 .. code::
 
     $ pip install eventsourcing[sqlalchemy]
-
-
-The library has an active record strategy for SQLAlchemy provided by the object class
-``SQLAlchemyRecordStrategy``.
-
-
-.. code:: python
-
-    from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordStrategy
 
 
 The library provides active record classes for SQLAlchemy, such as ``IntegerSequencedRecord`` and
@@ -446,8 +441,9 @@ framework.
 With the database setup, the ``SQLAlchemyRecordStrategy`` can be constructed,
 and used to store events using SQLAlchemy.
 
-
 .. code:: python
+
+    from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordStrategy
 
     active_record_strategy = SQLAlchemyRecordStrategy(
         sequenced_item_class=StoredEvent,
@@ -653,15 +649,6 @@ can be used to store events using the Django ORM.
     assert results[0] == stored_event1
 
 
-Please note, if you want to use the Django ORM as infrastructure for
-an event sourced application, you can of course use the application
-classes described in the :doc:`application </topics/application>`
-section of this documentation.
-
-See also the :doc:`deployment </topics/deployment>` section for
-information about deploying an event sourced application with Django.
-
-
 Django backends
 ~~~~~~~~~~~~~~~
 
@@ -676,6 +663,10 @@ Cassandra
 The library has an active record strategy for
 `Apache Cassandra <http://cassandra.apache.org/>`__
 provided by the ``CassandraRecordStrategy`` class.
+
+.. code:: python
+
+    from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordStrategy
 
 To run the example below, please install the library with the
 'cassandra' option.
