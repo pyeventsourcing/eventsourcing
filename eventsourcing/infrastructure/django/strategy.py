@@ -9,9 +9,6 @@ from eventsourcing.infrastructure.relationalactiverecordstrategy import Relation
 
 class DjangoActiveRecordStrategy(RelationalActiveRecordStrategy):
     def __init__(self, convert_position_float_to_decimal=False, *args, **kwargs):
-        self.convert_position_float_to_decimal = convert_position_float_to_decimal
-        super(DjangoActiveRecordStrategy, self).__init__(*args, **kwargs)
-
         # Somehow when the Decimal converter is registered with sqlite3,
         # decimal values that are stored successfully with 6 places are
         # returned as bytes rounded to 5 places, before being converted
@@ -25,11 +22,20 @@ class DjangoActiveRecordStrategy(RelationalActiveRecordStrategy):
         # is not involved, so there's nothing that Django is doing to break sqlite3.
         # And the reason SQLAlchemy works is because it doesn't register converters,
         # but rather manages the conversion to Decimal itself.
+        # If the converter is cancelled, Decimal position values
+        # are returned by Django as floats with original
+        # accuracy so we just need to convert them to Decimal
+        # values. The retrieved position values are not
+        # used at all, and in all cases appear to be written in
+        # the database with original precision, this issue only
+        # affects one of the library's test cases, which should
+        # perhaps be changed to avoid checking retrieved positions.
+        self.convert_position_float_to_decimal = convert_position_float_to_decimal
+        super(DjangoActiveRecordStrategy, self).__init__(*args, **kwargs)
 
     def _write_active_records(self, active_records, sequenced_items):
         try:
-            with transaction.atomic():
-                self.active_record_class.objects.bulk_create(active_records)
+            self.active_record_class.objects.bulk_create(active_records)
         except IntegrityError as e:
             raise SequencedItemConflict(e)
 
@@ -102,18 +108,7 @@ class DjangoActiveRecordStrategy(RelationalActiveRecordStrategy):
         # Need to convert floats to decimals if Django's sqlite3
         # Decimal converter has been cancelled. Which it is in
         # the test for this class, so that the positions
-        # can be checked accurately, despite Django registering a
-        # converter which causes decimal places to be
-        # reduced from 6 to 5 in the bytes that is passed
-        # to the converter within the sqlite3 binary. If
-        # the converter is cancelled, Decimal position values
-        # are returned by Django as floats with original
-        # accuracy so we just need to convert them to Decimal
-        # values. The retrieved position values are not
-        # used at all, and in all cases appear to be written in
-        # the database with original precision, this issue only
-        # affects one of the library's test cases, which should
-        # perhaps be changed to avoid checking retrieved positions.
+        # can be checked accurately.
         if self.convert_position_float_to_decimal:
             position_field_name = self.field_names.position
             position_value = kwargs[position_field_name]
