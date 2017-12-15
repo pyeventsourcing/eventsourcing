@@ -205,7 +205,7 @@ namedtuple, can be passed with the constructor arg ``sequenced_item_class``.
 
 
 Since the alternative ``StoredEvent`` namedtuple can be used instead of the default
-``SequencedItem`` namedtuple, so it is possible to use a custom namedtuple.
+``SequencedItem`` namedtuple, so it is possible to use a custom named tuple.
 Which alternative you use for your project depends on your preferences for the names
 in the your domain events and your persistence model.
 
@@ -292,10 +292,8 @@ uses the AES cipher from the Python Cryptography Toolkit, as forked by
 the actively maintained `PyCryptodome project <https://pycryptodome.readthedocs.io/>`__.
 
 The ``AESCipher`` class uses AES in GCM mode, which is a padding-less,
-authenticated encryption mode. Unlike CBC, GCM doesn't need padding so
-avoids potential padding oracle attacks. GCM will be faster than EAX
-on x86 architectures, especially those with AES opcodes. The other AES
-modes aren't supported by this class, at the moment.
+authenticated encryption mode. Other AES modes aren't supported by this
+class, at the moment.
 
 The ``AESCipher`` constructor arg ``cipher_key`` is required. The key must
 be either 16, 24, or 32 random bytes (128, 192, or 256 bits). Longer keys
