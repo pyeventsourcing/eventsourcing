@@ -8,12 +8,13 @@ mechanism for storing events as sequences of items.
 The entire mechanism is encapsulated by the library's
 :class:`~eventsourcing.infrastructure.eventstore.EventStore`
 class. The event store uses a "sequenced item mapper" and an
-"active record strategy". The sequenced item mapper converts
-objects such as domain events to sequenced items, and the
-active record strategy writes sequenced items to database
-records. The sequenced item mapper and the
-active record strategy operate by reflection of a common
-"sequenced item" type.
+"active record strategy".
+
+The sequenced item mapper converts objects such as domain
+events to sequenced items, and the active record strategy
+writes sequenced items to database records. The sequenced
+item mapper and the active record strategy operate by
+reflection off a common sequenced item type.
 
 .. contents:: :local:
 
@@ -21,9 +22,9 @@ active record strategy operate by reflection of a common
 Sequenced item type
 ====================
 
-For the library, a sequenced item type is declared as a namedtuple.
+Sequenced item types are declared as named tuples (``namedtuple`` from ``collections``).
 
-Below is an example of a sequenced item namedtuple.
+Below is an example of a sequenced item named tuple.
 
 .. code:: python
 
@@ -31,19 +32,19 @@ Below is an example of a sequenced item namedtuple.
 
     SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data'])
 
-The first field of a sequenced item namedtuple represents the identity of a sequence
-to which an item belongs. The second field represents the position of the item in its
-sequence. The third field represents a topic to which the item pertains. And the fourth
-field represents the data associated with the item.
+The fields can be named differently, however a suitable database
+table will have matching column names.
 
-From the point of view of the library code, the field names of a sequenced item namedtuple
-can vary, however a suitable database table will have matching column names.
+Whatever the names of the fields, the first field of a sequenced item will represent the
+identity of a sequence to which an item belongs. The second field will represent the
+position of the item in its sequence. The third field will represent a topic to which
+the item pertains. And the fourth field will represent the data associated with the item.
 
 
 SequencedItem namedtuple
 ------------------------
 
-The library provides a sequenced item namedtuple called
+The library provides a sequenced item named tuple called
 :class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`.
 
 .. code:: python
@@ -53,14 +54,15 @@ The library provides a sequenced item namedtuple called
 
 Like in the example above, the library's ``SequencedItem`` namedtuple has four fields. The
 ``sequence_id`` identifies the sequence in which the item belongs. The ``position``
-identifies the position of the item in its sequence. The ``topic`` identifies the
+identifies the position of the item in its sequence. The ``topic`` identifies a
 dimension of concern to which the item pertains. The ``data`` holds the data associated
 with the item.
 
-A sequenced item is just a namedtuple, and can be used in the normal way. In the example
-below, a sequenced item is constructed using a UUID to identify a sequence. The item
-is positioned at the start of the sequence (position 0). It has a domain event topic,
-and it has a JSON object that states the value of ``foo`` is ``bar``.
+A sequenced item is just a tuple, and can be used as such. In the example
+below, a sequenced item happens to be constructed with a UUID to identify
+a sequence. The item has also been given an integer position value, it has a
+topic that happens to correspond to a domain event class in the library. The
+item's data is a JSON object in which ``foo`` is ``bar``.
 
 .. code:: python
 
@@ -74,6 +76,14 @@ and it has a JSON object that states the value of ``foo`` is ``bar``.
         topic='eventsourcing.domain.model.events#DomainEvent',
         data='{"foo":"bar"}',
     )
+
+
+As expected, the attributes of the sequenced item object are
+simply the values given when the object was constructed.
+
+.. code:: python
+
+
     assert sequenced_item1.sequence_id == sequence1
     assert sequenced_item1.position == 0
     assert sequenced_item1.topic == 'eventsourcing.domain.model.events#DomainEvent'
@@ -83,7 +93,7 @@ and it has a JSON object that states the value of ``foo`` is ``bar``.
 StoredEvent namedtuple
 ----------------------
 
-As an alternative, the library provides a sequenced item namedtuple called ``StoredEvent``. The attributes of the
+The library provides a sequenced item named tuple called ``StoredEvent``. The attributes of the
 ``StoredEvent`` namedtuple are ``originator_id``, ``originator_version``, ``event_type``, and ``state``.
 
 The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to ``sequence_id`` above.
@@ -126,7 +136,7 @@ The library provides a sequenced item mapper object class called ``SequencedItem
 
 
 The ``SequencedItemMapper`` has a constructor arg ``sequenced_item_class``, which defaults to the library's
-sequenced item namedtuple ``SequencedItem``.
+sequenced item named tuple ``SequencedItem``.
 
 
 .. code:: python
@@ -144,7 +154,7 @@ The method ``from_sequenced_item()`` can be used to convert sequenced item objec
     assert domain_event.foo == 'bar'
 
 
-The method ``to_sequenced_item()`` can be used to convert application-level objects to sequenced item namedtuples.
+The method ``to_sequenced_item()`` can be used to convert application-level objects to sequenced item named tuples.
 
 
 .. code:: python
@@ -152,7 +162,7 @@ The method ``to_sequenced_item()`` can be used to convert application-level obje
     assert sequenced_item_mapper.to_sequenced_item(domain_event).data == sequenced_item1.data
 
 
-If the names of the first two fields of the sequenced item namedtuple (e.g. ``sequence_id`` and ``position``) do not
+If the names of the first two fields of the sequenced item named tuple (e.g. ``sequence_id`` and ``position``) do not
 match the names of the attributes of the application-level object which identify a sequence and a position (e.g.
 ``originator_id`` and ``originator_version``) then the attribute names can be given to the sequenced item mapper
 using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
@@ -179,7 +189,7 @@ using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
     assert sequenced_item_mapper.to_sequenced_item(domain_event1).sequence_id == aggregate1
 
 
-Alternatively, a sequenced item namedtuple type that is different from the
+Alternatively, a sequenced item named tuple type that is different from the
 default ``SequencedItem`` namedtuple, for example the library's ``StoredEvent``
 namedtuple, can be passed with the constructor arg ``sequenced_item_class``.
 
@@ -361,7 +371,7 @@ database.
 
 An active record strategy is constructed with a ``sequenced_item_class`` and a matching
 ``active_record_class``. The field names of a suitable active record class will match the field names of the
-sequenced item namedtuple.
+sequenced item named tuple.
 
 
 SQLAlchemy
@@ -786,7 +796,7 @@ active record strategy, both are discussed in detail in the sections above.
 
 
 The event store's ``append()`` method can append a domain event to its sequence. The event store uses the
-``sequenced_item_mapper`` to obtain a sequenced item namedtuple from a domain events, and it uses the
+``sequenced_item_mapper`` to obtain a sequenced item named tuple from a domain events, and it uses the
 ``active_record_strategy`` to write a sequenced item to a database.
 
 In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at position ``1``.
@@ -931,7 +941,7 @@ can be used to construct an event store that uses the SQLAlchemy classes.
     event_store = factory.construct_sqlalchemy_eventstore(session=datastore.session)
 
 
-By default, the event store is constructed with the ``StoredEvent`` sequenced item namedtuple,
+By default, the event store is constructed with the ``StoredEvent`` sequenced item named tuple,
 and the active record class ``StoredEventRecord``. The optional args ``sequenced_item_class``
 and ``active_record_class`` can be used to construct different kinds of event store.
 
