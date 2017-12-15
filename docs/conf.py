@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
+# import os
 import sys
 import types
 from os.path import abspath, dirname
 
-import django
+# import django
 import sphinx_rtd_theme
 
 sys.path.append(str(dirname(dirname(abspath(__file__)))))
@@ -14,7 +14,7 @@ sys.path.append(str(dirname(dirname(abspath(__file__)))))
 from eventsourcing import __version__
 
 
-os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
+# os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
 
 
 # django.setup()

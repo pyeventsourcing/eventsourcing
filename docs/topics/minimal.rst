@@ -445,10 +445,10 @@ alternative active record strategy.
 .. code:: python
 
     from eventsourcing.infrastructure.eventstore import EventStore
-    from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyActiveRecordStrategy
+    from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordStrategy
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
-    active_record_strategy = SQLAlchemyActiveRecordStrategy(
+    active_record_strategy = SQLAlchemyRecordStrategy(
         session=datastore.session,
         active_record_class=IntegerSequencedRecord,
     )
@@ -591,7 +591,7 @@ and unsubscribe from receiving further domain events.
         def __init__(self, session):
             # Construct event store.
             self.event_store = EventStore(
-                active_record_strategy=SQLAlchemyActiveRecordStrategy(
+                active_record_strategy=SQLAlchemyRecordStrategy(
                     active_record_class=IntegerSequencedRecord,
                     session=session,
                 ),

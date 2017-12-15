@@ -7,7 +7,7 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.models import StoredEventRecord, Base
-from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyActiveRecordStrategy
+from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
@@ -21,7 +21,7 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 class ExampleApplicationWithAlternativeSequencedItemType(object):
     def __init__(self, session):
         self.event_store = EventStore(
-            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+            active_record_strategy=SQLAlchemyRecordStrategy(
                 session=session,
                 active_record_class=StoredEventRecord,
                 sequenced_item_class=StoredEvent,

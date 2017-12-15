@@ -8,7 +8,7 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 from eventsourcing.infrastructure.sqlalchemy.models import SnapshotRecord
-from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyActiveRecordStrategy
+from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
 from eventsourcing.utils.cipher.aes import AESCipher
@@ -99,7 +99,7 @@ class SnapshottingApplication(SimpleApplication):
         # Setup snapshot store, using datastore session, and SnapshotRecord class.
         # Todo: Refactor this into a new create_sqlalchemy_snapshotstore() function.
         self.snapshot_store = EventStore(
-            SQLAlchemyActiveRecordStrategy(
+            SQLAlchemyRecordStrategy(
                 session=self.datastore.session,
                 active_record_class=self.snapshot_record_class or SnapshotRecord
             ),

@@ -402,7 +402,7 @@ Django ORM
 ~~~~~~~~~~
 
 If you wish to use eventsourcing with Django ORM, the simplest way is having
-your application's event store use this library's ``DjangoActiveRecordStrategy``,
+your application's event store use this library's ``DjangoRecordStrategy``,
 and making sure the active record classes (Django models) are included in your Django
 project. See :doc:`infrastructure doc </topics/infrastructure>` for more information.
 

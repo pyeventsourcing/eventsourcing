@@ -376,12 +376,12 @@ To run the example below, please install the library with the
 
 
 The library has an active record strategy for SQLAlchemy provided by the object class
-``SQLAlchemyActiveRecordStrategy``.
+``SQLAlchemyRecordStrategy``.
 
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyActiveRecordStrategy
+    from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordStrategy
 
 
 The library provides active record classes for SQLAlchemy, such as ``IntegerSequencedRecord`` and
@@ -438,19 +438,19 @@ can be used to setup the database connection and the tables.
     datastore.setup_tables()
 
 
-As well as ``sequenced_item_class`` and a matching ``active_record_class``, the ``SQLAlchemyActiveRecordStrategy``
+As well as ``sequenced_item_class`` and a matching ``active_record_class``, the ``SQLAlchemyRecordStrategy``
 requires a scoped session object, passed using the constructor arg ``session``. For convenience, the
 ``SQLAlchemyDatabase`` has a thread-scoped session facade set as its a ``session`` attribute. You may
 wish to use a different scoped session facade, such as a request-scoped session object provided by a Web
 framework.
 
-With the database setup, the ``SQLAlchemyActiveRecordStrategy`` can be constructed,
+With the database setup, the ``SQLAlchemyRecordStrategy`` can be constructed,
 and used to store events using SQLAlchemy.
 
 
 .. code:: python
 
-    active_record_strategy = SQLAlchemyActiveRecordStrategy(
+    active_record_strategy = SQLAlchemyRecordStrategy(
         sequenced_item_class=StoredEvent,
         active_record_class=StoredEventRecord,
         session=datastore.session,
@@ -550,7 +550,7 @@ Django ORM
 ----------
 
 The library has an active record strategy for the Django ORM provided by
-``DjangoActiveRecordStrategy`` class.
+``DjangoRecordStrategy`` class.
 
 To run the example below, please install the library with the
 'django' option.
@@ -560,7 +560,7 @@ To run the example below, please install the library with the
     $ pip install eventsourcing[django]
 
 
-For the ``DjangoActiveRecordStrategy``, the ``IntegerSequencedRecord``
+For the ``DjangoRecordStrategy``, the ``IntegerSequencedRecord``
 from ``eventsourcing.infrastructure.django.models`` matches the ``SequencedItem``
 namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
 namedtuple. There is also a ``TimestampSequencedRecord`` and a ``SnapshotRecord``.
@@ -632,15 +632,15 @@ before each test by calling it in the ``setUp()`` method of a test case.
     call_command('migrate')
 
 
-So long as a table exists for its active record class, the ``DjangoActiveRecordStrategy``
+So long as a table exists for its active record class, the ``DjangoRecordStrategy``
 can be used to store events using the Django ORM.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.django.strategy import DjangoActiveRecordStrategy
+    from eventsourcing.infrastructure.django.strategy import DjangoRecordStrategy
     from eventsourcing.infrastructure.django.models import StoredEventRecord
 
-    django_active_record_strategy = DjangoActiveRecordStrategy(
+    django_active_record_strategy = DjangoRecordStrategy(
         active_record_class=StoredEventRecord,
         sequenced_item_class=StoredEvent,
     )
@@ -676,7 +676,7 @@ Cassandra
 
 The library has an active record strategy for
 `Apache Cassandra <http://cassandra.apache.org/>`__
-provided by the ``CassandraActiveRecordStrategy`` class.
+provided by the ``CassandraRecordStrategy`` class.
 
 To run the example below, please install the library with the
 'cassandra' option.
@@ -693,7 +693,7 @@ quickly, set the environment variable ``CASS_DRIVER_NO_CYTHON``.
     $ CASS_DRIVER_NO_CYTHON=1 pip install eventsourcing[cassandra]
 
 
-For the ``CassandraActiveRecordStrategy``, the ``IntegerSequencedRecord``
+For the ``CassandraRecordStrategy``, the ``IntegerSequencedRecord``
 from ``eventsourcing.infrastructure.cassandra.models`` matches the ``SequencedItem``
 namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
 namedtuple.  There is also a ``TimestampSequencedRecord`` and a ``SnapshotRecord``.
@@ -717,14 +717,14 @@ for information about configuring away from default settings.
     cassandra_datastore.setup_tables()
 
 
-With the database setup, the ``CassandraActiveRecordStrategy`` can be constructed,
+With the database setup, the ``CassandraRecordStrategy`` can be constructed,
 and used to store events using Apache Cassandra.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.cassandra.strategy import CassandraActiveRecordStrategy
+    from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordStrategy
 
-    cassandra_active_record_strategy = CassandraActiveRecordStrategy(
+    cassandra_active_record_strategy = CassandraRecordStrategy(
         active_record_class=StoredEventRecord,
         sequenced_item_class=StoredEvent,
     )

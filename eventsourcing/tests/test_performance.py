@@ -15,9 +15,9 @@ from eventsourcing.tests.example_application_tests.base import WithExampleApplic
 from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import \
     WithEncryption
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
-    WithCassandraActiveRecordStrategies
+    WithCassandraRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
-    WithSQLAlchemyActiveRecordStrategies
+    WithSQLAlchemyRecordStrategies
 
 
 @notquick
@@ -238,7 +238,7 @@ class PerformanceTestCase(WithExampleApplication):
 
 
 @notquick
-class TestCassandraPerformance(WithCassandraActiveRecordStrategies, PerformanceTestCase):
+class TestCassandraPerformance(WithCassandraRecordStrategies, PerformanceTestCase):
     pass
 
 
@@ -248,5 +248,5 @@ class TestEncryptionPerformance(WithEncryption, TestCassandraPerformance):
 
 
 @notquick
-class TestSQLAlchemyPerformance(WithSQLAlchemyActiveRecordStrategies, PerformanceTestCase):
+class TestSQLAlchemyPerformance(WithSQLAlchemyRecordStrategies, PerformanceTestCase):
     pass

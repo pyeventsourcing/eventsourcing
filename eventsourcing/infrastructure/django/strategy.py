@@ -4,10 +4,10 @@ import six
 from django.db import IntegrityError, OperationalError, transaction
 
 from eventsourcing.exceptions import ProgrammingError, SequencedItemConflict
-from eventsourcing.infrastructure.relationalactiverecordstrategy import RelationalActiveRecordStrategy
+from eventsourcing.infrastructure.base import RelationalActiveRecordStrategy
 
 
-class DjangoActiveRecordStrategy(RelationalActiveRecordStrategy):
+class DjangoRecordStrategy(RelationalActiveRecordStrategy):
     def __init__(self, convert_position_float_to_decimal=False, *args, **kwargs):
         # Somehow when the Decimal converter is registered with sqlite3,
         # decimal values that are stored successfully with 6 places are
@@ -31,7 +31,7 @@ class DjangoActiveRecordStrategy(RelationalActiveRecordStrategy):
         # affects one of the library's test cases, which should
         # perhaps be changed to avoid checking retrieved positions.
         self.convert_position_float_to_decimal = convert_position_float_to_decimal
-        super(DjangoActiveRecordStrategy, self).__init__(*args, **kwargs)
+        super(DjangoRecordStrategy, self).__init__(*args, **kwargs)
 
     def _write_active_records(self, active_records, sequenced_items):
         try:

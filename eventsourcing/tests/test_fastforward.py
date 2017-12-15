@@ -3,10 +3,10 @@
 # from eventsourcing.exceptions import ConcurrencyError, SequencedItemConflict
 # from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
 # from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
-#     WithSQLAlchemyActiveRecordStrategies
+#     WithSQLAlchemyRecordStrategies
 #
 #
-# class TestFastForward(WithSQLAlchemyActiveRecordStrategies, ExampleApplicationTestCase):
+# class TestFastForward(WithSQLAlchemyRecordStrategies, ExampleApplicationTestCase):
 #
 #     def test(self):
 #         with self.construct_application() as app:

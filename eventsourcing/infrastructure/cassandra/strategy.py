@@ -7,7 +7,7 @@ from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.base import AbstractActiveRecordStrategy
 
 
-class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
+class CassandraRecordStrategy(AbstractActiveRecordStrategy):
     def append(self, sequenced_item_or_items):
         if isinstance(sequenced_item_or_items, list):
             if len(sequenced_item_or_items):

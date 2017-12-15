@@ -1,6 +1,7 @@
-from eventsourcing.infrastructure.cassandra.models import IntegerSequencedRecord, SnapshotRecord, TimestampSequencedRecord
+from eventsourcing.infrastructure.cassandra.models import IntegerSequencedRecord, SnapshotRecord, \
+    TimestampSequencedRecord
 
-from eventsourcing.infrastructure.cassandra.strategy import CassandraActiveRecordStrategy
+from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordStrategy
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \
@@ -9,39 +10,39 @@ from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTe
 
 
 def construct_integer_sequenced_active_record_strategy():
-    return CassandraActiveRecordStrategy(
+    return CassandraRecordStrategy(
         active_record_class=IntegerSequencedRecord,
         sequenced_item_class=SequencedItem,
     )
 
 
 def construct_timestamp_sequenced_active_record_strategy():
-    return CassandraActiveRecordStrategy(
+    return CassandraRecordStrategy(
         active_record_class=TimestampSequencedRecord,
         sequenced_item_class=SequencedItem,
     )
 
 
 def construct_snapshot_active_record_strategy():
-    return CassandraActiveRecordStrategy(
+    return CassandraRecordStrategy(
         active_record_class=SnapshotRecord,
         sequenced_item_class=SequencedItem,
     )
 
 
-class TestCassandraActiveRecordStrategyWithIntegerSequences(CassandraDatastoreTestCase,
-                                                            IntegerSequencedItemTestCase):
+class TestCassandraRecordStrategyWithIntegerSequences(CassandraDatastoreTestCase,
+                                                      IntegerSequencedItemTestCase):
     def construct_active_record_strategy(self):
         return construct_integer_sequenced_active_record_strategy()
 
 
-class TestCassandraActiveRecordStrategyWithTimestampSequences(CassandraDatastoreTestCase,
-                                                              TimestampSequencedItemTestCase):
+class TestCassandraRecordStrategyWithTimestampSequences(CassandraDatastoreTestCase,
+                                                        TimestampSequencedItemTestCase):
     def construct_active_record_strategy(self):
         return construct_timestamp_sequenced_active_record_strategy()
 
 
-class WithCassandraActiveRecordStrategies(CassandraDatastoreTestCase, WithActiveRecordStrategies):
+class WithCassandraRecordStrategies(CassandraDatastoreTestCase, WithActiveRecordStrategies):
     def construct_entity_active_record_strategy(self):
         return construct_integer_sequenced_active_record_strategy()
 
@@ -52,11 +53,11 @@ class WithCassandraActiveRecordStrategies(CassandraDatastoreTestCase, WithActive
         return construct_snapshot_active_record_strategy()
 
 
-class TestSimpleSequencedItemIteratorWithCassandra(WithCassandraActiveRecordStrategies,
+class TestSimpleSequencedItemIteratorWithCassandra(WithCassandraRecordStrategies,
                                                    SimpleSequencedItemteratorTestCase):
     pass
 
 
-class TestThreadedSequencedItemIteratorWithCassandra(WithCassandraActiveRecordStrategies,
+class TestThreadedSequencedItemIteratorWithCassandra(WithCassandraRecordStrategies,
                                                      ThreadedSequencedItemIteratorTestCase):
     pass

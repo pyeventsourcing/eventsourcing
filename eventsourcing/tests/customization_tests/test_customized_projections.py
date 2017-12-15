@@ -2,7 +2,7 @@ from functools import reduce
 
 from eventsourcing.tests.example_application_tests.base import WithExampleApplication
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
-    WithSQLAlchemyActiveRecordStrategies
+    WithSQLAlchemyRecordStrategies
 
 
 # This tests using all the domain events in the application to project
@@ -10,7 +10,7 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_stra
 
 # Todo: Support stopping and resuming when iterating over all events.
 
-class TestGetAllEventFromSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithExampleApplication):
+class TestGetAllEventFromSQLAlchemy(WithSQLAlchemyRecordStrategies, WithExampleApplication):
     drop_tables = True
 
     def test(self):

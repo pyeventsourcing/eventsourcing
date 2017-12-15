@@ -5,7 +5,7 @@ from eventsourcing.domain.model.entity import TimeuuidedEntity
 from eventsourcing.domain.model.events import EventWithTimeuuid
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.cassandra.models import TimeuuidSequencedRecord
-from eventsourcing.infrastructure.cassandra.strategy import CassandraActiveRecordStrategy
+from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordStrategy
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
@@ -48,7 +48,7 @@ class ExampleEntity(TimeuuidedEntity):
 class ExampleApplicationWithTimeuuidSequencedItems(object):
     def __init__(self):
         self.event_store = EventStore(
-            active_record_strategy=CassandraActiveRecordStrategy(
+            active_record_strategy=CassandraRecordStrategy(
                 active_record_class=TimeuuidSequencedRecord,
                 sequenced_item_class=SequencedItem,
             ),

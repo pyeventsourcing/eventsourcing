@@ -11,7 +11,7 @@ from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyActiveRecordStrategy
+from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordStrategy
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.models import Base
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
@@ -68,7 +68,7 @@ class ExtendedSequencedItemMapper(SequencedItemMapper):
 class ExampleApplicationWithExtendedSequencedItemType(object):
     def __init__(self, session):
         self.event_store = EventStore(
-            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+            active_record_strategy=SQLAlchemyRecordStrategy(
                 session=session,
                 active_record_class=ExtendedIntegerSequencedRecord,
                 sequenced_item_class=ExtendedSequencedItem,

@@ -11,7 +11,7 @@ django.setup()
 
 from django.test import TransactionTestCase
 
-from eventsourcing.infrastructure.django.strategy import DjangoActiveRecordStrategy
+from eventsourcing.infrastructure.django.strategy import DjangoRecordStrategy
 
 from eventsourcing.infrastructure.django.models import IntegerSequencedRecord, SnapshotRecord, \
     TimestampSequencedRecord
@@ -30,19 +30,19 @@ class DjangoTestCase(TransactionTestCase):
         return self.construct_integer_sequenced_active_record_strategy()
 
     def construct_snapshot_active_record_strategy(self):
-        return DjangoActiveRecordStrategy(
+        return DjangoRecordStrategy(
             active_record_class=SnapshotRecord,
             sequenced_item_class=SequencedItem,
         )
 
     def construct_integer_sequenced_active_record_strategy(self):
-        return DjangoActiveRecordStrategy(
+        return DjangoRecordStrategy(
             active_record_class=IntegerSequencedRecord,
             sequenced_item_class=SequencedItem,
         )
 
     def construct_timestamp_sequenced_active_record_strategy(self):
-        return DjangoActiveRecordStrategy(
+        return DjangoRecordStrategy(
             active_record_class=TimestampSequencedRecord,
             sequenced_item_class=SequencedItem,
             convert_position_float_to_decimal=self.cancel_sqlite3_decimal_converter
@@ -50,12 +50,12 @@ class DjangoTestCase(TransactionTestCase):
 
 
 # @skipIf(six.PY2, 'Django 2.0 does not support Python 2.7')  # using 1.11
-class TestDjangoActiveRecordStrategyWithIntegerSequences(DjangoTestCase, IntegerSequencedItemTestCase):
+class TestDjangoRecordStrategyWithIntegerSequences(DjangoTestCase, IntegerSequencedItemTestCase):
     def construct_active_record_strategy(self):
         return self.construct_integer_sequenced_active_record_strategy()
 
 
-class TestDjangoActiveRecordStrategyWithTimestampSequences(DjangoTestCase, TimestampSequencedItemTestCase):
+class TestDjangoRecordStrategyWithTimestampSequences(DjangoTestCase, TimestampSequencedItemTestCase):
     cancel_sqlite3_decimal_converter = True
 
     def construct_active_record_strategy(self):
@@ -63,21 +63,21 @@ class TestDjangoActiveRecordStrategyWithTimestampSequences(DjangoTestCase, Times
 
 
 # def construct_timestamp_sequenced_active_record_strategy():
-#     return DjangoActiveRecordStrategy(
+#     return DjangoRecordStrategy(
 #         active_record_class=TimestampSequencedRecord,
 #         sequenced_item_class=SequencedItem,
 #     )
 #
 #
 # def construct_snapshot_active_record_strategy():
-#     return DjangoActiveRecordStrategy(
+#     return DjangoRecordStrategy(
 #         active_record_class=SnapshotRecord,
 #         sequenced_item_class=SequencedItem,
 #     )
 #
 
 
-# class WithDjangoActiveRecordStrategies(DjangoTestCase, WithActiveRecordStrategies):
+# class WithDjangoRecordStrategies(DjangoTestCase, WithActiveRecordStrategies):
 #     def construct_entity_active_record_strategy(self):
 #         return construct_integer_sequenced_active_record_strategy()
 #
@@ -88,12 +88,12 @@ class TestDjangoActiveRecordStrategyWithTimestampSequences(DjangoTestCase, Times
 #         return construct_snapshot_active_record_strategy()
 #
 
-# class TestSimpleSequencedItemIteratorWithDjango(WithDjangoActiveRecordStrategies,
+# class TestSimpleSequencedItemIteratorWithDjango(WithDjangoRecordStrategies,
 #                                                 SimpleSequencedItemteratorTestCase):
 #     pass
 #
 #
-# class TestThreadedSequencedItemIteratorWithDjango(WithDjangoActiveRecordStrategies,
+# class TestThreadedSequencedItemIteratorWithDjango(WithDjangoRecordStrategies,
 #                                                   ThreadedSequencedItemIteratorTestCase):
 #     pass
 

@@ -4,12 +4,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.relationalactiverecordstrategy import RelationalActiveRecordStrategy
+from eventsourcing.infrastructure.base import RelationalActiveRecordStrategy
 
 
-class SQLAlchemyActiveRecordStrategy(RelationalActiveRecordStrategy):
+class SQLAlchemyRecordStrategy(RelationalActiveRecordStrategy):
     def __init__(self, session, *args, **kwargs):
-        super(SQLAlchemyActiveRecordStrategy, self).__init__(*args, **kwargs)
+        super(SQLAlchemyRecordStrategy, self).__init__(*args, **kwargs)
         self.session = session
 
     def _write_active_records(self, active_records, sequenced_items):

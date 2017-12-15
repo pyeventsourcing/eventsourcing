@@ -4,7 +4,7 @@ from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.cassandra.models import StoredEventRecord
-from eventsourcing.infrastructure.cassandra.strategy import CassandraActiveRecordStrategy
+from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordStrategy
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
@@ -20,7 +20,7 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 class ExampleApplicationWithAlternativeSequencedItemType(object):
     def __init__(self):
         self.event_store = EventStore(
-            active_record_strategy=CassandraActiveRecordStrategy(
+            active_record_strategy=CassandraRecordStrategy(
                 active_record_class=StoredEventRecord,
                 sequenced_item_class=StoredEvent,
             ),

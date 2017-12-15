@@ -10,9 +10,9 @@ from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogR
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
-    WithCassandraActiveRecordStrategies
+    WithCassandraRecordStrategies
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
-    WithSQLAlchemyActiveRecordStrategies
+    WithSQLAlchemyRecordStrategies
 from eventsourcing.utils.times import decimaltimestamp
 
 
@@ -359,9 +359,9 @@ class TimebucketedlogTestCase(WithPersistencePolicies):
             bucket_duration(bucket_size='invalid')
 
 
-class TestLogWithCassandra(WithCassandraActiveRecordStrategies, TimebucketedlogTestCase):
+class TestLogWithCassandra(WithCassandraRecordStrategies, TimebucketedlogTestCase):
     pass
 
 
-class TestLogWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, TimebucketedlogTestCase):
+class TestLogWithSQLAlchemy(WithSQLAlchemyRecordStrategies, TimebucketedlogTestCase):
     pass
