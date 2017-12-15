@@ -695,7 +695,8 @@ quickly, set the environment variable ``CASS_DRIVER_NO_CYTHON``.
 For the ``CassandraRecordStrategy``, the ``IntegerSequencedRecord``
 from ``eventsourcing.infrastructure.cassandra.models`` matches the ``SequencedItem``
 namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
-namedtuple.  There is also a ``TimestampSequencedRecord`` and a ``SnapshotRecord``.
+namedtuple.  There is also a ``TimestampSequencedRecord``, a ``TimeuuidSequencedRecord``,
+and a ``SnapshotRecord``.
 
 
 The ``CassandraDatastore`` and ``CassandraSettings`` can be used in the same was as
