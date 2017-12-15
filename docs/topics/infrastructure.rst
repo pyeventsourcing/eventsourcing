@@ -113,8 +113,8 @@ The ``state`` holds the state of the domain event, and is equivalent to ``data``
 Sequenced item mapper
 =====================
 
-A sequenced item mapper is used by the event store to map between sequenced item namedtuple
-objects and application-level objects such as domain events.
+The event store uses a sequenced item mapper to map between sequenced items
+and application-level objects such as domain events.
 
 The library provides a sequenced item mapper object class called ``SequencedItemMapper``.
 
@@ -178,9 +178,9 @@ using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
     assert sequenced_item_mapper.to_sequenced_item(domain_event1).sequence_id == aggregate1
 
 
-Alternatively, the constructor arg ``sequenced_item_class`` can be set with a sequenced item namedtuple type that is
-different from the default ``SequencedItem`` namedtuple, such as the library's ``StoredEvent`` namedtuple.
-
+Alternatively, a sequenced item namedtuple type that is different from the
+default ``SequencedItem`` namedtuple, for example the library's ``StoredEvent``
+namedtuple, can be passed with the constructor arg ``sequenced_item_class``.
 
 .. code:: python
 
@@ -349,11 +349,10 @@ the item within the application, potentially sensitive information, for example 
 will be encrypted in transit to the database, at rest in the database, and in all backups and other copies.
 
 
-Active records
-==============
+Active record strategy
+======================
 
-An active record strategy (record manager) is used by the event store to read and write sequenced items as database
-records.
+The event store uses an active record strategy to write sequenced items as database records.
 
 The library has an abstract base class ``AbstractActiveRecordStrategy`` with abstract methods ``append()`` and
 ``get_items()``, which can be used on concrete implementations to read and write sequenced items in a
