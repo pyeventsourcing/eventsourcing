@@ -1,7 +1,7 @@
 from eventsourcing.example.application import close_example_application, get_example_application, \
     init_example_application
 from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord
-from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordManager
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 
 

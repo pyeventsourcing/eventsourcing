@@ -9,7 +9,7 @@ from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepo
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord
-from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordManager
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
     WithSQLAlchemyRecordManagers
 from eventsourcing.utils.topic import get_topic

@@ -2,7 +2,7 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
-from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordManager
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
 
 

@@ -4,8 +4,8 @@ from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import TimeuuidedEntity
 from eventsourcing.domain.model.events import EventWithTimeuuid
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
-from eventsourcing.infrastructure.cassandra.models import TimeuuidSequencedRecord
-from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordManager
+from eventsourcing.infrastructure.cassandra.records import TimeuuidSequencedRecord
+from eventsourcing.infrastructure.cassandra.manager import CassandraRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem

@@ -396,7 +396,7 @@ The code below uses the namedtuple ``StoredEvent`` and the active record ``Store
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sqlalchemy.models import StoredEventRecord
+    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
 
 
 Database settings can be configured using ``SQLAlchemySettings``, which is constructed with a ``uri`` connection
@@ -451,7 +451,7 @@ and used to store events using SQLAlchemy.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordManager
+    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 
     record_manager = SQLAlchemyRecordManager(
         sequenced_item_class=StoredEvent,
@@ -640,7 +640,7 @@ can be used to store events using the Django ORM.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.django.strategy import DjangoRecordManager
+    from eventsourcing.infrastructure.django.manager import DjangoRecordManager
     from eventsourcing.infrastructure.django.models import StoredEventRecord
 
     django_record_manager = DjangoRecordManager(
@@ -674,7 +674,7 @@ provided by the ``CassandraRecordManager`` class.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordManager
+    from eventsourcing.infrastructure.cassandra.manager import CassandraRecordManager
 
 To run the example below, please install the library with the
 'cassandra' option.
@@ -706,7 +706,7 @@ for information about configuring away from default settings.
 .. code:: python
 
     from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
-    from eventsourcing.infrastructure.cassandra.models import StoredEventRecord
+    from eventsourcing.infrastructure.cassandra.records import StoredEventRecord
 
     cassandra_datastore = CassandraDatastore(
         settings=CassandraSettings(),
@@ -721,7 +721,7 @@ and used to store events using Apache Cassandra.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordManager
+    from eventsourcing.infrastructure.cassandra.manager import CassandraRecordManager
 
     cassandra_record_manager = CassandraRecordManager(
         record_class=StoredEventRecord,
@@ -956,7 +956,7 @@ record class ``TimestampSequencedRecord``.
 
     from uuid import uuid4
 
-    from eventsourcing.infrastructure.sqlalchemy.models import TimestampSequencedRecord
+    from eventsourcing.infrastructure.sqlalchemy.records import TimestampSequencedRecord
     from eventsourcing.utils.times import decimaltimestamp
 
     # Setup database table for timestamped sequenced items.

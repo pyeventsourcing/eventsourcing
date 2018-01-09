@@ -2,7 +2,7 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord, SnapshotRecord, \
     TimestampSequencedRecord
 
-from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordManager
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \
     SimpleSequencedItemteratorTestCase, ThreadedSequencedItemIteratorTestCase, TimestampSequencedItemTestCase, \

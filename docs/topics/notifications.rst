@@ -156,8 +156,8 @@ directly to an array.
 
     from uuid import uuid4
     from eventsourcing.domain.model.array import BigArray, ItemAssigned
-    from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordManager
-    from eventsourcing.infrastructure.sqlalchemy.models import StoredEventRecord
+    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
     from eventsourcing.infrastructure.eventstore import EventStore
     from eventsourcing.infrastructure.repositories.array import BigArrayRepository

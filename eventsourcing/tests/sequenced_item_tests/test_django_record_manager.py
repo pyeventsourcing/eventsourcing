@@ -11,7 +11,7 @@ django.setup()
 
 from django.test import TransactionTestCase
 
-from eventsourcing.infrastructure.django.strategy import DjangoRecordManager
+from eventsourcing.infrastructure.django.manager import DjangoRecordManager
 
 from eventsourcing.infrastructure.django.models import IntegerSequencedRecord, SnapshotRecord, \
     TimestampSequencedRecord

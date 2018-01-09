@@ -1,7 +1,7 @@
-from eventsourcing.infrastructure.cassandra.models import IntegerSequencedRecord, SnapshotRecord, \
+from eventsourcing.infrastructure.cassandra.records import IntegerSequencedRecord, SnapshotRecord, \
     TimestampSequencedRecord
 
-from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordManager
+from eventsourcing.infrastructure.cassandra.manager import CassandraRecordManager
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \

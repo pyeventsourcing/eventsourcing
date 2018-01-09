@@ -445,7 +445,7 @@ alternative record manager.
 .. code:: python
 
     from eventsourcing.infrastructure.eventstore import EventStore
-    from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordManager
+    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
     record_manager = SQLAlchemyRecordManager(
@@ -518,11 +518,11 @@ The entity can now be retrieved from the repository, using its dictionary-like i
 Sequenced items
 ---------------
 
-Remember that we can always get the sequenced items directly from the active record
-strategy. A sequenced item is tuple containing a serialised representation of the
-domain event. The library class
-:class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem` is a Python namedtuple
-with four fields: ``sequence_id``, ``position``, ``topic``, and ``data``.
+Remember that we can always get the sequenced items directly from the record manager.
+A sequenced item is tuple containing a serialised representation of the domain event.
+The library class :class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`
+is a Python namedtuple with four fields: ``sequence_id``, ``position``, ``topic``,
+and ``data``.
 
 In this example, an event's ``originator_id`` attribute is mapped to the ``sequence_id``
 field, and the event's ``originator_version`` attribute is mapped to the ``position``

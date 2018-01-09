@@ -125,7 +125,7 @@ class TestDocs(TestCase):
                         # Restructured code block normally indented with four spaces.
                         if len(line.strip()):
                             if not line.startswith('    '):
-                                self.fail("Code line needs 4-char indent: {}".format(repr(line)))
+                                self.fail("Code line needs 4-char indent: {}: {}".format(repr(line), doc_path))
                             # Strip four chars of indentation.
                             line = line[4:]
 

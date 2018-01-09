@@ -3,8 +3,8 @@ from uuid import UUID
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
-from eventsourcing.infrastructure.cassandra.models import StoredEventRecord
-from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordManager
+from eventsourcing.infrastructure.cassandra.records import StoredEventRecord
+from eventsourcing.infrastructure.cassandra.manager import CassandraRecordManager
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
