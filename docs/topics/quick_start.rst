@@ -196,8 +196,8 @@ application-level encryption.
         assert last_hash == world.__head__
 
         # Check records are encrypted (values not visible in database).
-        active_record_strategy = app.event_store.active_record_strategy
-        items = active_record_strategy.get_items(world.id)
+        record_manager = app.event_store.record_manager
+        items = record_manager.get_items(world.id)
         for item in items:
             assert item.originator_id == world.id
             assert 'dinosaurs' not in item.state

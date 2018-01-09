@@ -1,7 +1,7 @@
 from eventsourcing.example.application import close_example_application, get_example_application, \
     init_example_application
-from eventsourcing.infrastructure.sqlalchemy.models import IntegerSequencedRecord
-from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordStrategy
+from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord
+from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordManager
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 
 
@@ -24,8 +24,8 @@ class TestExampleApplicationSingleInstanceFunctions(SQLAlchemyDatastoreTestCase)
     def test(self):
         self.datastore.setup_connection()
         self.datastore.setup_tables()
-        active_record_strategy = SQLAlchemyRecordStrategy(
-            active_record_class=IntegerSequencedRecord,
+        record_manager = SQLAlchemyRecordManager(
+            record_class=IntegerSequencedRecord,
             session=self.datastore.session,
         )
 
@@ -35,13 +35,13 @@ class TestExampleApplicationSingleInstanceFunctions(SQLAlchemyDatastoreTestCase)
 
         # Construct single instance.
         init_example_application(
-            entity_active_record_strategy=active_record_strategy
+            entity_record_manager=record_manager
         )
 
         # Can't construct single instance twice.
         with self.assertRaises(AssertionError):
             init_example_application(
-                entity_active_record_strategy=active_record_strategy
+                entity_record_manager=record_manager
             )
 
         # Get the single instance.
@@ -58,13 +58,13 @@ class TestExampleApplicationSingleInstanceFunctions(SQLAlchemyDatastoreTestCase)
 
         # Construct single instance.
         init_example_application(
-            entity_active_record_strategy=active_record_strategy
+            entity_record_manager=record_manager
         )
 
         # Can't construct single instance twice.
         with self.assertRaises(AssertionError):
             init_example_application(
-                entity_active_record_strategy=active_record_strategy
+                entity_record_manager=record_manager
             )
 
         # Get the single instance.

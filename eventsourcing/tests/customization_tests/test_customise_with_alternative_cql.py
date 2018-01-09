@@ -4,7 +4,7 @@ from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.cassandra.models import StoredEventRecord
-from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordStrategy
+from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordManager
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
@@ -14,14 +14,14 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 # In this test the default SequencedItem class is replaced with a "stored event" class.
 # How easy is it to customize the infrastructure to support that? We just need
-# to define the new sequenced item class, define a suitable active record class,
+# to define the new sequenced item class, define a suitable record class,
 # and configure the other components. It's easy.
 
 class ExampleApplicationWithAlternativeSequencedItemType(object):
     def __init__(self):
         self.event_store = EventStore(
-            active_record_strategy=CassandraRecordStrategy(
-                active_record_class=StoredEventRecord,
+            record_manager=CassandraRecordManager(
+                record_class=StoredEventRecord,
                 sequenced_item_class=StoredEvent,
             ),
             sequenced_item_mapper=SequencedItemMapper(
@@ -68,7 +68,7 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
             self.assertEqual(entity1.b, 'b')
 
             # Check there is a stored event.
-            all_records = list(app.event_store.active_record_strategy.all_records())
+            all_records = list(app.event_store.record_manager.all_records())
             assert len(all_records) == 1, len(all_records)
             stored_event = all_records[0]
             assert isinstance(stored_event, StoredEventRecord), stored_event

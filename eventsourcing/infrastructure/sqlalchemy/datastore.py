@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from eventsourcing.infrastructure.datastore import Datastore, DatastoreSettings
-from eventsourcing.infrastructure.sqlalchemy.models import Base
+from eventsourcing.infrastructure.sqlalchemy.records import Base
 
 DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///:memory:'
 # DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///<FILE_SYSTEM_PATH>'

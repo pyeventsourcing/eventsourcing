@@ -335,11 +335,11 @@ Sequenced items
 ---------------
 
 It is also possible to get the sequenced item namedtuples for an aggregate,
-by using the event store's active record strategy method ``get_items()``.
+by using the method ``get_items()`` of the event store's record manager.
 
 .. code:: python
 
-    items = app.event_store.active_record_strategy.list_items(aggregate.id)
+    items = app.event_store.record_manager.list_items(aggregate.id)
     assert len(items) == 4
 
     assert items[0].originator_id == aggregate.id
@@ -366,22 +366,22 @@ In this example, the ``cipher_key`` was not set, so the stored data is visible.
 Database records
 ----------------
 
-Of course, it is also possible to just use the active record class directly
+Of course, it is also possible to just use the record class directly
 to obtain records. After all, it's just an SQLAlchemy ORM object.
 
 .. code:: python
 
-    app.event_store.active_record_strategy.active_record_class
+    app.event_store.record_manager.record_class
 
-The ``query`` property of the SQLAlchemy active record strategy
-is a convenient way to get a query object for the active record
-class from the session.
+The ``query`` property of the SQLAlchemy record manager
+is a convenient way to get a query object from the session
+for the record class.
 
 .. code:: python
 
-    active_records = app.event_store.active_record_strategy.query.all()
+    event_records = app.event_store.record_manager.query.all()
 
-    assert len(active_records) == 4
+    assert len(event_records) == 4
 
 Close
 -----

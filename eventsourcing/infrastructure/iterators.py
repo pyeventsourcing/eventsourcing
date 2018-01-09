@@ -3,18 +3,18 @@ from threading import Thread
 
 import six
 
-from eventsourcing.infrastructure.base import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.base import AbstractRecordManager
 
 
 class AbstractSequencedItemIterator(six.with_metaclass(ABCMeta)):
     DEFAULT_PAGE_SIZE = 1000
 
-    def __init__(self, active_record_strategy, sequence_id, page_size=None, gt=None, gte=None, lt=None, lte=None,
+    def __init__(self, record_manager, sequence_id, page_size=None, gt=None, gte=None, lt=None, lte=None,
                  limit=None, is_ascending=True):
-        assert isinstance(active_record_strategy, AbstractActiveRecordStrategy), type(active_record_strategy)
+        assert isinstance(record_manager, AbstractRecordManager), type(record_manager)
         assert isinstance(page_size, (six.integer_types, type(None)))
         assert isinstance(limit, (six.integer_types, type(None)))
-        self.active_record_strategy = active_record_strategy
+        self.record_manager = record_manager
         self.sequence_id = sequence_id
         self.page_size = page_size or self.DEFAULT_PAGE_SIZE
         self.gt = gt
@@ -49,8 +49,8 @@ class AbstractSequencedItemIterator(six.with_metaclass(ABCMeta)):
         self.all_item_counter += 1
 
     def _update_position(self, sequenced_item):
-        assert isinstance(sequenced_item, self.active_record_strategy.sequenced_item_class), type(sequenced_item)
-        self._position = getattr(sequenced_item, self.active_record_strategy.field_names.position)
+        assert isinstance(sequenced_item, self.record_manager.sequenced_item_class), type(sequenced_item)
+        self._position = getattr(sequenced_item, self.record_manager.field_names.position)
 
     @abstractmethod
     def __iter__(self):
@@ -63,7 +63,7 @@ class SequencedItemIterator(AbstractSequencedItemIterator):
     def __iter__(self):
         """
         Yields a continuous sequence of items from "pages"
-        of sequenced items retrieved using the active record strategy.
+        of sequenced items retrieved using the record manager.
         """
         gt = self.gt
         gte = self.gte
@@ -89,7 +89,7 @@ class SequencedItemIterator(AbstractSequencedItemIterator):
                     lt = self._position
                     lte = None
 
-            sequenced_items = self.active_record_strategy.get_items(
+            sequenced_items = self.record_manager.get_items(
                 sequence_id=self.sequence_id,
                 gt=gt,
                 gte=gte,
@@ -196,7 +196,7 @@ class ThreadedSequencedItemIterator(AbstractSequencedItemIterator):
                 lte = None
 
         thread = GetEntityEventsThread(
-            active_record_strategy=self.active_record_strategy,
+            record_manager=self.record_manager,
             sequence_id=self.sequence_id,
             gt=gt,
             gte=gte,
@@ -210,11 +210,11 @@ class ThreadedSequencedItemIterator(AbstractSequencedItemIterator):
 
 
 class GetEntityEventsThread(Thread):
-    def __init__(self, active_record_strategy, sequence_id, gt=None, gte=None, lt=None, lte=None, page_size=None,
+    def __init__(self, record_manager, sequence_id, gt=None, gte=None, lt=None, lte=None, page_size=None,
                  is_ascending=True, *args, **kwargs):
         super(GetEntityEventsThread, self).__init__(*args, **kwargs)
-        assert isinstance(active_record_strategy, AbstractActiveRecordStrategy), type(active_record_strategy)
-        self.active_record_strategy = active_record_strategy
+        assert isinstance(record_manager, AbstractRecordManager), type(record_manager)
+        self.record_manager = record_manager
         self.stored_entity_id = sequence_id
         self.gt = gt
         self.gte = gte
@@ -225,7 +225,7 @@ class GetEntityEventsThread(Thread):
         self.stored_events = None
 
     def run(self):
-        self.stored_events = list(self.active_record_strategy.get_items(
+        self.stored_events = list(self.record_manager.get_items(
             sequence_id=self.stored_entity_id,
             gt=self.gt,
             gte=self.gte,

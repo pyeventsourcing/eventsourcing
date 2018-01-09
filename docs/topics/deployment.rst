@@ -257,10 +257,9 @@ Flask with SQLAlchemy
 
 If you wish to use eventsourcing with Flask and SQLAlchemy, then you may wish
 to use `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
-You just need to define your active record class
-using the model classes from that library, and then use it instead of the
-library classes in your eventsourcing application object, along with the
-session object it provides.
+You just need to define your record class(es) using the model classes from that
+library, and then use it instead of the library classes in your eventsourcing
+application object, along with the session object it provides.
 
 The docs snippet below shows that it can work simply to construct
 the eventsourcing application in the same place as the Flask
@@ -402,8 +401,8 @@ Django ORM
 ~~~~~~~~~~
 
 If you wish to use eventsourcing with Django ORM, the simplest way is having
-your application's event store use this library's ``DjangoRecordStrategy``,
-and making sure the active record classes (Django models) are included in your Django
+your application's event store use this library's ``DjangoRecordManager``,
+and making sure the record classes (Django models) are included in your Django
 project. See :doc:`infrastructure doc </topics/infrastructure>` for more information.
 
 The independent project `djangoevents <https://github.com/ApplauseOSS/djangoevents>`__

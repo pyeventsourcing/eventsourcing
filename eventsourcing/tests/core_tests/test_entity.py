@@ -10,15 +10,15 @@ from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.exceptions import ConcurrencyError, OriginatorIDError, OriginatorVersionError, \
     ProgrammingError, RepositoryKeyError
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
-    WithCassandraRecordStrategies
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
-    WithSQLAlchemyRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
+    WithCassandraRecordManagers
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
+    WithSQLAlchemyRecordManagers
 from eventsourcing.utils.times import datetime_from_timestamp
 from eventsourcing.utils.topic import get_topic
 
 
-class TestExampleEntity(WithSQLAlchemyRecordStrategies, WithPersistencePolicies):
+class TestExampleEntity(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
         example1 = Example.__create__(a=1, b=2)
@@ -274,5 +274,5 @@ class CustomValueObject(object):
         self.value = value
 
 
-class TestExampleEntityWithCassandra(WithCassandraRecordStrategies, TestExampleEntity):
+class TestExampleEntityWithCassandra(WithCassandraRecordManagers, TestExampleEntity):
     pass

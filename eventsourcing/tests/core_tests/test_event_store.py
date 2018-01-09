@@ -5,8 +5,8 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
-    construct_integer_sequenced_active_record_strategy
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
+    construct_integer_sequenced_record_manager
 from eventsourcing.utils.topic import get_topic
 
 
@@ -25,7 +25,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
 
     def construct_event_store(self):
         event_store = EventStore(
-            active_record_strategy=construct_integer_sequenced_active_record_strategy(
+            record_manager=construct_integer_sequenced_record_manager(
                 datastore=self.datastore,
             ),
             sequenced_item_mapper=SequencedItemMapper(

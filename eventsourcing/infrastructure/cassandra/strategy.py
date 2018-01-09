@@ -4,10 +4,10 @@ from cassandra.cqlengine.functions import Token
 from cassandra.cqlengine.query import BatchQuery, LWTException
 
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.base import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.base import AbstractRecordManager
 
 
-class CassandraRecordStrategy(AbstractActiveRecordStrategy):
+class CassandraRecordManager(AbstractRecordManager):
     def append(self, sequenced_item_or_items):
         if isinstance(sequenced_item_or_items, list):
             if len(sequenced_item_or_items):
@@ -15,7 +15,7 @@ class CassandraRecordStrategy(AbstractActiveRecordStrategy):
                 for item in sequenced_item_or_items:
                     assert isinstance(item, self.sequenced_item_class), (type(item), self.sequenced_item_class)
                     kwargs = self.get_field_kwargs(item)
-                    self.active_record_class.batch(b).if_not_exists().create(**kwargs)
+                    self.record_class.batch(b).if_not_exists().create(**kwargs)
                 try:
                     b.execute()
                 except LWTException:
@@ -98,7 +98,7 @@ class CassandraRecordStrategy(AbstractActiveRecordStrategy):
                 record_page = list(record_query.filter(**kwargs))
 
     def all_sequence_ids(self):
-        query = self.active_record_class.objects.all().limit(1)
+        query = self.record_class.objects.all().limit(1)
 
         # Todo: If there were a resume token, it could be used like this:
         # if resume is None:
@@ -114,7 +114,7 @@ class CassandraRecordStrategy(AbstractActiveRecordStrategy):
             page = list(query.filter(pk__token__gt=Token(last.pk)))
 
     def delete_record(self, record):
-        assert isinstance(record, self.active_record_class), type(record)
+        assert isinstance(record, self.record_class), type(record)
         try:
             record.delete()
         except InvalidRequest as e:
@@ -126,7 +126,7 @@ class CassandraRecordStrategy(AbstractActiveRecordStrategy):
         """
         assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
         kwargs = self.get_field_kwargs(sequenced_item)
-        return self.active_record_class(**kwargs)
+        return self.record_class(**kwargs)
 
     def from_active_record(self, active_record):
         """
@@ -136,4 +136,4 @@ class CassandraRecordStrategy(AbstractActiveRecordStrategy):
         return self.sequenced_item_class(**kwargs)
 
     def filter(self, **kwargs):
-        return self.active_record_class.objects.filter(**kwargs)
+        return self.record_class.objects.filter(**kwargs)

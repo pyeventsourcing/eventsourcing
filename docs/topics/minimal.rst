@@ -108,7 +108,7 @@ Domain entity
 Now, let's define a domain entity that publishes the event classes defined above.
 
 The entity class ``Example`` below has an ID and a version number. It also
-has a property ``foo`` with a "setter" method, and a method ``discard()`` to use
+has a property ``foo`` with a "setter" method, and a method ``__discard__()`` to use
 when the entity is no longer needed.
 
 The entity methods follow a similar pattern. At some point, each
@@ -434,23 +434,23 @@ library's archetype persistence model for storing events. The sequenced item
 mapper derives the values of sequenced item fields from the attributes of domain
 events.
 
-The event store then uses an "active record strategy" to persist the sequenced items
-into a particular database management system. The active record strategy uses an
-active record class to manipulate records in a particular database table.
+The event store then uses a record manager to persist the sequenced items
+into a particular database management system. The record manager uses an
+record class to manipulate records in a particular database table.
 
 Hence you can use a different database table by substituting an alternative active
 record class. You can use a different database management system by substituting an
-alternative active record strategy.
+alternative record manager.
 
 .. code:: python
 
     from eventsourcing.infrastructure.eventstore import EventStore
-    from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordStrategy
+    from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordManager
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
-    active_record_strategy = SQLAlchemyRecordStrategy(
+    record_manager = SQLAlchemyRecordManager(
         session=datastore.session,
-        active_record_class=IntegerSequencedRecord,
+        record_class=IntegerSequencedRecord,
     )
 
     sequenced_item_mapper = SequencedItemMapper(
@@ -459,7 +459,7 @@ alternative active record strategy.
     )
 
     event_store = EventStore(
-        active_record_strategy=active_record_strategy,
+        record_manager=record_manager,
         sequenced_item_mapper=sequenced_item_mapper
     )
 
@@ -531,7 +531,7 @@ the ``data`` field represents the state of the event (normally a JSON string).
 
 .. code:: python
 
-    sequenced_items = event_store.active_record_strategy.list_items(entity.id)
+    sequenced_items = event_store.record_manager.list_items(entity.id)
 
     assert len(sequenced_items) == 2
 
@@ -591,8 +591,8 @@ and unsubscribe from receiving further domain events.
         def __init__(self, session):
             # Construct event store.
             self.event_store = EventStore(
-                active_record_strategy=SQLAlchemyRecordStrategy(
-                    active_record_class=IntegerSequencedRecord,
+                record_manager=SQLAlchemyRecordManager(
+                    record_class=IntegerSequencedRecord,
                     session=session,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(

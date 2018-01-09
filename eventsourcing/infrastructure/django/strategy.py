@@ -4,10 +4,10 @@ import six
 from django.db import IntegrityError, OperationalError, transaction
 
 from eventsourcing.exceptions import ProgrammingError, SequencedItemConflict
-from eventsourcing.infrastructure.base import RelationalActiveRecordStrategy
+from eventsourcing.infrastructure.base import RelationalRecordManager
 
 
-class DjangoRecordStrategy(RelationalActiveRecordStrategy):
+class DjangoRecordManager(RelationalRecordManager):
     def __init__(self, convert_position_float_to_decimal=False, *args, **kwargs):
         # Somehow when the Decimal converter is registered with sqlite3,
         # decimal values that are stored successfully with 6 places are
@@ -31,18 +31,18 @@ class DjangoRecordStrategy(RelationalActiveRecordStrategy):
         # affects one of the library's test cases, which should
         # perhaps be changed to avoid checking retrieved positions.
         self.convert_position_float_to_decimal = convert_position_float_to_decimal
-        super(DjangoRecordStrategy, self).__init__(*args, **kwargs)
+        super(DjangoRecordManager, self).__init__(*args, **kwargs)
 
     def _write_active_records(self, active_records, sequenced_items):
         try:
-            with transaction.atomic(self.active_record_class.objects.db):
+            with transaction.atomic(self.record_class.objects.db):
                 for active_record in active_records:
                     active_record.save()
         except IntegrityError as e:
             raise SequencedItemConflict(e)
 
     def get_item(self, sequence_id, eq):
-        records = self.active_record_class.objects.filter(sequence_id=sequence_id, position=eq).all()
+        records = self.record_class.objects.filter(sequence_id=sequence_id, position=eq).all()
         return self.from_active_record(records[0])
 
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
@@ -51,7 +51,7 @@ class DjangoRecordStrategy(RelationalActiveRecordStrategy):
         assert limit is None or limit >= 1, limit
 
         filter_kwargs = {self.field_names.sequence_id: sequence_id}
-        query = self.active_record_class.objects.filter(**filter_kwargs)
+        query = self.record_class.objects.filter(**filter_kwargs)
 
         position_field_name = self.field_names.position
 
@@ -93,7 +93,7 @@ class DjangoRecordStrategy(RelationalActiveRecordStrategy):
     # @property
     # def query(self):
     #     pass
-    #     # return self.session.query(self.active_record_class)
+    #     # return self.session.query(self.record_class)
 
     def all_items(self):
         """
@@ -124,7 +124,7 @@ class DjangoRecordStrategy(RelationalActiveRecordStrategy):
         """
         Returns all records in the table.
         """
-        return self.active_record_class.objects.all()
+        return self.record_class.objects.all()
 
     def delete_record(self, record):
         """

@@ -7,8 +7,8 @@ from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepo
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
-from eventsourcing.infrastructure.sqlalchemy.models import SnapshotRecord
-from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordStrategy
+from eventsourcing.infrastructure.sqlalchemy.records import SnapshotRecord
+from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
 from eventsourcing.utils.cipher.aes import AESCipher
@@ -53,7 +53,7 @@ class SimpleApplication(object):
         self.event_store = construct_sqlalchemy_eventstore(
             session=self.datastore.session,
             cipher=self.cipher,
-            active_record_class=self.stored_event_record_class
+            record_class=self.stored_event_record_class
         )
 
     def setup_repository(self, **kwargs):
@@ -69,9 +69,9 @@ class SimpleApplication(object):
         )
 
     def setup_table(self):
-        # Setup the database table using event store's active record class.
+        # Setup the database table using event store's record class.
         self.datastore.setup_table(
-            self.event_store.active_record_strategy.active_record_class
+            self.event_store.record_manager.record_class
         )
 
     def close(self):
@@ -99,9 +99,9 @@ class SnapshottingApplication(SimpleApplication):
         # Setup snapshot store, using datastore session, and SnapshotRecord class.
         # Todo: Refactor this into a new create_sqlalchemy_snapshotstore() function.
         self.snapshot_store = EventStore(
-            SQLAlchemyRecordStrategy(
+            SQLAlchemyRecordManager(
                 session=self.datastore.session,
-                active_record_class=self.snapshot_record_class or SnapshotRecord
+                record_class=self.snapshot_record_class or SnapshotRecord
             ),
             SequencedItemMapper(
                 sequence_id_attr_name='originator_id',
@@ -130,7 +130,7 @@ class SnapshottingApplication(SimpleApplication):
     def setup_table(self):
         super(SnapshottingApplication, self).setup_table()
         # Also setup snapshot table.
-        self.datastore.setup_table(self.snapshot_store.active_record_strategy.active_record_class)
+        self.datastore.setup_table(self.snapshot_store.record_manager.record_class)
 
     def close(self):
         super(SnapshottingApplication, self).close()
