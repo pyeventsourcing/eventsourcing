@@ -9,16 +9,16 @@ from eventsourcing.example.domainmodel import Example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordManagers
 
 
-class WithExampleApplication(WithActiveRecordStrategies):
+class WithExampleApplication(WithActiveRecordManagers):
     def construct_application(self):
         cipher = self.construct_cipher()
         app = ExampleApplication(
-            entity_active_record_strategy=self.entity_active_record_strategy,
-            log_active_record_strategy=self.log_active_record_strategy,
-            snapshot_active_record_strategy=self.snapshot_active_record_strategy,
+            entity_record_manager=self.entity_record_manager,
+            log_record_manager=self.log_record_manager,
+            snapshot_record_manager=self.snapshot_record_manager,
             always_encrypt=bool(cipher),
             cipher=cipher,
         )
@@ -117,7 +117,7 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(100, app.example_repository[example1.id].a)
 
             # Remove all the stored items and check the new value is still available (must be in snapshot).
-            record_strategy = self.entity_active_record_strategy
+            record_strategy = self.entity_record_manager
             self.assertEqual(len(list(record_strategy.all_records())), 3)
             for record in record_strategy.all_records():
                 record_strategy.delete_record(record)
@@ -142,7 +142,7 @@ class ExampleApplicationTestCase(WithExampleApplication):
 
             # - drop the table...
             if self.datastore:
-                self.datastore.drop_table(record_strategy.active_record_class)
+                self.datastore.drop_table(record_strategy.record_class)
 
             # - check exception is raised when records can't be deleted, so that
             #   test case runs through 'except' block, so rollback() is called

@@ -4,7 +4,7 @@ from uuid import uuid4
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from eventsourcing.infrastructure.datastore import DatastoreTableError
-from eventsourcing.infrastructure.sqlalchemy.models import IntegerSequencedRecord, \
+from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord, \
     TimestampSequencedRecord, SnapshotRecord, Base
 from eventsourcing.infrastructure.sqlalchemy.datastore import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
     SQLAlchemySettings

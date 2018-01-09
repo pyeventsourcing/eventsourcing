@@ -19,52 +19,52 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
     Supports three different event stores: for log events,
     for entity events, and for snapshot events.
     """
-    def __init__(self, entity_active_record_strategy=None,
-                 log_active_record_strategy=None,
-                 snapshot_active_record_strategy=None,
+    def __init__(self, entity_record_manager=None,
+                 log_record_manager=None,
+                 snapshot_record_manager=None,
                  always_encrypt=False, cipher=None):
 
         self.entity_event_store = None
-        if entity_active_record_strategy:
+        if entity_record_manager:
             self.entity_event_store = self.construct_event_store(
                 event_sequence_id_attr='originator_id',
                 event_position_attr='originator_version',
-                active_record_strategy=entity_active_record_strategy,
+                record_manager=entity_record_manager,
                 always_encrypt=always_encrypt,
                 cipher=cipher,
             )
 
         self.log_event_store = None
-        if log_active_record_strategy:
+        if log_record_manager:
             self.log_event_store = self.construct_event_store(
                 event_sequence_id_attr='originator_id',
                 event_position_attr='timestamp',
-                active_record_strategy=log_active_record_strategy,
+                record_manager=log_record_manager,
                 always_encrypt=always_encrypt,
                 cipher=cipher,
             )
 
         self.snapshot_event_store = None
-        if snapshot_active_record_strategy:
+        if snapshot_record_manager:
             self.snapshot_event_store = self.construct_event_store(
                 event_sequence_id_attr='originator_id',
                 event_position_attr='originator_version',
-                active_record_strategy=snapshot_active_record_strategy,
+                record_manager=snapshot_record_manager,
                 always_encrypt=always_encrypt,
                 cipher=cipher,
             )
 
-    def construct_event_store(self, event_sequence_id_attr, event_position_attr, active_record_strategy,
+    def construct_event_store(self, event_sequence_id_attr, event_position_attr, record_manager,
                               always_encrypt=False, cipher=None):
         sequenced_item_mapper = self.construct_sequenced_item_mapper(
-            sequenced_item_class=active_record_strategy.sequenced_item_class,
+            sequenced_item_class=record_manager.sequenced_item_class,
             event_sequence_id_attr=event_sequence_id_attr,
             event_position_attr=event_position_attr,
             always_encrypt=always_encrypt,
             cipher=cipher,
         )
         event_store = EventStore(
-            active_record_strategy=active_record_strategy,
+            record_manager=record_manager,
             sequenced_item_mapper=sequenced_item_mapper,
         )
         return event_store

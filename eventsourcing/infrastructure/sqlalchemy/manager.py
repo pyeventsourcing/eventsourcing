@@ -4,12 +4,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.base import RelationalActiveRecordStrategy
+from eventsourcing.infrastructure.base import RelationalRecordManager
 
 
-class SQLAlchemyRecordStrategy(RelationalActiveRecordStrategy):
+class SQLAlchemyRecordManager(RelationalRecordManager):
     def __init__(self, session, *args, **kwargs):
-        super(SQLAlchemyRecordStrategy, self).__init__(*args, **kwargs)
+        super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
 
     def _write_active_records(self, active_records, sequenced_items):
@@ -29,7 +29,7 @@ class SQLAlchemyRecordStrategy(RelationalActiveRecordStrategy):
         try:
             filter_args = {self.field_names.sequence_id: sequence_id}
             query = self.filter(**filter_args)
-            position_field = getattr(self.active_record_class, self.field_names.position)
+            position_field = getattr(self.record_class, self.field_names.position)
             query = query.filter(position_field == eq)
             result = query.one()
         except (NoResultFound, MultipleResultsFound):
@@ -52,7 +52,7 @@ class SQLAlchemyRecordStrategy(RelationalActiveRecordStrategy):
             filter_kwargs = {self.field_names.sequence_id: sequence_id}
             query = self.filter(**filter_kwargs)
 
-            position_field = getattr(self.active_record_class, self.field_names.position)
+            position_field = getattr(self.record_class, self.field_names.position)
 
             if query_ascending:
                 query = query.order_by(asc(position_field))
@@ -88,7 +88,7 @@ class SQLAlchemyRecordStrategy(RelationalActiveRecordStrategy):
 
     @property
     def query(self):
-        return self.session.query(self.active_record_class)
+        return self.session.query(self.record_class)
 
     def all_items(self):
         """

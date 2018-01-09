@@ -3,26 +3,19 @@ Features
 ========
 
 **Event store** — appends and retrieves domain events. Uses a
-sequenced item mapper with an active record strategy to map domain events
-to databases in ways that can be easily extended and replaced.
+sequenced item mapper with a record manager to map domain events
+to database records in ways that can be easily extended and replaced.
 
-..  The **sequenced item mapper**
-    maps between domain events and sequenced items, the archetypal persistence model used
-    by the library to store domain events. An **active record strategy** maps between
-    "sequenced items" and active records (ORM). Support can be added for a new database
-    management system by introducing a new active record strategy. The database schema
-    can be varied by using an alternative active record class.
-
-**Data integrity** - stored events can be hashed to check data integrity of individual
-records, so you cannot lose information in transit or get database corruption without
-being able to detect it. Sequences of events can be hash-chained, and the entire sequence
-of events checked for integrity, so if the last hash can be independently validated, then
-so can the entire sequence.
+**Data integrity** - Sequences of events can be hash-chained, and the entire sequence
+of events checked for integrity. If the last hash can be independently validated, then
+so can the entire sequence. Events records can be encrypted with an authenticated encryption
+algorithm, so you cannot lose information in transit or at rest, or get database corruption
+without being able to detect it.
 
 **Optimistic concurrency control** — can be used to ensure a distributed or
 horizontally scaled application doesn't become inconsistent due to concurrent
 method execution. Leverages any optimistic concurrency controls in the database
-adapted by the active record strategy.
+adapted by the record manager.
 
 **Application-level encryption** — encrypts and decrypts stored events, using a cipher
 strategy passed as an option to the sequenced item mapper. Can be used to encrypt some

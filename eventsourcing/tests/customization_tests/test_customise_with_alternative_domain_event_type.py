@@ -4,8 +4,8 @@ from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import TimeuuidedEntity
 from eventsourcing.domain.model.events import EventWithTimeuuid
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
-from eventsourcing.infrastructure.cassandra.models import TimeuuidSequencedRecord
-from eventsourcing.infrastructure.cassandra.strategy import CassandraRecordStrategy
+from eventsourcing.infrastructure.cassandra.records import TimeuuidSequencedRecord
+from eventsourcing.infrastructure.cassandra.manager import CassandraRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
@@ -41,15 +41,15 @@ class ExampleEntity(TimeuuidedEntity):
         return cls.__create__(event_class=ExampleEntity.Started)
 
 
-# Define a suitable active record class.
+# Define a suitable record class.
 #  - class TimeuuidSequencedItem has been moved into the library
 
 # Define an application that uses the entity class and the table
 class ExampleApplicationWithTimeuuidSequencedItems(object):
     def __init__(self):
         self.event_store = EventStore(
-            active_record_strategy=CassandraRecordStrategy(
-                active_record_class=TimeuuidSequencedRecord,
+            record_manager=CassandraRecordManager(
+                record_class=TimeuuidSequencedRecord,
                 sequenced_item_class=SequencedItem,
             ),
             sequenced_item_mapper=SequencedItemMapper(

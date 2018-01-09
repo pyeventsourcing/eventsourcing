@@ -6,24 +6,24 @@ from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sqlalchemy.models import StoredEventRecord, Base
-from eventsourcing.infrastructure.sqlalchemy.strategy import SQLAlchemyRecordStrategy
+from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord, Base
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 
 # This test replaces the default SequencedItem class with a StoredEvent class.
 # How easy is it to customize the infrastructure to support that? We just need
-# to define the new sequenced item class, define a suitable active record class,
+# to define the new sequenced item class, define a suitable record class,
 # and configure the other components. It's easy.
 
 
 class ExampleApplicationWithAlternativeSequencedItemType(object):
     def __init__(self, session):
         self.event_store = EventStore(
-            active_record_strategy=SQLAlchemyRecordStrategy(
+            record_manager=SQLAlchemyRecordManager(
                 session=session,
-                active_record_class=StoredEventRecord,
+                record_class=StoredEventRecord,
                 sequenced_item_class=StoredEvent,
             ),
             sequenced_item_mapper=SequencedItemMapper(
@@ -75,7 +75,7 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
             self.assertEqual(entity1.b, 'b')
 
             # Check there is a stored event.
-            all_records = list(app.event_store.active_record_strategy.all_records())
+            all_records = list(app.event_store.record_manager.all_records())
             self.assertEqual(1, len(all_records))
             stored_event = all_records[0]
             self.assertEqual(stored_event.originator_id, entity1.id)

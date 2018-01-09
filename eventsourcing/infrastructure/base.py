@@ -6,9 +6,9 @@ from eventsourcing.exceptions import SequencedItemConflict
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 
 
-class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
-    def __init__(self, active_record_class, sequenced_item_class=SequencedItem):
-        self.active_record_class = active_record_class
+class AbstractRecordManager(six.with_metaclass(ABCMeta)):
+    def __init__(self, record_class, sequenced_item_class=SequencedItem):
+        self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
 
@@ -64,7 +64,7 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
         raise IndexError("Sequence index out of range: {}".format(eq))
 
 
-class RelationalActiveRecordStrategy(AbstractActiveRecordStrategy):
+class RelationalRecordManager(AbstractRecordManager):
     def append(self, sequenced_item_or_items):
         # Convert sequenced item(s) to active_record(s).
         if isinstance(sequenced_item_or_items, list):
@@ -83,7 +83,7 @@ class RelationalActiveRecordStrategy(AbstractActiveRecordStrategy):
 
         # Construct and return an ORM object.
         kwargs = self.get_field_kwargs(sequenced_item)
-        return self.active_record_class(**kwargs)
+        return self.record_class(**kwargs)
 
     @abstractmethod
     def _write_active_records(self, active_records, sequenced_items):

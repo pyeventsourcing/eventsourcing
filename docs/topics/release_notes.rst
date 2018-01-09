@@ -19,7 +19,7 @@ to decimal objects, an exact number type. Cipher was changed to use
 AES-GCM to allow verification of encrypted data retrieved from a
 database.
 
-Also, the active record classes for SQLAlchemy were changed to have an
+Also, the record classes for SQLAlchemy were changed to have an
 auto-incrementing ID, to make it easy to follow the events of an
 application, for example when updating view models, without additional
 complication of a separate application log. This change makes the
