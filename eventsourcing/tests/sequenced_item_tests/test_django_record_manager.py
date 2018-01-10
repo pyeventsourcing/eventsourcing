@@ -21,9 +21,9 @@ from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTe
 
 class InfrastructureFactory(object):
 
-    def __init__(self, record_strategy_class, cancel_sqlite3_decimal_converter=False):
+    def __init__(self, record_strategy_class, convert_position_float_to_decimal=False):
         self.record_strategy_class = record_strategy_class
-        self.cancel_sqlite3_decimal_converter = cancel_sqlite3_decimal_converter
+        self.convert_position_float_to_decimal = convert_position_float_to_decimal
 
     def construct_integer_sequenced_record_manager(self):
         return self.construct_record_strategy(
@@ -47,7 +47,7 @@ class InfrastructureFactory(object):
         return self.record_strategy_class(
             record_class=TimestampSequencedRecord,
             sequenced_item_class=SequencedItem,
-            convert_position_float_to_decimal=self.cancel_sqlite3_decimal_converter
+            convert_position_float_to_decimal=self.convert_position_float_to_decimal
         )
 
 
@@ -59,7 +59,7 @@ class DjangoTestCase(TransactionTestCase):
         call_command('migrate')
         self.factory = InfrastructureFactory(
             record_strategy_class=DjangoRecordManager,
-            cancel_sqlite3_decimal_converter=self.cancel_sqlite3_decimal_converter
+            convert_position_float_to_decimal=self.cancel_sqlite3_decimal_converter
         )
 
     def construct_entity_record_manager(self):
