@@ -58,3 +58,4 @@ target/
 
 .idea/
 /.README.py
+/eventsourcing/tests/djangoproject/db.sqlite3

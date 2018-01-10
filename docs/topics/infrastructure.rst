@@ -5,8 +5,6 @@ Infrastructure
 The library's infrastructure layer provides a cohesive
 mechanism for storing events as sequences of items.
 
-.. contents:: :local:
-
 The entire mechanism is encapsulated by the library's
 :class:`~eventsourcing.infrastructure.eventstore.EventStore`
 class. The event store uses a "sequenced item mapper" and an
@@ -16,13 +14,15 @@ The sequenced item mapper can convert objects such as domain
 events to sequenced items, and the active record strategy can
 write sequenced items to a database.
 
+.. contents:: :local:
+
 
 Sequenced items
 ===============
 
-A sequenced item type provides a common persistence model across the components of
-the mechanism. The sequenced item type is normally declared as a namedtuple.
-
+A sequenced item type provides a common persistence model across the
+library's infrastructure layer. For the library, a sequenced item class
+is declared as a namedtuple. Below is an example of a sequenced item namedtuple.
 
 .. code:: python
 
@@ -30,11 +30,13 @@ the mechanism. The sequenced item type is normally declared as a namedtuple.
 
     SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data'])
 
-
-The names of the fields are arbitrary. However, the first field of a sequenced item namedtuple represents
-the identity of a sequence to which an item belongs, the second field represents the position of the item in its
-sequence, the third field represents a topic to which the item pertains (dimension of concern), and the fourth
+The first field of a sequenced item namedtuple represents the identity of a sequence
+to which an item belongs. The second field represents the position of the item in its
+sequence. The third field represents a topic to which the item pertains. And the fourth
 field represents the data associated with the item.
+
+From the point of view of the library code, the field names of a sequenced item namedtuple
+are arbitrary, however a suitable database table will have matching column names.
 
 
 SequencedItem namedtuple
@@ -43,22 +45,21 @@ SequencedItem namedtuple
 The library provides a sequenced item namedtuple called
 :class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`.
 
-
 .. code:: python
 
     from eventsourcing.infrastructure.sequenceditem import SequencedItem
 
 
-The attributes of ``SequencedItem`` are ``sequence_id``, ``position``, ``topic``, and ``data``.
+Like in the example above, the library's ``SequencedItem`` namedtuple has four fields. The
+``sequence_id`` identifies the sequence in which the item belongs. The ``position``
+identifies the position of the item in its sequence. The ``topic`` identifies the
+dimension of concern to which the item pertains. The ``data`` holds the data associated
+with the item.
 
-The ``sequence_id`` identifies the sequence in which the item belongs.
-
-The ``position`` identifies the position of the item in its sequence.
-
-The ``topic`` identifies the dimension of concern to which the item pertains.
-
-The ``data`` holds the values of the item, perhaps serialized to JSON, and optionally encrypted.
-
+A sequenced item is just a namedtuple, and can be used in the normal way. In the example
+below, a sequenced item is constructed using a UUID to identify a sequence. The item
+is positioned at the start of the sequence (position 0). It has a domain event topic,
+and it has a JSON object that states the value of ``foo`` is ``bar``.
 
 .. code:: python
 
@@ -78,20 +79,16 @@ The ``data`` holds the values of the item, perhaps serialized to JSON, and optio
     assert sequenced_item1.data == '{"foo":"bar"}'
 
 
-
 StoredEvent namedtuple
 ----------------------
 
-As an alternative, the library also provides a sequenced item namedtuple called ``StoredEvent``. The attributes of the
+As an alternative, the library provides a sequenced item namedtuple called ``StoredEvent``. The attributes of the
 ``StoredEvent`` namedtuple are ``originator_id``, ``originator_version``, ``event_type``, and ``state``.
 
 The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to ``sequence_id`` above.
-
 The ``originator_version`` is the version of the aggregate that published the event, and is equivalent to
 ``position`` above.
-
 The ``event_type`` identifies the class of the domain event that is stored, and is equivalent to ``topic`` above.
-
 The ``state`` holds the state of the domain event, and is equivalent to ``data`` above.
 
 
@@ -111,261 +108,6 @@ The ``state`` holds the state of the domain event, and is equivalent to ``data``
     assert stored_event1.originator_version == 0
     assert stored_event1.event_type == 'eventsourcing.domain.model.events#DomainEvent'
     assert stored_event1.state == '{"foo":"bar"}'
-
-
-Active record strategies
-========================
-
-An active record strategy writes sequenced items to database records.
-
-The library has an abstract base class ``AbstractActiveRecordStrategy`` with abstract methods ``append()`` and
-``get_items()``, which can be used on concrete implementations to read and write sequenced items in a
-database.
-
-An active record strategy is constructed with a ``sequenced_item_class`` and a matching
-``active_record_class``. The field names of a suitable active record class will match the field names of the
-sequenced item namedtuple.
-
-
-SQLAlchemy
-----------
-
-To run the examples below, please install the library with the
-'sqlalchemy' option.
-
-.. code::
-
-    $ pip install eventsourcing[sqlalchemy]
-
-
-The library has a concrete active record strategy for SQLAlchemy provided by the object class
-``SQLAlchemyActiveRecordStrategy``.
-
-
-.. code:: python
-
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
-
-
-The library also provides active record classes for SQLAlchemy, such as ``IntegerSequencedItemRecord`` and
-``StoredEventRecord``. The ``IntegerSequencedItemRecord`` class matches the default ``SequencedItem``
-namedtuple. The ``StoredEventRecord`` class matches the alternative ``StoredEvent`` namedtuple.
-
-The code below uses the namedtuple ``StoredEvent`` and the active record ``StoredEventRecord``.
-
-
-.. code:: python
-
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import StoredEventRecord
-
-
-Database settings can be configured using ``SQLAlchemySettings``, which is constructed with a ``uri`` connection
-string. The code below uses an in-memory SQLite database.
-
-
-.. code:: python
-
-    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings
-
-    settings = SQLAlchemySettings(uri='sqlite:///:memory:')
-
-
-To help setup a database connection and tables, the library has object class ``SQLAlchemyDatastore``.
-
-The ``SQLAlchemyDatastore`` is constructed with the ``settings`` object,
-and a tuple of active record classes passed using the ``tables`` arg.
-
-
-.. code:: python
-
-    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore
-
-    datastore = SQLAlchemyDatastore(
-        settings=settings,
-        tables=(StoredEventRecord,)
-    )
-
-
-Please note, if you have declared your own SQLAlchemy model ``Base`` class, you may wish to define your own active
-record classes which inherit from your ``Base`` class. If so, if may help to refer to the library active record
-classes to see how SQLALchemy ORM columns and indexes can be used to persist sequenced items.
-
-The methods ``setup_connection()`` and ``setup_tables()`` of the datastore object
-can be used to setup the database connection and the tables.
-
-
-.. code:: python
-
-    datastore.setup_connection()
-    datastore.setup_tables()
-
-
-As well as ``sequenced_item_class`` and a matching ``active_record_class``, the ``SQLAlchemyActiveRecordStrategy``
-requires a scoped session object, passed using the constructor arg ``session``. For convenience, the
-``SQLAlchemyDatabase`` has a thread-scoped session facade set as its a ``session`` attribute. You may
-wish to use a different scoped session facade, such as a request-scoped session object provided by a Web
-framework.
-
-
-.. code:: python
-
-    active_record_strategy = SQLAlchemyActiveRecordStrategy(
-        sequenced_item_class=StoredEvent,
-        active_record_class=StoredEventRecord,
-        session=datastore.session,
-    )
-
-
-Sequenced items (or "stored events" in this example) can be appended to the database using the ``append()`` method
-of the active record strategy.
-
-
-.. code:: python
-
-    active_record_strategy.append(stored_event1)
-
-
-(Please note, since the position is given by the sequenced item itself, the word "append" means here "to add something
-extra" rather than the perhaps more common but stricter meaning "to add to the end of a document". That is, the
-database is deliberately not responsible for positioning a new item at the end of a sequence. So perhaps "save"
-would be a better name for this operation.)
-
-All the previously appended items of a sequence can be retrieved by using the ``get_items()`` method.
-
-
-.. code:: python
-
-    results = active_record_strategy.list_items(aggregate1)
-
-
-Since by now only one item was stored, so there is only one item in the results.
-
-
-.. code:: python
-
-    assert len(results) == 1
-    assert results[0] == stored_event1
-
-MySQL
-~~~~~
-
-For MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
-can be used.
-
-.. code::
-
-    $ pip install mysqlclient
-
-The ``uri`` for MySQL would look something like this.
-
-.. code::
-
-    mysql://username:password@localhost/eventsourcing
-
-
-PostgreSQL
-~~~~~~~~~~
-
-For PostgreSQL, the Python package `psycopg2 <https://pypi.python.org/pypi/psycopg2>`__
-can be used.
-
-.. code::
-
-    $ pip install psycopg2
-
-The ``uri`` for PostgreSQL would look something like this.
-
-.. code::
-
-    postgresql://username:password@localhost:5432/eventsourcing
-
-
-Apache Cassandra
-----------------
-
-To run the examples below, please install the library with the
-'cassandra' option.
-
-.. code::
-
-    $ pip install eventsourcing[cassandra]
-
-
-The library also has a concrete active record strategy for Apache Cassandra provided by
-``CassandraActiveRecordStrategy`` class.
-
-Similarly, for the ``CassandraActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
-from ``eventsourcing.infrastructure.cassandra.activerecords`` matches the ``SequencedItem``
-namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
-namedtuple.
-
-.. code:: python
-
-    from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
-    from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy, StoredEventRecord
-
-    cassandra_datastore = CassandraDatastore(
-        settings=CassandraSettings(),
-        tables=(StoredEventRecord,)
-    )
-    cassandra_datastore.setup_connection()
-    cassandra_datastore.setup_tables()
-
-    cassandra_active_record_strategy = CassandraActiveRecordStrategy(
-        active_record_class=StoredEventRecord,
-        sequenced_item_class=StoredEvent,
-    )
-
-    results = cassandra_active_record_strategy.get_items(aggregate1)
-    assert len(results) == 0
-
-    cassandra_active_record_strategy.append(stored_event1)
-
-    results = cassandra_active_record_strategy.get_items(aggregate1)
-    assert results[0] == stored_event1
-
-    cassandra_datastore.drop_tables()
-    cassandra_datastore.close_connection()
-
-
-The ``CassandraDatastore`` and ``CassandraSettings`` are be used in the same was as
-``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` above. Please investigate
-library class :class:`~eventsourcing.infrastructure.cassandra.datastore.CassandraSettings`
-for information about configuring away from default settings.
-
-
-Sequenced item conflicts
-------------------------
-
-It is a feature of the active record strategy that it isn't possible successfully to append two items at the same
-position in the same sequence. If such an attempt is made, a ``SequencedItemConflict`` will be raised by the active
-record strategy.
-
-
-.. code:: python
-
-    from eventsourcing.exceptions import SequencedItemConflict
-
-    # Fail to append an item at the same position in the same sequence as a previous item.
-    try:
-        active_record_strategy.append(stored_event1)
-    except SequencedItemConflict:
-        pass
-    else:
-        raise Exception("SequencedItemConflict not raised")
-
-
-This feature is implemented using optimistic concurrency control features of the underlying database. With
-SQLAlchemy, the primary key constraint involves both the sequence and the position columns. With Cassandra
-the position is the primary key in the sequence partition, and the "IF NOT EXISTS" feature is applied.
-
-The Cassandra database management system, which implements the Paxos protocol,
-can accomplish linearly-scalable distributed optimistic concurrency control,
-guaranteeing sequential consistency of the events of an entity despite the
-database being distributed. It is also possible to serialize calls to the
-methods of an entity, but that is out of the scope of this package — if you
-wish to do that, perhaps something like
-`Zookeeper <https://zookeeper.apache.org/>`__ might help.
 
 
 Sequenced item mapper
@@ -607,6 +349,431 @@ the item within the application, potentially sensitive information, for example 
 will be encrypted in transit to the database, at rest in the database, and in all backups and other copies.
 
 
+Active records
+==============
+
+An active record strategy (record manager) is used by the event store to read and write sequenced items as database
+records.
+
+The library has an abstract base class ``AbstractActiveRecordStrategy`` with abstract methods ``append()`` and
+``get_items()``, which can be used on concrete implementations to read and write sequenced items in a
+database.
+
+An active record strategy is constructed with a ``sequenced_item_class`` and a matching
+``active_record_class``. The field names of a suitable active record class will match the field names of the
+sequenced item namedtuple.
+
+
+SQLAlchemy
+----------
+
+To run the example below, please install the library with the
+'sqlalchemy' option.
+
+.. code::
+
+    $ pip install eventsourcing[sqlalchemy]
+
+
+The library has a concrete active record strategy for SQLAlchemy provided by the object class
+``SQLAlchemyActiveRecordStrategy``.
+
+
+.. code:: python
+
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
+
+
+The library provides active record classes for SQLAlchemy, such as ``IntegerSequencedItemRecord`` and
+``StoredEventRecord``. The ``IntegerSequencedItemRecord`` class matches the default ``SequencedItem``
+namedtuple. The ``StoredEventRecord`` class matches the alternative ``StoredEvent`` namedtuple.
+There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRecord``.
+
+The code below uses the namedtuple ``StoredEvent`` and the active record ``StoredEventRecord``.
+
+
+.. code:: python
+
+    from eventsourcing.infrastructure.sqlalchemy.activerecords import StoredEventRecord
+
+
+Database settings can be configured using ``SQLAlchemySettings``, which is constructed with a ``uri`` connection
+string. The code below uses an in-memory SQLite database.
+
+
+.. code:: python
+
+    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings
+
+    settings = SQLAlchemySettings(uri='sqlite:///:memory:')
+
+
+To help setup a database connection and tables, the library has object class ``SQLAlchemyDatastore``.
+
+The ``SQLAlchemyDatastore`` is constructed with the ``settings`` object,
+and a tuple of active record classes passed using the ``tables`` arg.
+
+
+.. code:: python
+
+    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore
+
+    datastore = SQLAlchemyDatastore(
+        settings=settings,
+        tables=(StoredEventRecord,)
+    )
+
+
+Please note, if you have declared your own SQLAlchemy model ``Base`` class, you may wish to define your own active
+record classes which inherit from your ``Base`` class. If so, if may help to refer to the library active record
+classes to see how SQLALchemy ORM columns and indexes can be used to persist sequenced items.
+
+The methods ``setup_connection()`` and ``setup_tables()`` of the datastore object
+can be used to setup the database connection and the tables.
+
+
+.. code:: python
+
+    datastore.setup_connection()
+    datastore.setup_tables()
+
+
+As well as ``sequenced_item_class`` and a matching ``active_record_class``, the ``SQLAlchemyActiveRecordStrategy``
+requires a scoped session object, passed using the constructor arg ``session``. For convenience, the
+``SQLAlchemyDatabase`` has a thread-scoped session facade set as its a ``session`` attribute. You may
+wish to use a different scoped session facade, such as a request-scoped session object provided by a Web
+framework.
+
+With the database setup, the ``SQLAlchemyActiveRecordStrategy`` can be constructed,
+and used to store events using SQLAlchemy.
+
+
+.. code:: python
+
+    active_record_strategy = SQLAlchemyActiveRecordStrategy(
+        sequenced_item_class=StoredEvent,
+        active_record_class=StoredEventRecord,
+        session=datastore.session,
+    )
+
+
+Sequenced items (or "stored events" in this example) can be appended to the database using the ``append()`` method
+of the active record strategy.
+
+
+.. code:: python
+
+    active_record_strategy.append(stored_event1)
+
+
+(Please note, since the position is given by the sequenced item itself, the word "append" means here "to add something
+extra" rather than the perhaps more common but stricter meaning "to add to the end of a document". That is, the
+database is deliberately not responsible for positioning a new item at the end of a sequence. So perhaps "save"
+would be a better name for this operation.)
+
+All the previously appended items of a sequence can be retrieved by using the ``get_items()`` method.
+
+
+.. code:: python
+
+    results = active_record_strategy.list_items(aggregate1)
+
+
+Since by now only one item was stored, so there is only one item in the results.
+
+
+.. code:: python
+
+    assert len(results) == 1
+    assert results[0] == stored_event1
+
+
+SQLAlchemy dialects
+~~~~~~~~~~~~~~~~~~~
+
+The databases supported by core `SQLAlchemy dialects <http://docs.sqlalchemy.org/en/latest/dialects/>`__
+are Firebird, Microsoft SQL Server, MySQL, Oracle, PostgreSQL, SQLite, and Sybase. This library's
+infrastructure classes for SQLAlchemy have been tested with MySQL, PostgreSQL, and SQLite.
+
+MySQL
+~~~~~
+
+For MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
+can be used.
+
+.. code::
+
+    $ pip install mysqlclient
+
+The ``uri`` for MySQL would look something like this.
+
+.. code::
+
+    mysql://username:password@localhost/eventsourcing
+
+
+PostgreSQL
+~~~~~~~~~~
+
+For PostgreSQL, the Python package `psycopg2 <https://pypi.python.org/pypi/psycopg2>`__
+can be used.
+
+.. code::
+
+    $ pip install psycopg2
+
+The ``uri`` for PostgreSQL would look something like this.
+
+.. code::
+
+    postgresql://username:password@localhost:5432/eventsourcing
+
+
+SQLite
+~~~~~~
+
+SQLite is shipped with core Python packages, so nothing extra needs to be installed.
+
+The ``uri`` for a temporary SQLite database might look something like this.
+
+.. code::
+
+    sqlite:::////tmp/eventsourcing.db
+
+
+Please note, the library's SQLAlchemy insfrastructure defaults to using
+an in memory SQLite database, which is the fastest way to run the library,
+and is recommended as a convenience for development.
+
+
+Django ORM
+----------
+
+The library has an active record strategy for the Django ORM provided by
+``DjangoActiveRecordStrategy`` class.
+
+To run the example below, please install the library with the
+'django' option.
+
+.. code::
+
+    $ pip install eventsourcing[django]
+
+
+For the ``DjangoActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
+from ``eventsourcing.infrastructure.django.models`` matches the ``SequencedItem``
+namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
+namedtuple. There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRecord``.
+These are all Django models.
+
+The package ``eventsourcing.infrastructure.django`` is a little Django app. To involve
+its models in your Django project, simply include the application in your project's list
+of ``INSTALLED_APPS``.
+
+.. code:: python
+
+    INSTALLED_APPS = [
+        'django.contrib.admin',
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.messages',
+        'django.contrib.staticfiles',
+        'eventsourcing.infrastructure.django'
+    ]
+
+
+Alternatively, import or write the classes you want into one of your own Django app's ``models.py``.
+
+The Django application at ``eventsourcing.infrastructure.django`` has database
+migrations that will add four tables, one for each of the sequenced item active
+record classes mentioned above. So if you use the application directly in
+``INSTALLED_APPS`` then the app's migrations will be picked up by Django.
+
+If, instead of using the app directly, you import some of its model classes
+into your own application's ``models.py``, you will need to run
+``python manage.py makemigrations`` before tables for event sourcing can be
+created by Django. This way you can avoid creating tables you won't use.
+
+The library has a little Django project for testing the library's Django app,
+it is used in this example to help run the library's Django app.
+
+.. code:: python
+
+    import os
+
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
+
+
+This Django project is simply the files that ``django-admin.py startproject`` generates, with the SQLite
+database set to be in memory, and with the library's Django app added to the ``INSTALLED_APPS`` setting.
+
+With the environment variable ``DJANGO_SETTINGS_MODULE`` referring to the Django project, Django can be
+started. If you aren't running tests with the Django test runner, you may need to run ``django.setup()``.
+
+.. code:: python
+
+    import django
+
+    django.setup()
+
+
+Before using the database, make sure the migrations have been applied, so the necessary database tables exist.
+
+An alternative to ``python manage.py migrate`` is the ``call_command()``
+function, provided by Django. If you aren't running tests with the Django
+test runner, this can help e.g. to setup an SQLite database in memory
+before each test by calling it in the ``setUp()`` method of a test case.
+
+.. code:: python
+
+    from django.core.management import call_command
+
+    call_command('migrate')
+
+
+So long as a table exists for its active record class, the ``DjangoActiveRecordStrategy``
+can be used to store events using the Django ORM.
+
+.. code:: python
+
+    from eventsourcing.infrastructure.django.activerecords import DjangoActiveRecordStrategy
+    from eventsourcing.infrastructure.django.models import StoredEventRecord
+
+    django_active_record_strategy = DjangoActiveRecordStrategy(
+        active_record_class=StoredEventRecord,
+        sequenced_item_class=StoredEvent,
+    )
+
+    results = django_active_record_strategy.list_items(aggregate1)
+    assert len(results) == 0
+
+    django_active_record_strategy.append(stored_event1)
+
+    results = django_active_record_strategy.list_items(aggregate1)
+    assert results[0] == stored_event1
+
+
+Please note, if you want to use the Django ORM as infrastructure for
+an event sourced application, you can of course use the application
+classes described in the :doc:`application </topics/application>`
+section of this documentation.
+
+See also the :doc:`deployment </topics/deployment>` section for
+information about deploying an event sourced application with Django.
+
+
+Django backends
+~~~~~~~~~~~~~~~
+
+The supported `Django backends <https://docs.djangoproject.com/en/2.0/ref/databases/>`__
+are PostgreSQL, MySQL, SQLite, and Oracle. This library's Django infrastructure classes
+have been tested with PostgreSQL, MySQL, SQLite.
+
+
+Cassandra
+---------
+
+The library has a concrete active record strategy for
+`Apache Cassandra <http://cassandra.apache.org/>`__
+provided by the ``CassandraActiveRecordStrategy`` class.
+
+To run the example below, please install the library with the
+'cassandra' option.
+
+.. code::
+
+    $ pip install eventsourcing[cassandra]
+
+It takes a while to build the driver. If you want to do that last step
+quickly, set the environment variable ``CASS_DRIVER_NO_CYTHON``.
+
+.. code::
+
+    $ CASS_DRIVER_NO_CYTHON=1 pip install eventsourcing[cassandra]
+
+
+For the ``CassandraActiveRecordStrategy``, the ``IntegerSequencedItemRecord``
+from ``eventsourcing.infrastructure.cassandra.activerecords`` matches the ``SequencedItem``
+namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
+namedtuple.  There is also a ``TimestampSequencedItemRecord`` and a ``SnapshotRecord``.
+
+
+The ``CassandraDatastore`` and ``CassandraSettings`` can be used in the same was as
+``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` above. Please investigate
+library class :class:`~eventsourcing.infrastructure.cassandra.datastore.CassandraSettings`
+for information about configuring away from default settings.
+
+.. code:: python
+
+    from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
+    from eventsourcing.infrastructure.cassandra.activerecords import StoredEventRecord
+
+    cassandra_datastore = CassandraDatastore(
+        settings=CassandraSettings(),
+        tables=(StoredEventRecord,)
+    )
+    cassandra_datastore.setup_connection()
+    cassandra_datastore.setup_tables()
+
+
+With the database setup, the ``CassandraActiveRecordStrategy`` can be constructed,
+and used to store events using Apache Cassandra.
+
+.. code:: python
+
+    from eventsourcing.infrastructure.cassandra.activerecords import CassandraActiveRecordStrategy
+
+    cassandra_active_record_strategy = CassandraActiveRecordStrategy(
+        active_record_class=StoredEventRecord,
+        sequenced_item_class=StoredEvent,
+    )
+
+    results = cassandra_active_record_strategy.list_items(aggregate1)
+    assert len(results) == 0
+
+    cassandra_active_record_strategy.append(stored_event1)
+
+    results = cassandra_active_record_strategy.list_items(aggregate1)
+    assert results[0] == stored_event1
+
+    cassandra_datastore.drop_tables()
+    cassandra_datastore.close_connection()
+
+
+Sequenced item conflicts
+------------------------
+
+It is a common feature of the active record strategy classes that it isn't possible successfully
+to append two items at the same position in the same sequence. If such an attempt is made, a
+``SequencedItemConflict`` will be raised.
+
+.. code:: python
+
+    from eventsourcing.exceptions import SequencedItemConflict
+
+    # Fail to append an item at the same position in the same sequence as a previous item.
+    try:
+        active_record_strategy.append(stored_event1)
+    except SequencedItemConflict:
+        pass
+    else:
+        raise Exception("SequencedItemConflict not raised")
+
+
+This feature is implemented using optimistic concurrency control features of the underlying database. With
+SQLAlchemy, a unique constraint is used that involves both the sequence and the position columns.
+The Django ORM strategy works in the same way.
+
+With Cassandra the position is the primary key in the sequence partition, and the "IF NOT
+EXISTS" feature is applied. The Cassandra database management system implements the Paxos
+protocol, and can thereby accomplish linearly-scalable distributed optimistic concurrency
+control, guaranteeing sequential consistency of the events of an entity despite the database
+being distributed. It is also possible to serialize calls to the methods of an entity, but
+that is out of the scope of this package — if you wish to do that, perhaps something like
+`Zookeeper <https://zookeeper.apache.org/>`__ might help.
+
+
 Event store
 ===========
 
@@ -784,7 +951,7 @@ Timestamped event store
 The examples so far have used an integer sequenced event store, where the items are sequenced by integer version.
 
 The example below constructs an event store for timestamp-sequenced domain events, using the library active
-record class ``TimestampedSequencedItemRecord``.
+record class ``TimestampSequencedItemRecord``.
 
 .. code:: python
 
@@ -822,12 +989,24 @@ record class ``TimestampedSequencedItemRecord``.
     assert events[0].timestamp < decimaltimestamp()
 
 
-Please note, optimistic concurrent control doesn't work to maintain entity consistency, because each
-event is likely to have a unique timestamp, and so conflicts are very unlikely to arise when concurrent
-operations appending to the same sequence. For this reason, although domain events can be timestamped,
+Please note, optimistic concurrent control doesn't work with timestamped sequenced items to maintain
+consistency of a domain entity, because each event is likely to have a unique timestamp, and so
+branches can occur without restraint. Optimistic concurrency control will prevent one timestamp
+sequenced event from overwritting another. For this reason, although domain events are usefully timestamped,
 it is not a very good idea to store the events of an entity or aggregate as timestamp-sequenced items.
 Timestamp-sequenced items are useful for storing events that are logically independent of others, such
 as messages in a log, things that do not risk causing a consistency error due to concurrent operations.
+It remains that timestamp sequenced items can happen to occur at the same timestamp, in which case
+there would be a concurrency error exception, and the event could be retried with a later timestamp.
+
+
+TimeUUIDs
+~~~~~~~~~
+
+If throughput is so high that such conflicts are too frequent, the library also supports sequencing
+items by TimeUUID, which includes a random component that makes it very unlikely two events will
+conflict. This feature currently works with Apache Cassandra only. Tests exist in the library, other
+documentation is forthcoming.
 
 
 .. Todo: The library function ``construct_cassandra_eventstore()`` can be used to

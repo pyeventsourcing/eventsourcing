@@ -5,17 +5,17 @@ Snapshotting
 Snapshots provide a fast path for obtaining the state of an entity or aggregate
 that skips replaying some or all of the entity's events.
 
-.. contents:: :local:
-
-If a repository is constructed with a snapshot strategy object, it will try to get
-the closest snapshot to the required version of a requested entity, and then replay
-only those events that will take the snapshot up to the state at that version.
-
-It is recommended not to co-mingle saved snapshots with the entity event sequence.
+If the library repository class ``EventSourcedRepository`` is constructed with a
+snapshot strategy object, it will try to get the closest snapshot to the required
+version of a requested entity, and then replay only those events that will take
+the snapshot up to the state at that version.
 
 Snapshots can be taken manually. To automatically generate snapshots, a snapshotting
 policy can take snapshots whenever a particular condition occurs, for example after
 every ten events.
+
+.. contents:: :local:
+
 
 Domain
 ======
@@ -36,7 +36,11 @@ Application
 The library class :class:`~eventsourcing.application.simple.SnapshottingApplication`,
 extends :class:`~eventsourcing.application.simple.SimpleApplication` by setting up
 infrastructure for snapshotting, such as a snapshot store, a dedicated table for
-snapshots, and a policy to take snapshots every so many events.
+snapshots, and a policy to take snapshots every so many events. It is recommended not
+to co-mingle saved snapshots with the entity event sequence. It can also make sense to
+use a completely separate table for snapshot records, especially if the table of domain
+events is also being used as application log (e.g. it has an auto-incrementing integer
+primary key column).
 
 .. code:: python
 

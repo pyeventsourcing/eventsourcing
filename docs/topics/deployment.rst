@@ -11,14 +11,14 @@ with the framework. Your event sourcing application can be
 constructed just after the database is configured, and before
 requests are handled.
 
-.. contents:: :local:
-
 Please note, unlike the code snippets in the other examples,
 the snippets of code in this section are merely
 suggestive, and do not form a complete working program.
 For a working example using Flask and SQLAlchemy, please refer
 to the library module :mod:`eventsourcing.example.interface.flaskapp`,
 which is tested both stand-alone and with uWSGI.
+
+.. contents:: :local:
 
 
 Application object
@@ -128,7 +128,6 @@ the object wasn't constructed by another thread before the lock was acquired.
         return application
 
 
-
 Database connection
 ===================
 
@@ -224,45 +223,11 @@ after child workers have been forked.
 Other decorators are available.
 
 
-Flask with Cassandra
---------------------
+Flask
+-----
 
-The `Cassandra Driver FAQ <https://datastax.github.io/python-driver/faq.html>`__
-has a code snippet about establishing the connection with the uWSGI `postfork`
-decorator, when running in a forked mode.
-
-.. code:: python
-
-    from flask import Flask
-    from uwsgidecorators import postfork
-    from cassandra.cluster import Cluster
-
-    session = None
-    prepared = None
-
-    @postfork
-    def connect():
-        global session, prepared
-        session = Cluster().connect()
-        prepared = session.prepare("SELECT release_version FROM system.local WHERE key=?")
-
-    app = Flask(__name__)
-
-    @app.route('/')
-    def server_version():
-        row = session.execute(prepared, ('local',))[0]
-        return row.release_version
-
-
-Flask-Cassandra
----------------
-
-The `Flask-Cassandra <https://github.com/TerbiumLabs/flask-cassandra>`__
-project serves a similar function to Flask-SQLAlchemy.
-
-
-Flask-SQLAlchemy
-----------------
+Flask with SQLAlchemy
+~~~~~~~~~~~~~~~~~~~~~
 
 If you wish to use eventsourcing with Flask and SQLAlchemy, then you may wish
 to use `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
@@ -332,32 +297,121 @@ module can be imported by the test suite, without immediately constructing
 the application.
 
 
-Django-Cassandra
-----------------
+Flask with Cassandra
+~~~~~~~~~~~~~~~~~~~~
 
-If you wish to use eventsourcing with Django and Cassandra, you may wish
-to use `Django-Cassandra <https://pypi.python.org/pypi/django-cassandra-engine/>`__.
+The `Cassandra Driver FAQ <https://datastax.github.io/python-driver/faq.html>`__
+has a code snippet about establishing the connection with the uWSGI `postfork`
+decorator, when running in a forked mode.
 
-It's also possible to use this library directly with Django and Cassandra. You
-just need to configure the connection and initialise the application before handling
-requests in a way that is correct for your configuration.
+.. code:: python
+
+    from flask import Flask
+    from uwsgidecorators import postfork
+    from cassandra.cluster import Cluster
+
+    session = None
+    prepared = None
+
+    @postfork
+    def connect():
+        global session, prepared
+        session = Cluster().connect()
+        prepared = session.prepare("SELECT release_version FROM system.local WHERE key=?")
+
+    app = Flask(__name__)
+
+    @app.route('/')
+    def server_version():
+        row = session.execute(prepared, ('local',))[0]
+        return row.release_version
+
+
+The `Flask-Cassandra <https://github.com/TerbiumLabs/flask-cassandra>`__
+project serves a similar function to Flask-SQLAlchemy.
+
+
+Django
+------
+
+When deploying an event sourcing application with Django, just remember that
+there must only be one instance of the application in any given process,
+otherwise its subscribers will be registered too many times. There are perhaps
+three different processes to consider. Firstly, running the test suite for your Django
+project or app. Secondly, running the Django project with WSGI (or equivalent).
+Thirdly, running the Django project from a task queue worker, such as RabbitMQ.
+
+For the first case, if your application needs to be created fresh for each test,
+it is recommended to have a base test case class, which initialises the
+application during ``setUp()`` and closes the application during ``tearDown()``.
+Another option is to use a yield fixture in pytest with the application object
+yielded whilst acting as a context manager. Just make sure the application is
+constructed once, and then closed if it is constructed again.
+
+Of course if you only have one application object to test, then you could perhaps
+just create it at the start of the test suite. If so, closing the application
+doesn't matter, because no other application object will be created before the process
+ends.
+
+For the second case, it is recommended to construct the application object from
+the project's ``wsgi.py`` file, which doesn't get used when running Django from a test suite,
+or from a task queue worker. Views can then get the application object freely.
+Closing the application doesn't matter, because it will be used until the process
+ends.
+
+For the third case, it is recommended to construct the application in a suitable
+signal from the task queue framework, so that the application is constructed
+before request threads begin. Jobs can then get the application object freely.
+Closing the application doesn't matter, because it will be used until the process
+ends.
+
+In each case, to make things very clear for other developers of your code, it is
+recommended to construct the application object with a module level function called
+``init_application()`` that assigns to a module level variable, and then obtain the
+application object with another module level function called ``get_application()``,
+which raises an exception if the application has not been constructed.
 
 
 Django ORM
-----------
+~~~~~~~~~~
 
-The excellent project `djangoevents <https://github.com/ApplauseOSS/djangoevents>`__
-by `Applause <https://www.applause.com/>`__ is a Django app that provides a neat
-way of taking an event sourcing approach in a Django project. It allows this library
-to be used seamlessly with Django, by using the Django ORM to store events. Using
-djangoevents is well documented in the README file. It adds some nice enhancements
-to the capabilities of this library, and shows how various components can be
-extended or replaced. Please note, the djangoevents project currently works with
-a previous version of this library.
+If you wish to use eventsourcing with Django ORM, the simplest way is having
+your application's event store use this library's ``DjangoActiveRecordStrategy``,
+and making sure the active record classes (Django models) are included in your Django
+project. See :doc:`infrastructure doc </topics/infrastructure>` for more information.
+
+The independent project `djangoevents <https://github.com/ApplauseOSS/djangoevents>`__
+by `Applause <https://www.applause.com/>`__ is a Django app that provides a more
+integrated approach to event sourcing in a Django project. It also uses the Django
+ORM to store events. Using djangoevents is well documented in its README file. It adds
+some nice enhancements to the capabilities of this library, and shows how various
+components can be extended or replaced. Please note, the djangoevents project
+currently works with a much older version of this library which isn't recommended
+for new projects.
 
 
-Zope-SQLAlchemy
----------------
+Django with Cassandra
+~~~~~~~~~~~~~~~~~~~~~
+
+If you wish to use eventsourcing with Django and Cassandra, regardless of any event sourcing,
+you may wish to use `Django-Cassandra <https://pypi.python.org/pypi/django-cassandra-engine/>`__.
+The library's Cassandra classes use the Cassandra Python library which the Django-Cassandra
+project integrates into Django. So you can easily develop an event sourcing application
+using the capabilities of this library, and then write views in Django, and use the
+Django-Cassandra project as a means of integrating Django as an Web interface to an
+event sourced application that uses Cassandra.
+
+It's also possible to use this library directly with Django and Cassandra. You
+just need to configure the connection and initialise the application before handling
+requests in a way that is correct for your configuration (which is what Django-Cassandra
+tries to make easy).
+
+
+Zope
+----
+
+Zope with SQLAlchemy
+~~~~~~~~~~~~~~~~~~~~
 
 The `Zope-SQLAlchemy <https://pypi.python.org/pypi/zope.sqlalchemy>`__
 project serves a similar function to Flask-SQLAlchemy.

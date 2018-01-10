@@ -36,6 +36,7 @@ which happens to append triggered events to the history.
     from eventsourcing.domain.model.aggregate import AggregateRoot
     from eventsourcing.domain.model.decorators import attribute
 
+
     class World(AggregateRoot):
 
         def __init__(self, ruler=None, **kwargs):

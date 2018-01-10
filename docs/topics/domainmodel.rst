@@ -302,11 +302,30 @@ A timestamped, versioned entity is both a timestamped entity and a versioned ent
     assert isinstance(entity, VersionedEntity)
 
 
+Naming style
+------------
+
+The double leading and trailing underscore naming style, seen above,
+is used consistently in the library's domain entity and event
+base classes for attribute and method names, so that developers can
+begin with a clean namespace. The intention is that the library
+functionality is included in the application by aliasing these library
+names with names that work within the project's ubiquitous language.
+
+This style breaks PEP8, but it seems worthwhile in order to keep the
+"normal" Python object namespace free for domain modelling. It is a style
+used by other libraries (such as SQLAlchemy and Django) for similar reasons.
+
+The exception is the ``id`` attribute of the domain entity base class,
+which is assumed to be required by all domain entities (or aggregates) in
+all domains.
+
+
 Entity events
 -------------
 
-The library's domain entity classes have domain events defined as inner classes: ``Event``, ``Created``,
-``AttributeChanged``, and ``Discarded``.
+The library's domain entity classes have domain events defined as inner
+classes: ``Event``, ``Created``, ``AttributeChanged``, and ``Discarded``.
 
 .. code:: python
 
@@ -316,9 +335,10 @@ The library's domain entity classes have domain events defined as inner classes:
     DomainEntity.Discarded
 
 
-The domain event class ``DomainEntity.Event`` is a super type of the others. The others also inherit
-from the library base classes ``Created``, ``AttributeChanged``, and ``Discarded``. All these domain
-events classes are subclasses of ``DomainEvent``.
+The domain event class ``DomainEntity.Event`` is a super type of the others.
+The others also inherit from the library base classes ``Created``,
+``AttributeChanged``, and ``Discarded``. All these domain events classes
+are subclasses of ``DomainEvent``.
 
 .. code:: python
 
@@ -342,9 +362,10 @@ a current ``timestamp`` value, unless one is given. ``Created`` events
 also need an ``originator_topic``. The other events need an ``__previous_hash__``.
 ``AttributeChanged`` events also need ``name`` and ``value``.
 
-All the events of ``DomainEntity`` use SHA-256 to generate an ``event_hash`` from the event attribute
-values when constructed for the first time. Events can be chained together by constructing each
-subsequent event to have its ``__previous_hash__`` as the ``event_hash`` of the previous event.
+All the events of ``DomainEntity`` use SHA-256 to generate an ``event_hash``
+from the event attribute values when constructed for the first time. Events
+can be chained together by constructing each subsequent event to have its
+``__previous_hash__`` as the ``event_hash`` of the previous event.
 
 .. code:: python
 
@@ -380,7 +401,8 @@ subsequent event to have its ``__previous_hash__`` as the ``event_hash`` of the 
         __previous_hash__=attribute_b_changed.__event_hash__,
     )
 
-The events have a ``mutate()`` function, which can be used to mutate the
+
+The events have a ``__mutate__()`` function, which can be used to mutate the
 state of a given object appropriately.
 
 For example, the ``DomainEntity.Created`` event mutates to an
@@ -425,7 +447,7 @@ entity is set to have the event's ``timestamp`` value.
 Factory method
 --------------
 
-The ``DomainEntity`` has a class method ``create()`` which can return
+The ``DomainEntity`` has a class method ``__create__()`` which can return
 new entity objects. When called, it constructs the ``Created`` event of the
 concrete class with suitable arguments such as a unique ID, and a topic representing
 the concrete entity class, and then it projects that event into an entity
@@ -751,7 +773,7 @@ the command method ``make_it_so()`` triggers the custom event ``SomethingHappene
                 obj.history.append(self)
 
 
-A new world can now be created, using the ``create()`` method. The command ``make_it_so()`` can
+A new world can now be created, using the ``__create__()`` method. The command ``make_it_so()`` can
 be used to make things happen in this world. When something happens, the history of the world
 is augmented with the new event.
 
@@ -790,24 +812,29 @@ Therefore,
     root only."*
 
 In this situation, one aggregate command may result in many events.
-We need to prevent the situation where other threads pick up only
-some of the events, but not all of them, which could present the
-aggregate in an inconsistent, or unusual, and perhaps unworkable state.
+In order to construct a consistency boundary, we need to prevent the
+situation where other threads pick up only some of the events, but not
+all of them, which could present the aggregate in an inconsistent, or
+unusual, and perhaps unworkable state.
 
 In other words, we need to avoid the situation where some of the events
 have been stored successfully but others have not been. If the events
 from a command were stored in a series of independent database transactions,
-then events could be lost due to an inconvenient database connection problem.
-Later events in the series could fall into conflict because another thread
-has started appending events to the same sequence, potentially causing an
-incoherent state that would be difficult to repair.
+then some would be written before others. If another thread needs the
+aggregate and gets its events whilst a series of new event are being written,
+it would not receive some of the events, but not the events that have not yet
+been written. Worse still, events could be lost due to an inconvenient database
+server problem, or sudden termination of the client. Even worse, later events
+in the series could fall into conflict because another thread has started
+appending events to the same sequence, potentially causing an incoherent state
+that would be difficult to repair.
 
-Therefore, all the events from a command on an aggregate must be appended
-to the event store in a single atomic transaction, so that if some of the
-events resulting from executing a command cannot be stored then none of them
-will be stored. If all the events from an aggregate are to be written to a
-database as a single atomic operation, they must also be published all together
-as a single list.
+Therefore, to implement the aggregate as a consistency boundary, all the events
+from a command on an aggregate must be appended to the event store in a single
+atomic transaction, so that if some of the events resulting from executing a
+command cannot be stored then none of them will be stored. If all the events
+from an aggregate are to be written to a database as a single atomic operation,
+then they must have been published by the entity as a single list.
 
 The library has a domain entity class called
 :class:`~eventsourcing.domain.model.aggregate.AggregateRoot` that can be
