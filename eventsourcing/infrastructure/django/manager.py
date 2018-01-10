@@ -130,7 +130,4 @@ class DjangoRecordManager(RelationalRecordManager):
         """
         Permanently removes record from table.
         """
-        try:
-            record.delete()
-        except OperationalError:
-            raise ProgrammingError
+        record.delete()
