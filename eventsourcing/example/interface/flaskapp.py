@@ -4,8 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.example.application import get_example_application, init_example_application
-from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
-
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 
 # Read DB URI from environment.
 uri = os.environ.get('DB_URI', 'sqlite:///:memory:')
@@ -36,8 +35,8 @@ class IntegerSequencedItem(db.Model):
 @application.before_first_request
 def init_example_application_with_sqlalchemy():
     init_example_application(
-        entity_active_record_strategy=SQLAlchemyActiveRecordStrategy(
-            active_record_class=IntegerSequencedItem,
+        entity_record_manager=SQLAlchemyRecordManager(
+            record_class=IntegerSequencedItem,
             session=db.session,
         )
     )

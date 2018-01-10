@@ -51,14 +51,11 @@ called, and ``get_application()`` will raise an exeception if
 
 .. code:: python
 
-    # Your eventsourcing application.
-    class ExampleApplication(object):
-        def __init__(*args, **kwargs):
-            pass
+    from eventsourcing.application.simple import SimpleApplication
 
 
     def construct_application(**kwargs):
-        return ExampleApplication(**kwargs)
+        return SimpleApplication(**kwargs)
 
 
     _application = None
@@ -72,9 +69,25 @@ called, and ``get_application()`` will raise an exeception if
 
 
     def get_application():
-        if application is None:
+        if _application is None:
             raise AssertionError("init_application() must be called first")
-        return application
+        return _application
+
+
+The expected behaviour is demonstrated below.
+
+.. code:: python
+
+    try:
+        get_application()
+    except AssertionError:
+        pass
+    else:
+        raise Exception("Shouldn't get here")
+
+    init_application()
+
+    get_application()
 
 
 As an aside, if you will use these function also in your test suite, and your
@@ -88,10 +101,18 @@ you may wish to close any database or other connections to network services.
 .. code:: python
 
     def close_application():
-        global application
-        if application is not None:
-            application.close()
-        application = None
+        global _application
+        if _application is not None:
+            _application.close()
+            _application = None
+
+
+The expected behaviour is demonstrated below.
+
+.. code:: python
+
+    close_application()
+    close_application()
 
 
 Lazy initialization
@@ -111,21 +132,26 @@ the object wasn't constructed by another thread before the lock was acquired.
 
     import threading
 
-    application = None
-
     lock = threading.Lock()
 
     def get_application():
-        global application
-        if application is None:
+        global _application
+        if _application is None:
             lock.acquire()
             try:
                 # Check again to avoid a TOCTOU bug.
-                if application is None:
-                    application = construct_application()
+                if _application is None:
+                    _application = construct_application()
             finally:
                 lock.release()
-        return application
+        return _application
+
+
+    get_application()
+    get_application()
+    get_application()
+
+    close_application()
 
 
 Database connection
@@ -208,8 +234,8 @@ Your "wsgi.py" file can have a module-level function decorated with the ``@postf
 decorator that initialises your eventsourcing application for the Web application process
 after child workers have been forked.
 
+.. exclude-when-testing
 .. code:: python
-
 
     from uwsgidecorators import postfork
 
@@ -231,10 +257,9 @@ Flask with SQLAlchemy
 
 If you wish to use eventsourcing with Flask and SQLAlchemy, then you may wish
 to use `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
-You just need to define your active record class
-using the model classes from that library, and then use it instead of the
-library classes in your eventsourcing application object, along with the
-session object it provides.
+You just need to define your record class(es) using the model classes from that
+library, and then use it instead of the library classes in your eventsourcing
+application object, along with the session object it provides.
 
 The docs snippet below shows that it can work simply to construct
 the eventsourcing application in the same place as the Flask
@@ -248,7 +273,6 @@ object that is scoped to the request.
     from flask import Flask
     from flask_sqlalchemy import SQLAlchemy
     from sqlalchemy_utils.types.uuid import UUIDType
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
 
 
     # Construct Flask application.
@@ -258,34 +282,34 @@ object that is scoped to the request.
     db = SQLAlchemy(application)
 
     # Define database table using Flask-SQLAlchemy library.
-    class IntegerSequencedItem(db.Model):
+    class StoredEventRecord(db.Model):
         __tablename__ = 'integer_sequenced_items'
 
-        id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+        id = db.Column(db.BigInteger().with_variant(db.Integer, "sqlite"), primary_key=True)
 
         # Sequence ID (e.g. an entity or aggregate ID).
-        sequence_id = db.Column(UUIDType(), nullable=False)
+        originator_id = db.Column(UUIDType(), nullable=False)
 
         # Position (index) of item in sequence.
-        position = db.Column(db.BigInteger(), nullable=False)
+        originator_version = db.Column(db.BigInteger(), nullable=False)
 
         # Topic of the item (e.g. path to domain event class).
-        topic = db.Column(db.String(255))
+        event_type = db.Column(db.String(255))
 
         # State of the item (serialized dict, possibly encrypted).
-        data = db.Column(db.Text())
+        state = db.Column(db.Text())
 
         # Index.
-        __table_args__ = db.Index('index', 'sequence_id', 'position', unique=True),
+        __table_args__ = db.Index('index', 'originator_id', 'originator_version', unique=True),
 
 
-    # Construct eventsourcing application with db table and session.
-    init_application(
-        entity_active_record_strategy=SQLAlchemyActiveRecordStrategy(
-            active_record_class=IntegerSequencedItem,
+    # Construct eventsourcing application with Flask-SQLAlchemy table and session.
+    @application.before_first_request
+    def before_first_request():
+        init_application(
             session=db.session,
+            stored_event_record_class=StoredEventRecord,
         )
-    )
 
 
 For a working example using Flask and SQLAlchemy, please
@@ -304,6 +328,7 @@ The `Cassandra Driver FAQ <https://datastax.github.io/python-driver/faq.html>`__
 has a code snippet about establishing the connection with the uWSGI `postfork`
 decorator, when running in a forked mode.
 
+.. exclude-when-testing
 .. code:: python
 
     from flask import Flask
@@ -376,8 +401,8 @@ Django ORM
 ~~~~~~~~~~
 
 If you wish to use eventsourcing with Django ORM, the simplest way is having
-your application's event store use this library's ``DjangoActiveRecordStrategy``,
-and making sure the active record classes (Django models) are included in your Django
+your application's event store use this library's ``DjangoRecordManager``,
+and making sure the record classes (Django models) are included in your Django
 project. See :doc:`infrastructure doc </topics/infrastructure>` for more information.
 
 The independent project `djangoevents <https://github.com/ApplauseOSS/djangoevents>`__

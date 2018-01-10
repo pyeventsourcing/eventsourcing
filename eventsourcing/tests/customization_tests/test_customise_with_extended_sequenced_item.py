@@ -11,8 +11,9 @@ from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
-from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord, SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.sqlalchemy.records import Base
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 # This module explores extending the sequenced item class with some more fields. How easy is it?
@@ -26,7 +27,7 @@ ExtendedSequencedItem = namedtuple('ExtendedSequencedItem',
 
 
 # Extend the database table definition to support the extra fields.
-class ExtendedIntegerSequencedItemRecord(ActiveRecord):
+class ExtendedIntegerSequencedRecord(Base):
     __tablename__ = 'extended_integer_sequenced_items'
 
     id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
@@ -67,9 +68,9 @@ class ExtendedSequencedItemMapper(SequencedItemMapper):
 class ExampleApplicationWithExtendedSequencedItemType(object):
     def __init__(self, session):
         self.event_store = EventStore(
-            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+            record_manager=SQLAlchemyRecordManager(
                 session=session,
-                active_record_class=ExtendedIntegerSequencedItemRecord,
+                record_class=ExtendedIntegerSequencedRecord,
                 sequenced_item_class=ExtendedSequencedItem,
             ),
             sequenced_item_mapper=ExtendedSequencedItemMapper(
@@ -107,9 +108,9 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
 
     def construct_datastore(self):
         return SQLAlchemyDatastore(
-            base=ActiveRecord,
+            base=Base,
             settings=SQLAlchemySettings(),
-            tables=(ExtendedIntegerSequencedItemRecord,)
+            tables=(ExtendedIntegerSequencedRecord,)
         )
 
     def test(self):
@@ -121,7 +122,7 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
             self.assertEqual(entity1.b, 'b')
 
             # Check there is a stored event.
-            all_records = list(app.event_store.active_record_strategy.all_records())
+            all_records = list(app.event_store.record_manager.all_records())
             self.assertEqual(len(all_records), 1)
             active_record = all_records[0]
             self.assertEqual(active_record.sequence_id, entity1.id)

@@ -108,7 +108,7 @@ Domain entity
 Now, let's define a domain entity that publishes the event classes defined above.
 
 The entity class ``Example`` below has an ID and a version number. It also
-has a property ``foo`` with a "setter" method, and a method ``discard()`` to use
+has a property ``foo`` with a "setter" method, and a method ``__discard__()`` to use
 when the entity is no longer needed.
 
 The entity methods follow a similar pattern. At some point, each
@@ -361,11 +361,11 @@ with each item positioned in its sequence by an integer index number.
     from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
     from sqlalchemy_utils import UUIDType
 
-    ActiveRecord = declarative_base()
+    Base = declarative_base()
 
 
-    class SequencedItemRecord(ActiveRecord):
-        __tablename__ = 'sequenced_items'
+    class IntegerSequencedRecord(Base):
+        __tablename__ = 'integer_sequenced_items'
 
         id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
@@ -385,7 +385,7 @@ with each item positioned in its sequence by an integer index number.
 
 
 The library has a class
-:class:`~eventsourcing.infrastructure.sqlalchemy.activerecords.IntegerSequencedItemRecord`
+:class:`~eventsourcing.infrastructure.sqlalchemy.models.IntegerSequencedRecord`
 which is very similar to the above.
 
 Next, create the database table. For convenience, the SQLAlchemy objects can be adapted
@@ -399,12 +399,12 @@ and ``setup_tables()``.
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemySettings, SQLAlchemyDatastore
 
     datastore = SQLAlchemyDatastore(
-        base=ActiveRecord,
+        base=Base,
         settings=SQLAlchemySettings(uri='sqlite:///:memory:'),
     )
 
     datastore.setup_connection()
-    datastore.setup_table(SequencedItemRecord)
+    datastore.setup_table(IntegerSequencedRecord)
 
 
 As you can see from the ``uri`` argument above, this example is using SQLite to manage
@@ -434,23 +434,23 @@ library's archetype persistence model for storing events. The sequenced item
 mapper derives the values of sequenced item fields from the attributes of domain
 events.
 
-The event store then uses an "active record strategy" to persist the sequenced items
-into a particular database management system. The active record strategy uses an
-active record class to manipulate records in a particular database table.
+The event store then uses a record manager to persist the sequenced items
+into a particular database management system. The record manager uses an
+record class to manipulate records in a particular database table.
 
 Hence you can use a different database table by substituting an alternative active
 record class. You can use a different database management system by substituting an
-alternative active record strategy.
+alternative record manager.
 
 .. code:: python
 
     from eventsourcing.infrastructure.eventstore import EventStore
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
+    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
-    active_record_strategy = SQLAlchemyActiveRecordStrategy(
+    record_manager = SQLAlchemyRecordManager(
         session=datastore.session,
-        active_record_class=SequencedItemRecord,
+        record_class=IntegerSequencedRecord,
     )
 
     sequenced_item_mapper = SequencedItemMapper(
@@ -459,7 +459,7 @@ alternative active record strategy.
     )
 
     event_store = EventStore(
-        active_record_strategy=active_record_strategy,
+        record_manager=record_manager,
         sequenced_item_mapper=sequenced_item_mapper
     )
 
@@ -518,11 +518,11 @@ The entity can now be retrieved from the repository, using its dictionary-like i
 Sequenced items
 ---------------
 
-Remember that we can always get the sequenced items directly from the active record
-strategy. A sequenced item is tuple containing a serialised representation of the
-domain event. The library class
-:class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem` is a Python namedtuple
-with four fields: ``sequence_id``, ``position``, ``topic``, and ``data``.
+Remember that we can always get the sequenced items directly from the record manager.
+A sequenced item is tuple containing a serialised representation of the domain event.
+The library class :class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`
+is a Python namedtuple with four fields: ``sequence_id``, ``position``, ``topic``,
+and ``data``.
 
 In this example, an event's ``originator_id`` attribute is mapped to the ``sequence_id``
 field, and the event's ``originator_version`` attribute is mapped to the ``position``
@@ -531,7 +531,7 @@ the ``data`` field represents the state of the event (normally a JSON string).
 
 .. code:: python
 
-    sequenced_items = event_store.active_record_strategy.list_items(entity.id)
+    sequenced_items = event_store.record_manager.list_items(entity.id)
 
     assert len(sequenced_items) == 2
 
@@ -591,8 +591,8 @@ and unsubscribe from receiving further domain events.
         def __init__(self, session):
             # Construct event store.
             self.event_store = EventStore(
-                active_record_strategy=SQLAlchemyActiveRecordStrategy(
-                    active_record_class=SequencedItemRecord,
+                record_manager=SQLAlchemyRecordManager(
+                    record_class=IntegerSequencedRecord,
                     session=session,
                 ),
                 sequenced_item_mapper=SequencedItemMapper(

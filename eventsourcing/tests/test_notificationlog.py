@@ -7,13 +7,13 @@ from eventsourcing.infrastructure.repositories.array import BigArrayRepository
 from eventsourcing.interface.notificationlog import NotificationLog, NotificationLogReader, \
     RemoteNotificationLog, deserialize_section, present_section
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
-    WithCassandraActiveRecordStrategies
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
-    WithSQLAlchemyActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
+    WithCassandraRecordManagers
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
+    WithSQLAlchemyRecordManagers
 
 
-class ArchivedLogTestCase(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
+class ArchivedLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
     def setUp(self):
         super(ArchivedLogTestCase, self).setUp()
         self.big_array_repo = BigArrayRepository(event_store=self.entity_event_store)
@@ -262,7 +262,7 @@ class TestRemoteArchivedLog(ArchivedLogTestCase):
             httpd.server_close()
 
 
-class TestNotificationLogWithCassandra(WithCassandraActiveRecordStrategies, TestNotificationLog):
+class TestNotificationLogWithCassandra(WithCassandraRecordManagers, TestNotificationLog):
     pass
 
 

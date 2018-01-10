@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.exceptions import ConcurrencyError, SequencedItemConflict
-from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.base import AbstractRecordManager
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
 
@@ -49,23 +49,23 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
 class EventStore(AbstractEventStore):
     """
     Event store appends domain events to stored sequences. It uses
-    an active record strategy to map named tuples to database
+    a record manager to map named tuples to database
     records, and it uses a sequenced item mapper to map named
     tuples to application-level objects.
     """
     iterator_class = SequencedItemIterator
 
-    def __init__(self, active_record_strategy, sequenced_item_mapper):
+    def __init__(self, record_manager, sequenced_item_mapper):
         """
         Initialises event store object.
 
 
-        :param active_record_strategy: active record strategy
+        :param record_manager: record manager
         :param sequenced_item_mapper: sequenced item mapper
         """
-        assert isinstance(active_record_strategy, AbstractActiveRecordStrategy), active_record_strategy
+        assert isinstance(record_manager, AbstractRecordManager), record_manager
         assert isinstance(sequenced_item_mapper, AbstractSequencedItemMapper), sequenced_item_mapper
-        self.active_record_strategy = active_record_strategy
+        self.record_manager = record_manager
         self.sequenced_item_mapper = sequenced_item_mapper
 
     def append(self, domain_event_or_events):
@@ -83,7 +83,7 @@ class EventStore(AbstractEventStore):
 
         # Append to the sequenced item(s) to the sequence.
         try:
-            self.active_record_strategy.append(sequenced_item_or_items)
+            self.record_manager.append(sequenced_item_or_items)
         except SequencedItemConflict as e:
             raise ConcurrencyError(e)
 
@@ -113,7 +113,7 @@ class EventStore(AbstractEventStore):
         """
         if page_size:
             sequenced_items = self.iterator_class(
-                active_record_strategy=self.active_record_strategy,
+                record_manager=self.record_manager,
                 sequence_id=originator_id,
                 page_size=page_size,
                 gt=gt,
@@ -124,7 +124,7 @@ class EventStore(AbstractEventStore):
                 is_ascending=is_ascending,
             )
         else:
-            sequenced_items = self.active_record_strategy.get_items(
+            sequenced_items = self.record_manager.get_items(
                 sequence_id=originator_id,
                 gt=gt,
                 gte=gte,
@@ -149,7 +149,7 @@ class EventStore(AbstractEventStore):
         :param eq: get item at this position
         :return: domain event
         """
-        sequenced_item = self.active_record_strategy.get_item(
+        sequenced_item = self.record_manager.get_item(
             sequence_id=originator_id,
             eq=eq,
         )
@@ -179,5 +179,5 @@ class EventStore(AbstractEventStore):
 
         :return: map object, yielding a sequence of domain events
         """
-        all_items = self.active_record_strategy.all_items()
+        all_items = self.record_manager.all_items()
         return map(self.sequenced_item_mapper.from_sequenced_item, all_items)

@@ -23,9 +23,9 @@ are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invi
 
 ## Features
 
-**Event store** — appends and retrieves domain events. Uses a
-sequenced item mapper with an active record strategy to map domain events
-to databases in ways that can be easily extended and replaced.
+**Event store** — stores and retrieves domain events. Uses a
+sequenced item mapper with a record strategy to map domain events
+to database records in ways that can be easily extended and replaced.
 
 **Data integrity** - stored events can be hashed to check data integrity of individual
 records, so you cannot lose information in transit or get database corruption without
@@ -36,7 +36,7 @@ so can the entire sequence.
 **Optimistic concurrency control** — can be used to ensure a distributed or
 horizontally scaled application doesn't become inconsistent due to concurrent
 method execution. Leverages any optimistic concurrency controls in the database
-adapted by the active record strategy.
+adapted by the record manager.
 
 **Application-level encryption** — encrypts and decrypts stored events, using a cipher
 strategy passed as an option to the sequenced item mapper. Can be used to encrypt some
@@ -185,8 +185,8 @@ with SimpleApplication() as app:
     assert last_hash == world.__head__
 
     # Check records are encrypted (values not visible in database).
-    active_record_strategy = app.event_store.active_record_strategy
-    items = active_record_strategy.get_items(world.id)
+    record_manager = app.event_store.record_manager
+    items = record_manager.get_items(world.id)
     for item in items:
         for what in ['dinosaurs', 'trucks', 'internet']:         
             assert what not in item.state

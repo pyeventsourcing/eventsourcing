@@ -14,7 +14,7 @@ from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import SequencedItemConflict
-from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.base import AbstractRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
@@ -22,34 +22,37 @@ from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 
-class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
+class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
+
+    cancel_sqlite3_decimal_converter = False
+
     def __init__(self, *args, **kwargs):
-        super(ActiveRecordStrategyTestCase, self).__init__(*args, **kwargs)
-        self._active_record_strategy = None
+        super(ActiveRecordManagerTestCase, self).__init__(*args, **kwargs)
+        self._record_manager = None
 
     def setUp(self):
-        super(ActiveRecordStrategyTestCase, self).setUp()
+        super(ActiveRecordManagerTestCase, self).setUp()
         if self.datastore is not None:
             self.datastore.setup_connection()
             self.datastore.setup_tables()
 
     def tearDown(self):
-        self._active_record_strategy = None
+        self._record_manager = None
         if self.datastore is not None:
             self.datastore.drop_tables()
             self.datastore.close_connection()
-        super(ActiveRecordStrategyTestCase, self).tearDown()
+        super(ActiveRecordManagerTestCase, self).tearDown()
 
     @property
-    def active_record_strategy(self):
+    def record_manager(self):
         """
-        :rtype: AbstractActiveRecordStrategy
+        :rtype: AbstractRecordManager
         """
-        if self._active_record_strategy is None:
-            self._active_record_strategy = self.construct_active_record_strategy()
-        return self._active_record_strategy
+        if self._record_manager is None:
+            self._record_manager = self.construct_record_manager()
+        return self._record_manager
 
-    def construct_active_record_strategy(self):
+    def construct_record_manager(self):
         raise NotImplementedError()
 
     def construct_positions(self):
@@ -66,7 +69,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         sequence_id2 = uuid.uuid1()
 
         # Check repo returns empty list when there aren't any items.
-        self.assertEqual(self.active_record_strategy.list_items(sequence_id1), [])
+        self.assertEqual(self.record_manager.list_items(sequence_id1), [])
 
         position1, position2, position3 = self.construct_positions()
 
@@ -81,7 +84,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data1,
         )
-        self.active_record_strategy.append(item1)
+        self.record_manager.append(item1)
 
         # Append an item to a different sequence.
         data2 = json.dumps({'name': 'value2'})
@@ -91,20 +94,24 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data2,
         )
-        self.active_record_strategy.append(item2)
+        self.record_manager.append(item2)
 
         # Check the get_item() method returns item at position.
-        retrieved_item = self.active_record_strategy.get_item(sequence_id1, position1)
+        if self.cancel_sqlite3_decimal_converter:
+            import sqlite3
+            sqlite3.register_converter("decimal", None)
+
+        retrieved_item = self.record_manager.get_item(sequence_id1, position1)
         self.assertEqual(sequence_id1, retrieved_item.sequence_id)
         self.assertEqual(position1, retrieved_item.position)
         self.assertEqual(data1, retrieved_item.data)
 
         # Check index error is raised when item does not exist at position.
         with self.assertRaises(IndexError):
-            self.active_record_strategy.get_item(sequence_id1, position2)
+            self.record_manager.get_item(sequence_id1, position2)
 
         # Check repo returns the item.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1)
+        retrieved_items = self.record_manager.list_items(sequence_id1)
         self.assertEqual(1, len(retrieved_items), str(retrieved_items))
         self.assertIsInstance(retrieved_items[0], SequencedItem)
         self.assertEqual(retrieved_items[0].sequence_id, item1.sequence_id)
@@ -126,7 +133,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.assertNotEqual(item1.data, item3.data)
         # - check appending item as single item
         with self.assertRaises(SequencedItemConflict):
-            self.active_record_strategy.append(item3)
+            self.record_manager.append(item3)
 
         item4 = SequencedItem(
             sequence_id=item1.sequence_id,
@@ -142,22 +149,22 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         )
         # - check appending item as a list of items (none should be appended)
         with self.assertRaises(SequencedItemConflict):
-            self.active_record_strategy.append([item3, item4, item5])
+            self.record_manager.append([item3, item4, item5])
 
         # Check there is still only one item.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1)
+        retrieved_items = self.record_manager.list_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 1)
 
         # Check adding an empty list does nothing.
-        self.active_record_strategy.append([])
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1)
+        self.record_manager.append([])
+        retrieved_items = self.record_manager.list_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 1)
 
         # Append a second and third item at the next positions.
-        self.active_record_strategy.append([item4, item5])
+        self.record_manager.append([item4, item5])
 
         # Check there are three items.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1)
+        retrieved_items = self.record_manager.list_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 3)
 
         # Check the items are in sequential order.
@@ -180,83 +187,83 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.assertEqual(retrieved_items[2].data, item5.data)
 
         # Get items greater than a position.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1, gt=position1)
+        retrieved_items = self.record_manager.list_items(sequence_id1, gt=position1)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position2)
         self.assertEqual(retrieved_items[1].position, position3)
 
         # Get items greater then or equal to a position.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1, gte=position2)
+        retrieved_items = self.record_manager.list_items(sequence_id1, gte=position2)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position2)
         self.assertEqual(retrieved_items[1].position, position3)
 
         # Get items less than a position.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1, lt=position3)
+        retrieved_items = self.record_manager.list_items(sequence_id1, lt=position3)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position1)
         self.assertEqual(retrieved_items[1].position, position2)
 
         # Get items less then or equal to a position.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1, lte=position2)
+        retrieved_items = self.record_manager.list_items(sequence_id1, lte=position2)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position1)
         self.assertEqual(retrieved_items[1].position, position2)
 
         # Get items greater then or equal to a position and less then or equal to a position.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1, gte=position2, lte=position2)
+        retrieved_items = self.record_manager.list_items(sequence_id1, gte=position2, lte=position2)
         self.assertEqual(len(retrieved_items), 1)
         self.assertEqual(retrieved_items[0].position, position2)
 
         # Get items greater then or equal to a position and less then a position.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1, gte=position2, lt=position3)
+        retrieved_items = self.record_manager.list_items(sequence_id1, gte=position2, lt=position3)
         self.assertEqual(len(retrieved_items), 1)
         self.assertEqual(retrieved_items[0].position, position2)
 
         # Get items greater then a position and less then or equal to a position.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1, gt=position1, lte=position2)
+        retrieved_items = self.record_manager.list_items(sequence_id1, gt=position1, lte=position2)
         self.assertEqual(len(retrieved_items), 1)
         self.assertEqual(retrieved_items[0].position, position2)
 
         # Get items greater a position and less a position.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1, gt=position1, lt=position3)
+        retrieved_items = self.record_manager.list_items(sequence_id1, gt=position1, lt=position3)
         self.assertEqual(len(retrieved_items), 1)
         self.assertEqual(retrieved_items[0].position, position2)
 
         # Get items with a limit.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1, limit=1)
+        retrieved_items = self.record_manager.list_items(sequence_id1, limit=1)
         self.assertEqual(len(retrieved_items), 1)
         self.assertEqual(retrieved_items[0].position, position1)
 
         # Get items with a limit, and with descending query (so that we get the last ones).
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1, limit=2,
+        retrieved_items = self.record_manager.list_items(sequence_id1, limit=2,
                                                                 query_ascending=False)
         self.assertEqual(2, len(retrieved_items))
         self.assertEqual(retrieved_items[0].position, position2)
         self.assertEqual(retrieved_items[1].position, position3)
 
         # Get items with a limit and descending query, greater than a position.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1, limit=2, gt=position2,
+        retrieved_items = self.record_manager.list_items(sequence_id1, limit=2, gt=position2,
                                                                 query_ascending=False)
         self.assertEqual(1, len(retrieved_items))
         self.assertEqual(retrieved_items[0].position, position3)
 
         # Get items with a limit and descending query, less than a position.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1, limit=2, lt=position3,
+        retrieved_items = self.record_manager.list_items(sequence_id1, limit=2, lt=position3,
                                                                 query_ascending=False)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position1)
         self.assertEqual(retrieved_items[1].position, position2)
 
         # Get items in descending order, queried in ascending order.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1,
+        retrieved_items = self.record_manager.list_items(sequence_id1,
                                                                 results_ascending=False)
         self.assertEqual(len(retrieved_items), 3)
         self.assertEqual(retrieved_items[0].position, position3)
         self.assertEqual(retrieved_items[2].position, position1)
 
         # Get items in descending order, queried in descending order.
-        retrieved_items = self.active_record_strategy.list_items(sequence_id1,
+        retrieved_items = self.record_manager.list_items(sequence_id1,
                                                                 query_ascending=False,
                                                                 results_ascending=False)
         self.assertEqual(len(retrieved_items), 3)
@@ -264,7 +271,7 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         self.assertEqual(retrieved_items[2].position, position1)
 
         # Iterate over all items in all sequences.
-        retrieved_items = self.active_record_strategy.all_items()
+        retrieved_items = self.record_manager.all_items()
         retrieved_items = list(retrieved_items)
 
         # Not always in order, but check the number of events.
@@ -277,9 +284,9 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         # Todo: This is lame and needs reworking, as "integrated application log" or something.
 
         # # Resume from after the first sequence.
-        # for first in self.active_record_strategy.all_records():
+        # for first in self.record_manager.all_records():
         #     break
-        # retrieved_items = self.active_record_strategy.all_records(resume=first)
+        # retrieved_items = self.record_manager.all_records(resume=first)
         # retrieved_items = list(retrieved_items)
         # if first == sequence_id1:
         #     self.assertEqual(len(retrieved_items), 1)
@@ -287,25 +294,25 @@ class ActiveRecordStrategyTestCase(AbstractDatastoreTestCase):
         #     self.assertEqual(len(retrieved_items), 3)
 
         # Delete some items.
-        records = list(self.active_record_strategy.all_records())
+        records = list(self.record_manager.all_records())
         self.assertTrue(len(records))
         for records in records:
-            self.active_record_strategy.delete_record(records)
-        records = list(self.active_record_strategy.all_records())
+            self.record_manager.delete_record(records)
+        records = list(self.record_manager.all_records())
         self.assertFalse(len(records))
 
 
-class WithActiveRecordStrategies(AbstractDatastoreTestCase):
+class WithActiveRecordManagers(AbstractDatastoreTestCase):
     drop_tables = False
 
     def __init__(self, *args, **kwargs):
-        super(WithActiveRecordStrategies, self).__init__(*args, **kwargs)
-        self._entity_active_record_strategy = None
-        self._log_active_record_strategy = None
+        super(WithActiveRecordManagers, self).__init__(*args, **kwargs)
+        self._entity_record_manager = None
+        self._log_record_manager = None
         self._snapshot_strategy = None
 
     def setUp(self):
-        super(WithActiveRecordStrategies, self).setUp()
+        super(WithActiveRecordManagers, self).setUp()
         if self.datastore:
             self.datastore.setup_connection()
             if self.drop_tables:
@@ -313,8 +320,8 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
             self.datastore.setup_tables()
 
     def tearDown(self):
-        self._log_active_record_strategy = None
-        self._entity_active_record_strategy = None
+        self._log_record_manager = None
+        self._entity_record_manager = None
         if self._datastore is not None:
             if self.drop_tables:
                 self._datastore.drop_tables()
@@ -322,41 +329,41 @@ class WithActiveRecordStrategies(AbstractDatastoreTestCase):
                 self._datastore = None
             else:
                 self._datastore.truncate_tables()
-        super(WithActiveRecordStrategies, self).tearDown()
+        super(WithActiveRecordManagers, self).tearDown()
 
     @property
-    def entity_active_record_strategy(self):
-        if self._entity_active_record_strategy is None:
-            self._entity_active_record_strategy = self.construct_entity_active_record_strategy()
-        return self._entity_active_record_strategy
+    def entity_record_manager(self):
+        if self._entity_record_manager is None:
+            self._entity_record_manager = self.construct_entity_record_manager()
+        return self._entity_record_manager
 
     @property
-    def log_active_record_strategy(self):
-        if self._log_active_record_strategy is None:
-            self._log_active_record_strategy = self.construct_log_active_record_strategy()
-        return self._log_active_record_strategy
+    def log_record_manager(self):
+        if self._log_record_manager is None:
+            self._log_record_manager = self.construct_log_record_manager()
+        return self._log_record_manager
 
     @property
-    def snapshot_active_record_strategy(self):
+    def snapshot_record_manager(self):
         if self._snapshot_strategy is None:
-            self._snapshot_strategy = self.construct_snapshot_active_record_strategy()
+            self._snapshot_strategy = self.construct_snapshot_record_manager()
         return self._snapshot_strategy
 
-    def construct_entity_active_record_strategy(self):
+    def construct_entity_record_manager(self):
         """
-        :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordStrategy
-        """
-        raise NotImplementedError
-
-    def construct_log_active_record_strategy(self):
-        """
-        :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordStrategy
+        :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordManager
         """
         raise NotImplementedError
 
-    def construct_snapshot_active_record_strategy(self):
+    def construct_log_record_manager(self):
         """
-        :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordStrategy
+        :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordManager
+        """
+        raise NotImplementedError
+
+    def construct_snapshot_record_manager(self):
+        """
+        :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordManager
         """
         raise NotImplementedError
 
@@ -377,7 +384,7 @@ class TimestampedEventExample2(EventWithTimestamp, EventWithOriginatorID):
     pass
 
 
-class IntegerSequencedItemTestCase(ActiveRecordStrategyTestCase):
+class IntegerSequencedItemTestCase(ActiveRecordManagerTestCase):
     EXAMPLE_EVENT_TOPIC1 = get_topic(VersionedEventExample1)
     EXAMPLE_EVENT_TOPIC2 = get_topic(VersionedEventExample2)
 
@@ -385,7 +392,7 @@ class IntegerSequencedItemTestCase(ActiveRecordStrategyTestCase):
         return 0, 1, 2
 
 
-class TimestampSequencedItemTestCase(ActiveRecordStrategyTestCase):
+class TimestampSequencedItemTestCase(ActiveRecordManagerTestCase):
     EXAMPLE_EVENT_TOPIC1 = get_topic(TimestampedEventExample1)
     EXAMPLE_EVENT_TOPIC2 = get_topic(TimestampedEventExample2)
 
@@ -395,7 +402,7 @@ class TimestampSequencedItemTestCase(ActiveRecordStrategyTestCase):
         # return t1, t1 + Decimal('0.000001000'), t1 + Decimal('0.000002000')
 
 
-class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
+class SequencedItemIteratorTestCase(WithActiveRecordManagers):
     ENTITY_ID1 = uuid4()
 
     @property
@@ -415,7 +422,7 @@ class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
 
     def construct_iterator(self, is_ascending, page_size, gt=None, lte=None, limit=None):
         return self.iterator_cls(
-            active_record_strategy=self.entity_active_record_strategy,
+            record_manager=self.entity_record_manager,
             sequence_id=self.entity_id,
             page_size=page_size,
             gt=gt,
@@ -437,13 +444,13 @@ class SequencedItemIteratorTestCase(WithActiveRecordStrategies):
                 ),
             )
             self.sequenced_items.append(sequenced_item)
-            self.entity_active_record_strategy.append(sequenced_item)
+            self.entity_record_manager.append(sequenced_item)
 
     def test(self):
         self.setup_sequenced_items()
 
-        assert isinstance(self.entity_active_record_strategy, AbstractActiveRecordStrategy)
-        stored_events = self.entity_active_record_strategy.list_items(
+        assert isinstance(self.entity_record_manager, AbstractRecordManager)
+        stored_events = self.entity_record_manager.list_items(
             sequence_id=self.entity_id
         )
         stored_events = list(stored_events)
@@ -530,7 +537,7 @@ class ThreadedSequencedItemIteratorTestCase(SequencedItemIteratorTestCase):
         return ThreadedSequencedItemIterator
 
 
-class WithPersistencePolicies(WithActiveRecordStrategies):
+class WithPersistencePolicies(WithActiveRecordManagers):
     """
     Base class for test cases that need persistence policies.
     """
@@ -539,7 +546,7 @@ class WithPersistencePolicies(WithActiveRecordStrategies):
         super(WithPersistencePolicies, self).setUp()
         # Setup the persistence subscriber.
         self.entity_event_store = EventStore(
-            active_record_strategy=self.entity_active_record_strategy,
+            record_manager=self.entity_record_manager,
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='originator_id',
@@ -547,7 +554,7 @@ class WithPersistencePolicies(WithActiveRecordStrategies):
             )
         )
         self.log_event_store = EventStore(
-            active_record_strategy=self.log_active_record_strategy,
+            record_manager=self.log_record_manager,
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='originator_id',
@@ -555,7 +562,7 @@ class WithPersistencePolicies(WithActiveRecordStrategies):
             )
         )
         self.snapshot_store = EventStore(
-            active_record_strategy=self.snapshot_active_record_strategy,
+            record_manager=self.snapshot_record_manager,
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name='originator_id',

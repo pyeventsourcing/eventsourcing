@@ -12,11 +12,11 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='IntegerSequencedItemRecord',
+            name='IntegerSequencedRecord',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('sequence_id', models.UUIDField()),
-                ('position', models.BigIntegerField()),
+                ('position', models.IntegerField()),
                 ('topic', models.CharField(max_length=255)),
                 ('data', models.TextField()),
             ],
@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('sequence_id', models.UUIDField()),
-                ('position', models.BigIntegerField()),
+                ('position', models.IntegerField()),
                 ('topic', models.CharField(max_length=255)),
                 ('data', models.TextField()),
             ],
@@ -51,7 +51,7 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='TimestampSequencedItemRecord',
+            name='TimestampSequencedRecord',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('sequence_id', models.UUIDField()),
@@ -64,7 +64,7 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.AlterUniqueTogether(
-            name='timestampsequenceditemrecord',
+            name='timestampsequencedrecord',
             unique_together={('sequence_id', 'position')},
         ),
         migrations.AlterUniqueTogether(
@@ -72,7 +72,7 @@ class Migration(migrations.Migration):
             unique_together={('sequence_id', 'position')},
         ),
         migrations.AlterUniqueTogether(
-            name='integersequenceditemrecord',
+            name='integersequencedrecord',
             unique_together={('sequence_id', 'position')},
         ),
         migrations.AlterUniqueTogether(

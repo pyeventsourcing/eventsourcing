@@ -9,8 +9,8 @@ from eventsourcing.domain.model.events import assert_event_handlers_empty, subsc
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.repositories.collection_repo import CollectionRepository
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
-    WithSQLAlchemyActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
+    WithSQLAlchemyRecordManagers
 
 
 class TestCollection(TestCase):
@@ -104,7 +104,7 @@ class TestCollection(TestCase):
         self.assertRaises(EntityIsDiscarded, getattr, collection, 'items')
 
 
-class TestCollectionRepo(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
+class TestCollectionRepo(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
     def test(self):
         repo = CollectionRepository(event_store=self.entity_event_store)
 

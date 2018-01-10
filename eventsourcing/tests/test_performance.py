@@ -6,7 +6,7 @@ from math import floor
 
 from eventsourcing.domain.model.timebucketedlog import start_new_timebucketedlog
 from eventsourcing.example.domainmodel import Example, create_new_example
-from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
+from eventsourcing.infrastructure.base import AbstractRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader, get_timebucketedlog_reader
@@ -14,10 +14,10 @@ from eventsourcing.tests.base import notquick
 from eventsourcing.tests.example_application_tests.base import WithExampleApplication
 from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import \
     WithEncryption
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
-    WithCassandraActiveRecordStrategies
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
-    WithSQLAlchemyActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
+    WithCassandraRecordManagers
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
+    WithSQLAlchemyRecordManagers
 
 
 @notquick
@@ -86,14 +86,14 @@ class PerformanceTestCase(WithExampleApplication):
                 def last_n(n):
                     n = min(n, num_beats + 1)
                     assert isinstance(app.example_repository.event_store, EventStore)
-                    ars = app.example_repository.event_store.active_record_strategy
-                    assert isinstance(ars, AbstractActiveRecordStrategy)
+                    ars = app.example_repository.event_store.record_manager
+                    assert isinstance(ars, AbstractRecordManager)
 
                     start_last_n = time.time()
                     last_n_stored_events = []
                     for _ in six.moves.range(repetitions):
                         iterator = SequencedItemIterator(
-                            active_record_strategy=ars,
+                            record_manager=ars,
                             sequence_id=example.id,
                             limit=n,
                             is_ascending=False,
@@ -238,7 +238,7 @@ class PerformanceTestCase(WithExampleApplication):
 
 
 @notquick
-class TestCassandraPerformance(WithCassandraActiveRecordStrategies, PerformanceTestCase):
+class TestCassandraPerformance(WithCassandraRecordManagers, PerformanceTestCase):
     pass
 
 
@@ -248,5 +248,5 @@ class TestEncryptionPerformance(WithEncryption, TestCassandraPerformance):
 
 
 @notquick
-class TestSQLAlchemyPerformance(WithSQLAlchemyActiveRecordStrategies, PerformanceTestCase):
+class TestSQLAlchemyPerformance(WithSQLAlchemyRecordManagers, PerformanceTestCase):
     pass

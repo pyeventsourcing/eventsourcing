@@ -8,10 +8,10 @@ from eventsourcing.exceptions import EventHashError, HeadHashError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord, \
-    SQLAlchemyActiveRecordStrategy
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
-    WithSQLAlchemyActiveRecordStrategies
+from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
+    WithSQLAlchemyRecordManagers
 from eventsourcing.utils.topic import get_topic
 
 
@@ -54,7 +54,7 @@ class TestAggregateRootEvent(TestCase):
             event1.__check_hash__()
 
 
-class TestExampleAggregateRoot(WithSQLAlchemyActiveRecordStrategies):
+class TestExampleAggregateRoot(WithSQLAlchemyRecordManagers):
     def setUp(self):
         super(TestExampleAggregateRoot, self).setUp()
         self.app = ExampleDDDApplication(self.datastore)
@@ -281,9 +281,9 @@ class Example(object):
 class ExampleDDDApplication(object):
     def __init__(self, datastore):
         event_store = EventStore(
-            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+            record_manager=SQLAlchemyRecordManager(
                 session=datastore.session,
-                active_record_class=IntegerSequencedItemRecord,
+                record_class=IntegerSequencedRecord,
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequence_id_attr_name='originator_id',

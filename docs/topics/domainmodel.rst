@@ -513,7 +513,7 @@ cause the version number to increase, and it will update the last modified time.
     assert entity.__last_modified__ > entity.__created_on__
 
 
-The command method ``change_attribute()`` triggers an
+The command method ``__change_attribute__()`` triggers an
 ``AttributeChanged`` event. In the code below, the attribute ``full_name``
 is set to 'Mr Boots'. A subscriber receives the event.
 
@@ -600,7 +600,7 @@ perhaps with random bytes encoded as Base64.
 Discarding entities
 -------------------
 
-The entity method ``discard()`` can be used to discard the entity, by triggering
+The entity method ``__discard__()`` can be used to discard the entity, by triggering
 a ``Discarded`` event, after which the entity is unavailable for further changes.
 
 .. code:: python
@@ -744,7 +744,7 @@ Custom event classes can extend the ``__mutate__()`` method, so it affects
 entities in a way that is specific to that type of event. More conveniently, event
 classes can implement a ``mutate()`` method, which avoids the need to call the
 super method and return the obj. For example, the ``SomethingHappened`` event class
-has a ``_mutate()`` which simple appends the event object to the entity's ``history``
+has a ``mutate()`` method which simply appends the event object to the entity's ``history``
 attribute.
 
 Custom events are normally triggered by custom commands. In the example below,

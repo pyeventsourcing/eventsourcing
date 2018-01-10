@@ -82,10 +82,11 @@ suitable AES key (16, 24, or 32 random bytes encoded as Base64).
     # Keep this safe (random bytes encoded with Base64).
     cipher_key = encode_random_bytes(num_bytes=32)
 
-An application object can be constructed with these values
-as constructor argument. The ``uri`` value can alternatively
-be set as environment variable ``DB_URI``. The ``cipher_key``
-value can be set as environment variable ``CIPHER_KEY``.
+These values can be given to the application object as
+constructor arguments ``uri`` and ``cipher_key``. Alternatively,
+the ``uri`` value can be set as environment variable ``DB_URI``,
+and the ``cipher_key`` value can be set as environment variable
+``CIPHER_KEY``.
 
 .. code:: python
 
@@ -97,9 +98,9 @@ value can be set as environment variable ``CIPHER_KEY``.
     )
 
 
-Alternatively to using the ``uri`` argument, an already existing SQLAlchemy
-session can be passed in with the ``session`` argument, for example
-a session object provided by a framework such as
+As an alternative to providing a URI, an already existing SQLAlchemy
+session can be passed in with a constructor argument called ``session``,
+for example a session object provided by a framework extension such as
 `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
 
 Once constructed, the ``SimpleApplication`` will have an event store, provided
@@ -334,11 +335,11 @@ Sequenced items
 ---------------
 
 It is also possible to get the sequenced item namedtuples for an aggregate,
-by using the event store's active record strategy method ``get_items()``.
+by using the method ``get_items()`` of the event store's record manager.
 
 .. code:: python
 
-    items = app.event_store.active_record_strategy.list_items(aggregate.id)
+    items = app.event_store.record_manager.list_items(aggregate.id)
     assert len(items) == 4
 
     assert items[0].originator_id == aggregate.id
@@ -365,22 +366,22 @@ In this example, the ``cipher_key`` was not set, so the stored data is visible.
 Database records
 ----------------
 
-Of course, it is also possible to just use the active record class directly
+Of course, it is also possible to just use the record class directly
 to obtain records. After all, it's just an SQLAlchemy ORM object.
 
 .. code:: python
 
-    app.event_store.active_record_strategy.active_record_class
+    app.event_store.record_manager.record_class
 
-The ``query`` property of the SQLAlchemy active record strategy
-is a convenient way to get a query object for the active record
-class from the session.
+The ``query`` property of the SQLAlchemy record manager
+is a convenient way to get a query object from the session
+for the record class.
 
 .. code:: python
 
-    active_records = app.event_store.active_record_strategy.query.all()
+    event_records = app.event_store.record_manager.query.all()
 
-    assert len(active_records) == 4
+    assert len(event_records) == 4
 
 Close
 -----

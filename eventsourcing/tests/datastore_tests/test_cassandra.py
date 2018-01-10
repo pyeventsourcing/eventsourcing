@@ -6,8 +6,8 @@ from cassandra.cluster import NoHostAvailable
 from cassandra.cqlengine import CQLEngineException
 
 from eventsourcing.exceptions import DatasourceSettingsError
-from eventsourcing.infrastructure.cassandra.activerecords import IntegerSequencedItemRecord, SnapshotRecord, \
-    TimestampSequencedItemRecord
+from eventsourcing.infrastructure.cassandra.records import IntegerSequencedRecord, SnapshotRecord, \
+    TimestampSequencedRecord
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.datastore import DatastoreConnectionError, DatastoreTableError
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
@@ -23,21 +23,21 @@ class CassandraDatastoreTestCase(AbstractDatastoreTestCase):
     def construct_datastore(self):
         return CassandraDatastore(
             settings=CassandraSettings(default_keyspace=DEFAULT_KEYSPACE_FOR_TESTING),
-            tables=(IntegerSequencedItemRecord, TimestampSequencedItemRecord, SnapshotRecord),
+            tables=(IntegerSequencedRecord, TimestampSequencedRecord, SnapshotRecord),
         )
 
 
 class TestCassandraDatastore(CassandraDatastoreTestCase, DatastoreTestCase):
     def list_records(self):
         try:
-            return list(IntegerSequencedItemRecord.objects.all())
+            return list(IntegerSequencedRecord.objects.all())
         except (CQLEngineException, NoHostAvailable) as e:
             raise DatastoreConnectionError(e)
         except InvalidRequest as e:
             raise DatastoreTableError(e)
 
     def create_record(self):
-        record = IntegerSequencedItemRecord(
+        record = IntegerSequencedRecord(
             sequence_id=uuid4(),
             position=0,
             topic='topic',
@@ -60,7 +60,7 @@ class TestPlainTextAuthProvider(TestCase):
                 username='username',
                 password='password',
             ),
-            tables=(IntegerSequencedItemRecord,),
+            tables=(IntegerSequencedRecord,),
         )
         datastore.setup_connection()
 
@@ -72,7 +72,7 @@ class TestDatabaseSettingsError(TestCase):
                 default_keyspace=DEFAULT_KEYSPACE_FOR_TESTING,
                 consistency='invalid',
             ),
-            tables=(IntegerSequencedItemRecord,),
+            tables=(IntegerSequencedRecord,),
         )
 
         with self.assertRaises(DatasourceSettingsError):

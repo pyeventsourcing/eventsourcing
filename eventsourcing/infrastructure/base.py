@@ -6,9 +6,9 @@ from eventsourcing.exceptions import SequencedItemConflict
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 
 
-class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
-    def __init__(self, active_record_class, sequenced_item_class=SequencedItem):
-        self.active_record_class = active_record_class
+class AbstractRecordManager(six.with_metaclass(ABCMeta)):
+    def __init__(self, record_class, sequenced_item_class=SequencedItem):
+        self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
 
@@ -62,3 +62,31 @@ class AbstractActiveRecordStrategy(six.with_metaclass(ABCMeta)):
 
     def raise_index_error(self, eq):
         raise IndexError("Sequence index out of range: {}".format(eq))
+
+
+class RelationalRecordManager(AbstractRecordManager):
+    def append(self, sequenced_item_or_items):
+        # Convert sequenced item(s) to active_record(s).
+        if isinstance(sequenced_item_or_items, list):
+            active_records = [self.to_active_record(i) for i in sequenced_item_or_items]
+        else:
+            active_records = [self.to_active_record(sequenced_item_or_items)]
+
+        self._write_active_records(active_records, sequenced_item_or_items)
+
+    def to_active_record(self, sequenced_item):
+        """
+        Returns an active record, from given sequenced item.
+        """
+        # Check we got a sequenced item.
+        assert isinstance(sequenced_item, self.sequenced_item_class), (self.sequenced_item_class, type(sequenced_item))
+
+        # Construct and return an ORM object.
+        kwargs = self.get_field_kwargs(sequenced_item)
+        return self.record_class(**kwargs)
+
+    @abstractmethod
+    def _write_active_records(self, active_records, sequenced_items):
+        """
+        Actually creates records in the database.
+        """

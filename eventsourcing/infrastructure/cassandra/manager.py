@@ -1,15 +1,13 @@
 import six
 from cassandra import InvalidRequest
 from cassandra.cqlengine.functions import Token
-from cassandra.cqlengine.models import columns
 from cassandra.cqlengine.query import BatchQuery, LWTException
 
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.activerecord import AbstractActiveRecordStrategy
-from eventsourcing.infrastructure.cassandra.datastore import ActiveRecord
+from eventsourcing.infrastructure.base import AbstractRecordManager
 
 
-class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
+class CassandraRecordManager(AbstractRecordManager):
     def append(self, sequenced_item_or_items):
         if isinstance(sequenced_item_or_items, list):
             if len(sequenced_item_or_items):
@@ -17,7 +15,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
                 for item in sequenced_item_or_items:
                     assert isinstance(item, self.sequenced_item_class), (type(item), self.sequenced_item_class)
                     kwargs = self.get_field_kwargs(item)
-                    self.active_record_class.batch(b).if_not_exists().create(**kwargs)
+                    self.record_class.batch(b).if_not_exists().create(**kwargs)
                 try:
                     b.execute()
                 except LWTException:
@@ -100,7 +98,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
                 record_page = list(record_query.filter(**kwargs))
 
     def all_sequence_ids(self):
-        query = self.active_record_class.objects.all().limit(1)
+        query = self.record_class.objects.all().limit(1)
 
         # Todo: If there were a resume token, it could be used like this:
         # if resume is None:
@@ -116,7 +114,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
             page = list(query.filter(pk__token__gt=Token(last.pk)))
 
     def delete_record(self, record):
-        assert isinstance(record, self.active_record_class), type(record)
+        assert isinstance(record, self.record_class), type(record)
         try:
             record.delete()
         except InvalidRequest as e:
@@ -128,7 +126,7 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         """
         assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
         kwargs = self.get_field_kwargs(sequenced_item)
-        return self.active_record_class(**kwargs)
+        return self.record_class(**kwargs)
 
     def from_active_record(self, active_record):
         """
@@ -138,94 +136,4 @@ class CassandraActiveRecordStrategy(AbstractActiveRecordStrategy):
         return self.sequenced_item_class(**kwargs)
 
     def filter(self, **kwargs):
-        return self.active_record_class.objects.filter(**kwargs)
-
-
-class IntegerSequencedItemRecord(ActiveRecord):
-    """Stores integer-sequenced items in Cassandra."""
-    __table_name__ = 'integer_sequenced_items'
-    _if_not_exists = True
-
-    # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = columns.UUID(partition_key=True)
-
-    # Position (index) of item in sequence.
-    position = columns.BigInt(clustering_order='DESC', primary_key=True)
-
-    # Topic of the item (e.g. path to domain event class).
-    topic = columns.Text(required=True)
-
-    # State of the item (serialized dict, possibly encrypted).
-    data = columns.Text(required=True)
-
-
-class TimestampSequencedItemRecord(ActiveRecord):
-    """Stores timestamp-sequenced items in Cassandra."""
-    __table_name__ = 'timestamp_sequenced_items'
-    _if_not_exists = True
-
-    # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = columns.UUID(partition_key=True)
-
-    # Position (in time) of item in sequence.
-    position = columns.Decimal(clustering_order='DESC', primary_key=True)
-
-    # Topic of the item (e.g. path to domain event class).
-    topic = columns.Text(required=True)
-
-    # State of the item (serialized dict, possibly encrypted).
-    data = columns.Text(required=True)
-
-
-class CqlTimeuuidSequencedItem(ActiveRecord):
-    """Stores timeuuid-sequenced items in Cassandra."""
-    __table_name__ = 'timeuuid_sequenced_items'
-    _if_not_exists = True
-
-    # Sequence UUID (e.g. an entity or aggregate ID).
-    sequence_id = columns.UUID(partition_key=True)
-
-    # Position (in time) of item in sequence.
-    position = columns.TimeUUID(clustering_order='DESC', primary_key=True)
-
-    # Topic of the item (e.g. path to domain event class).
-    topic = columns.Text(required=True)
-
-    # State of the item (serialized dict, possibly encrypted).
-    data = columns.Text(required=True)
-
-
-class SnapshotRecord(ActiveRecord):
-    """Stores snapshots in Cassandra."""
-    __table_name__ = 'snapshots'
-    _if_not_exists = True
-
-    # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = columns.UUID(partition_key=True)
-
-    # Position (index) of item in sequence.
-    position = columns.BigInt(clustering_order='DESC', primary_key=True)
-
-    # Topic of the item (e.g. path to domain entity class).
-    topic = columns.Text(required=True)
-
-    # State of the entity (serialized dict, possibly encrypted).
-    data = columns.Text(required=True)
-
-
-class StoredEventRecord(ActiveRecord):
-    """Stores integer-sequenced items in Cassandra."""
-    __table_name__ = 'stored_events'
-    _if_not_exists = True
-
-    # Aggregate ID (e.g. an entity or aggregate ID).
-    originator_id = columns.UUID(partition_key=True)
-
-    # Aggregate version (index) of item in sequence.
-    originator_version = columns.BigInt(clustering_order='DESC', primary_key=True)
-
-    # Topic of the item (e.g. path to domain event class).
-    event_type = columns.Text(required=True)
-
-    # State of the item (serialized dict, possibly encrypted).
-    state = columns.Text(required=True)
+        return self.record_class.objects.filter(**kwargs)

@@ -10,10 +10,10 @@ from eventsourcing.exceptions import ArrayIndexError, ConcurrencyError
 from eventsourcing.infrastructure.repositories.array import ArrayRepository, BigArrayRepository
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_active_record_strategy import \
-    WithCassandraActiveRecordStrategies
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_active_record_strategy import \
-    WithSQLAlchemyActiveRecordStrategies
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
+    WithCassandraRecordManagers
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
+    WithSQLAlchemyRecordManagers
 
 try:
     from unittest import mock
@@ -26,7 +26,7 @@ except ImportError:
     from Queue import Queue
 
 
-class TestArrayWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
+class TestArrayWithSQLAlchemy(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
     def setUp(self):
         super(TestArrayWithSQLAlchemy, self).setUp()
         self.repo = ArrayRepository(
@@ -121,7 +121,7 @@ class TestArrayWithSQLAlchemy(WithSQLAlchemyActiveRecordStrategies, WithPersiste
             array[-4]
 
 
-class BigArrayTestCase(WithSQLAlchemyActiveRecordStrategies, WithPersistencePolicies):
+class BigArrayTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
     def start_and_append(self, array_size, num_items):
         array = self.get_big_array(array_size)
         items = self.append_items(num_items, array)
@@ -695,14 +695,14 @@ class TestBigArrayWithSQLAlchemyAndMultithreading(BigArrayTestCase):
         self.assertEqual(self.subrepo[root.id].get_next_position(), expected_height)
 
 
-class TestArrayWithCassandra(WithCassandraActiveRecordStrategies, TestArrayWithSQLAlchemy):
+class TestArrayWithCassandra(WithCassandraRecordManagers, TestArrayWithSQLAlchemy):
     pass
 
 
-class TestBigArrayWithCassandra(WithCassandraActiveRecordStrategies, TestBigArrayWithSQLAlchemy):
+class TestBigArrayWithCassandra(WithCassandraRecordManagers, TestBigArrayWithSQLAlchemy):
     pass
 
 
-class TestBigArrayWithCassandraAndMultithreading(WithCassandraActiveRecordStrategies,
+class TestBigArrayWithCassandraAndMultithreading(WithCassandraRecordManagers,
                                                  TestBigArrayWithSQLAlchemyAndMultithreading):
     pass

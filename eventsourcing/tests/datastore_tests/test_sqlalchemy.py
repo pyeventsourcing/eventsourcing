@@ -4,9 +4,9 @@ from uuid import uuid4
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from eventsourcing.infrastructure.datastore import DatastoreTableError
-from eventsourcing.infrastructure.sqlalchemy.activerecords import IntegerSequencedItemRecord, TimestampSequencedItemRecord, \
-    SnapshotRecord
-from eventsourcing.infrastructure.sqlalchemy.datastore import ActiveRecord, DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
+from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord, \
+    TimestampSequencedRecord, SnapshotRecord, Base
+from eventsourcing.infrastructure.sqlalchemy.datastore import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
     SQLAlchemySettings
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
 
@@ -28,9 +28,9 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
             # kwargs['poolclass'] = StaticPool
 
         return SQLAlchemyDatastore(
-            base=ActiveRecord,
+            base=Base,
             settings=SQLAlchemySettings(uri=uri),
-            tables=(IntegerSequencedItemRecord, TimestampSequencedItemRecord, SnapshotRecord),
+            tables=(IntegerSequencedRecord, TimestampSequencedRecord, SnapshotRecord),
             connection_strategy=self.connection_strategy,
             # **kwargs
         )
@@ -39,7 +39,7 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
 class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, DatastoreTestCase):
     def list_records(self):
         try:
-            query = self.datastore.session.query(IntegerSequencedItemRecord)
+            query = self.datastore.session.query(IntegerSequencedRecord)
             return list(query)
         except (OperationalError, ProgrammingError) as e:
             # OperationalError from sqlite, ProgrammingError from psycopg2.
@@ -50,7 +50,7 @@ class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, DatastoreTestCase):
 
     def create_record(self):
         try:
-            record = IntegerSequencedItemRecord(
+            record = IntegerSequencedRecord(
                 sequence_id=uuid4(),
                 position=0,
                 topic='topic',

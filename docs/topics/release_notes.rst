@@ -19,7 +19,7 @@ to decimal objects, an exact number type. Cipher was changed to use
 AES-GCM to allow verification of encrypted data retrieved from a
 database.
 
-Also, the active record classes for SQLAlchemy were changed to have an
+Also, the record classes for SQLAlchemy were changed to have an
 auto-incrementing ID, to make it easy to follow the events of an
 application, for example when updating view models, without additional
 complication of a separate application log. This change makes the
@@ -29,6 +29,8 @@ Overall, it seems like a good trade-off for early-stage development. Later,
 when the auto-incrementing ID bottleneck would otherwise throttle
 performance, "scaling-up" could involve switching application
 infrastructure to use a separate application log.
+
+Also, support for Django ORM was added in version 4.1.0.
 
 Version 3.x series was a released after quite of a lot of refactoring
 made things backwards-incompatible. Documentation was greatly improved, in

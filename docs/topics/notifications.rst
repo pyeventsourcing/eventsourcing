@@ -156,8 +156,8 @@ directly to an array.
 
     from uuid import uuid4
     from eventsourcing.domain.model.array import BigArray, ItemAssigned
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import SQLAlchemyActiveRecordStrategy
-    from eventsourcing.infrastructure.sqlalchemy.activerecords import StoredEventRecord
+    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
     from eventsourcing.infrastructure.eventstore import EventStore
     from eventsourcing.infrastructure.repositories.array import BigArrayRepository
@@ -174,9 +174,9 @@ directly to an array.
     datastore.setup_tables()
 
     event_store = EventStore(
-            active_record_strategy=SQLAlchemyActiveRecordStrategy(
+            record_manager=SQLAlchemyRecordManager(
                 session=datastore.session,
-                active_record_class=StoredEventRecord,
+                record_class=StoredEventRecord,
                 sequenced_item_class=StoredEvent,
             ),
             sequenced_item_mapper=SequencedItemMapper(
