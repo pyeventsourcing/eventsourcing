@@ -12,11 +12,11 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
 
-    def _write_active_records(self, active_records, sequenced_items):
+    def _write_records(self, records, sequenced_items):
         try:
-            # Add active record(s) to the transaction.
-            for active_record in active_records:
-                self.session.add(active_record)
+            # Add record(s) to the transaction.
+            for record in records:
+                self.session.add(record)
 
             self.session.commit()
         except IntegrityError as e:
@@ -36,7 +36,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             raise IndexError
         finally:
             self.session.close()
-        return self.from_active_record(result)
+        return self.from_record(result)
 
         # try:
         #     return events[0]
@@ -45,9 +45,23 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
+        records = self.get_records(
+            sequence_id=sequence_id,
+            gt=gt,
+            gte=gte,
+            lt=lt,
+            lte=lte,
+            limit=limit,
+            query_ascending=query_ascending,
+            results_ascending=results_ascending,
 
+        )
+        for item in six.moves.map(self.from_record, records):
+            yield item
+
+    def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
+                    query_ascending=True, results_ascending=True):
         assert limit is None or limit >= 1, limit
-
         try:
             filter_kwargs = {self.field_names.sequence_id: sequence_id}
             query = self.filter(**filter_kwargs)
@@ -80,8 +94,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             # This code path is under test, but not otherwise used ATM.
             results.reverse()
 
-        for item in six.moves.map(self.from_active_record, results):
-            yield item
+        return results
 
     def filter(self, **kwargs):
         return self.query.filter_by(**kwargs)
@@ -94,14 +107,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         """
         Returns all items across all sequences.
         """
-        return six.moves.map(self.from_active_record, self.all_records())
-
-    def from_active_record(self, active_record):
-        """
-        Returns a sequenced item, from given active record.
-        """
-        kwargs = self.get_field_kwargs(active_record)
-        return self.sequenced_item_class(**kwargs)
+        return six.moves.map(self.from_record, self.all_records())
 
     def all_records(self, *args, **kwargs):
         """

@@ -66,17 +66,46 @@ class AbstractRecordManager(six.with_metaclass(ABCMeta)):
 
 class RelationalRecordManager(AbstractRecordManager):
     def append(self, sequenced_item_or_items):
-        # Convert sequenced item(s) to active_record(s).
+        # Convert sequenced item(s) to database record(s).
         if isinstance(sequenced_item_or_items, list):
-            active_records = [self.to_active_record(i) for i in sequenced_item_or_items]
+            records = [self.to_record(i) for i in sequenced_item_or_items]
         else:
-            active_records = [self.to_active_record(sequenced_item_or_items)]
+            records = [self.to_record(sequenced_item_or_items)]
 
-        self._write_active_records(active_records, sequenced_item_or_items)
+        self._write_records(records, sequenced_item_or_items)
 
-    def to_active_record(self, sequenced_item):
+
+    def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
+                  query_ascending=True, results_ascending=True):
+        records = self.get_records(
+            sequence_id=sequence_id,
+            gt=gt,
+            gte=gte,
+            lt=lt,
+            lte=lte,
+            limit=limit,
+            query_ascending=query_ascending,
+            results_ascending=results_ascending,
+
+        )
+        for item in six.moves.map(self.from_record, records):
+            yield item
+
+    @abstractmethod
+    def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
+                  query_ascending=True, results_ascending=True):
+        pass
+
+    def from_record(self, record):
         """
-        Returns an active record, from given sequenced item.
+        Returns a sequenced item, from given database record.
+        """
+        kwargs = self.get_field_kwargs(record)
+        return self.sequenced_item_class(**kwargs)
+
+    def to_record(self, sequenced_item):
+        """
+        Returns a database record, from given sequenced item.
         """
         # Check we got a sequenced item.
         assert isinstance(sequenced_item, self.sequenced_item_class), (self.sequenced_item_class, type(sequenced_item))
@@ -86,7 +115,7 @@ class RelationalRecordManager(AbstractRecordManager):
         return self.record_class(**kwargs)
 
     @abstractmethod
-    def _write_active_records(self, active_records, sequenced_items):
+    def _write_records(self, records, sequenced_items):
         """
         Actually creates records in the database.
         """

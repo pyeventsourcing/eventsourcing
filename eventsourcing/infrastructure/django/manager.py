@@ -33,21 +33,21 @@ class DjangoRecordManager(RelationalRecordManager):
         self.convert_position_float_to_decimal = convert_position_float_to_decimal
         super(DjangoRecordManager, self).__init__(*args, **kwargs)
 
-    def _write_active_records(self, active_records, sequenced_items):
+    def _write_records(self, records, sequenced_items):
         try:
             with transaction.atomic(self.record_class.objects.db):
-                for active_record in active_records:
-                    active_record.save()
+                for record in records:
+                    record.save()
         except IntegrityError as e:
             raise SequencedItemConflict(e)
 
     def get_item(self, sequence_id, eq):
         records = self.record_class.objects.filter(sequence_id=sequence_id, position=eq).all()
-        return self.from_active_record(records[0])
+        return self.from_record(records[0])
 
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
-        #
+
         assert limit is None or limit >= 1, limit
 
         filter_kwargs = {self.field_names.sequence_id: sequence_id}
@@ -83,7 +83,7 @@ class DjangoRecordManager(RelationalRecordManager):
             results = list(results)
             results.reverse()
 
-        for item in six.moves.map(self.from_active_record, results):
+        for item in six.moves.map(self.from_record, results):
             yield item
 
     # def filter(self, **kwargs):
@@ -99,26 +99,21 @@ class DjangoRecordManager(RelationalRecordManager):
         """
         Returns all items across all sequences.
         """
-        return six.moves.map(self.from_active_record, self.all_records())
+        return six.moves.map(self.from_record, self.all_records())
 
-    def from_active_record(self, active_record):
-        """
-        Returns a sequenced item, from given active record.
-        """
-        kwargs = self.get_field_kwargs(active_record)
-
+    def get_field_kwargs(self, record):
         # Need to convert floats to decimals if Django's sqlite3
         # Decimal converter has been cancelled. Which it is in
         # the test for this class, so that the positions
         # can be checked accurately.
+        kwargs = super(DjangoRecordManager, self).get_field_kwargs(record)
         if self.convert_position_float_to_decimal:
             position_field_name = self.field_names.position
             position_value = kwargs[position_field_name]
             if isinstance(position_value, float):
                 kwargs[position_field_name] = Decimal(str(position_value))
 
-        # Return a sequenced item namedtuple.
-        return self.sequenced_item_class(**kwargs)
+        return kwargs
 
     def all_records(self, *args, **kwargs):
         """

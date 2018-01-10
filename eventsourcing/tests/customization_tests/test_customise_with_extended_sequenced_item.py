@@ -17,7 +17,7 @@ from eventsourcing.infrastructure.sqlalchemy.records import Base
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 # This module explores extending the sequenced item class with some more fields. How easy is it?
-# Just needed to define the extended type, define a suitable active record
+# Just needed to define the extended type, define a suitable record
 # class, and extend the sequenced itemevent mapper to derive values for the
 # extra attributes. It's easy.
 
@@ -124,11 +124,11 @@ class TestExampleWithExtendedSequencedItemType(AbstractDatastoreTestCase):
             # Check there is a stored event.
             all_records = list(app.event_store.record_manager.all_records())
             self.assertEqual(len(all_records), 1)
-            active_record = all_records[0]
-            self.assertEqual(active_record.sequence_id, entity1.id)
-            self.assertEqual(active_record.position, 0)
-            self.assertEqual(active_record.event_type, 'Example.Created', active_record.event_type)
-            self.assertEqual(active_record.timestamp, entity1.__created_on__)
+            record = all_records[0]
+            self.assertEqual(record.sequence_id, entity1.id)
+            self.assertEqual(record.position, 0)
+            self.assertEqual(record.event_type, 'Example.Created', record.event_type)
+            self.assertEqual(record.timestamp, entity1.__created_on__)
 
             # Read entity from repo.
             retrieved_obj = app.repository[entity1.id]

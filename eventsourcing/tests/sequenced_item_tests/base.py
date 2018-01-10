@@ -283,6 +283,7 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
 
         # Todo: This is lame and needs reworking, as "integrated application log" or something.
 
+
         # # Resume from after the first sequence.
         # for first in self.record_manager.all_records():
         #     break
@@ -350,21 +351,12 @@ class WithActiveRecordManagers(AbstractDatastoreTestCase):
         return self._snapshot_strategy
 
     def construct_entity_record_manager(self):
-        """
-        :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordManager
-        """
         raise NotImplementedError
 
     def construct_log_record_manager(self):
-        """
-        :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordManager
-        """
         raise NotImplementedError
 
     def construct_snapshot_record_manager(self):
-        """
-        :rtype: eventsourcing.infrastructure.storedevents.activerecord.AbstractActiveRecordManager
-        """
         raise NotImplementedError
 
 

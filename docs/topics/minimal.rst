@@ -438,7 +438,7 @@ The event store then uses a record manager to persist the sequenced items
 into a particular database management system. The record manager uses an
 record class to manipulate records in a particular database table.
 
-Hence you can use a different database table by substituting an alternative active
+Hence you can use a different database table by substituting an alternative
 record class. You can use a different database management system by substituting an
 alternative record manager.
 

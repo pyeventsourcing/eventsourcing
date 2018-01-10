@@ -391,7 +391,7 @@ The library provides record classes for SQLAlchemy, such as ``IntegerSequencedRe
 namedtuple. The ``StoredEventRecord`` class matches the alternative ``StoredEvent`` namedtuple.
 There is also a ``TimestampSequencedRecord`` and a ``SnapshotRecord``.
 
-The code below uses the namedtuple ``StoredEvent`` and the active record ``StoredEventRecord``.
+The code below uses the namedtuple ``StoredEvent`` and the record class ``StoredEventRecord``.
 
 
 .. code:: python
@@ -426,8 +426,8 @@ and a tuple of record classes passed using the ``tables`` arg.
     )
 
 
-Please note, if you have declared your own SQLAlchemy model ``Base`` class, you may wish to define your own active
-record classes which inherit from your ``Base`` class. If so, if may help to refer to the library active record
+Please note, if you have declared your own SQLAlchemy model ``Base`` class, you may wish to define your own
+record classes which inherit from your ``Base`` class. If so, if may help to refer to the library record
 classes to see how SQLALchemy ORM columns and indexes can be used to persist sequenced items.
 
 The methods ``setup_connection()`` and ``setup_tables()`` of the datastore object
@@ -589,7 +589,7 @@ of ``INSTALLED_APPS``.
 Alternatively, import or write the classes you want into one of your own Django app's ``models.py``.
 
 The Django application at ``eventsourcing.infrastructure.django`` has database
-migrations that will add four tables, one for each of the sequenced item active
+migrations that will add four tables, one for each of the
 record classes mentioned above. So if you use the application directly in
 ``INSTALLED_APPS`` then the app's migrations will be picked up by Django.
 
@@ -949,7 +949,7 @@ Timestamped event store
 
 The examples so far have used an integer sequenced event store, where the items are sequenced by integer version.
 
-The example below constructs an event store for timestamp-sequenced domain events, using the library active
+The example below constructs an event store for timestamp-sequenced domain events, using the library
 record class ``TimestampSequencedRecord``.
 
 .. code:: python
