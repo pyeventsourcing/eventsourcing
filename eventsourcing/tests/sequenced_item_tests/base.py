@@ -281,8 +281,15 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
         entity_ids = set([i.sequence_id for i in retrieved_items])
         self.assertEqual(entity_ids, {sequence_id1, sequence_id2})
 
-        # Todo: This is lame and needs reworking, as "integrated application log" or something.
+        if hasattr(self.record_manager.record_class, 'id'):
+            # Check the record IDs are contiguous.
+            records = self.record_manager.all_records()
+            records = list(records)
+            self.assertEqual(len(records), 4)
+            for i, record in enumerate(records):
+                self.assertEqual(i + 1, record.id, "Woops there's a gap")
 
+        # Todo: Enhance this, so we can get a slice from the ID range.
 
         # # Resume from after the first sequence.
         # for first in self.record_manager.all_records():

@@ -34,18 +34,33 @@ class DjangoRecordManager(RelationalRecordManager):
         super(DjangoRecordManager, self).__init__(*args, **kwargs)
 
     def _write_records(self, records, sequenced_items):
+        # Todo: Do this on the database-side, with "insert select from".
+        # max_id = None
+        # if self.contiguous_record_ids:
+        #     try:
+        #         max_id = self.record_class.objects.latest('id').id
+        #     except self.record_class.DoesNotExist:
+        #         max_id = 0
+
         try:
             with transaction.atomic(self.record_class.objects.db):
+
                 for record in records:
+                    # if self.contiguous_record_ids:
+                    #     max_id += 1
+                    #     record.id = max_id
                     record.save()
         except IntegrityError as e:
             raise SequencedItemConflict(e)
+        else:
+            for record in records:
+                print(record.id)
 
     def get_item(self, sequence_id, eq):
         records = self.record_class.objects.filter(sequence_id=sequence_id, position=eq).all()
         return self.from_record(records[0])
 
-    def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
+    def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
 
         assert limit is None or limit >= 1, limit
@@ -76,15 +91,14 @@ class DjangoRecordManager(RelationalRecordManager):
         if limit is not None:
             query = query[:limit]
 
-        results = query.all()
+        records = query.all()
 
         if results_ascending != query_ascending:
             # This code path is under test, but not otherwise used ATM.
-            results = list(results)
-            results.reverse()
+            records = list(records)
+            records.reverse()
 
-        for item in six.moves.map(self.from_record, results):
-            yield item
+        return records
 
     # def filter(self, **kwargs):
     #     pass

@@ -7,10 +7,11 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedI
 
 
 class AbstractRecordManager(six.with_metaclass(ABCMeta)):
-    def __init__(self, record_class, sequenced_item_class=SequencedItem):
+    def __init__(self, record_class, sequenced_item_class=SequencedItem, contiguous_record_ids=False):
         self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
+        self.contiguous_record_ids = contiguous_record_ids and hasattr(self.record_class, 'id')
 
     @abstractmethod
     def append(self, sequenced_item_or_items):

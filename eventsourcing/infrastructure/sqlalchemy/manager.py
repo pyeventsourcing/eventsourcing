@@ -2,6 +2,7 @@ import six
 from sqlalchemy import asc, desc
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.sql.expression import func
 
 from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.base import RelationalRecordManager
@@ -14,13 +15,28 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
     def _write_records(self, records, sequenced_items):
         try:
+            # Todo: Do this on the database-side...
+            # record_id = None
+            # if self.contiguous_record_ids:
+            #     sel = self.session.query(func.max(self.record_class.id)).scalar()
+            #     record_id = 0 if sel is None else sel
+
             # Add record(s) to the transaction.
             for record in records:
+
+                # Todo: Do this on the database-side,
+                # so that the time between checking and
+                # using the value is as short as possible.
+                # if self.contiguous_record_ids:
+                #     record_id += 1
+                #     record.id = record_id
+
                 self.session.add(record)
 
             self.session.commit()
         except IntegrityError as e:
             self.session.rollback()
+            # raise
             self.raise_sequenced_item_error(sequenced_items)
         finally:
             self.session.close()

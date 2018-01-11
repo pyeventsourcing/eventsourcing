@@ -4,6 +4,7 @@ import unittest
 import django
 from django.core.management import call_command
 
+from eventsourcing.infrastructure.base import AbstractRecordManager
 from eventsourcing.infrastructure.django.apps import DjangoConfig
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
@@ -21,9 +22,11 @@ from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTe
 
 class InfrastructureFactory(object):
 
-    def __init__(self, record_strategy_class, convert_position_float_to_decimal=False):
-        self.record_strategy_class = record_strategy_class
+    def __init__(self, record_manager_class, convert_position_float_to_decimal=False, contiguous_record_ids=False):
+        assert issubclass(record_manager_class, AbstractRecordManager)
+        self.record_manager_class = record_manager_class
         self.convert_position_float_to_decimal = convert_position_float_to_decimal
+        self.contiguous_record_ids = contiguous_record_ids
 
     def construct_integer_sequenced_record_manager(self):
         return self.construct_record_strategy(
@@ -37,17 +40,18 @@ class InfrastructureFactory(object):
             sequenced_item_class=SequencedItem
         )
 
-    def construct_record_strategy(self, record_class, sequenced_item_class):
-        return self.record_strategy_class(
-            record_class=record_class,
-            sequenced_item_class=sequenced_item_class,
-        )
-
     def construct_timestamp_sequenced_record_manager(self):
-        return self.record_strategy_class(
+        return self.record_manager_class(
             record_class=TimestampSequencedRecord,
             sequenced_item_class=SequencedItem,
             convert_position_float_to_decimal=self.convert_position_float_to_decimal
+        )
+
+    def construct_record_strategy(self, record_class, sequenced_item_class):
+        return self.record_manager_class(
+            record_class=record_class,
+            sequenced_item_class=sequenced_item_class,
+            contiguous_record_ids=self.contiguous_record_ids,
         )
 
 
@@ -58,8 +62,9 @@ class DjangoTestCase(TransactionTestCase):
         super(DjangoTestCase, self).setUp()
         call_command('migrate')
         self.factory = InfrastructureFactory(
-            record_strategy_class=DjangoRecordManager,
-            convert_position_float_to_decimal=self.cancel_sqlite3_decimal_converter
+            record_manager_class=DjangoRecordManager,
+            convert_position_float_to_decimal=self.cancel_sqlite3_decimal_converter,
+            # contiguous_record_ids=True
         )
 
     def construct_entity_record_manager(self):
