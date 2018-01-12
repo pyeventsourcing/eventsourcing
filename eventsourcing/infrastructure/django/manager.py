@@ -52,9 +52,6 @@ class DjangoRecordManager(RelationalRecordManager):
                     record.save()
         except IntegrityError as e:
             raise SequencedItemConflict(e)
-        else:
-            for record in records:
-                print(record.id)
 
     def get_item(self, sequence_id, eq):
         records = self.record_class.objects.filter(sequence_id=sequence_id, position=eq).all()

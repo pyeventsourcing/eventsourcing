@@ -1,99 +1,77 @@
 import six
-from sqlalchemy import asc, desc, text, bindparam
+from sqlalchemy import asc, bindparam, desc, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from sqlalchemy.sql.elements import BindParameter
-from sqlalchemy.sql.expression import func
+from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.base import RelationalRecordManager
 
 
 class SQLAlchemyRecordManager(RelationalRecordManager):
-    def __init__(self, session, *args, **kwargs):
+    def __init__(self, session, compile_once=False, *args, **kwargs):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
+        if self.contiguous_record_ids and compile_once:
+            self._compiled_statement = self._compile_statement()
+        else:
+            self._compiled_statement = None
 
     def _write_records(self, records, sequenced_items):
         try:
-            # Todo: Do this on the database-side...
-            # record_id = None
-            # if self.contiguous_record_ids:
-            #     sel = self.session.query(func.max(self.record_class.id)).scalar()
-            #     record_id = 0 if sel is None else sel
-
-            # Add record(s) to the transaction.
-            for record in records:
-
-                # Todo: Do this on the database-side,
-                # so that the time between checking and
-                # using the value is as short as possible.
-                # if self.contiguous_record_ids:
-                #     record_id += 1
-                #     record.id = record_id
-                #
-                # self.session.add(record)
-
-                if self.contiguous_record_ids:
-                    col_names = [
-                        self.field_names.sequence_id,
-                        self.field_names.position,
-                        self.field_names.topic,
-                        self.field_names.data,
-                    ]
-
-                    sql = (
-                        "INSERT INTO {table_name} {columns} "
-                        "SELECT COALESCE(MAX({table_name}.id), 0) + 1, {fields} "
-                        "FROM {table_name};"
-                    ).format(
-                        table_name=self.record_class.__table__.name,
-                        columns="(id, {})".format(", ".join(col_names)),
-                        fields=":{}".format(", :".join(col_names)),
-                    )
-                    statement = text(sql)
-
-                    bind = self.session.bind
-                    dialect = bind.dialect
-
-                    params = {}
-
-                    bindparams = []
-                    for col_name in col_names:
-                        col_type = getattr(self.record_class, col_name).type
-                        record_value = getattr(record, col_name)
-                        # if hasattr(col_type, 'type_engine'):
-                        #     col_type = col_type.type_engine(dialect)
-                        # processor = col_type.bind_processor(dialect)
-                        # if processor is None:
-                        #     param = record_value
-                        # else:
-                        #     param = processor(record_value)
-                        # params[col_name] = param
-                        params[col_name] = record_value
-                        # bindparams.append(BindParameter(key=col_name, type_=col_type))
-
-                    statement.bindparams(*bindparams)
-
-                    # compiled = statement.compile(bind=bind) #,compile_kwargs={"literal_binds": True})
-                    # compiled.execute(params)
-                    #
-                    self.session.execute(statement, params)
-
-                    # table = self.record_class.__table__
-                    # sel = func.max(self.record_class.id)
-                    # col_names = ['id', 'position']
-                    # raise Exception(str(table.insert().from_select(col_names, sel)))
-                else:
+            if self.contiguous_record_ids:
+                # Compile 'insert select from' statement.
+                statement = self._compiled_statement or self._compile_statement()
+                for record in records:
+                    # Execute compiled statement with record values.
+                    params = {c: getattr(record, c) for c in self.field_names}
+                    statement.execute(params)
+            else:
+                # Add records to session.
+                for record in records:
                     self.session.add(record)
 
             self.session.commit()
         except IntegrityError as e:
             self.session.rollback()
+            # Todo: Look at the exception e, to see if the conflict was
+            # the application or entity sequence, otherwise its confusing.
             # raise
             self.raise_sequenced_item_error(sequenced_items)
         finally:
             self.session.close()
+
+    def _compile_statement(self):
+        # Define SQL statement with value placeholders.
+        # - insert with id = 1 + max of existing record IDs
+        sql_tmpl = (
+            "INSERT INTO {tablename} {columns} "
+            "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
+            "FROM {tablename};"
+        )
+        col_names = list(self.field_names)
+        statement = text(sql_tmpl.format(
+            tablename=self.record_class.__table__.name,
+            columns="(id, {})".format(", ".join(col_names)),
+            placeholders=":{}".format(", :".join(col_names)),
+        ))
+
+        # Define bind parameter types.
+        bindparams = []
+        for col_name in col_names:
+
+            # - get statement param class from ORM column type
+            column_type = getattr(self.record_class, col_name).type
+
+            # - construct bind parameter for the column type
+            bindparams.append(bindparam(col_name, type_=(column_type)))
+
+        # Create statement with explicity bind parameter types.
+        # - do this so smt.execute(params) has processors
+        statement = statement.bindparams(*bindparams)
+
+        # Compile the statement with the session engine or connection.
+        # - do this so processors reflect the dialect
+        return statement.compile(bind=self.session.bind)
 
     def get_item(self, sequence_id, eq):
         try:

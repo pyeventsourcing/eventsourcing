@@ -292,8 +292,6 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
             records = self.record_manager.all_records()
             records = list(records)
             self.assertEqual(len(records), 4)
-            ids = [r.id for r in records]
-            print(ids)
             first = None
             for i, record in enumerate(records):
                 if first is None:

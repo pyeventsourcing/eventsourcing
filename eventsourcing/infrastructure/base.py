@@ -58,8 +58,14 @@ class AbstractRecordManager(six.with_metaclass(ABCMeta)):
 
     def raise_sequenced_item_error(self, sequenced_item):
         sequenced_item = sequenced_item[0] if isinstance(sequenced_item, list) else sequenced_item
-        raise SequencedItemConflict("Item at position '{}' already exists in sequence '{}'"
-                                 "".format(sequenced_item[1], sequenced_item[0]))
+        msg = "Position '{}' already exists in sequence '{}'".format(
+            sequenced_item[1], sequenced_item[0]
+        )
+        if self.contiguous_record_ids:
+            # Todo: Disambiguate this by examining exception for names of unique constraints.
+            msg = "Either p" + msg[1:]
+            msg += " or there was a record ID conflict."
+        raise SequencedItemConflict(msg)
 
     def raise_index_error(self, eq):
         raise IndexError("Sequence index out of range: {}".format(eq))
@@ -74,7 +80,6 @@ class RelationalRecordManager(AbstractRecordManager):
             records = [self.to_record(sequenced_item_or_items)]
 
         self._write_records(records, sequenced_item_or_items)
-
 
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
@@ -94,7 +99,7 @@ class RelationalRecordManager(AbstractRecordManager):
 
     @abstractmethod
     def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                  query_ascending=True, results_ascending=True):
+                    query_ascending=True, results_ascending=True):
         pass
 
     def from_record(self, record):

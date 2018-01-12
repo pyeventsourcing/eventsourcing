@@ -17,7 +17,9 @@ from eventsourcing.utils.random import decode_random_bytes
 
 class SimpleApplication(object):
     def __init__(self, persist_event_type=None, uri=None, session=None, cipher_key=None,
-                 stored_event_record_class=None, setup_table=True):
+                 stored_event_record_class=None, setup_table=True, compile_once=False):
+        self.compile_once = compile_once
+
         # Setup cipher (optional).
         self.setup_cipher(cipher_key)
 
@@ -53,7 +55,8 @@ class SimpleApplication(object):
         self.event_store = construct_sqlalchemy_eventstore(
             session=self.datastore.session,
             cipher=self.cipher,
-            record_class=self.stored_event_record_class
+            record_class=self.stored_event_record_class,
+            compile_once=self.compile_once
         )
 
     def setup_repository(self, **kwargs):

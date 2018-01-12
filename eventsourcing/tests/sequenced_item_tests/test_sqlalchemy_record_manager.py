@@ -15,6 +15,7 @@ def construct_integer_sequenced_record_manager(datastore):
         sequenced_item_class=SequencedItem,
         session=datastore.session,
         contiguous_record_ids=True,
+        compile_once=True,
     )
 
 
