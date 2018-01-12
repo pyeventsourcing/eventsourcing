@@ -21,7 +21,7 @@ install_requires = singledispatch_requires + [
 ]
 
 sqlalchemy_requires = [
-    'sqlalchemy<=1.1.99999,>=0.9',
+    'sqlalchemy<=1.2.99999,>=0.9',
     'sqlalchemy-utils<=0.32.99999',
 ]
 
