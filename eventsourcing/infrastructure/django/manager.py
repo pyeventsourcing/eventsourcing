@@ -35,20 +35,20 @@ class DjangoRecordManager(RelationalRecordManager):
 
     def _write_records(self, records, sequenced_items):
         # Todo: Do this on the database-side, with "insert select from".
-        # max_id = None
-        # if self.contiguous_record_ids:
-        #     try:
-        #         max_id = self.record_class.objects.latest('id').id
-        #     except self.record_class.DoesNotExist:
-        #         max_id = 0
+        max_id = None
+        if self.contiguous_record_ids:
+            try:
+                max_id = self.record_class.objects.latest('id').id
+            except self.record_class.DoesNotExist:
+                max_id = 0
 
         try:
             with transaction.atomic(self.record_class.objects.db):
 
                 for record in records:
-                    # if self.contiguous_record_ids:
-                    #     max_id += 1
-                    #     record.id = max_id
+                    if self.contiguous_record_ids:
+                        max_id += 1
+                        record.id = max_id
                     record.save()
         except IntegrityError as e:
             raise SequencedItemConflict(e)

@@ -1,19 +1,20 @@
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord, SnapshotRecord, \
     TimestampSequencedRecord
-
-from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \
     SimpleSequencedItemteratorTestCase, ThreadedSequencedItemIteratorTestCase, TimestampSequencedItemTestCase, \
     WithActiveRecordManagers
 
 
+# Todo: Change this use InfrastructureFactory.
 def construct_integer_sequenced_record_manager(datastore):
     return SQLAlchemyRecordManager(
         record_class=IntegerSequencedRecord,
         sequenced_item_class=SequencedItem,
         session=datastore.session,
+        contiguous_record_ids=True,
     )
 
 
@@ -22,6 +23,7 @@ def construct_timestamp_sequenced_record_manager(datastore):
         record_class=TimestampSequencedRecord,
         sequenced_item_class=SequencedItem,
         session=datastore.session,
+        contiguous_record_ids=True,
     )
 
 
@@ -34,13 +36,13 @@ def construct_snapshot_record_manager(datastore):
 
 
 class TestSQLAlchemyRecordManagerWithIntegerSequences(SQLAlchemyDatastoreTestCase,
-                                                             IntegerSequencedItemTestCase):
+                                                      IntegerSequencedItemTestCase):
     def construct_record_manager(self):
         return construct_integer_sequenced_record_manager(self.datastore)
 
 
 class TestSQLAlchemyRecordManagerWithTimestampSequences(SQLAlchemyDatastoreTestCase,
-                                                               TimestampSequencedItemTestCase):
+                                                        TimestampSequencedItemTestCase):
     def construct_record_manager(self):
         return construct_timestamp_sequenced_record_manager(self.datastore)
 

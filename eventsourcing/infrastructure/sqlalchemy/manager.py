@@ -1,7 +1,8 @@
 import six
-from sqlalchemy import asc, desc
+from sqlalchemy import asc, desc, text, bindparam
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.sql.elements import BindParameter
 from sqlalchemy.sql.expression import func
 
 from eventsourcing.exceptions import ProgrammingError
@@ -30,8 +31,61 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                 # if self.contiguous_record_ids:
                 #     record_id += 1
                 #     record.id = record_id
+                #
+                # self.session.add(record)
 
-                self.session.add(record)
+                if self.contiguous_record_ids:
+                    col_names = [
+                        self.field_names.sequence_id,
+                        self.field_names.position,
+                        self.field_names.topic,
+                        self.field_names.data,
+                    ]
+
+                    sql = (
+                        "INSERT INTO {table_name} {columns} "
+                        "SELECT COALESCE(MAX({table_name}.id), 0) + 1, {fields} "
+                        "FROM {table_name};"
+                    ).format(
+                        table_name=self.record_class.__table__.name,
+                        columns="(id, {})".format(", ".join(col_names)),
+                        fields=":{}".format(", :".join(col_names)),
+                    )
+                    statement = text(sql)
+
+                    bind = self.session.bind
+                    dialect = bind.dialect
+
+                    params = {}
+
+                    bindparams = []
+                    for col_name in col_names:
+                        col_type = getattr(self.record_class, col_name).type
+                        record_value = getattr(record, col_name)
+                        # if hasattr(col_type, 'type_engine'):
+                        #     col_type = col_type.type_engine(dialect)
+                        # processor = col_type.bind_processor(dialect)
+                        # if processor is None:
+                        #     param = record_value
+                        # else:
+                        #     param = processor(record_value)
+                        # params[col_name] = param
+                        params[col_name] = record_value
+                        # bindparams.append(BindParameter(key=col_name, type_=col_type))
+
+                    statement.bindparams(*bindparams)
+
+                    # compiled = statement.compile(bind=bind) #,compile_kwargs={"literal_binds": True})
+                    # compiled.execute(params)
+                    #
+                    self.session.execute(statement, params)
+
+                    # table = self.record_class.__table__
+                    # sel = func.max(self.record_class.id)
+                    # col_names = ['id', 'position']
+                    # raise Exception(str(table.insert().from_select(col_names, sel)))
+                else:
+                    self.session.add(record)
 
             self.session.commit()
         except IntegrityError as e:

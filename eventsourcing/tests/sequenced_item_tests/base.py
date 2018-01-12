@@ -34,7 +34,13 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
         super(ActiveRecordManagerTestCase, self).setUp()
         if self.datastore is not None:
             self.datastore.setup_connection()
-            self.datastore.setup_tables()
+            try:
+                self.datastore.setup_tables()
+            except:
+                self.datastore.drop_tables()
+                self.datastore.setup_tables()
+
+
 
     def tearDown(self):
         self._record_manager = None
@@ -286,8 +292,13 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
             records = self.record_manager.all_records()
             records = list(records)
             self.assertEqual(len(records), 4)
+            ids = [r.id for r in records]
+            print(ids)
+            first = None
             for i, record in enumerate(records):
-                self.assertEqual(i + 1, record.id, "Woops there's a gap")
+                if first is None:
+                    first = record.id
+                self.assertEqual(first + i, record.id, "Woops there's a gap")
 
         # Todo: Enhance this, so we can get a slice from the ID range.
 

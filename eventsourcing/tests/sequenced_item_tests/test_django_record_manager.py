@@ -41,10 +41,9 @@ class InfrastructureFactory(object):
         )
 
     def construct_timestamp_sequenced_record_manager(self):
-        return self.record_manager_class(
+        return self.construct_record_strategy(
             record_class=TimestampSequencedRecord,
             sequenced_item_class=SequencedItem,
-            convert_position_float_to_decimal=self.convert_position_float_to_decimal
         )
 
     def construct_record_strategy(self, record_class, sequenced_item_class):
@@ -52,6 +51,7 @@ class InfrastructureFactory(object):
             record_class=record_class,
             sequenced_item_class=sequenced_item_class,
             contiguous_record_ids=self.contiguous_record_ids,
+            convert_position_float_to_decimal=self.convert_position_float_to_decimal
         )
 
 
@@ -64,7 +64,7 @@ class DjangoTestCase(TransactionTestCase):
         self.factory = InfrastructureFactory(
             record_manager_class=DjangoRecordManager,
             convert_position_float_to_decimal=self.cancel_sqlite3_decimal_converter,
-            # contiguous_record_ids=True
+            contiguous_record_ids=True
         )
 
     def construct_entity_record_manager(self):
