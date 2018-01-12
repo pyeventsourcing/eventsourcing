@@ -8,26 +8,19 @@ from eventsourcing.infrastructure.base import RelationalRecordManager
 
 
 class SQLAlchemyRecordManager(RelationalRecordManager):
-    def __init__(self, session, compile_once=False, *args, **kwargs):
+    def __init__(self, session, *args, **kwargs):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
-        if self.contiguous_record_ids and compile_once:
-            self._compiled_statement = self._compile_statement()
-        else:
-            self._compiled_statement = None
 
     def _write_records(self, records, sequenced_items):
         try:
-            if self.contiguous_record_ids:
-                # Compile 'insert select from' statement.
-                statement = self._compiled_statement or self._compile_statement()
-                for record in records:
-                    # Execute compiled statement with record values.
+            for record in records:
+                if self.contiguous_record_ids:
+                    # Execute insert statement with values from record obj.
                     params = {c: getattr(record, c) for c in self.field_names}
-                    statement.execute(params)
-            else:
-                # Add records to session.
-                for record in records:
+                    self.session.bind.execute(self.insert_statement, **params)
+                else:
+                    # Add record obj to session.
                     self.session.add(record)
 
             self.session.commit()
@@ -40,38 +33,35 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         finally:
             self.session.close()
 
-    def _compile_statement(self):
-        # Define SQL statement with value placeholders.
-        # - insert with id = 1 + max of existing record IDs
-        sql_tmpl = (
-            "INSERT INTO {tablename} {columns} "
-            "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
-            "FROM {tablename};"
-        )
-        col_names = list(self.field_names)
-        statement = text(sql_tmpl.format(
-            tablename=self.record_class.__table__.name,
-            columns="(id, {})".format(", ".join(col_names)),
-            placeholders=":{}".format(", :".join(col_names)),
-        ))
+    @property
+    def insert_statement(self):
+        if not hasattr(self, '_insert_statement'):
+            # Define SQL statement with placeholders for bind parameters.
+            # - insert with id = 1 + max of existing record IDs
+            sql_tmpl = (
+                "INSERT INTO {tablename} {columns} "
+                "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
+                "FROM {tablename};"
+            )
+            col_names = list(self.field_names)
+            statement = text(sql_tmpl.format(
+                tablename=self.record_class.__table__.name,
+                columns="(id, {})".format(", ".join(col_names)),
+                placeholders=":{}".format(", :".join(col_names)),
+            ))
 
-        # Define bind parameter types.
-        bindparams = []
-        for col_name in col_names:
+            # Define bind parameters with explicit types.
+            bindparams = []
+            for col_name in col_names:
+                column_type = getattr(self.record_class, col_name).type
+                bindparams.append(bindparam(col_name, type_=(column_type)))
 
-            # - get statement param class from ORM column type
-            column_type = getattr(self.record_class, col_name).type
+            # Redefine statement with explicitly typed bind parameters.
+            statement = statement.bindparams(*bindparams)
 
-            # - construct bind parameter for the column type
-            bindparams.append(bindparam(col_name, type_=(column_type)))
-
-        # Create statement with explicity bind parameter types.
-        # - do this so smt.execute(params) has processors
-        statement = statement.bindparams(*bindparams)
-
-        # Compile the statement with the session engine or connection.
-        # - do this so processors reflect the dialect
-        return statement.compile(bind=self.session.bind)
+            # Compile the statement with the session engine or connection.
+            self._insert_statement = statement.compile(dialect=self.session.bind.dialect)
+        return self._insert_statement
 
     def get_item(self, sequence_id, eq):
         try:
@@ -85,11 +75,6 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         finally:
             self.session.close()
         return self.from_record(result)
-
-        # try:
-        #     return events[0]
-        # except IndexError:
-        #     self.raise_index_error(eq)
 
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):

@@ -14,7 +14,6 @@ def construct_sqlalchemy_eventstore(session,
                                     json_decoder_class=ObjectJSONDecoder,
                                     cipher=None,
                                     record_class=None,
-                                    compile_once=False,
                                     ):
     sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=sequenced_item_class,
@@ -28,7 +27,6 @@ def construct_sqlalchemy_eventstore(session,
         session=session,
         record_class=record_class or StoredEventRecord,
         sequenced_item_class = sequenced_item_class,
-        compile_once=compile_once
     )
     event_store = EventStore(
         record_manager=record_manager,
