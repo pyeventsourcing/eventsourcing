@@ -3,8 +3,7 @@ from sqlalchemy import asc, bindparam, desc, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
-from eventsourcing.domain.model.decorators import retry
-from eventsourcing.exceptions import ProgrammingError, RecordIDConflict
+from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.base import RelationalRecordManager
 
 
@@ -12,16 +11,14 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def __init__(self, session, *args, **kwargs):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
-        self._compiled_insert_contiguous_id = None
 
-    @retry(RecordIDConflict, max_retries=10, wait=0.01)
     def _write_records(self, records):
         try:
             if self.contiguous_record_ids:
                 for record in records:
                     # Execute insert statement with values from record obj.
                     params = {c: getattr(record, c) for c in self.field_names}
-                    self.session.bind.execute(self.insert_contiguous_id, **params)
+                    self.session.bind.execute(self.insert_select_max, **params)
             else:
                 for record in records:
                     # Add record obj to session.
@@ -31,52 +28,41 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         except IntegrityError as e:
             self.session.rollback()
 
-            if 'record_id_index' in str(e):
-                self.raise_record_id_conflict()
-            else:
-                self.raise_sequenced_item_conflict()
+            self.raise_after_integrity_error(e)
+
         finally:
             self.session.close()
 
     @property
-    def insert_contiguous_id(self):
-        """
-        Lazily-compiled statement that inserts records with contiguous IDs.
+    def record_table_name(self):
+        return self.record_class.__table__.name
 
+    def _prepare_insert_select_max(self):
+        """
         With transaction isolation level of "read committed" this should
-        generate records with a contiguous sequence of integer IDs, using
+        generate records with a contiguous sequence of integer IDs, assumes
         an indexed ID column, the database-side SQL max function, the
         insert-select-from form, and optimistic concurrency control.
         """
-        if self._compiled_insert_contiguous_id is None:
-            # Define SQL statement with placeholders for bind parameters.
-            sql_tmpl = (
-                "INSERT INTO {tablename} {columns} "
-                "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
-                "FROM {tablename};"
-            )
-            # Use record class table name, and field names from sequenced item class.
-            statement = text(sql_tmpl.format(
-                tablename=self.record_class.__table__.name,
-                columns="(id, {})".format(", ".join(self.field_names)),
-                placeholders=":{}".format(", :".join(self.field_names)),
-            ))
+        statement = text(self._insert_select_max_tmpl.format(
+            tablename=self.record_table_name,
+            columns=", ".join(self.field_names),
+            placeholders=", ".join([":{}".format(f) for f in self.field_names]),
+        ))
 
-            # Define bind parameters with explicit types taken from record column types.
-            bindparams = []
-            for col_name in self.field_names:
-                column_type = getattr(self.record_class, col_name).type
-                bindparams.append(bindparam(col_name, type_=column_type))
+        # Define bind parameters with explicit types taken from record column types.
+        bindparams = []
+        for col_name in self.field_names:
+            column_type = getattr(self.record_class, col_name).type
+            bindparams.append(bindparam(col_name, type_=column_type))
 
-            # Redefine statement with explicitly typed bind parameters.
-            statement = statement.bindparams(*bindparams)
+        # Redefine statement with explicitly typed bind parameters.
+        statement = statement.bindparams(*bindparams)
 
-            # Compile the statement with the session dialect.
-            compiled = statement.compile(dialect=self.session.bind.dialect)
-            self._compiled_insert_contiguous_id = compiled
+        # Compile the statement with the session dialect.
+        compiled = statement.compile(dialect=self.session.bind.dialect)
 
-        # Return compiled statement.
-        return self._compiled_insert_contiguous_id
+        return compiled
 
     def get_item(self, sequence_id, eq):
         try:

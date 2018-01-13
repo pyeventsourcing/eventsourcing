@@ -26,7 +26,7 @@ class IntegerSequencedRecord(Base):
     id = Column(BigInteger().with_variant(Integer, "sqlite"), autoincrement=True)
 
     __table_args__ = (
-        Index('record_id_index', 'id', unique=True),
+        Index('integer_sequenced_items_record_id_index', 'id', unique=True),
     )
 
 
@@ -46,7 +46,7 @@ class TimestampSequencedRecord(Base):
     data = Column(Text())
 
     __table_args__ = (
-        Index('position_index', 'position', unique=False),
+        Index('timestamp_sequenced_items_position_index', 'position', unique=False),
     )
 
 
@@ -82,8 +82,8 @@ class StoredEventRecord(Base):
     state = Column(Text())
 
     # Record ID.
-    id = Column(BigInteger().with_variant(Integer, "sqlite"))
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), autoincrement=True)
 
     __table_args__ = (
-        Index('record_id_index', 'id', unique=True),
+        Index('stored_events_record_id_index', 'id', unique=True),
     )

@@ -3,8 +3,6 @@ from decimal import Decimal
 import six
 from django.db import IntegrityError, connection, transaction
 
-from eventsourcing.domain.model.decorators import retry
-from eventsourcing.exceptions import RecordIDConflict
 from eventsourcing.infrastructure.base import RelationalRecordManager
 
 
@@ -34,42 +32,54 @@ class DjangoRecordManager(RelationalRecordManager):
         self.convert_position_float_to_decimal = convert_position_float_to_decimal
         super(DjangoRecordManager, self).__init__(*args, **kwargs)
 
-    @retry(RecordIDConflict, max_retries=10, wait=0.01)
     def _write_records(self, records):
         try:
             with transaction.atomic(self.record_class.objects.db):
-
-                for record in records:
-                    if self.contiguous_record_ids:
-                        sql_tmpl = (
-                            "INSERT INTO {tablename} {columns} "
-                            "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
-                            "FROM {tablename};"
-                        )
-                        statement = sql_tmpl.format(
-                            tablename=self.record_class._meta.db_table,
-                            columns="(id, {})".format(", ".join(self.field_names)),
-                            placeholders=", ".join(['%s' for _ in self.field_names]),
-                        )
-
-                        params = []
-                        with connection.cursor() as cursor:
+                if self.contiguous_record_ids:
+                    # Use cursor to execute insert select max statement.
+                    with connection.cursor() as cursor:
+                        for record in records:
+                            # Get values from record obj.
+                            params = []
                             for col_name in self.field_names:
                                 col_value = getattr(record, col_name)
                                 col_type = self.record_class._meta.get_field(col_name)
+
+                                # Prepare value for database.
                                 param = col_type.get_db_prep_value(col_value, connection)
                                 params.append(param)
 
-                            cursor.execute(statement, params)
-                    else:
+                            # Execute insert statement.
+                            cursor.execute(self.insert_select_max, params)
+                else:
+                    # Save record objects.
+                    for record in records:
                         record.save()
 
         except IntegrityError as e:
-            msg = 'UNIQUE constraint failed: {}.id'.format(self.record_class._meta.db_table)
-            if msg in str(e):
-                self.raise_record_id_conflict()
-            else:
-                self.raise_sequenced_item_conflict()
+            self.raise_after_integrity_error(e)
+
+    def _prepare_insert_select_max(self):
+        """
+        With transaction isolation level of "read committed" this should
+        generate records with a contiguous sequence of integer IDs, using
+        an indexed ID column, the database-side SQL max function, the
+        insert-select-from form, and optimistic concurrency control.
+        """
+        statement = self._insert_select_max_tmpl.format(
+            tablename=self.record_table_name,
+            columns=", ".join(self.field_names),
+            placeholders=", ".join(['%s' for _ in self.field_names]),
+        )
+        return statement
+
+    @property
+    def id_index_name(self):
+        return '{}_pkey'.format(self.record_table_name)
+
+    @property
+    def record_table_name(self):
+        return self.record_class._meta.db_table
 
     def get_item(self, sequence_id, eq):
         records = self.record_class.objects.filter(sequence_id=sequence_id, position=eq).all()
