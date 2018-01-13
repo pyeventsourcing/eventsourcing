@@ -12,7 +12,7 @@ class IntegerSequencedRecord(models.Model):
     position = models.BigIntegerField()
 
     # Topic of the item (e.g. path to domain event class).
-    topic = models.CharField(max_length=255)
+    topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
     data = models.TextField()
@@ -33,7 +33,7 @@ class TimestampSequencedRecord(models.Model):
     position = models.DecimalField(max_digits=24, decimal_places=6)
 
     # Topic of the item (e.g. path to domain event class).
-    topic = models.CharField(max_length=255)
+    topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
     data = models.TextField()
@@ -57,7 +57,7 @@ class SnapshotRecord(models.Model):
     position = models.BigIntegerField()
 
     # Topic of the item (e.g. path to domain event class).
-    topic = models.CharField(max_length=255)
+    topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
     data = models.TextField()
@@ -78,7 +78,7 @@ class StoredEventRecord(models.Model):
     originator_version = models.BigIntegerField()
 
     # Topic of the item (e.g. path to domain event class).
-    event_type = models.CharField(max_length=255)
+    event_type = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
     state = models.TextField()
