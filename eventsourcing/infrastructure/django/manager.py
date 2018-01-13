@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 import six
-from django.db import IntegrityError, transaction, connection
+from django.db import IntegrityError, connection, transaction
 
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import RecordIDConflict
@@ -76,7 +76,7 @@ class DjangoRecordManager(RelationalRecordManager):
         return self.from_record(records[0])
 
     def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                  query_ascending=True, results_ascending=True):
+                    query_ascending=True, results_ascending=True):
 
         assert limit is None or limit >= 1, limit
 
