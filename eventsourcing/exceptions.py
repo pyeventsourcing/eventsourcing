@@ -67,7 +67,11 @@ class DatasourceSettingsError(EventSourcingError):
 
 
 class SequencedItemConflict(EventSourcingError):
-    "Raised when an integer sequence error occurs e.g. trying to save a version that already exists."
+    "Raised when a sequence error occurs e.g. trying to save a version that already exists."
+
+
+class RecordIDConflict(EventSourcingError):
+    "Raised when a record ID conflict is detected."
 
 
 class TimeSequenceError(EventSourcingError):

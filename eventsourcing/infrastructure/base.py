@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.exceptions import SequencedItemConflict
+from eventsourcing.exceptions import SequencedItemConflict, RecordIDConflict
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 
 
@@ -56,16 +56,13 @@ class AbstractRecordManager(six.with_metaclass(ABCMeta)):
     def get_field_kwargs(self, item):
         return {name: getattr(item, name) for name in self.field_names}
 
-    def raise_sequenced_item_error(self, sequenced_item):
-        sequenced_item = sequenced_item[0] if isinstance(sequenced_item, list) else sequenced_item
-        msg = "Position '{}' already exists in sequence '{}'".format(
-            sequenced_item[1], sequenced_item[0]
-        )
-        if self.contiguous_record_ids:
-            # Todo: Disambiguate this by examining exception for names of unique constraints.
-            msg = "Either p" + msg[1:]
-            msg += " or there was a record ID conflict."
+    def raise_sequenced_item_conflict(self):
+        msg = "Position already taken in sequence"
         raise SequencedItemConflict(msg)
+
+    def raise_record_id_conflict(self):
+        msg = "There was a record ID conflict"
+        raise RecordIDConflict(msg)
 
     def raise_index_error(self, eq):
         raise IndexError("Sequence index out of range: {}".format(eq))
@@ -79,7 +76,7 @@ class RelationalRecordManager(AbstractRecordManager):
         else:
             records = [self.to_record(sequenced_item_or_items)]
 
-        self._write_records(records, sequenced_item_or_items)
+        self._write_records(records)
 
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
@@ -121,7 +118,7 @@ class RelationalRecordManager(AbstractRecordManager):
         return self.record_class(**kwargs)
 
     @abstractmethod
-    def _write_records(self, records, sequenced_items):
+    def _write_records(self, records):
         """
         Actually creates records in the database.
         """

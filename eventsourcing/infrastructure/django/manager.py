@@ -33,7 +33,7 @@ class DjangoRecordManager(RelationalRecordManager):
         self.convert_position_float_to_decimal = convert_position_float_to_decimal
         super(DjangoRecordManager, self).__init__(*args, **kwargs)
 
-    def _write_records(self, records, sequenced_items):
+    def _write_records(self, records):
         # Todo: Do this on the database-side, with "insert select from".
         max_id = None
         if self.contiguous_record_ids:
@@ -50,8 +50,12 @@ class DjangoRecordManager(RelationalRecordManager):
                         max_id += 1
                         record.id = max_id
                     record.save()
+
         except IntegrityError as e:
-            raise SequencedItemConflict(e)
+            if 'record_id_index' in str(e):
+                self.raise_record_id_conflict()
+            else:
+                self.raise_sequenced_item_conflict()
 
     def get_item(self, sequence_id, eq):
         records = self.record_class.objects.filter(sequence_id=sequence_id, position=eq).all()

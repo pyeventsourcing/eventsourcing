@@ -1,17 +1,14 @@
 import json
 import uuid
-from time import time
+from time import sleep
 from uuid import uuid4
 
 import six
-from decimal import Decimal
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
     Logged
-from eventsourcing.utils.times import decimaltimestamp
-from eventsourcing.utils.topic import get_topic
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import SequencedItemConflict
 from eventsourcing.infrastructure.base import AbstractRecordManager
@@ -20,10 +17,11 @@ from eventsourcing.infrastructure.iterators import SequencedItemIterator, Thread
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
+from eventsourcing.utils.times import decimaltimestamp
+from eventsourcing.utils.topic import get_topic
 
 
 class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
-
     cancel_sqlite3_decimal_converter = False
 
     def __init__(self, *args, **kwargs):
@@ -39,8 +37,6 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
             except:
                 self.datastore.drop_tables()
                 self.datastore.setup_tables()
-
-
 
     def tearDown(self):
         self._record_manager = None
@@ -243,35 +239,35 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
 
         # Get items with a limit, and with descending query (so that we get the last ones).
         retrieved_items = self.record_manager.list_items(sequence_id1, limit=2,
-                                                                query_ascending=False)
+                                                         query_ascending=False)
         self.assertEqual(2, len(retrieved_items))
         self.assertEqual(retrieved_items[0].position, position2)
         self.assertEqual(retrieved_items[1].position, position3)
 
         # Get items with a limit and descending query, greater than a position.
         retrieved_items = self.record_manager.list_items(sequence_id1, limit=2, gt=position2,
-                                                                query_ascending=False)
+                                                         query_ascending=False)
         self.assertEqual(1, len(retrieved_items))
         self.assertEqual(retrieved_items[0].position, position3)
 
         # Get items with a limit and descending query, less than a position.
         retrieved_items = self.record_manager.list_items(sequence_id1, limit=2, lt=position3,
-                                                                query_ascending=False)
+                                                         query_ascending=False)
         self.assertEqual(len(retrieved_items), 2)
         self.assertEqual(retrieved_items[0].position, position1)
         self.assertEqual(retrieved_items[1].position, position2)
 
         # Get items in descending order, queried in ascending order.
         retrieved_items = self.record_manager.list_items(sequence_id1,
-                                                                results_ascending=False)
+                                                         results_ascending=False)
         self.assertEqual(len(retrieved_items), 3)
         self.assertEqual(retrieved_items[0].position, position3)
         self.assertEqual(retrieved_items[2].position, position1)
 
         # Get items in descending order, queried in descending order.
         retrieved_items = self.record_manager.list_items(sequence_id1,
-                                                                query_ascending=False,
-                                                                results_ascending=False)
+                                                         query_ascending=False,
+                                                         results_ascending=False)
         self.assertEqual(len(retrieved_items), 3)
         self.assertEqual(retrieved_items[0].position, position3)
         self.assertEqual(retrieved_items[2].position, position1)
@@ -296,7 +292,7 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
             for i, record in enumerate(records):
                 if first is None:
                     first = record.id
-                self.assertEqual(first + i, record.id, "Woops there's a gap")
+                self.assertEqual(first + i, record.id, "Woops there's a gap: {}".format([r.id for r in records]))
 
         # Todo: Enhance this, so we can get a slice from the ID range.
 
@@ -404,10 +400,11 @@ class TimestampSequencedItemTestCase(ActiveRecordManagerTestCase):
     EXAMPLE_EVENT_TOPIC1 = get_topic(TimestampedEventExample1)
     EXAMPLE_EVENT_TOPIC2 = get_topic(TimestampedEventExample2)
 
-    def construct_positions(self):
-        t1 = decimaltimestamp()
-        return t1, t1 + Decimal('0.000001'), t1 + Decimal('0.000002')
-        # return t1, t1 + Decimal('0.000001000'), t1 + Decimal('0.000002000')
+    def construct_positions(self, num=3):
+        while num:
+            yield decimaltimestamp()
+            num -= 1
+            sleep(0.00001)
 
 
 class SequencedItemIteratorTestCase(WithActiveRecordManagers):

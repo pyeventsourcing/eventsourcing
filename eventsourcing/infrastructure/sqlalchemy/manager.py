@@ -3,7 +3,8 @@ from sqlalchemy import asc, bindparam, desc, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
-from eventsourcing.exceptions import ProgrammingError
+from eventsourcing.domain.model.decorators import retry
+from eventsourcing.exceptions import ProgrammingError, RecordIDConflict
 from eventsourcing.infrastructure.base import RelationalRecordManager
 
 
@@ -11,57 +12,71 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def __init__(self, session, *args, **kwargs):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
+        self._compiled_insert_contiguous_id = None
 
-    def _write_records(self, records, sequenced_items):
+    @retry(RecordIDConflict, max_retries=10, wait=0.01)
+    def _write_records(self, records):
         try:
-            for record in records:
-                if self.contiguous_record_ids:
+            if self.contiguous_record_ids:
+                for record in records:
                     # Execute insert statement with values from record obj.
                     params = {c: getattr(record, c) for c in self.field_names}
-                    self.session.bind.execute(self.insert_statement, **params)
-                else:
+                    self.session.bind.execute(self.insert_contiguous_id, **params)
+            else:
+                for record in records:
                     # Add record obj to session.
                     self.session.add(record)
 
             self.session.commit()
         except IntegrityError as e:
             self.session.rollback()
-            # Todo: Look at the exception e, to see if the conflict was
-            # the application or entity sequence, otherwise its confusing.
-            # raise
-            self.raise_sequenced_item_error(sequenced_items)
+
+            if 'record_id_index' in str(e):
+                self.raise_record_id_conflict()
+            else:
+                self.raise_sequenced_item_conflict()
         finally:
             self.session.close()
 
     @property
-    def insert_statement(self):
-        if not hasattr(self, '_insert_statement'):
+    def insert_contiguous_id(self):
+        """
+        Lazily-compiled statement that inserts records with contiguous IDs.
+
+        With transaction isolation level of "read committed" this should
+        generate records with a contiguous sequence of integer IDs, using
+        an indexed ID column, the database-side SQL max function, the
+        insert-select-from form, and optimistic concurrency control.
+        """
+        if self._compiled_insert_contiguous_id is None:
             # Define SQL statement with placeholders for bind parameters.
-            # - insert with id = 1 + max of existing record IDs
             sql_tmpl = (
                 "INSERT INTO {tablename} {columns} "
                 "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
                 "FROM {tablename};"
             )
-            col_names = list(self.field_names)
+            # Use record class table name, and field names from sequenced item class.
             statement = text(sql_tmpl.format(
                 tablename=self.record_class.__table__.name,
-                columns="(id, {})".format(", ".join(col_names)),
-                placeholders=":{}".format(", :".join(col_names)),
+                columns="(id, {})".format(", ".join(self.field_names)),
+                placeholders=":{}".format(", :".join(self.field_names)),
             ))
 
-            # Define bind parameters with explicit types.
+            # Define bind parameters with explicit types taken from record column types.
             bindparams = []
-            for col_name in col_names:
+            for col_name in self.field_names:
                 column_type = getattr(self.record_class, col_name).type
-                bindparams.append(bindparam(col_name, type_=(column_type)))
+                bindparams.append(bindparam(col_name, type_=column_type))
 
             # Redefine statement with explicitly typed bind parameters.
             statement = statement.bindparams(*bindparams)
 
-            # Compile the statement with the session engine or connection.
-            self._insert_statement = statement.compile(dialect=self.session.bind.dialect)
-        return self._insert_statement
+            # Compile the statement with the session dialect.
+            compiled = statement.compile(dialect=self.session.bind.dialect)
+            self._compiled_insert_contiguous_id = compiled
+
+        # Return compiled statement.
+        return self._compiled_insert_contiguous_id
 
     def get_item(self, sequence_id, eq):
         try:
@@ -145,6 +160,9 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def all_records(self, *args, **kwargs):
         """
         Returns all records in the table.
+
+        Intended to support getting all application domain events
+        in order, especially if the records have contiguous IDs.
         """
         # query = self.filter(**kwargs)
         # if resume is not None:
@@ -155,7 +173,13 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         # for i, record in enumerate(query):
         #     yield record, i + resume
         try:
-            return self.query.all()
+            query = self.query
+            if hasattr(self.record_class, 'id'):
+                query = query.order_by(asc('id'))
+            # Todo: Should some tables with an ID not be ordered by ID?
+            # Todo: Which order do other tables have?
+            # Todo: Support starting from an ID and continuing indefinitely.
+            return query.all()
         finally:
             self.session.close()
 

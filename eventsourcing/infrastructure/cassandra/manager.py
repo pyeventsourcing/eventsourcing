@@ -19,13 +19,13 @@ class CassandraRecordManager(AbstractRecordManager):
                 try:
                     b.execute()
                 except LWTException:
-                    self.raise_sequenced_item_error(sequenced_item_or_items)
+                    self.raise_sequenced_item_conflict()
         else:
             record = self.to_record(sequenced_item_or_items)
             try:
                 record.save()
             except LWTException:
-                self.raise_sequenced_item_error(sequenced_item_or_items)
+                self.raise_sequenced_item_conflict()
 
     def get_item(self, sequence_id, eq):
         kwargs = {
