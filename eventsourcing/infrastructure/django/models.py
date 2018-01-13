@@ -3,11 +3,13 @@ from django.db import models
 
 class IntegerSequencedRecord(models.Model):
 
+    id = models.BigAutoField(primary_key=True)
+
     # Sequence ID (e.g. an entity or aggregate ID).
     sequence_id = models.UUIDField()
 
     # Position (index) of item in sequence.
-    position = models.IntegerField()
+    position = models.BigIntegerField()
 
     # Topic of the item (e.g. path to domain event class).
     topic = models.CharField(max_length=255)
@@ -22,8 +24,7 @@ class IntegerSequencedRecord(models.Model):
 
 class TimestampSequencedRecord(models.Model):
 
-    def __init__(self, *args, **kwargs):
-        super(TimestampSequencedRecord, self).__init__(*args, **kwargs)
+    id = models.BigAutoField(primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
     sequence_id = models.UUIDField()
@@ -40,15 +41,20 @@ class TimestampSequencedRecord(models.Model):
     class Meta:
         unique_together = (("sequence_id", "position"),)
         db_table = 'timestamp_sequenced_items'
+        indexes = [
+            models.Index(fields=['position'], name='position_idx'),
+        ]
 
 
 class SnapshotRecord(models.Model):
+
+    id = models.BigAutoField(primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
     sequence_id = models.UUIDField()
 
     # Position (index) of item in sequence.
-    position = models.IntegerField()
+    position = models.BigIntegerField()
 
     # Topic of the item (e.g. path to domain event class).
     topic = models.CharField(max_length=255)
@@ -63,11 +69,13 @@ class SnapshotRecord(models.Model):
 
 class StoredEventRecord(models.Model):
 
+    id = models.BigAutoField(primary_key=True)
+
     # Sequence ID (e.g. an entity or aggregate ID).
     originator_id = models.UUIDField()
 
     # Position (index) of item in sequence.
-    originator_version = models.IntegerField()
+    originator_version = models.BigIntegerField()
 
     # Topic of the item (e.g. path to domain event class).
     event_type = models.CharField(max_length=255)

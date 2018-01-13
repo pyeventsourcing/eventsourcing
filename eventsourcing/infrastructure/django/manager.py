@@ -1,9 +1,10 @@
 from decimal import Decimal
 
 import six
-from django.db import IntegrityError, OperationalError, transaction
+from django.db import IntegrityError, transaction, connection
 
-from eventsourcing.exceptions import ProgrammingError, SequencedItemConflict
+from eventsourcing.domain.model.decorators import retry
+from eventsourcing.exceptions import RecordIDConflict
 from eventsourcing.infrastructure.base import RelationalRecordManager
 
 
@@ -33,26 +34,39 @@ class DjangoRecordManager(RelationalRecordManager):
         self.convert_position_float_to_decimal = convert_position_float_to_decimal
         super(DjangoRecordManager, self).__init__(*args, **kwargs)
 
+    @retry(RecordIDConflict, max_retries=10, wait=0.01)
     def _write_records(self, records):
-        # Todo: Do this on the database-side, with "insert select from".
-        max_id = None
-        if self.contiguous_record_ids:
-            try:
-                max_id = self.record_class.objects.latest('id').id
-            except self.record_class.DoesNotExist:
-                max_id = 0
-
         try:
             with transaction.atomic(self.record_class.objects.db):
 
                 for record in records:
                     if self.contiguous_record_ids:
-                        max_id += 1
-                        record.id = max_id
-                    record.save()
+                        sql_tmpl = (
+                            "INSERT INTO {tablename} {columns} "
+                            "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
+                            "FROM {tablename};"
+                        )
+                        statement = sql_tmpl.format(
+                            tablename=self.record_class._meta.db_table,
+                            columns="(id, {})".format(", ".join(self.field_names)),
+                            placeholders=", ".join(['%s' for _ in self.field_names]),
+                        )
+
+                        params = []
+                        with connection.cursor() as cursor:
+                            for col_name in self.field_names:
+                                col_value = getattr(record, col_name)
+                                col_type = self.record_class._meta.get_field(col_name)
+                                param = col_type.get_db_prep_value(col_value, connection)
+                                params.append(param)
+
+                            cursor.execute(statement, params)
+                    else:
+                        record.save()
 
         except IntegrityError as e:
-            if 'record_id_index' in str(e):
+            index_name = '{}_pkey'.format(self.record_class._meta.db_table)
+            if index_name in str(e):
                 self.raise_record_id_conflict()
             else:
                 self.raise_sequenced_item_conflict()

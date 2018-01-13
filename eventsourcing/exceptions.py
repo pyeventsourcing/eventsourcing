@@ -70,7 +70,7 @@ class SequencedItemConflict(EventSourcingError):
     "Raised when a sequence error occurs e.g. trying to save a version that already exists."
 
 
-class RecordIDConflict(EventSourcingError):
+class RecordIDConflict(SequencedItemConflict):
     "Raised when a record ID conflict is detected."
 
 
