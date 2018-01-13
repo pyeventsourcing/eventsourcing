@@ -17,7 +17,7 @@ class IntegerSequencedRecord(Base):
     position = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
-    topic = Column(String(255), nullable=False)
+    topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
@@ -40,7 +40,7 @@ class TimestampSequencedRecord(Base):
     position = Column(DECIMAL(24, 6, 6), primary_key=True)
 
     # Topic of the item (e.g. path to domain event class).
-    topic = Column(String(255), nullable=False)
+    topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
@@ -60,10 +60,10 @@ class SnapshotRecord(Base):
     position = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
     # Topic of the item (e.g. path to domain entity class).
-    topic = Column(String(255))
+    topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    data = Column(Text(), nullable=False)
+    data = Column(Text())
 
 
 class StoredEventRecord(Base):
@@ -76,7 +76,7 @@ class StoredEventRecord(Base):
     originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
     # Type of the event (class name).
-    event_type = Column(String(100), nullable=False)
+    event_type = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
