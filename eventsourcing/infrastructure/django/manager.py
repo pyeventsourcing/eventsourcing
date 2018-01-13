@@ -65,8 +65,8 @@ class DjangoRecordManager(RelationalRecordManager):
                         record.save()
 
         except IntegrityError as e:
-            index_name = '{}_pkey'.format(self.record_class._meta.db_table)
-            if index_name in str(e):
+            msg = 'UNIQUE constraint failed: {}.id'.format(self.record_class._meta.db_table)
+            if msg in str(e):
                 self.raise_record_id_conflict()
             else:
                 self.raise_sequenced_item_conflict()

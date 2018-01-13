@@ -1,7 +1,7 @@
 from sqlalchemy import DECIMAL
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.schema import Column, Index
-from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
+from sqlalchemy.sql.sqltypes import BigInteger, Integer, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
 Base = declarative_base()
