@@ -3,25 +3,21 @@ from threading import Thread
 from unittest.case import TestCase
 from uuid import uuid4
 
+from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.repositories.array import BigArrayRepository
-from eventsourcing.interface.notificationlog import NotificationLog, NotificationLogReader, \
-    RemoteNotificationLog, deserialize_section, present_section
+from eventsourcing.interface.notificationlog import BigArrayNotificationLog, NotificationLogReader, \
+    RemoteNotificationLog, deserialize_section, present_section, RecordNotificationLog
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
     WithSQLAlchemyRecordManagers
+from eventsourcing.utils.topic import get_topic
 
 
-class ArchivedLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
+class NotificationLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
     def setUp(self):
-        super(ArchivedLogTestCase, self).setUp()
-        self.big_array_repo = BigArrayRepository(event_store=self.entity_event_store)
-
-    def create_big_array(self, big_array_id=None):
-        big_array_id = uuid4() if big_array_id is None else big_array_id
-        big_array = self.big_array_repo[big_array_id]
-        return big_array
+        super(NotificationLogTestCase, self).setUp()
 
     def assert_section(self, repo, requested_id, expected_id, expected_len_items, expected_previous_id,
                        expected_next_id):
@@ -31,18 +27,30 @@ class ArchivedLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolicies)
         self.assertEqual(section.previous_id, expected_previous_id)
         self.assertEqual(section.next_id, expected_next_id)
 
-    def append_notifications(self, big_array, *range_args):
+    def append_notifications(self, *range_args):
         for i in range(*range_args):
             item = 'item{}'.format(i + 1)
-            big_array.append(item)
+            self.append_notification(item)
+
+    def create_notification_log(self, section_size):
+        return RecordNotificationLog(self._entity_record_manager, section_size)
+
+    def append_notification(self, item):
+        sequenced_item = self._entity_record_manager.sequenced_item_class(
+            uuid4(),
+            0,
+            get_topic(DomainEvent),
+            item
+        )
+        self._entity_record_manager.append(sequenced_item)
 
 
-class TestNotificationLog(ArchivedLogTestCase):
-    def test_notification_log(self):
+class TestNotificationLog(NotificationLogTestCase):
+
+    def test(self):
         # Build notification log.
-        big_array = self.create_big_array()
         section_size = 5
-        notification_log = NotificationLog(big_array, section_size=section_size)
+        notification_log = self.create_notification_log(section_size=section_size)
 
         # Check the sections.
         section = notification_log['current']
@@ -52,7 +60,7 @@ class TestNotificationLog(ArchivedLogTestCase):
         self.assertIsNone(section.previous_id)
 
         # Append notifications.
-        self.append_notifications(big_array, 13)
+        self.append_notifications(13)
 
         # Check the sections.
         self.assert_section(notification_log, 'current', '11,15', 3, '6,10', None)
@@ -63,7 +71,7 @@ class TestNotificationLog(ArchivedLogTestCase):
         self.assert_section(notification_log, '21,25', '21,25', 0, '16,20', None)
 
         # Add some more notification.
-        self.append_notifications(big_array, 13, 24)
+        self.append_notifications(13, 24)
 
         # Check the notification log has been extended.
         self.assertEqual(len(list(notification_log['11,15'].items)), section_size)
@@ -71,12 +79,23 @@ class TestNotificationLog(ArchivedLogTestCase):
         self.assertEqual(len(list(notification_log['21,25'].items)), 4)
         self.assertEqual(len(list(notification_log['26,30'].items)), 0)
 
+        # Check an section ID that can't be split by ',' results in a ValueError.
+        with self.assertRaises(ValueError):
+            _ = notification_log['invalid']
+
+
+class TestBigArrayNotificationLog(TestNotificationLog):
+
+    def test(self):
+        self.section_size = 5
+        super(TestBigArrayNotificationLog, self).test()
+
         # Check array size must be divisible by section size.
         with self.assertRaises(ValueError):
-            NotificationLog(big_array, section_size=6)
+            BigArrayNotificationLog(self.big_array, section_size=6)
 
         # Check the section ID must match the section size.
-        notification_log = NotificationLog(big_array, section_size)
+        notification_log = BigArrayNotificationLog(self.big_array, self.section_size)
         with self.assertRaises(ValueError):
             _ = notification_log['1,2']
 
@@ -84,46 +103,57 @@ class TestNotificationLog(ArchivedLogTestCase):
         with self.assertRaises(ValueError):
             _ = notification_log['2,6']
 
-        # Check an section ID that can't be split by ',' results in a ValueError.
-        with self.assertRaises(ValueError):
-            _ = notification_log['invalid']
+    def create_notification_log(self, section_size):
+        self.big_array = self.create_big_array()
+        return BigArrayNotificationLog(self.big_array, section_size=section_size)
 
-    def test_notification_log_reader(self):
+    def create_big_array(self, big_array_id=None):
+        big_array_id = uuid4() if big_array_id is None else big_array_id
+        big_array_repo = BigArrayRepository(event_store=self.entity_event_store)
+        big_array = big_array_repo[big_array_id]
+        return big_array
+
+    def append_notification(self, item):
+        self.big_array.append(item)
+
+
+class TestNotificationLogReader(NotificationLogTestCase):
+
+    def test(self):
         # Build notification log.
-        big_array = self.create_big_array()
         section_size = 5
-        notification_log = NotificationLog(big_array, section_size=section_size)
+        notification_log = self.create_notification_log(section_size=section_size)
 
         # Append 13 notifications.
-        self.append_notifications(big_array, 13)
+        self.append_notifications(13)
 
         # Construct notification log reader.
         reader = NotificationLogReader(notification_log)
 
         # Read all notifications.
         all_notifications = list(reader)
-        self.assertEqual(len(all_notifications), 13, all_notifications)
+        self.assertEqual(13, len(all_notifications))
 
         # Check position.
         self.assertEqual(reader.position, 13)
 
         # Add some more items to the log.
-        self.append_notifications(big_array, 13, 21)
+        self.append_notifications(13, 21)
 
         # Read subsequent notifications.
         subsequent_notifications_notifications = list(reader)
-        self.assertEqual(len(subsequent_notifications_notifications), 8, subsequent_notifications_notifications)
+        self.assertEqual(len(subsequent_notifications_notifications), 8)
 
         # Check position.
         self.assertEqual(reader.position, 21)
 
         subsequent_notifications_notifications = list(reader)
-        self.assertEqual(len(subsequent_notifications_notifications), 0, subsequent_notifications_notifications)
+        self.assertEqual(len(subsequent_notifications_notifications), 0)
 
         # Set position.
         reader.seek(13)
         subsequent_notifications_notifications = list(reader)
-        self.assertEqual(len(subsequent_notifications_notifications), 8, subsequent_notifications_notifications)
+        self.assertEqual(len(subsequent_notifications_notifications), 8)
 
         # # Read items after a particular position.
         self.assertEqual(len(list(reader[0:])), 21)
@@ -188,17 +218,17 @@ class TestNotificationLog(ArchivedLogTestCase):
         self.assertEqual(reader.position, 21)
 
 
-class TestRemoteArchivedLog(ArchivedLogTestCase):
+class TestRemoteNotificationLog(NotificationLogTestCase):
     use_named_temporary_file = True
 
     def test_remote_notification_log(self):
         log_name = str(uuid4())
         num_notifications = 42
-        big_array = self.create_big_array()
+
         section_size = 5
 
         # Build a notification log (fixture).
-        self.append_notifications(big_array, num_notifications)
+        self.append_notifications(num_notifications)
 
         # Start a simple server.
         from wsgiref.util import setup_testing_defaults
@@ -223,7 +253,9 @@ class TestRemoteArchivedLog(ArchivedLogTestCase):
                 raise ValueError(msg)
 
             # Get serialized section.
-            section = present_section(big_array, section_id, section_size)
+            notification_log = self.create_notification_log(section_size=section_size)
+
+            section = present_section(notification_log, section_id)
 
             # Return a list of lines.
             return [(line + '\n').encode('utf8') for line in section.split('\n')]
@@ -262,7 +294,7 @@ class TestRemoteArchivedLog(ArchivedLogTestCase):
             httpd.server_close()
 
 
-class TestNotificationLogWithCassandra(WithCassandraRecordManagers, TestNotificationLog):
+class TestNotificationLogWithCassandra(WithCassandraRecordManagers, TestBigArrayNotificationLog):
     pass
 
 

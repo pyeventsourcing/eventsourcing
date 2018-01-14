@@ -7,20 +7,7 @@ import requests
 import six
 
 from eventsourcing.domain.model.array import BigArray
-
-
-class AbstractNotificationLog(six.with_metaclass(ABCMeta)):
-    """
-    Presents a sequence of sections from a sequence of notifications.
-    """
-
-    @abstractmethod
-    def __getitem__(self, section_id):
-        """
-        Returns section of notification log.
-
-        :rtype: Section
-        """
+from eventsourcing.infrastructure.base import AbstractRecordManager
 
 
 class Section(object):
@@ -38,16 +25,25 @@ class Section(object):
         self.previous_id = previous_id
         self.next_id = next_id
 
-# Todo: Refactor this, into subclass that works with BigArray, and another that works with ActiveRecord that has an
-# auto-incrementing id field.
+
+class AbstractNotificationLog(six.with_metaclass(ABCMeta)):
+    """
+    Presents a sequence of sections from a sequence of notifications.
+    """
+    @abstractmethod
+    def __getitem__(self, section_id):
+        """
+        Get section of notification log.
+
+        :rtype: Section
+        """
+
+
 class NotificationLog(AbstractNotificationLog):
-    def __init__(self, big_array, section_size):
-        assert isinstance(big_array, BigArray)
-        if big_array.repo.array_size % section_size:
-            raise ValueError("Section size {} doesn't divide array size {}".format(
-                section_size, big_array.repo.array_size
-            ))
-        self.big_array = big_array
+    """
+    Presents a sequence of sections from a sequence of notifications.
+    """
+    def __init__(self, section_size):
         self.section_size = section_size
         self.last_last_item = None
         self.last_start = None
@@ -55,7 +51,7 @@ class NotificationLog(AbstractNotificationLog):
 
     def __getitem__(self, section_id):
         # Get section of notification log.
-        next_position = self.big_array.get_next_position()
+        next_position = self.get_next_position()
         if section_id == 'current':
             start = next_position // self.section_size * self.section_size
             stop = next_position
@@ -78,7 +74,7 @@ class NotificationLog(AbstractNotificationLog):
                 ))
         self.last_start = start
         self.last_stop = stop
-        items = self.big_array[start:min(stop, next_position)]
+        items = self.get_items(start, min(stop, next_position))
 
         # Decide the IDs of previous and next sections.
         if self.last_start:
@@ -103,9 +99,56 @@ class NotificationLog(AbstractNotificationLog):
             next_id=next_id,
         )
 
+    @abstractmethod
+    def get_next_position(self):
+        """
+        Returns items for section.
+
+        :rtype: int
+        """
+
+    @abstractmethod
+    def get_items(self, start, stop):
+        """
+        Returns items for section.
+
+        :rtype: list
+        """
+
     @staticmethod
     def format_section_id(first_item_number, last_item_number):
         return '{},{}'.format(first_item_number, last_item_number)
+
+
+class RecordNotificationLog(NotificationLog):
+
+    def __init__(self, record_manager, section_size):
+        super(RecordNotificationLog, self).__init__(section_size)
+        assert isinstance(record_manager, AbstractRecordManager), record_manager
+        self.record_manager = record_manager
+
+    def get_items(self, start, stop):
+        return [r.data for r in self.record_manager.all_records(start, stop)]
+
+    def get_next_position(self):
+        return self.record_manager.get_max_record_id() or 1
+
+
+class BigArrayNotificationLog(NotificationLog):
+    def __init__(self, big_array, section_size):
+        super(BigArrayNotificationLog, self).__init__(section_size)
+        assert isinstance(big_array, BigArray)
+        if big_array.repo.array_size % section_size:
+            raise ValueError("Section size {} doesn't divide array size {}".format(
+                section_size, big_array.repo.array_size
+            ))
+        self.big_array = big_array
+
+    def get_items(self, start, _stop):
+        return self.big_array[start:_stop]
+
+    def get_next_position(self):
+        return self.big_array.get_next_position()
 
 
 class NotificationLogReader(six.with_metaclass(ABCMeta)):
@@ -192,8 +235,7 @@ def serialize_section(section):
     return json.dumps(section.__dict__, indent=4, sort_keys=True)
 
 
-def present_section(big_array, section_id, section_size):
-    notification_log = NotificationLog(big_array, section_size=section_size)
+def present_section(notification_log, section_id):
     section = notification_log[section_id]
     return serialize_section(section)
 

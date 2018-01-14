@@ -2,6 +2,7 @@ import six
 from sqlalchemy import asc, bindparam, desc, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+from sqlalchemy.sql import func
 
 from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.base import RelationalRecordManager
@@ -143,7 +144,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         """
         return six.moves.map(self.from_record, self.all_records())
 
-    def all_records(self, *args, **kwargs):
+    def all_records(self, start=None, stop=None, *args, **kwargs):
         """
         Returns all records in the table.
 
@@ -162,12 +163,19 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             query = self.query
             if hasattr(self.record_class, 'id'):
                 query = query.order_by(asc('id'))
+                # NB '+ 1's because record IDs start from 1.
+                if start:
+                    query = query.filter(self.record_class.id >= start + 1)
+                if stop:
+                    query = query.filter(self.record_class.id < stop + 1)
             # Todo: Should some tables with an ID not be ordered by ID?
             # Todo: Which order do other tables have?
-            # Todo: Support starting from an ID and continuing indefinitely.
             return query.all()
         finally:
             self.session.close()
+
+    def get_max_record_id(self):
+        return self.session.query(func.max(self.record_class.id)).scalar()
 
     def delete_record(self, record):
         """

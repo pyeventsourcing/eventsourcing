@@ -402,10 +402,10 @@ with more stateful control.
 
 .. code:: python
 
-    from eventsourcing.interface.notificationlog import NotificationLog, NotificationLogReader
+    from eventsourcing.interface.notificationlog import BigArrayNotificationLog, NotificationLogReader
 
     # Construct notification log.
-    notification_log = NotificationLog(application_log, section_size=10)
+    notification_log = BigArrayNotificationLog(application_log, section_size=10)
 
     # Get the "current "section from the notification log (numbering follows Vaughn Vernon's book)
     section = notification_log['current']
@@ -497,7 +497,7 @@ serializes sections from the notification log for use in a view.
 
     from eventsourcing.interface.notificationlog import present_section
 
-    content = present_section(application_log, '1,10', 10)
+    content = present_section(notification_log, '1,10')
 
     expected = {
         "items": [
