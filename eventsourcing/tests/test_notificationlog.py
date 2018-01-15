@@ -5,8 +5,9 @@ from uuid import uuid4
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.repositories.array import BigArrayRepository
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.interface.notificationlog import BigArrayNotificationLog, NotificationLogReader, \
-    RemoteNotificationLog, deserialize_section, present_section, RecordNotificationLog
+    NotificationLogView, RecordNotificationLog, RemoteNotificationLog
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers
@@ -22,10 +23,10 @@ class NotificationLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolic
     def assert_section(self, repo, requested_id, expected_id, expected_len_items, expected_previous_id,
                        expected_next_id):
         section = repo[requested_id]
-        self.assertEqual(len(list(section.items)), expected_len_items)
-        self.assertEqual(section.section_id, expected_id)
-        self.assertEqual(section.previous_id, expected_previous_id)
-        self.assertEqual(section.next_id, expected_next_id)
+        self.assertEqual(expected_len_items, len(list(section.items)))
+        self.assertEqual(expected_id, section.section_id)
+        self.assertEqual(expected_previous_id, section.previous_id)
+        self.assertEqual(expected_next_id, section.next_id)
 
     def append_notifications(self, *range_args):
         for i in range(*range_args):
@@ -54,8 +55,8 @@ class TestNotificationLog(NotificationLogTestCase):
 
         # Check the sections.
         section = notification_log['current']
-        self.assertEqual(section.section_id, '1,5')
-        self.assertEqual(len(list(section.items)), 0)
+        self.assertEqual('1,5', section.section_id)
+        self.assertEqual(0, len(list(section.items)))
         self.assertIsNone(section.previous_id)
         self.assertIsNone(section.previous_id)
 
@@ -94,14 +95,14 @@ class TestBigArrayNotificationLog(TestNotificationLog):
         with self.assertRaises(ValueError):
             BigArrayNotificationLog(self.big_array, section_size=6)
 
-        # Check the section ID must match the section size.
-        notification_log = BigArrayNotificationLog(self.big_array, self.section_size)
-        with self.assertRaises(ValueError):
-            _ = notification_log['1,2']
+        # # Check the section ID must match the section size.
+        # notification_log = BigArrayNotificationLog(self.big_array, self.section_size)
+        # with self.assertRaises(ValueError):
+        #     _ = notification_log['1,2']
 
-        # Check the section ID must be aligned to the array size.
-        with self.assertRaises(ValueError):
-            _ = notification_log['2,6']
+        # # Check the section ID must be aligned to the array size.
+        # with self.assertRaises(ValueError):
+        #     _ = notification_log['2,6']
 
     def create_notification_log(self, section_size):
         self.big_array = self.create_big_array()
@@ -252,10 +253,13 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
                 msg = "Couldn't extract log name and doc ID from path info {}: {}".format(path_info, e)
                 raise ValueError(msg)
 
-            # Get serialized section.
-            notification_log = self.create_notification_log(section_size=section_size)
+            # Select the notification log.
+            self.assertEqual(log_name, notification_log_id)
+            notification_log = self.create_notification_log(section_size)
 
-            section = present_section(notification_log, section_id)
+            # Get serialized section.
+            view = NotificationLogView(notification_log)
+            section = view.present_section(section_id)
 
             # Return a list of lines.
             return [(line + '\n').encode('utf8') for line in section.split('\n')]
@@ -275,7 +279,9 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
 
             # Check we got all the items.
             self.assertEqual(len(items_from_start), num_notifications)
-            self.assertEqual(items_from_start[0], 'item1')
+            self.assertEqual(items_from_start[0]['id'], 1)
+            self.assertEqual(items_from_start[0]['data'], 'item1')
+            self.assertEqual(items_from_start[0]['topic'], 'eventsourcing.domain.model.events#DomainEvent')
             expected_section_count = ceil(num_notifications / float(section_size))
             self.assertEqual(notification_log_reader.section_count, expected_section_count)
 
@@ -284,9 +290,15 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
 
             # Check we got everything after item 5.
             self.assertEqual(len(items_from_5), num_notifications - section_size + 1)
-            self.assertEqual(items_from_5[0], 'item{}'.format(section_size))
+            self.assertEqual(items_from_5[0]['id'], section_size)
+            self.assertEqual(items_from_5[0]['data'], 'item{}'.format(section_size))
+            self.assertEqual(items_from_5[0]['topic'], 'eventsourcing.domain.model.events#DomainEvent')
             expected_section_count = ceil(num_notifications / float(section_size))
             self.assertEqual(notification_log_reader.section_count, expected_section_count)
+
+            # Check ValueError is raised for deserialization errors.
+            with self.assertRaises(ValueError):
+                notification_log.deserialize_section('invalid json')
 
         finally:
             httpd.shutdown()
@@ -296,9 +308,3 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
 
 class TestNotificationLogWithCassandra(WithCassandraRecordManagers, TestBigArrayNotificationLog):
     pass
-
-
-class TestErrors(TestCase):
-    def test_errors(self):
-        with self.assertRaises(ValueError):
-            deserialize_section('invalid json')
