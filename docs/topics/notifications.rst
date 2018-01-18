@@ -120,7 +120,7 @@ Timestamps
 If time itself was ideal, then timestamps would be ideal. Each event
 could then have a timestamp that could be used to index and iterate
 through the events of the application. However, there are many
-clocks, and each runs slightly differently from each other.
+clocks, and each runs slightly differently from the other.
 
 If the timestamps of the application events are created by different
 clocks, then it is possible to write events in an order that creates
