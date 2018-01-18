@@ -1,70 +1,33 @@
-=============================
-Projections and notifications
-=============================
+=============
+Notifications
+=============
 
-If a projection is just another mutator function that operates on
-a sequence of events, and a persistent projection is a snapshot of
-the resulting state, then the new thing we need for projections
-of the application state is a sequence of all the events
-of the application. This section introduces the notification log,
-and assumes your projections and your persistent projections
-can be coded using techniques for coding mutator functions and
-snapshots introduced in previous sections.
+This section discusses how a notification log of the domain events
+of an application can be used to update views of the application state.
+
+Other sections in this documentation show how the domain events of an
+entity or aggregate are placed in sequence, and projected to obtain
+the state of an object. With the library's application domain and
+infrastructure layers, it is possible to obtain the state of entity
+or aggregate given its ID. But how is the ID obtained?
+
+If a user must sign in using their email address, so long as there is
+an up-to-date index of user IDs by email address, the email address can
+be resolved to a user ID. To project the application state, we firstly
+need a sequence of all the events of the application.
+
+Given a single sequence of events, we need a way to follow them, a way that
+can work locally and across a network, and also work regardless of
+whether or the update is synchronous or asynchronous.
 
 .. contents:: :local:
 
 
-Synchronous update
+
+Propagating events
 ------------------
 
-In a simple situation, you may wish to update a view of
-an aggregate synchronously whenever there are changes. If
-each view model depends only on one aggregate, you may wish
-simply to subscribe to the events of the aggregate. Then,
-whenever an event occurs, the projection can be updated.
-
-The library has a decorator function
-:func:`~eventsourcing.domain.model.decorators.subscribe_to`
-that can be used for this purpose.
-
-.. code::
-
-    @subscribe_to(Todo.Created)
-    def new_todo_projection(event):
-        todo = TodoProjection(id=event.originator_id, title=event.title)
-        todo.save()
-
-
-The view model could be saved as a normal record, or stored in
-a sequence that follows the event originator version numbers, perhaps
-as snapshots, so that concurrent handling of events will not lead to a
-later state being overwritten by an earlier state. Older versions of
-the view could be deleted later.
-
-If the view fails to update after the domain event has been stored,
-then the view will become inconsistent. Since it is not desirable
-to delete the event once it has been stored, the command must return
-normally despite the view update failing, so that the command
-is not retried. The failure to update will need to be logged, or
-otherwise handled, in a similar way to failures of asynchronous updates.
-
-The big issue with this approach is that if the first
-event of an aggregate is not processed, there is no way
-of knowing the aggregate exists, and so there is nothing
-that can be used to check for updates to that aggregate.
-
-
-Asynchronous update
--------------------
-
-The fundamental concern is to accomplish high fidelity when
-propagating a stream of events, so that events are neither
-missed nor are they duplicated. Once the stream of events
-has been propagated faithfully, it can be republished and
-subscribers can execute commands as above.
-
-As Vaughn Vernon suggests
-in his book Implementing Domain Driven Design:
+As Vaughn Vernon suggests in his book Implementing Domain Driven Design:
 
     “at least two mechanisms in a messaging solution must always be consistent with each other: the persistence
     store used by the domain model, and the persistence store backing the messaging infrastructure used to forward
@@ -72,7 +35,6 @@ in his book Implementing Domain Driven Design:
     delivery is also guaranteed, and that if an Event is delivered through messaging, it indicates a true situation
     reflected by the model that published it. If either of these is out of lockstep with the other, it will lead to
     incorrect states in one or more interdependent models.”
-
 
 There are three options, he continues. The first option is to
 have the messaging infrastructure and the domain model share
@@ -86,44 +48,204 @@ The third option is to have the bounded context
 control notifications. Vaughn Vernon is his book
 Implementing Domain Driven Design relies on the simple logic
 of an ascending sequence of integers to allow others to progress
-along the event stream. That is the approach taken here.
+along the event stream.
 
-A pull mechanism that allows others to pull events they
-don't yet have can be used to allow remote components to catch
-up. The same mechanism can be used if a component is developed
-after the application has been deployed and so requires initialising
-from an established application stream, or otherwise needs to be
-reconstructed from scratch.
+The library supports sequencing the application's events by
+either an integer sequence or with timestamps.
 
-As we will see below, updates can be triggered by pushing the notifications to
-messaging infrastructure, and having the remote components subscribe.
-If anything goes wrong with messaging infrastructure, such that a
-notification is not received, remote components can detect
-they have missed a notification and pull the notifications they have
-missed.
+Application sequence
+--------------------
+
+The fundamental concern is to accomplish perfect accuracy
+when propagating the events of an application, so that events are neither
+missed, nor duplicated, nor jumbled. Once the sequence of events has
+been assembled, it can be followed.
+
+In order to update a projection of the application state as a
+whole, we need all the events of the application to be placed
+in a single sequence. We need to be able to follow the sequence
+reliably, even as it is being written. We don't want any gaps,
+or out-of-order items, or duplicates, or race conditions.
+
+Before continuing, let's setup the event store and database
+needed by the examples below.
+
+.. code:: python
+
+    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
+    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+    from eventsourcing.infrastructure.eventstore import EventStore
+    from eventsourcing.infrastructure.repositories.array import BigArrayRepository
+    from eventsourcing.application.policies import PersistencePolicy
+    from eventsourcing.infrastructure.sequenceditem import StoredEvent
+    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+
+    # Setup the database.
+    datastore = SQLAlchemyDatastore(
+        settings=SQLAlchemySettings(),
+        tables=[StoredEventRecord],
+    )
+    datastore.setup_connection()
+    datastore.setup_tables()
+
+    # Setup the record manager and mapper.
+    record_manager = SQLAlchemyRecordManager(
+        session=datastore.session,
+        record_class=StoredEventRecord,
+        sequenced_item_class=StoredEvent,
+        contiguous_record_ids=True,
+    )
+    sequenced_item_mapper = SequencedItemMapper(
+        sequenced_item_class=StoredEvent,
+    )
+
+    # Setup the event store.
+    event_store = EventStore(
+        record_manager=record_manager,
+        sequenced_item_mapper=sequenced_item_mapper
+    )
+
+    # Set up a persistence policy.
+    persistence_policy = PersistencePolicy(
+        event_store=event_store,
+    )
+
+The above infrastructure classes are explained in other sections of this documentation.
 
 
-Application log
----------------
+Timestamps
+~~~~~~~~~~
 
-In order to update a projection of more than one aggregate, or
-the application state as a whole, we need a single sequence
-to log all the events of the application.
+If time itself was ideal, then timestamps would be ideal. Each event
+could then have a timestamp that could be used to index and iterate
+through the events of the application. However, there are many
+clocks, and each runs slightly differently from each other.
 
-We want an application log that follows an increasing sequence of integers.
-The application log must also be capable of storing a very large sequence
-of events, neither swamping an individual database partition nor distributing
-things across partitions without any particular order so that iterating
-through the sequence is slow and expensive. We also want the application
-log effectively to have constant time read and write operations.
+If the timestamps of the application events are created by different
+clocks, then it is possible to write events in an order that creates
+consistency errors when reconstructing the application state. Hence it is also
+possible for new records to be written with a timestamp that is earlier than the
+latest one, which makes following the application sequence tricky.
+
+A "jitter buffer" can be used, otherwise any events timestamped by a relatively
+retarded clock, and hence positioned behind events that were inserted earlier, could
+be missed. The delay, or the length of the buffer, must be greater than the
+differences between clocks, but how do we know for sure what is the maximum
+difference between the clocks?
+
+Of course, there are lots of remedies. Clocks can be synchronised, more or less.
+A timestamp server could be used, and hybrid monotonically increasing timestamps
+can implemented. Furthermore, the risk of simultaneous timestamps can be mitigated
+by using a random component to the timestamp, as with UUID v1, at
+the expense of randomizing the order of otherwise simultaneous events.
+
+Such techniques are common, widely discussed, and entirely legitimate approaches
+to the complications encountered when using timestamps to sequence events. The big
+advantage of using timestamps is that you don't need to generate a sequence of integers,
+and applications can be distributed and scaled without performance being limited by a
+fragile single-threaded auto-incrementing integer-sequence bottleneck.
+
+In support of this approach, the library's relational record classes for timestamp sequenced items, in
+particular the ``TimestampSequencedRecord`` classes for SQLAlchemy and Django, index
+their position field, which is a timestamp, and so this index can be used to get all
+application events in certain order. Following this sequence will be as reliable as the
+timestamps given to the events. So if you use this class in this way, do make sure your
+clocks are in sync.
+
+(An improvement to this class could be to have another timestamp field that is populated
+by the database server, and index that instead of the application event's timestamp which
+would vary according to the variation between the clock of application servers. Code
+changes and other suggestions are always welcome.)
+
+Todo: Code example.
+
+Contiguous integers
+~~~~~~~~~~~~~~~~~~~
+
+To make propagation perfectly accurate (which is defined here as reproducing the
+application's sequence of events perfectly, without any risk of gaps or duplicates
+or jumbled items, or race conditions), we can generate and follow a contiguous sequence
+of integers.
+
+Two such techniques are described below. The first approach uses record managers
+directly, in particular an ID column of a sequenced item record class, to place
+all the records in a single sequence. This technique accepts throughput and
+capacity limits to obtain accuracy with simplicity. This technique is recommended
+for enterprise applications, and the early stages of more ambitious projects. The
+throughput and capacity limits are simply the performance limits of a database
+table, which of course depends on your infrastructure. For most operations, these
+limits won't be restrictive.
+
+A more complicated but possibly more scalable approach uses a
+library class called ``BigArray``. This technique accepts downstream
+complexity, eventual consistency, and even affords a loss of accuracy
+if desired, so that throughput and capacity are not inherently limited
+by the approach. This technique is recommended for mass consumer applications
+operating at scale.
+
+Record managers
+~~~~~~~~~~~~~~~
+
+A relational record manager with an integer sequenced record class
+can function as an application sequence, especially when using the
+``contiguous_record_ids`` option of the library's relational record
+managers. This technique ensures that whenever an aggregate command returns
+successfully, any events will already have been successfully placed in
+both the aggregate's and the application's sequence. This approach provides simplicity and
+perfect accuracy, at the cost of a limit to throughput: aggregate
+commands will experience concurrency errors if they attempt to record
+events simultaneously with others (in which case they will need to be
+retried).
+
+To use this approach, simply use the ``IntegerSequencedRecord`` or the
+``StoredEventRecord`` classes with the ``contiguous_record_ids`` constructor
+argument of the record manager set to a True value. The ``record_manager``
+above was constructed in this way.
+
+Todo: Change this back to use the all_records() method instead of the [] syntax. Remove the
+__getitem__ method from the manager (?) class and change the RecordNotificationLog
+to use the all_records() method instead. The [] feels wrong on the record manager because
+it isn't obvious whether they it returns sequenced item namedtuples or active record classes
+and it's good to cope with some more variation in the notification log classes.
+
+.. code:: python
+
+    from eventsourcing.domain.model.entity import VersionedEntity
+
+    all_records = record_manager[:]
+
+    assert len(all_records) == 0, all_records
+
+    entity = VersionedEntity.__create__()
+
+    all_records = record_manager[0:5]
+
+    assert len(all_records) == 1, all_records
+
+
+BigArray
+~~~~~~~~
+
+This is a long section, and can be skipped if you aren't currently
+required to scale capacity beyond the capacity of a database table
+supported by your infrastructure.
+
+For ultra-scalability, the application sequence must be capable of having a very
+large number of events, neither swamping an individual database partition
+(in Cassandra) nor distributing things across partitions without any particular
+order so that iterating through the sequence is slow and expensive. We also want
+the application log effectively to have constant time read and write operations
+for normal usage.
 
 The library class
 :class:`~eventsourcing.domain.model.array.BigArray` satisfies these
-requirements quite well. It is a tree of arrays, with a root array
+requirements quite well, by spanning across many such partitions. It
+is a tree of arrays, with a root array
 that stores references to the current apex, with an apex that contains
 references to arrays, which either contain references to lower arrays
 or contain the items assigned to the big array. Each array uses one database
-partition, and is limited is size (the array size) to ensure the partition
+partition, limited in size (the array size) to ensure the partition
 is never too large. The identity of each array can be calculated directly
 from the index number, so it is possible to identify arrays directly
 without traversing the tree to discover entity IDs. The capacity of base
@@ -155,51 +277,20 @@ directly to an array.
 .. code:: python
 
     from uuid import uuid4
-    from eventsourcing.domain.model.array import BigArray, ItemAssigned
-    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
-    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
-    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
-    from eventsourcing.infrastructure.eventstore import EventStore
+    from eventsourcing.domain.model.array import BigArray
     from eventsourcing.infrastructure.repositories.array import BigArrayRepository
-    from eventsourcing.application.policies import PersistencePolicy
-    from eventsourcing.infrastructure.sequenceditem import StoredEvent
-    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
-
-    datastore = SQLAlchemyDatastore(
-        settings=SQLAlchemySettings(),
-        tables=[StoredEventRecord],
-    )
-    datastore.setup_connection()
-    datastore.setup_tables()
-
-    event_store = EventStore(
-            record_manager=SQLAlchemyRecordManager(
-                session=datastore.session,
-                record_class=StoredEventRecord,
-                sequenced_item_class=StoredEvent,
-            ),
-            sequenced_item_mapper=SequencedItemMapper(
-                sequenced_item_class=StoredEvent,
-            )
-        )
-    persistence_policy = PersistencePolicy(
-        event_store=event_store,
-        event_type=ItemAssigned,
-    )
-
-    array_id = uuid4()
 
     repo = BigArrayRepository(
         event_store=event_store,
         array_size=10000
     )
 
-    application_log = repo[array_id]
-    application_log.append('event0')
-    application_log.append('event1')
-    application_log.append('event2')
-    application_log.append('event3')
+    big_array = repo[uuid4()]
+    big_array.append('event0')
+    big_array.append('event1')
+    big_array.append('event2')
+    big_array.append('event3')
 
 
 Because there is a small duration of time between checking for the next
@@ -228,11 +319,11 @@ exists).
 
     from eventsourcing.exceptions import ConcurrencyError
 
-    assert application_log.get_next_position() == 4
+    assert big_array.get_next_position() == 4
 
-    application_log[4] = 'event4'
+    big_array[4] = 'event4'
     try:
-        application_log[4] = 'event4a'
+        big_array[4] = 'event4a'
     except ConcurrencyError:
         pass
     else:
@@ -315,14 +406,14 @@ to update or resync the Redis key used in the Redis INCR integer sequence genera
 
 
 The integer sequence generator can be used when assigning items to the
-application log.
+big array object.
 
 .. code:: python
 
-    application_log[next(integers)] = 'event5'
-    application_log[next(integers)] = 'event6'
+    big_array[next(integers)] = 'event5'
+    big_array[next(integers)] = 'event6'
 
-    assert application_log.get_next_position() == 7
+    assert big_array.get_next_position() == 7
 
 
 Items can be read from the application log using an index or a slice.
@@ -338,15 +429,20 @@ array, the iteration proceeds to the next partition.
 
 .. code:: python
 
-    assert application_log[0] == 'event0'
-    assert list(application_log[5:7]) == ['event5', 'event6']
+    assert big_array[0] == 'event0'
+    assert list(big_array[5:7]) == ['event5', 'event6']
 
 
 The application log can be written to by a persistence policy. References
 to events can be assigned to the application log before the domain event is
 written to the aggregate's own sequence, so that it isn't possible to store
 an event in the aggregate's sequence that is not already in the application
-log.
+log. To do that, construct the application logging policy object before the
+normal application persistence policy. Also, make sure the application
+log policy excludes the events published by the big array (otherwise there
+will be an infinite recursion).
+
+Todo: Code example of policy that places application domain events in a big array.
 
 Commands that fail to write to the aggregate's sequence (due to an operation
 error or concurrency error) after the event has been logged in the application log
@@ -366,53 +462,275 @@ normally. Push notifications could also be generated by another process,
 something that pulls from the application log, and pushes notifications
 for events that have not already been sent.
 
+(Please note, using the ``BigArray`` class with the Cassandra record
+manager requires quite a lot of thought to eliminate all sources of
+unreliability. Since it isn't possible to have transactions across
+partitions, writing to the aggregate sequence and the application
+sequence will happen in different queries, which means events may be
+found in the application sequence that are not yet in the aggregate
+sequence, and followers will need to decide whether or not the event
+will appear in the aggregate sequence. Under these circumstances, it
+seems inevitable that the application sequence must be restored
+downstream, adding downstream complexity.)
 
-Notification log
-----------------
+
+Local notification logs
+-----------------------
 
 As described in Implementing Domain Driven Design, a notification log
-is presented in linked sections. The "current section" is returned by
-default, and contains the very latest notification and some of the
-preceding notifications. There are also archived sections that
-contain all the earlier notifications. When the current section is
-full, it is considered to be an archived section that links to the new
-current section.
+is presented in linked sections. The "current" section is returned by
+default, and contains the very latest notifications. Unless a section
+is the first section, it will have an ID for the previous section. Each
+section contains a limited number items. When the current section
+is full, it is considered to be an archived section. Archived sections
+contain the section ID of the next section (which may found to be empty,
+or already archived). Hence, clients can get the current section,
+go back until they reach their position, and then go forward until
+the last notification, with minimal client complexity.
 
-Readers can navigate the linked sections from the current section backwards
-until the archived section is reached that contains the last notification
-seen by the client. If the client has not yet seen any notifications, it will
-navigate back to the first section. Readers can then navigate forwards, revealing
-all existing notifications that have not yet been seen.
+The classes below can be used to present a sequence of items,
+such the domain events of an application, in linked
+sections. They can also be used to present other sequences
+for example a projection of the application sequence, where the
+events are rendered in a particular way for a particular purpose.
 
-The library class :class:`~eventsourcing.interface.notificationlog.NotificationLog`
-encapsulates the application log and presents linked sections. The library class
-:class:`~eventsourcing.interface.notificationlog.NotificationLogReader` is an iterator
-that yields notifications. It navigates the sections of the notification log, and
-maintains position so that it can continue when there are further notifications.
-The position can be set directly with the ``seek()`` method. The position is set
-indirectly when a slice is taken with a start index. The position is set to zero
-when the reader is constructed.
+The abstract interface for a notification log is the Python array
+index syntax with the key being a section ID.
 
-The notification log uses a big array object. In this example, the big array
-object is directly the application log above. It is possible to project the
-application log into a custom notification log, perhaps to deduplicate domain
-events, or to anonymise data, or to send messages to messaging infrastructure
-with more stateful control.
+.. code::
+
+    notification_log['current']
+
+    notification_log['1,20']
+
+Section IDs are strings. Either 'current' or a string formatted
+with two integers separated by a comma. The integers represent
+the first and last positions included in the requested section.
+The number of items in the section is fixed, and if the ID
+given doesn't correspond with an existing section, the nearest
+section will be returned instead. The only ID a client needs to
+be aware of is 'current', since the others section ID will be
+provided by the section objects as the "previous" or "next"
+section ID (see code examples below).
+
+RecordNotificationLog
+~~~~~~~~~~~~~~~~~~~~~
+
+The library class :class:`~eventsourcing.interface.notificationlog.RecordNotificationLog`
+can use the library's relational record managers. The ``RecordNotificationLog``
+presents the recorded event topic and data as the notifications in its linked
+sections, and so may be encrypted.
+
+.. code:: python
+
+    from eventsourcing.interface.notificationlog import RecordNotificationLog
+
+    # Construct notification log.
+    notification_log = RecordNotificationLog(event_store.record_manager, section_size=5)
+
+    # Get the "current" section from the record notification log (numbering follows Vaughn Vernon's book)
+    section = notification_log['current']
+    assert section.section_id == '6,10', section.section_id
+    assert section.previous_id == '1,5', section.previous_id
+    assert section.next_id == None
+    assert len(section.items) == 4, len(section.items)
+
+    # Get the first section from the record notification log (numbering follows Vaughn Vernon's book)
+    section = notification_log['1,5']
+    assert section.section_id == '1,5', section.section_id
+    assert section.previous_id == None, section.previous_id
+    assert section.next_id == '6,10', section.next_id
+    assert len(section.items) == 5, section.items
+
+
+BigArrayNotificationLog
+~~~~~~~~~~~~~~~~~~~~~~~
+
+This section can be skipped if you skipped ``BigArray`` above.
+
+The library class :class:`~eventsourcing.interface.notificationlog.BigArrayNotificationLog`
+uses a ``BigArray`` as the application log, and presents its items in linked sections.
+
+.. code:: python
+
+    from eventsourcing.interface.notificationlog import BigArrayNotificationLog
+
+    # Construct notification log.
+    notification_log = BigArrayNotificationLog(big_array, section_size=5)
+
+
+    # Get the "current "section from the big array notification log (numbering follows Vaughn Vernon's book)
+    section = notification_log['current']
+    assert section.section_id == '6,10', section.section_id
+    assert section.previous_id == '1,5', section.previous_id
+    assert section.next_id == None
+    assert len(section.items) == 2, len(section.items)
+
+    # Get the first section from the notification log (numbering follows Vaughn Vernon's book)
+    section = notification_log['1,10']
+    assert section.section_id == '1,5', section.section_id
+    assert section.previous_id == None, section.previous_id
+    assert section.next_id == '6,10', section.next_id
+    assert len(section.items) == 5, section.items
+
+
+Remote notification logs
+------------------------
+
+The RESTful API design in Implementing Domain Driven Design
+suggests a good way to present the notification log, a way that
+is simple and can scale using established HTTP technology.
+
+This library has a pair of classes that can help to present a
+notification log remotely.
+
+The ``RemoteNotificationLog`` class has the same interface for getting
+sections as the local notification log classes described above, but
+instead of using a local datasource, it requests serialized
+sections from a Web API.
+
+The ``NotificationLogView`` class serializes sections from a local
+notification log, and can be used to implement a Web API.
+
+
+NotificationLogView
+~~~~~~~~~~~~~~~~~~~
+
+The library class :func:`~eventsourcing.interface.notificationlog.NotificationLogView`
+presents sections from a local notification log, and can be used to implement a Web API.
+
+The ``NotificationLogView`` class is constructed with a local ``notification_log``
+object and an optional ``json_encoder_class`` (which defaults to the library's.
+``ObjectJSONEncoder`` class, used explicitly in the example below).
+
+.. code:: python
+
+    import json
+
+    from eventsourcing.interface.notificationlog import NotificationLogView
+    from eventsourcing.utils.transcoding import ObjectJSONEncoder
+
+    notification_log_view = NotificationLogView(
+        notification_log=notification_log,
+        json_encoder_class=ObjectJSONEncoder
+    )
+
+    section, is_archived = notification_log_view.present_section('1,5')
+
+    expected = {
+        "items": [
+            "event0",
+            "event1",
+            "event2",
+            "event3",
+            "event4",
+        ],
+        "next_id": "6,10",
+        "previous_id": None,
+        "section_id": "1,5"
+    }
+
+    assert json.loads(section) == expected, content
+    assert is_archived
+
+A Web API might identify a section ID from an HTTP request
+path, and respond by returning an HTTP response with JSON
+content that represents that section of a notification log.
+
+The example below uses the notification log from the
+example above. A more sophisticated application would set
+cache control headers, so non-current sections can be cached.
 
 
 .. code:: python
 
-    from eventsourcing.interface.notificationlog import BigArrayNotificationLog, NotificationLogReader
+    def notification_log_wsgi(environ, start_response):
 
-    # Construct notification log.
-    notification_log = BigArrayNotificationLog(application_log, section_size=10)
+        # Identify section from request.
+        section_id = environ['PATH_INFO'].strip('/')
 
-    # Get the "current "section from the notification log (numbering follows Vaughn Vernon's book)
-    section = notification_log['current']
-    assert section.section_id == '1,10'
-    assert len(section.items) == 7, section.items
-    assert section.previous_id == None
-    assert section.next_id == None
+        # Construct notification log view object.
+        view = NotificationLogView(big_array)
+
+        # Serialize requested section.
+        section, is_archived = view.present_section(section_id)
+
+        # Start response.
+        status = '200 OK'
+        headers = [('Content-type', 'text/plain; charset=utf-8')]
+        start_response(status, headers)
+
+        # Return a list of lines.
+        return [(line + '\n').encode('utf8') for line in section.split('\n')]
+
+
+RemoteNotificationLog
+~~~~~~~~~~~~~~~~~~~~~
+
+The library class :class:`~eventsourcing.interface.notificationlog.RemoteNotificationLog`
+can be used in the same way as the local notification logs above. The difference is that
+rather than accessing a database using a ``BigArray`` or record manager, it makes requests
+to an API.
+
+The ``RemoteNotificationLog`` class is constructed with a ``base_url``, a ``notification_log_id``
+and a ``json_decoder_class``. The JSON decoder must be capable of decoding JSON encoded by
+the API. Hence, the JSON decoder must match the JSON encoder used by the API.
+
+The default ``json_decoder_class`` is the library's ``ObjectJSONDecoder``. This encoder
+matches the default ``json_encoder_class`` of the library's ``NotificationLogView`` class,
+which is the library's ``ObjectJSONEncoder`` class. If you want to extend the JSON encoder
+classes used here, just make sure they match, otherwise you will get decoding errors.
+
+The ``NotificationLogReader`` can use the ``RemoteNotificationLog`` in the same way that
+it uses a local notification log object. Just construct it with a remote notification log
+object, rather than a local notification log object, then read notifications in the same
+way (as described above).
+
+If the API uses a ``NotificationLogView`` to serialise the sections of a local
+notification log, the remote notification log object functions effectively as a
+proxy for a local notification log on a remote node.
+
+.. code:: python
+
+    from eventsourcing.interface.notificationlog import RemoteNotificationLog
+
+    remote_notification_log = RemoteNotificationLog("base_url")
+
+
+Notification log reader
+-----------------------
+
+The library object class
+:class:`~eventsourcing.interface.notificationlog.NotificationLogReader` effectively
+functions as an iterator, yielding a continuous sequence of notifications that
+it discovers from the sections of a notification log (local or remote).
+
+A notification log reader object will navigate the linked sections of a notification
+log, backwards from the "current" section of the notification log, until reaching the position
+it seeks. The position, which defaults to ``0``, can be set directly with the reader's ``seek()``
+method. Hence, by default, the reader will navigate all the way back to the
+first section.
+
+After reaching the position it seeks, the reader will then navigate forwards, yielding
+as a continuous sequence all the subsequent notifications in the notification log.
+
+As it navigates forwards, yielding notifications, it maintains position so that it can
+continue when there are further notifications. This position could be persisted, so that
+position is maintained across invocations, but that is not a feature of the
+``NotificationLogReader`` class, and would have to be added in a subclass or client object.
+
+The ``NotificationLogReader`` supports slices. The position is set indirectly when a slice
+has a start index.
+
+All the notification logs discussed above (local and remote) have the same interface,
+and can be used by ``NotificationLogReader`` progressively to obtain unseen notifications.
+
+The example below happens to yield notifications from a big array notification log, but it
+would work equally well with a record notification log, or with a remote notification log.
+
+.. code:: python
+
+    from eventsourcing.interface.notificationlog import NotificationLogReader
 
     # Construct log reader.
     reader = NotificationLogReader(notification_log)
@@ -439,8 +757,8 @@ with more stateful control.
     assert subsequent_notifications == []
 
     # Assign more events to the application log.
-    application_log[next(integers)] = 'event7'
-    application_log[next(integers)] = 'event8'
+    big_array[next(integers)] = 'event7'
+    big_array[next(integers)] = 'event8'
 
     # Read all subsequent notifications (should be two).
     subsequent_notifications = list(reader)
@@ -454,9 +772,9 @@ with more stateful control.
     assert subsequent_notifications == []
 
     # Assign more events to the application log.
-    application_log[next(integers)] = 'event9'
-    application_log[next(integers)] = 'event10'
-    application_log[next(integers)] = 'event11'
+    big_array[next(integers)] = 'event9'
+    big_array[next(integers)] = 'event10'
+    big_array[next(integers)] = 'event11'
 
     # Read all subsequent notifications (should be two).
     subsequent_notifications = list(reader)
@@ -469,65 +787,110 @@ with more stateful control.
     subsequent_notifications = list(reader)
     assert subsequent_notifications == []
 
-    # Get the "current "section from the notification log (numbering follows Vaughn Vernon's book)
-    section = notification_log['current']
-    assert section.section_id == '11,20'
-    assert section.previous_id == '1,10'
-    assert section.next_id == None
-    assert len(section.items) == 2, len(section.items)
-
-    # Get the first section from the notification log (numbering follows Vaughn Vernon's book)
-    section = notification_log['1,10']
-    assert section.section_id == '1,10'
-    assert section.previous_id == None
-    assert section.next_id == '11,20'
-    assert len(section.items) == 10, section.items
+    # Clean up.
+    persistence_policy.close()
 
 
-The RESTful API design in Implementing Domain Driven Design
-suggests a good way to present the notification log, a way that
-is simple and can scale using established HTTP technology.
+Synchronous update
+------------------
 
-The library function :func:`~eventsourcing.interface.notificationlog.present_section`
-serializes sections from the notification log for use in a view.
+You may wish to update a view of an aggregate synchronously
+whenever an event is published. If each view model depends
+only on one aggregate, you may wish simply to subscribe to
+the events of the aggregate. Then, whenever an event occurs,
+the projection can be updated.
 
-.. code:: python
+The library decorator function
+:func:`~eventsourcing.domain.model.decorators.subscribe_to`
+can be used for this purpose.
 
-    import json
+The most simple implementation of a projection would consume
+an event synchronously as it is published by updating the
+view without considering whether the event was a duplicate
+or previous events were missed. This may be perfectly adequate
+for projecting events that are by design independent, such as
+tracking all 'Created' events so the extent aggregate IDs are
+available in a view.
 
-    from eventsourcing.interface.notificationlog import present_section
+It is also possible for a synchronous update to refer to an application
+log and catch up if necessary, perhaps after an error or because
+the projection is new to the application and needs to initialise.
 
-    content = present_section(notification_log, '1,10')
+Of course, it is possible to access aggregates and other views when
+updating a view, especially to avoid bloating events with redundant
+information that might be added to avoid such queries.
 
-    expected = {
-        "items": [
-            "event0",
-            "event1",
-            "event2",
-            "event3",
-            "event4",
-            "event5",
-            "event6",
-            "event7",
-            "event8",
-            "event9"
-        ],
-        "next_id": "11,20",
-        "previous_id": None,
-        "section_id": "1,10"
-    }
+.. code::
 
-    assert json.loads(content) == expected
+    @subscribe_to(Todo.Created)
+    def new_todo_projection(event):
+        todo = TodoProjection(id=event.originator_id, title=event.title)
+        todo.save()
 
-A Web application view can pick out from the request path the notification
-log ID and the section ID, and return an HTTP response with the JSON content
-that results from calling :func:`~eventsourcing.interface.notificationlog.present_section`.
 
-The library class :class:`~eventsourcing.interface.notificationlog.RemoteNotificationLog`
-issues HTTP requests to a RESTful API that presents sections from the notification log.
-It has the same interface as :class:`~eventsourcing.interface.notificationlog.NotificationLog`
-and so can be used by :class:`~eventsourcing.interface.notificationlog.NotificationLogReader`
-progressively to obtain unseen notifications.
+Todo: Code example showing "Projection" class using a notification log
+reader and (somehow) stateful position in the log, to follow application
+events and update a view.
+
+The view model could be saved as a normal record, or stored in
+a sequence that follows the event originator version numbers, perhaps
+as snapshots, so that concurrent handling of events will not lead to a
+later state being overwritten by an earlier state. Older versions of
+the view could be deleted later.
+
+If the view somehow fails to update after the domain event has been stored,
+then the view will become inconsistent. Since it is not desirable
+to delete the event once it has been stored, the command must return
+normally despite the view update failing, so that the command
+is not retried. The failure to update will need to be logged, or
+otherwise handled, in a similar way to failures of asynchronous updates.
+
+It is possible to use the decorator in a downstream application, in
+which domain events are republished following the application
+sequence asynchronously. The decorate would be called synchronously with the
+republising of the event. In this case, if the view update routine somehow
+fails to update, the position of the downstream application in the upstream
+sequence would not advance until the view is restored to working order, after
+which the view will be updated as if there had been no failure.
+
+
+Asynchronous update
+-------------------
+
+Updates can be triggered by pushing notifications to
+messaging infrastructure, and having the remote components subscribe.
+De-duplication would involve tracking which events have already
+been received.
+
+If anything goes wrong with messaging infrastructure, such that a
+notification is sent but not received, remote components can detect
+they have missed a notification and pull the notifications they have
+missed.
+
+A pull mechanism that allows others to pull events they
+don't yet have can be used to allow remote components to catch
+up.
+
+The same mechanism can be used if a component is developed
+after the application has been deployed and so requires initialising
+from an established application sequence, or otherwise needs to be
+reconstructed from scratch.
+
+
+Todo: Something about pumping events to a message bus, following
+the application sequence.
+
+Todo: Something about republishing events in a downstream application
+that has subscribers such as the decorator above. Gives opportunity for
+sequence to be reconstructed in the application before being published
+(but then what if several views are updated and the last one fails?
+are they all updated in the same a transaction, are do they each maintain
+their own position in the sequence, or does the application just have one
+subscriber and one view?)
+
+Todo: So something for a view to maintain its position in the sequence,
+perhaps version the view updates (event sourced or snapshots) if there
+are no transactions, or use a dedicated table if there are transactions.
 
 .. Todo: Pulling from remote notification log.
 

@@ -154,10 +154,11 @@ class DjangoRecordManager(RelationalRecordManager):
 
         return kwargs
 
-    def all_records(self, *args, **kwargs):
+    def all_records(self, start=None, stop=None, *args, **kwargs):
         """
         Returns all records in the table.
         """
+        # Todo: Implement start and stop, if record class has an ID, otherwise position.
         return self.record_class.objects.all()
 
     def delete_record(self, record):

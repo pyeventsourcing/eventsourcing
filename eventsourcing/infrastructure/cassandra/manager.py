@@ -84,7 +84,7 @@ class CassandraRecordManager(AbstractRecordManager):
             sequenced_item = self.from_record(record)
             yield sequenced_item
 
-    def all_records(self, *args, **kwargs):
+    def all_records(self, start=None, stop=None, *args, **kwargs):
         position_field_name = self.field_names.position
         for sequence_id in self.all_sequence_ids():
             kwargs = {self.field_names.sequence_id: sequence_id}

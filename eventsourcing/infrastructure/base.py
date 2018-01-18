@@ -43,7 +43,7 @@ class AbstractRecordManager(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def all_records(self, *arg, **kwargs):
+    def all_records(self, start=None, stop=None, *args, **kwargs):
         """
         Returns all records in the table (possibly in chronological order, depending on database).
         """
@@ -132,7 +132,7 @@ class RelationalRecordManager(AbstractRecordManager):
     @property
     @abstractmethod
     def record_table_name(self):
-        ""
+        """"""
 
     @staticmethod
     def raise_record_id_conflict():
@@ -185,3 +185,9 @@ class RelationalRecordManager(AbstractRecordManager):
         # Construct and return an ORM object.
         kwargs = self.get_field_kwargs(sequenced_item)
         return self.record_class(**kwargs)
+
+    def __getitem__(self, item=None):
+        assert isinstance(item, slice), type(item)
+        # start = item.start or 0
+        # assert start >= 0, start
+        return self.all_records(start=item.start, stop=item.stop)

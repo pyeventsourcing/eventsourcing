@@ -8,7 +8,7 @@ import six
 
 from eventsourcing.domain.model.array import BigArray
 from eventsourcing.infrastructure.base import AbstractRecordManager
-from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder, json_dumps
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, json_dumps
 
 
 class Section(object):
@@ -31,6 +31,7 @@ class AbstractNotificationLog(six.with_metaclass(ABCMeta)):
     """
     Presents a sequence of sections from a sequence of notifications.
     """
+
     @abstractmethod
     def __getitem__(self, section_id):
         """
@@ -44,6 +45,7 @@ class LocalNotificationLog(AbstractNotificationLog):
     """
     Presents a sequence of sections from a sequence of notifications.
     """
+
     def __init__(self, section_size):
         self.section_size = section_size
         self.last_last_item = None
@@ -58,7 +60,6 @@ class LocalNotificationLog(AbstractNotificationLog):
             next_position = self.get_next_position()
             start = next_position // self.section_size * self.section_size
             stop = start + self.section_size
-            section_id = self.format_section_id(start + 1, start + self.section_size)
         else:
 
             try:
@@ -96,6 +97,7 @@ class LocalNotificationLog(AbstractNotificationLog):
             next_id = None
 
         # Return section of notification log.
+        section_id = self.format_section_id(start + 1, start + self.section_size)
         return Section(
             section_id=section_id,
             items=items,
@@ -169,6 +171,38 @@ class BigArrayNotificationLog(LocalNotificationLog):
         return self.big_array.get_next_position()
 
 
+class RemoteNotificationLog(AbstractNotificationLog):
+    def __init__(self, base_url, json_decoder_class=None):
+        self.base_url = base_url
+        self.json_decoder_class = json_decoder_class
+
+    def __getitem__(self, section_id):
+        section_json = self.get_json(section_id)
+        return self.deserialize_section(section_json)
+
+    def deserialize_section(self, section_json):
+        try:
+            decoder_class = self.json_decoder_class or ObjectJSONDecoder
+            section = Section(**json.loads(section_json, cls=decoder_class))
+        except ValueError as e:
+            raise ValueError("Couldn't deserialize notification log section: "
+                             "{}: {}".format(e, section_json))
+        return section
+
+    def get_json(self, section_id):
+        notification_log_url = self.make_notification_log_url(section_id)
+        return self.get_resource(notification_log_url)
+
+    def get_resource(self, doc_url):
+        representation = requests.get(doc_url).content
+        if isinstance(representation, type(b'')):
+            representation = representation.decode('utf8')
+        return representation
+
+    def make_notification_log_url(self, section_id):
+        return '{}/{}/'.format(self.base_url.strip('/'), section_id)
+
+
 class NotificationLogReader(six.with_metaclass(ABCMeta)):
     def __init__(self, notification_log):
         assert isinstance(notification_log, AbstractNotificationLog)
@@ -240,50 +274,14 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
         self.position = position
 
 
-class RemoteNotificationLog(AbstractNotificationLog):
-    def __init__(self, base_url, notification_log_id, json_decoder_class=None):
-        self.base_url = base_url
-        self.notification_log_id = notification_log_id
-        self.json_decoder_class = json_decoder_class
-
-    def __getitem__(self, section_id):
-        section_json = self.get_json(section_id)
-        return self.deserialize_section(section_json)
-
-    def deserialize_section(self, section_json):
-        try:
-            decoder_class = self.json_decoder_class or ObjectJSONDecoder
-            section = Section(**json.loads(section_json, cls=decoder_class))
-        except ValueError as e:
-            raise ValueError("Couldn't deserialize notification log section: "
-                             "{}: {}".format(e, section_json))
-        return section
-
-    def get_json(self, section_id):
-        notification_log_url = self.make_notification_log_url(section_id)
-        return self.get_resource(notification_log_url)
-
-    def get_resource(self, doc_url):
-        representation = requests.get(doc_url).content
-        if isinstance(representation, type(b'')):
-            representation = representation.decode('utf8')
-        return representation
-
-    def make_notification_log_url(self, notification_log_id):
-        return '{}/{}/{}/'.format(
-            self.base_url.strip('/'),
-            self.notification_log_id,
-            notification_log_id
-        )
-
-
 class NotificationLogView(object):
     def __init__(self, notification_log, json_encoder_class=None):
-        assert isinstance(notification_log, LocalNotificationLog)
+        assert isinstance(notification_log, LocalNotificationLog), type(notification_log)
         self.notification_log = notification_log
         self.json_encoder_class = json_encoder_class
 
     def present_section(self, section_id):
         section = self.notification_log[section_id]
-        return json_dumps(section.__dict__, self.json_encoder_class)
-
+        is_archived = bool(section.next_id)
+        section_json = json_dumps(section.__dict__, self.json_encoder_class)
+        return section_json, is_archived

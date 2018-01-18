@@ -1,11 +1,9 @@
 from math import ceil
 from threading import Thread
-from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.repositories.array import BigArrayRepository
-from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.interface.notificationlog import BigArrayNotificationLog, NotificationLogReader, \
     NotificationLogView, RecordNotificationLog, RemoteNotificationLog
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
@@ -223,7 +221,6 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
     use_named_temporary_file = True
 
     def test_remote_notification_log(self):
-        log_name = str(uuid4())
         num_notifications = 42
 
         section_size = 5
@@ -239,27 +236,31 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
         base_url = 'http://127.0.0.1:{}/notifications/'.format(port)
 
         def simple_app(environ, start_response):
-            """Simple WSGI application, for testing purposes only."""
+            """Simple WSGI application."""
             setup_testing_defaults(environ)
-            status = '200 OK'
-            headers = [('Content-type', 'text/plain; charset=utf-8')]
-            start_response(status, headers)
 
-            # Extract log name and doc ID from path info.
+            # Identify log and section from request.
             path_info = environ['PATH_INFO']
             try:
-                notification_log_id, section_id = path_info.strip('/').split('/')[-2:]
-            except ValueError as e:
-                msg = "Couldn't extract log name and doc ID from path info {}: {}".format(path_info, e)
-                raise ValueError(msg)
+                section_id = path_info.strip('/').split('/')[-1]
+            except ValueError:
+                # Start response.
+                status = '404 Not Found'
+                headers = [('Content-type', 'text/plain; charset=utf-8')]
+                start_response(status, headers)
+                return []
 
             # Select the notification log.
-            self.assertEqual(log_name, notification_log_id)
             notification_log = self.create_notification_log(section_size)
 
             # Get serialized section.
             view = NotificationLogView(notification_log)
-            section = view.present_section(section_id)
+            section, is_archived = view.present_section(section_id)
+
+            # Start response.
+            status = '200 OK'
+            headers = [('Content-type', 'text/plain; charset=utf-8')]
+            start_response(status, headers)
 
             # Return a list of lines.
             return [(line + '\n').encode('utf8') for line in section.split('\n')]
@@ -271,7 +272,7 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
         thread.start()
         try:
             # Use reader with client to read all items in remote feed after item 5.
-            notification_log = RemoteNotificationLog(base_url, log_name)
+            notification_log = RemoteNotificationLog(base_url)
 
             # Get all the items.
             notification_log_reader = NotificationLogReader(notification_log=notification_log)
