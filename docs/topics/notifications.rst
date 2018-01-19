@@ -783,7 +783,7 @@ section objects for section IDs using the square brackets syntax.
 If the section objects were created by a ``NotifcationLogView`` that
 had the ``notification_log`` above, we could obtain all the events of an
 application across an HTTP connection, accurately and without great
-complication. This seems like an inherently reliable approach.
+complication.
 
 See ``test_notificationlog.py`` for an example that uses a Flask app running
 in a local HTTP server to get notifications remotely using these classes.
@@ -902,22 +902,24 @@ Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-lik
 The position could be persisted, and the persisted value could be
 used to initialise the reader's position when reading is restarted.
 
-In this way, the events of an application can be followed with perfect accuracy
-and without lots of complications. This approach for updating remote
-contexts seems to be inherently reliable.
+In this way, the events of an application can be followed with perfect
+accuracy and without lots of complications. This seems to be an inherently
+reliable approach to following the events of an application.
 
 
 Updating projections
 --------------------
 
+Once the events of an application can be followed reliably,
+they can be used to update projections of the application state.
+
 Synchronous update
 ~~~~~~~~~~~~~~~~~~
 
 You may wish to update a view of an aggregate synchronously
-whenever an event is published. If each view model depends
-only on one aggregate, you may wish simply to subscribe to
-the events of the aggregate. Then, whenever an event occurs,
-the projection can be updated.
+whenever an event is published. You may wish simply to
+subscribe to the events of the aggregate. Then, whenever
+an event occurs, the projection can be updated.
 
 The library decorator function
 :func:`~eventsourcing.domain.model.decorators.subscribe_to`
@@ -967,7 +969,7 @@ otherwise handled, in a similar way to failures of asynchronous updates.
 It is possible to use the decorator in a downstream application, in
 which domain events are republished following the application
 sequence asynchronously. The decorate would be called synchronously with the
-republising of the event. In this case, if the view update routine somehow
+republishing of the event. In this case, if the view update routine somehow
 fails to update, the position of the downstream application in the upstream
 sequence would not advance until the view is restored to working order, after
 which the view will be updated as if there had been no failure.
@@ -991,11 +993,11 @@ they have missed a notification and pull the notifications they have
 missed. A pull mechanism, such as that described above, can be used to
 catch up.
 
-The same mechanism can be used if a materialized view is developed
-after the application has been deployed and so requires initialising
-from an established application sequence, or otherwise needs to be
-reconstructed from scratch.
-
+The same mechanism can be used when materialized views (or other kinds
+of projections) are developed after the application has been initially
+deployed and require initialising from an established application
+sequence, or after changes need to be reinitialised from scratch, or
+updated after being offline for some reason.
 
 Todo: Something about pumping events to a message bus, following
 the application sequence.
