@@ -217,7 +217,7 @@ and it's good to cope with some more variation in the notification log classes.
 
     assert len(all_records) == 0, all_records
 
-    entity = VersionedEntity.__create__()
+    first_entity = VersionedEntity.__create__()
 
     all_records = record_manager[0:5]
 
@@ -287,10 +287,10 @@ directly to an array.
     )
 
     big_array = repo[uuid4()]
-    big_array.append('event0')
-    big_array.append('event1')
-    big_array.append('event2')
-    big_array.append('event3')
+    big_array.append('item0')
+    big_array.append('item1')
+    big_array.append('item2')
+    big_array.append('item3')
 
 
 Because there is a small duration of time between checking for the next
@@ -321,9 +321,9 @@ exists).
 
     assert big_array.get_next_position() == 4
 
-    big_array[4] = 'event4'
+    big_array[4] = 'item4'
     try:
-        big_array[4] = 'event4a'
+        big_array[4] = 'item4a'
     except ConcurrencyError:
         pass
     else:
@@ -410,8 +410,8 @@ big array object.
 
 .. code:: python
 
-    big_array[next(integers)] = 'event5'
-    big_array[next(integers)] = 'event6'
+    big_array[next(integers)] = 'item5'
+    big_array[next(integers)] = 'item6'
 
     assert big_array.get_next_position() == 7
 
@@ -429,8 +429,8 @@ array, the iteration proceeds to the next partition.
 
 .. code:: python
 
-    assert big_array[0] == 'event0'
-    assert list(big_array[5:7]) == ['event5', 'event6']
+    assert big_array[0] == 'item0'
+    assert list(big_array[5:7]) == ['item5', 'item6']
 
 
 The application log can be written to by a persistence policy. References
@@ -474,52 +474,52 @@ seems inevitable that the application sequence must be restored
 downstream, adding downstream complexity.)
 
 
-Local notification logs
------------------------
+Notification logs
+-----------------
 
 As described in Implementing Domain Driven Design, a notification log
-is presented in linked sections. The "current" section is returned by
-default, and contains the very latest notifications. Unless a section
-is the first section, it will have an ID for the previous section. Each
-section contains a limited number items. When the current section
-is full, it is considered to be an archived section. Archived sections
-contain the section ID of the next section (which may found to be empty,
-or already archived). Hence, clients can get the current section,
-go back until they reach their position, and then go forward until
-the last notification, with minimal client complexity.
+presents a sequence of items in linked sections.
+
+Sectons are obtained from a notification log using Python's
+"square brackets" sequence index syntax. The key is a section ID.
+
+A special section ID called "current" can be used to obtain the very
+section of notifications.
+
+
+Each section contains a limited number items, the size
+is fixed by the notification log's ``section_size`` constructor argument.
+When the current section is full, it is considered to be an archived
+section.
+
+All sections except the first have an ID for the previous section.
+
+Similarly, all sections except the current section, in other words
+all the archived sections, have an ID for the next section.
+
+A client can get the current section, go back until it reaches the
+last notification it has received from a previous request, and then
+go forward until all existing notifications have been received.
+
+The section ID numbering scheme follows Vaughn Vernon's book.
+Section IDs are strings: either 'current'; or a string formatted
+with two integers separated by a comma. The integers represent
+the first and last number of the items included in a section.
 
 The classes below can be used to present a sequence of items,
 such the domain events of an application, in linked
 sections. They can also be used to present other sequences
 for example a projection of the application sequence, where the
-events are rendered in a particular way for a particular purpose.
-
-The abstract interface for a notification log is the Python array
-index syntax with the key being a section ID.
-
-.. code::
-
-    notification_log['current']
-
-    notification_log['1,20']
-
-Section IDs are strings. Either 'current' or a string formatted
-with two integers separated by a comma. The integers represent
-the first and last positions included in the requested section.
-The number of items in the section is fixed, and if the ID
-given doesn't correspond with an existing section, the nearest
-section will be returned instead. The only ID a client needs to
-be aware of is 'current', since the others section ID will be
-provided by the section objects as the "previous" or "next"
-section ID (see code examples below).
+events are rendered in a particular way for a particular purpose,
+such as analytics.
 
 RecordNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~
 
 The library class :class:`~eventsourcing.interface.notificationlog.RecordNotificationLog`
 can use the library's relational record managers. The ``RecordNotificationLog``
-presents the recorded event topic and data as the notifications in its linked
-sections, and so may be encrypted.
+presents the recorded event topic and data as the ``items`` of its linked
+sections.
 
 .. code:: python
 
@@ -543,6 +543,38 @@ sections, and so may be encrypted.
     assert len(section.items) == 5, section.items
 
 
+If the event records are encrypted, so will the notification log section items.
+
+The items in the sections from ``RecordNotificationLog`` are Python dicts with
+three keys: ``id``, ``topic``, and ``data``. The record manager uses its
+``sequenced_item_class`` to identify the actual names of the record fields.
+The ``topic`` can be resolved to a Python class, perhaps a domain event class.
+An object instance of that class, such as a domain event object, could then be
+reconstructed from the notification's ``data``.
+
+Todo: Some code that resolves record notification log items into domain objects
+by resolving the topic and reconstructing with the data. Perhaps change the
+SequencedItemMapper from_sequenced_item() method to work with a dict that provides
+topic and data, not just an sequenced item tuple of the right type. Otherwise construct a
+SequencedItem named tuple of the right type and pass it to a SequencedItemMapper.
+
+.. code:: python
+
+    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+
+    mapper = SequencedItemMapper()
+
+    def resolve_notifications(notifications):
+        return [mapper.from_topic_and_data(
+            topic=notification['topic'],
+            data=notification['data']
+        ) for notification in notifications]
+
+    domain_events = resolve_notifications(section.items)
+
+    assert isinstance(domain_events[0], VersionedEntity.Created)
+
+
 BigArrayNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -556,22 +588,27 @@ uses a ``BigArray`` as the application log, and presents its items in linked sec
     from eventsourcing.interface.notificationlog import BigArrayNotificationLog
 
     # Construct notification log.
-    notification_log = BigArrayNotificationLog(big_array, section_size=5)
+    big_array_notification_log = BigArrayNotificationLog(big_array, section_size=5)
 
 
-    # Get the "current "section from the big array notification log (numbering follows Vaughn Vernon's book)
-    section = notification_log['current']
+    # Get the "current "section from the big array notification log.
+    section = big_array_notification_log['current']
     assert section.section_id == '6,10', section.section_id
     assert section.previous_id == '1,5', section.previous_id
     assert section.next_id == None
     assert len(section.items) == 2, len(section.items)
 
-    # Get the first section from the notification log (numbering follows Vaughn Vernon's book)
-    section = notification_log['1,10']
+    assert section.items == ['item5', 'item6']
+
+    # Get the first section from the notification log.
+    section = big_array_notification_log['1,10']
     assert section.section_id == '1,5', section.section_id
     assert section.previous_id == None, section.previous_id
     assert section.next_id == '6,10', section.next_id
     assert len(section.items) == 5, section.items
+
+    assert section.items == ['item0', 'item1', 'item2', 'item3', 'item4']
+
 
 
 Remote notification logs
@@ -608,32 +645,42 @@ object and an optional ``json_encoder_class`` (which defaults to the library's.
     import json
 
     from eventsourcing.interface.notificationlog import NotificationLogView
-    from eventsourcing.utils.transcoding import ObjectJSONEncoder
+    from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
 
-    notification_log_view = NotificationLogView(
+    view = NotificationLogView(
         notification_log=notification_log,
         json_encoder_class=ObjectJSONEncoder
     )
 
-    section, is_archived = notification_log_view.present_section('1,5')
+    section_json, is_archived = view.present_section('1,5')
 
-    expected = {
-        "items": [
-            "event0",
-            "event1",
-            "event2",
-            "event3",
-            "event4",
-        ],
-        "next_id": "6,10",
-        "previous_id": None,
-        "section_id": "1,5"
-    }
+    section_dict = json.loads(section_json, cls=ObjectJSONDecoder)
 
-    assert json.loads(section) == expected, content
-    assert is_archived
+    assert section_dict['section_id'] == '1,5'
+    assert section_dict['next_id'] == '6,10'
+    assert section_dict['previous_id'] == None
+    assert section_dict['items'] == notification_log['1,5'].items
+    assert len(section_dict['items']) == 5
 
-A Web API might identify a section ID from an HTTP request
+    item = section_dict['items'][0]
+    assert item['id'] == 1
+    assert '__event_hash__' in item['data']
+    assert item['topic'] == 'eventsourcing.domain.model.entity#VersionedEntity.Created'
+
+    assert section_dict['items'][1]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][2]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][3]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][4]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
+
+    # Resolve the notifications to domain events.
+    domain_events = resolve_notifications(section_dict['items'])
+
+    # Check we got the first entity's "created" event.
+    assert isinstance(domain_events[0], VersionedEntity.Created)
+    assert domain_events[0].originator_id == first_entity.id
+
+
+A Web application might identify a section ID from an HTTP request
 path, and respond by returning an HTTP response with JSON
 content that represents that section of a notification log.
 
@@ -650,7 +697,7 @@ cache control headers, so non-current sections can be cached.
         section_id = environ['PATH_INFO'].strip('/')
 
         # Construct notification log view object.
-        view = NotificationLogView(big_array)
+        view = NotificationLogView(notification_log)
 
         # Serialize requested section.
         section, is_archived = view.present_section(section_id)
@@ -696,6 +743,12 @@ proxy for a local notification log on a remote node.
 
     remote_notification_log = RemoteNotificationLog("base_url")
 
+If a server were running at "base_url" the ``remote_notification_log`` would
+function in the same was as the local notification logs described above, returning
+section objects for section IDs using the square brackets syntax.
+See ``test_notificationlog.py`` for an example that uses a Flask app running
+in a local HTTP server to get notifications remotely using these classes.
+
 
 Notification log reader
 -----------------------
@@ -728,6 +781,8 @@ and can be used by ``NotificationLogReader`` progressively to obtain unseen noti
 The example below happens to yield notifications from a big array notification log, but it
 would work equally well with a record notification log, or with a remote notification log.
 
+Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-like.
+
 .. code:: python
 
     from eventsourcing.interface.notificationlog import NotificationLogReader
@@ -746,23 +801,15 @@ would work equally well with a record notification log, or with a remote notific
     reader.seek(0)
 
     # Read all existing notifications.
-    all_notifications = list(reader)
-    assert all_notifications == ['event0', 'event1', 'event2', 'event3', 'event4', 'event5', 'event6']
+    all_notifications = reader.read()
+    assert len(all_notifications) == 9
 
-    # Check the position has advanced.
-    assert reader.position == 7
+    # Resolve the notifications to domain events.
+    domain_events = resolve_notifications(all_notifications)
 
-    # Read all subsequent notifications (should be none).
-    subsequent_notifications = list(reader)
-    assert subsequent_notifications == []
-
-    # Assign more events to the application log.
-    big_array[next(integers)] = 'event7'
-    big_array[next(integers)] = 'event8'
-
-    # Read all subsequent notifications (should be two).
-    subsequent_notifications = list(reader)
-    assert subsequent_notifications == ['event7', 'event8']
+    # Check we got the first entity's created event.
+    assert isinstance(domain_events[0], VersionedEntity.Created)
+    assert domain_events[0].originator_id == first_entity.id
 
     # Check the position has advanced.
     assert reader.position == 9
@@ -771,24 +818,53 @@ would work equally well with a record notification log, or with a remote notific
     subsequent_notifications = list(reader)
     assert subsequent_notifications == []
 
-    # Assign more events to the application log.
-    big_array[next(integers)] = 'event9'
-    big_array[next(integers)] = 'event10'
-    big_array[next(integers)] = 'event11'
+    # Publish two more events.
+    VersionedEntity.__create__()
+    VersionedEntity.__create__()
 
     # Read all subsequent notifications (should be two).
-    subsequent_notifications = list(reader)
-    assert subsequent_notifications == ['event9', 'event10', 'event11']
+    subsequent_notifications = reader.read()
+    assert len(subsequent_notifications) == 2
 
     # Check the position has advanced.
-    assert reader.position == 12
+    assert reader.position == 11
 
     # Read all subsequent notifications (should be none).
-    subsequent_notifications = list(reader)
+    subsequent_notifications = reader.read()
+    len(subsequent_notifications) == 0
+
+    # Publish three more events.
+    VersionedEntity.__create__()
+    VersionedEntity.__create__()
+    last_entity = VersionedEntity.__create__()
+
+    # Read all subsequent notifications (should be three).
+    subsequent_notifications = reader.read()
+    assert len(subsequent_notifications) == 3
+
+    # Check the position has advanced.
+    assert reader.position == 14
+
+    # Resolve the notifications.
+    domain_events = resolve_notifications(subsequent_notifications)
+    last_domain_event = domain_events[-1]
+
+    # Check we got the last entity's created event.
+    assert isinstance(last_domain_event, VersionedEntity.Created), last_domain_event
+    assert last_domain_event.originator_id == last_entity.id
+
+    # Read all subsequent notifications (should be none).
+    subsequent_notifications = reader.read()
     assert subsequent_notifications == []
 
-    # Clean up.
-    persistence_policy.close()
+    # Check the position has advanced.
+    assert reader.position == 14
+
+The position could be persisted, and the persisted value could be
+used to initialise the reader's position when reading is restarted.
+
+In this way, the events of an application can be followed with perfect accuracy
+and without lots of complications. This approach seems to be inherently reliable.
 
 
 Synchronous update
@@ -862,16 +938,17 @@ messaging infrastructure, and having the remote components subscribe.
 De-duplication would involve tracking which events have already
 been received.
 
+To keep the messaging infrastructure stable, it may be sufficient
+simply to identify the domain event, perhaps with its sequence ID
+and position.
+
 If anything goes wrong with messaging infrastructure, such that a
 notification is sent but not received, remote components can detect
 they have missed a notification and pull the notifications they have
-missed.
+missed. A pull mechanism, such as that described above, can be used to
+catch up.
 
-A pull mechanism that allows others to pull events they
-don't yet have can be used to allow remote components to catch
-up.
-
-The same mechanism can be used if a component is developed
+The same mechanism can be used if a materialized view is developed
 after the application has been deployed and so requires initialising
 from an established application sequence, or otherwise needs to be
 reconstructed from scratch.
@@ -891,6 +968,12 @@ subscriber and one view?)
 Todo: So something for a view to maintain its position in the sequence,
 perhaps version the view updates (event sourced or snapshots) if there
 are no transactions, or use a dedicated table if there are transactions.
+
+.. code:: python
+
+    # Clean up.
+    persistence_policy.close()
+
 
 .. Todo: Pulling from remote notification log.
 

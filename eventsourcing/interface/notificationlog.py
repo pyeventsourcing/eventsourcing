@@ -219,6 +219,9 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
     def __iter__(self):
         return self.get_items()
 
+    def read(self):
+        return list(self.get_items())
+
     def get_items(self, stop_index=None):
         self.section_count = 0
 

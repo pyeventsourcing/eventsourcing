@@ -93,6 +93,9 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         topic = getattr(sequenced_item, self.field_names.topic)
         data = getattr(sequenced_item, self.field_names.data)
 
+        return self.from_topic_and_data(topic, data)
+
+    def from_topic_and_data(self, topic, data):
         # Decrypt (optional).
         if self.cipher:
             data = self.cipher.decrypt(data)
