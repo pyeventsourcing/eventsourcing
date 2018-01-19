@@ -153,12 +153,22 @@ cassandra
 
 Classes for event sourcing with Apache Cassandra.
 
-.. automodule:: eventsourcing.infrastructure.cassandra.models
+.. automodule:: eventsourcing.infrastructure.cassandra.datastore
     :members:
     :show-inheritance:
     :undoc-members:
 
-.. automodule:: eventsourcing.infrastructure.cassandra.datastore
+.. automodule:: eventsourcing.infrastructure.cassandra.factory
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+.. automodule:: eventsourcing.infrastructure.cassandra.manager
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+.. automodule:: eventsourcing.infrastructure.cassandra.models
     :members:
     :show-inheritance:
     :undoc-members:
@@ -185,7 +195,7 @@ A Django application for event sourcing with the Django ORM.
     :show-inheritance:
     :undoc-members:
 
-.. automodule:: eventsourcing.infrastructure.django.strategy
+.. automodule:: eventsourcing.infrastructure.django.manager
     :members:
     :show-inheritance:
     :undoc-members:
@@ -312,17 +322,22 @@ sqlalchemy
 
 Classes for event sourcing with SQLAlchemy.
 
-.. automodule:: eventsourcing.infrastructure.sqlalchemy.models
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
-.. automodule:: eventsourcing.infrastructure.sqlalchemy.strategy
-    :members:
-    :show-inheritance:
-    :undoc-members:
-
 .. automodule:: eventsourcing.infrastructure.sqlalchemy.datastore
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+.. automodule:: eventsourcing.infrastructure.sqlalchemy.factory
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+.. automodule:: eventsourcing.infrastructure.sqlalchemy.manager
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+.. automodule:: eventsourcing.infrastructure.sqlalchemy.records
     :members:
     :show-inheritance:
     :undoc-members:

@@ -106,21 +106,15 @@ of integers. Two such techniques are described below.
 
 The first approach uses the library's relational record managers with integer
 sequenced record classes. The ID column of the record class is used to place
-all the application's event records in a single sequence. This technique accepts
-a potential reduction in the throughput and capacity limits to obtain accuracy
-with simplicity for followers. This technique is recommended for enterprise
-applications, and the early stages of more ambitious projects. The throughput
-and capacity limits are simply the performance limits of a database table,
-which of course depends on your infrastructure. For most situations, these
-limits won't be restrictive.
+all the application's event records in a single sequence. This technique is
+recommended for enterprise applications, and the early stages of more ambitious
+projects.
 
 Secondly, a much more complicated but possibly more scalable approach uses a
 library class called ``BigArray``. This technique accepts downstream
-complexity, eventual consistency, and even affords a loss of accuracy
-if desired, so that throughput and capacity are not inherently limited
-by the technique. This technique is recommended for parts of mass consumer
-applications that need to operate at a scale that exceeds the inherent limit
-of the first approach.
+complexity so that capacity is not inherently limited by the technique.
+This technique is recommended for parts of mass consumer applications that
+need to operate at such a scale that the first approach is restrictive.
 
 
 Application sequence
@@ -128,18 +122,21 @@ Application sequence
 
 The fundamental concern is to accomplish perfect accuracy
 when propagating the events of an application, so that events are neither
-missed, nor duplicated, nor jumbled. Once the sequence of events has
-been assembled, it can be followed.
+missed, nor duplicated, nor jumbled. The general idea is that once the
+sequence of events has been assembled, it can be followed.
 
 In order to update a projection of the application state as a
-whole, we need all the events of the application to be placed
+whole, all the events of the application must have been placed
 in a single sequence. We need to be able to follow the sequence
 reliably, even as it is being written. We don't want any gaps,
 or out-of-order items, or duplicates, or race conditions.
 
-Before showing the support provided by the library for sequencing
-all the events of an application, let's setup an event store, and
-a database, needed by the examples below.
+Before continuing to describe the support provided by the library
+for sequencing all the events of an application, let's setup an
+event store, and a database, needed by the examples below.
+
+Please note, the ``SQLAlchemyRecordManager`` is used with the
+``contiguous_record_ids`` option enabled.
 
 .. code:: python
 
@@ -196,8 +193,8 @@ can function as an application sequence, especially when using the
 managers. This technique ensures that whenever an aggregate command returns
 successfully, any events will already have been successfully placed in
 both the aggregate's and the application's sequence. This approach provides simplicity and
-perfect accuracy, at the cost of a limit to throughput: aggregate
-commands will experience concurrency errors if they attempt to record
+perfect accuracy, at the cost of an upper limit to rate as with records can be
+written: aggregate commands will experience concurrency errors if they attempt to record
 events simultaneously with others (in which case they will need to be
 retried).
 
@@ -205,12 +202,6 @@ To use this approach, simply use the ``IntegerSequencedRecord`` or the
 ``StoredEventRecord`` classes with the ``contiguous_record_ids`` constructor
 argument of the record manager set to a True value. The ``record_manager``
 above was constructed in this way.
-
-Todo: Change this back to use the all_records() method instead of the [] syntax. Remove the
-__getitem__ method from the manager (?) class and change the RecordNotificationLog
-to use the all_records() method instead. The [] feels wrong on the record manager because
-it isn't obvious whether they it returns sequenced item namedtuples or active record classes
-and it's good to cope with some more variation in the notification log classes.
 
 .. code:: python
 
@@ -225,6 +216,12 @@ and it's good to cope with some more variation in the notification log classes.
     all_records = record_manager[0:5]
 
     assert len(all_records) == 1, all_records
+
+.. Todo: Change this back to use the all_records() method instead of the [] syntax. Remove the
+__getitem__ method from the manager (?) class and change the RecordNotificationLog
+to use the all_records() method instead. The [] feels wrong on the record manager because
+it isn't obvious whether they it returns sequenced item namedtuples or active record classes
+and it's good to cope with some more variation in the notification log classes.
 
 
 BigArray
@@ -474,7 +471,7 @@ sequence will happen in different queries, which means events may be
 found in the application sequence that are not yet in the aggregate
 sequence, and followers will need to decide whether or not the event
 will appear in the aggregate sequence. Under these circumstances, it
-seems inevitable that the application sequence must be restored
+seems inevitable that the application sequence must be corrected
 downstream, adding downstream complexity.)
 
 
@@ -482,7 +479,7 @@ Notification logs
 -----------------
 
 As described in Implementing Domain Driven Design, a notification log
-presents a sequence of items in linked sections.
+presents a sequence of notification items in linked sections.
 
 Sections are obtained from a notification log using Python's
 "square brackets" sequence index syntax. The key is a section ID.
@@ -516,16 +513,14 @@ RecordNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~
 
 The library class :class:`~eventsourcing.interface.notificationlog.RecordNotificationLog`
-can use the library's relational record managers. The ``RecordNotificationLog``
-presents the recorded event topic and data as the ``items`` of its linked
-sections.
+is constructed with a relational ``record_manager``, and a ``section_size``.
 
 .. code:: python
 
     from eventsourcing.interface.notificationlog import RecordNotificationLog
 
     # Construct notification log.
-    notification_log = RecordNotificationLog(event_store.record_manager, section_size=5)
+    notification_log = RecordNotificationLog(record_manager, section_size=5)
 
     # Get the "current" section from the record notification log.
     section = notification_log['current']
@@ -541,7 +536,8 @@ sections.
     assert section.next_id == '6,10', section.next_id
     assert len(section.items) == 5, section.items
 
-
+The sections of the record notification log each have notification items that
+reflect the recorded sequenced item.
 The items (notifications) in the sections from ``RecordNotificationLog``
 are Python dicts with three key-values: ``id``, ``topic``, and ``data``.
 
@@ -549,7 +545,8 @@ The record manager uses its ``sequenced_item_class`` to identify the actual
 names of the record fields containing the topic and the data, and constructs
 the notifications (the dicts) with the values of those fields. The
 notification's data is simple the record data, so if the record data
-was encrypted, the notification data will also be encrypted.
+was encrypted, the notification data will also be encrypted. The keys of
+the event record notification are not reflective of the sequence item class.
 
 The ``topic`` value can be resolved to a Python class, such as
 a domain event class. An object instance, such as a domain event
@@ -968,7 +965,7 @@ otherwise handled, in a similar way to failures of asynchronous updates.
 
 It is possible to use the decorator in a downstream application, in
 which domain events are republished following the application
-sequence asynchronously. The decorate would be called synchronously with the
+sequence asynchronously. The decorator would be called synchronously with the
 republishing of the event. In this case, if the view update routine somehow
 fails to update, the position of the downstream application in the upstream
 sequence would not advance until the view is restored to working order, after
