@@ -50,72 +50,6 @@ Implementing Domain Driven Design relies on the simple logic
 of an ascending sequence of integers to allow others to progress
 along the event stream.
 
-The library supports sequencing the application's events by
-either an integer sequence or with timestamps.
-
-Application sequence
---------------------
-
-The fundamental concern is to accomplish perfect accuracy
-when propagating the events of an application, so that events are neither
-missed, nor duplicated, nor jumbled. Once the sequence of events has
-been assembled, it can be followed.
-
-In order to update a projection of the application state as a
-whole, we need all the events of the application to be placed
-in a single sequence. We need to be able to follow the sequence
-reliably, even as it is being written. We don't want any gaps,
-or out-of-order items, or duplicates, or race conditions.
-
-Before continuing, let's setup the event store and database
-needed by the examples below.
-
-.. code:: python
-
-    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
-    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
-    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
-    from eventsourcing.infrastructure.eventstore import EventStore
-    from eventsourcing.infrastructure.repositories.array import BigArrayRepository
-    from eventsourcing.application.policies import PersistencePolicy
-    from eventsourcing.infrastructure.sequenceditem import StoredEvent
-    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-
-    # Setup the database.
-    datastore = SQLAlchemyDatastore(
-        settings=SQLAlchemySettings(),
-        tables=[StoredEventRecord],
-    )
-    datastore.setup_connection()
-    datastore.setup_tables()
-
-    # Setup the record manager.
-    record_manager = SQLAlchemyRecordManager(
-        session=datastore.session,
-        record_class=StoredEventRecord,
-        sequenced_item_class=StoredEvent,
-        contiguous_record_ids=True,
-    )
-
-    # Setup a sequenced item mapper.
-    sequenced_item_mapper = SequencedItemMapper(
-        sequenced_item_class=StoredEvent,
-    )
-
-    # Setup the event store.
-    event_store = EventStore(
-        record_manager=record_manager,
-        sequenced_item_mapper=sequenced_item_mapper
-    )
-
-    # Set up a persistence policy.
-    persistence_policy = PersistencePolicy(
-        event_store=event_store,
-    )
-
-The above infrastructure classes are explained in other sections of this documentation.
-
-
 Timestamps
 ~~~~~~~~~~
 
@@ -168,23 +102,90 @@ Contiguous integers
 To make propagation perfectly accurate (which is defined here as reproducing the
 application's sequence of events perfectly, without any risk of gaps or duplicates
 or jumbled items, or race conditions), we can generate and follow a contiguous sequence
-of integers.
+of integers. Two such techniques are described below.
 
-Two such techniques are described below. The first approach uses record managers
-directly, in particular an ID column of a sequenced item record class, to place
-all the records in a single sequence. This technique accepts throughput and
-capacity limits to obtain accuracy with simplicity. This technique is recommended
-for enterprise applications, and the early stages of more ambitious projects. The
-throughput and capacity limits are simply the performance limits of a database
-table, which of course depends on your infrastructure. For most operations, these
+The first approach uses the library's relational record managers with integer
+sequenced record classes. The ID column of the record class is used to place
+all the application's event records in a single sequence. This technique accepts
+a potential reduction in the throughput and capacity limits to obtain accuracy
+with simplicity for followers. This technique is recommended for enterprise
+applications, and the early stages of more ambitious projects. The throughput
+and capacity limits are simply the performance limits of a database table,
+which of course depends on your infrastructure. For most situations, these
 limits won't be restrictive.
 
-A more complicated but possibly more scalable approach uses a
+Secondly, a much more complicated but possibly more scalable approach uses a
 library class called ``BigArray``. This technique accepts downstream
 complexity, eventual consistency, and even affords a loss of accuracy
 if desired, so that throughput and capacity are not inherently limited
-by the approach. This technique is recommended for mass consumer applications
-operating at scale.
+by the technique. This technique is recommended for parts of mass consumer
+applications that need to operate at a scale that exceeds the inherent limit
+of the first approach.
+
+
+Application sequence
+--------------------
+
+The fundamental concern is to accomplish perfect accuracy
+when propagating the events of an application, so that events are neither
+missed, nor duplicated, nor jumbled. Once the sequence of events has
+been assembled, it can be followed.
+
+In order to update a projection of the application state as a
+whole, we need all the events of the application to be placed
+in a single sequence. We need to be able to follow the sequence
+reliably, even as it is being written. We don't want any gaps,
+or out-of-order items, or duplicates, or race conditions.
+
+Before showing the support provided by the library for sequencing
+all the events of an application, let's setup an event store, and
+a database, needed by the examples below.
+
+.. code:: python
+
+    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
+    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+    from eventsourcing.infrastructure.eventstore import EventStore
+    from eventsourcing.infrastructure.repositories.array import BigArrayRepository
+    from eventsourcing.application.policies import PersistencePolicy
+    from eventsourcing.infrastructure.sequenceditem import StoredEvent
+    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+
+    # Setup the database.
+    datastore = SQLAlchemyDatastore(
+        settings=SQLAlchemySettings(),
+        tables=[StoredEventRecord],
+    )
+    datastore.setup_connection()
+    datastore.setup_tables()
+
+    # Setup the record manager.
+    record_manager = SQLAlchemyRecordManager(
+        session=datastore.session,
+        record_class=StoredEventRecord,
+        sequenced_item_class=StoredEvent,
+        contiguous_record_ids=True,
+    )
+
+    # Setup a sequenced item mapper.
+    sequenced_item_mapper = SequencedItemMapper(
+        sequenced_item_class=StoredEvent,
+    )
+
+    # Setup the event store.
+    event_store = EventStore(
+        record_manager=record_manager,
+        sequenced_item_mapper=sequenced_item_mapper
+    )
+
+    # Set up a persistence policy.
+    persistence_policy = PersistencePolicy(
+        event_store=event_store,
+    )
+
+The above infrastructure classes are explained
+in other sections of this documentation.
 
 Record managers
 ~~~~~~~~~~~~~~~
@@ -233,12 +234,13 @@ This is a long section, and can be skipped if you aren't currently
 required to scale capacity beyond the capacity of a database table
 supported by your infrastructure.
 
-For ultra-scalability, the application sequence must be capable of having a very
-large number of events, neither swamping an individual database partition
-(in Cassandra) nor distributing things across partitions without any particular
-order so that iterating through the sequence is slow and expensive. We also want
-the application log effectively to have constant time read and write operations
-for normal usage.
+To support ultra-high capacity requirements, the application sequence must
+be capable of having a very large number of events, neither swamping
+an individual database partition (in Cassandra) nor distributing
+things across partitions (or shards) without any particular order so
+that iterating through the sequence is slow and expensive. We also want
+the application log effectively to have constant time read and write
+operations for normal usage.
 
 The library class
 :class:`~eventsourcing.domain.model.array.BigArray` satisfies these
@@ -482,26 +484,21 @@ Notification logs
 As described in Implementing Domain Driven Design, a notification log
 presents a sequence of items in linked sections.
 
-Sectons are obtained from a notification log using Python's
+Sections are obtained from a notification log using Python's
 "square brackets" sequence index syntax. The key is a section ID.
+A special section ID called "current" can be used to obtain a section
+which contains the latest notification.
 
-A special section ID called "current" can be used to obtain the very
-section of notifications.
+Each section contains a limited number items, the size is fixed by
+the notification log's ``section_size`` constructor argument. When
+the current section is full, it is considered to be an archived section.
 
-
-Each section contains a limited number items, the size
-is fixed by the notification log's ``section_size`` constructor argument.
-When the current section is full, it is considered to be an archived
-section.
-
-All sections except the first have an ID for the previous section.
-
-Similarly, all sections except the current section, in other words
-all the archived sections, have an ID for the next section.
+All the archived sections have an ID for the next section. Similarly,
+all sections except the first have an ID for the previous section.
 
 A client can get the current section, go back until it reaches the
-last notification it has received from a previous request, and then
-go forward until all existing notifications have been received.
+last notification it has already received, and then go forward until
+all existing notifications have been received.
 
 The section ID numbering scheme follows Vaughn Vernon's book.
 Section IDs are strings: either 'current'; or a string formatted
@@ -530,14 +527,14 @@ sections.
     # Construct notification log.
     notification_log = RecordNotificationLog(event_store.record_manager, section_size=5)
 
-    # Get the "current" section from the record notification log (numbering follows Vaughn Vernon's book)
+    # Get the "current" section from the record notification log.
     section = notification_log['current']
     assert section.section_id == '6,10', section.section_id
     assert section.previous_id == '1,5', section.previous_id
     assert section.next_id == None
     assert len(section.items) == 4, len(section.items)
 
-    # Get the first section from the record notification log (numbering follows Vaughn Vernon's book)
+    # Get the first section from the record notification log.
     section = notification_log['1,5']
     assert section.section_id == '1,5', section.section_id
     assert section.previous_id == None, section.previous_id
@@ -545,16 +542,21 @@ sections.
     assert len(section.items) == 5, section.items
 
 
-If the event records are encrypted, so will the notification log section items.
+The items (notifications) in the sections from ``RecordNotificationLog``
+are Python dicts with three key-values: ``id``, ``topic``, and ``data``.
 
-The items in the sections from ``RecordNotificationLog`` are Python dicts with
-three keys: ``id``, ``topic``, and ``data``. The record manager uses its
-``sequenced_item_class`` to identify the actual names of the record fields.
+The record manager uses its ``sequenced_item_class`` to identify the actual
+names of the record fields containing the topic and the data, and constructs
+the notifications (the dicts) with the values of those fields. The
+notification's data is simple the record data, so if the record data
+was encrypted, the notification data will also be encrypted.
 
-The ``topic`` value can be resolved to a Python class, perhaps a domain event class.
-An object instance of that class, such as a domain event object, could then be
-reconstructed using the notification's ``data``. In the code below, the function
-``resolve_notifications`` shows how that can be done.
+The ``topic`` value can be resolved to a Python class, such as
+a domain event class. An object instance, such as a domain event
+object, could then be reconstructed using the notification's ``data``.
+
+In the code below, the function ``resolve_notifications`` shows
+how that can be done (this function doesn't exist in the library).
 
 .. code:: python
 
@@ -572,6 +574,12 @@ reconstructed using the notification's ``data``. In the code below, the function
     # Check we got the first entity's "created" event.
     assert isinstance(domain_events[0], VersionedEntity.Created)
     assert domain_events[0].originator_id == first_entity.id
+
+If the notification data was encrypted by the sequenced item
+mapper, the sequence item mapper will decrypt the data before
+reconstructing the domain event. In this example, the sequenced
+item mapper does not have a cipher, so the notification data is
+not encrypted.
 
 
 BigArrayNotificationLog
@@ -609,12 +617,10 @@ uses a ``BigArray`` as the application log, and presents its items in linked sec
     # Check we got the first five items assigned to the big array.
     assert section.items == ['item0', 'item1', 'item2', 'item3', 'item4']
 
-Please note, for simplicity, the notification log items in this example are
-just strings ('item0' etc). If the big array were used to place application
-event in a sequence, the items might be a dictionary with 'topic' and 'data'
-values, just like in the ``RecordNotificationLog`` example above. That would be
-a matter for a application sequence policy object which assigns items to
-such a big array whenever events are published.
+Please note, for simplicity, the items in this example are
+just strings ('item0' etc). If the big array were used to sequence the
+events of an application, it is possible to assign just the item's sequence
+ID and position, and let followers get the actual event.
 
 Remote notification logs
 ------------------------
@@ -632,7 +638,20 @@ instead of using a local datasource, it requests serialized
 sections from a Web API.
 
 The ``NotificationLogView`` class serializes sections from a local
-notification log, and can be used to implement a Web API.
+notification log, and can be used to implement a Web API that presents
+whole domain events. Alternatively, a Web API could present only sequence ID
+and position values, requiring clients to obtain the domain event from the
+event store. If the notification log uses a big array, and the big array
+is assigned with only sequence ID and position values, the big array notification
+log could be used directly with the ``NotificationLogView``. However, if
+the notification log uses a record manager, then a notification log adapter
+would be needed to convert the events into the references.
+
+If a notification log would then receive and would also return only sequence
+ID and position information to its caller. The caller could then proceed by
+obtaining the domain event from the event store. Another adapter could be
+used to perform the reverse operation: adapting a notification log
+that contains references to one that returns whole domain event objects.
 
 
 NotificationLogView
