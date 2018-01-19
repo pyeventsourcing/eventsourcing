@@ -256,6 +256,8 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             # Get serialized section.
             view = NotificationLogView(notification_log)
             section, is_archived = view.present_section(section_id)
+            # Todo: Maybe redirect if the section ID is a mismatch, so
+            # the URL is good for cacheing.
 
             # Start response.
             status = '200 OK'
