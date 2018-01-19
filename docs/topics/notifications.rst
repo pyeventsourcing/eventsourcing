@@ -218,10 +218,10 @@ above was constructed in this way.
     assert len(all_records) == 1, all_records
 
 .. Todo: Change this back to use the all_records() method instead of the [] syntax. Remove the
-__getitem__ method from the manager (?) class and change the RecordNotificationLog
-to use the all_records() method instead. The [] feels wrong on the record manager because
-it isn't obvious whether they it returns sequenced item namedtuples or active record classes
-and it's good to cope with some more variation in the notification log classes.
+.. __getitem__ method from the manager (?) class and change the RecordNotificationLog
+.. to use the all_records() method instead. The [] feels wrong on the record manager because
+.. it isn't obvious whether they it returns sequenced item namedtuples or active record classes
+.. and it's good to cope with some more variation in the notification log classes.
 
 
 BigArray
