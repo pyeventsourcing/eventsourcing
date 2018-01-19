@@ -907,8 +907,11 @@ and without lots of complications. This approach for updating remote
 contexts seems to be inherently reliable.
 
 
+Updating projections
+--------------------
+
 Synchronous update
-------------------
+~~~~~~~~~~~~~~~~~~
 
 You may wish to update a view of an aggregate synchronously
 whenever an event is published. If each view model depends
@@ -971,7 +974,7 @@ which the view will be updated as if there had been no failure.
 
 
 Asynchronous update
--------------------
+~~~~~~~~~~~~~~~~~~~
 
 Updates can be triggered by pushing notifications to
 messaging infrastructure, and having the remote components subscribe.
