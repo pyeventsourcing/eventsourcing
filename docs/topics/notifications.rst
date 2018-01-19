@@ -639,11 +639,15 @@ sections from a Web API.
 
 The ``NotificationLogView`` class serializes sections from a local
 notification log, and can be used to implement a Web API that presents
-whole domain events. Alternatively, a Web API could present only sequence ID
-and position values, requiring clients to obtain the domain event from the
-event store. If the notification log uses a big array, and the big array
-is assigned with only sequence ID and position values, the big array notification
-log could be used directly with the ``NotificationLogView``. However, if
+notifications to a network.
+
+Alternatively to presenting domain event data and topic information,
+a Web API could present only the event's sequence ID and position values,
+requiring clients to obtain the domain event from the event store using
+those references. If the notification log uses a big array, and the big
+array is assigned with only sequence ID and position values, the big array
+notification log could be used directly with the ``NotificationLogView``
+to notify of domain events by reference rather than by value. However, if
 the notification log uses a record manager, then a notification log adapter
 would be needed to convert the events into the references.
 
@@ -652,6 +656,7 @@ ID and position information to its caller. The caller could then proceed by
 obtaining the domain event from the event store. Another adapter could be
 used to perform the reverse operation: adapting a notification log
 that contains references to one that returns whole domain event objects.
+Such adapters are not currently provided by this library.
 
 
 NotificationLogView
