@@ -89,13 +89,15 @@ needed by the examples below.
     datastore.setup_connection()
     datastore.setup_tables()
 
-    # Setup the record manager and mapper.
+    # Setup the record manager.
     record_manager = SQLAlchemyRecordManager(
         session=datastore.session,
         record_class=StoredEventRecord,
         sequenced_item_class=StoredEvent,
         contiguous_record_ids=True,
     )
+
+    # Setup a sequenced item mapper.
     sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=StoredEvent,
     )
@@ -548,37 +550,34 @@ If the event records are encrypted, so will the notification log section items.
 The items in the sections from ``RecordNotificationLog`` are Python dicts with
 three keys: ``id``, ``topic``, and ``data``. The record manager uses its
 ``sequenced_item_class`` to identify the actual names of the record fields.
-The ``topic`` can be resolved to a Python class, perhaps a domain event class.
-An object instance of that class, such as a domain event object, could then be
-reconstructed from the notification's ``data``.
 
-Todo: Some code that resolves record notification log items into domain objects
-by resolving the topic and reconstructing with the data. Perhaps change the
-SequencedItemMapper from_sequenced_item() method to work with a dict that provides
-topic and data, not just an sequenced item tuple of the right type. Otherwise construct a
-SequencedItem named tuple of the right type and pass it to a SequencedItemMapper.
+The ``topic`` value can be resolved to a Python class, perhaps a domain event class.
+An object instance of that class, such as a domain event object, could then be
+reconstructed using the notification's ``data``. In the code below, the function
+``resolve_notifications`` shows how that can be done.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-
-    mapper = SequencedItemMapper()
-
     def resolve_notifications(notifications):
-        return [mapper.from_topic_and_data(
-            topic=notification['topic'],
-            data=notification['data']
-        ) for notification in notifications]
+        return [
+            sequenced_item_mapper.from_topic_and_data(
+                topic=notification['topic'],
+                data=notification['data']
+            ) for notification in notifications
+        ]
 
+    # Resolve a section of notifications into domain events.
     domain_events = resolve_notifications(section.items)
 
+    # Check we got the first entity's "created" event.
     assert isinstance(domain_events[0], VersionedEntity.Created)
+    assert domain_events[0].originator_id == first_entity.id
 
 
 BigArrayNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-This section can be skipped if you skipped ``BigArray`` above.
+Skip this section if you skipped the section about BigArray.
 
 The library class :class:`~eventsourcing.interface.notificationlog.BigArrayNotificationLog`
 uses a ``BigArray`` as the application log, and presents its items in linked sections.
@@ -590,7 +589,6 @@ uses a ``BigArray`` as the application log, and presents its items in linked sec
     # Construct notification log.
     big_array_notification_log = BigArrayNotificationLog(big_array, section_size=5)
 
-
     # Get the "current "section from the big array notification log.
     section = big_array_notification_log['current']
     assert section.section_id == '6,10', section.section_id
@@ -598,6 +596,7 @@ uses a ``BigArray`` as the application log, and presents its items in linked sec
     assert section.next_id == None
     assert len(section.items) == 2, len(section.items)
 
+    # Check we got the last two items assigned to the big array.
     assert section.items == ['item5', 'item6']
 
     # Get the first section from the notification log.
@@ -607,9 +606,15 @@ uses a ``BigArray`` as the application log, and presents its items in linked sec
     assert section.next_id == '6,10', section.next_id
     assert len(section.items) == 5, section.items
 
+    # Check we got the first five items assigned to the big array.
     assert section.items == ['item0', 'item1', 'item2', 'item3', 'item4']
 
-
+Please note, for simplicity, the notification log items in this example are
+just strings ('item0' etc). If the big array were used to place application
+event in a sequence, the items might be a dictionary with 'topic' and 'data'
+values, just like in the ``RecordNotificationLog`` example above. That would be
+a matter for a application sequence policy object which assigns items to
+such a big array whenever events are published.
 
 Remote notification logs
 ------------------------
