@@ -645,6 +645,8 @@ The ``NotificationLogView`` class is constructed with a local ``notification_log
 object and an optional ``json_encoder_class`` (which defaults to the library's.
 ``ObjectJSONEncoder`` class, used explicitly in the example below).
 
+The example below uses the record notification log, constructed above.
+
 .. code:: python
 
     import json
@@ -690,9 +692,7 @@ path, and respond by returning an HTTP response with JSON
 content that represents that section of a notification log.
 
 The example below uses the notification log from the
-example above. A more sophisticated application would set
-cache control headers, so non-current sections can be cached.
-
+example above.
 
 .. code:: python
 
@@ -701,19 +701,23 @@ cache control headers, so non-current sections can be cached.
         # Identify section from request.
         section_id = environ['PATH_INFO'].strip('/')
 
-        # Construct notification log view object.
+        # Construct notification log view.
         view = NotificationLogView(notification_log)
 
-        # Serialize requested section.
+        # Get serialized section.
         section, is_archived = view.present_section(section_id)
 
-        # Start response.
+        # Start HTTP response.
         status = '200 OK'
         headers = [('Content-type', 'text/plain; charset=utf-8')]
         start_response(status, headers)
 
-        # Return a list of lines.
+        # Return body.
         return [(line + '\n').encode('utf8') for line in section.split('\n')]
+
+A more sophisticated application might include
+an ETag header when responding with the current section, and
+a Cache-Control header when responding with archived sections.
 
 
 RemoteNotificationLog
@@ -751,6 +755,12 @@ proxy for a local notification log on a remote node.
 If a server were running at "base_url" the ``remote_notification_log`` would
 function in the same was as the local notification logs described above, returning
 section objects for section IDs using the square brackets syntax.
+
+If the section objects were created by a ``NotifcationLogView`` that
+had the ``notification_log`` above, we could obtain all the events of an
+application across an HTTP connection, accurately and without great
+complication. This seems like an inherently reliable approach.
+
 See ``test_notificationlog.py`` for an example that uses a Flask app running
 in a local HTTP server to get notifications remotely using these classes.
 
@@ -869,7 +879,8 @@ The position could be persisted, and the persisted value could be
 used to initialise the reader's position when reading is restarted.
 
 In this way, the events of an application can be followed with perfect accuracy
-and without lots of complications. This approach seems to be inherently reliable.
+and without lots of complications. This approach for updating remote
+contexts seems to be inherently reliable.
 
 
 Synchronous update
