@@ -687,7 +687,7 @@ The example below uses the record notification log, constructed above.
     assert domain_events[0].originator_id == first_entity.id
 
 
-A Web application might identify a section ID from an HTTP request
+A Web application could identify a section ID from an HTTP request
 path, and respond by returning an HTTP response with JSON
 content that represents that section of a notification log.
 
