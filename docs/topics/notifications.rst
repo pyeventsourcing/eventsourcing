@@ -5,12 +5,10 @@ Notifications
 This section discusses how to use notifications to
 propagate the domain events of an application.
 
-Basically, if the domain events of an application can be placed in a
-single sequence, the application sequence can be propagated as
-notifications in a standard way, and projections can be updated
+Basically, if the domain events of an application can be placed
+in a single sequence, the application sequence can be propagated
+as notifications in a standard way, and projections can be updated
 as the notifications are received.
-
-.. contents:: :local:
 
 As Vaughn Vernon suggests in his book Implementing Domain Driven Design:
 
@@ -30,15 +28,15 @@ The second option is to have separate datastores for domain
 model and messaging but have a two phase commit, or global
 transaction, across the two.
 
-The third option, which is the option supported by the library,
-is to have the bounded context control notifications. Vaughn
-Vernon suggests the simple logic of an ascending sequence of
-integers can allow others to progress along the application's
-sequence of events.
+The third option is to have the bounded context control
+notifications. Vaughn Vernon suggests the simple logic
+of an ascending sequence of integers can allow others
+to progress along the application's sequence of events.
 
-Before continuing to describe the support provided by the library
-for sequencing all the events of an application, let's setup an
-event store, and a database, which are needed by the examples below.
+.. contents:: :local:
+
+Before continuing with code examples, let's setup an event store,
+and a database, which are needed by the examples below.
 
 .. code:: python
 
@@ -99,6 +97,9 @@ application must have been placed in a single sequence.
 The fundamental concern is to accomplish perfect accuracy
 when propagating the events of an application, so that events
 are not missed, duplicated, jumbled, or unnecessarily delayed.
+
+Like an entity, an application sequence could be sequenced with
+integers or timestamps.
 
 Timestamps
 ~~~~~~~~~~
@@ -165,7 +166,6 @@ library class called ``BigArray``. This technique accepts downstream
 complexity so that capacity is not inherently limited by the technique.
 This technique is recommended for parts of mass consumer applications that
 need to operate at such a scale that the first approach is restrictive.
-
 
 Record managers
 ~~~~~~~~~~~~~~~
