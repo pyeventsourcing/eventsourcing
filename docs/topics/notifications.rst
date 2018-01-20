@@ -665,7 +665,7 @@ Such adapters are not currently provided by this library.
 NotificationLogView
 ~~~~~~~~~~~~~~~~~~~
 
-The library class :func:`~eventsourcing.interface.notificationlog.NotificationLogView`
+The library class :class:`~eventsourcing.interface.notificationlog.NotificationLogView`
 presents sections from a local notification log, and can be used to implement a Web API.
 
 The ``NotificationLogView`` class is constructed with a local ``notification_log``
@@ -751,6 +751,12 @@ a Cache-Control header when responding with archived sections.
 A more standard approach would be to use Atom (application/atom+xml)
 which is a common standard for producing RSS feeds and thus a great
 fit for representing lists of events, rather than ``NotificationLogView``.
+However, just as this library doesn't (currently) have any code that
+generates Atom feeds from domain events, there isn't any code that
+reads domain events from atom feeds. So if you wanted to use Atom
+rather than ``NotificationLogView`` in your API, then you will also
+need to write a version of ``RemoteNotificationLog`` that can work
+with your Atom API.
 
 RemoteNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~
