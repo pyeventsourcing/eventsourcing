@@ -677,7 +677,7 @@ with IDs that form a contiguous integer sequence.
 Application events recorded in this way can be accurately followed as
 a single sequence without overbearing complexity to mitigate gaps and
 race conditions. This feature is only available on the relational
-record managers (not Cassandra).
+record managers (Django and SQLAlchemy, not Cassandra).
 
 If the record ID is merely auto-incrementing, as it is when the
 the library's integer sequenced record classes are used without
