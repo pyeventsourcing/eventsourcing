@@ -186,6 +186,7 @@ class RelationalRecordManager(AbstractRecordManager):
         kwargs = self.get_field_kwargs(sequenced_item)
         return self.record_class(**kwargs)
 
+    # Todo: Drop this, it doesn't really help.
     def __getitem__(self, item=None):
         assert isinstance(item, slice), type(item)
         # start = item.start or 0

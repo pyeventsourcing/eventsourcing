@@ -2,26 +2,36 @@
 Notifications
 =============
 
-This section discusses how a notification log of the domain events
-of an application can be used to update views of the application state.
+This section discusses how the state of an event sourced
+application can be projected from the application's domain
+events.
 
-Other sections in this documentation show how the domain events of an
-entity or aggregate are placed in sequence, and projected to obtain
-the state of an object. With the library's application domain and
-infrastructure layers, it is possible to obtain the state of entity
-or aggregate given its ID. But how is the ID obtained?
+To project the application state accurately, the application's
+domain events can be placed in a single sequence, the application
+sequence can be followed as a sequence of notifications, and
+projections can be updated as notifications are received.
 
-If a user must sign in using their email address, so long as there is
-an up-to-date index of user IDs by email address, the email address can
-be resolved to a user ID. To project the application state, we firstly
-need a sequence of all the events of the application.
+The library has a simple notification mechanism, a notification
+log class that presents notification items in a series of linked
+sections. If an application sequence is adapted as a notification
+log, the application domain events can then be presented as
+notifications in linked sections.
 
-Given a single sequence of events, we need a way to follow them, a way that
-can work locally and across a network, and also work regardless of
-whether or the update is synchronous or asynchronous.
+A local notification log could be presented by an API in a
+serialized format e.g. JSON or Atom XML. A remote notification
+log could access the API and present notification items in a series
+of linked sections, exactly repeating the local notification log.
+
+Having a notification mechanism that is distinct
+from the application sequence implementation means
+that if the raw application sequence were projected
+into a new sequence of items this is more suitable
+for a particular purpose, then this new projection
+could be propagated in the same way as the raw
+sequence, by using the same notification mechanism.
+
 
 .. contents:: :local:
-
 
 
 Propagating events
@@ -34,12 +44,13 @@ As Vaughn Vernon suggests in his book Implementing Domain Driven Design:
     the Events published by the model. This is required to ensure that when the model’s changes are persisted, Event
     delivery is also guaranteed, and that if an Event is delivered through messaging, it indicates a true situation
     reflected by the model that published it. If either of these is out of lockstep with the other, it will lead to
-    incorrect states in one or more interdependent models.”
+    incorrect states in one or more interdependent models”
 
 There are three options, he continues. The first option is to
 have the messaging infrastructure and the domain model share
 the same persistence store, so changes to the model and
 insertion of new messages commit in the same local transaction.
+
 The second option is to have separate datastores for domain
 model and messaging but have a two phase commit, or global
 transaction, across the two.
@@ -48,7 +59,7 @@ The third option is to have the bounded context
 control notifications. Vaughn Vernon is his book
 Implementing Domain Driven Design relies on the simple logic
 of an ascending sequence of integers to allow others to progress
-along the event stream.
+along the application's sequence of events.
 
 Timestamps
 ~~~~~~~~~~
@@ -181,7 +192,7 @@ Please note, the ``SQLAlchemyRecordManager`` is used with the
         event_store=event_store,
     )
 
-The above infrastructure classes are explained
+The infrastructure classes are explained
 in other sections of this documentation.
 
 Record managers
@@ -207,21 +218,15 @@ above was constructed in this way.
 
     from eventsourcing.domain.model.entity import VersionedEntity
 
-    all_records = record_manager[:]
+    all_records = record_manager.all_records()
 
     assert len(all_records) == 0, all_records
 
     first_entity = VersionedEntity.__create__()
 
-    all_records = record_manager[0:5]
+    all_records = record_manager.all_records(start=0, stop=5)
 
     assert len(all_records) == 1, all_records
-
-.. Todo: Change this back to use the all_records() method instead of the [] syntax. Remove the
-.. __getitem__ method from the manager (?) class and change the RecordNotificationLog
-.. to use the all_records() method instead. The [] feels wrong on the record manager because
-.. it isn't obvious whether they it returns sequenced item namedtuples or active record classes
-.. and it's good to cope with some more variation in the notification log classes.
 
 
 BigArray
@@ -417,7 +422,7 @@ big array object.
     assert big_array.get_next_position() == 7
 
 
-Items can be read from the application log using an index or a slice.
+Items can be read from the big array using an index or a slice.
 
 The performance of reading an item at a given index is always constant time
 with respect to the number of the index. The base array ID, and the index of
@@ -434,14 +439,15 @@ array, the iteration proceeds to the next partition.
     assert list(big_array[5:7]) == ['item5', 'item6']
 
 
-The application log can be written to by a persistence policy. References
-to events can be assigned to the application log before the domain event is
+The big array can be written to by a persistence policy. References
+to events could be assigned to the big array before the domain event is
 written to the aggregate's own sequence, so that it isn't possible to store
 an event in the aggregate's sequence that is not already in the application
-log. To do that, construct the application logging policy object before the
+sequence. To do that, construct the application logging policy object before the
 normal application persistence policy. Also, make sure the application
 log policy excludes the events published by the big array (otherwise there
-will be an infinite recursion).
+will be an infinite recursion). If the event fails to write, then the application
+sequence will have a dangling reference, which followers will have to cope with.
 
 Todo: Code example of policy that places application domain events in a big array.
 
@@ -452,9 +458,9 @@ and so may be retried. This leaves an item in the notification log, but not a
 domain event in the aggregate stream (a dangling reference, that may be satisfied later).
 If the command failed due to an operational error, the same event maybe
 published again, and so it would appear twice in the application log.
-And so whilst events in the application log that aren't in the aggregate
+And so, whilst events in the application log that aren't in the aggregate
 sequence can perhaps be ignored by consumers of the application log, care
-should be taken to deduplicate events.
+should be taken by followers to deduplicate events.
 
 If writing the event to its aggregate sequence is successful, then it is
 possible to push a notification about the event to a message queue. Failing
@@ -465,14 +471,14 @@ for events that have not already been sent.
 
 (Please note, using the ``BigArray`` class with the Cassandra record
 manager requires quite a lot of thought to eliminate all sources of
-unreliability. Since it isn't possible to have transactions across
-partitions, writing to the aggregate sequence and the application
+unreliability for followers. Since it isn't possible to have transactions
+across partitions, writing to the aggregate sequence and the application
 sequence will happen in different queries, which means events may be
 found in the application sequence that are not yet in the aggregate
 sequence, and followers will need to decide whether or not the event
 will appear in the aggregate sequence. Under these circumstances, it
 seems inevitable that the application sequence must be corrected
-downstream, adding downstream complexity.)
+downstream by followers, adding downstream complexity.)
 
 
 Notification logs
@@ -484,7 +490,7 @@ presents a sequence of notification items in linked sections.
 Sections are obtained from a notification log using Python's
 "square brackets" sequence index syntax. The key is a section ID.
 A special section ID called "current" can be used to obtain a section
-which contains the latest notification.
+which contains the latest notification (see examples below).
 
 Each section contains a limited number items, the size is fixed by
 the notification log's ``section_size`` constructor argument. When
@@ -512,6 +518,10 @@ such as analytics.
 RecordNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~
 
+If a relational record manager is being used to implement an application
+sequence, then it can also be adapted by the ``RecordNotificationLog``,
+which will then present the application's events as event notifications.
+
 The library class :class:`~eventsourcing.interface.notificationlog.RecordNotificationLog`
 is constructed with a relational ``record_manager``, and a ``section_size``.
 
@@ -537,20 +547,21 @@ is constructed with a relational ``record_manager``, and a ``section_size``.
     assert len(section.items) == 5, section.items
 
 The sections of the record notification log each have notification items that
-reflect the recorded sequenced item.
+reflect the recorded domain event.
 The items (notifications) in the sections from ``RecordNotificationLog``
 are Python dicts with three key-values: ``id``, ``topic``, and ``data``.
 
 The record manager uses its ``sequenced_item_class`` to identify the actual
 names of the record fields containing the topic and the data, and constructs
 the notifications (the dicts) with the values of those fields. The
-notification's data is simple the record data, so if the record data
+notification's data is simply the record data, so if the record data
 was encrypted, the notification data will also be encrypted. The keys of
-the event record notification are not reflective of the sequence item class.
+the event notification do not reflect the sequenced item class
+being used in the record manager.
 
 The ``topic`` value can be resolved to a Python class, such as
 a domain event class. An object instance, such as a domain event
-object, could then be reconstructed using the notification's ``data``.
+object, can then be reconstructed using the notification's ``data``.
 
 In the code below, the function ``resolve_notifications`` shows
 how that can be done (this function doesn't exist in the library).
@@ -615,9 +626,9 @@ uses a ``BigArray`` as the application log, and presents its items in linked sec
     assert section.items == ['item0', 'item1', 'item2', 'item3', 'item4']
 
 Please note, for simplicity, the items in this example are
-just strings ('item0' etc). If the big array were used to sequence the
+just strings ('item0' etc). If the big array is being used to sequence the
 events of an application, it is possible to assign just the item's sequence
-ID and position, and let followers get the actual event.
+ID and position, and let followers get the actual event using those references.
 
 Remote notification logs
 ------------------------
@@ -712,8 +723,8 @@ A Web application could identify a section ID from an HTTP request
 path, and respond by returning an HTTP response with JSON
 content that represents that section of a notification log.
 
-The example below uses the notification log from the
-example above.
+The example uses the library's ``NotificationLogView`` to
+serialize the sections of the record notification log (see above).
 
 .. code:: python
 
@@ -740,6 +751,9 @@ A more sophisticated application might include
 an ETag header when responding with the current section, and
 a Cache-Control header when responding with archived sections.
 
+A more standard approach would be to use Atom (application/atom+xml)
+which is a common standard for producing RSS feeds and thus a great
+fit for representing lists of events.
 
 RemoteNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~
