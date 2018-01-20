@@ -14,6 +14,7 @@ def construct_sqlalchemy_eventstore(session,
                                     json_decoder_class=ObjectJSONDecoder,
                                     cipher=None,
                                     record_class=None,
+                                    contiguous_record_ids=False,
                                     ):
     sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=sequenced_item_class,
@@ -26,7 +27,8 @@ def construct_sqlalchemy_eventstore(session,
     record_manager = SQLAlchemyRecordManager(
         session=session,
         record_class=record_class or StoredEventRecord,
-        sequenced_item_class = sequenced_item_class,
+        sequenced_item_class=sequenced_item_class,
+        contiguous_record_ids=contiguous_record_ids,
     )
     event_store = EventStore(
         record_manager=record_manager,

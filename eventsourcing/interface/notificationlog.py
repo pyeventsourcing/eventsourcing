@@ -126,10 +126,10 @@ class LocalNotificationLog(AbstractNotificationLog):
         return '{},{}'.format(first_item_number, last_item_number)
 
 
-class RecordNotificationLog(LocalNotificationLog):
+class RecordManagerNotificationLog(LocalNotificationLog):
 
     def __init__(self, record_manager, section_size):
-        super(RecordNotificationLog, self).__init__(section_size)
+        super(RecordManagerNotificationLog, self).__init__(section_size)
         assert isinstance(record_manager, AbstractRecordManager), record_manager
         self.record_manager = record_manager
 

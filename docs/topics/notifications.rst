@@ -205,7 +205,7 @@ using the ``all_records()`` method of the record manager.
 
     assert len(all_records) == 1, all_records
 
-The local notification log class ``RecordNotificationLog``
+The local notification log class ``RecordManagerNotificationLog``
 (see below) can adapt record managers, presenting the
 application sequence as notifications in a standard way.
 
@@ -488,7 +488,7 @@ last notification it has already received, and then go forward until
 all existing notifications have been received.
 
 The section ID numbering scheme follows Vaughn Vernon's book.
-Section IDs are strings: either 'current'; or a string formatted
+Section IDs are strings: a string formatted
 with two integers separated by a comma. The integers represent
 the first and last number of the items included in a section.
 
@@ -502,26 +502,29 @@ such as analytics.
 A local notification log could be
 presented by an API in a serialized format e.g. JSON or Atom
 XML. A remote notification log could then access the API and
-present notification items in the same way as a local
-notification log. The section documents could then be cached.
+provide notification items in the standard way. The serialized
+section documents could then be cached using standard cacheing
+mechanisms.
 
+Local notification logs
+-----------------------
 
-RecordNotificationLog
-~~~~~~~~~~~~~~~~~~~~~
+RecordManagerNotificationLog
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A relational record manager can be adapted by the library class
-:class:`~eventsourcing.interface.notificationlog.RecordNotificationLog`,
+:class:`~eventsourcing.interface.notificationlog.RecordManagerNotificationLog`,
 which will then present the application's events as notifications.
 
-The ``RecordNotificationLog`` is constructed with a ``record_manager``,
+The ``RecordManagerNotificationLog`` is constructed with a ``record_manager``,
 and a ``section_size``.
 
 .. code:: python
 
-    from eventsourcing.interface.notificationlog import RecordNotificationLog
+    from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 
     # Construct notification log.
-    notification_log = RecordNotificationLog(record_manager, section_size=5)
+    notification_log = RecordManagerNotificationLog(record_manager, section_size=5)
 
     # Get the "current" section from the record notification log.
     section = notification_log['current']
@@ -539,7 +542,7 @@ and a ``section_size``.
 
 The sections of the record notification log each have notification items that
 reflect the recorded domain event.
-The items (notifications) in the sections from ``RecordNotificationLog``
+The items (notifications) in the sections from ``RecordManagerNotificationLog``
 are Python dicts with three key-values: ``id``, ``topic``, and ``data``.
 
 The record manager uses its ``sequenced_item_class`` to identify the actual
@@ -580,11 +583,16 @@ reconstructing the domain event. In this example, the sequenced
 item mapper does not have a cipher, so the notification data is
 not encrypted.
 
+The library's ``SimpleApplication`` has a ``notification_log`` that
+uses this ``RecordManagerNotificationLog`` class.
+
+.. Todo: Move that function into the library, where? Perhaps subclass
+.. NotificationLogReader with EventNotificationLogReader?
 
 BigArrayNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Skip this section if you skipped the section about BigArray.
+You can skip this section if you skipped the section about BigArray.
 
 A big array can be adapted by the library class
 :class:`~eventsourcing.interface.notificationlog.BigArrayNotificationLog`,

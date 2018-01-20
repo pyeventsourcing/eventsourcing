@@ -5,7 +5,7 @@ from uuid import uuid4
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.repositories.array import BigArrayRepository
 from eventsourcing.interface.notificationlog import BigArrayNotificationLog, NotificationLogReader, \
-    NotificationLogView, RecordNotificationLog, RemoteNotificationLog
+    NotificationLogView, RecordManagerNotificationLog, RemoteNotificationLog
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers
@@ -32,7 +32,7 @@ class NotificationLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolic
             self.append_notification(item)
 
     def create_notification_log(self, section_size):
-        return RecordNotificationLog(self._entity_record_manager, section_size)
+        return RecordManagerNotificationLog(self._entity_record_manager, section_size)
 
     def append_notification(self, item):
         sequenced_item = self._entity_record_manager.sequenced_item_class(
