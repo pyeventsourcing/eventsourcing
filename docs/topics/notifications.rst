@@ -81,11 +81,11 @@ and a database, which are needed by the examples below.
         event_store=event_store,
     )
 
-The infrastructure classes are explained
-in other sections of this documentation.
-
 Please note, the ``SQLAlchemyRecordManager`` is has its
 ``contiguous_record_ids`` option enabled.
+
+The infrastructure classes are explained
+in other sections of this documentation.
 
 
 Application sequence
