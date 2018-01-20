@@ -2,40 +2,15 @@
 Notifications
 =============
 
-This section discusses how the state of an event sourced
-application can be projected from the application's domain
-events.
+This section discusses how to use notifications to
+propagate the domain events of an application.
 
-To project the application state accurately, the application's
-domain events can be placed in a single sequence, the application
-sequence can be followed as a sequence of notifications, and
-projections can be updated as notifications are received.
-
-The library has a simple notification mechanism, a notification
-log class that presents notification items in a series of linked
-sections. If an application sequence is adapted as a notification
-log, the application domain events can then be presented as
-notifications in linked sections.
-
-A local notification log could be presented by an API in a
-serialized format e.g. JSON or Atom XML. A remote notification
-log could access the API and present notification items in a series
-of linked sections, exactly repeating the local notification log.
-
-Having a notification mechanism that is distinct
-from the application sequence implementation means
-that if the raw application sequence were projected
-into a new sequence of items this is more suitable
-for a particular purpose, then this new projection
-could be propagated in the same way as the raw
-sequence, by using the same notification mechanism.
-
+Basically, if the domain events of an application can be placed in a
+single sequence, the application sequence can be propagated as
+notifications in a standard way, and projections can be updated
+as the notifications are received.
 
 .. contents:: :local:
-
-
-Propagating events
-------------------
 
 As Vaughn Vernon suggests in his book Implementing Domain Driven Design:
 
@@ -55,11 +30,75 @@ The second option is to have separate datastores for domain
 model and messaging but have a two phase commit, or global
 transaction, across the two.
 
-The third option is to have the bounded context
-control notifications. Vaughn Vernon is his book
-Implementing Domain Driven Design relies on the simple logic
-of an ascending sequence of integers to allow others to progress
-along the application's sequence of events.
+The third option, which is the option supported by the library,
+is to have the bounded context control notifications. Vaughn
+Vernon suggests the simple logic of an ascending sequence of
+integers can allow others to progress along the application's
+sequence of events.
+
+Before continuing to describe the support provided by the library
+for sequencing all the events of an application, let's setup an
+event store, and a database, which are needed by the examples below.
+
+.. code:: python
+
+    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
+    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+    from eventsourcing.infrastructure.eventstore import EventStore
+    from eventsourcing.infrastructure.repositories.array import BigArrayRepository
+    from eventsourcing.application.policies import PersistencePolicy
+    from eventsourcing.infrastructure.sequenceditem import StoredEvent
+    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+
+    # Setup the database.
+    datastore = SQLAlchemyDatastore(
+        settings=SQLAlchemySettings(),
+        tables=[StoredEventRecord],
+    )
+    datastore.setup_connection()
+    datastore.setup_tables()
+
+    # Setup the record manager.
+    record_manager = SQLAlchemyRecordManager(
+        session=datastore.session,
+        record_class=StoredEventRecord,
+        sequenced_item_class=StoredEvent,
+        contiguous_record_ids=True,
+    )
+
+    # Setup a sequenced item mapper.
+    sequenced_item_mapper = SequencedItemMapper(
+        sequenced_item_class=StoredEvent,
+    )
+
+    # Setup the event store.
+    event_store = EventStore(
+        record_manager=record_manager,
+        sequenced_item_mapper=sequenced_item_mapper
+    )
+
+    # Set up a persistence policy.
+    persistence_policy = PersistencePolicy(
+        event_store=event_store,
+    )
+
+The infrastructure classes are explained
+in other sections of this documentation.
+
+Please note, the ``SQLAlchemyRecordManager`` is has its
+``contiguous_record_ids`` option enabled.
+
+
+Application sequence
+--------------------
+
+In order to follow the applications events, the events of the
+application must have been placed in a single sequence.
+
+The fundamental concern is to accomplish perfect accuracy
+when propagating the events of an application, so that events
+are not missed, duplicated, jumbled, or unnecessarily delayed.
 
 Timestamps
 ~~~~~~~~~~
@@ -128,91 +167,29 @@ This technique is recommended for parts of mass consumer applications that
 need to operate at such a scale that the first approach is restrictive.
 
 
-Application sequence
---------------------
-
-The fundamental concern is to accomplish perfect accuracy
-when propagating the events of an application, so that events are neither
-missed, nor duplicated, nor jumbled. The general idea is that once the
-sequence of events has been assembled, it can be followed.
-
-In order to update a projection of the application state as a
-whole, all the events of the application must have been placed
-in a single sequence. We need to be able to follow the sequence
-reliably, even as it is being written. We don't want any gaps,
-or out-of-order items, or duplicates, or race conditions.
-
-Before continuing to describe the support provided by the library
-for sequencing all the events of an application, let's setup an
-event store, and a database, needed by the examples below.
-
-Please note, the ``SQLAlchemyRecordManager`` is used with the
-``contiguous_record_ids`` option enabled.
-
-.. code:: python
-
-    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
-    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
-    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
-    from eventsourcing.infrastructure.eventstore import EventStore
-    from eventsourcing.infrastructure.repositories.array import BigArrayRepository
-    from eventsourcing.application.policies import PersistencePolicy
-    from eventsourcing.infrastructure.sequenceditem import StoredEvent
-    from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-
-    # Setup the database.
-    datastore = SQLAlchemyDatastore(
-        settings=SQLAlchemySettings(),
-        tables=[StoredEventRecord],
-    )
-    datastore.setup_connection()
-    datastore.setup_tables()
-
-    # Setup the record manager.
-    record_manager = SQLAlchemyRecordManager(
-        session=datastore.session,
-        record_class=StoredEventRecord,
-        sequenced_item_class=StoredEvent,
-        contiguous_record_ids=True,
-    )
-
-    # Setup a sequenced item mapper.
-    sequenced_item_mapper = SequencedItemMapper(
-        sequenced_item_class=StoredEvent,
-    )
-
-    # Setup the event store.
-    event_store = EventStore(
-        record_manager=record_manager,
-        sequenced_item_mapper=sequenced_item_mapper
-    )
-
-    # Set up a persistence policy.
-    persistence_policy = PersistencePolicy(
-        event_store=event_store,
-    )
-
-The infrastructure classes are explained
-in other sections of this documentation.
-
 Record managers
 ~~~~~~~~~~~~~~~
 
-A relational record manager with an integer sequenced record class
-can function as an application sequence, especially when using the
-``contiguous_record_ids`` option of the library's relational record
-managers. This technique ensures that whenever an aggregate command returns
-successfully, any events will already have been successfully placed in
-both the aggregate's and the application's sequence. This approach provides simplicity and
-perfect accuracy, at the cost of an upper limit to rate as with records can be
-written: aggregate commands will experience concurrency errors if they attempt to record
-events simultaneously with others (in which case they will need to be
-retried).
+A relational record manager can function as an application sequence,
+especially with an integer sequenced record class and the
+``contiguous_record_ids`` option enabled, but also with the timestamp
+sequenced record classes. This technique ensures that whenever an
+aggregate command returns successfully, any events will already have
+been successfully placed in both the aggregate's and the application's
+sequence.
+
+This approach provides simplicity and perfect accuracy, at
+the cost of an upper limit to rate at with records can be written:
+aggregate commands will experience concurrency errors if they attempt
+to record events simultaneously with others (in which case they will
+need to be retried). Performance testing is advisable to check whether
+this limit is restrictive in your situation.
 
 To use this approach, simply use the ``IntegerSequencedRecord`` or the
 ``StoredEventRecord`` classes with the ``contiguous_record_ids`` constructor
 argument of the record manager set to a True value. The ``record_manager``
-above was constructed in this way.
+above was constructed in this way. The records can be then be obtained
+using the ``all_records()`` method of the record manager.
 
 .. code:: python
 
@@ -227,6 +204,10 @@ above was constructed in this way.
     all_records = record_manager.all_records(start=0, stop=5)
 
     assert len(all_records) == 1, all_records
+
+The local notification log class ``RecordNotificationLog``
+(see below) can adapt record managers, presenting the
+application sequence as notifications in a standard way.
 
 
 BigArray
@@ -244,13 +225,12 @@ that iterating through the sequence is slow and expensive. We also want
 the application log effectively to have constant time read and write
 operations for normal usage.
 
-The library class
-:class:`~eventsourcing.domain.model.array.BigArray` satisfies these
-requirements quite well, by spanning across many such partitions. It
-is a tree of arrays, with a root array
-that stores references to the current apex, with an apex that contains
-references to arrays, which either contain references to lower arrays
-or contain the items assigned to the big array. Each array uses one database
+The library class :class:`~eventsourcing.domain.model.array.BigArray`
+satisfies these requirements quite well, by spanning across many such
+partitions. It is a tree of arrays, with a root array that stores
+references to the current apex, with an apex that contains references
+to arrays, which either contain references to lower arrays or contain
+the items assigned to the big array. Each array uses one database
 partition, limited in size (the array size) to ensure the partition
 is never too large. The identity of each array can be calculated directly
 from the index number, so it is possible to identify arrays directly
@@ -480,6 +460,10 @@ will appear in the aggregate sequence. Under these circumstances, it
 seems inevitable that the application sequence must be corrected
 downstream by followers, adding downstream complexity.)
 
+The local notification log class ``BigArrayNotificationLog``
+(see below) can adapt big arrays, presenting the assigned items
+as notifications in a standard way.
+
 
 Notification logs
 -----------------
@@ -515,15 +499,22 @@ for example a projection of the application sequence, where the
 events are rendered in a particular way for a particular purpose,
 such as analytics.
 
+A local notification log could be
+presented by an API in a serialized format e.g. JSON or Atom
+XML. A remote notification log could then access the API and
+present notification items in the same way as a local
+notification log. The section documents could then be cached.
+
+
 RecordNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~
 
-If a relational record manager is being used to implement an application
-sequence, then it can also be adapted by the ``RecordNotificationLog``,
-which will then present the application's events as event notifications.
+A relational record manager can be adapted by the library class
+:class:`~eventsourcing.interface.notificationlog.RecordNotificationLog`,
+which will then present the application's events as notifications.
 
-The library class :class:`~eventsourcing.interface.notificationlog.RecordNotificationLog`
-is constructed with a relational ``record_manager``, and a ``section_size``.
+The ``RecordNotificationLog`` is constructed with a ``record_manager``,
+and a ``section_size``.
 
 .. code:: python
 
@@ -595,8 +586,12 @@ BigArrayNotificationLog
 
 Skip this section if you skipped the section about BigArray.
 
-The library class :class:`~eventsourcing.interface.notificationlog.BigArrayNotificationLog`
-uses a ``BigArray`` as the application log, and presents its items in linked sections.
+A big array can be adapted by the library class
+:class:`~eventsourcing.interface.notificationlog.BigArrayNotificationLog`,
+which will then present the items assigned to the array as notifications.
+
+The ``BigArrayNotificationLog`` is constructed with a ``big_array``,
+and a ``section_size``.
 
 .. code:: python
 
@@ -718,6 +713,8 @@ The example below uses the record notification log, constructed above.
     assert isinstance(domain_events[0], VersionedEntity.Created)
     assert domain_events[0].originator_id == first_entity.id
 
+Notification API
+~~~~~~~~~~~~~~~~
 
 A Web application could identify a section ID from an HTTP request
 path, and respond by returning an HTTP response with JSON
@@ -753,7 +750,7 @@ a Cache-Control header when responding with archived sections.
 
 A more standard approach would be to use Atom (application/atom+xml)
 which is a common standard for producing RSS feeds and thus a great
-fit for representing lists of events.
+fit for representing lists of events, rather than ``NotificationLogView``.
 
 RemoteNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~
@@ -806,7 +803,7 @@ Notification log reader
 The library object class
 :class:`~eventsourcing.interface.notificationlog.NotificationLogReader` effectively
 functions as an iterator, yielding a continuous sequence of notifications that
-it discovers from the sections of a notification log (local or remote).
+it discovers from the sections of a notification log, local or remote.
 
 A notification log reader object will navigate the linked sections of a notification
 log, backwards from the "current" section of the notification log, until reaching the position
