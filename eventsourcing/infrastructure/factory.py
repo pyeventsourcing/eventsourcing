@@ -6,6 +6,7 @@ class InfrastructureFactory(object):
     record_manager_class = AbstractRecordManager
     sequenced_item_class = SequencedItem
     integer_sequenced_record_class = None
+    integer_sequenced_noid_record_class = None
     timestamp_sequenced_record_class = None
     snapshot_record_class = None
 
@@ -32,6 +33,7 @@ class InfrastructureFactory(object):
         self.session = session
 
     def construct_integer_sequenced_record_manager(self):
+        assert self.integer_sequenced_record_class
         return self.construct_record_manager(
             record_class=self.integer_sequenced_record_class,
             sequenced_item_class=self.sequenced_item_class

@@ -386,7 +386,7 @@ class TimestampedEventExample2(EventWithTimestamp, EventWithOriginatorID):
     pass
 
 
-class IntegerSequencedItemTestCase(RecordManagerTestCase):
+class IntegerSequencedRecordTestCase(RecordManagerTestCase):
     EXAMPLE_EVENT_TOPIC1 = get_topic(VersionedEventExample1)
     EXAMPLE_EVENT_TOPIC2 = get_topic(VersionedEventExample2)
 
@@ -395,7 +395,6 @@ class IntegerSequencedItemTestCase(RecordManagerTestCase):
 
     def construct_record_manager(self):
         return self.factory.construct_integer_sequenced_record_manager()
-
 
 
 class TimestampSequencedItemTestCase(RecordManagerTestCase):

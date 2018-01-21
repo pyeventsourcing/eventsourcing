@@ -1,5 +1,5 @@
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
-from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \
+from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedRecordTestCase, \
     SimpleSequencedItemteratorTestCase, ThreadedSequencedItemIteratorTestCase, TimestampSequencedItemTestCase, \
     WithRecordManagers
 
@@ -9,7 +9,7 @@ class WithSQLAlchemyRecordManagers(SQLAlchemyDatastoreTestCase, WithRecordManage
 
 
 class TestSQLAlchemyRecordManagerWithIntegerSequences(WithSQLAlchemyRecordManagers,
-                                                      IntegerSequencedItemTestCase):
+                                                      IntegerSequencedRecordTestCase):
     pass
 
 

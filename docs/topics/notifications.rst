@@ -33,6 +33,8 @@ notifications. Vaughn Vernon suggests the simple logic
 of an ascending sequence of integers can allow others
 to progress along the application's sequence of events.
 
+It is the third option that is pursued below.
+
 .. contents:: :local:
 
 Before continuing with code examples, let's setup an event store,
@@ -91,14 +93,15 @@ in other sections of this documentation.
 Application sequence
 --------------------
 
-In order to follow the applications events, the events of the
-application must have been placed in a single sequence.
-
-The fundamental concern is to accomplish perfect accuracy
+The fundamental concern here is to accomplish perfect accuracy
 when propagating the events of an application, so that events
 are not missed, duplicated, jumbled, or unnecessarily delayed.
 
-The events of an application sequence could be sequenced with integers or timestamps.
+The events of an application sequence could be sequenced with
+timestamps and integers. Sequencing the application events
+by timestamp is supported by the relational timestamp sequenced
+record classes, in that their position column is indexed.
+However, the notification logs only work with integer sequences.
 
 Timestamps
 ~~~~~~~~~~
@@ -139,12 +142,12 @@ application events in certain order. Following this sequence will be as reliable
 timestamps given to the events. So if you use this class in this way, do make sure your
 clocks are in sync.
 
-(An improvement to this class could be to have another timestamp field that is populated
-by the database server, and index that instead of the application event's timestamp which
-would vary according to the variation between the clock of application servers. Code
-changes and other suggestions are always welcome.)
-
 Todo: Code example.
+
+(An improvement could be to have a  timestamp field that is populated
+by the database server, and index that instead of the application event's
+timestamp which would vary according to the variation between the clock
+of application servers. Code changes and other suggestions are always welcome.)
 
 Contiguous integers
 ~~~~~~~~~~~~~~~~~~~
@@ -157,40 +160,43 @@ of integers. Two such techniques are described below.
 The first approach uses the library's relational record managers with integer
 sequenced record classes. The ID column of the record class is used to place
 all the application's event records in a single sequence. This technique is
-recommended for enterprise applications, and the early stages of more ambitious
-projects.
+recommended for enterprise applications, and at least the earlier stages of
+more ambitious projects.
 
 Secondly, a much more complicated, but possibly more scalable, approach uses a
 library class called ``BigArray`` to build a sequence of all the events of an
-application. This technique can be used as an alternative to a database index,
-especially in situations where a normal database index across all records IDs is
-generally discouraged (e.g. in Cassandra), undesirable for performance reasons
-due to the size of the index, or otherwise not supported by the database.
-Is recommended for mass consumer contexts that need to operate at such a
-scale that the first approach is restrictive.
+application. This technique can be used as an alternative to using a native
+database index on the record table, especially in situations where a normal
+database index across all records is generally discouraged (e.g. in
+Cassandra), or where records do not have an integer ID or timestamp that can be
+indexed (e.g. all the library's record classes for Cassandra, and the
+``IntegerSequencedNoIDRecord`` for SQLAlchemy, or when storing an index for
+a large number of records in a single partition is undesirable for
+infrastructure or performance reasons, or is not supported by the database.
 
 Record managers
 ~~~~~~~~~~~~~~~
 
 A relational record manager can function as an application sequence,
-when it's record class has an ID field, and especially when the
+especially when it's record class has an ID field, and more so when the
 ``contiguous_record_ids`` option is enabled. This technique ensures
 that whenever an entity or aggregate command returns successfully,
 any events will already have been simultaneously placed in both the
 aggregate's and the application's sequence. Importantly, if inserting
-an event hits a uniqueness constraint for either the entity or the
-application sequence, and the transaction is rolled back, then the
-event will appear in neither sequence.
+an event hits a uniqueness constraint and the transaction is rolled
+back, the event will not appear in either sequence.
 
 This approach provides perfect accuracy with great simplicity for
 followers, but at the cost of slightly reducing the maximum total
 rate at with records can be written into the database. The
-``contiguous_record_ids`` feature excutes an "insert select from"
+``contiguous_record_ids`` feature executes an "insert select from"
 SQL statement that generates contiguous record IDs when records
 are inserted, on the database-side as a clause in the insert statement,
-by selecting the maximum existing ID in the table. Accessing the ID
-index to find the maximum value should be an efficient operation,
-but it may cause the insert statements to be fractionally slower.
+by selecting the maximum existing ID in the table, adding one, and
+inserting that value with the event values that are bound to the
+prepared statement. Accessing the ID index to find the maximum
+value should be an efficient operation, but it may cause the insert
+statements to be fractionally slower.
 
 Because the IDs must be unique, applications may experience the library's
 ``ConcurrencyErrors`` exception if they happen to insert records

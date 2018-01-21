@@ -32,6 +32,9 @@ class NotificationLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolic
     def create_notification_log(self, section_size):
         return RecordManagerNotificationLog(self.entity_record_manager, section_size)
 
+    def construct_entity_record_manager(self):
+        return self.factory.construct_integer_sequenced_record_manager()
+
     def append_notification(self, item):
         sequenced_item = self.entity_record_manager.sequenced_item_class(
             uuid4(),

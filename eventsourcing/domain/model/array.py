@@ -140,6 +140,7 @@ class Array(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+
 class BigArray(Array):
     """
     A virtual array holding items in indexed

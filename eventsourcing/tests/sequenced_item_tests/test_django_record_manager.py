@@ -12,7 +12,7 @@ from eventsourcing.infrastructure.django.factory import DjangoInfrastructureFact
 
 from django.test import TransactionTestCase
 
-from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, TimestampSequencedItemTestCase
+from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedRecordTestCase, TimestampSequencedItemTestCase
 
 
 class DjangoTestCase(TransactionTestCase):
@@ -26,7 +26,7 @@ class DjangoTestCase(TransactionTestCase):
 
 
 # @skipIf(six.PY2, 'Django 2.0 does not support Python 2.7')  # using 1.11
-class TestDjangoRecordManagerWithIntegerSequences(DjangoTestCase, IntegerSequencedItemTestCase):
+class TestDjangoRecordManagerWithIntegerSequences(DjangoTestCase, IntegerSequencedRecordTestCase):
     def construct_record_manager(self):
         return self.construct_entity_record_manager()
 
