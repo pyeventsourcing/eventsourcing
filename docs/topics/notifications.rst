@@ -157,28 +157,39 @@ application's sequence of events perfectly, without any risk of gaps or duplicat
 or jumbled items, or race conditions), we can generate and follow a contiguous sequence
 of integers. Two such techniques are described below.
 
-The first approach uses the library's relational record managers with integer
-sequenced record classes. The ID column of the record class is used to place
+The first technique uses the library's relational record managers with record
+classes that have an indexed integer ID column. Record IDs can be used to place
 all the application's event records in a single sequence. This technique is
 recommended for enterprise applications, and at least the earlier stages of
-more ambitious projects.
+more ambitious projects. There is an inherent limit to the rate at which
+an application can write events using this technique, which essentially follows
+from the need to write events in series. The rate limit is the reciprocal
+of the time it takes to write one event record.
 
-Secondly, a much more complicated, but possibly more scalable, approach uses a
-library class called ``BigArray`` to build a sequence of all the events of an
-application. This technique can be used as an alternative to using a native
-database index on the record table, especially in situations where a normal
-database index across all records is generally discouraged (e.g. in
-Cassandra), or where records do not have an integer ID or timestamp that can be
-indexed (e.g. all the library's record classes for Cassandra, and the
-``IntegerSequencedNoIDRecord`` for SQLAlchemy, or when storing an index for
-a large number of records in a single partition is undesirable for
-infrastructure or performance reasons, or is not supported by the database.
+Given the rate limit, it would take quite a long time to fill up a properly
+provisioned database table. Nevertheless, if the volume of domain event
+records in your system inclines you towards partitioning the table of stored
+events, or if your database works in this way (Cassandra) the table would
+need to be partitioned by sequence ID, and so maintaining an index of record
+IDs across such partitions, and hence sequencing the events of an application
+in this way, will be problematic.
+
+To proceed without an indexed record ID column, the library class ``BigArray``
+can be used to sequence of all the events of an application. This technique
+can be used as an alternative to using a native database index of record IDs,
+especially in situations where a normal database index across all records is
+generally discouraged (e.g. in Cassandra), or where records do not have an
+integer ID or timestamp that can be indexed (e.g. all the library's record
+classes for Cassandra, and the ``IntegerSequencedNoIDRecord`` for SQLAlchemy,
+or when storing an index for a large number of records in a single partition
+is undesirable for infrastructure or performance reasons, or is not supported
+by the database.
 
 Record managers
 ~~~~~~~~~~~~~~~
 
 A relational record manager can function as an application sequence,
-especially when it's record class has an ID field, and more so when the
+especially when its record class has an ID field, and more so when the
 ``contiguous_record_ids`` option is enabled. This technique ensures
 that whenever an entity or aggregate command returns successfully,
 any events will already have been simultaneously placed in both the
@@ -187,40 +198,40 @@ an event hits a uniqueness constraint and the transaction is rolled
 back, the event will not appear in either sequence.
 
 This approach provides perfect accuracy with great simplicity for
-followers, but at the cost of slightly reducing the maximum total
-rate at with records can be written into the database. The
-``contiguous_record_ids`` feature executes an "insert select from"
-SQL statement that generates contiguous record IDs when records
-are inserted, on the database-side as a clause in the insert statement,
-by selecting the maximum existing ID in the table, adding one, and
-inserting that value with the event values that are bound to the
-prepared statement. Accessing the ID index to find the maximum
-value should be an efficient operation, but it may cause the insert
-statements to be fractionally slower.
+followers, but it has a maximum total rate at which records can be
+written into the database. In particular, the ``contiguous_record_ids``
+feature executes an "insert select from" SQL statement that generates
+contiguous record IDs when records are inserted, on the database-side
+as a clause in the insert statement, by selecting the maximum existing
+ID in the table, adding one, and inserting that value, along with the
+event data.
 
 Because the IDs must be unique, applications may experience the library's
 ``ConcurrencyErrors`` exception if they happen to insert records
-simultaneously with others. Record ID conflicts are retried by the library
-before a ``ConcurrencyError`` exception is raised. With a load
-beyond the capability of a service, increased congestion will be
-experienced as an increased frequency of ConcurrencyErrors.
+simultaneously with others. Record ID conflicts are retried a finite
+number of times by the library before a ``ConcurrencyError`` exception
+is raised. But with a load beyond the capability of a service, increased
+congestion will be experienced as an increased frequency of ConcurrencyErrors.
 
 Please note, without the ``contiguous_record_ids`` feature enabled,
-the most of the library record classses have an auto-incrementing ID
-which can be used to get all the records in the order they were written.
-The trouble with following a non-contiguous sequence of integers is
-that there will be gaps in the sequence of record IDs, which could
-lead to race conditions and missed items. The gaps need to be
-negociated, which is complicated. To keep things simple, record managers
-that do not have ``contiguous_record_ids`` enabled cannot be used with
-the library's ``RecordManagerNotificationLog`` class (introduced below).
+the ID columns of library record classes fall back to the auto-incrementing
+default, and so the record IDs can anyway be used to get all the records in
+the order they were written. However, auto-incrementing the ID can lead to
+a sequence of IDs that has gaps, a non-contiguous sequence, which could lead
+to race conditions and missed items. The gaps would need to be negociated,
+which is relatively complicated. To keep things relatively simple, a record
+manager that does not have the ``contiguous_record_ids`` feature enabled cannot
+be used with the library's ``RecordManagerNotificationLog`` class (introduced
+below). If you want to sequence the application events with a non-contiguous
+sequence, then you will need to write something that can negotiate the gaps.
 
-To use this approach, simply use the ``IntegerSequencedRecord`` or the
-``StoredEventRecord`` classes with the ``contiguous_record_ids`` constructor
-argument of the record manager set to a True value. The ``record_manager``
+To use contiguous IDs to sequence the events of an application, simply use a
+relational record manager with an ``IntegerSequencedRecord`` or the
+``StoredEventRecord`` record class, and with a True value for its
+``contiguous_record_ids`` constructor argument. The ``record_manager``
 above was constructed in this way. The records can be then be obtained
 using the ``all_records()`` method of the record manager. The record IDs
-will form a contiguous sequence.
+will form a contiguous sequence, suitable for the ``RecordManagerNotificationLog``.
 
 .. code:: python
 
@@ -245,13 +256,13 @@ BigArray
 ~~~~~~~~
 
 This is a long section, and can be skipped if you aren't currently
-required to scale capacity beyond the capacity of a relational
-database table supported by your infrastructure.
+required to scale beyond the limits of a database table that has
+indexed record IDs.
 
 To support ultra-high capacity requirements, the application sequence must
 be capable of having a very large number of events, neither swamping
 an individual database partition (in Cassandra) nor distributing
-things across partitions (or shards) without any particular order so
+things across table partitions without any particular order so
 that iterating through the sequence is slow and expensive. We also want
 the application log effectively to have constant time read and write
 operations for normal usage.
@@ -362,7 +373,7 @@ appended, and contention will eventually lead to congestion that will cause
 requests to backup or be spilled.
 
 The rate of assigning items to the big array can be greatly increased
-by centralizing the generation of the sequence of integers. Instead of
+by factoring out the generation of the sequence of integers. Instead of
 discovering the next position from the array each time an item is assigned,
 an integer sequence generator can be used to generate a contiguous sequence
 of integers. This technique eliminates contention around assigning items to
@@ -370,8 +381,8 @@ the big array entirely. In consequence, the bandwidth of assigning to a big
 array using an integer sequence generator is much greater than using the
 ``append()`` method.
 
-If the application is executed in only one process, the number generator can
-be a simple Python object. The library class
+If the application is executed in only one process, for example during development,
+the number generator can be a simple Python object. The library class
 :class:`~eventsourcing.infrastructure.integersequencegenerators.base.SimpleIntegerSequenceGenerator`
 generates a contiguous sequence of integers that can be shared across multiple
 threads in the same process.
@@ -460,18 +471,30 @@ log policy excludes the events published by the big array (otherwise there
 will be an infinite recursion). If the event fails to write, then the application
 sequence will have a dangling reference, which followers will have to cope with.
 
+Alternatively, if the database supports transactions across different tables
+(not Cassandra), the big array assignment and the event record insert can be
+done in the same transaction, so they both appear or neither does. This will
+help to avoid some complexity for followers. The library currently doesn't
+have any code that writes to both in the same transaction.
+
 Todo: Code example of policy that places application domain events in a big array.
 
-Commands that fail to write to the aggregate's sequence (due to an operation
-error or concurrency error) after the event has been logged in the application log
-should probably raise an exception, so that the command is seen to have failed
-and so may be retried. This leaves an item in the notification log, but not a
-domain event in the aggregate stream (a dangling reference, that may be satisfied later).
-If the command failed due to an operational error, the same event maybe
-published again, and so it would appear twice in the application log.
-And so, whilst events in the application log that aren't in the aggregate
-sequence can perhaps be ignored by consumers of the application log, care
-should be taken by followers to deduplicate events.
+If the big array item is not assigned in the same separate transaction as
+the event record is inserted, commands that fail to insert the event record
+after the event has been assigned to the big array (due to an operation error
+or a concurrency error) should probably raise an exception, so that the
+command is seen to have failed and so may be retried. An event would then
+be in the application sequence but not in the aggregate sequence, which is
+effectively a dangling reference, one that may or may not be satisfied later.
+If the event record insert failed due to an operational error, and the command
+is retried, a new event at the same position in the same sequence may be published,
+and so it would appear twice in the application sequence. And so, whilst dangling
+references in the application log can perhaps be filtered out by followers after
+a delay, care should be taken by followers to deduplicate events.
+
+It may also happen that an item fails to be assigned to the big array. In this case,
+an ID that was issued by an integer sequence generator would be lost. The result
+would be a gap, that would need to be negotiated by followers.
 
 If writing the event to its aggregate sequence is successful, then it is
 possible to push a notification about the event to a message queue. Failing
@@ -480,20 +503,17 @@ normally. Push notifications could also be generated by another process,
 something that pulls from the application log, and pushes notifications
 for events that have not already been sent.
 
-(Please note, using the ``BigArray`` class with the Cassandra record
-manager requires quite a lot of thought to eliminate all sources of
-unreliability for followers. Since it isn't possible to have transactions
-across partitions, writing to the aggregate sequence and the application
-sequence will happen in different queries, which means events may be
-found in the application sequence that are not yet in the aggregate
-sequence, and followers will need to decide whether or not the event
-will appear in the aggregate sequence. Under these circumstances, it
-seems inevitable that the application sequence must be corrected
-downstream by followers, adding downstream complexity.)
+Since we can imagine there is quite a lot of noise in the sequence, it may
+be useful to process the application sequence within the context by
+constructing another sequence that does not have duplicates or gaps, and
+then propagating that sequence.
 
 The local notification log class ``BigArrayNotificationLog``
 (see below) can adapt big arrays, presenting the assigned items
-as notifications in a standard way.
+as notifications in a standard way. Gaps in the array will result in
+notification items of ``None``. But where there are gaps, there
+can be race conditions, where the gaps are filled. Only a contiguous
+sequence, which has no gaps, can exclude gaps being filled later.
 
 
 Notification logs
