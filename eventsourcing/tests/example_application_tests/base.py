@@ -9,10 +9,10 @@ from eventsourcing.example.domainmodel import Example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.tests.sequenced_item_tests.base import WithActiveRecordManagers
+from eventsourcing.tests.sequenced_item_tests.base import WithRecordManagers
 
 
-class WithExampleApplication(WithActiveRecordManagers):
+class WithExampleApplication(WithRecordManagers):
     def construct_application(self):
         cipher = self.construct_cipher()
         app = ExampleApplication(

@@ -1,61 +1,21 @@
-from eventsourcing.infrastructure.sequenceditem import SequencedItem
-from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
-from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord, SnapshotRecord, \
-    TimestampSequencedRecord
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedItemTestCase, \
     SimpleSequencedItemteratorTestCase, ThreadedSequencedItemIteratorTestCase, TimestampSequencedItemTestCase, \
-    WithActiveRecordManagers
+    WithRecordManagers
 
 
-# Todo: Change this use InfrastructureFactory.
-def construct_integer_sequenced_record_manager(datastore):
-    return SQLAlchemyRecordManager(
-        record_class=IntegerSequencedRecord,
-        sequenced_item_class=SequencedItem,
-        session=datastore.session,
-        contiguous_record_ids=True,
-    )
+class WithSQLAlchemyRecordManagers(SQLAlchemyDatastoreTestCase, WithRecordManagers):
+    pass
 
 
-def construct_timestamp_sequenced_record_manager(datastore):
-    return SQLAlchemyRecordManager(
-        record_class=TimestampSequencedRecord,
-        sequenced_item_class=SequencedItem,
-        session=datastore.session,
-        contiguous_record_ids=True,
-    )
-
-
-def construct_snapshot_record_manager(datastore):
-    return SQLAlchemyRecordManager(
-        record_class=SnapshotRecord,
-        sequenced_item_class=SequencedItem,
-        session=datastore.session,
-    )
-
-
-class TestSQLAlchemyRecordManagerWithIntegerSequences(SQLAlchemyDatastoreTestCase,
+class TestSQLAlchemyRecordManagerWithIntegerSequences(WithSQLAlchemyRecordManagers,
                                                       IntegerSequencedItemTestCase):
-    def construct_record_manager(self):
-        return construct_integer_sequenced_record_manager(self.datastore)
+    pass
 
 
-class TestSQLAlchemyRecordManagerWithTimestampSequences(SQLAlchemyDatastoreTestCase,
+class TestSQLAlchemyRecordManagerWithTimestampSequences(WithSQLAlchemyRecordManagers,
                                                         TimestampSequencedItemTestCase):
-    def construct_record_manager(self):
-        return construct_timestamp_sequenced_record_manager(self.datastore)
-
-
-class WithSQLAlchemyRecordManagers(WithActiveRecordManagers, SQLAlchemyDatastoreTestCase):
-    def construct_entity_record_manager(self):
-        return construct_integer_sequenced_record_manager(self.datastore)
-
-    def construct_log_record_manager(self):
-        return construct_timestamp_sequenced_record_manager(self.datastore)
-
-    def construct_snapshot_record_manager(self):
-        return construct_snapshot_record_manager(self.datastore)
+    pass
 
 
 class TestSimpleIteratorWithSQLAlchemy(WithSQLAlchemyRecordManagers,

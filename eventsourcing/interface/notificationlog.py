@@ -131,6 +131,7 @@ class RecordManagerNotificationLog(LocalNotificationLog):
     def __init__(self, record_manager, section_size):
         super(RecordManagerNotificationLog, self).__init__(section_size)
         assert isinstance(record_manager, AbstractRecordManager), record_manager
+        assert record_manager.contiguous_record_ids
         self.record_manager = record_manager
 
     def get_items(self, start, stop, next_position):

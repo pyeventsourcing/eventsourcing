@@ -83,7 +83,6 @@ DATABASES = {
         # 'ENGINE': 'django.db.backends.postgresql_psycopg2',
         # 'NAME': 'eventsourcingdjangoorm',
         # 'USER': 'username',
-        # 'USER': 'john',
         # 'PASSWORD': 'password'
     }
 }

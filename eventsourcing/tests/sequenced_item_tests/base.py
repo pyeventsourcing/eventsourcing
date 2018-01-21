@@ -21,15 +21,14 @@ from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 
 
-class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
-    cancel_sqlite3_decimal_converter = False
+class RecordManagerTestCase(AbstractDatastoreTestCase):
 
     def __init__(self, *args, **kwargs):
-        super(ActiveRecordManagerTestCase, self).__init__(*args, **kwargs)
+        super(RecordManagerTestCase, self).__init__(*args, **kwargs)
         self._record_manager = None
 
     def setUp(self):
-        super(ActiveRecordManagerTestCase, self).setUp()
+        super(RecordManagerTestCase, self).setUp()
         if self.datastore is not None:
             self.datastore.setup_connection()
             try:
@@ -38,12 +37,21 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
                 self.datastore.drop_tables()
                 self.datastore.setup_tables()
 
+    def construct_entity_record_manager(self):
+        return self.factory.construct_integer_sequenced_record_manager()
+
+    def construct_snapshot_record_manager(self):
+        return self.factory.construct_snapshot_record_manager()
+
+    def construct_timestamp_sequenced_record_manager(self):
+        return self.factory.construct_timestamp_sequenced_record_manager()
+
     def tearDown(self):
         self._record_manager = None
         if self.datastore is not None:
             self.datastore.drop_tables()
             self.datastore.close_connection()
-        super(ActiveRecordManagerTestCase, self).tearDown()
+        super(RecordManagerTestCase, self).tearDown()
 
     @property
     def record_manager(self):
@@ -97,11 +105,6 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
             data=data2,
         )
         self.record_manager.append(item2)
-
-        # Check the get_item() method returns item at position.
-        if self.cancel_sqlite3_decimal_converter:
-            import sqlite3
-            sqlite3.register_converter("decimal", None)
 
         retrieved_item = self.record_manager.get_item(sequence_id1, position1)
         self.assertEqual(sequence_id1, retrieved_item.sequence_id)
@@ -283,7 +286,7 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
         entity_ids = set([i.sequence_id for i in retrieved_items])
         self.assertEqual(entity_ids, {sequence_id1, sequence_id2})
 
-        if hasattr(self.record_manager.record_class, 'id'):
+        if self.record_manager.contiguous_record_ids:
             # Check the record IDs are contiguous.
             records = self.record_manager.all_records()
             records = list(records)
@@ -294,17 +297,12 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
                     first = record.id
                 self.assertEqual(first + i, record.id, "Woops there's a gap: {}".format([r.id for r in records]))
 
-        # Todo: Enhance this, so we can get a slice from the ID range.
-
-        # # Resume from after the first sequence.
-        # for first in self.record_manager.all_records():
-        #     break
-        # retrieved_items = self.record_manager.all_records(resume=first)
-        # retrieved_items = list(retrieved_items)
-        # if first == sequence_id1:
-        #     self.assertEqual(len(retrieved_items), 1)
-        # else:
-        #     self.assertEqual(len(retrieved_items), 3)
+            # Resume from after the first event.
+            retrieved_items = self.record_manager.all_records(start=1, stop=3)
+            retrieved_items = list(retrieved_items)
+            self.assertEqual(len(retrieved_items), 2)
+            self.assertEqual(retrieved_items[0].id, 2)
+            self.assertEqual(retrieved_items[1].id, 3)
 
         # Delete some items.
         records = list(self.record_manager.all_records())
@@ -315,17 +313,17 @@ class ActiveRecordManagerTestCase(AbstractDatastoreTestCase):
         self.assertFalse(len(records))
 
 
-class WithActiveRecordManagers(AbstractDatastoreTestCase):
+class WithRecordManagers(AbstractDatastoreTestCase):
     drop_tables = False
 
     def __init__(self, *args, **kwargs):
-        super(WithActiveRecordManagers, self).__init__(*args, **kwargs)
+        super(WithRecordManagers, self).__init__(*args, **kwargs)
         self._entity_record_manager = None
         self._log_record_manager = None
         self._snapshot_strategy = None
 
     def setUp(self):
-        super(WithActiveRecordManagers, self).setUp()
+        super(WithRecordManagers, self).setUp()
         if self.datastore:
             self.datastore.setup_connection()
             if self.drop_tables:
@@ -342,7 +340,7 @@ class WithActiveRecordManagers(AbstractDatastoreTestCase):
                 self._datastore = None
             else:
                 self._datastore.truncate_tables()
-        super(WithActiveRecordManagers, self).tearDown()
+        super(WithRecordManagers, self).tearDown()
 
     @property
     def entity_record_manager(self):
@@ -363,13 +361,13 @@ class WithActiveRecordManagers(AbstractDatastoreTestCase):
         return self._snapshot_strategy
 
     def construct_entity_record_manager(self):
-        raise NotImplementedError
+        return self.factory.construct_integer_sequenced_record_manager()
 
     def construct_log_record_manager(self):
-        raise NotImplementedError
+        return self.factory.construct_timestamp_sequenced_record_manager()
 
     def construct_snapshot_record_manager(self):
-        raise NotImplementedError
+        return self.factory.construct_snapshot_record_manager()
 
 
 class VersionedEventExample1(EventWithOriginatorVersion, EventWithOriginatorID):
@@ -388,15 +386,19 @@ class TimestampedEventExample2(EventWithTimestamp, EventWithOriginatorID):
     pass
 
 
-class IntegerSequencedItemTestCase(ActiveRecordManagerTestCase):
+class IntegerSequencedItemTestCase(RecordManagerTestCase):
     EXAMPLE_EVENT_TOPIC1 = get_topic(VersionedEventExample1)
     EXAMPLE_EVENT_TOPIC2 = get_topic(VersionedEventExample2)
 
     def construct_positions(self):
         return 0, 1, 2
 
+    def construct_record_manager(self):
+        return self.factory.construct_integer_sequenced_record_manager()
 
-class TimestampSequencedItemTestCase(ActiveRecordManagerTestCase):
+
+
+class TimestampSequencedItemTestCase(RecordManagerTestCase):
     EXAMPLE_EVENT_TOPIC1 = get_topic(TimestampedEventExample1)
     EXAMPLE_EVENT_TOPIC2 = get_topic(TimestampedEventExample2)
 
@@ -406,8 +408,11 @@ class TimestampSequencedItemTestCase(ActiveRecordManagerTestCase):
             num -= 1
             sleep(0.00001)
 
+    def construct_record_manager(self):
+        return self.factory.construct_timestamp_sequenced_record_manager()
 
-class SequencedItemIteratorTestCase(WithActiveRecordManagers):
+
+class SequencedItemIteratorTestCase(WithRecordManagers):
     ENTITY_ID1 = uuid4()
 
     @property
@@ -542,7 +547,7 @@ class ThreadedSequencedItemIteratorTestCase(SequencedItemIteratorTestCase):
         return ThreadedSequencedItemIterator
 
 
-class WithPersistencePolicies(WithActiveRecordManagers):
+class WithPersistencePolicies(WithRecordManagers):
     """
     Base class for test cases that need persistence policies.
     """

@@ -7,6 +7,7 @@ Base classes for aggregates in a domain driven design.
 from collections import deque
 
 from eventsourcing.domain.model.entity import TimestampedVersionedEntity
+from eventsourcing.exceptions import ConcurrencyError
 
 
 class AggregateRoot(TimestampedVersionedEntity):
@@ -41,7 +42,23 @@ class AggregateRoot(TimestampedVersionedEntity):
         except IndexError:
             pass
         if batch_of_events:
-            self.__publish_to_subscribers__(batch_of_events)
+            try:
+                self.__publish_to_subscribers__(batch_of_events)
+            except ConcurrencyError:
+                # Don't put the events back on the queue. Losing them here
+                # is consistent with the behaviour of DomainEntity when an
+                # event cannot be stored: the event is effectively lost, the
+                # state of the entity must be reset, and the operation repeated.
+                # In case of an aggregate sequence conflict, developers need to
+                # know what has happened since the last save, so can retry only the
+                # command(s) that have caused conflict. Best to save once per command,
+                # so the command can be retried cleanly. The purpose of the save
+                # method is to allow many events from a command to be persisted
+                # together. This idea can be extended to persisting the events
+                # from many commands, but in case of a failed save after several
+                # commands have been executed, it is important to know which
+                # commands to retry.
+                raise
 
     def __publish__(self, event):
         """

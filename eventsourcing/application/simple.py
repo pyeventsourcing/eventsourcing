@@ -84,6 +84,12 @@ class SimpleApplication(object):
             self.event_store.record_manager.record_class
         )
 
+    def drop_table(self):
+        # Setup the database table using event store's record class.
+        self.datastore.drop_table(
+            self.event_store.record_manager.record_class
+        )
+
     def close(self):
         # Close the persistence policy.
         self.persistence_policy.close()

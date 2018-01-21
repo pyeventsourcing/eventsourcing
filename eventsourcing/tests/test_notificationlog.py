@@ -15,8 +15,6 @@ from eventsourcing.utils.topic import get_topic
 
 
 class NotificationLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
-    def setUp(self):
-        super(NotificationLogTestCase, self).setUp()
 
     def assert_section(self, repo, requested_id, expected_id, expected_len_items, expected_previous_id,
                        expected_next_id):
@@ -32,16 +30,16 @@ class NotificationLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolic
             self.append_notification(item)
 
     def create_notification_log(self, section_size):
-        return RecordManagerNotificationLog(self._entity_record_manager, section_size)
+        return RecordManagerNotificationLog(self.entity_record_manager, section_size)
 
     def append_notification(self, item):
-        sequenced_item = self._entity_record_manager.sequenced_item_class(
+        sequenced_item = self.entity_record_manager.sequenced_item_class(
             uuid4(),
             0,
             get_topic(DomainEvent),
             item
         )
-        self._entity_record_manager.append(sequenced_item)
+        self.entity_record_manager.append(sequenced_item)
 
 
 class TestNotificationLog(NotificationLogTestCase):

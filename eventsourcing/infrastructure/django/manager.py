@@ -74,10 +74,6 @@ class DjangoRecordManager(RelationalRecordManager):
         return statement
 
     @property
-    def id_index_name(self):
-        return '{}_pkey'.format(self.record_table_name)
-
-    @property
     def record_table_name(self):
         return self.record_class._meta.db_table
 
@@ -158,8 +154,16 @@ class DjangoRecordManager(RelationalRecordManager):
         """
         Returns all records in the table.
         """
-        # Todo: Implement start and stop, if record class has an ID, otherwise position.
-        return self.record_class.objects.all()
+        filter_kwargs = {}
+        position_field_name = 'id'
+        # Todo: Also support sequencing by 'position' if items are sequenced by timestamp?
+        if start is not None:
+            filter_kwargs['%s__gte' % position_field_name] = start + 1
+        if stop is not None:
+            filter_kwargs['%s__lt' % position_field_name] = stop + 1
+        query = self.record_class.objects.filter(**filter_kwargs)
+        query = query.order_by('%s' % position_field_name)
+        return query.all()
 
     def delete_record(self, record):
         """

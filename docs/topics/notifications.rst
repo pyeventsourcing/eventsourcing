@@ -98,8 +98,7 @@ The fundamental concern is to accomplish perfect accuracy
 when propagating the events of an application, so that events
 are not missed, duplicated, jumbled, or unnecessarily delayed.
 
-Like an entity, an application sequence could be sequenced with
-integers or timestamps.
+The events of an application sequence could be sequenced with integers or timestamps.
 
 Timestamps
 ~~~~~~~~~~
@@ -161,35 +160,61 @@ all the application's event records in a single sequence. This technique is
 recommended for enterprise applications, and the early stages of more ambitious
 projects.
 
-Secondly, a much more complicated but possibly more scalable approach uses a
-library class called ``BigArray``. This technique accepts downstream
-complexity so that capacity is not inherently limited by the technique.
-This technique is recommended for parts of mass consumer applications that
-need to operate at such a scale that the first approach is restrictive.
+Secondly, a much more complicated, but possibly more scalable, approach uses a
+library class called ``BigArray`` to build a sequence of all the events of an
+application. This technique can be used as an alternative to a database index,
+especially in situations where a normal database index across all records IDs is
+generally discouraged (e.g. in Cassandra), undesirable for performance reasons
+due to the size of the index, or otherwise not supported by the database.
+Is recommended for mass consumer contexts that need to operate at such a
+scale that the first approach is restrictive.
 
 Record managers
 ~~~~~~~~~~~~~~~
 
 A relational record manager can function as an application sequence,
-especially with an integer sequenced record class and the
-``contiguous_record_ids`` option enabled, but also with the timestamp
-sequenced record classes. This technique ensures that whenever an
-aggregate command returns successfully, any events will already have
-been successfully placed in both the aggregate's and the application's
-sequence.
+when it's record class has an ID field, and especially when the
+``contiguous_record_ids`` option is enabled. This technique ensures
+that whenever an entity or aggregate command returns successfully,
+any events will already have been simultaneously placed in both the
+aggregate's and the application's sequence. Importantly, if inserting
+an event hits a uniqueness constraint for either the entity or the
+application sequence, and the transaction is rolled back, then the
+event will appear in neither sequence.
 
-This approach provides simplicity and perfect accuracy, at
-the cost of an upper limit to rate at with records can be written:
-aggregate commands will experience concurrency errors if they attempt
-to record events simultaneously with others (in which case they will
-need to be retried). Performance testing is advisable to check whether
-this limit is restrictive in your situation.
+This approach provides perfect accuracy with great simplicity for
+followers, but at the cost of slightly reducing the maximum total
+rate at with records can be written into the database. The
+``contiguous_record_ids`` feature excutes an "insert select from"
+SQL statement that generates contiguous record IDs when records
+are inserted, on the database-side as a clause in the insert statement,
+by selecting the maximum existing ID in the table. Accessing the ID
+index to find the maximum value should be an efficient operation,
+but it may cause the insert statements to be fractionally slower.
+
+Because the IDs must be unique, applications may experience the library's
+``ConcurrencyErrors`` exception if they happen to insert records
+simultaneously with others. Record ID conflicts are retried by the library
+before a ``ConcurrencyError`` exception is raised. With a load
+beyond the capability of a service, increased congestion will be
+experienced as an increased frequency of ConcurrencyErrors.
+
+Please note, without the ``contiguous_record_ids`` feature enabled,
+the most of the library record classses have an auto-incrementing ID
+which can be used to get all the records in the order they were written.
+The trouble with following a non-contiguous sequence of integers is
+that there will be gaps in the sequence of record IDs, which could
+lead to race conditions and missed items. The gaps need to be
+negociated, which is complicated. To keep things simple, record managers
+that do not have ``contiguous_record_ids`` enabled cannot be used with
+the library's ``RecordManagerNotificationLog`` class (introduced below).
 
 To use this approach, simply use the ``IntegerSequencedRecord`` or the
 ``StoredEventRecord`` classes with the ``contiguous_record_ids`` constructor
 argument of the record manager set to a True value. The ``record_manager``
 above was constructed in this way. The records can be then be obtained
-using the ``all_records()`` method of the record manager.
+using the ``all_records()`` method of the record manager. The record IDs
+will form a contiguous sequence.
 
 .. code:: python
 
@@ -214,8 +239,8 @@ BigArray
 ~~~~~~~~
 
 This is a long section, and can be skipped if you aren't currently
-required to scale capacity beyond the capacity of a database table
-supported by your infrastructure.
+required to scale capacity beyond the capacity of a relational
+database table supported by your infrastructure.
 
 To support ultra-high capacity requirements, the application sequence must
 be capable of having a very large number of events, neither swamping

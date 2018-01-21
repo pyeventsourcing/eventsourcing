@@ -4,6 +4,7 @@ from uuid import uuid4
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from eventsourcing.infrastructure.datastore import DatastoreTableError
+from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
 from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord, \
     TimestampSequencedRecord, SnapshotRecord, Base
 from eventsourcing.infrastructure.sqlalchemy.datastore import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
@@ -14,6 +15,8 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, 
 class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
     use_named_temporary_file = False
     connection_strategy = 'plain'
+    infrastructure_factory_class = SQLAlchemyInfrastructureFactory
+    contiguous_record_ids = True
 
     def construct_datastore(self):
         if self.use_named_temporary_file:

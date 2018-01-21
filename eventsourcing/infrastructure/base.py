@@ -101,8 +101,7 @@ class RelationalRecordManager(AbstractRecordManager):
         by selecting max ID from indexed table records.
         """
         if self._insert_select_max is None:
-            statement = self._prepare_insert_select_max()
-            self._insert_select_max = statement
+            self._insert_select_max = self._prepare_insert_select_max()
         return self._insert_select_max
 
     @abstractmethod
@@ -118,16 +117,20 @@ class RelationalRecordManager(AbstractRecordManager):
     )
 
     def raise_after_integrity_error(self, e):
-        if self.id_index_name in str(e):
+        error = str(e)
+
+        # Try to identify record ID conflicts.
+        if "UNIQUE constraint failed: {}.id".format(self.record_table_name) in error:
+            # SQLite
             self.raise_record_id_conflict()
-        elif "UNIQUE constraint failed: {}.id".format(self.record_table_name) in str(e):
+        elif 'Duplicate entry' in error and "for key 'PRIMARY'" in error:
+            # MySQL
+            self.raise_record_id_conflict()
+        elif 'duplicate key value violates unique constraint "%s_pkey"' % self.record_table_name:
+            # PostgreSQL
             self.raise_record_id_conflict()
         else:
             self.raise_sequenced_item_conflict()
-
-    @property
-    def id_index_name(self):
-        return '{}_record_id_index'.format(self.record_table_name)
 
     @property
     @abstractmethod

@@ -10,11 +10,14 @@ Base = declarative_base()
 class IntegerSequencedRecord(Base):
     __tablename__ = 'integer_sequenced_items'
 
+    # Record ID.
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, index=True, unique=True)
+
     # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = Column(UUIDType(), primary_key=True)
+    sequence_id = Column(UUIDType(), nullable=False)
 
     # Position (index) of item in sequence.
-    position = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+    position = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
 
     # Topic of the item (e.g. path to domain event class).
     topic = Column(Text(), nullable=False)
@@ -22,11 +25,8 @@ class IntegerSequencedRecord(Base):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-    # Record ID.
-    id = Column(BigInteger().with_variant(Integer, "sqlite"), autoincrement=True)
-
     __table_args__ = (
-        Index('integer_sequenced_items_record_id_index', 'id', unique=True),
+        Index('integer_sequenced_items_sequence_id_position_index', 'sequence_id', 'position', unique=True),
     )
 
 
@@ -69,11 +69,14 @@ class SnapshotRecord(Base):
 class StoredEventRecord(Base):
     __tablename__ = 'stored_events'
 
+    # Record ID.
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, index=True, unique=True)
+
     # Originator ID (e.g. an entity or aggregate ID).
-    originator_id = Column(UUIDType(), primary_key=True)
+    originator_id = Column(UUIDType(), nullable=False)
 
     # Originator version of item in sequence.
-    originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+    originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
 
     # Type of the event (class name).
     event_type = Column(Text(), nullable=False)
@@ -81,9 +84,6 @@ class StoredEventRecord(Base):
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
 
-    # Record ID.
-    id = Column(BigInteger().with_variant(Integer, "sqlite"), autoincrement=True)
-
     __table_args__ = (
-        Index('stored_events_record_id_index', 'id', unique=True),
+        Index('stored_events_sequence_id_position_index', 'originator_id', 'originator_version', unique=True),
     )
