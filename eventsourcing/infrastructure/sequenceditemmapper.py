@@ -29,11 +29,10 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     """
 
     def __init__(self, sequenced_item_class=SequencedItem, sequence_id_attr_name=None, position_attr_name=None,
-                 json_encoder_class=ObjectJSONEncoder, json_decoder_class=ObjectJSONDecoder,
-                 cipher=None, other_attr_names=()):
+                 json_encoder_class=None, json_decoder_class=None, cipher=None, other_attr_names=()):
         self.sequenced_item_class = sequenced_item_class
-        self.json_encoder_class = json_encoder_class
-        self.json_decoder_class = json_decoder_class
+        self.json_encoder_class = json_encoder_class or ObjectJSONEncoder
+        self.json_decoder_class = json_decoder_class or ObjectJSONDecoder
         self.cipher = cipher
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
         self.sequence_id_attr_name = sequence_id_attr_name or self.field_names.sequence_id

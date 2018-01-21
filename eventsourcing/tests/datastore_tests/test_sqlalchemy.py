@@ -4,11 +4,11 @@ from uuid import uuid4
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from eventsourcing.infrastructure.datastore import DatastoreTableError
-from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
-from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord, \
-    TimestampSequencedRecord, SnapshotRecord, Base, IntegerSequencedNoIDRecord
 from eventsourcing.infrastructure.sqlalchemy.datastore import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
     SQLAlchemySettings
+from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
+from eventsourcing.infrastructure.sqlalchemy.records import Base, IntegerSequencedRecord, IntegerSequencedRecordNoID, \
+    SnapshotRecord, TimestampSequencedRecord, TimestampSequencedRecordNoID
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
 
 
@@ -27,13 +27,19 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
 
         # kwargs = {}
         # if not self.use_named_temporary_file:
-            # kwargs['connect_args'] = {'check_same_thread':False}
-            # kwargs['poolclass'] = StaticPool
+        # kwargs['connect_args'] = {'check_same_thread':False}
+        # kwargs['poolclass'] = StaticPool
 
         return SQLAlchemyDatastore(
             base=Base,
             settings=SQLAlchemySettings(uri=uri),
-            tables=(IntegerSequencedRecord, IntegerSequencedNoIDRecord, TimestampSequencedRecord, SnapshotRecord),
+            tables=(
+                IntegerSequencedRecord,
+                IntegerSequencedRecordNoID,
+                TimestampSequencedRecord,
+                TimestampSequencedRecordNoID,
+                SnapshotRecord
+            ),
             connection_strategy=self.connection_strategy,
             # **kwargs
         )

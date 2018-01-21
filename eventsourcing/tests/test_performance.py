@@ -9,6 +9,8 @@ from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.infrastructure.base import AbstractRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
+from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecordNoID, TimestampSequencedRecord, \
+    TimestampSequencedRecordNoID, IntegerSequencedRecordWithID, TimestampSequencedRecordWithID
 from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader, get_timebucketedlog_reader
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.example_application_tests.base import WithExampleApplication
@@ -16,6 +18,7 @@ from eventsourcing.tests.example_application_tests.test_example_application_with
     WithEncryption
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers
+from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
     WithSQLAlchemyRecordManagers
 
@@ -241,12 +244,45 @@ class PerformanceTestCase(WithExampleApplication):
 class TestCassandraPerformance(WithCassandraRecordManagers, PerformanceTestCase):
     pass
 
+@notquick
+class TestDjangoPerformance(DjangoTestCase, PerformanceTestCase):
+    pass
 
 @notquick
-class TestEncryptionPerformance(WithEncryption, TestCassandraPerformance):
+class TestDjangoPerformanceWithEncryption(WithEncryption, TestDjangoPerformance):
+    pass
+
+
+@notquick
+class TestCassandraPerformanceWithEncryption(WithEncryption, TestCassandraPerformance):
     pass
 
 
 @notquick
 class TestSQLAlchemyPerformance(WithSQLAlchemyRecordManagers, PerformanceTestCase):
+    def construct_entity_record_manager(self):
+        return self.factory.construct_integer_sequenced_record_manager(
+            record_class=IntegerSequencedRecordWithID
+        )
+
+    def construct_log_record_manager(self):
+        return self.factory.construct_timestamp_sequenced_record_manager(
+            record_class=TimestampSequencedRecordWithID
+        )
+
+@notquick
+class TestSQLAlchemyPerformanceNoID(TestSQLAlchemyPerformance):
+
+    def construct_entity_record_manager(self):
+        return self.factory.construct_integer_sequenced_record_manager(
+            record_class=IntegerSequencedRecordNoID
+        )
+
+    def construct_log_record_manager(self):
+        return self.factory.construct_timestamp_sequenced_record_manager(
+            record_class=TimestampSequencedRecordNoID
+        )
+
+@notquick
+class TestSQLAlchemyPerformanceWithEncryption(WithEncryption, TestSQLAlchemyPerformance):
     pass

@@ -59,14 +59,14 @@ class DjangoRecordManager(RelationalRecordManager):
         except IntegrityError as e:
             self.raise_after_integrity_error(e)
 
-    def _prepare_insert_select_max(self):
+    def _prepare_insert(self, tmpl):
         """
         With transaction isolation level of "read committed" this should
         generate records with a contiguous sequence of integer IDs, using
         an indexed ID column, the database-side SQL max function, the
         insert-select-from form, and optimistic concurrency control.
         """
-        statement = self._insert_select_max_tmpl.format(
+        statement = tmpl.format(
             tablename=self.record_table_name,
             columns=", ".join(self.field_names),
             placeholders=", ".join(['%s' for _ in self.field_names]),

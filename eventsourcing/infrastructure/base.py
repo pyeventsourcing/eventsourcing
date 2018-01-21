@@ -70,6 +70,7 @@ class RelationalRecordManager(AbstractRecordManager):
     def __init__(self, *args, **kwargs):
         super(RelationalRecordManager, self).__init__(*args, **kwargs)
         self._insert_select_max = None
+        self._insert_values = None
 
     def append(self, sequenced_item_or_items):
         # Convert sequenced item(s) to database record(s).
@@ -79,7 +80,7 @@ class RelationalRecordManager(AbstractRecordManager):
             records = [self.to_record(sequenced_item_or_items)]
         self.write_records(records)
 
-    @retry(RecordIDConflict, max_retries=10, wait=0.01)
+    @retry(RecordIDConflict, max_attempts=100, wait=0.005)
     def write_records(self, records):
         """
         Calls _write_records() implemented by concrete classes.
@@ -101,19 +102,33 @@ class RelationalRecordManager(AbstractRecordManager):
         by selecting max ID from indexed table records.
         """
         if self._insert_select_max is None:
-            self._insert_select_max = self._prepare_insert_select_max()
+            self._insert_select_max = self._prepare_insert(self._insert_select_max_tmpl)
         return self._insert_select_max
 
     @abstractmethod
-    def _prepare_insert_select_max(self):
+    def _prepare_insert(self, tmpl):
         """
-        Define SQL statement with placeholders for bind parameters.
+        Compile SQL statement with placeholders for bind parameters.
         """
 
     _insert_select_max_tmpl = (
         "INSERT INTO {tablename} (id, {columns}) "
         "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
         "FROM {tablename};"
+    )
+
+    @property
+    def insert_values(self):
+        """
+        SQL statement that inserts records without ID.
+        """
+        if self._insert_values is None:
+            self._insert_values = self._prepare_insert(tmpl=self._insert_values_tmpl)
+        return self._insert_values
+
+    _insert_values_tmpl = (
+        "INSERT INTO {tablename} ({columns}) "
+        "VALUES ({placeholders});"
     )
 
     def raise_after_integrity_error(self, e):
@@ -126,7 +141,7 @@ class RelationalRecordManager(AbstractRecordManager):
         elif 'Duplicate entry' in error and "for key 'PRIMARY'" in error:
             # MySQL
             self.raise_record_id_conflict()
-        elif 'duplicate key value violates unique constraint "%s_pkey"' % self.record_table_name:
+        elif 'duplicate key value violates unique constraint "%s_pkey"' % self.record_table_name in error:
             # PostgreSQL
             self.raise_record_id_conflict()
         else:

@@ -136,7 +136,7 @@ def attribute(getter):
         raise ProgrammingError("Expected a function, got: {}".format(repr(getter)))
 
 
-def retry(exc=Exception, max_retries=1, wait=0):
+def retry(exc=Exception, max_attempts=1, wait=0):
     def _retry(func):
 
         @wraps(func)
@@ -144,12 +144,10 @@ def retry(exc=Exception, max_retries=1, wait=0):
             attempts = 0
             while True:
                 try:
-                    result = func(*args, **kwargs)
-                    sleep(0.01)
-                    return result
+                    return func(*args, **kwargs)
                 except exc:
                     attempts += 1
-                    if attempts < max_retries:
+                    if attempts < max_attempts:
                         sleep(wait * (1 + 0.1 * (random() - 0.5)))
                     else:
                         # Max retries exceeded.
@@ -176,8 +174,8 @@ def retry(exc=Exception, max_retries=1, wait=0):
         else:
             if not (isinstance(exc, type) and issubclass(exc, Exception)):
                 raise TypeError("not an exception class: {}".format(exc))
-        if not isinstance(max_retries, int):
-            raise TypeError("'max' must be an int: {}".format(max_retries))
+        if not isinstance(max_attempts, int):
+            raise TypeError("'max_attempts' must be an int: {}".format(max_attempts))
         if not isinstance(wait, (float, int)):
-            raise TypeError("'wait' must be a float: {}".format(max_retries))
+            raise TypeError("'wait' must be a float: {}".format(max_attempts))
         return _retry

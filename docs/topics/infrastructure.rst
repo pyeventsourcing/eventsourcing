@@ -983,7 +983,7 @@ decorator can help code retries on commands.
 
     errors = []
 
-    @retry(ConcurrencyError, max_retries=5)
+    @retry(ConcurrencyError, max_attempts=5)
     def set_password():
         exc = ConcurrencyError()
         errors.append(exc)

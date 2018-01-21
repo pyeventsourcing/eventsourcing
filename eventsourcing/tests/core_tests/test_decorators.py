@@ -36,13 +36,13 @@ class TestDecorators(TestCase):
             retry(wait=0)(func_raises)(NotImplementedError)
 
         with self.assertRaises(NotImplementedError):
-            retry(func_raises, wait=0, max_retries=0)(NotImplementedError)
+            retry(func_raises, wait=0, max_attempts=0)(NotImplementedError)
         with self.assertRaises(NotImplementedError):
-            retry(wait=0, max_retries=0)(func_raises)(NotImplementedError)
+            retry(wait=0, max_attempts=0)(func_raises)(NotImplementedError)
 
         # Check TypeError is raised if args have incorrect values.
         with self.assertRaises(TypeError):
-            retry(max_retries='')  # needs to be an int
+            retry(max_attempts='')  # needs to be an int
 
         with self.assertRaises(TypeError):
             retry(exc=TestCase)  # need to be subclass of Exception (single value)

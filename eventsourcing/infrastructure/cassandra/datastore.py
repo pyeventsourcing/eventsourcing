@@ -83,7 +83,7 @@ class CassandraDatastore(Datastore):
         if cassandra.cqlengine.connection.cluster:
             cassandra.cqlengine.connection.cluster.shutdown()
 
-    @retry((NoHostAvailable, OperationTimedOut), max_retries=10, wait=0.5)
+    @retry((NoHostAvailable, OperationTimedOut), max_attempts=10, wait=0.5)
     def setup_tables(self):
         # Avoid warnings about this variable not being set.
         os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
@@ -96,14 +96,14 @@ class CassandraDatastore(Datastore):
         for table in self.tables:
             sync_table(table)
 
-    @retry(NoHostAvailable, max_retries=10, wait=0.5)
+    @retry(NoHostAvailable, max_attempts=10, wait=0.5)
     def drop_tables(self):
         drop_keyspace(name=self.settings.default_keyspace)
 
     def drop_table(self, *_):
         self.drop_tables()
 
-    @retry(NoHostAvailable, max_retries=10, wait=0.5)
+    @retry(NoHostAvailable, max_attempts=10, wait=0.5)
     def truncate_tables(self):
         for table in self.tables:
             remaining_objects = table.objects.all().limit(10)

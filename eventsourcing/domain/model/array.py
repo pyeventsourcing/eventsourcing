@@ -32,7 +32,7 @@ class Array(object):
         self.id = array_id
         self.repo = repo
 
-    @retry(ConcurrencyError, max_retries=50, wait=0.01)
+    @retry(ConcurrencyError, max_attempts=50, wait=0.01)
     def append(self, item):
         """Sets item in next position after the last item."""
         self.__setitem__(self.get_next_position(), item)

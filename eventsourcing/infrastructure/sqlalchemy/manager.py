@@ -17,13 +17,18 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         try:
             if self.contiguous_record_ids:
                 for record in records:
-                    # Execute insert statement with values from record obj.
+                    # Execute "insert select max" statement with values from record obj.
                     params = {c: getattr(record, c) for c in self.field_names}
                     self.session.bind.execute(self.insert_select_max, **params)
             else:
                 for record in records:
-                    # Add record obj to session.
-                    self.session.add(record)
+                    # Execute "insert values" statement with values from record obj.
+                    params = {c: getattr(record, c) for c in self.field_names}
+                    self.session.bind.execute(self.insert_values, **params)
+
+                    # Old way:
+                    # # Add record obj to session.
+                    # self.session.add(record)
 
             self.session.commit()
         except IntegrityError as e:
@@ -38,14 +43,14 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def record_table_name(self):
         return self.record_class.__table__.name
 
-    def _prepare_insert_select_max(self):
+    def _prepare_insert(self, tmpl):
         """
         With transaction isolation level of "read committed" this should
         generate records with a contiguous sequence of integer IDs, assumes
         an indexed ID column, the database-side SQL max function, the
         insert-select-from form, and optimistic concurrency control.
         """
-        statement = text(self._insert_select_max_tmpl.format(
+        statement = text(tmpl.format(
             tablename=self.record_table_name,
             columns=", ".join(self.field_names),
             placeholders=", ".join([":{}".format(f) for f in self.field_names]),

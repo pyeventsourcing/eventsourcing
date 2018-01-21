@@ -32,16 +32,19 @@ class InfrastructureFactory(object):
         self.contiguous_record_ids = contiguous_record_ids
         self.session = session
 
-    def construct_integer_sequenced_record_manager(self):
+    def construct_integer_sequenced_record_manager(self, record_class=None):
+        record_class = record_class or self.integer_sequenced_record_class
         assert self.integer_sequenced_record_class
         return self.construct_record_manager(
-            record_class=self.integer_sequenced_record_class,
+            record_class=record_class,
             sequenced_item_class=self.sequenced_item_class
         )
 
-    def construct_timestamp_sequenced_record_manager(self):
+    def construct_timestamp_sequenced_record_manager(self, record_class=None):
+        record_class = record_class or self.timestamp_sequenced_record_class
+        assert self.integer_sequenced_record_class
         return self.construct_record_manager(
-            record_class=self.timestamp_sequenced_record_class,
+            record_class=record_class,
             sequenced_item_class=self.sequenced_item_class
         )
 

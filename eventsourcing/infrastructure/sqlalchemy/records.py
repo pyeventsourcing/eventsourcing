@@ -7,7 +7,7 @@ from sqlalchemy_utils.types.uuid import UUIDType
 Base = declarative_base()
 
 
-class IntegerSequencedWithRecordID(Base):
+class IntegerSequencedRecordWithID(Base):
     __tablename__ = 'integer_sequenced_items'
 
     # Record ID.
@@ -30,10 +30,7 @@ class IntegerSequencedWithRecordID(Base):
     )
 
 
-IntegerSequencedRecord = IntegerSequencedWithRecordID
-
-
-class IntegerSequencedNoIDRecord(Base):
+class IntegerSequencedRecordNoID(Base):
     __tablename__ = 'integer_sequenced_items_noid'
 
     # Sequence ID (e.g. an entity or aggregate ID).
@@ -46,15 +43,39 @@ class IntegerSequencedNoIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    data = Column(Text(), nullable=False)
+    data = Column(Text())
+
+IntegerSequencedRecord = IntegerSequencedRecordWithID
+# IntegerSequencedRecord = IntegerSequencedRecordNoID
+
+
+class TimestampSequencedRecordWithID(Base):
+    __tablename__ = 'timestamp_sequenced_items'
+
+    # Record ID.
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, index=True, unique=True,
+                autoincrement=True)
+
+    # Sequence ID (e.g. an entity or aggregate ID).
+    sequence_id = Column(UUIDType(), nullable=False)
+
+    # Position (timestamp) of item in sequence.
+    position = Column(DECIMAL(24, 6, 6), nullable=False, unique=False)
+
+    # Topic of the item (e.g. path to domain event class).
+    topic = Column(Text(), nullable=False)
+
+    # State of the item (serialized dict, possibly encrypted).
+    data = Column(Text())
 
     __table_args__ = (
-        UniqueConstraint('sequence_id', 'position'),
+        Index('timestamp_sequenced_items_sequence_id_position_index', 'sequence_id', 'position', unique=True),
+        Index('timestamp_sequenced_items_position_index', 'position', unique=False),
     )
 
 
-class TimestampSequencedRecord(Base):
-    __tablename__ = 'timestamp_sequenced_items'
+class TimestampSequencedRecordNoID(Base):
+    __tablename__ = 'timestamp_sequenced_items_noid'
 
     # Sequence ID (e.g. an entity or aggregate ID).
     sequence_id = Column(UUIDType(), primary_key=True)
@@ -69,9 +90,12 @@ class TimestampSequencedRecord(Base):
     data = Column(Text())
 
     __table_args__ = (
-        Index('timestamp_sequenced_items_position_index', 'position', unique=False),
+        Index('timestamp_sequenced_items_noid_position_index', 'position', unique=False),
     )
 
+
+# TimestampSequencedRecord = TimestampSequencedRecordWithID
+TimestampSequencedRecord = TimestampSequencedRecordNoID
 
 class SnapshotRecord(Base):
     __tablename__ = 'snapshots'

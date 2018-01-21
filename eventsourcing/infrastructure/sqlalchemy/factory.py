@@ -3,15 +3,14 @@ from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
-from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedWithRecordID, SnapshotRecord, \
-    StoredEventRecord, TimestampSequencedRecord
-from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
+from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecordWithID, SnapshotRecord, \
+    StoredEventRecord, TimestampSequencedRecordNoID
 
 
 class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
     record_manager_class = SQLAlchemyRecordManager
-    integer_sequenced_record_class = IntegerSequencedWithRecordID
-    timestamp_sequenced_record_class = TimestampSequencedRecord
+    integer_sequenced_record_class = IntegerSequencedRecordWithID
+    timestamp_sequenced_record_class = TimestampSequencedRecordNoID
     snapshot_record_class = SnapshotRecord
 
     def __init__(self, session, *args, **kwargs):
@@ -26,8 +25,8 @@ def construct_sqlalchemy_eventstore(session,
                                     sequenced_item_class=StoredEvent,
                                     sequence_id_attr_name=None,
                                     position_attr_name=None,
-                                    json_encoder_class=ObjectJSONEncoder,
-                                    json_decoder_class=ObjectJSONDecoder,
+                                    json_encoder_class=None,
+                                    json_decoder_class=None,
                                     cipher=None,
                                     record_class=None,
                                     contiguous_record_ids=False,
