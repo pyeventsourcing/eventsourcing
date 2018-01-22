@@ -9,6 +9,7 @@ from eventsourcing.interface.notificationlog import BigArrayNotificationLog, Not
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers
+from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
     WithSQLAlchemyRecordManagers
 from eventsourcing.utils.topic import get_topic
@@ -130,6 +131,9 @@ class TestNotificationLogReader(NotificationLogTestCase):
         # Construct notification log reader.
         reader = NotificationLogReader(notification_log)
 
+        # Check position.
+        self.assertEqual(reader.position, 0)
+
         # Read all notifications.
         all_notifications = list(reader)
         self.assertEqual(13, len(all_notifications))
@@ -174,22 +178,30 @@ class TestNotificationLogReader(NotificationLogTestCase):
         with self.assertRaises(ValueError):
             list(reader.seek(-1))
 
-        # Check resuming from a saved position.
+        # Resume from a saved position.
         saved_position = 5
         advance_by = 3
         reader.seek(saved_position)
-        count = 0
         self.assertEqual(reader.position, saved_position)
-        for _ in reader:
-            count += 1
-            if count > advance_by:
-                break
-        else:
-            self.fail("for loop didn't break")
+        reader.read(advance_by=advance_by)
         self.assertEqual(reader.position, saved_position + advance_by)
 
         # Read items between particular positions.
         # - check stops at end of slice, and position tracks ok
+        self.assertEqual(reader[0]['id'], 1)
+        self.assertEqual(reader.position, 1)
+
+        self.assertEqual(next(reader)['id'], 2)
+        self.assertEqual(reader.position, 2)
+
+        reader.seek(5)
+        self.assertEqual(next(reader)['id'], 6)
+        self.assertEqual(reader.position, 6)
+
+        reader.seek(0)
+        list(reader)
+        self.assertEqual(reader.position, 21)
+
         self.assertEqual(len(list(reader[0:1])), 1)
         self.assertEqual(reader.position, 1)
 
@@ -310,5 +322,13 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             httpd.server_close()
 
 
-class TestNotificationLogWithCassandra(WithCassandraRecordManagers, TestBigArrayNotificationLog):
+class TestNotificationLogWithDjango(DjangoTestCase, TestNotificationLog):
+    pass
+
+
+class TestBigArrayNotificationLogWithDjango(DjangoTestCase, TestBigArrayNotificationLog):
+    pass
+
+
+class TestBigArrayNotificationLogWithCassandra(WithCassandraRecordManagers, TestBigArrayNotificationLog):
     pass

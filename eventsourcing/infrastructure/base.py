@@ -210,3 +210,7 @@ class RelationalRecordManager(AbstractRecordManager):
         # start = item.start or 0
         # assert start >= 0, start
         return self.all_records(start=item.start, stop=item.stop)
+
+    @abstractmethod
+    def get_max_record_id(self):
+        """Return maximum ID of existing records."""

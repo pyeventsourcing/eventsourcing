@@ -52,6 +52,7 @@ class DjangoRecordManager(RelationalRecordManager):
                             # Execute insert statement.
                             cursor.execute(self.insert_select_max, params)
                 else:
+                    # Todo: If it's faster, change to use an "insert_values" raw query.
                     # Save record objects.
                     for record in records:
                         record.save()
@@ -170,3 +171,9 @@ class DjangoRecordManager(RelationalRecordManager):
         Permanently removes record from table.
         """
         record.delete()
+
+    def get_max_record_id(self):
+        try:
+            return self.record_class.objects.latest('id').id
+        except self.record_class.DoesNotExist:
+            return None
