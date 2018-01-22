@@ -231,6 +231,12 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
         except IndexError:
             raise StopIteration
 
+    def next(self):
+        """
+        Python 2.7 version of the iterator protocol.
+        """
+        return self.__next__()
+
     def seek(self, position):
         if position < 0:
             raise ValueError("Position less than zero: {}".format(position))
