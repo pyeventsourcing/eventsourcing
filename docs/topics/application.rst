@@ -420,8 +420,6 @@ such as when this documentation is tested as part of the library's test suite).
 
 .. Todo: Something about using uuid5 to make UUIDs from things like email addresses.
 
-.. Todo: Something about using application log to get a sequence of all events.
-
 .. Todo: Something about using a policy to update views from published events.
 
 .. Todo: Something about using a policy to update a register of existant IDs from published events.
