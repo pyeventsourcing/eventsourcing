@@ -189,7 +189,7 @@ which can be used to follow the application events as a single sequence.
     from eventsourcing.interface.notificationlog import NotificationLogReader
     reader = NotificationLogReader(app.notification_log)
     notification_ids = [n['id'] for n in reader.read()]
-    assert notification_ids == [0, 1, 2], notification_ids
+    assert notification_ids == [1, 2, 3], notification_ids
 
     # - create two more aggregates
     obj = AggregateRoot.__create__()
@@ -200,7 +200,7 @@ which can be used to follow the application events as a single sequence.
 
     # - get the new event notifications from the reader
     notification_ids = [n['id'] for n in reader.read()]
-    assert notification_ids == [3, 4], notification_ids
+    assert notification_ids == [4, 5], notification_ids
 
 Custom application
 ==================
@@ -419,6 +419,8 @@ such as when this documentation is tested as part of the library's test suite).
 
 
 .. Todo: Something about using uuid5 to make UUIDs from things like email addresses.
+
+.. Todo: Something about using application log to get a sequence of all events.
 
 .. Todo: Something about using a policy to update views from published events.
 

@@ -35,8 +35,7 @@ class Array(object):
     @retry(ConcurrencyError, max_attempts=50, wait=0.01)
     def append(self, item):
         """Sets item in next position after the last item."""
-        next_position = self.get_next_position()
-        self.__setitem__(next_position, item)
+        self.__setitem__(self.get_next_position(), item)
 
     def __setitem__(self, index, item):
         """

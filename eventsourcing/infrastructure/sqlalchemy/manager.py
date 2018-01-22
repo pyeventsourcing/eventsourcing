@@ -170,9 +170,9 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                 query = query.order_by(asc('id'))
                 # NB '+1' because record IDs start from 1.
                 if start is not None:
-                    query = query.filter(self.record_class.id >= start)
+                    query = query.filter(self.record_class.id >= start + 1)
                 if stop is not None:
-                    query = query.filter(self.record_class.id < stop)
+                    query = query.filter(self.record_class.id < stop + 1)
             # Todo: Should some tables with an ID not be ordered by ID?
             # Todo: Which order do other tables have?
             return query.all()

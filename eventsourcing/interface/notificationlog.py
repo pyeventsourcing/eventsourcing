@@ -59,22 +59,22 @@ class LocalNotificationLog(AbstractNotificationLog):
             # Figure out stop and start of the last section.
             next_position = self.get_next_position()
             start = next_position // self.section_size * self.section_size
+            stop = start + self.section_size
         else:
 
             try:
-                first_item_number, _ = section_id.split(',')
+                first_item_number, last_item_number = section_id.split(',')
             except ValueError as e:
                 raise ValueError("Couldn't split '{}': {}".format(section_id, e))
 
-            start = int(first_item_number)
+            start = int(first_item_number) - 1
             start = start // self.section_size * self.section_size
+            stop = start + self.section_size
 
             if start % self.section_size:
                 raise ValueError("Section ID {} not aligned with section size {}.".format(
                     section_id, self.section_size
                 ))
-
-        stop = start + self.section_size
 
         self.last_start = start
         items = self.get_items(start, stop, next_position)
@@ -83,23 +83,21 @@ class LocalNotificationLog(AbstractNotificationLog):
 
         # Decide the IDs of previous and next sections.
         if self.last_start:
-            first_item_number = self.last_start - self.section_size
+            first_item_number = self.last_start + 1 - self.section_size
             last_item_number = first_item_number - 1 + self.section_size
             previous_id = self.format_section_id(first_item_number, last_item_number)
         else:
             previous_id = None
 
         if len(items) == self.section_size:
-            first_item_number = self.last_start + self.section_size
+            first_item_number = self.last_start + 1 + self.section_size
             last_item_number = first_item_number - 1 + self.section_size
             next_id = self.format_section_id(first_item_number, last_item_number)
         else:
             next_id = None
 
         # Return section of notification log.
-        first_item_number = self.last_start
-        last_item_number = first_item_number - 1 + self.section_size
-        section_id = self.format_section_id(first_item_number, last_item_number)
+        section_id = self.format_section_id(start + 1, start + self.section_size)
         return Section(
             section_id=section_id,
             items=items,
@@ -152,7 +150,7 @@ class RecordManagerNotificationLog(LocalNotificationLog):
         return notifications
 
     def get_next_position(self):
-        return self.record_manager.get_max_record_id() or 0
+        return self.record_manager.get_max_record_id() or 1
 
 
 class BigArrayNotificationLog(LocalNotificationLog):
@@ -228,7 +226,7 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
     def get_items(self, stop_index=None):
         self.section_count = 0
 
-        start_item_num = self.position
+        start_item_num = self.position + 1
 
         # Validate the position.
         if self.position < 0:

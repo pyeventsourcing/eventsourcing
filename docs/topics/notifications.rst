@@ -579,16 +579,16 @@ and a ``section_size``.
 
     # Get the "current" section from the record notification log.
     section = notification_log['current']
-    assert section.section_id == '5,9', section.section_id
-    assert section.previous_id == '0,4', section.previous_id
+    assert section.section_id == '6,10', section.section_id
+    assert section.previous_id == '1,5', section.previous_id
     assert section.next_id == None
     assert len(section.items) == 4, len(section.items)
 
     # Get the first section from the record notification log.
     section = notification_log['1,5']
-    assert section.section_id == '0,4', section.section_id
+    assert section.section_id == '1,5', section.section_id
     assert section.previous_id == None, section.previous_id
-    assert section.next_id == '5,9', section.next_id
+    assert section.next_id == '6,10', section.next_id
     assert len(section.items) == 5, section.items
 
 The sections of the record notification log each have notification items that
@@ -661,8 +661,8 @@ and a ``section_size``.
 
     # Get the "current "section from the big array notification log.
     section = big_array_notification_log['current']
-    assert section.section_id == '5,9', section.section_id
-    assert section.previous_id == '0,4', section.previous_id
+    assert section.section_id == '6,10', section.section_id
+    assert section.previous_id == '1,5', section.previous_id
     assert section.next_id == None
     assert len(section.items) == 2, len(section.items)
 
@@ -671,9 +671,9 @@ and a ``section_size``.
 
     # Get the first section from the notification log.
     section = big_array_notification_log['1,10']
-    assert section.section_id == '0,4', section.section_id
+    assert section.section_id == '1,5', section.section_id
     assert section.previous_id == None, section.previous_id
-    assert section.next_id == '5,9', section.next_id
+    assert section.next_id == '6,10', section.next_id
     assert len(section.items) == 5, section.items
 
     # Check we got the first five items assigned to the big array.
@@ -745,18 +745,18 @@ The example below uses the record notification log, constructed above.
         json_encoder_class=ObjectJSONEncoder
     )
 
-    section_json, is_archived = view.present_section('0,4')
+    section_json, is_archived = view.present_section('1,5')
 
     section_dict = json.loads(section_json, cls=ObjectJSONDecoder)
 
-    assert section_dict['section_id'] == '0,4'
-    assert section_dict['next_id'] == '5,9'
+    assert section_dict['section_id'] == '1,5'
+    assert section_dict['next_id'] == '6,10'
     assert section_dict['previous_id'] == None
-    assert section_dict['items'] == notification_log['0,4'].items
+    assert section_dict['items'] == notification_log['1,5'].items
     assert len(section_dict['items']) == 5
 
     item = section_dict['items'][0]
-    assert item['id'] == 0
+    assert item['id'] == 1
     assert '__event_hash__' in item['data']
     assert item['topic'] == 'eventsourcing.domain.model.entity#VersionedEntity.Created'
 
@@ -892,6 +892,8 @@ and can be used by ``NotificationLogReader`` progressively to obtain unseen noti
 
 The example below happens to yield notifications from a big array notification log, but it
 would work equally well with a record notification log, or with a remote notification log.
+
+Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-like.
 
 .. code:: python
 

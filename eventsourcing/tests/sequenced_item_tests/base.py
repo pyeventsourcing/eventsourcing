@@ -301,8 +301,8 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
             retrieved_items = self.record_manager.all_records(start=1, stop=3)
             retrieved_items = list(retrieved_items)
             self.assertEqual(len(retrieved_items), 2)
-            self.assertEqual(retrieved_items[0].id, 1)
-            self.assertEqual(retrieved_items[1].id, 2)
+            self.assertEqual(retrieved_items[0].id, 2)
+            self.assertEqual(retrieved_items[1].id, 3)
 
         # Delete some items.
         records = list(self.record_manager.all_records())
