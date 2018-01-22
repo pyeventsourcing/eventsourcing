@@ -197,7 +197,7 @@ with SimpleApplication() as app:
     from eventsourcing.interface.notificationlog import NotificationLogReader
     reader = NotificationLogReader(app.notification_log)
     notification_ids = [n['id'] for n in reader.read()]
-    assert notification_ids == [1, 2, 3, 4, 5]
+    assert notification_ids == [0, 1, 2, 3, 4]
 
     # - create two more aggregates
     world = World.__create__()
@@ -208,7 +208,7 @@ with SimpleApplication() as app:
     
     # - get the new event notifications from the reader
     notification_ids = [n['id'] for n in reader.read()]
-    assert notification_ids == [6, 7]
+    assert notification_ids == [5, 6]
 ```
 
 The double leading and trailing underscore naming style, seen above,

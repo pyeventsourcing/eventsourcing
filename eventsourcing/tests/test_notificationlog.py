@@ -26,7 +26,7 @@ class NotificationLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolic
 
     def append_notifications(self, *range_args):
         for i in range(*range_args):
-            item = 'item{}'.format(i + 1)
+            item = 'item{}'.format(i)
             self.append_notification(item)
 
     def create_notification_log(self, section_size):
@@ -54,7 +54,7 @@ class TestNotificationLog(NotificationLogTestCase):
 
         # Check the sections.
         section = notification_log['current']
-        self.assertEqual('1,5', section.section_id)
+        self.assertEqual('0,4', section.section_id)
         self.assertEqual(0, len(list(section.items)))
         self.assertIsNone(section.previous_id)
         self.assertIsNone(section.previous_id)
@@ -63,21 +63,21 @@ class TestNotificationLog(NotificationLogTestCase):
         self.append_notifications(13)
 
         # Check the sections.
-        self.assert_section(notification_log, 'current', '11,15', 3, '6,10', None)
-        self.assert_section(notification_log, '1,5', '1,5', section_size, None, '6,10')
-        self.assert_section(notification_log, '6,10', '6,10', section_size, '1,5', '11,15')
-        self.assert_section(notification_log, '11,15', '11,15', 3, '6,10', None)
-        self.assert_section(notification_log, '16,20', '16,20', 0, '11,15', None)
-        self.assert_section(notification_log, '21,25', '21,25', 0, '16,20', None)
+        self.assert_section(notification_log, 'current', '10,14', 3, '5,9', None)
+        self.assert_section(notification_log, '0,4', '0,4', section_size, None, '5,9')
+        self.assert_section(notification_log, '5,9', '5,9', section_size, '0,4', '10,14')
+        self.assert_section(notification_log, '10,14', '10,14', 3, '5,9', None)
+        self.assert_section(notification_log, '15,19', '15,19', 0, '10,14', None)
+        self.assert_section(notification_log, '20,24', '20,24', 0, '15,19', None)
 
         # Add some more notification.
         self.append_notifications(13, 24)
 
         # Check the notification log has been extended.
-        self.assertEqual(len(list(notification_log['11,15'].items)), section_size)
-        self.assertEqual(len(list(notification_log['16,20'].items)), section_size)
-        self.assertEqual(len(list(notification_log['21,25'].items)), 4)
-        self.assertEqual(len(list(notification_log['26,30'].items)), 0)
+        self.assertEqual(len(list(notification_log['10,14'].items)), section_size)
+        self.assertEqual(len(list(notification_log['15,19'].items)), section_size)
+        self.assertEqual(len(list(notification_log['20,24'].items)), 4)
+        self.assertEqual(len(list(notification_log['25,29'].items)), 0)
 
         # Check an section ID that can't be split by ',' results in a ValueError.
         with self.assertRaises(ValueError):
@@ -132,7 +132,7 @@ class TestNotificationLogReader(NotificationLogTestCase):
 
         # Read all notifications.
         all_notifications = list(reader)
-        self.assertEqual(13, len(all_notifications))
+        self.assertEqual(13, len(all_notifications), str([n['id'] for n in all_notifications]))
 
         # Check position.
         self.assertEqual(reader.position, 13)
@@ -283,8 +283,8 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
 
             # Check we got all the items.
             self.assertEqual(len(items_from_start), num_notifications)
-            self.assertEqual(items_from_start[0]['id'], 1)
-            self.assertEqual(items_from_start[0]['data'], 'item1')
+            self.assertEqual(items_from_start[0]['id'], 0)
+            self.assertEqual(items_from_start[0]['data'], 'item0')
             self.assertEqual(items_from_start[0]['topic'], 'eventsourcing.domain.model.events#DomainEvent')
             expected_section_count = ceil(num_notifications / float(section_size))
             self.assertEqual(notification_log_reader.section_count, expected_section_count)
@@ -294,8 +294,8 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
 
             # Check we got everything after item 5.
             self.assertEqual(len(items_from_5), num_notifications - section_size + 1)
-            self.assertEqual(items_from_5[0]['id'], section_size)
-            self.assertEqual(items_from_5[0]['data'], 'item{}'.format(section_size))
+            self.assertEqual(items_from_5[0]['id'], section_size - 1)
+            self.assertEqual(items_from_5[0]['data'], 'item{}'.format(section_size - 1))
             self.assertEqual(items_from_5[0]['topic'], 'eventsourcing.domain.model.events#DomainEvent')
             expected_section_count = ceil(num_notifications / float(section_size))
             self.assertEqual(notification_log_reader.section_count, expected_section_count)

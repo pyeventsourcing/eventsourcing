@@ -113,7 +113,7 @@ class RelationalRecordManager(AbstractRecordManager):
 
     _insert_select_max_tmpl = (
         "INSERT INTO {tablename} (id, {columns}) "
-        "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
+        "SELECT COALESCE(MAX({tablename}.id), -1) + 1, {placeholders} "
         "FROM {tablename};"
     )
 

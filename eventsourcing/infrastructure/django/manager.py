@@ -158,9 +158,9 @@ class DjangoRecordManager(RelationalRecordManager):
         position_field_name = 'id'
         # Todo: Also support sequencing by 'position' if items are sequenced by timestamp?
         if start is not None:
-            filter_kwargs['%s__gte' % position_field_name] = start + 1
+            filter_kwargs['%s__gte' % position_field_name] = start
         if stop is not None:
-            filter_kwargs['%s__lt' % position_field_name] = stop + 1
+            filter_kwargs['%s__lt' % position_field_name] = stop
         query = self.record_class.objects.filter(**filter_kwargs)
         query = query.order_by('%s' % position_field_name)
         return query.all()
