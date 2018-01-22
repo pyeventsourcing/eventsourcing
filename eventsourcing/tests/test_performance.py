@@ -9,8 +9,8 @@ from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.infrastructure.base import AbstractRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
-from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecordNoID, TimestampSequencedRecord, \
-    TimestampSequencedRecordNoID, IntegerSequencedRecordWithID, TimestampSequencedRecordWithID
+from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoIDRecord, TimestampSequencedRecord, \
+    TimestampSequencedNoIDRecord, IntegerSequencedWithIDRecord, TimestampSequencedWithIDRecord
 from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader, get_timebucketedlog_reader
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.example_application_tests.base import WithExampleApplication
@@ -262,12 +262,12 @@ class TestCassandraPerformanceWithEncryption(WithEncryption, TestCassandraPerfor
 class TestSQLAlchemyPerformance(WithSQLAlchemyRecordManagers, PerformanceTestCase):
     def construct_entity_record_manager(self):
         return self.factory.construct_integer_sequenced_record_manager(
-            record_class=IntegerSequencedRecordWithID
+            record_class=IntegerSequencedWithIDRecord
         )
 
     def construct_log_record_manager(self):
         return self.factory.construct_timestamp_sequenced_record_manager(
-            record_class=TimestampSequencedRecordWithID
+            record_class=TimestampSequencedWithIDRecord
         )
 
 @notquick
@@ -275,12 +275,12 @@ class TestSQLAlchemyPerformanceNoID(TestSQLAlchemyPerformance):
 
     def construct_entity_record_manager(self):
         return self.factory.construct_integer_sequenced_record_manager(
-            record_class=IntegerSequencedRecordNoID
+            record_class=IntegerSequencedNoIDRecord
         )
 
     def construct_log_record_manager(self):
         return self.factory.construct_timestamp_sequenced_record_manager(
-            record_class=TimestampSequencedRecordNoID
+            record_class=TimestampSequencedNoIDRecord
         )
 
 @notquick

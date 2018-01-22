@@ -175,7 +175,7 @@ IDs across such partitions, and hence sequencing the events of an application
 in this way, will be problematic.
 
 To proceed without an indexed record ID column, the library class ``BigArray``
-can be used to sequence of all the events of an application. This technique
+can be used to sequence all the events of an application. This technique
 can be used as an alternative to using a native database index of record IDs,
 especially in situations where a normal database index across all records is
 generally discouraged (e.g. in Cassandra), or where records do not have an
@@ -207,18 +207,19 @@ ID in the table, adding one, and inserting that value, along with the
 event data.
 
 Because the IDs must be unique, applications may experience the library's
-``ConcurrencyErrors`` exception if they happen to insert records
+``ConcurrencyError`` exception if they happen to insert records
 simultaneously with others. Record ID conflicts are retried a finite
 number of times by the library before a ``ConcurrencyError`` exception
 is raised. But with a load beyond the capability of a service, increased
-congestion will be experienced as an increased frequency of ConcurrencyErrors.
+congestion will be experienced by the application as an increased frequency
+of concurrency errors.
 
 Please note, without the ``contiguous_record_ids`` feature enabled,
-the ID columns of library record classes fall back to the auto-incrementing
-default, and so the record IDs can anyway be used to get all the records in
+the ID columns of library record classes should be merely auto-incrementing,
+and so the record IDs can anyway be used to get all the records in
 the order they were written. However, auto-incrementing the ID can lead to
 a sequence of IDs that has gaps, a non-contiguous sequence, which could lead
-to race conditions and missed items. The gaps would need to be negociated,
+to race conditions and missed items. The gaps would need to be negotiated,
 which is relatively complicated. To keep things relatively simple, a record
 manager that does not have the ``contiguous_record_ids`` feature enabled cannot
 be used with the library's ``RecordManagerNotificationLog`` class (introduced
@@ -226,8 +227,8 @@ below). If you want to sequence the application events with a non-contiguous
 sequence, then you will need to write something that can negotiate the gaps.
 
 To use contiguous IDs to sequence the events of an application, simply use a
-relational record manager with an ``IntegerSequencedRecord`` or the
-``StoredEventRecord`` record class, and with a True value for its
+relational record manager with an ``IntegerSequencedRecord`` that has an ID,
+such as the ``StoredEventRecord`` record class, and with a True value for its
 ``contiguous_record_ids`` constructor argument. The ``record_manager``
 above was constructed in this way. The records can be then be obtained
 using the ``all_records()`` method of the record manager. The record IDs
@@ -297,10 +298,12 @@ longer to append the 100,000,000th item to the big array than the 1st one. By
 the time the 1,000,000,000,000th index position is assigned to a big array, the
 ``append()`` method will take only twice as long as the 1st.
 
-That's because the performance of the ``append()`` method is dominated by the
-need to walk down the big array's tree of arrays to find the highest assigned
-index. Once the index of the next position is known, the item can be assigned
-directly to an array.
+That's because the default performance of the ``append()`` method is dominated
+by the need to walk down the big array's tree of arrays to find the highest
+assigned index. Once the index of the next position is known, the item can be
+assigned directly to an array. The performance can be improved by using an integer
+sequence generator, but departing from using the current max ID risks creating
+gaps in the sequence of IDs.
 
 .. code:: python
 

@@ -3,14 +3,14 @@ from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
-from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecordWithID, SnapshotRecord, \
-    StoredEventRecord, TimestampSequencedRecordNoID
+from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedWithIDRecord, SnapshotRecord, \
+    StoredEventRecord, TimestampSequencedNoIDRecord
 
 
 class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
     record_manager_class = SQLAlchemyRecordManager
-    integer_sequenced_record_class = IntegerSequencedRecordWithID
-    timestamp_sequenced_record_class = TimestampSequencedRecordNoID
+    integer_sequenced_record_class = IntegerSequencedWithIDRecord
+    timestamp_sequenced_record_class = TimestampSequencedNoIDRecord
     snapshot_record_class = SnapshotRecord
 
     def __init__(self, session, *args, **kwargs):

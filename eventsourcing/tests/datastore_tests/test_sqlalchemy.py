@@ -7,8 +7,8 @@ from eventsourcing.infrastructure.datastore import DatastoreTableError
 from eventsourcing.infrastructure.sqlalchemy.datastore import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
     SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
-from eventsourcing.infrastructure.sqlalchemy.records import Base, IntegerSequencedRecord, IntegerSequencedRecordNoID, \
-    IntegerSequencedRecordWithID, SnapshotRecord, TimestampSequencedRecordNoID, TimestampSequencedRecordWithID
+from eventsourcing.infrastructure.sqlalchemy.records import Base, IntegerSequencedRecord, IntegerSequencedNoIDRecord, \
+    IntegerSequencedWithIDRecord, SnapshotRecord, TimestampSequencedNoIDRecord, TimestampSequencedWithIDRecord
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
 
 
@@ -34,10 +34,10 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
             base=Base,
             settings=SQLAlchemySettings(uri=uri),
             tables=(
-                IntegerSequencedRecordWithID,
-                IntegerSequencedRecordNoID,
-                TimestampSequencedRecordWithID,
-                TimestampSequencedRecordNoID,
+                IntegerSequencedWithIDRecord,
+                IntegerSequencedNoIDRecord,
+                TimestampSequencedWithIDRecord,
+                TimestampSequencedNoIDRecord,
                 SnapshotRecord
             ),
             connection_strategy=self.connection_strategy,

@@ -7,7 +7,7 @@ from sqlalchemy_utils.types.uuid import UUIDType
 Base = declarative_base()
 
 
-class IntegerSequencedRecordWithID(Base):
+class IntegerSequencedWithIDRecord(Base):
     __tablename__ = 'integer_sequenced_items'
 
     # Record ID.
@@ -30,7 +30,7 @@ class IntegerSequencedRecordWithID(Base):
     )
 
 
-class IntegerSequencedRecordNoID(Base):
+class IntegerSequencedNoIDRecord(Base):
     __tablename__ = 'integer_sequenced_items_noid'
 
     # Sequence ID (e.g. an entity or aggregate ID).
@@ -45,11 +45,11 @@ class IntegerSequencedRecordNoID(Base):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
-IntegerSequencedRecord = IntegerSequencedRecordWithID
-# IntegerSequencedRecord = IntegerSequencedRecordNoID
+IntegerSequencedRecord = IntegerSequencedWithIDRecord
+# IntegerSequencedRecord = IntegerSequencedNoIDRecord
 
 
-class TimestampSequencedRecordWithID(Base):
+class TimestampSequencedWithIDRecord(Base):
     __tablename__ = 'timestamp_sequenced_items'
 
     # Record ID.
@@ -74,7 +74,7 @@ class TimestampSequencedRecordWithID(Base):
     )
 
 
-class TimestampSequencedRecordNoID(Base):
+class TimestampSequencedNoIDRecord(Base):
     __tablename__ = 'timestamp_sequenced_items_noid'
 
     # Sequence ID (e.g. an entity or aggregate ID).
@@ -94,8 +94,8 @@ class TimestampSequencedRecordNoID(Base):
     )
 
 
-# TimestampSequencedRecord = TimestampSequencedRecordWithID
-TimestampSequencedRecord = TimestampSequencedRecordNoID
+# TimestampSequencedRecord = TimestampSequencedWithIDRecord
+TimestampSequencedRecord = TimestampSequencedNoIDRecord
 
 class SnapshotRecord(Base):
     __tablename__ = 'snapshots'
