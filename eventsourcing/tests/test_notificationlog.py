@@ -229,6 +229,9 @@ class TestNotificationLogReader(NotificationLogTestCase):
         self.assertEqual(len(list(reader[21:20])), 0)
         self.assertEqual(reader.position, 21)
 
+        with self.assertRaises(StopIteration):
+            next(reader)
+
 
 class TestRemoteNotificationLog(NotificationLogTestCase):
     use_named_temporary_file = True
