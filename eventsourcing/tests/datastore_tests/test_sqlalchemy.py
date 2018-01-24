@@ -7,7 +7,7 @@ from eventsourcing.infrastructure.datastore import DatastoreTableError
 from eventsourcing.infrastructure.sqlalchemy.datastore import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
     SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
-from eventsourcing.infrastructure.sqlalchemy.records import Base, IntegerSequencedRecord, IntegerSequencedNoIDRecord, \
+from eventsourcing.infrastructure.sqlalchemy.records import Base, IntegerSequencedNoIDRecord, \
     IntegerSequencedWithIDRecord, SnapshotRecord, TimestampSequencedNoIDRecord, TimestampSequencedWithIDRecord
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
 
@@ -48,7 +48,7 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
 class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, DatastoreTestCase):
     def list_records(self):
         try:
-            query = self.datastore.session.query(IntegerSequencedRecord)
+            query = self.datastore.session.query(IntegerSequencedNoIDRecord)
             return list(query)
         except (OperationalError, ProgrammingError) as e:
             # OperationalError from sqlite, ProgrammingError from psycopg2.
@@ -59,7 +59,7 @@ class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, DatastoreTestCase):
 
     def create_record(self):
         try:
-            record = IntegerSequencedRecord(
+            record = IntegerSequencedNoIDRecord(
                 sequence_id=uuid4(),
                 position=0,
                 topic='topic',

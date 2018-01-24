@@ -8,8 +8,8 @@ from eventsourcing.exceptions import EventHashError, HeadHashError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoIDRecord
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
     WithSQLAlchemyRecordManagers
 from eventsourcing.utils.topic import get_topic
@@ -283,7 +283,7 @@ class ExampleDDDApplication(object):
         event_store = EventStore(
             record_manager=SQLAlchemyRecordManager(
                 session=datastore.session,
-                record_class=IntegerSequencedRecord,
+                record_class=IntegerSequencedNoIDRecord,
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequence_id_attr_name='originator_id',
@@ -308,7 +308,6 @@ class ExampleDDDApplication(object):
         :rtype: Aggregate1
         """
         return Aggregate1.__create__()
-
 
     def create_aggregate2(self):
         """
