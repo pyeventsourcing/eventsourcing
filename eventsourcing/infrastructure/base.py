@@ -189,7 +189,12 @@ class RelationalRecordManager(AbstractRecordManager):
     @property
     @abstractmethod
     def record_table_name(self):
-        return ""
+        """
+        Returns table name - used in raw queries,
+        and to detect record ID conflicts.
+
+        :rtype: str
+        """
 
     def raise_after_integrity_error(self, e):
         error = str(e)
