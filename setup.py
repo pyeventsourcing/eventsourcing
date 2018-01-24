@@ -16,7 +16,7 @@ if 'READTHEDOCS' in os.environ:
 
 install_requires = singledispatch_requires + [
     'python-dateutil<=2.6.99999',
-    'six<=1.10.99999',
+    'six<=1.11.99999',
     'pycryptodome<=3.4.99999',
 ]
 
@@ -29,15 +29,15 @@ cassandra_requires = [
     'cassandra-driver<=3.12.99999'
 ]
 
-django_requires = [
-    'django==1.11',
+django_requires = [  # Note, Django 2 doesn't support Python 2.7
+    'django>=1.11,<=2.0.99999' if str != bytes else 'django>=1.11,<=1.11.99999',
 ]
 
 testing_requires = [
     'mock<=2.0.99999',
-    'requests<=2.13.99999',
+    'requests<=2.18.99999',
     'flask<=0.12.99999',
-    'flask_sqlalchemy<=2.2.99',
+    'flask_sqlalchemy<=2.3.99',
     'uwsgi<=2.0.99999',
     'redis<=2.10.99999',
     'celery<=4.1.99999',

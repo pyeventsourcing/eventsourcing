@@ -1,7 +1,7 @@
 from eventsourcing.example.application import close_example_application, get_example_application, \
     init_example_application
-from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoIDRecord
 from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
 
 
@@ -25,7 +25,7 @@ class TestExampleApplicationSingleInstanceFunctions(SQLAlchemyDatastoreTestCase)
         self.datastore.setup_connection()
         self.datastore.setup_tables()
         record_manager = SQLAlchemyRecordManager(
-            record_class=IntegerSequencedRecord,
+            record_class=IntegerSequencedNoIDRecord,
             session=self.datastore.session,
         )
 

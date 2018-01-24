@@ -122,15 +122,6 @@ class DjangoRecordManager(RelationalRecordManager):
 
         return records
 
-    # def filter(self, **kwargs):
-    #     pass
-    #     # return self.query.filter_by(**kwargs)
-
-    # @property
-    # def query(self):
-    #     pass
-    #     # return self.session.query(self.record_class)
-
     def all_items(self):
         """
         Returns all items across all sequences.

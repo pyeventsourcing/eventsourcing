@@ -18,11 +18,13 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
         self.session = session
 
     def construct_record_manager(self, **kwargs):
-        return super(SQLAlchemyInfrastructureFactory, self).construct_record_manager(session=self.session, **kwargs)
+        return super(SQLAlchemyInfrastructureFactory, self).construct_record_manager(
+            session=self.session, **kwargs
+        )
 
 
 def construct_sqlalchemy_eventstore(session,
-                                    sequenced_item_class=StoredEvent,
+                                    sequenced_item_class=None,
                                     sequence_id_attr_name=None,
                                     position_attr_name=None,
                                     json_encoder_class=None,
@@ -31,6 +33,7 @@ def construct_sqlalchemy_eventstore(session,
                                     record_class=None,
                                     contiguous_record_ids=False,
                                     ):
+    sequenced_item_class = sequenced_item_class or StoredEvent
     sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=sequenced_item_class,
         sequence_id_attr_name=sequence_id_attr_name,

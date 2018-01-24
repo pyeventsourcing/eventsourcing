@@ -1,10 +1,24 @@
-from sqlalchemy import DECIMAL, UniqueConstraint
+from sqlalchemy import DECIMAL
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.schema import Column, Index
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
 Base = declarative_base()
+
+
+# Please note, the record classes without an indexed ID ('WithID') are
+# more or less equivalent to the similarly named Django classes. The
+# record classes without ID ('NoID') are more or less equivalent to the
+# Cassandra classes, in that they don't have a record ID, so must be
+# accessed by sequence ID, optionally with position, and also their
+# application sequence must be constructed elsewhere such as with a big
+# array. Without record IDs, the maximum rate at which events can be
+# written in parallel will be greater, because the IDs don't need to be
+# generated and because there isn't a record ID index to be updated.
+# Also, if there is no record ID index, the table can easily be shared
+# with the sequence ID being used to select a shard. The drawback is
+# that the application sequence will need to be constructed elsewhere.
 
 
 class IntegerSequencedWithIDRecord(Base):
@@ -45,8 +59,8 @@ class IntegerSequencedNoIDRecord(Base):
     # State of the item (serialized dict, possibly encrypted).
     data = Column(Text())
 
+
 IntegerSequencedRecord = IntegerSequencedWithIDRecord
-# IntegerSequencedRecord = IntegerSequencedNoIDRecord
 
 
 class TimestampSequencedWithIDRecord(Base):
@@ -94,8 +108,8 @@ class TimestampSequencedNoIDRecord(Base):
     )
 
 
-# TimestampSequencedRecord = TimestampSequencedWithIDRecord
 TimestampSequencedRecord = TimestampSequencedNoIDRecord
+
 
 class SnapshotRecord(Base):
     __tablename__ = 'snapshots'

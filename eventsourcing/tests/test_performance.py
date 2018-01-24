@@ -1,16 +1,16 @@
 import time
+from math import floor
 from uuid import uuid4
 
 import six
-from math import floor
 
 from eventsourcing.domain.model.timebucketedlog import start_new_timebucketedlog
 from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.infrastructure.base import AbstractRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
-from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoIDRecord, TimestampSequencedRecord, \
-    TimestampSequencedNoIDRecord, IntegerSequencedWithIDRecord, TimestampSequencedWithIDRecord
+from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoIDRecord, IntegerSequencedWithIDRecord, \
+    TimestampSequencedNoIDRecord, TimestampSequencedWithIDRecord
 from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader, get_timebucketedlog_reader
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.example_application_tests.base import WithExampleApplication
@@ -244,9 +244,11 @@ class PerformanceTestCase(WithExampleApplication):
 class TestCassandraPerformance(WithCassandraRecordManagers, PerformanceTestCase):
     pass
 
+
 @notquick
 class TestDjangoPerformance(DjangoTestCase, PerformanceTestCase):
     pass
+
 
 @notquick
 class TestDjangoPerformanceWithEncryption(WithEncryption, TestDjangoPerformance):
@@ -270,6 +272,7 @@ class TestSQLAlchemyPerformance(WithSQLAlchemyRecordManagers, PerformanceTestCas
             record_class=TimestampSequencedWithIDRecord
         )
 
+
 @notquick
 class TestSQLAlchemyPerformanceNoID(TestSQLAlchemyPerformance):
 
@@ -282,6 +285,7 @@ class TestSQLAlchemyPerformanceNoID(TestSQLAlchemyPerformance):
         return self.factory.construct_timestamp_sequenced_record_manager(
             record_class=TimestampSequencedNoIDRecord
         )
+
 
 @notquick
 class TestSQLAlchemyPerformanceWithEncryption(WithEncryption, TestSQLAlchemyPerformance):

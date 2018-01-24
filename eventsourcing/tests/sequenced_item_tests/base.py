@@ -10,8 +10,8 @@ from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
     Logged
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.exceptions import SequencedItemConflict, RecordIDConflict
-from eventsourcing.infrastructure.base import AbstractRecordManager, RelationalRecordManager
+from eventsourcing.exceptions import RecordIDConflict, SequencedItemConflict
+from eventsourcing.infrastructure.base import AbstractRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
 from eventsourcing.infrastructure.sequenceditem import SequencedItem

@@ -14,20 +14,16 @@ class InfrastructureFactory(object):
                  integer_sequenced_record_class=None, timestamp_sequenced_record_class=None,
                  snapshot_record_class=None, contiguous_record_ids=False, session=None):
 
-        self.record_manager_class = record_manager_class or \
-                                    type(self).record_manager_class
+        self.record_manager_class = record_manager_class or self.record_manager_class
 
-        self.sequenced_item_class = sequenced_item_class or \
-                                    type(self).sequenced_item_class
+        self.sequenced_item_class = sequenced_item_class or self.sequenced_item_class
 
-        self.integer_sequenced_record_class = integer_sequenced_record_class \
-                                              or type(self).integer_sequenced_record_class
+        self.integer_sequenced_record_class = integer_sequenced_record_class or self.integer_sequenced_record_class
 
-        self.timestamp_sequenced_record_class = timestamp_sequenced_record_class \
-                                                or type(self).timestamp_sequenced_record_class
+        self.timestamp_sequenced_record_class = timestamp_sequenced_record_class or \
+                                                self.timestamp_sequenced_record_class
 
-        self.snapshot_record_class = snapshot_record_class \
-                                               or type(self).snapshot_record_class
+        self.snapshot_record_class = snapshot_record_class or self.snapshot_record_class
 
         self.contiguous_record_ids = contiguous_record_ids
         self.session = session
