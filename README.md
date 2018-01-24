@@ -1,7 +1,7 @@
 # Event Sourcing in Python
 
-[![Latest Release](https://badge.fury.io/py/eventsourcing.svg#)](https://pypi.python.org/pypi/eventsourcing)
-[![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg#)](https://coveralls.io/github/johnbywater/eventsourcing)
+[![Latest Release](https://badge.fury.io/py/eventsourcing.svg)](https://pypi.python.org/pypi/eventsourcing)
+[![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg)](https://coveralls.io/github/johnbywater/eventsourcing)
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png)](https://travis-ci.org/johnbywater/eventsourcing)
 
 A library for event sourcing in Python.
