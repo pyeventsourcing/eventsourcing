@@ -43,6 +43,7 @@ class TestDocs(TestCase):
                 # if name.endswith('infrastructure.rst'):
                 # if name.endswith('application.rst'):
                 # if name.endswith('snapshotting.rst'):
+                # if name.endswith('notifications.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)

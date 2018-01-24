@@ -7,20 +7,8 @@ import requests
 import six
 
 from eventsourcing.domain.model.array import BigArray
-
-
-class AbstractNotificationLog(six.with_metaclass(ABCMeta)):
-    """
-    Presents a sequence of sections from a sequence of notifications.
-    """
-
-    @abstractmethod
-    def __getitem__(self, section_id):
-        """
-        Returns section of notification log.
-
-        :rtype: Section
-        """
+from eventsourcing.infrastructure.base import RelationalRecordManager
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, json_dumps
 
 
 class Section(object):
@@ -38,64 +26,74 @@ class Section(object):
         self.previous_id = previous_id
         self.next_id = next_id
 
-# Todo: Refactor this, into subclass that works with BigArray, and another that works with ActiveRecord that has an
-# auto-incrementing id field.
-class NotificationLog(AbstractNotificationLog):
-    def __init__(self, big_array, section_size):
-        assert isinstance(big_array, BigArray)
-        if big_array.repo.array_size % section_size:
-            raise ValueError("Section size {} doesn't divide array size {}".format(
-                section_size, big_array.repo.array_size
-            ))
-        self.big_array = big_array
+
+class AbstractNotificationLog(six.with_metaclass(ABCMeta)):
+    """
+    Presents a sequence of sections from a sequence of notifications.
+    """
+
+    @abstractmethod
+    def __getitem__(self, section_id):
+        """
+        Get section of notification log.
+
+        :rtype: Section
+        """
+
+
+class LocalNotificationLog(AbstractNotificationLog):
+    """
+    Presents a sequence of sections from a sequence of notifications.
+    """
+
+    def __init__(self, section_size):
         self.section_size = section_size
-        self.last_last_item = None
-        self.last_start = None
-        self.last_stop = None
+        # self.last_start = None
 
     def __getitem__(self, section_id):
         # Get section of notification log.
-        next_position = self.big_array.get_next_position()
+        next_position = None
         if section_id == 'current':
+
+            # Get start of the last section.
+            next_position = self.get_next_position()
             start = next_position // self.section_size * self.section_size
-            stop = next_position
-            section_id = self.format_section_id(start + 1, start + self.section_size)
         else:
+
             try:
                 first_item_number, last_item_number = section_id.split(',')
             except ValueError as e:
                 raise ValueError("Couldn't split '{}': {}".format(section_id, e))
+
+            # Convert from 1-based to 0-based.
             start = int(first_item_number) - 1
-            stop = int(last_item_number)
 
-            if start % self.section_size:
-                raise ValueError("Document ID {} not aligned with document size {}.".format(
-                    section_id, self.section_size
-                ))
-            if stop - start != self.section_size:
-                raise ValueError("Document ID {} does not match document size {}.".format(
-                    section_id, self.section_size
-                ))
-        self.last_start = start
-        self.last_stop = stop
-        items = self.big_array[start:min(stop, next_position)]
+            # Go back to nearest section start.
+            start = start // self.section_size * self.section_size
 
-        # Decide the IDs of previous and next sections.
-        if self.last_start:
-            first_item_number = self.last_start + 1 - self.section_size
+        # Get stop index (section doesn't include this one).
+        stop = start + self.section_size
+
+        # Get the items.
+        items = list(self.get_items(start, stop, next_position))
+
+        # Get previous and next section IDs.
+        if start:
+            first_item_number = start + 1 - self.section_size
             last_item_number = first_item_number - 1 + self.section_size
             previous_id = self.format_section_id(first_item_number, last_item_number)
         else:
             previous_id = None
-        if self.last_stop < next_position:
-            first_item_number = self.last_start + 1 + self.section_size
+
+        if len(items) == self.section_size:
+            first_item_number = start + 1 + self.section_size
             last_item_number = first_item_number - 1 + self.section_size
             next_id = self.format_section_id(first_item_number, last_item_number)
         else:
             next_id = None
 
-        # Return section of notification log.
-        items = list(items)
+        # Return a section of the notification log.
+        section_id = self.format_section_id(start + 1, start + self.section_size)
         return Section(
             section_id=section_id,
             items=items,
@@ -103,9 +101,103 @@ class NotificationLog(AbstractNotificationLog):
             next_id=next_id,
         )
 
+    @abstractmethod
+    def get_next_position(self):
+        """
+        Returns items for section.
+
+        :rtype: int
+        """
+
+    @abstractmethod
+    def get_items(self, start, stop, next_position=None):
+        """
+        Returns items for section.
+
+        :rtype: list
+        """
+
     @staticmethod
     def format_section_id(first_item_number, last_item_number):
         return '{},{}'.format(first_item_number, last_item_number)
+
+
+class RecordManagerNotificationLog(LocalNotificationLog):
+
+    def __init__(self, record_manager, section_size):
+        super(RecordManagerNotificationLog, self).__init__(section_size)
+        assert isinstance(record_manager, RelationalRecordManager), record_manager
+        assert record_manager.contiguous_record_ids
+        self.record_manager = record_manager
+
+    def get_items(self, start, stop, next_position=None):
+        notifications = []
+        for record in self.record_manager.all_records(start, stop):
+
+            data_field_name = self.record_manager.field_names.data
+            topic_field_name = self.record_manager.field_names.topic
+
+            notification = {
+                'id': record.id,
+                'topic': getattr(record, topic_field_name),
+                'data': getattr(record, data_field_name),
+            }
+            notifications.append(notification)
+        return notifications
+
+    def get_next_position(self):
+        return self.record_manager.get_max_record_id() or 1
+
+
+class BigArrayNotificationLog(LocalNotificationLog):
+    def __init__(self, big_array, section_size):
+        super(BigArrayNotificationLog, self).__init__(section_size)
+        assert isinstance(big_array, BigArray)
+        if big_array.repo.array_size % section_size:
+            raise ValueError("Section size {} doesn't divide array size {}".format(
+                section_size, big_array.repo.array_size
+            ))
+        self.big_array = big_array
+
+    def get_items(self, start, stop, next_position=None):
+        next_position = self.get_next_position() if next_position is None else next_position
+        stop = min(stop, next_position)
+        return self.big_array[start:stop]
+
+    def get_next_position(self):
+        return self.big_array.get_next_position()
+
+
+class RemoteNotificationLog(AbstractNotificationLog):
+    def __init__(self, base_url, json_decoder_class=None):
+        self.base_url = base_url
+        self.json_decoder_class = json_decoder_class
+
+    def __getitem__(self, section_id):
+        section_json = self.get_json(section_id)
+        return self.deserialize_section(section_json)
+
+    def deserialize_section(self, section_json):
+        try:
+            decoder_class = self.json_decoder_class or ObjectJSONDecoder
+            section = Section(**json.loads(section_json, cls=decoder_class))
+        except ValueError as e:
+            raise ValueError("Couldn't deserialize notification log section: "
+                             "{}: {}".format(e, section_json))
+        return section
+
+    def get_json(self, section_id):
+        notification_log_url = self.make_notification_log_url(section_id)
+        return self.get_resource(notification_log_url)
+
+    def get_resource(self, doc_url):
+        representation = requests.get(doc_url).content
+        if isinstance(representation, type(b'')):
+            representation = representation.decode('utf8')
+        return representation
+
+    def make_notification_log_url(self, section_id):
+        return '{}/{}/'.format(self.base_url.strip('/'), section_id)
 
 
 class NotificationLogReader(six.with_metaclass(ABCMeta)):
@@ -116,15 +208,37 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
         self.position = 0
 
     def __getitem__(self, item=None):
-        assert isinstance(item, slice), type(item)
-        assert item.start >= 0, item.start
-        self.seek(item.start)
-        return self.get_items(item.stop)
+        if isinstance(item, slice):
+            assert item.start >= 0, item.start
+            self.seek(item.start)
+            return self.get_items(item.stop)
+        else:
+            assert isinstance(item, int), type(item)
+            assert item >= 0, item
+            self.seek(item)
+            return self.read(advance_by=1)[0]
 
     def __iter__(self):
         return self.get_items()
 
-    def get_items(self, stop_index=None):
+    def __next__(self):
+        try:
+            return self.read(advance_by=1)[0]
+        except IndexError:
+            raise StopIteration
+
+    def next(self):
+        """
+        Python 2.7 version of the iterator protocol.
+        """
+        return self.__next__()
+
+    def seek(self, position):
+        if position < 0:
+            raise ValueError("Position less than zero: {}".format(position))
+        self.position = position
+
+    def get_items(self, stop_index=None, advance_by=None):
         self.section_count = 0
 
         start_item_num = self.position + 1
@@ -156,14 +270,25 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
             from_index = start_item_num - section_start_num
             items = items[from_index:]
 
+        if advance_by is None:
+            advance_by = -1
+
         # Yield all items in all subsequent sections.
         while True:
 
-            for item in items:
+            items_iter = iter(items)
+            while True:
                 if stop_index is not None and self.position >= stop_index:
                     return
-                yield item
+                if advance_by == 0:
+                    return
+                try:
+                    item = next(items_iter)
+                except StopIteration:
+                    break
                 self.position += 1
+                advance_by -= 1
+                yield item
 
             if section.next_id:
                 # Follow link to get next section.
@@ -173,53 +298,18 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
             else:
                 break
 
-    def seek(self, position):
-        if position < 0:
-            raise ValueError("Position less than zero: {}".format(position))
-        self.position = position
+    def read(self, advance_by=None):
+        return list(self.get_items(advance_by=advance_by))
 
 
-def deserialize_section(section_json):
-    try:
-        return Section(**json.loads(section_json))
-    except ValueError as e:
-        raise ValueError("Couldn't deserialize notification log section: "
-                         "{}: {}".format(e, section_json))
+class NotificationLogView(object):
+    def __init__(self, notification_log, json_encoder_class=None):
+        assert isinstance(notification_log, LocalNotificationLog), type(notification_log)
+        self.notification_log = notification_log
+        self.json_encoder_class = json_encoder_class
 
-
-def serialize_section(section):
-    assert isinstance(section, Section)
-    return json.dumps(section.__dict__, indent=4, sort_keys=True)
-
-
-def present_section(big_array, section_id, section_size):
-    notification_log = NotificationLog(big_array, section_size=section_size)
-    section = notification_log[section_id]
-    return serialize_section(section)
-
-
-class RemoteNotificationLog(AbstractNotificationLog):
-    def __init__(self, base_url, notification_log_id):
-        self.base_url = base_url
-        self.notification_log_id = notification_log_id
-
-    def __getitem__(self, section_id):
-        section_json = self.get_json(section_id)
-        return deserialize_section(section_json)
-
-    def get_json(self, section_id):
-        notification_log_url = self.make_notification_log_url(section_id)
-        return self.get_resource(notification_log_url)
-
-    def get_resource(self, doc_url):
-        representation = requests.get(doc_url).content
-        if isinstance(representation, type(b'')):
-            representation = representation.decode('utf8')
-        return representation
-
-    def make_notification_log_url(self, notification_log_id):
-        return '{}/{}/{}/'.format(
-            self.base_url.strip('/'),
-            self.notification_log_id,
-            notification_log_id
-        )
+    def present_section(self, section_id):
+        section = self.notification_log[section_id]
+        is_archived = bool(section.next_id)
+        section_json = json_dumps(section.__dict__, self.json_encoder_class)
+        return section_json, is_archived

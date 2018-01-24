@@ -51,19 +51,20 @@ class TestFlaskApp(unittest.TestCase):
         assert_event_handlers_empty()
 
     def test(self):
-        max_retries = 100
-        while max_retries:
+        patience = 100
+        while True:
             try:
                 response = requests.get('http://localhost:{}'.format(self.port))
-            except ConnectionError:
-                sleep(0.1)
-                max_retries -= 1
-            else:
-                self.assertIsInstance(response, Response)
-                self.assertIn('Hello There!', response.text)
                 break
-        else:
-            self.fail("Couldn't get response from app, (Python executable {})".format(sys.executable))
+            except ConnectionError:
+                patience -= 1
+                if not patience:
+                    self.fail("Couldn't get response from app, (Python executable {})".format(sys.executable))
+                else:
+                    sleep(0.1)
+
+        self.assertIsInstance(response, Response)
+        self.assertIn('Hello There!', response.text)
 
 
 @notquick

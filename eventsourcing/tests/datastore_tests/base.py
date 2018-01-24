@@ -5,9 +5,14 @@ from eventsourcing.tests.base import AbstractTestCase
 
 
 class AbstractDatastoreTestCase(AbstractTestCase):
+    infrastructure_factory_class = None
+    cancel_sqlite3_decimal_converter = False
+    contiguous_record_ids = False
+
     def __init__(self, *args, **kwargs):
         super(AbstractDatastoreTestCase, self).__init__(*args, **kwargs)
         self._datastore = None
+        self._factory = None
 
     def tearDown(self):
         self._datastore = None
@@ -27,6 +32,21 @@ class AbstractDatastoreTestCase(AbstractTestCase):
         """
         :rtype: eventsourcing.infrastructure.datastore.datastore.Datastore
         """
+
+    @property
+    def factory(self):
+        if not self._factory:
+            kwargs = {}
+            if hasattr(self.datastore, 'session'):
+                kwargs['session'] = self.datastore.session
+            if self.cancel_sqlite3_decimal_converter:
+                import sqlite3
+                sqlite3.register_converter("decimal", None)
+                kwargs['convert_position_float_to_decimal'] = True
+            if self.contiguous_record_ids:
+                kwargs['contiguous_record_ids'] = True
+            self._factory = self.infrastructure_factory_class(**kwargs)
+        return self._factory
 
 
 class DatastoreTestCase(AbstractDatastoreTestCase):

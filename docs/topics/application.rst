@@ -151,29 +151,28 @@ application's repository.
 
     from eventsourcing.domain.model.aggregate import AggregateRoot
 
-    with app:
-        obj = AggregateRoot.__create__()
-        obj.__change_attribute__(name='a', value=1)
-        assert obj.a == 1
+    obj = AggregateRoot.__create__()
+    obj.__change_attribute__(name='a', value=1)
+    assert obj.a == 1
+    obj.__save__()
+
+    # Check the repository has the latest values.
+    copy = app.repository[obj.id]
+    assert copy.a == 1
+
+    # Check the aggregate can be discarded.
+    copy.__discard__()
+    assert copy.id not in app.repository
+
+    # Check optimistic concurrency control is working ok.
+    from eventsourcing.exceptions import ConcurrencyError
+    try:
+        obj.__change_attribute__(name='a', value=2)
         obj.__save__()
-
-        # Check the repository has the latest values.
-        copy = app.repository[obj.id]
-        assert copy.a == 1
-
-        # Check the aggregate can be discarded.
-        copy.__discard__()
-        assert copy.id not in app.repository
-
-        # Check optimistic concurrency control is working ok.
-        from eventsourcing.exceptions import ConcurrencyError
-        try:
-            obj.__change_attribute__(name='a', value=2)
-            obj.__save__()
-        except ConcurrencyError:
-            pass
-        else:
-            raise Exception("Shouldn't get here")
+    except ConcurrencyError:
+        pass
+    else:
+        raise Exception("Shouldn't get here")
 
 Because of the unique constraint on the sequenced item table, it isn't
 possible to branch the evolution of an entity and store two events
@@ -181,6 +180,27 @@ at the same version. Hence, if the entity you are working on has been
 updated elsewhere, an attempt to update your object will cause a
 ``ConcurrencyError`` exception to be raised.
 
+The ``SimpleApplication`` has a ``notification_log`` attribute,
+which can be used to follow the application events as a single sequence.
+
+.. code:: python
+
+    # Follow application event notifications.
+    from eventsourcing.interface.notificationlog import NotificationLogReader
+    reader = NotificationLogReader(app.notification_log)
+    notification_ids = [n['id'] for n in reader.read()]
+    assert notification_ids == [1, 2, 3], notification_ids
+
+    # - create two more aggregates
+    obj = AggregateRoot.__create__()
+    obj.__save__()
+
+    obj = AggregateRoot.__create__()
+    obj.__save__()
+
+    # - get the new event notifications from the reader
+    notification_ids = [n['id'] for n in reader.read()]
+    assert notification_ids == [4, 5], notification_ids
 
 Custom application
 ==================
@@ -399,8 +419,6 @@ such as when this documentation is tested as part of the library's test suite).
 
 
 .. Todo: Something about using uuid5 to make UUIDs from things like email addresses.
-
-.. Todo: Something about using application log to get a sequence of all events.
 
 .. Todo: Something about using a policy to update views from published events.
 

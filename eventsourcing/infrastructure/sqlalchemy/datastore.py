@@ -7,16 +7,14 @@ from eventsourcing.infrastructure.datastore import Datastore, DatastoreSettings
 from eventsourcing.infrastructure.sqlalchemy.records import Base
 
 DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///:memory:'
-# DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///<FILE_SYSTEM_PATH>'
+# DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///FILE_SYSTEM_PATH'
 # DEFAULT_SQLALCHEMY_DB_URI = 'mysql://username:password@localhost/eventsourcing'
 # DEFAULT_SQLALCHEMY_DB_URI = 'postgresql://username:password@localhost:5432/eventsourcing'
 
 
 class SQLAlchemySettings(DatastoreSettings):
-    DB_URI = os.getenv('DB_URI', DEFAULT_SQLALCHEMY_DB_URI)
-
     def __init__(self, uri=None):
-        self.uri = uri or self.DB_URI
+        self.uri = uri or os.getenv('DB_URI', DEFAULT_SQLALCHEMY_DB_URI)
 
 
 class SQLAlchemyDatastore(Datastore):

@@ -1,25 +1,11 @@
-from eventsourcing.infrastructure.cassandra.records import IntegerSequencedRecord, TimestampSequencedRecord, \
-    SnapshotRecord
 from eventsourcing.infrastructure.cassandra.manager import CassandraRecordManager
-from eventsourcing.infrastructure.sequenceditem import SequencedItem
+from eventsourcing.infrastructure.cassandra.records import IntegerSequencedRecord, SnapshotRecord, \
+    TimestampSequencedRecord
+from eventsourcing.infrastructure.factory import InfrastructureFactory
 
 
-def construct_integer_sequenced_record_manager():
-    return CassandraRecordManager(
-        record_class=IntegerSequencedRecord,
-        sequenced_item_class=SequencedItem,
-    )
-
-
-def construct_timestamp_sequenced_record_manager():
-    return CassandraRecordManager(
-        record_class=TimestampSequencedRecord,
-        sequenced_item_class=SequencedItem,
-    )
-
-
-def construct_snapshot_record_manager():
-    return CassandraRecordManager(
-        record_class=SnapshotRecord,
-        sequenced_item_class=SequencedItem,
-    )
+class CassandraInfrastructureFactory(InfrastructureFactory):
+    record_manager_class = CassandraRecordManager
+    integer_sequenced_record_class = IntegerSequencedRecord
+    timestamp_sequenced_record_class = TimestampSequencedRecord
+    snapshot_record_class = SnapshotRecord

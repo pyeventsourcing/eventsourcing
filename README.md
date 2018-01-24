@@ -1,7 +1,8 @@
 # Event Sourcing in Python
 
-[![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png)](https://travis-ci.org/johnbywater/eventsourcing)
+[![Latest Release](https://badge.fury.io/py/eventsourcing.svg#)](https://pypi.python.org/pypi/eventsourcing)
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg#)](https://coveralls.io/github/johnbywater/eventsourcing)
+[![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png)](https://travis-ci.org/johnbywater/eventsourcing)
 
 A library for event sourcing in Python.
 
@@ -135,24 +136,25 @@ with SimpleApplication() as app:
     # Aggregate now exists in repository.
     assert world.id in app.repository
 
-    # Replay stored events.
+    # Replay stored events for aggregate.
     copy = app.repository[world.id]
 
-    # View retrieved state.
+    # View retrieved aggregate.
     assert isinstance(copy, World)
     assert copy.history[0].what == 'dinosaurs'
     assert copy.history[1].what == 'trucks'
     assert copy.history[2].what == 'internet'
-
+    
     # Verify retrieved state (cryptographically).
     assert copy.__head__ == world.__head__
 
-    # Delete.
+    # Delete aggregate.
     world.__discard__()
 
-    # Repository raises key error (when aggregate not found).
+    # Discarded aggregate not found.
     assert world.id not in app.repository
     try:
+        # Repository raises key error.
         app.repository[world.id]
     except KeyError:
         pass
@@ -191,6 +193,23 @@ with SimpleApplication() as app:
         for what in ['dinosaurs', 'trucks', 'internet']:         
             assert what not in item.state
         assert world.id == item.originator_id 
+
+    # Project application event notifications.
+    from eventsourcing.interface.notificationlog import NotificationLogReader
+    reader = NotificationLogReader(app.notification_log)
+    notification_ids = [n['id'] for n in reader.read()]
+    assert notification_ids == [1, 2, 3, 4, 5]
+
+    # - create two more aggregates
+    world = World.__create__()
+    world.__save__()
+    
+    world = World.__create__()
+    world.__save__()
+    
+    # - get the new event notifications from the reader
+    notification_ids = [n['id'] for n in reader.read()]
+    assert notification_ids == [6, 7]
 ```
 
 The double leading and trailing underscore naming style, seen above,

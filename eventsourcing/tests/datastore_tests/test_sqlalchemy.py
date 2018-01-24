@@ -4,16 +4,19 @@ from uuid import uuid4
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from eventsourcing.infrastructure.datastore import DatastoreTableError
-from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedRecord, \
-    TimestampSequencedRecord, SnapshotRecord, Base
 from eventsourcing.infrastructure.sqlalchemy.datastore import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
     SQLAlchemySettings
+from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
+from eventsourcing.infrastructure.sqlalchemy.records import Base, IntegerSequencedRecord, IntegerSequencedNoIDRecord, \
+    IntegerSequencedWithIDRecord, SnapshotRecord, TimestampSequencedNoIDRecord, TimestampSequencedWithIDRecord
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
 
 
 class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
     use_named_temporary_file = False
     connection_strategy = 'plain'
+    infrastructure_factory_class = SQLAlchemyInfrastructureFactory
+    contiguous_record_ids = True
 
     def construct_datastore(self):
         if self.use_named_temporary_file:
@@ -24,13 +27,19 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
 
         # kwargs = {}
         # if not self.use_named_temporary_file:
-            # kwargs['connect_args'] = {'check_same_thread':False}
-            # kwargs['poolclass'] = StaticPool
+        # kwargs['connect_args'] = {'check_same_thread':False}
+        # kwargs['poolclass'] = StaticPool
 
         return SQLAlchemyDatastore(
             base=Base,
             settings=SQLAlchemySettings(uri=uri),
-            tables=(IntegerSequencedRecord, TimestampSequencedRecord, SnapshotRecord),
+            tables=(
+                IntegerSequencedWithIDRecord,
+                IntegerSequencedNoIDRecord,
+                TimestampSequencedWithIDRecord,
+                TimestampSequencedNoIDRecord,
+                SnapshotRecord
+            ),
             connection_strategy=self.connection_strategy,
             # **kwargs
         )

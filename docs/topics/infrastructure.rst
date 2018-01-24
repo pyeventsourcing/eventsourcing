@@ -391,7 +391,7 @@ The library provides record classes for SQLAlchemy, such as ``IntegerSequencedRe
 namedtuple. The ``StoredEventRecord`` class matches the alternative ``StoredEvent`` namedtuple.
 There is also a ``TimestampSequencedRecord`` and a ``SnapshotRecord``.
 
-The code below uses the namedtuple ``StoredEvent`` and the active record ``StoredEventRecord``.
+The code below uses the namedtuple ``StoredEvent`` and the record class ``StoredEventRecord``.
 
 
 .. code:: python
@@ -426,8 +426,8 @@ and a tuple of record classes passed using the ``tables`` arg.
     )
 
 
-Please note, if you have declared your own SQLAlchemy model ``Base`` class, you may wish to define your own active
-record classes which inherit from your ``Base`` class. If so, if may help to refer to the library active record
+Please note, if you have declared your own SQLAlchemy model ``Base`` class, you may wish to define your own
+record classes which inherit from your ``Base`` class. If so, if may help to refer to the library record
 classes to see how SQLALchemy ORM columns and indexes can be used to persist sequenced items.
 
 The methods ``setup_connection()`` and ``setup_tables()`` of the datastore object
@@ -457,12 +457,11 @@ and used to store events using SQLAlchemy.
         sequenced_item_class=StoredEvent,
         record_class=StoredEventRecord,
         session=datastore.session,
+        contiguous_record_ids=True
     )
 
-
-Sequenced items (or "stored events" in this example) can be appended to the database using the ``append()`` method
-of the record manager.
-
+Sequenced items (or "stored events" in this example) can be appended to the database
+using the ``append()`` method of the record manager.
 
 .. code:: python
 
@@ -589,7 +588,7 @@ of ``INSTALLED_APPS``.
 Alternatively, import or write the classes you want into one of your own Django app's ``models.py``.
 
 The Django application at ``eventsourcing.infrastructure.django`` has database
-migrations that will add four tables, one for each of the sequenced item active
+migrations that will add four tables, one for each of the
 record classes mentioned above. So if you use the application directly in
 ``INSTALLED_APPS`` then the app's migrations will be picked up by Django.
 
@@ -646,6 +645,7 @@ can be used to store events using the Django ORM.
     django_record_manager = DjangoRecordManager(
         record_class=StoredEventRecord,
         sequenced_item_class=StoredEvent,
+        contiguous_record_ids=True
     )
 
     results = django_record_manager.list_items(aggregate1)
@@ -664,6 +664,79 @@ The supported `Django backends <https://docs.djangoproject.com/en/2.0/ref/databa
 are PostgreSQL, MySQL, SQLite, and Oracle. This library's Django infrastructure classes
 have been tested with PostgreSQL, MySQL, SQLite.
 
+
+Contiguous record IDs
+---------------------
+
+The ``contiguous_record_ids`` argument, used in the examples above, is
+optional, and is by default ``False``. If set to a ``True`` value, and
+if the record class has an ID field, then the records will be inserted
+(using an "insert select from" query) that generates a table of records
+with IDs that form a contiguous integer sequence.
+
+Application events recorded in this way can be accurately followed as
+a single sequence without overbearing complexity to mitigate gaps and
+race conditions. This feature is only available on the relational
+record managers (Django and SQLAlchemy, not Cassandra).
+
+If the record ID is merely auto-incrementing, as it is when the
+the library's integer sequenced record classes are used without
+this feature being enabled, then gaps could be generated. Whenever
+there is contention in the aggregate sequence (record ID) that
+causes the unique record ID constraint to be violated, the
+transaction will being rolled back, and an ID that was issued was
+could be discarded and lost. Other greater IDs may already have
+been issued. The complexity for followers is that a gap may be
+permanent or temporary. It may be that a gap is eventually filled
+by a transaction that was somehow delayed. Although some database
+appear to have auto-incrementing functionaliuty that does not
+lead to gaps even with transactions being rolled back, I don't
+understand when this happens and when it doesn't and so feel
+unable to reply on it, at least at the moment. It appears to be an
+inherently unreliable situation that could probably be mitigated
+satisfactorily by followers if they need to project the application
+events accurately, but only with increased complexity.
+
+Each relational record manager has an raw SQL query with an
+"insert select from" statement. If possible, the raw query is compiled
+when the record manager object is constructed. When a record is
+inserted, the new field values are bound to the raw query and executed
+within a transaction. When executed, the query firstly selects the
+maximum ID from all records currently existing in the table (as visible
+in its transaction), and then attempts to insert a record with an ID
+value of the max existing ID plus one (the next unused ID). The record
+table must have a unique constraint for the ID, so that records aren't
+overwritten by this query. The record ID must also be indexed, so that
+the max value can be identified efficiently. The b-tree commonly used
+for databases indexes supports this purpose well. The transaction
+isolation level must be at least "read committed", which is true by
+default for MySQL and PostgreSQL.
+
+It is expected that the performance of the "insert select from" statement will
+not be dominated by the "select max from" clause, but rather by the work needed
+to update the table indexes during the insert, which would also be required when
+executing a more conventional "insert values" statement. Hence it is
+anticipated that the maximum rate of inserting records will not be reduced greatly
+by enabling this feature. Initial performance testing seems to confirm
+this expectation.
+
+Any resulting contention in the record ID will raise an exception so that the
+query can be retried. An attempt is made to disambiguate this integrity error
+from those caused by the constraint on the position field of a sequenced item.
+If the database error can be identified as a record ID conflict, then the library
+exception class ``RecordIDConflict`` will be raised. Otherwise the library
+exception class ``SequencedItemConflict`` will be raised. ``RecordIDConflict``
+inherits from ``SequencedItemConflict``. A ``RecordIDConflict`` can be retried
+with good hope that a retry will be successful. A ``SequencedItemConflict``
+that is not a ``RecordIDConflict`` means an application command needs to be retried.
+If a ``SequencedItemConflict`` is raised due to a record ID conflict, then
+retrying the application command is a reasonable response. The ``RecordIDConflict``
+exception exists as an optimisation, to allow the query to be retried without
+the cost of re-executing the command. Hence, failures to distinguish integrity
+errors caused by record ID conflicts from other integrity errors (which in the
+current implementation depends on the name of the index in the record class
+conforming to expectations and being included in the database exception) are
+not catastrophic.
 
 Cassandra
 ---------
@@ -910,7 +983,7 @@ decorator can help code retries on commands.
 
     errors = []
 
-    @retry(ConcurrencyError, max_retries=5)
+    @retry(ConcurrencyError, max_attempts=5)
     def set_password():
         exc = ConcurrencyError()
         errors.append(exc)
@@ -949,7 +1022,7 @@ Timestamped event store
 
 The examples so far have used an integer sequenced event store, where the items are sequenced by integer version.
 
-The example below constructs an event store for timestamp-sequenced domain events, using the library active
+The example below constructs an event store for timestamp-sequenced domain events, using the library
 record class ``TimestampSequencedRecord``.
 
 .. code:: python

@@ -19,13 +19,13 @@ class CassandraRecordManager(AbstractRecordManager):
                 try:
                     b.execute()
                 except LWTException:
-                    self.raise_sequenced_item_error(sequenced_item_or_items)
+                    self.raise_sequenced_item_conflict()
         else:
-            active_record = self.to_active_record(sequenced_item_or_items)
+            record = self.to_record(sequenced_item_or_items)
             try:
-                active_record.save()
+                record.save()
             except LWTException:
-                self.raise_sequenced_item_error(sequenced_item_or_items)
+                self.raise_sequenced_item_conflict()
 
     def get_item(self, sequence_id, eq):
         kwargs = {
@@ -33,7 +33,7 @@ class CassandraRecordManager(AbstractRecordManager):
             '{}__eq'.format(self.field_names.position): eq
         }
         query = self.filter(**kwargs)
-        items = six.moves.map(self.from_active_record, query)
+        items = six.moves.map(self.from_record, query)
         items = list(items)
         try:
             return items[0]
@@ -70,7 +70,7 @@ class CassandraRecordManager(AbstractRecordManager):
         if limit is not None:
             query = query.limit(limit)
 
-        items = six.moves.map(self.from_active_record, query)
+        items = six.moves.map(self.from_record, query)
 
         items = list(items)
 
@@ -81,10 +81,10 @@ class CassandraRecordManager(AbstractRecordManager):
 
     def all_items(self):
         for record in self.all_records():
-            sequenced_item = self.from_active_record(record)
+            sequenced_item = self.from_record(record)
             yield sequenced_item
 
-    def all_records(self, *args, **kwargs):
+    def all_records(self, start=None, stop=None, *args, **kwargs):
         position_field_name = self.field_names.position
         for sequence_id in self.all_sequence_ids():
             kwargs = {self.field_names.sequence_id: sequence_id}
@@ -120,19 +120,19 @@ class CassandraRecordManager(AbstractRecordManager):
         except InvalidRequest as e:
             raise ProgrammingError(e)
 
-    def to_active_record(self, sequenced_item):
+    def to_record(self, sequenced_item):
         """
-        Returns an active record instance, from given sequenced item.
+        Returns an database record, from given sequenced item.
         """
         assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
         kwargs = self.get_field_kwargs(sequenced_item)
         return self.record_class(**kwargs)
 
-    def from_active_record(self, active_record):
+    def from_record(self, record):
         """
-        Returns a sequenced item instance, from given active record.
+        Returns a sequenced item instance, from given database record.
         """
-        kwargs = self.get_field_kwargs(active_record)
+        kwargs = self.get_field_kwargs(record)
         return self.sequenced_item_class(**kwargs)
 
     def filter(self, **kwargs):

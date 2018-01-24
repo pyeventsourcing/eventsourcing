@@ -1,8 +1,7 @@
 from math import ceil, log
 from random import shuffle
-from sys import version_info
 from threading import Thread
-from unittest.case import skip, skipIf
+from unittest.case import skip
 from uuid import UUID, uuid4
 
 from eventsourcing.domain.model.array import AbstractArrayRepository, Array, BigArray
@@ -12,6 +11,7 @@ from eventsourcing.tests.base import notquick
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers
+from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
     WithSQLAlchemyRecordManagers
 
@@ -324,7 +324,7 @@ class TestBigArrayWithSQLAlchemy(BigArrayTestCase):
         self.assertEqual(len(list(self.repo[root.id][0:10000])), 10000)
 
     @notquick
-    def test_big_array_biggest_offset(self):
+    def _test_big_array_biggest_offset(self):
         # Can add 25 items at the end.
         base_size = 4000
         offset = (base_size ** base_size) - 25
@@ -699,7 +699,15 @@ class TestArrayWithCassandra(WithCassandraRecordManagers, TestArrayWithSQLAlchem
     pass
 
 
+class TestArrayWithDjango(DjangoTestCase, TestArrayWithSQLAlchemy):
+    pass
+
+
 class TestBigArrayWithCassandra(WithCassandraRecordManagers, TestBigArrayWithSQLAlchemy):
+    pass
+
+
+class TestBigArrayWithDjango(DjangoTestCase, TestBigArrayWithSQLAlchemy):
     pass
 
 

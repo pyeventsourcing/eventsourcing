@@ -7,17 +7,19 @@ from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepo
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
-from eventsourcing.infrastructure.sqlalchemy.records import SnapshotRecord
-from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+from eventsourcing.infrastructure.sqlalchemy.records import SnapshotRecord
+from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_random_bytes
 
 
 class SimpleApplication(object):
     def __init__(self, persist_event_type=None, uri=None, session=None, cipher_key=None,
-                 stored_event_record_class=None, setup_table=True):
+                 stored_event_record_class=None, setup_table=True, contiguous_record_ids=True):
+
         # Setup cipher (optional).
         self.setup_cipher(cipher_key)
 
@@ -26,7 +28,14 @@ class SimpleApplication(object):
 
         # Setup the event store.
         self.stored_event_record_class = stored_event_record_class
+        self.contiguous_record_ids = contiguous_record_ids
         self.setup_event_store()
+
+        # Setup notifications.
+        self.notification_log = RecordManagerNotificationLog(
+            self.event_store.record_manager,
+            section_size=20,
+        )
 
         # Setup an event sourced repository.
         self.setup_repository()
@@ -53,7 +62,8 @@ class SimpleApplication(object):
         self.event_store = construct_sqlalchemy_eventstore(
             session=self.datastore.session,
             cipher=self.cipher,
-            record_class=self.stored_event_record_class
+            record_class=self.stored_event_record_class,
+            contiguous_record_ids=self.contiguous_record_ids,
         )
 
     def setup_repository(self, **kwargs):
@@ -71,6 +81,12 @@ class SimpleApplication(object):
     def setup_table(self):
         # Setup the database table using event store's record class.
         self.datastore.setup_table(
+            self.event_store.record_manager.record_class
+        )
+
+    def drop_table(self):
+        # Setup the database table using event store's record class.
+        self.datastore.drop_table(
             self.event_store.record_manager.record_class
         )
 

@@ -32,7 +32,7 @@ class Array(object):
         self.id = array_id
         self.repo = repo
 
-    @retry(ConcurrencyError, max_retries=50, wait=0.01)
+    @retry(ConcurrencyError, max_attempts=50, wait=0.01)
     def append(self, item):
         """Sets item in next position after the last item."""
         self.__setitem__(self.get_next_position(), item)
@@ -140,6 +140,7 @@ class Array(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+
 class BigArray(Array):
     """
     A virtual array holding items in indexed
@@ -179,9 +180,9 @@ class BigArray(Array):
     Write access time in the worst case, and the time
     to identify the index of the last item in the big
     array, is proportional to the log of the highest
-    assigned index to the base of the underlying array
+    assigned index to base the underlying array
     size. Write time on average, and read time given an
-    index, is contant with respect to the number of items
+    index, is constant with respect to the number of items
     in a BigArray.
 
     Items can be appended in log time in a single thread.
