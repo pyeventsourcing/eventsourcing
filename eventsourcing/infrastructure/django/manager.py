@@ -147,6 +147,7 @@ class DjangoRecordManager(RelationalRecordManager):
             position_field_name = self.field_names.position
             position_value = kwargs[position_field_name]
             if isinstance(position_value, float):
+                # Somehow this gets used on my laptop, but not on Travis...
                 kwargs[position_field_name] = Decimal(str(position_value))
 
         return kwargs
