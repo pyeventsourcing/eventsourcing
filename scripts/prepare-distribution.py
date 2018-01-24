@@ -16,14 +16,14 @@ from eventsourcing import __version__
 def build_and_test(cwd):
     # Declare temporary working directory variable.
     tmpcwd27 = os.path.join(cwd, 'tmpve2.7')
-    tmpcwd34 = os.path.join(cwd, 'tmpve3.4')
+    tmpcwd34 = os.path.join(cwd, 'tmpve3.6')
 
     # Build distribution.
     subprocess.check_call([sys.executable, 'setup.py', 'clean', '--all'], cwd=cwd)
     subprocess.check_call([sys.executable, 'setup.py', 'sdist'], cwd=cwd)
     is_uploaded_testpypi = False
 
-    for (tmpcwd, python_executable) in [(tmpcwd27, 'python2.7'), (tmpcwd34, 'python3.4')]:
+    for (tmpcwd, python_executable) in [(tmpcwd27, 'python2.7'), (tmpcwd34, 'python3.6')]:
 
         # Rebuild virtualenvs.
         rebuild_virtualenv(cwd, tmpcwd, python_executable)
