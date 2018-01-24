@@ -30,6 +30,11 @@ class TestDjangoRecordManagerWithIntegerSequences(DjangoTestCase, IntegerSequenc
     def construct_record_manager(self):
         return self.construct_entity_record_manager()
 
+class TestDjangoRecordManagerWithoutContiguousRecordIDs(DjangoTestCase, IntegerSequencedRecordTestCase):
+    contiguous_record_ids = False
+    def construct_record_manager(self):
+        return self.construct_entity_record_manager()
+
 
 class TestDjangoRecordManagerWithTimestampSequences(DjangoTestCase, TimestampSequencedItemTestCase):
     cancel_sqlite3_decimal_converter = True
