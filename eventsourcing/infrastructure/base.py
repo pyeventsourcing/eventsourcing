@@ -131,35 +131,6 @@ class RelationalRecordManager(AbstractRecordManager):
         "VALUES ({placeholders});"
     )
 
-    def raise_after_integrity_error(self, e):
-        error = str(e)
-
-        # Try to identify record ID conflicts.
-        if "UNIQUE constraint failed: {}.id".format(self.record_table_name) in error:
-            # SQLite
-            self.raise_record_id_conflict()
-        elif 'Duplicate entry' in error and "for key 'PRIMARY'" in error:
-            # MySQL
-            self.raise_record_id_conflict()
-        elif 'duplicate key value violates unique constraint "%s_pkey"' % self.record_table_name in error:
-            # PostgreSQL
-            self.raise_record_id_conflict()
-        else:
-            self.raise_sequenced_item_conflict()
-
-    @property
-    @abstractmethod
-    def record_table_name(self):
-        """"""
-
-    @staticmethod
-    def raise_record_id_conflict():
-        """
-        Raises RecordIDConflict exception.
-        """
-        msg = "There was a record ID conflict"
-        raise RecordIDConflict(msg)
-
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
         """
@@ -204,13 +175,43 @@ class RelationalRecordManager(AbstractRecordManager):
         kwargs = self.get_field_kwargs(sequenced_item)
         return self.record_class(**kwargs)
 
-    # Todo: Drop this, it doesn't really help.
-    def __getitem__(self, item=None):
-        assert isinstance(item, slice), type(item)
-        # start = item.start or 0
-        # assert start >= 0, start
-        return self.all_records(start=item.start, stop=item.stop)
+    # # Todo: Drop this, it doesn't really help.
+    # def __getitem__(self, item=None):
+    #     assert isinstance(item, slice), type(item)
+    #     # start = item.start or 0
+    #     # assert start >= 0, start
+    #     return self.all_records(start=item.start, stop=item.stop)
 
     @abstractmethod
     def get_max_record_id(self):
         """Return maximum ID of existing records."""
+
+    @property
+    @abstractmethod
+    def record_table_name(self):
+        return ""
+
+    def raise_after_integrity_error(self, e):
+        error = str(e)
+
+        # Try to identify record ID conflicts.
+        if self.contiguous_record_ids:
+            # Assume record ID is primary key.
+            #  - SQLite
+            if "UNIQUE constraint failed: {}.id".format(self.record_table_name) in error:
+                self.raise_record_id_conflict()
+            #  - MySQL
+            elif 'Duplicate entry' in error and "for key 'PRIMARY'" in error:
+                self.raise_record_id_conflict()
+            #  - PostgreSQL
+            elif 'duplicate key value violates unique constraint "{}_pkey"'.format(self.record_table_name) in error:
+                self.raise_record_id_conflict()
+        self.raise_sequenced_item_conflict()
+
+    @staticmethod
+    def raise_record_id_conflict():
+        """
+        Raises RecordIDConflict exception.
+        """
+        msg = "There was a record ID conflict"
+        raise RecordIDConflict(msg)

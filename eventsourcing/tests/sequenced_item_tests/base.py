@@ -10,8 +10,8 @@ from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
     Logged
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.exceptions import SequencedItemConflict
-from eventsourcing.infrastructure.base import AbstractRecordManager
+from eventsourcing.exceptions import SequencedItemConflict, RecordIDConflict
+from eventsourcing.infrastructure.base import AbstractRecordManager, RelationalRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
@@ -311,6 +311,27 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
             self.record_manager.delete_record(records)
         records = list(self.record_manager.all_records())
         self.assertFalse(len(records))
+
+        # Check the record ID error.
+        record_manager = self.record_manager
+        if record_manager.contiguous_record_ids:
+            #  - for SQLite
+            with self.assertRaises(RecordIDConflict):
+                error = 'UNIQUE constraint failed: {}.id'.format(record_manager.record_table_name)
+                record_manager.raise_after_integrity_error(error)
+            #  - for MySQL
+            with self.assertRaises(RecordIDConflict):
+                error = "Duplicate entry XXXXXXXXXX for key 'PRIMARY'"
+                record_manager.raise_after_integrity_error(error)
+            #  - for MySQL
+            with self.assertRaises(RecordIDConflict):
+                error = 'duplicate key value violates unique constraint "{}_pkey"'.format(
+                    record_manager.record_table_name
+                )
+                record_manager.raise_after_integrity_error(error)
+            with self.assertRaises(SequencedItemConflict):
+                error = ''
+                record_manager.raise_after_integrity_error(error)
 
 
 class WithRecordManagers(AbstractDatastoreTestCase):
