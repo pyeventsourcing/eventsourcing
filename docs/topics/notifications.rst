@@ -95,13 +95,27 @@ Application sequence
 
 The fundamental concern here is to accomplish perfect accuracy
 when propagating the events of an application, so that events
-are not missed, duplicated, jumbled, or unnecessarily delayed.
+are not missed, duplicated, or jumbled.
 
 The events of an application sequence could be sequenced with
-timestamps and integers. Sequencing the application events
+either timestamps or integers. Sequencing the application events
 by timestamp is supported by the relational timestamp sequenced
 record classes, in that their position column is indexed.
 However, the notification logs only work with integer sequences.
+
+Sequencing with integers involves generating a sequence of integers,
+which is easy to follow, but can limit the rate at which records
+can be written. Using timestamps allows records to be inserted
+independently of others, but timestamps can cause uncertainty when
+following the events of an application.
+
+If an application's domain model involves the library's ``AggregateRoot``
+class, which publishes all pending events together as a list, another
+alternative is to insert these lists of events into the application
+sequence. This may reduce the number of inserts into the application
+sequence. The lists could be sequenced by timestamp or integer. This
+approach currently hasn't been explored any further here.
+
 
 Timestamps
 ~~~~~~~~~~
@@ -109,7 +123,7 @@ Timestamps
 If time itself was ideal, then timestamps would be ideal. Each event
 could then have a timestamp that could be used to index and iterate
 through the events of the application. However, there are many
-clocks, and each runs slightly differently from the other.
+clocks, and each runs slightly differently from the others.
 
 If the timestamps of the application events are created by different
 clocks, then it is possible to write events in an order that creates
@@ -126,21 +140,21 @@ difference between the clocks?
 Of course, there are lots of remedies. Clocks can be synchronised, more or less.
 A timestamp server could be used, and hybrid monotonically increasing timestamps
 can implemented. Furthermore, the risk of simultaneous timestamps can be mitigated
-by using a random component to the timestamp, as with UUID v1, at
-the expense of randomizing the order of otherwise simultaneous events.
+by using a random component to the timestamp, as with UUID v1 (which randomizes the
+order of otherwise "simultaneous" events).
 
-Such techniques are common, widely discussed, and entirely legitimate approaches
-to the complications encountered when using timestamps to sequence events. The big
-advantage of using timestamps is that you don't need to generate a sequence of integers,
-and applications can be distributed and scaled without performance being limited by a
-fragile single-threaded auto-incrementing integer-sequence bottleneck.
+These techniques (and others) are common, widely discussed, and entirely legitimate
+approaches to the complications encountered when using timestamps to sequence events.
+The big advantage of using timestamps is that you don't need to generate a sequence
+of integers, and applications can be distributed and scaled without performance being
+limited by a fragile single-threaded auto-incrementing integer-sequence bottleneck.
 
-In support of this approach, the library's relational record classes for timestamp sequenced items, in
-particular the ``TimestampSequencedRecord`` classes for SQLAlchemy and Django, index
-their position field, which is a timestamp, and so this index can be used to get all
-application events in certain order. Following this sequence will be as reliable as the
-timestamps given to the events. So if you use this class in this way, do make sure your
-clocks are in sync.
+In support of this approach, the library's relational record classes for timestamp
+sequenced items. In particular, the ``TimestampSequencedRecord`` classes for SQLAlchemy
+and Django index their position field, which is a timestamp, and so this index can be
+used to get all application events ordered by timestamp. If you use this class in this
+way, make sure your clocks are in sync, and query events from the last position until
+a time in the recent past, in order to implement a jitter buffer.
 
 Todo: Code example.
 
@@ -149,30 +163,48 @@ by the database server, and index that instead of the application event's
 timestamp which would vary according to the variation between the clock
 of application servers. Code changes and other suggestions are always welcome.)
 
-Contiguous integers
-~~~~~~~~~~~~~~~~~~~
+Integers
+~~~~~~~~
 
-To make propagation perfectly accurate (which is defined here as reproducing the
-application's sequence of events perfectly, without any risk of gaps or duplicates
-or jumbled items, or race conditions), we can generate and follow a contiguous sequence
-of integers. Two such techniques are described below.
+To reproduce the application's sequence of events perfectly, without any risk
+of gaps or duplicates or jumbled items, or race conditions, we can generate
+and then follow a contiguous sequence of integers. It is also possible to
+generate and follow a non-contiguous sequence of integers, but the gaps will
+need to be negotiated, by guessing how long an unusually slow write would take
+to become visible, since such gaps could be filled in the future.
 
-The first technique uses the library's relational record managers with record
-classes that have an indexed integer ID column. Record IDs can be used to place
-all the application's event records in a single sequence. This technique is
-recommended for enterprise applications, and at least the earlier stages of
-more ambitious projects. There is an inherent limit to the rate at which
-an application can write events using this technique, which essentially follows
-from the need to write events in series. The rate limit is the reciprocal
-of the time it takes to write one event record.
+The library's relational record managers with record classes that have an indexed
+integer ID column. Record IDs are used to place all the application's event records
+in a single sequence. This technique is recommended for enterprise applications, and
+at least the earlier stages of more ambitious projects. There is an inherent limit
+to the rate at which an application can write events using this technique, which
+essentially follows from the need to write events in series. The rate limit is the
+reciprocal of the time it takes to write one event record, which depends on the insert
+statement.
 
-Given the rate limit, it would take quite a long time to fill up a properly
-provisioned database table. Nevertheless, if the volume of domain event
-records in your system inclines you towards partitioning the table of stored
-events, or if your database works in this way (Cassandra) the table would
-need to be partitioned by sequence ID, and so maintaining an index of record
-IDs across such partitions, and hence sequencing the events of an application
-in this way, will be problematic.
+By default, these library record classes have an auto-incrementing ID, which will
+generate an increasing sequence as records are inserted, but which may have gaps if an
+insert fails. Optionally, the record managers can also can be used to generate contiguous
+record IDs, with an "insert select from" SQL statement that, as a clause in the insert
+statement, selects the maximum record ID from the visible table records. Since it is
+only possible to extend the sequence, the visible record IDs will form a contiguous
+sequence, which is the easiest thing to follow, because there is no possibility for
+race conditions where events appear behind the last visible event. The "insert select from"
+statement will probably be slower than the default "insert values" and the auto-incrementing
+ID, and only one of many concurrent inserts will be successful. Exceptions from concurrent
+inserts could be mitigated with retried, and avoided entirely by serialising the inserts
+with a queue, for example in an actor framework. Although this will smooth over spikes,
+and unfortunate coincidences will be avoided, the continuous maximum throughput will not
+be increased, a queue will eventually reach a limit and a different exception will be raised.
+
+Given the rate limit, it could an application quite a long time to fill up
+a well provisioned database table. Nevertheless, if the rate of writing or the volume
+of domain event records in your system inclines you towards partitioning the table
+of stored events, or if anyway your database works in this way (e.g. Cassandra), then the
+table would need to be partitioned by sequence ID so that the aggregate performance
+isn't compromised by having its events distributed across partitions, which means
+maintaining an index of record IDs across such partitions, and hence sequencing
+the events of an application in this way, will be problematic.
 
 To proceed without an indexed record ID column, the library class ``BigArray``
 can be used to sequence all the events of an application. This technique
@@ -184,6 +216,13 @@ classes for Cassandra, and the ``IntegerSequencedNoIDRecord`` for SQLAlchemy,
 or when storing an index for a large number of records in a single partition
 is undesirable for infrastructure or performance reasons, or is not supported
 by the database.
+
+The ``BigArray`` can be used to construct both contiguous and non-contiguous
+integer sequences. As with the record IDs above, if each item is positioned in the
+next position after the last visible record, then a contiguous sequence is generated,
+but at the cost of finding the last visible record. However, if a number generator
+is used, the rate is limited by the rate at which numbers can be issued, but if inserts
+can fail, then numbers can be lost and the integer sequence will have gaps.
 
 Record managers
 ~~~~~~~~~~~~~~~
