@@ -12,12 +12,17 @@ as the notifications are received.
 
 As Vaughn Vernon suggests in his book Implementing Domain Driven Design:
 
-    “at least two mechanisms in a messaging solution must always be consistent with each other: the persistence
+.. pull-quote::
+
+    *"at least two mechanisms in a messaging solution must always be consistent with each other: the persistence
     store used by the domain model, and the persistence store backing the messaging infrastructure used to forward
     the Events published by the model. This is required to ensure that when the model’s changes are persisted, Event
     delivery is also guaranteed, and that if an Event is delivered through messaging, it indicates a true situation
     reflected by the model that published it. If either of these is out of lockstep with the other, it will lead to
-    incorrect states in one or more interdependent models”
+    incorrect states in one or more interdependent models"*
+
+Three options
+~~~~~~~~~~~~~
 
 There are three options, he continues. The first option is to
 have the messaging infrastructure and the domain model share
@@ -29,16 +34,56 @@ model and messaging but have a two phase commit, or global
 transaction, across the two.
 
 The third option is to have the bounded context control
-notifications. Vaughn Vernon suggests the simple logic
-of an ascending sequence of integers can allow others
-to progress along the application's sequence of events.
+notifications. The simple logic of an ascending sequence
+of integers can allow others to progress along an application's
+sequence of events. It is possible to use timestamps instead of
+integers.
 
-It is the third option that is pursued below.
+The first option implies that each event sourced application
+functions cohesively also as a messaging service. It seems
+impractical in a small library such as this to implement an AMQP
+broker against all of the library's record manager classes. However,
+Kafka could perhaps be adapted as a record manager, in which case it
+could be used both to persist and to propagate events.
+
+The second option involves a separate messaging infrastructure in a
+two-phase commit, which could be possible, but it seems unattractive.
+At least, RabbitMQ can't participate in a two-phase commit.
+
+The third option doesn't depend on messaging infrastructure, but it does
+involve "notifications". If we define a notification here as an object that
+represents the fact that an application event has happened, then we can
+propagate events by constructing a sequence of the events of an application,
+and then presenting that sequence in some way as notifications.
+
+The notifications could be presented by a server, so clients could pull
+notifications they don't have. The application events could drive sending
+messages about new notifications via messaging infrastructure. Pulling
+new notifications could be started by receiving such a message, so the
+inefficiencies (latency or intensity) of polling are avoided, and also the
+messages can be empty. This way, the messaging infrastructure isn't
+required to deliver messages in order and without duplication (which AMQP
+or JVM messaging systems don't provide), and each receiver isn't required
+to keep a record of every message previously received. If the "substantive"
+changes enacted by a receiver are stored atomically with the position in the
+sequence, the operations used by the receiver do not need to be idempotent.
+
+The third option is pursued below.
+
+If placing all the events in a single sequence is restrictive,
+partitioning the application, for example by user account, may
+offer a more scalable approach. It is possible to partition the
+aggregates of an application, so that each partition has a sequence
+in which the events from many aggregates are placed. So that the
+various sequences can be discovered, it would be useful to have a
+sequence in which the creation of each partition is recorded.
+
+
 
 .. contents:: :local:
 
 Before continuing with code examples, let's setup an event store,
-and a database, which are needed by the examples below.
+and a database, needed by the examples below.
 
 .. code:: python
 
@@ -93,9 +138,8 @@ in other sections of this documentation.
 Application sequence
 --------------------
 
-The fundamental concern here is to accomplish perfect accuracy
-when propagating the events of an application, so that events
-are not missed, duplicated, or jumbled.
+The fundamental concern here is to propagate the events of
+an application without events being missed, duplicated, or jumbled.
 
 The events of an application sequence could be sequenced with
 either timestamps or integers. Sequencing the application events
@@ -110,10 +154,11 @@ independently of others, but timestamps can cause uncertainty when
 following the events of an application.
 
 If an application's domain model involves the library's ``AggregateRoot``
-class, which publishes all pending events together as a list, another
-alternative is to insert these lists of events into the application
-sequence. This may reduce the number of inserts into the application
-sequence. The lists could be sequenced by timestamp or integer. This
+class, which publishes all pending events together as a list, rather than
+inserting each event, it would be possible to insert the lists of events
+into the application sequence as a single entry. This may reduce the number
+of inserts into the application sequence. The lists could be sequenced by
+timestamp or integer. Timestamps may allow the greatest write-speed. This
 approach currently hasn't been explored any further here.
 
 
@@ -726,6 +771,28 @@ just strings ('item0' etc). If the big array is being used to sequence the
 events of an application, it is possible to assign just the item's sequence
 ID and position, and let followers get the actual event using those references.
 
+
+Aggregate notification log
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Perhaps a more sophisticated approach would be to have many notification logs,
+with one application log and many aggregate logs. The application log could be
+used only to notify of the existence of the aggregate logs. However the order
+of the application events after recombining many aggregate logs into a single
+sequence would be undefined (we can't say jumbled because such events were never placed
+in a single application sequence). If the notifications had timestamps, the
+aggregate logs could be merged by timestamp.
+
+It might also be useful to partition sets of aggregates, and have a partition log
+that orders events from all the aggregates in the partition.
+
+Todo: In general, discovering the aggregate IDs is important. Perhaps make a
+method on record manager class that returns all the sequence IDs?
+
+Todo: Write local notification log class that can follow the events of an aggregate.
+
+Todo: Add support for partitioning the aggregates of an application e.g. by user account.
+
 Remote notification logs
 ------------------------
 
@@ -1027,6 +1094,13 @@ Updating projections
 
 Once the events of an application can be followed reliably,
 they can be used to update projections of the application state.
+
+Todo: Separate this into a doc about projections, start with a log reader...
+Todo: Projection example: perfect replication of the application state.
+Todo: Projection example: projection into an index.
+Todo: Projection example: projection into a timeline view.
+Todo: Projection example: projection for data analytics.
+
 
 Synchronous update
 ~~~~~~~~~~~~~~~~~~
