@@ -180,6 +180,10 @@ at the same version. Hence, if the entity you are working on has been
 updated elsewhere, an attempt to update your object will cause a
 ``ConcurrencyError`` exception to be raised.
 
+Concurrency errors can be avoided if all commands for a single aggregate
+are executed in series, for example by treating each aggregate as an actor,
+within an actor framework.
+
 The ``SimpleApplication`` has a ``notification_log`` attribute,
 which can be used to follow the application events as a single sequence.
 

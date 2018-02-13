@@ -160,9 +160,10 @@ application-level encryption.
         # Discard aggregate.
         world.__discard__()
 
-        # Repository raises key error (when aggregate not found).
+        # Discarded aggregate is not found.
         assert world.id not in app.repository
         try:
+            # Repository raises key error.
             app.repository[world.id]
         except KeyError:
             pass
