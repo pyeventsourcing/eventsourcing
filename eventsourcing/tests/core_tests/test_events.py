@@ -441,29 +441,6 @@ class TestEvents(unittest.TestCase):
             repr(event1)
         )
 
-    def test_subscribe_to_decorator(self):
-        entity_id1 = uuid4()
-        event = Example.Created(
-            originator_id=entity_id1,
-            originator_topic=get_topic(Example),
-            a=1, b=2
-        )
-        handler = mock.Mock()
-
-        # Check we can assert there are no event handlers subscribed.
-        assert_event_handlers_empty()
-
-        @subscribe_to(Example.Created)
-        def test_handler(e):
-            handler(e)
-
-        # Check we can assert there are event handlers subscribed.
-        self.assertRaises(EventHandlersNotEmptyError, assert_event_handlers_empty)
-
-        # Check what happens when an event is published.
-        publish(event)
-        handler.assert_called_once_with(event)
-
     def test_topic_resolution_error(self):
         # Check topic resolution error is raised, if the module path is
         # broken, and if the class name is broken.

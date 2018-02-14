@@ -274,14 +274,10 @@ def unsubscribe(handler, predicate=None):
 
 
 def publish(event):
-    matching_handlers = []
     for predicate, handlers in _event_handlers.items():
-        if predicate is None or predicate(event):
-            for handler in handlers:
-                if handler not in matching_handlers:
-                    matching_handlers.append(handler)
-    for handler in matching_handlers:
-        handler(event)
+        for handler in handlers:
+            if predicate is None or predicate(event):
+                handler(event)
 
 
 class EventHandlersNotEmptyError(Exception):
