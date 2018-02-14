@@ -12,7 +12,7 @@ of notifications.
 .. contents:: :local:
 
 Three options
-~~~~~~~~~~~~~
+-------------
 
 Vaughn Vernon suggests in his book Implementing Domain Driven Design:
 
@@ -52,20 +52,24 @@ separate messaging infrastructure within a two-phase commit, which
 could be possible, but seems unattractive. At least RabbitMQ can't
 participate in a two-phase commit.
 
-The third option is pursued below. The third option doesn't depend on
-messaging infrastructure, but does involve "notifications". The events
-of an application can be placed in a sequence, the sequence
-can be presented as notifications, and the notifications can propagated
-in a standard way. For example, notifications could be presented by a
-server, and clients could pull notifications they don't have, in linked
-sections, perhaps using a standard format and standard protocols.
+The third option is pursued below.
 
-The pulling of new notifications could begin whenever a prompt is received
-via an AMQP system. This way, the messaging infrastructure doesn't need
+Bounded context controls notifications
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The third option doesn't depend on messaging infrastructure, but does
+involve "notifications". If the events of an application can be placed
+in a sequence, the sequence of events can be presented as a sequence of
+notifications, with notifications being propagated in a standard way.
+For example, notifications could be presented by a server, and clients
+could pull notifications they don't have, in linked sections, perhaps
+using a standard format and standard protocols.
+
+Pulling new notifications could resume whenever a "prompt" is received
+via an AMQP system. This way, the client doesn't have the latency or
+intensity of a polling interval, the messaging infrastructure doesn't need
 to deliver messages in order (which AMQP messaging systems don't normally
-provide) and each receiver isn't required to keep a record of every message
-in order to avoid duplicates, and the client doesn't have the latency or
-intensity of a polling interval.
+provide), and message size is minimised.
 
 If the "substantive" changes enacted by a receiver are stored atomically with
 the position in the sequence of notifications, the receiver can resume by
@@ -87,8 +91,8 @@ pertaining to one user. So that the various sequences can
 be discovered, it would be useful to have a sequence in
 which the creation of each partition is recorded. The application
 could then be scaled by partition.
-(Please note, the library doesn't
-currently support partitioning the aggregates of an application.)
+(Please note, the library doesn't currently support partitioning
+the aggregates of an application.)
 
 If partitioning the aggregates of application is restrictive, then it
 would also be possible to have a notification sequence for each aggregate; in
@@ -803,7 +807,7 @@ Perhaps a more sophisticated approach would be to have many notification logs,
 with one application log and many aggregate logs. The application log could be
 used only to notify of the existence of the aggregate logs. However the order
 of the application events after recombining many aggregate logs into a single
-sequence would be undefined (we can't say jumbled because such events were never placed
+sequence would be undefined (can't say jumbled because such events were never placed
 in a single application sequence). If the notifications had timestamps, the
 aggregate logs could be merged by timestamp.
 
@@ -904,6 +908,7 @@ The example below uses the record notification log, constructed above.
     # Check we got the first entity's "created" event.
     assert isinstance(domain_events[0], VersionedEntity.Created)
     assert domain_events[0].originator_id == first_entity.id
+
 
 Notification API
 ~~~~~~~~~~~~~~~~
