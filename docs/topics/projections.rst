@@ -116,11 +116,6 @@ Todo: So something for a view to maintain its position in the sequence,
 perhaps version the view updates (event sourced or snapshots) if there
 are no transactions, or use a dedicated table if there are transactions.
 
-.. code:: python
-
-    # Clean up.
-    persistence_policy.close()
-
 
 .. Todo: Pulling from remote notification log.
 

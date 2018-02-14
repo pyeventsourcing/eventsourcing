@@ -1112,3 +1112,8 @@ In this way, the events of an application can be followed with perfect
 accuracy and without lots of complications. This seems to be an inherently
 reliable approach to following the events of an application.
 
+.. code:: python
+
+    # Clean up.
+    persistence_policy.close()
+
