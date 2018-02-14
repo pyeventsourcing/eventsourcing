@@ -48,6 +48,7 @@ Please `register any issues, questions, and requests
    topics/snapshotting
    topics/minimal
    topics/notifications
+   topics/projections
    topics/deployment
    topics/release_notes
    ref/modules
