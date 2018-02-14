@@ -60,24 +60,24 @@ in a standard way. For example, notifications could be presented by a
 server, and clients could pull notifications they don't have, in linked
 sections, perhaps using a standard format and standard protocols.
 
-To avoid the latency or intensity or polling for new notifications, the
-pulling of new notifications could begin whenever a prompt is received
+The pulling of new notifications could begin whenever a prompt is received
 via an AMQP system. This way, the messaging infrastructure doesn't need
 to deliver messages in order (which AMQP messaging systems don't normally
 provide) and each receiver isn't required to keep a record of every message
-so it can deduplicate.
+in order to avoid duplicates, and the client doesn't have the latency or
+intensity of a polling interval.
 
 If the "substantive" changes enacted by a receiver are stored atomically with
 the position in the sequence of notifications, the receiver can resume by
 looking at the latest record it has written, and from that record identify
 the next notification to consume. This is obvious when considering pure
-replication of a sequence of events. In general, by storing in the produced
+replication of a sequence of events. But in general, by storing in the produced
 sequence the position of the receiver in the consumed sequence, and using
 optimistic concurrency control when records are inserted in the produced
-sequence, from the point of view of consumers of the produced sequence,
-"exactly once" processing can be achieved. Redundant (concurrent)
-processing of the same sequence would then be possible, which would
-help avoid interruptions in processing.
+sequence, at least from the point of view of consumers of the produced
+sequence, "exactly once" processing can be achieved. Redundant (concurrent)
+processing of the same sequence would then be possible, which may help
+to avoid interruptions in processing the application's events.
 
 If placing all the events in a single sequence is restrictive,
 then perhaps partitioning the application notifications may offer a
@@ -182,8 +182,8 @@ class, which publishes all pending events together as a list, rather than
 inserting each event, it would be possible to insert the lists of events
 into the application sequence as a single entry. This may reduce the number
 of inserts into the application sequence. The lists could be sequenced by
-timestamp or integer. Timestamps may allow the greatest write-speed. This
-approach currently hasn't been explored any further here.
+timestamp or integer. Timestamps may allow the greatest write-speed. (This
+approach currently hasn't been explored any further, but it should be.)
 
 
 Timestamps
