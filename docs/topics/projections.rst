@@ -2,71 +2,54 @@
 Projections
 ===========
 
-Updating projections
---------------------
+This section shows how events can be projected into things other than aggregates.
 
-Once the events of an application can be followed reliably, for example
-as notifications, they can be used to update projections of the application state.
+The library's ``@subscribe_to`` decorator is described, which causes the
+decorated function to be called each time an event of a given type is
+published by the library's pub-sub mechanism. It can be used to update
+projections as events are published by an application.
 
-Todo: Separate this into a doc about projections, start with a log reader...
-Todo: Projection example: perfect replication of the application state.
-Todo: Projection example: projection into an index.
-Todo: Projection example: projection into a timeline view.
-Todo: Projection example: projection for data analytics.
+An asynchronous approach which uses the library's notifications is introduced.
 
 
-Synchronous update
-~~~~~~~~~~~~~~~~~~
+.. contents:: :local:
 
-You may wish to update a view of an aggregate synchronously
-whenever an event is published. You may wish simply to
-subscribe to the events of the aggregate. Then, whenever
-an event occurs, the projection can be updated.
+
+Published events
+----------------
 
 The library decorator function
 :func:`~eventsourcing.domain.model.decorators.subscribe_to`
-can be used for this purpose.
+can be used to subscribe to events as they are published by
+the library's pub-sub mechanism.
 
-The most simple implementation of a projection would consume
+A very simple implementation of a projection would consume
 an event synchronously as it is published by updating the
 view without considering whether the event was a duplicate
 or previous events were missed. This may be perfectly adequate
-for projecting events that are by design independent, such as
+for projections that are by design independent, such as
 tracking all 'Created' events so the extent aggregate IDs are
 available in a view.
-
-It is also possible for a synchronous update to refer to an application
-log and catch up if necessary, perhaps after an error or because
-the projection is new to the application and needs to initialise.
 
 Of course, it is possible to access aggregates and other views when
 updating a view, especially to avoid bloating events with redundant
 information that might be added to avoid such queries.
 
+The example below suggests that record ``TodoView`` can be created
+whenever a ``Todo.Created`` event is published. Perhaps the ``TodoView``
+table has an index of todo titles, or can be joined with a table of users.
+
 .. code::
 
     @subscribe_to(Todo.Created)
     def new_todo_projection(event):
-        todo = TodoProjection(id=event.originator_id, title=event.title)
+        todo = TodoView(id=event.originator_id, title=event.title, user_id=event.user_id)
         todo.save()
 
 
-Todo: Code example showing "Projection" class using a notification log
-reader and (somehow) stateful position in the log, to follow application
-events and update a view.
-
-The view model could be saved as a normal record, or stored in
-a sequence that follows the event originator version numbers, perhaps
-as snapshots, so that concurrent handling of events will not lead to a
-later state being overwritten by an earlier state. Older versions of
-the view could be deleted later.
-
-If the view somehow fails to update after the domain event has been stored,
-then the view will become inconsistent. Since it is not desirable
-to delete the event once it has been stored, the command must return
-normally despite the view update failing, so that the command
-is not retried. The failure to update will need to be logged, or
-otherwise handled, in a similar way to failures of asynchronous updates.
+The trouble with this approach is that position in the application is being maintained.
+So if the view somehow fails to update after the domain event has been stored,
+then the event will be lost to the projection, which will not eventually become consistent.
 
 It is possible to use the decorator in a downstream application, in
 which domain events are republished following the application
@@ -76,35 +59,163 @@ fails to update, the position of the downstream application in the upstream
 sequence would not advance until the view is restored to working order, after
 which the view will be updated as if there had been no failure.
 
+It is also possible for a synchronous update to refer to an application
+log and catch up if necessary, perhaps after an error or because
+the projection is new to the application and needs to initialise.
 
-Asynchronous update
-~~~~~~~~~~~~~~~~~~~
 
-Updates can be triggered by pushing notifications to
-messaging infrastructure, and having the remote components subscribe.
-De-duplication would involve tracking which events have already
-been received.
+Notifications
+-------------
 
-To keep the messaging infrastructure stable, it may be sufficient
-simply to identify the domain event, perhaps with its sequence ID
-and position.
+If the events of an application are presented as a sequence of
+notifications, then a notification reader can be used to get new
+notifications, and the notifications can be projected.
 
-If anything goes wrong with messaging infrastructure, such that a
-notification is sent but not received, remote components can detect
-they have missed a notification and pull the notifications they have
-missed. A pull mechanism, such as that described above, can be used to
-catch up.
+Getting notifications can triggered by pushing prompts to e.g. an AMQP
+messaging system, and having the remote components handle the prompts
+by pulling new notifications.
 
-The same mechanism can be used when materialized views (or other kinds
-of projections) are developed after the application has been initially
-deployed and require initialising from an established application
-sequence, or after changes need to be reinitialised from scratch, or
-updated after being offline for some reason.
+To minimise load on the messaging infrastructure, it may be sufficient
+simply to send an empty message, and thereby prompt receivers into pulling
+new notifications.
 
-Todo: Something about pumping events to a message bus, following
+
+Examples
+--------
+
+Using notifications, the state of an application can be perfectly replicated,
+by replicating its stored event records with event record notifications. In
+the example below, a notification log reader uses a local notification log,
+but it could equally well use a remote notification log.
+
+With record notifications, the ID of the record is used to sequence the
+notifications. Hence the ID of the last record in the replica can be used
+to determine the current position in the original sequence.
+
+.. code:: python
+
+    from eventsourcing.application.simple import SimpleApplication
+    from eventsourcing.exceptions import ConcurrencyError
+    from eventsourcing.domain.model.aggregate import AggregateRoot
+    from eventsourcing.interface.notificationlog import NotificationLogReader, RecordManagerNotificationLog
+
+
+    # Define record replicator.
+    class RecordReplicator(object):
+        def __init__(self, reader, record_manager):
+            assert isinstance(reader, NotificationLogReader)
+            self.reader = reader
+            self.manager = record_manager
+            self.reader.seek(self.manager.get_max_record_id() or 0)
+
+        def pull(self, *_):
+            for notification in self.reader.read():
+                record = self.manager.record_class(**notification)
+                self.manager._write_records([record])
+
+    # Construct original application.
+    original = SimpleApplication()
+
+    # Construct replica application.
+    replica = SimpleApplication()
+    replica.persistence_policy.close()
+
+    # Construct replicator.
+    reader = NotificationLogReader(original.notification_log)
+    replicator = RecordReplicator(reader, replica.event_store.record_manager)
+
+    # Publish some events.
+    aggregate1 = AggregateRoot.__create__()
+    aggregate1.__save__()
+    aggregate2 = AggregateRoot.__create__()
+    aggregate2.__save__()
+    aggregate3 = AggregateRoot.__create__()
+    aggregate3.__save__()
+
+    assert aggregate1.__created_on__ != aggregate2.__created_on__
+    assert aggregate2.__created_on__ != aggregate3.__created_on__
+
+    # Check aggregates not in replica.
+    assert aggregate1.id in original.repository
+    assert aggregate1.id not in replica.repository
+    assert aggregate2.id in original.repository
+    assert aggregate2.id not in replica.repository
+    assert aggregate3.id in original.repository
+    assert aggregate3.id not in replica.repository
+
+    # Pull records.
+    replicator.pull()
+
+    # Check aggregates are now in replica.
+    assert aggregate1.id in replica.repository
+    assert aggregate2.id in replica.repository
+    assert aggregate3.id in replica.repository
+
+    # Check the aggregate attributes are correct.
+    assert aggregate1.__created_on__ == replica.repository[aggregate1.id].__created_on__
+    assert aggregate2.__created_on__ == replica.repository[aggregate2.id].__created_on__
+    assert aggregate3.__created_on__ == replica.repository[aggregate3.id].__created_on__
+
+    # Create another aggreate.
+    aggregate4 = AggregateRoot.__create__()
+    aggregate4.__save__()
+
+    # Check aggregate exists in the original only.
+    assert aggregate4.id in original.repository
+    assert aggregate4.id not in replica.repository
+
+    # Resume pulling records.
+    replicator.pull()
+
+    # Check aggregate exists in the replica.
+    assert aggregate4.id in replica.repository
+
+    # Restart replicator (reader position is lost).
+    reader = NotificationLogReader(original.notification_log)
+    replicator = RecordReplicator(reader, replica.event_store.record_manager)
+
+    # Create another aggreate.
+    aggregate5 = AggregateRoot.__create__()
+    aggregate5.__save__()
+
+    # Check aggregate exists in the original only.
+    assert aggregate5.id in original.repository
+    assert aggregate5.id not in replica.repository
+
+    # Resume pulling records after replicator restart.
+    replicator.pull()
+
+    # Check aggregate exists in the replica.
+    assert aggregate5.id in replica.repository
+
+    # Setup event driven pulling.
+    from eventsourcing.domain.model.events import subscribe, unsubscribe
+
+    # Subscribe to local events, could use AMQP system so original can prompt remote replicas.
+    subscribe(handler=replicator.pull, predicate=original.persistence_policy.is_event)
+
+    # Create another aggregate.
+    aggregate6 = AggregateRoot.__create__()
+    aggregate6.__save__()
+    assert aggregate6.id in original.repository
+
+    # Check aggregate was automatically replicated.
+    assert aggregate6.id in replica.repository
+
+    # Clean up.
+    unsubscribe(handler=replicator.pull)
+    original.close()
+
+
+Todo: Projection example: projection into an index.
+Todo: Projection example: projection into a timeline view.
+Todo: Projection example: projection for data analytics.
+
+
+.. Todo: Something about pumping events to a message bus, following
 the application sequence.
 
-Todo: Something about republishing events in a downstream application
+.. Todo: Something about republishing events in a downstream application
 that has subscribers such as the decorator above. Gives opportunity for
 sequence to be reconstructed in the application before being published
 (but then what if several views are updated and the last one fails?
@@ -112,7 +223,7 @@ are they all updated in the same a transaction, are do they each maintain
 their own position in the sequence, or does the application just have one
 subscriber and one view?)
 
-Todo: So something for a view to maintain its position in the sequence,
+.. Todo: So something for a view to maintain its position in the sequence,
 perhaps version the view updates (event sourced or snapshots) if there
 are no transactions, or use a dedicated table if there are transactions.
 

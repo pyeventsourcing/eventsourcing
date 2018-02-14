@@ -143,12 +143,6 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def query(self):
         return self.session.query(self.record_class)
 
-    def all_items(self):
-        """
-        Returns all items across all sequences.
-        """
-        return six.moves.map(self.from_record, self.all_records())
-
     def all_records(self, start=None, stop=None, *args, **kwargs):
         """
         Returns all records in the table.

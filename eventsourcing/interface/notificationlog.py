@@ -8,7 +8,7 @@ import six
 
 from eventsourcing.domain.model.array import BigArray
 from eventsourcing.infrastructure.base import RelationalRecordManager
-from eventsourcing.utils.transcoding import ObjectJSONDecoder, json_dumps
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, json_dumps, ObjectJSONEncoder
 
 
 class Section(object):
@@ -133,15 +133,9 @@ class RecordManagerNotificationLog(LocalNotificationLog):
     def get_items(self, start, stop, next_position=None):
         notifications = []
         for record in self.record_manager.all_records(start, stop):
-
-            data_field_name = self.record_manager.field_names.data
-            topic_field_name = self.record_manager.field_names.topic
-
-            notification = {
-                'id': record.id,
-                'topic': getattr(record, topic_field_name),
-                'data': getattr(record, data_field_name),
-            }
+            notification = {'id': record.id}
+            for field_name in self.record_manager.field_names:
+                notification[field_name] = getattr(record, field_name)
             notifications.append(notification)
         return notifications
 
@@ -306,7 +300,7 @@ class NotificationLogView(object):
     def __init__(self, notification_log, json_encoder_class=None):
         assert isinstance(notification_log, LocalNotificationLog), type(notification_log)
         self.notification_log = notification_log
-        self.json_encoder_class = json_encoder_class
+        self.json_encoder_class = json_encoder_class or ObjectJSONEncoder
 
     def present_section(self, section_id):
         section = self.notification_log[section_id]
