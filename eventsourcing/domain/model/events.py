@@ -1,5 +1,4 @@
 import os
-import time
 from abc import ABCMeta
 from collections import OrderedDict
 from uuid import uuid1
@@ -138,7 +137,7 @@ class DomainEvent(QualnameABC):
         """
         Tests for equality of two event objects.
         """
-        return self.__hash__() == other.__hash__()
+        return isinstance(other, DomainEvent) and self.__hash__() == other.__hash__()
 
     def __ne__(self, other):
         """

@@ -122,11 +122,11 @@ class DjangoRecordManager(RelationalRecordManager):
 
         return records
 
-    def all_items(self):
+    def all_items(self, *args, **kwargs):
         """
         Returns all items across all sequences.
         """
-        return six.moves.map(self.from_record, self.all_records())
+        return six.moves.map(self.from_record, self.all_records(*args, **kwargs))
 
     def get_field_kwargs(self, record):
         # Need to convert floats to decimals if Django's sqlite3

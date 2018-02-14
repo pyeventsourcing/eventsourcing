@@ -160,9 +160,10 @@ application-level encryption.
         # Discard aggregate.
         world.__discard__()
 
-        # Repository raises key error (when aggregate not found).
+        # Discarded aggregate is not found.
         assert world.id not in app.repository
         try:
+            # Repository raises key error.
             app.repository[world.id]
         except KeyError:
             pass
@@ -194,6 +195,13 @@ application-level encryption.
 
         # Verify sequence of events (cryptographically).
         assert last_hash == world.__head__
+
+        # Project application event notifications.
+        from eventsourcing.interface.notificationlog import NotificationLogReader
+        reader = NotificationLogReader(app.notification_log)
+        notifications = reader.read()
+        notification_ids = [n['id'] for n in notifications]
+        assert notification_ids == [1, 2, 3, 4, 5, 6]
 
         # Check records are encrypted (values not visible in database).
         record_manager = app.event_store.record_manager

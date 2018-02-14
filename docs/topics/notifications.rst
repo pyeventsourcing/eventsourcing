@@ -5,21 +5,27 @@ Notifications
 This section discusses how to use notifications to
 propagate the domain events of an application.
 
-Basically, if the domain events of an application can be placed
-in a single sequence, the application sequence can be propagated
-as notifications in a standard way, and projections can be updated
-as the notifications are received.
+If the domain events of an application can somehow be placed in a
+sequence, then the sequence of events can be propagated as a sequence
+of notifications.
 
-As Vaughn Vernon suggests in his book Implementing Domain Driven Design:
+.. contents:: :local:
 
-    “at least two mechanisms in a messaging solution must always be consistent with each other: the persistence
+Three options
+-------------
+
+Vaughn Vernon suggests in his book Implementing Domain Driven Design:
+
+.. pull-quote::
+
+    *"at least two mechanisms in a messaging solution must always be consistent with each other: the persistence
     store used by the domain model, and the persistence store backing the messaging infrastructure used to forward
     the Events published by the model. This is required to ensure that when the model’s changes are persisted, Event
     delivery is also guaranteed, and that if an Event is delivered through messaging, it indicates a true situation
     reflected by the model that published it. If either of these is out of lockstep with the other, it will lead to
-    incorrect states in one or more interdependent models”
+    incorrect states in one or more interdependent models"*
 
-There are three options, he continues. The first option is to
+He continues by describing three options. The first option is to
 have the messaging infrastructure and the domain model share
 the same persistence store, so changes to the model and
 insertion of new messages commit in the same local transaction.
@@ -29,16 +35,83 @@ model and messaging but have a two phase commit, or global
 transaction, across the two.
 
 The third option is to have the bounded context control
-notifications. Vaughn Vernon suggests the simple logic
-of an ascending sequence of integers can allow others
-to progress along the application's sequence of events.
+notifications. The simple logic of an ascending sequence
+of integers can allow others to progress along an application's
+sequence of events. It is also possible to use timestamps.
 
-It is the third option that is pursued below.
+The first option implies that each event sourced application
+functions cohesively also as a messaging service. Assuming that
+"messaging service" means an AMQP system, it seems impractical
+in a small library such as this to implement an AMQP broker,
+something that works with all of the library's record manager
+classes. However, perhaps if Kafka could be adapted as a record manager,
+it could be used both to persist and propagate events.
 
-.. contents:: :local:
+The second option, which is similar to the first, involves using a
+separate messaging infrastructure within a two-phase commit, which
+could be possible, but seems unattractive. At least RabbitMQ can't
+participate in a two-phase commit.
 
-Before continuing with code examples, let's setup an event store,
-and a database, which are needed by the examples below.
+The third option is pursued below.
+
+Bounded context controls notifications
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The third option doesn't depend on messaging infrastructure, but does
+involve "notifications". If the events of an application can be placed
+in a sequence, the sequence of events can be presented as a sequence of
+notifications, with notifications being propagated in a standard way.
+For example, notifications could be presented by a server, and clients
+could pull notifications they don't have, in linked sections, perhaps
+using a standard format and standard protocols.
+
+Pulling new notifications could resume whenever a "prompt" is received
+via an AMQP system. This way, the client doesn't have the latency or
+intensity of a polling interval, the messaging infrastructure doesn't need
+to deliver messages in order (which AMQP messaging systems don't normally
+provide), and message size is minimised.
+
+If the "substantive" changes enacted by a receiver are stored atomically with
+the position in the sequence of notifications, the receiver can resume by
+looking at the latest record it has written, and from that record identify
+the next notification to consume. This is obvious when considering pure
+replication of a sequence of events. But in general, by storing in the produced
+sequence the position of the receiver in the consumed sequence, and using
+optimistic concurrency control when records are inserted in the produced
+sequence, at least from the point of view of consumers of the produced
+sequence, "exactly once" processing can be achieved. Redundant (concurrent)
+processing of the same sequence would then be possible, which may help
+to avoid interruptions in processing the application's events.
+
+If placing all the events in a single sequence is restrictive,
+then perhaps partitioning the application notifications may offer a
+scalable approach. For example, if each user has one partition, each
+notification sequence would contain all events from the aggregates
+pertaining to one user. So that the various sequences can
+be discovered, it would be useful to have a sequence in
+which the creation of each partition is recorded. The application
+could then be scaled by partition.
+(Please note, the library doesn't currently support partitioning
+the aggregates of an application.)
+
+If partitioning the aggregates of application is restrictive, then it
+would also be possible to have a notification sequence for each aggregate; in
+this case, the events would already have been placed in a sequence and so they
+could be presented directly as notifications. But as aggregates come and go,
+the overhead of keeping track of the notification sequences may become restrictive.
+(Please note, the library doesn't currently support notifications for individual aggregates.)
+
+An alternative to sequencing events individually would be to sequence the lists of events published
+when saving the pending events of an aggregate (see ``AggregateRoot``), so that in cases
+where it is feasible to place all the commands in a sequence, it would also
+be feasible to place the resulting lists of events in a sequence, assuming
+the number of such lists is less than or equal to the number of commands. Sequencing
+the lists would allow these little units of coherence to be propagated, which may be
+useful in some cases.
+(Please note, the library doesn't currently support
+notifications for lists of events.)
+
+Before continuing with code examples below, we need to setup an event store.
 
 .. code:: python
 
@@ -93,9 +166,8 @@ in other sections of this documentation.
 Application sequence
 --------------------
 
-The fundamental concern here is to accomplish perfect accuracy
-when propagating the events of an application, so that events
-are not missed, duplicated, or jumbled.
+The fundamental concern here is to propagate the events of
+an application without events being missed, duplicated, or jumbled.
 
 The events of an application sequence could be sequenced with
 either timestamps or integers. Sequencing the application events
@@ -110,11 +182,12 @@ independently of others, but timestamps can cause uncertainty when
 following the events of an application.
 
 If an application's domain model involves the library's ``AggregateRoot``
-class, which publishes all pending events together as a list, another
-alternative is to insert these lists of events into the application
-sequence. This may reduce the number of inserts into the application
-sequence. The lists could be sequenced by timestamp or integer. This
-approach currently hasn't been explored any further here.
+class, which publishes all pending events together as a list, rather than
+inserting each event, it would be possible to insert the lists of events
+into the application sequence as a single entry. This may reduce the number
+of inserts into the application sequence. The lists could be sequenced by
+timestamp or integer. Timestamps may allow the greatest write-speed. (This
+approach currently hasn't been explored any further, but it should be.)
 
 
 Timestamps
@@ -658,8 +731,8 @@ how that can be done (this function doesn't exist in the library).
     def resolve_notifications(notifications):
         return [
             sequenced_item_mapper.from_topic_and_data(
-                topic=notification['topic'],
-                data=notification['data']
+                topic=notification['event_type'],
+                data=notification['state']
             ) for notification in notifications
         ]
 
@@ -725,6 +798,28 @@ Please note, for simplicity, the items in this example are
 just strings ('item0' etc). If the big array is being used to sequence the
 events of an application, it is possible to assign just the item's sequence
 ID and position, and let followers get the actual event using those references.
+
+
+Aggregate notification log
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Perhaps a more sophisticated approach would be to have many notification logs,
+with one application log and many aggregate logs. The application log could be
+used only to notify of the existence of the aggregate logs. However the order
+of the application events after recombining many aggregate logs into a single
+sequence would be undefined (can't say jumbled because such events were never placed
+in a single application sequence). If the notifications had timestamps, the
+aggregate logs could be merged by timestamp.
+
+It might also be useful to partition sets of aggregates, and have a partition log
+that orders events from all the aggregates in the partition.
+
+Todo: In general, discovering the aggregate IDs is important. Perhaps make a
+method on record manager class that returns all the sequence IDs?
+
+Todo: Write local notification log class that can follow the events of an aggregate.
+
+Todo: Add support for partitioning the aggregates of an application e.g. by user account.
 
 Remote notification logs
 ------------------------
@@ -799,13 +894,13 @@ The example below uses the record notification log, constructed above.
 
     item = section_dict['items'][0]
     assert item['id'] == 1
-    assert '__event_hash__' in item['data']
-    assert item['topic'] == 'eventsourcing.domain.model.entity#VersionedEntity.Created'
+    assert '__event_hash__' in item['state']
+    assert item['event_type'] == 'eventsourcing.domain.model.entity#VersionedEntity.Created'
 
-    assert section_dict['items'][1]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
-    assert section_dict['items'][2]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
-    assert section_dict['items'][3]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
-    assert section_dict['items'][4]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][1]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][2]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][3]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][4]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'
 
     # Resolve the notifications to domain events.
     domain_events = resolve_notifications(section_dict['items'])
@@ -813,6 +908,7 @@ The example below uses the record notification log, constructed above.
     # Check we got the first entity's "created" event.
     assert isinstance(domain_events[0], VersionedEntity.Created)
     assert domain_events[0].originator_id == first_entity.id
+
 
 Notification API
 ~~~~~~~~~~~~~~~~
@@ -1021,176 +1117,8 @@ In this way, the events of an application can be followed with perfect
 accuracy and without lots of complications. This seems to be an inherently
 reliable approach to following the events of an application.
 
-
-Updating projections
---------------------
-
-Once the events of an application can be followed reliably,
-they can be used to update projections of the application state.
-
-Synchronous update
-~~~~~~~~~~~~~~~~~~
-
-You may wish to update a view of an aggregate synchronously
-whenever an event is published. You may wish simply to
-subscribe to the events of the aggregate. Then, whenever
-an event occurs, the projection can be updated.
-
-The library decorator function
-:func:`~eventsourcing.domain.model.decorators.subscribe_to`
-can be used for this purpose.
-
-The most simple implementation of a projection would consume
-an event synchronously as it is published by updating the
-view without considering whether the event was a duplicate
-or previous events were missed. This may be perfectly adequate
-for projecting events that are by design independent, such as
-tracking all 'Created' events so the extent aggregate IDs are
-available in a view.
-
-It is also possible for a synchronous update to refer to an application
-log and catch up if necessary, perhaps after an error or because
-the projection is new to the application and needs to initialise.
-
-Of course, it is possible to access aggregates and other views when
-updating a view, especially to avoid bloating events with redundant
-information that might be added to avoid such queries.
-
-.. code::
-
-    @subscribe_to(Todo.Created)
-    def new_todo_projection(event):
-        todo = TodoProjection(id=event.originator_id, title=event.title)
-        todo.save()
-
-
-Todo: Code example showing "Projection" class using a notification log
-reader and (somehow) stateful position in the log, to follow application
-events and update a view.
-
-The view model could be saved as a normal record, or stored in
-a sequence that follows the event originator version numbers, perhaps
-as snapshots, so that concurrent handling of events will not lead to a
-later state being overwritten by an earlier state. Older versions of
-the view could be deleted later.
-
-If the view somehow fails to update after the domain event has been stored,
-then the view will become inconsistent. Since it is not desirable
-to delete the event once it has been stored, the command must return
-normally despite the view update failing, so that the command
-is not retried. The failure to update will need to be logged, or
-otherwise handled, in a similar way to failures of asynchronous updates.
-
-It is possible to use the decorator in a downstream application, in
-which domain events are republished following the application
-sequence asynchronously. The decorator would be called synchronously with the
-republishing of the event. In this case, if the view update routine somehow
-fails to update, the position of the downstream application in the upstream
-sequence would not advance until the view is restored to working order, after
-which the view will be updated as if there had been no failure.
-
-
-Asynchronous update
-~~~~~~~~~~~~~~~~~~~
-
-Updates can be triggered by pushing notifications to
-messaging infrastructure, and having the remote components subscribe.
-De-duplication would involve tracking which events have already
-been received.
-
-To keep the messaging infrastructure stable, it may be sufficient
-simply to identify the domain event, perhaps with its sequence ID
-and position.
-
-If anything goes wrong with messaging infrastructure, such that a
-notification is sent but not received, remote components can detect
-they have missed a notification and pull the notifications they have
-missed. A pull mechanism, such as that described above, can be used to
-catch up.
-
-The same mechanism can be used when materialized views (or other kinds
-of projections) are developed after the application has been initially
-deployed and require initialising from an established application
-sequence, or after changes need to be reinitialised from scratch, or
-updated after being offline for some reason.
-
-Todo: Something about pumping events to a message bus, following
-the application sequence.
-
-Todo: Something about republishing events in a downstream application
-that has subscribers such as the decorator above. Gives opportunity for
-sequence to be reconstructed in the application before being published
-(but then what if several views are updated and the last one fails?
-are they all updated in the same a transaction, are do they each maintain
-their own position in the sequence, or does the application just have one
-subscriber and one view?)
-
-Todo: So something for a view to maintain its position in the sequence,
-perhaps version the view updates (event sourced or snapshots) if there
-are no transactions, or use a dedicated table if there are transactions.
-
 .. code:: python
 
     # Clean up.
     persistence_policy.close()
 
-
-.. Todo: Pulling from remote notification log.
-
-.. Todo: Publishing and subscribing to remote notification log.
-
-.. Todo: Deduplicating domain events in receiving context.
-.. Events may appear twice in the notification log if there is
-.. contention over the command that generates the logged event,
-.. or if the event cannot be appended to the aggregate stream
-.. for whatever reason and then the command is retried successfully.
-.. So events need to be deduplicated. One approach is to have a
-.. UUID5 namespace for received events, and use concurrency control
-.. to make sure each event is acted on only once. That leads to the
-.. question of when to insert the event, before or after it is
-.. successfully applied to the context? If before, and the event
-.. is not successfully applied, then the event maybe lost. Does
-.. the context need to apply the events in order?
-.. It may help to to construct a sequenced command log, also using
-.. a big array, so that the command sequence can be constructed in a
-.. distributed manner. The command sequence can then be executed in
-.. a distributed manner. This approach would support creating another
-.. application log that is entirely correct.
-
-.. Todo: Race conditions around reading events being assigned using
-.. central integer sequence generator, could potentially read when a
-.. later index has been assigned but a previous one has not yet been
-.. assigned. Reading the previous as None, when it just being assigned
-.. is an error. So perhaps something can wait until previous has
-.. been assigned, or until it can safely be assumed the integer was lost.
-.. If an item is None, perhaps the notification log could stall for
-.. a moment before yielding the item, to allow time for the race condition
-.. to pass. Perhaps it should only do it when the item has been assigned
-.. recently (timestamp of the ItemAdded event could be checked) or when
-.. there have been lots of event since (the highest assigned index could
-.. be checked). A permanent None value should be something that occurs
-.. very rarely, when an issued integer is not followed by a successful
-.. assignment to the big array. A permanent "None" will exist in the
-.. sequence if an integer is lost perhaps due to a database operation
-.. error that somehow still failed after many retries, or because the
-.. client process crashed before the database operation could be executed
-.. but after the integer had been issued, so the integer became lost.
-.. This needs code.
-
-.. Todo: Automatic initialisation of the integer sequence generator RedisIncr
-.. from getting highest assigned index. Or perhaps automatic update with
-.. the current highest assigned index if there continues to be contention
-.. after a number of increments, indicating the issued values are far behind.
-.. If processes all reset the value whilst they are also incrementing it, then
-.. there will be a few concurrency errors, but it should level out quickly.
-.. This also needs code.
-
-.. Todo: Use actual domain event objects, and log references to them. Have an
-.. iterator that returns actual domain events, rather than the logged references.
-.. Could log the domain events, but their variable size makes the application log
-.. less stable (predictable) in its usage of database partitions. Perhaps
-.. deferencing to real domain events could be an option of the notification log?
-.. Perhaps something could encapsulate the notification log and generate domain
-.. events?
-
-.. Todo: Configuration of remote reader, to allow URL to be completely configurable.

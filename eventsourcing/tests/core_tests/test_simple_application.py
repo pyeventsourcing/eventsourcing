@@ -29,7 +29,7 @@ class TestSimpleApplication(TestCase):
             notifications = reader.read()
             self.assertEqual(1, len(notifications))
             topic = 'eventsourcing.tests.core_tests.test_aggregate_root#ExampleAggregateRoot.Created'
-            self.assertEqual(topic, notifications[0]['topic'])
+            self.assertEqual(topic, notifications[0]['event_type'])
 
             app.drop_table()
 

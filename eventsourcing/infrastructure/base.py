@@ -36,11 +36,29 @@ class AbstractRecordManager(six.with_metaclass(ABCMeta)):
         Reads sequenced items from the datastore.
         """
 
-    @abstractmethod
-    def all_items(self):
+    def all_items(self, *args, **kwargs):
         """
-        Returns all stored items from all sequences (possibly in chronological order, depending on database).
+        Returns all items across all sequences.
         """
+        return six.moves.map(self.from_record, self.all_records(*args, **kwargs))
+
+    def to_record(self, sequenced_item):
+        """
+        Returns a database record, from given sequenced item.
+        """
+        # Check we got a sequenced item.
+        assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
+
+        # Construct and return an ORM object.
+        kwargs = self.get_field_kwargs(sequenced_item)
+        return self.record_class(**kwargs)
+
+    def from_record(self, record):
+        """
+        Returns a sequenced item instance, from given database record.
+        """
+        kwargs = self.get_field_kwargs(record)
+        return self.sequenced_item_class(**kwargs)
 
     @abstractmethod
     def all_records(self, start=None, stop=None, *args, **kwargs):
@@ -156,24 +174,6 @@ class RelationalRecordManager(AbstractRecordManager):
         """
         Returns records for a sequence.
         """
-
-    def from_record(self, record):
-        """
-        Returns a sequenced item, from given database record.
-        """
-        kwargs = self.get_field_kwargs(record)
-        return self.sequenced_item_class(**kwargs)
-
-    def to_record(self, sequenced_item):
-        """
-        Returns a database record, from given sequenced item.
-        """
-        # Check we got a sequenced item.
-        assert isinstance(sequenced_item, self.sequenced_item_class), (self.sequenced_item_class, type(sequenced_item))
-
-        # Construct and return an ORM object.
-        kwargs = self.get_field_kwargs(sequenced_item)
-        return self.record_class(**kwargs)
 
     # # Todo: Drop this, it doesn't really help.
     # def __getitem__(self, item=None):
