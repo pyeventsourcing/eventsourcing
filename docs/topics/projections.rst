@@ -2,42 +2,33 @@
 Projections
 ===========
 
-This section shows how events can be projected into things other than aggregates.
+This section describes projecting domain events.
 
-The library's ``@subscribe_to`` decorator is described, which causes the
-decorated function to be called each time an event of a given type is
-published by the library's pub-sub mechanism. It can be used to update
-projections as events are published by an application.
-
-An asynchronous approach which uses the library's notifications is introduced.
-
+Projections can be updated synchronously by direct event subscription, or
+asynchronously by following notifications. Notifications can be pulled,
+and pulling notifications can be driven by events.
 
 .. contents:: :local:
 
 
-Published events
-----------------
+Direct event subscription
+-------------------------
 
-The library decorator function
+The library function
 :func:`~eventsourcing.domain.model.decorators.subscribe_to`
-can be used to subscribe to events as they are published by
-the library's pub-sub mechanism.
+can be used to decorate functions, so that the function is called
+each time a matching event is published by the library's pub-sub mechanism.
 
-A very simple implementation of a projection would consume
-an event synchronously as it is published by updating the
-view without considering whether the event was a duplicate
-or previous events were missed. This may be perfectly adequate
-for projections that are by design independent, such as
-tracking all 'Created' events so the extent aggregate IDs are
-available in a view.
+A naive projection might consume events as they are published
+and update the projection without considering whether the event
+was a duplicate, or if previous events were missed. This may be
+perfectly adequate when beginning to develop a projection, perhaps
+with tests that directly publish a sequence of events.
 
-Of course, it is possible to access aggregates and other views when
-updating a view, especially to avoid bloating events with redundant
-information that might be added to avoid such queries.
-
-The example below suggests that record ``TodoView`` can be created
-whenever a ``Todo.Created`` event is published. Perhaps the ``TodoView``
-table has an index of todo titles, or can be joined with a table of users.
+The example below, which is incomplete because the ``TodoView`` is not
+defined, suggests that record ``TodoView`` can be created whenever a
+``Todo.Created`` event is published. Perhaps there's a ``TodoView`` table
+with an index of todo titles, or perhaps it can be joined with a table of users.
 
 .. code::
 
@@ -46,51 +37,55 @@ table has an index of todo titles, or can be joined with a table of users.
         todo = TodoView(id=event.originator_id, title=event.title, user_id=event.user_id)
         todo.save()
 
+It is possible to access aggregates and other views when
+updating a view, especially to avoid bloating events with redundant
+information that might be added to avoid such queries. Transactions
+can be used to insert related records, building a model for a view.
 
-The trouble with this approach is that position in the application is being maintained.
-So if the view somehow fails to update after the domain event has been stored,
-then the event will be lost to the projection, which will not eventually become consistent.
+It is possible to use the decorator in a downstream application which
+republishes domain events perhaps published by an original application
+that uses messaging infrastructure. The decorator would be called
+synchronously with the republishing of the event, but perhaps
+asynchronously with respect to the original application.
 
-It is possible to use the decorator in a downstream application, in
-which domain events are republished following the application
-sequence asynchronously. The decorator would be called synchronously with the
-republishing of the event. In this case, if the view update routine somehow
-fails to update, the position of the downstream application in the upstream
-sequence would not advance until the view is restored to working order, after
-which the view will be updated as if there had been no failure.
+The trouble with this approach is that, without further modification, without
+referring to a fixed sequence and maintaining position in that sequence, there
+is no way to recover when events have been missed. If the projection somehow
+fails to update when an event is received, then the event will be lost forever to
+the projection, and the projection will be forever inconsistent.
 
-It is also possible for a synchronous update to refer to an application
-log and catch up if necessary, perhaps after an error or because
-the projection is new to the application and needs to initialise.
+Of course it is possible to follow a fixed sequence of events, for example
+using notifications.
 
 
 Notifications
 -------------
 
 If the events of an application are presented as a sequence of
-notifications, then a notification reader can be used to get new
-notifications, and the notifications can be projected.
+notifications, then the events can be projected using a notification
+reader to pull unseen items.
 
-Getting notifications can triggered by pushing prompts to e.g. an AMQP
+Getting new items can triggered by pushing prompts to e.g. an AMQP
 messaging system, and having the remote components handle the prompts
-by pulling new notifications.
+by pulling the new notifications.
 
 To minimise load on the messaging infrastructure, it may be sufficient
 simply to send an empty message, and thereby prompt receivers into pulling
 new notifications.
 
 
-Examples
---------
+Replication
+~~~~~~~~~~~
 
-Using notifications, the state of an application can be perfectly replicated,
-by replicating its stored event records with event record notifications. In
-the example below, a notification log reader uses a local notification log,
-but it could equally well use a remote notification log.
+Using event record notifications, the state of an application can be
+replicated perfectly well. An original application presents its event
+records as notifications, and a replicator pull notifications and writes
+copies of the original records into a replica application.
 
-With record notifications, the ID of the record is used to sequence the
-notifications. Hence the ID of the last record in the replica can be used
-to determine the current position in the original sequence.
+With event record notifications, the ID of the record is used to sequence the
+notifications. The ID of the last record in the replica is used to determine
+the current position in the original sequence, which promises "exactly once"
+processing, hence perfect replication.
 
 .. code:: python
 
@@ -205,6 +200,21 @@ to determine the current position in the original sequence.
     # Clean up.
     unsubscribe(handler=replicator.pull)
     original.close()
+
+
+
+The notification log reader uses a local notification log for simplicity,
+but it could use a remote notification log without compromising
+the accuracy of the replication. "Local" could also be a node remote from
+the production application servers, where the domain events are triggered,
+but which can connect to the original application's database. Remote
+notifications avoid the original application having to share its database
+connections, and can be cached in the network to avoid loading the application
+servers with requests from many followers of the notification sequence.
+
+Although the implementation of the notification log reader gets pages of
+notifications in series, the pages could be obtained in parallel, which
+may help when copying large numbers of notifications to new replicas.
 
 
 Todo: Projection example: projection into an index.
