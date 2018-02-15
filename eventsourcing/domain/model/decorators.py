@@ -30,17 +30,13 @@ def subscribe_to(event_class):
             todo = TodoProjection(id=event.originator_id, title=event.title)
             todo.save()
     """
-
-    def event_type_predicate(event):
-        return isinstance(event, event_class)
-
     def wrap(func):
         def handler(event):
             if isinstance(event, (list, tuple)):
                 for e in event:
-                    if event_type_predicate(e):
+                    if isinstance(e, event_class):
                         func(e)
-            elif event_type_predicate(event):
+            elif isinstance(event, event_class):
                 func(event)
         subscribe(handler=handler)
         return func
