@@ -11,8 +11,8 @@ and pulling can be driven by subscribing to events.
 .. contents:: :local:
 
 
-Direct event subscription
--------------------------
+Subscribing to events
+---------------------
 
 The library function
 :func:`~eventsourcing.domain.model.decorators.subscribe_to`
@@ -64,8 +64,8 @@ Of course it is possible to follow a fixed sequence of events, for example
 using notifications.
 
 
-Follow notification logs
-------------------------
+Reading notification logs
+-------------------------
 
 If the events of an application are presented as a sequence of
 notifications, then the events can be projected using a notification
@@ -85,22 +85,32 @@ it already pulled, and could then skip the pulling operation.
 Examples
 --------
 
-Reliable, scalable, low-latency application state replication
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Application state replication
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Using event record notifications, the state of an application can be
-replicated in way that has low-latency, high reliability, and is scalable
-in terms of fan-out. An original application can present its event records
-as notifications. A "replicator" can then pull notifications and write copies
-of the original records into a replica application. If the application was
-partitioned, with each partition having its own notification log, the partitions
-could be replicated concurrently, which would support scaling by application
-partition (this isn't currently supported).
+replicated perfectly. If an application can present its event records
+as a notification log, then a "replicator" can read the notification
+log and write copies of the original records into a replica's record
+manager. (If the original application could be partitioned, with each
+partition having its own notification log, then the partitions could
+be replicated concurrently, which would allow scaling by application
+partition. Partitioning an application isn't currently supported in
+the library).
 
-With event record notifications, the ID of the record is used to sequence the
-notifications. The ID of the last record in the replica is used to determine
-the current position in the original sequence, which gives "exactly once"
-processing.
+In the example below, the ``SimpleApplication`` class is used, which
+has a ``RecordManagerNotificationLog`` as its ``notification_log``.
+Reading this log, locally or remotely, will yield all the event records
+persisted by the ``SimpleApplication``. The ``SimpleApplication``
+uses a record manager with contiguous record IDs which allows it to
+be used within a record manager notification log object.
+
+A record manager notification log object represents records as record
+notifications. With record notifications, the ID of the record in the
+notification is used to place the notification in its sequence.
+Therefore the ID of the last replicated record is used to determine
+the current position in the original application's notification log,
+which gives "exactly once" processing.
 
 .. code:: python
 
@@ -169,7 +179,7 @@ processing.
     assert aggregate2.__created_on__ == replica.repository[aggregate2.id].__created_on__
     assert aggregate3.__created_on__ == replica.repository[aggregate3.id].__created_on__
 
-    # Create another aggreate.
+    # Create another aggregate.
     aggregate4 = AggregateRoot.__create__()
     aggregate4.__save__()
 
@@ -192,7 +202,7 @@ processing.
         record_manager=replica.event_store.record_manager
     )
 
-    # Create another aggreate.
+    # Create another aggregate.
     aggregate5 = AggregateRoot.__create__()
     aggregate5.__save__()
 
@@ -225,39 +235,63 @@ processing.
     original.close()
 
 For simplicity in the example, the notification log reader uses a local
-notification log, but it could equally well use a remote notification log
-without compromising the accuracy of the replication. A local notification
-log could be used on a worker-tier node which can connect to the original
-application's database, but which is not the application servers
-where the domain events are triggered. Using a remote notification log, with
-an API service provided by the application servers would avoid the original
-application database connections being shared by countless others. Remote
-notification log sections can be cached in the network to avoid loading
-the application servers with requests from a multitude of followers.
+notification log in the same process as the aggregates triggering. Perhaps
+it would be better to run replication away from the application servers,
+on a node remote from the application servers where domain events are
+triggered. A local notification log could be used on a worker-tier node
+which can connect to the original application's database. It could equally
+well use a remote notification log without compromising the accuracy of the
+replication. A remote notification log, with an API service provided by the
+application servers, would avoid the original application database connections
+being shared by countless others. Notification log sections can be cached in
+the network to avoid loading the application servers with requests from a
+multitude of followers.
 
 Since the replica application uses optimistic concurrency control for its
 event records, it isn't possible to corrupt the replica by attempting
-to write the same record twice. Hence cron jobs can be scheduled to pull
-at periodic intervals, and at the same time message queue workers can
-respond to prompts pushed to AMQP-style messaging infrastructure by the
-original application, without needing to serialise their access to the
-replica with locks: if the two jobs happen to collide, one will succeed and
-the other will experience a concurrency error exception which can be ignored.
+to write the same record twice. Hence jobs can pull at periodic intervals,
+and at the same time message queue workers can respond to prompts pushed
+to AMQP-style messaging infrastructure by the original application, without
+needing to serialise their access to the replica with locks: if the two jobs
+happen to collide, one will succeed and the other will encounter a concurrency
+error exception that can be ignored.
 
-Although the implementation of the notification log reader pulls sections of
+Although the current implementation of the notification log reader pulls sections of
 notifications in series, the sections could be pulled in parallel, which
 may help when copying a very large sequence of notifications to a new replica.
 
+The replica could itself be followed, by using its notification log. Although
+replicating replicas indefinitely is perhaps pointless, it suggests how
+notification logs can be potentially be chained with processing being done
+at each stage.
+
+For example, a sequence of events could be converted into a
+sequence of commands, and the sequence of commands could be used to update an
+event sourced index, in an index application. An event that does not affect the
+projection can be recorded as "noop", so that the position is maintained. All but
+the last noop could be deleted from the command log. If the command is committed
+in the same transaction as the events resulting from the command, then the reliability
+of the arbitrary projection will be as good as the pure replica. The events resulting
+from each commands could be many or none, which shows that a sequence of
+events can be projected equally reliably into a different sequence with a different
+length.
 
 Index of email addresses
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Todo: Projection into an index.
+Todo: Projection into an index. Application with big array command sequence and
+aggregates that represent index locations. A one-way function that goes from
+real index keys to aggregate IDs. And something that runs a command before
+putting it in the log, so that failures to command aggregates are tried on
+the next pull. Ignore errors about creating an aggregate that already exists,
+and also about discarding an aggregate that doesn't exist. Or use transactions,
+if possible, so that the command and the index aggregates are updated together.
+Set position of reader as max ID in command log.
 
 
 Todo: Projection into a timeline view.
 Todo: Projection for data analytics.
-
+Todo: Merging notification logs ("consumer groups")?
 
 .. Todo: Something about pumping events to a message bus, following
 .. the application sequence.
