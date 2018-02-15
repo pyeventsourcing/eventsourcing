@@ -33,7 +33,6 @@ class TestSimpleApplication(TestCase):
 
             app.drop_table()
 
-
     def get_application(self):
         return SimpleApplication(cipher_key=encode_random_bytes(16))
 

@@ -4,13 +4,18 @@ from uuid import uuid4
 from mock import mock
 
 from eventsourcing.domain.model.decorators import mutator, retry, subscribe_to
-from eventsourcing.domain.model.events import assert_event_handlers_empty, \
-    EventHandlersNotEmptyError, publish
+from eventsourcing.domain.model.events import EventHandlersNotEmptyError, _event_handlers, \
+    assert_event_handlers_empty, publish
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.utils.topic import get_topic
 
 
 class TestDecorators(TestCase):
+
+    def tearDown(self):
+        if _event_handlers:
+            print("Warning: event handlers still subscribed: {}".format(_event_handlers))
+            _event_handlers.clear()
 
     def test_retry_without_arg(self):
         # Check docstrings of decorated functions.
@@ -162,3 +167,5 @@ class TestDecorators(TestCase):
         handler.reset_mock()
         publish([event2, event2])
         self.assertEqual(0, handler.call_count)
+
+        _event_handlers.clear()
