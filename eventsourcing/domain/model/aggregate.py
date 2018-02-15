@@ -44,7 +44,7 @@ class AggregateRoot(TimestampedVersionedEntity):
         if batch_of_events:
             self.__publish_to_subscribers__(batch_of_events)
             # Don't catch exception and put the events back on the queue.
-            # Loosing them here is consistent with the behaviour of DomainEntity
+            # Losing them here is consistent with the behaviour of DomainEntity
             # when an event cannot be stored: the event is effectively lost, the
             # state of the entity must be reset, and the operation repeated.
             # In case of an aggregate sequence conflict, developers need to

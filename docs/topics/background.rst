@@ -28,7 +28,7 @@ Inspiration:
 -  Martin Fowler's `article on event sourcing <http://martinfowler.com/eaaDev/EventSourcing.html>`__
 
 -  Greg Young's `discussions about event sourcing <https://www.youtube.com/watch?v=JHGkaShoyNs>`__,
-   and `EventStore system <https://geteventstore.com/>`__
+   and `Event Store system <https://eventstore.org/>`__
 
 -  Robert Smallshire's `brilliant example on Bitbucket <https://bitbucket.org/sixty-north/d5-kanban-python/src>`__
 
@@ -37,15 +37,16 @@ Inspiration:
 
 See also:
 
--  `Evaluation of using NoSQL databases in an event sourcing system
-   <http://www.diva-portal.se/smash/get/diva2:877307/FULLTEXT01.pdf>`__ by
-   Johan Rothsberg
-
 -  `Object-relational impedance mismatch
    <https://en.wikipedia.org/wiki/Object-relational\_impedance\_mismatch>`__
    page on Wikipedia
 
+-  `From CRUD to Event Sourcing (Why CRUD is the wrong approach for microservices)
+   <https://www.youtube.com/watch?v=holjbuSbv3k>`__ by James Roper
+
+-  `Event Sourcing and Stream Processing at Scale
+   <https://www.youtube.com/watch?v=avi-TZI9t2I>`__ by Martin Kleppmann
+
 -  `An introduction to event storming
    <https://techbeacon.com/introduction-event-storming-easy-way-achieve-domain-driven-design>`__
-   by a Steven Lowe, principal consultant developer at ThoughtWorks.
-
+   by a Steven Lowe, principal consultant developer at ThoughtWorks

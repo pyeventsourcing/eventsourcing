@@ -1,9 +1,21 @@
 from unittest.case import TestCase
+from uuid import uuid4
 
-from eventsourcing.domain.model.decorators import mutator, retry
+from mock import mock
+
+from eventsourcing.domain.model.decorators import mutator, retry, subscribe_to
+from eventsourcing.domain.model.events import EventHandlersNotEmptyError, _event_handlers, \
+    assert_event_handlers_empty, publish
+from eventsourcing.example.domainmodel import Example
+from eventsourcing.utils.topic import get_topic
 
 
 class TestDecorators(TestCase):
+
+    def tearDown(self):
+        if _event_handlers:
+            print("Warning: event handlers still subscribed: {}".format(_event_handlers))
+            _event_handlers.clear()
 
     def test_retry_without_arg(self):
         # Check docstrings of decorated functions.
@@ -52,7 +64,6 @@ class TestDecorators(TestCase):
 
         with self.assertRaises(TypeError):
             retry(wait='')  # needs to be a float
-
 
     def test_mutate_without_arg(self):
         # Define an entity class, and event class, and a mutator function.
@@ -107,3 +118,54 @@ class TestDecorators(TestCase):
         # Check it handles unregistered types.
         with self.assertRaises(NotImplementedError):
             mutate_entity(None, None)
+
+    def test_subscribe_to_decorator(self):
+        entity_id1 = uuid4()
+        event1 = Example.Created(
+            originator_id=entity_id1,
+            originator_topic=get_topic(Example),
+            a=1, b=2
+        )
+        event2 = Example.Discarded(
+            originator_id=entity_id1,
+            originator_version=1,
+        )
+        handler = mock.Mock()
+
+        # Check we can assert there are no event handlers subscribed.
+        assert_event_handlers_empty()
+
+        @subscribe_to(Example.Created)
+        def test_handler(e):
+            """Doc string"""
+            handler(e)
+
+        # Check the decorator doesn't mess with the function doc string.
+        self.assertEqual('Doc string', test_handler.__doc__)
+
+        # Check can fail to assert event handlers empty.
+        self.assertRaises(EventHandlersNotEmptyError, assert_event_handlers_empty)
+
+        # Check event is received when published individually.
+        publish(event1)
+        handler.assert_called_once_with(event1)
+
+        # Check event of wrong type is not received.
+        handler.reset_mock()
+        publish(event2)
+        self.assertFalse(handler.call_count)
+
+        # Check a list of events can be filtered.
+        handler.reset_mock()
+        publish([event1, event2])
+        handler.assert_called_once_with(event1)
+
+        handler.reset_mock()
+        publish([event1, event1])
+        self.assertEqual(2, handler.call_count)
+
+        handler.reset_mock()
+        publish([event2, event2])
+        self.assertEqual(0, handler.call_count)
+
+        _event_handlers.clear()

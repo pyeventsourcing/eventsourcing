@@ -843,7 +843,7 @@ protocol, and can thereby accomplish linearly-scalable distributed optimistic co
 control, guaranteeing sequential consistency of the events of an entity despite the database
 being distributed. It is also possible to serialize calls to the methods of an entity, but
 that is out of the scope of this package — if you wish to do that, perhaps something like
-`Zookeeper <https://zookeeper.apache.org/>`__ might help.
+an actor framework or `Zookeeper <https://zookeeper.apache.org/>`__ might help.
 
 
 Event store
@@ -997,6 +997,13 @@ decorator can help code retries on commands.
         raise Exception("Shouldn't get here")
 
     assert len(errors) == 5
+
+This feature avoids the sequence of records being corrupted due to concurrent threads
+operating on the same aggregate. However, the result is that success of appending an event in
+such circumstances is only probabilistic with respect to concurrency conflicts. Concurrency
+conflicts can be avoided if all commands for a single aggregate are executed in series, for
+example by treating each aggregate as an actor within an actor framework, or with locks provided
+by something like Zookeeper.
 
 
 Event store factory

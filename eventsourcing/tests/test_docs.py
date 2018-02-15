@@ -11,6 +11,12 @@ base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
 
 class TestDocs(TestCase):
+    def tearDown(self):
+        from eventsourcing.domain.model.events import _event_handlers
+        if _event_handlers:
+            print("Warning: event handlers still subscribed: {}".format(_event_handlers))
+        _event_handlers.clear()
+
     def test_readme(self):
         self._out = ''
         path = join(base_dir, 'README.md')
@@ -44,6 +50,7 @@ class TestDocs(TestCase):
                 # if name.endswith('application.rst'):
                 # if name.endswith('snapshotting.rst'):
                 # if name.endswith('notifications.rst'):
+                # if name.endswith('projections.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)

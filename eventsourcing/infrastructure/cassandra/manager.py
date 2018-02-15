@@ -79,8 +79,8 @@ class CassandraRecordManager(AbstractRecordManager):
 
         return items
 
-    def all_items(self):
-        for record in self.all_records():
+    def all_items(self, *args, **kwargs):
+        for record in self.all_records(*args, **kwargs):
             sequenced_item = self.from_record(record)
             yield sequenced_item
 
@@ -119,21 +119,6 @@ class CassandraRecordManager(AbstractRecordManager):
             record.delete()
         except InvalidRequest as e:
             raise ProgrammingError(e)
-
-    def to_record(self, sequenced_item):
-        """
-        Returns an database record, from given sequenced item.
-        """
-        assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
-        kwargs = self.get_field_kwargs(sequenced_item)
-        return self.record_class(**kwargs)
-
-    def from_record(self, record):
-        """
-        Returns a sequenced item instance, from given database record.
-        """
-        kwargs = self.get_field_kwargs(record)
-        return self.sequenced_item_class(**kwargs)
 
     def filter(self, **kwargs):
         return self.record_class.objects.filter(**kwargs)
