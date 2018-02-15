@@ -95,7 +95,7 @@ manager. (If the original application could be partitioned, with each
 partition having its own notification log, then the partitions could
 be replicated concurrently, which would allow scaling by application
 partition. Partitioning an application isn't currently supported in
-the library).
+the library.)
 
 In the example below, the ``SimpleApplication`` class is used, which
 has a ``RecordManagerNotificationLog`` as its ``notification_log``.
