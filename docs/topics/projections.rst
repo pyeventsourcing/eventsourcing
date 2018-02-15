@@ -46,22 +46,21 @@ can be used to insert related records, building a model for a view.
 
 It is possible to use the decorator in a downstream application which
 republishes domain events perhaps published by an original application
-that uses messaging infrastructure. The decorator would be called
-synchronously with the republishing of the event, but perhaps
-asynchronously with respect to the original application.
+that uses messaging infrastructure such as an AMQP system. The decorated
+function would be called synchronously with the republishing of the event,
+but asynchronously with respect to the original application.
 
 A naive projection might consume events as they are published
 and update the projection without considering whether the event
 was a duplicate, or if previous events were missed.
-
 The trouble with this approach is that, without further modification, without
 referring to a fixed sequence and maintaining position in that sequence, there
 is no way to recover when events have been missed. If the projection somehow
 fails to update when an event is received, then the event will be lost forever to
 the projection, and the projection will be forever inconsistent.
 
-Of course it is possible to follow a fixed sequence of events, for example
-using notifications.
+Of course, it is possible to follow a fixed sequence of events, for example
+using notification logs.
 
 
 Reading notification logs
@@ -219,11 +218,12 @@ which gives "exactly once" processing.
     # Setup event driven pulling. Could prompt remote
     # readers with an AMQP system, but to make a simple
     # demonstration just subscribe to local events.
+
     @subscribe_to(AggregateRoot.Event)
     def prompt_replicator(_):
         replicator.pull()
 
-    # Create another aggregate.
+    # Now, create another aggregate.
     aggregate6 = AggregateRoot.__create__()
     aggregate6.__save__()
     assert aggregate6.id in original.repository
@@ -235,11 +235,11 @@ which gives "exactly once" processing.
     original.close()
 
 For simplicity in the example, the notification log reader uses a local
-notification log in the same process as the aggregates triggering. Perhaps
-it would be better to run replication away from the application servers,
-on a node remote from the application servers where domain events are
-triggered. A local notification log could be used on a worker-tier node
-which can connect to the original application's database. It could equally
+notification log in the same process as the events originated. Perhaps
+it would be better to run a replication job away from the application servers,
+on a node remote from the application servers, away from where the domain events
+are triggered. A local notification log could be used on a worker-tier node
+that can connect to the original application's database. It could equally
 well use a remote notification log without compromising the accuracy of the
 replication. A remote notification log, with an API service provided by the
 application servers, would avoid the original application database connections
