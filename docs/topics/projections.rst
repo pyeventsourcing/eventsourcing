@@ -58,27 +58,27 @@ Of course it is possible to follow a fixed sequence of events, for example
 using notifications.
 
 
-Notifications
--------------
+Following notifications
+-----------------------
 
 If the events of an application are presented as a sequence of
 notifications, then the events can be projected using a notification
 reader to pull unseen items.
 
-Getting new items can triggered by pushing prompts to e.g. an AMQP
+Getting new items could be triggered by pushing prompts to e.g. an AMQP
 messaging system, and having the remote components handle the prompts
-by pulling the new notifications.
+by pulling the new notifications. To minimise load on the messaging
+infrastructure, it may be sufficient simply to send an empty message,
+and thereby prompt receivers into pulling new notifications. This may
+reduce latency and avoid polling for updates, but at the expense of
+additional complexity.
 
-To minimise load on the messaging infrastructure, it may be sufficient
-simply to send an empty message, and thereby prompt receivers into pulling
-new notifications.
 
-
-Replication
-~~~~~~~~~~~
+Application state replication
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Using event record notifications, the state of an application can be
-replicated perfectly well. An original application presents its event
+replicated perfectly. An original application presents its event
 records as notifications, and a replicator pull notifications and writes
 copies of the original records into a replica application.
 
@@ -202,19 +202,24 @@ processing, hence perfect replication.
     original.close()
 
 
-
-The notification log reader uses a local notification log for simplicity,
-but it could use a remote notification log without compromising
-the accuracy of the replication. "Local" could also be a node remote from
-the production application servers, where the domain events are triggered,
-but which can connect to the original application's database. Remote
-notifications avoid the original application having to share its database
-connections, and can be cached in the network to avoid loading the application
-servers with requests from many followers of the notification sequence.
+For simplicity in the example, the notification log reader uses a local
+notification log, but it could equally well use a remote notification log
+without compromising the accuracy of the replication. "Local" could also
+mean a node which can connect to the original application's database such
+as a worker-tier node, but which is remote from the application servers
+where the domain events are triggered. Remote notifications would avoid
+the original application database connection being shared by countless
+others. Remote notification log sections can be cached in the network to
+avoid loading the application servers with requests from a multitude of
+followers of the notification sequence.
 
 Although the implementation of the notification log reader gets pages of
 notifications in series, the pages could be obtained in parallel, which
-may help when copying large numbers of notifications to new replicas.
+may help when copying a very large sequence of notifications to new replicas.
+
+
+Index of email addresses
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 Todo: Projection example: projection into an index.
