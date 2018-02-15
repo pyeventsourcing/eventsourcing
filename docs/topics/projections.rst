@@ -78,8 +78,11 @@ messaging system, and having the remote components handle the prompts
 by pulling the new notifications. To minimise load on the messaging
 infrastructure, it may be sufficient simply to send an empty message,
 and thereby prompt receivers into pulling new notifications. This may
-reduce latency and avoid polling for updates, but at the expense of
-additional complexity.
+reduce latency or avoid excessive polling for updates, but the benefit
+would be obtained at the expense of additional complexity. Prompts
+that include the position of the notification in its sequence would
+allow a follower to know when it is being prompted about notifications
+it already pulled, and could then skip the pulling operation.
 
 
 Application state replication
@@ -87,7 +90,7 @@ Application state replication
 
 Using event record notifications, the state of an application can be
 replicated perfectly. An original application presents its event
-records as notifications, and a replicator pull notifications and writes
+records as notifications. A "replicator" pulls notifications and writes
 copies of the original records into a replica application.
 
 With event record notifications, the ID of the record is used to sequence the
