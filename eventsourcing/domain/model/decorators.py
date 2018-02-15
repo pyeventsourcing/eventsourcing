@@ -14,7 +14,7 @@ from eventsourcing.domain.model.events import subscribe
 from eventsourcing.exceptions import ProgrammingError
 
 
-def subscribe_to(event_class):
+def subscribe_to(event_class=None):
     """
     Decorator for making a custom event handler function subscribe to a certain event type
 
@@ -34,11 +34,11 @@ def subscribe_to(event_class):
         def handler(event):
             if isinstance(event, (list, tuple)):
                 for e in event:
-                    if isinstance(e, event_class):
+                    if event_class is None or isinstance(e, event_class):
                         func(e)
-            elif isinstance(event, event_class):
+            elif event_class is None or isinstance(event, event_class):
                 func(event)
-        subscribe(handler=handler)
+        subscribe(handler=handler, predicate=lambda _: True)
         return func
     return wrap
 

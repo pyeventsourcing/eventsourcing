@@ -5,8 +5,8 @@ Projections
 This section describes projecting domain events.
 
 Projections can be updated synchronously by direct event subscription, or
-asynchronously by following notifications. Notifications can be pulled,
-and pulling notifications can be driven by events.
+asynchronously by following notification logs. Notifications can be pulled,
+and pulling can be driven by subscribing to events.
 
 .. contents:: :local:
 
@@ -30,7 +30,15 @@ defined, suggests that record ``TodoView`` can be created whenever a
 ``Todo.Created`` event is published. Perhaps there's a ``TodoView`` table
 with an index of todo titles, or perhaps it can be joined with a table of users.
 
-.. code::
+.. code:: python
+
+    from eventsourcing.domain.model.decorators import subscribe_to
+    from eventsourcing.domain.model.entity import DomainEntity
+
+
+    class Todo(DomainEntity):
+        class Created(DomainEntity.Created):
+            pass
 
     @subscribe_to(Todo.Created)
     def new_todo_projection(event):
@@ -58,8 +66,8 @@ Of course it is possible to follow a fixed sequence of events, for example
 using notifications.
 
 
-Following notifications
------------------------
+Notification logs
+-----------------
 
 If the events of an application are presented as a sequence of
 notifications, then the events can be projected using a notification
@@ -186,8 +194,11 @@ processing, hence perfect replication.
     # Setup event driven pulling.
     from eventsourcing.domain.model.events import subscribe, unsubscribe
 
-    # Subscribe to local events, could use AMQP system so original can prompt remote replicas.
-    subscribe(handler=replicator.pull, predicate=original.persistence_policy.is_event)
+    # Subscribe to local events, for demo only.
+    # - perhaps prompt remote readers with an AMQP system
+    @subscribe_to(AggregateRoot.Created)
+    def prompt_replicator(event):
+        replicator.pull()
 
     # Create another aggregate.
     aggregate6 = AggregateRoot.__create__()
@@ -221,10 +232,11 @@ may help when copying a very large sequence of notifications to new replicas.
 Index of email addresses
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
+Todo: Projection into an index.
 
-Todo: Projection example: projection into an index.
-Todo: Projection example: projection into a timeline view.
-Todo: Projection example: projection for data analytics.
+
+Todo: Projection into a timeline view.
+Todo: Projection for data analytics.
 
 
 .. Todo: Something about pumping events to a message bus, following
