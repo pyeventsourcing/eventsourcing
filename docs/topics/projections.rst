@@ -240,19 +240,19 @@ Todo: Projection for data analytics.
 
 
 .. Todo: Something about pumping events to a message bus, following
-the application sequence.
+.. the application sequence.
 
 .. Todo: Something about republishing events in a downstream application
-that has subscribers such as the decorator above. Gives opportunity for
-sequence to be reconstructed in the application before being published
-(but then what if several views are updated and the last one fails?
-are they all updated in the same a transaction, are do they each maintain
-their own position in the sequence, or does the application just have one
-subscriber and one view?)
+.. that has subscribers such as the decorator above. Gives opportunity for
+.. sequence to be reconstructed in the application before being published
+.. (but then what if several views are updated and the last one fails?
+.. are they all updated in the same a transaction, are do they each maintain
+.. their own position in the sequence, or does the application just have one
+.. subscriber and one view?)
 
 .. Todo: So something for a view to maintain its position in the sequence,
-perhaps version the view updates (event sourced or snapshots) if there
-are no transactions, or use a dedicated table if there are transactions.
+.. perhaps version the view updates (event sourced or snapshots) if there
+.. are no transactions, or use a dedicated table if there are transactions.
 
 
 .. Todo: Pulling from remote notification log.
