@@ -19,12 +19,6 @@ The library function
 can be used to decorate functions, so that the function is called
 each time a matching event is published by the library's pub-sub mechanism.
 
-A naive projection might consume events as they are published
-and update the projection without considering whether the event
-was a duplicate, or if previous events were missed. This may be
-perfectly adequate when beginning to develop a projection, perhaps
-with tests that directly publish a sequence of events.
-
 The example below, which is incomplete because the ``TodoView`` is not
 defined, suggests that record ``TodoView`` can be created whenever a
 ``Todo.Created`` event is published. Perhaps there's a ``TodoView`` table
@@ -55,6 +49,10 @@ republishes domain events perhaps published by an original application
 that uses messaging infrastructure. The decorator would be called
 synchronously with the republishing of the event, but perhaps
 asynchronously with respect to the original application.
+
+A naive projection might consume events as they are published
+and update the projection without considering whether the event
+was a duplicate, or if previous events were missed.
 
 The trouble with this approach is that, without further modification, without
 referring to a fixed sequence and maintaining position in that sequence, there
