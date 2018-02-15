@@ -66,37 +66,43 @@ Of course it is possible to follow a fixed sequence of events, for example
 using notifications.
 
 
-Notification logs
------------------
+Follow notification logs
+------------------------
 
 If the events of an application are presented as a sequence of
 notifications, then the events can be projected using a notification
 reader to pull unseen items.
 
-Getting new items could be triggered by pushing prompts to e.g. an AMQP
+Getting new items can be triggered by pushing prompts to e.g. an AMQP
 messaging system, and having the remote components handle the prompts
 by pulling the new notifications. To minimise load on the messaging
 infrastructure, it may be sufficient simply to send an empty message,
 and thereby prompt receivers into pulling new notifications. This may
 reduce latency or avoid excessive polling for updates, but the benefit
-would be obtained at the expense of additional complexity. Prompts
+would be obtained at the cost of additional complexity. Prompts
 that include the position of the notification in its sequence would
 allow a follower to know when it is being prompted about notifications
 it already pulled, and could then skip the pulling operation.
 
+Examples
+--------
 
-Application state replication
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Reliable, scalable, low-latency application state replication
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Using event record notifications, the state of an application can be
-replicated perfectly. An original application presents its event
-records as notifications. A "replicator" pulls notifications and writes
-copies of the original records into a replica application.
+replicated in way that has low-latency, high reliability, and is scalable
+in terms of fan-out. An original application can present its event records
+as notifications. A "replicator" can then pull notifications and write copies
+of the original records into a replica application. If the application was
+partitioned, with each partition having its own notification log, the partitions
+could be replicated concurrently, which would support scaling by application
+partition (this isn't currently supported).
 
 With event record notifications, the ID of the record is used to sequence the
 notifications. The ID of the last record in the replica is used to determine
-the current position in the original sequence, which promises "exactly once"
-processing, hence perfect replication.
+the current position in the original sequence, which gives "exactly once"
+processing.
 
 .. code:: python
 
@@ -108,16 +114,17 @@ processing, hence perfect replication.
 
     # Define record replicator.
     class RecordReplicator(object):
-        def __init__(self, reader, record_manager):
-            assert isinstance(reader, NotificationLogReader)
-            self.reader = reader
+        def __init__(self, notification_log, record_manager):
+            self.reader = NotificationLogReader(notification_log)
             self.manager = record_manager
+            # Position reader at max record ID.
             self.reader.seek(self.manager.get_max_record_id() or 0)
 
-        def pull(self, *_):
+        def pull(self):
             for notification in self.reader.read():
                 record = self.manager.record_class(**notification)
                 self.manager._write_records([record])
+
 
     # Construct original application.
     original = SimpleApplication()
@@ -127,8 +134,10 @@ processing, hence perfect replication.
     replica.persistence_policy.close()
 
     # Construct replicator.
-    reader = NotificationLogReader(original.notification_log)
-    replicator = RecordReplicator(reader, replica.event_store.record_manager)
+    replicator = RecordReplicator(
+        notification_log=original.notification_log,
+        record_manager=replica.event_store.record_manager
+    )
 
     # Publish some events.
     aggregate1 = AggregateRoot.__create__()
@@ -176,9 +185,14 @@ processing, hence perfect replication.
     # Check aggregate exists in the replica.
     assert aggregate4.id in replica.repository
 
-    # Restart replicator (reader position is lost).
-    reader = NotificationLogReader(original.notification_log)
-    replicator = RecordReplicator(reader, replica.event_store.record_manager)
+    # Terminate replicator (position in notification sequence is lost).
+    replicator = None
+
+    # Create new replicator.
+    replicator = RecordReplicator(
+        notification_log=original.notification_log,
+        record_manager=replica.event_store.record_manager
+    )
 
     # Create another aggreate.
     aggregate5 = AggregateRoot.__create__()
@@ -188,17 +202,17 @@ processing, hence perfect replication.
     assert aggregate5.id in original.repository
     assert aggregate5.id not in replica.repository
 
-    # Resume pulling records after replicator restart.
+    # Pull after replicator restart.
     replicator.pull()
 
     # Check aggregate exists in the replica.
     assert aggregate5.id in replica.repository
 
     # Setup event driven pulling. Could prompt remote
-    # readers with an AMQP system, but here subscribe
-    # to local events, to make a simple demonstration.
-    @subscribe_to(AggregateRoot.Created)
-    def prompt_replicator(event):
+    # readers with an AMQP system, but to make a simple
+    # demonstration just subscribe to local events.
+    @subscribe_to(AggregateRoot.Event)
+    def prompt_replicator(_):
         replicator.pull()
 
     # Create another aggregate.
@@ -212,21 +226,29 @@ processing, hence perfect replication.
     # Clean up.
     original.close()
 
-
 For simplicity in the example, the notification log reader uses a local
 notification log, but it could equally well use a remote notification log
-without compromising the accuracy of the replication. "Local" could also
-mean a node which can connect to the original application's database such
-as a worker-tier node, but which is remote from the application servers
-where the domain events are triggered. Remote notifications would avoid
-the original application database connection being shared by countless
-others. Remote notification log sections can be cached in the network to
-avoid loading the application servers with requests from a multitude of
-followers of the notification sequence.
+without compromising the accuracy of the replication. A local notification
+log could be used on a worker-tier node which can connect to the original
+application's database, but which is not the application servers
+where the domain events are triggered. Using a remote notification log, with
+an API service provided by the application servers would avoid the original
+application database connections being shared by countless others. Remote
+notification log sections can be cached in the network to avoid loading
+the application servers with requests from a multitude of followers.
 
-Although the implementation of the notification log reader gets pages of
-notifications in series, the pages could be obtained in parallel, which
-may help when copying a very large sequence of notifications to new replicas.
+Since the replica application uses optimistic concurrency control for its
+event records, it isn't possible to corrupt the replica by attempting
+to write the same record twice. Hence cron jobs can be scheduled to pull
+at periodic intervals, and at the same time message queue workers can
+respond to prompts pushed to AMQP-style messaging infrastructure by the
+original application, without needing to serialise their access to the
+replica with locks: if the two jobs happen to collide, one will succeed and
+the other will experience a concurrency error exception which can be ignored.
+
+Although the implementation of the notification log reader pulls sections of
+notifications in series, the sections could be pulled in parallel, which
+may help when copying a very large sequence of notifications to a new replica.
 
 
 Index of email addresses

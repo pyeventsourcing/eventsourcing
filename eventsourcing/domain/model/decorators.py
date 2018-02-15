@@ -16,9 +16,20 @@ from eventsourcing.exceptions import ProgrammingError
 
 def subscribe_to(event_class=None):
     """
-    Decorator for making a custom event handler function subscribe to a certain event type
+    Decorator for making a custom event handler function subscribe to a certain class of event.
 
-    event_class: DomainEvent class or its child classes that the handler function should subscribe to
+    The decorated function will be called once for each matching event that is published, and will
+    be given one argument, the event, when it is called. If events are published in lists, for
+    example the AggregateRoot publishes a list of pending events when its __save__() method is called,
+    then the decorated function will be called once for each event that is an instance of the given event_class.
+
+    Please note, this decorator isn't suitable for use with object class methods. The decorator receives
+    in Python 3 an unbound function, and defines a handler which it subscribes that calls the decorated
+    function for each matching event. However the method isn't called on the object, so the object instance
+    is never available in the decorator, so the decorator can't call a normal object method because it
+    doesn't have a value for 'self'.
+
+    event_class: type used to match published events, an event matches if it is an instance of this type
 
     The following example shows a custom handler that reacts to Todo.Created
     event and saves a projection of a Todo model object.
