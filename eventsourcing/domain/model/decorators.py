@@ -34,10 +34,16 @@ def subscribe_to(event_class):
     def event_type_predicate(event):
         return isinstance(event, event_class)
 
-    def wrap(handler_func):
-        subscribe(handler_func, event_type_predicate)
-        return handler_func
-
+    def wrap(func):
+        def handler(event):
+            if isinstance(event, (list, tuple)):
+                for e in event:
+                    if event_type_predicate(e):
+                        func(e)
+            elif event_type_predicate(event):
+                func(event)
+        subscribe(handler=handler)
+        return func
     return wrap
 
 
