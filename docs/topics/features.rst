@@ -25,6 +25,10 @@ events, or all events, or not applied at all (the default).
 obtain the state of an entity. A snapshot strategy is included which reuses
 the capabilities of this library by implementing snapshots as events.
 
+**Notifications and projections** - reliable propagation of application
+events with pull-based notifications allows the application state to be
+projected accurately into replicas, indexes, and view models.
+
 **Abstract base classes** — suggest how to structure an event sourced application.
 The library has base classes for application objects, domain entities, entity repositories,
 domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,

@@ -28,7 +28,7 @@ are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invi
 sequenced item mapper with a record strategy to map domain events
 to database records in ways that can be easily extended and replaced.
 
-**Data integrity** - stored events can be hashed to check data integrity of individual
+**Data integrity** — stored events can be hashed to check data integrity of individual
 records, so you cannot lose information in transit or get database corruption without
 being able to detect it. Sequences of events can be hash-chained, and the entire sequence
 of events checked for integrity, so if the last hash can be independently validated, then
@@ -46,6 +46,10 @@ events, or all events, or not applied at all (the default).
 **Snapshotting** — avoids replaying an entire event stream to
 obtain the state of an entity. A snapshot strategy is included which reuses
 the capabilities of this library by implementing snapshots as events.
+
+**Notifications and projections** — reliable propagation of application
+events with pull-based notifications allows the application state to be
+projected accurately into replicas, indexes, and view models.
 
 **Abstract base classes** — suggest how to structure an event sourced application.
 The library has base classes for application objects, domain entities, entity repositories,
