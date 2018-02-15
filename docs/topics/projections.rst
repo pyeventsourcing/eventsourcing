@@ -191,11 +191,9 @@ processing, hence perfect replication.
     # Check aggregate exists in the replica.
     assert aggregate5.id in replica.repository
 
-    # Setup event driven pulling.
-    from eventsourcing.domain.model.events import subscribe, unsubscribe
-
-    # Subscribe to local events, for demo only.
-    # - perhaps prompt remote readers with an AMQP system
+    # Setup event driven pulling. Could prompt remote
+    # readers with an AMQP system, but here subscribe
+    # to local events, to make a simple demonstration.
     @subscribe_to(AggregateRoot.Created)
     def prompt_replicator(event):
         replicator.pull()
@@ -209,7 +207,6 @@ processing, hence perfect replication.
     assert aggregate6.id in replica.repository
 
     # Clean up.
-    unsubscribe(handler=replicator.pull)
     original.close()
 
 
