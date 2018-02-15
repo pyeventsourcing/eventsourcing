@@ -6,7 +6,7 @@ Features
 sequenced item mapper with a record manager to map domain events
 to database records in ways that can be easily extended and replaced.
 
-**Data integrity** - Sequences of events can be hash-chained, and the entire sequence
+**Data integrity** — Sequences of events can be hash-chained, and the entire sequence
 of events checked for integrity. If the last hash can be independently validated, then
 so can the entire sequence. Events records can be encrypted with an authenticated encryption
 algorithm, so you cannot lose information in transit or at rest, or get database corruption
@@ -25,7 +25,7 @@ events, or all events, or not applied at all (the default).
 obtain the state of an entity. A snapshot strategy is included which reuses
 the capabilities of this library by implementing snapshots as events.
 
-**Notifications and projections** - reliable propagation of application
+**Notifications and projections** — reliable propagation of application
 events with pull-based notifications allows the application state to be
 projected accurately into replicas, indexes, and view models.
 

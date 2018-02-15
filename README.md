@@ -62,6 +62,7 @@ purists for maximum longevity), you might start by replicating the library class
 example domain events, and an example database table. Plus lots of examples in the documentation. 
 
 
+
 ## Synopsis
 
 Develop a domain model.
