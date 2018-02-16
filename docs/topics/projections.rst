@@ -344,6 +344,7 @@ Set position of reader as max ID in command log.
     def uuid_from_url(url):
         return uuid.uuid5(uuid.NAMESPACE_URL, url.encode('utf8') if bytes == str else url)
 
+
     # Define indexer.
     class Indexer(object):
         class Event(AggregateRoot.Event):
@@ -354,6 +355,34 @@ Set position of reader as max ID in command log.
             self.reader = NotificationLogReader(notification_log)
             self.manager = record_manager
             # Position reader at max record ID.
+            # - this can be generalised to get the max ID from many
+            #   e.g. big arrays so that many notification logs can
+            #   be followed, consuming a group of notification logs
+            #   would benefit from using transactions to set records
+            #   in a big array per notification log atomically with
+            #   inserting the result of combining the notification log
+            #   because processing more than one stream would produce
+            #   a stream that has a different sequence of record IDs
+            #   which couldn't be used directly to position any of the
+            #   notification log readers
+            # - if producing one stream from many can be as reliable as
+            #   replicating a stream, then the unreliability will be
+            #   caused by interoperating with systems that just do push,
+            #   but the push notifications could be handled by adding
+            #   to an application partition sequence, so e.g. all bank
+            #   payment responses wouldn't need to go in the same sequence
+            #   and therefore be replicated with mostly noops in all application
+            #   partitions, or perhaps they could initially go in the same
+            #   sequence, and transactions could used to project that into
+            #   many different sequences, in order words splitting the stream
+            #   (splitting is different from replicating many time). When splitting
+            #   the stream, the splits's record ID couldn't be used to position to splitter
+            #   in the consumed notification log, so there would need to be a command
+            #   log that tracks the consumed sequence whose record IDs can be used to position
+            #   the splitter in the notification log, with the commands
+            #   defining how the splits are extended, and everything committed in a transaction
+            #   so the splits are atomic with the command log
+            # Todo: Bring out different projectors: splitter (one-many), combiner (many-one), repeater (one-one).
             self.reader.seek(self.manager.get_max_record_id() or 0)
 
         def pull(self):
@@ -361,7 +390,10 @@ Set position of reader as max ID in command log.
             for notification in self.reader.read():
 
                 # Construct index items.
-                # Todo: Be more careful, write record with an ID explicitly, so OCC allows safe concurrent processing.
+                # Todo: Be more careful, write record with an ID explicitly,
+                # (walk the event down the stack explicity, and then set the ID)
+                # so concurrent processing is safe. Providing the ID also avoids
+                # the cost of computing the next record ID.
                 # Alternatively, construct, execute, then record index commands in a big array.
                 # Could record commands in same transaction as result of commands if commands are not idempotent.
                 # Could use compaction to remove all blank items, but never remove the last record.
