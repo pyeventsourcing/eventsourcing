@@ -288,6 +288,141 @@ and also about discarding an aggregate that doesn't exist. Or use transactions,
 if possible, so that the command and the index aggregates are updated together.
 Set position of reader as max ID in command log.
 
+.. code:: python
+
+    import uuid
+
+    from eventsourcing.application.simple import SimpleApplication
+    from eventsourcing.exceptions import ConcurrencyError
+    from eventsourcing.domain.model.aggregate import AggregateRoot
+    from eventsourcing.interface.notificationlog import NotificationLogReader, RecordManagerNotificationLog
+
+    # Define domain model.
+    class User(AggregateRoot):
+        def __init__(self, *arg, **kwargs):
+            super(User, self).__init__(*arg, **kwargs)
+            self.email_addresses = {}
+
+        class Event(AggregateRoot.Event):
+            pass
+
+        class Created(Event, AggregateRoot.Created):
+            pass
+
+        def add_email_address(self, email_address):
+            self.__trigger_event__(User.EmailAddressAdded, email_address=email_address)
+
+        class EmailAddressAdded(Event):
+            def mutate(self, aggregate):
+                email_address = User.EmailAddress(self.email_address)
+                aggregate.email_addresses[self.email_address] = email_address
+
+        def verify_email_address(self, email_address):
+            self.__trigger_event__(User.EmailAddressVerified, email_address=email_address)
+
+        class EmailAddressVerified(Event):
+            def mutate(self, aggregate):
+                aggregate.email_addresses[self.email_address].is_verified = True
+
+        class EmailAddress(object):
+            def __init__(self, email_address):
+                self.email_address = email_address
+                self.is_confirmed = False
+
+    class IndexItem(AggregateRoot):
+        def __init__(self, index_value=None, *args, **kwargs):
+            super(IndexItem, self).__init__(*args, **kwargs)
+            self.index_value = index_value
+
+        class Event(AggregateRoot.Event):
+            pass
+
+        class Created(Event, AggregateRoot.Created):
+            pass
+
+
+    def uuid_from_url(url):
+        return uuid.uuid5(uuid.NAMESPACE_URL, url)
+
+    # Define indexer.
+    class Indexer(object):
+        class Event(AggregateRoot.Event):
+            pass
+        class Created(AggregateRoot.Created):
+            pass
+        def __init__(self, notification_log, record_manager):
+            self.reader = NotificationLogReader(notification_log)
+            self.manager = record_manager
+            # Position reader at max record ID.
+            self.reader.seek(self.manager.get_max_record_id() or 0)
+
+        def pull(self):
+            # Project events into commands for the index.
+            for notification in self.reader.read():
+
+                # Construct index items.
+                # Todo: Be more careful, write record with an ID explicitly, so OCC allows safe concurrent processing.
+                # Alternatively, construct, execute, then record index commands in a big array.
+                # Could record commands in same transaction as result of commands if commands are not idempotent.
+                # Could use compaction to remove all blank items, but never remove the last record.
+                if notification['event_type'].endswith('User.EmailAddressVerified'):
+                    event = original.event_store.sequenced_item_mapper.from_topic_and_data(
+                        notification['event_type'],
+                        notification['state'],
+                    )
+                    index_key = uuid_from_url(event.email_address)
+                    index_value = event.originator_id
+                else:
+                    index_key = uuid.uuid4()
+                    index_value = ''
+
+                # Todo: And if we can't create new index item, get existing and append value.
+                index_item = IndexItem.__create__(originator_id=index_key, index_value=index_value)
+                index_item.__save__()
+
+
+    # Construct original application.
+    original = SimpleApplication(persist_event_type=User.Event)
+
+    # Construct index application.
+    index = SimpleApplication(persist_event_type=IndexItem.Event)
+
+    # Setup event driven indexing.
+    indexer = Indexer(
+        notification_log=original.notification_log,
+        record_manager=index.event_store.record_manager
+    )
+
+    @subscribe_to(User.Event)
+    def prompt_indexer(_):
+        indexer.pull()
+
+    user1 = User.__create__()
+    user1.__save__()
+    assert user1.id in original.repository
+    assert user1.id not in index.repository
+
+    user1.add_email_address('me@example.com')
+    user1.__save__()
+
+    index_key = uuid_from_url('me@example.com')
+    assert index_key not in index.repository
+
+    user1.verify_email_address('me@example.com')
+    user1.__save__()
+    assert index_key in index.repository
+    assert index.repository[index_key].index_value == user1.id
+
+    assert uuid_from_url('mycat@example.com') not in index.repository
+
+    user1.add_email_address('mycat@example.com')
+    user1.verify_email_address('mycat@example.com')
+    user1.__save__()
+
+    assert uuid_from_url('mycat@example.com') in index.repository
+
+    assert user1.id in original.repository
+    assert user1.id not in index.repository
 
 Todo: Projection into a timeline view.
 Todo: Projection for data analytics.
