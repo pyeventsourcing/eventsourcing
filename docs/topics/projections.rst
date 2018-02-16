@@ -342,7 +342,7 @@ Set position of reader as max ID in command log.
 
 
     def uuid_from_url(url):
-        return uuid.uuid5(uuid.NAMESPACE_URL, url)
+        return uuid.uuid5(uuid.NAMESPACE_URL, url.encode('utf8'))
 
     # Define indexer.
     class Indexer(object):
@@ -413,13 +413,13 @@ Set position of reader as max ID in command log.
     assert index_key in index.repository
     assert index.repository[index_key].index_value == user1.id
 
-    assert uuid_from_url('mycat@example.com') not in index.repository
+    assert uuid_from_url(u'mycat@example.com') not in index.repository
 
-    user1.add_email_address('mycat@example.com')
-    user1.verify_email_address('mycat@example.com')
+    user1.add_email_address(u'mycat@example.com')
+    user1.verify_email_address(u'mycat@example.com')
     user1.__save__()
 
-    assert uuid_from_url('mycat@example.com') in index.repository
+    assert uuid_from_url(u'mycat@example.com') in index.repository
 
     assert user1.id in original.repository
     assert user1.id not in index.repository
