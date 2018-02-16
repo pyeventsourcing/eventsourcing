@@ -342,7 +342,7 @@ Set position of reader as max ID in command log.
 
 
     def uuid_from_url(url):
-        return uuid.uuid5(uuid.NAMESPACE_URL, url.encode('utf8'))
+        return uuid.uuid5(uuid.NAMESPACE_URL, url.encode('utf8') if bytes == str else url)
 
     # Define indexer.
     class Indexer(object):
