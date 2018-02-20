@@ -2,11 +2,58 @@
 Projections
 ===========
 
-This section describes projecting domain events.
+A projection is a function of application state. If the state of an application is
+event sourced, projections can operate by processing the events of an application.
 
-Projections can be updated synchronously by direct event subscription, or
-asynchronously by following notification logs. Notifications can be pulled,
-and pulling can be driven by subscribing to events.
+Projections can be updated by direct event subscription, or by following notification
+logs that propagate the events of an application. Notification logs are described in the
+previous section.
+
+Notifications in a notification log can be pulled. Pulling notifications can
+be prompted periodically, prompts could also be pushed onto a message bus. Notifications
+could by pushed onto the message bus, but if order is lost, the projection will need to
+refer to the notification log.
+
+Projections can track the notifications that have been processed: the position
+in an upstream notification log can be recorded. It is possible for the position
+can be recorded as a value in the projected application state, if the nature of the
+projection lends itself to be used also to track notifications. Otherwise, the position
+in the notification log can be recorded with a separate tracking record.
+
+If upstream notifications are distributed across many notification logs, then a
+projection can be deployed with many concurrent operating system processes.
+
+Any causal ordering between notifications in different logs can be maintained
+if each operating system process waits until all upstream notification dependencies
+have been processed, which it can do by polling for the existence of the corresponding
+tracking records.
+
+Projections can update more or less anything. To be reliable, the projection must
+write in the same atomic database transaction all the records that result from
+processing a notification. Otherwise it is possible to tracl the position
+and fail to update the projection, or vice versa.
+
+A projection that both consumes and creates notifications can be called a "process".
+
+Since projections can update more or less anything, they can also call
+command methods on event sourced aggregates. The important thing is for
+any new domain events that are triggered by the aggregates to be recorded
+in the same database transaction as the tracking records. For reliability,
+if these new domain events are also placed in a notification log, then the
+tracking record and the domain event records and the notification records
+can be written in the same database transaction. A projection that operates by
+calling methods on aggregates and recording events with notifications, can be
+called an "application process".
+
+Different application processes can work together as a coherent and reliable
+system, for example an orders-reservations-payments system. An application
+process DSL can be could describe such a system of application processes,
+as function definitions that call each other, with decorators on these
+functions to associate each with a policy.
+
+Optimistic concurrency control of uniqueness constraints on the tracking and
+event records would allow safe redundant processing of each application process.
+
 
 .. contents:: :local:
 
@@ -80,6 +127,116 @@ would be obtained at the cost of additional complexity. Prompts
 that include the position of the notification in its sequence would
 allow a follower to know when it is being prompted about notifications
 it already pulled, and could then skip the pulling operation.
+
+If an application has many notification logs, they could be consumed
+concurrently.
+
+
+Tracking notifications
+---------------------
+
+If a projection creates a sequence that it appends to at least once for each
+notification, the position in the notification log can be tracked as part of
+the projection's sequence. Tracking the position is important when resuming
+to process the notifications. An example of using the projection's sequence
+to track the notifications is replication (see example below). However, with
+this technique, something must be written to the projection's sequence for
+each notification received. That can be tolerated by writing "null" records
+that extend the sequence without spoiling the projections, for example in
+the event sourced index example below, random keys are inserted
+instead of email addresses to extend the sequence.
+
+An alternative which avoids writing unnecessarily to a projection's sequence
+is to separate the concerns, and write a tracking record for each notification
+that is consumed, and then optionally any records created for the projection
+in response to the notification.
+
+A tracking record could simply have the position of a notification in a log. If
+the notifications are interpreted as commands, then a command log could function
+effectively to track the notifications, so long as one command is written for
+each notification (which might then involve "null" commands).
+
+The tracking records would need to be written in the same atomic database
+transaction as the projection records.
+
+
+
+Process application
+-------------------
+
+A process application is defined here as an event sourced application,
+that functions as a projection, responding to notifications by calling
+aggregate methods, and then writing all resulting event and notification
+log records, along with the tracking record, in a single atomic database
+transaction.
+
+Errors in the policy or the aggregates or the infrastructure are not considered to
+affect the reliability of this process in itself. Only if the atomicity of the
+record writing is somehow broken, can the process be unreliable. If an aggregate
+produces the wrong events, that's a behavioural problem that will be performed
+reliably by this process.
+
+One such application process could follow another. An application process
+could follow two other application processes; it could follow itself.
+Many application processes could be run in a single operating system
+process, even with a single thread, but they could also be run concurrently
+on different nodes in a network. A set of such processes could be pulsed from
+a clock, and also prompted by pushing notifications, reducing latency and
+avoiding aggressive polling intervals.
+
+Notifications from an application process could be placed in a single
+notification log and processed in series. To scale throughput, notifications
+could be distributed across many logs. Hence one application process could
+usefully employ many operating system processes (one per notification log).
+But it could also be run with many threads of an asynchronous event loop.
+
+Such a process can be defined as productive in this sense: consumption with
+recording determines production. Either the tracking record is written or it
+isn't. If something goes wrong, either with the policy, or in the aggregates used by the
+policy, or when committing the records, then the process reliably doesn't progress
+at all until the trouble goes away, after which the process will reliably continue.
+
+If there is contention on the aggregate state, or if there is a conflict
+writing the notification log, or something crashes, the tracking record
+won't be written. If the tracking record isn't written, the position doesn't
+move, and the processing will have to be tried again. There might be failures in the
+infrastructure, and bugs in the aggregates and the policies, which prevent
+the tracking record from being written, but this process in itself is as reliable
+as its database transactions.
+
+To summarise, the important concerns for process reliability are probably: consumed notifications must
+be tracked one-for-one (one tracking record for each notification), with one tracking
+sequence for each notification sequence consumed by the process; the position in the
+consumed notification log is determined by the last committed record in its tracking
+sequence; the tracking sequence records must not contribute to the process' notification
+log (except for the special case where a process can use the events it records to keep
+track of the position in the notification log, which means the process must write at
+least one record for each notification, which is perfect for replicating records or
+creating simple indexes); most importantly, all records must be written in the same atomic
+database transaction.
+
+Process DSL
+~~~~~~~~~~~
+
+Speculatively....
+
+.. code::
+
+    @process(policy=OrdersPolicy)
+    def orders(customer_commands):
+        customer_commands() + reservations() + payments()
+
+    @process(policy=ReservationsPolicy)
+    def reservations():
+        orders()
+
+    @process(policy=PaymentsPolicy)
+    def payments():
+        orders()
+
+
+Such a system of application processes could be deployed with a single thread or in a huge cluster.
+
 
 Examples
 --------
@@ -456,9 +613,28 @@ Set position of reader as max ID in command log.
     assert user1.id in original.repository
     assert user1.id not in index.repository
 
-Todo: Projection into a timeline view.
-Todo: Projection for data analytics.
-Todo: Merging notification logs ("consumer groups")?
+Todo: Projection into a timeline view?
+
+Todo: Projection into snapshots (policy determines when to snapshot)?
+
+Todo: Projection for data analytics?
+
+Todo: Concurrent processing of notification logs, respecting causal relations.
+
+Todo: Order reservation payments, system with many processes and many notification logs.
+
+Todo: Single process with single log.
+
+Todo: Single process with many logs.
+
+Todo: Many processes with one log each.
+
+Todo: Many processes with many logs each (static config).
+
+Todo: Many processes with many logs each (dynamic config).
+
+Todo: Single process with state machine semantics (whatever they are)?
+
 
 .. Todo: Something about pumping events to a message bus, following
 .. the application sequence.
