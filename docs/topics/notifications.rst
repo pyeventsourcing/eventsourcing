@@ -755,6 +755,77 @@ uses this ``RecordManagerNotificationLog`` class.
 .. Todo: Move that function into the library, where? Perhaps subclass
 .. NotificationLogReader with EventNotificationLogReader?
 
+Notification records
+~~~~~~~~~~~~~~~~~~~~
+
+An application could write separate notification records and event records.
+Having separate notification records allows notifications to be arbitrarily
+and therefore evenly distributed across a variable set of notification logs.
+
+The number of logs could governed automatically by a scaling process so the
+cadence of each notification log is actively controlled to a constant level.
+
+Todo: Merge these paragraphs, remove repetition (params below were moved from projections doc).
+
+When an application has one notification log, any causal ordering between
+events will preserved in the log: you won't be informed that something
+changed without previously being informed that it was created. But if there
+are many notification logs, then it would be possible to record casual
+ordering between events: the notifications recorded for the last events
+that were applied to the aggregates used when triggering new events can
+be included in the notifications for the new events. This avoids downstream
+needing to: serialise everything in order to recover order e.g. by merge
+sorting all logs by timestamp; partitioning the application state; or to
+ignore causal ordering. For efficiency, prior events that were notified in
+the same log wouldn't need to be included. So it would make sense for all the
+events of a particular aggregate to be notified in the same log, but if necessary
+they could be distributed across different notification logs without downstream
+processing needing to incoherent or bottle-necked. To scale data, it might become
+necessary to fix an aggregate to a notification log, so that many databases can be
+used with each having the notification records and the event records together (and
+any upstream notification tracking records) so that atomic transactions for
+these records are still workable.
+
+If all events in a process are placed in the same notification log sequence, since
+a notification log will need to be processed in series, the throughput is more or
+less limited by the rate at which a sequence can be processed by a single thread.
+To scale throughput, the application event notifications could be distributed into many
+different notification logs, and a separate operating system process (or thread)
+could run concurrently for each log. A set of notification logs could be processed
+by a single thread, that perhaps takes one notification in turn from each log,
+but with parallel processing, total throughput could be proportional to the number
+of notification logs used to propagate the domain events of an application.
+
+Causal ordering can be maintained across the logs, so long as each event
+notification references the notifications for the last event in all the aggregates
+that were required to trigger the new events. If a notification references a
+notification in another log, then the processing can wait until that other
+notification has been processed. Hence notifications do not need to include
+notifications in the same log, as they will be processed first. On the other hand,
+if all notifications include such references to other notifications, then a notification
+log could be processed in parallel: since it is unlikely that each notification
+in a log depends on its immediate predecessor, wherever a sub-sequence of notifications all
+depend on notifications that have already been processed, those notifications could
+perhaps be processed concurrently.
+
+There will be a trade-off between evenly distributing events across the various
+logs and minimising the number of causal ordering that go across logs. A simple
+and probably effective rule would be to place all the events of one aggregate
+in the same log. But it may also help to partition the aggregates of an application
+by e.g. user, and place the events of all aggregates created by a user in the same
+notification log, since they are perhaps most likely to be causally related. This
+mechanism would allow the number of logs to be increased and decreased, with aggregate
+event notifications switching from one log to another and still be processed coherently.
+
+
+Todo: Define notification records in SQLAlchemy: application_id, partition_id, record_id, originator_id,
+originator_version with unique index on (application_id, log_id, record_id) and unique index on
+(originator_id, originator_version). Give notification record class to record manager.
+Change manager to write a notification record for each event. Maybe change aggregate
+__save__() method to accept other records, which could be used to save a tracking record.
+Use with an event record class that also has (application_id) column.
+
+
 BigArrayNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -799,27 +870,38 @@ just strings ('item0' etc). If the big array is being used to sequence the
 events of an application, it is possible to assign just the item's sequence
 ID and position, and let followers get the actual event using those references.
 
+Todo: Fix problem with not being able to write all of big array with one
+SQL expression, since it involves constructing the non-leaf records. Perhaps
+could be more precise about predicting which non-leaf records need to be inserted
+so that we don't walk down from the top each time discovering whether or not
+a record exists. It's totally predictable, but the code is cautious. But it would
+be possible to identify all the new records and add them. Still not really possible
+to use "insert select max", but if each log has it's own process, then IDs can
+be issued from a generator, initialised from a query, and reused if an insert fails
+so the sequence is contiguous.
 
-Aggregate notification log
-~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Perhaps a more sophisticated approach would be to have many notification logs,
-with one application log and many aggregate logs. The application log could be
-used only to notify of the existence of the aggregate logs. However the order
-of the application events after recombining many aggregate logs into a single
-sequence would be undefined (can't say jumbled because such events were never placed
-in a single application sequence). If the notifications had timestamps, the
-aggregate logs could be merged by timestamp.
+.. Aggregate notification log
+.. ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-It might also be useful to partition sets of aggregates, and have a partition log
-that orders events from all the aggregates in the partition.
+.. Perhaps a more sophisticated approach would be to have many notification logs,
+.. with one application log and many aggregate logs. The application log could be
+.. used only to notify of the existence of the aggregate logs. However the order
+.. of the application events after recombining many aggregate logs into a single
+.. sequence would be undefined (can't say jumbled because such events were never placed
+.. in a single application sequence). If the notifications had timestamps, the
+.. aggregate logs could be merged by timestamp.
 
-Todo: In general, discovering the aggregate IDs is important. Perhaps make a
-method on record manager class that returns all the sequence IDs?
+.. It might also be useful to partition sets of aggregates, and have a partition log
+.. that orders events from all the aggregates in the partition.
 
-Todo: Write local notification log class that can follow the events of an aggregate.
+.. Todo: In general, discovering the aggregate IDs is important. Perhaps make a
+.. method on record manager class that returns all the sequence IDs?
 
-Todo: Add support for partitioning the aggregates of an application e.g. by user account.
+.. Todo: Write local notification log class that can follow the events of an aggregate.
+
+.. Todo: Add support for partitioning the aggregates of an application e.g. by user account.
+
 
 Remote notification logs
 ------------------------
