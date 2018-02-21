@@ -287,3 +287,7 @@ def assert_event_handlers_empty():
     if len(_event_handlers):
         msg = "Event handlers are still subscribed: %s" % _event_handlers
         raise EventHandlersNotEmptyError(msg)
+
+
+def clear_event_handlers():
+    _event_handlers.clear()

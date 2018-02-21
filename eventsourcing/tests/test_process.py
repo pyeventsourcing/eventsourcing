@@ -3,6 +3,7 @@ from unittest import TestCase
 from eventsourcing.application.process import Process
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import subscribe_to
+from eventsourcing.domain.model.events import clear_event_handlers
 
 
 class ExampleAggregate(AggregateRoot):
@@ -47,6 +48,9 @@ def example_policy(process, event):
 
 class TestProcess(TestCase):
 
+    def tearDown(self):
+        clear_event_handlers()
+
     def test_process_with_example_policy(self):
 
         # Construct example process.
@@ -72,4 +76,3 @@ class TestProcess(TestCase):
 
         # Check the aggregate has been "moved on".
         self.assertTrue(process.repository[aggregate2.id].moved_on)
-
