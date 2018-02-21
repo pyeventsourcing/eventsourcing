@@ -6,24 +6,30 @@ from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.events import clear_event_handlers
 
 
-class ExampleAggregate(AggregateRoot):
-    def __init__(self, **kwargs):
-        super(ExampleAggregate, self).__init__(**kwargs)
-        self.moved_on = False
+class TestProcess(TestCase):
 
-    class Event(AggregateRoot.Event):
-        pass
+    def test_process_with_example_policy(self):
+        # Construct example process.
+        process = Process(policy=example_policy)
 
-    class Created(Event, AggregateRoot.Created):
-        pass
+        # Make the process follow itself.
+        process.follow(process.notification_log, 'self')
 
-    def move_on(self):
-        self.__trigger_event__(ExampleAggregate.MovedOn)
+        # Setup event driven pulling.
+        @subscribe_to(ExampleAggregate.Event)
+        def prompt_process(_):
+            while process.run():
+                pass
 
-    class MovedOn(Event):
-        def mutate(self, aggregate):
-            assert isinstance(aggregate, ExampleAggregate)
-            aggregate.moved_on = True
+        # Create an aggregate.
+        aggregate2 = ExampleAggregate.__create__()
+        aggregate2.__save__()
+
+        # Check the aggregate has been automatically "moved on".
+        self.assertTrue(process.repository[aggregate2.id].moved_on)
+
+    def tearDown(self):
+        clear_event_handlers()
 
 
 def example_policy(process, event):
@@ -46,33 +52,21 @@ def example_policy(process, event):
     return unsaved_aggregates, causal_dependencies
 
 
-class TestProcess(TestCase):
+class ExampleAggregate(AggregateRoot):
+    def __init__(self, **kwargs):
+        super(ExampleAggregate, self).__init__(**kwargs)
+        self.moved_on = False
 
-    def tearDown(self):
-        clear_event_handlers()
+    class Event(AggregateRoot.Event):
+        pass
 
-    def test_process_with_example_policy(self):
+    class Created(Event, AggregateRoot.Created):
+        pass
 
-        # Construct example process.
-        process = Process(policy=example_policy)
+    def move_on(self):
+        self.__trigger_event__(ExampleAggregate.MovedOn)
 
-        # Check it has a notification log.
-        self.assertTrue(process.notification_log)
-
-        # Make the process follow itself.
-        process.follow(process.notification_log, 'self')
-
-        # Check no tracking records have been written.
-        self.assertEqual(process.tracking_record_manager.get_max_record_id(upstream_application_name='self'), None)
-
-        @subscribe_to(ExampleAggregate.Event)
-        def prompt_process(_):
-            while process.run():
-                pass
-
-        # Create an aggregate.
-        aggregate2 = ExampleAggregate.__create__()
-        aggregate2.__save__()
-
-        # Check the aggregate has been "moved on".
-        self.assertTrue(process.repository[aggregate2.id].moved_on)
+    class MovedOn(Event):
+        def mutate(self, aggregate):
+            assert isinstance(aggregate, ExampleAggregate)
+            aggregate.moved_on = True

@@ -165,20 +165,36 @@ transaction as the projection records.
 Process application
 -------------------
 
-A process application is defined here as an event sourced application,
-that functions as a projection, responding to notifications by calling
+The library has a subclass of ``SimpleApplication`` called ``Process``,
+which is a "process application".
+
+A process application, here, is defined as an event sourced application,
+that also functions as a projection, responding to notifications by calling
 aggregate methods, and then writing all resulting event and notification
 log records, along with the tracking record, in a single atomic database
-transaction.
+transaction. Such a process could follow another in a system; one process
+could follow two other processes; and it could follow itself.
 
-Errors in the policy or the aggregates or the infrastructure are not considered to
-affect the reliability of this process in itself. Only if the atomicity of the
-record writing is somehow broken, can the process be unreliable. If an aggregate
-produces the wrong events, that's a behavioural problem that will be performed
-reliably by this process.
+Such a process can be defined as productive in this sense: consumption with
+recording determines production. Either the tracking record is written or it
+isn't: if something is wrong with the policy, or with the aggregates' behaviour,
+or when committing the records, then the process reliably doesn't progress at
+all until the trouble goes away, after which the process will reliably continue.
 
-One such application process could follow another. An application process
-could follow two other application processes; it could follow itself.
+If there is contention on the aggregate state, or if there is a conflict
+writing the notification log, or something crashes, the tracking record
+won't be written. If the tracking record isn't written, the position doesn't
+move, and the processing will have to be tried again. There might be failures in the
+infrastructure, and bugs in the aggregates and the policies, which prevent
+the tracking record from being written, but this process in itself is as reliable
+as its database transactions.
+
+In that sense, errors in the process' policy, or in the aggregates, or in the
+infrastructure, are not considered to affect the reliability of this process in
+itself. Only if the atomicity of the record writing is somehow broken, can the process become
+unreliable. If an aggregate produces the wrong events, that's a behavioural
+problem, something that will be performed reliably by the process.
+
 Many application processes could be run in a single operating system
 process, even with a single thread, but they could also be run concurrently
 on different nodes in a network. A set of such processes could be pulsed from
@@ -191,30 +207,16 @@ could be distributed across many logs. Hence one application process could
 usefully employ many operating system processes (one per notification log).
 But it could also be run with many threads of an asynchronous event loop.
 
-Such a process can be defined as productive in this sense: consumption with
-recording determines production. Either the tracking record is written or it
-isn't. If something goes wrong, either with the policy, or in the aggregates used by the
-policy, or when committing the records, then the process reliably doesn't progress
-at all until the trouble goes away, after which the process will reliably continue.
-
-If there is contention on the aggregate state, or if there is a conflict
-writing the notification log, or something crashes, the tracking record
-won't be written. If the tracking record isn't written, the position doesn't
-move, and the processing will have to be tried again. There might be failures in the
-infrastructure, and bugs in the aggregates and the policies, which prevent
-the tracking record from being written, but this process in itself is as reliable
-as its database transactions.
-
-To summarise, the important concerns for process reliability are probably: consumed notifications must
-be tracked one-for-one (one tracking record for each notification), with one tracking
-sequence for each notification sequence consumed by the process; the position in the
-consumed notification log is determined by the last committed record in its tracking
-sequence; the tracking sequence records must not contribute to the process' notification
-log (except for the special case where a process can use the events it records to keep
-track of the position in the notification log, which means the process must write at
-least one record for each notification, which is perfect for replicating records or
-creating simple indexes); most importantly, all records must be written in the same atomic
-database transaction.
+To summarise the important concerns for process reliability are, probably: consumed
+notifications must be tracked one-for-one (one tracking record for each notification)
+with one tracking sequence for each notification sequence consumed by the process; the
+position in the consumed notification log is determined by the last committed record
+in its tracking sequence; the tracking sequence records must not contribute to the
+process' notification log (except for the special case where a process can use the
+events it records to keep track of the position in the notification log, which means
+the process must write at least one record for each notification, which is perfect
+for replicating records or creating simple indexes); most importantly, all records
+must be written in the same atomic database transaction.
 
 Process DSL
 ~~~~~~~~~~~
@@ -224,8 +226,8 @@ Speculatively....
 .. code::
 
     @process(policy=OrdersPolicy)
-    def orders(customer_commands):
-        customer_commands() + reservations() + payments()
+    def orders():
+        reservations() + payments()
 
     @process(policy=ReservationsPolicy)
     def reservations():
@@ -236,7 +238,8 @@ Speculatively....
         orders()
 
 
-Such a system of application processes could be deployed with a single thread or in a huge cluster.
+The definition of a system is scale-independent: such a system of application processes could be deployed with a
+single thread or in a huge cluster.
 
 
 Examples
@@ -613,6 +616,17 @@ Set position of reader as max ID in command log.
 
     assert user1.id in original.repository
     assert user1.id not in index.repository
+
+
+System of processes
+~~~~~~~~~~~~~~~~~~~
+
+.. code:: python
+
+    from eventsourcing.application.process import Process
+
+
+----
 
 Todo: Projection into a timeline view?
 
