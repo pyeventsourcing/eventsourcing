@@ -92,25 +92,33 @@ class RelationalRecordManager(AbstractRecordManager):
 
     def append(self, sequenced_item_or_items):
         # Convert sequenced item(s) to database record(s).
+        records = self.to_records(sequenced_item_or_items)
+
+        # Write records.
+        self.write_records(records)
+
+    def to_records(self, sequenced_item_or_items):
         if isinstance(sequenced_item_or_items, list):
             records = [self.to_record(i) for i in sequenced_item_or_items]
         else:
             records = [self.to_record(sequenced_item_or_items)]
-        self.write_records(records)
+        return records
 
     @retry(RecordIDConflict, max_attempts=100, wait=0.005)
-    def write_records(self, records):
+    def write_records(self, records, tracking_record=None):
         """
         Calls _write_records() implemented by concrete classes.
 
         Retries call in case of a RecordIDConflict.
+        :param tracking_record:
         """
-        self._write_records(records)
+        self._write_records(records, tracking_record=tracking_record)
 
     @abstractmethod
-    def _write_records(self, records):
+    def _write_records(self, records, tracking_record=None):
         """
         Actually creates records in the database.
+        :param tracking_record:
         """
 
     @property
@@ -220,3 +228,15 @@ class RelationalRecordManager(AbstractRecordManager):
         """
         msg = "There was a record ID conflict"
         raise RecordIDConflict(msg)
+
+
+class AbstractTrackingRecordManager(six.with_metaclass(ABCMeta)):
+
+    @property
+    @abstractmethod
+    def record_class(self):
+        """Returns tracking record class."""
+
+    @abstractmethod
+    def get_max_record_id(self, upstream_application_name, partition_id=None):
+        """Returns maximum record ID for given application name."""

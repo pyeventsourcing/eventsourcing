@@ -32,7 +32,7 @@ class DjangoRecordManager(RelationalRecordManager):
         self.convert_position_float_to_decimal = convert_position_float_to_decimal
         super(DjangoRecordManager, self).__init__(*args, **kwargs)
 
-    def _write_records(self, records):
+    def _write_records(self, records, tracking_record=None):
         try:
             with transaction.atomic(self.record_class.objects.db):
                 if self.contiguous_record_ids:

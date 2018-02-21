@@ -63,6 +63,30 @@ class IntegerSequencedNoIDRecord(Base):
 IntegerSequencedRecord = IntegerSequencedWithIDRecord
 
 
+class NotificationTrackingRecord(Base):
+    __tablename__ = 'notification_tracking'
+
+    # Application ID.
+    application_id = Column(UUIDType(), primary_key=True)
+
+    # Partition ID.
+    partition_id = Column(UUIDType(), primary_key=True)
+
+    # Notification ID.
+    notification_id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, index=True, unique=True)
+
+    # Sequence ID (e.g. an entity or aggregate ID).
+    originator_id = Column(UUIDType(), nullable=False)
+
+    # Position (index) of item in sequence.
+    originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
+
+    __table_args__ = (
+        Index('notification_tracking_event_index', 'originator_id', 'originator_version', unique=True),
+    )
+
+
+
 class TimestampSequencedWithIDRecord(Base):
     __tablename__ = 'timestamp_sequenced_items'
 

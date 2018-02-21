@@ -75,11 +75,8 @@ class EventStore(AbstractEventStore):
         :param domain_event_or_events: domain event, or list of domain events
         """
 
-        # Convert the domain event(s) to sequenced item(s).
-        if isinstance(domain_event_or_events, (list, tuple)):
-            sequenced_item_or_items = [self.to_sequenced_item(e) for e in domain_event_or_events]
-        else:
-            sequenced_item_or_items = self.to_sequenced_item(domain_event_or_events)
+        # Convert to sequenced item.
+        sequenced_item_or_items = self.to_sequenced_item(domain_event_or_events)
 
         # Append to the sequenced item(s) to the sequence.
         try:
@@ -87,14 +84,18 @@ class EventStore(AbstractEventStore):
         except SequencedItemConflict as e:
             raise ConcurrencyError(e)
 
-    def to_sequenced_item(self, domain_event):
+    def to_sequenced_item(self, domain_event_or_events):
         """
         Maps domain event to sequenced item namedtuple.
 
-        :param domain_event: application-level object
-        :return: namedtuple: sequence item namedtuple
+        :param domain_event_or_events: application-level object (or list)
+        :return: namedtuple: sequence item namedtuple (or list)
         """
-        return self.sequenced_item_mapper.to_sequenced_item(domain_event)
+        # Convert the domain event(s) to sequenced item(s).
+        if isinstance(domain_event_or_events, (list, tuple)):
+            return [self.to_sequenced_item(e) for e in domain_event_or_events]
+        else:
+            return self.sequenced_item_mapper.to_sequenced_item(domain_event_or_events)
 
     def get_domain_events(self, originator_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
                           page_size=None):

@@ -4,8 +4,9 @@ Projections
 
 A projection is a function of application state. If the state of an application is
 event sourced, projections can operate by processing the events of an application.
+There are lots of different kinds of projection.
 
-Projections can be updated by direct event subscription, or by following notification
+Projected state can be updated by direct event subscription, or by following notification
 logs that propagate the events of an application. Notification logs are described in the
 previous section.
 

@@ -4,8 +4,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import func
 
+from eventsourcing.utils.uuids import uuid_from_application_name
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.base import RelationalRecordManager
+from eventsourcing.infrastructure.base import RelationalRecordManager, AbstractTrackingRecordManager
+from eventsourcing.infrastructure.sqlalchemy.records import NotificationTrackingRecord
 
 
 class SQLAlchemyRecordManager(RelationalRecordManager):
@@ -13,7 +15,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
 
-    def _write_records(self, records):
+    def _write_records(self, records, tracking_record=None):
         try:
             if self.contiguous_record_ids:
                 for record in records:
@@ -26,10 +28,11 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                     params = {c: getattr(record, c) for c in self.field_names}
                     self.session.bind.execute(self.insert_values, **params)
 
-                    # Old way:
-                    # # Add record obj to session.
-                    # self.session.add(record)
+            if tracking_record:
+                # Add tracking record to session.
+                self.session.add(tracking_record)
 
+            # Commit the records.
             self.session.commit()
         except IntegrityError as e:
             self.session.rollback()
@@ -188,3 +191,18 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             raise ProgrammingError(e)
         finally:
             self.session.close()
+
+
+class TrackingRecordManager(AbstractTrackingRecordManager):
+    record_class = NotificationTrackingRecord
+
+    def __init__(self, session):
+        self.session = session
+
+    def get_max_record_id(self, upstream_application_name, partition_id=None):
+        application_id = uuid_from_application_name(upstream_application_name)
+        query = self.session.query(func.max(self.record_class.notification_id))
+        query = query.filter(self.record_class.application_id == application_id)
+        partition_id = partition_id or application_id
+        query = query.filter(self.record_class.partition_id == partition_id)
+        return query.scalar()
