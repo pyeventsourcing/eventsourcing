@@ -115,21 +115,15 @@ The example below shows an orders-reservations-payments system.
         causal_dependencies = []
 
         if isinstance(event, Reservation.Created):
-            # Get the order.
+            # Set order as reserved.
             order = process.repository[event.order_id]
-
-            # Set as reserved.
             order.reserved()
-
             unsaved_aggregates.append(order)
 
         elif isinstance(event, Payment.Created):
-            # Get the order.
+            # Set order as paid.
             order = process.repository[event.order_id]
-
-            # Set as paid.
             order.paid()
-
             unsaved_aggregates.append(order)
 
         return unsaved_aggregates, causal_dependencies
@@ -140,10 +134,8 @@ The example below shows an orders-reservations-payments system.
         causal_dependencies = []
 
         if isinstance(event, Order.Created):
-
             # Create a reservation.
             reservation = Reservation.__create__(order_id=event.originator_id)
-
             unsaved_aggregates.append(reservation)
 
         return unsaved_aggregates, causal_dependencies
@@ -154,11 +146,10 @@ The example below shows an orders-reservations-payments system.
         causal_dependencies = []
 
         if isinstance(event, Order.Reserved):
-
             # Create a payment.
             payment = Payment.__create__(order_id=event.originator_id)
-
             unsaved_aggregates.append(payment)
+
         return unsaved_aggregates, causal_dependencies
 
 
@@ -207,17 +198,14 @@ The example below is currently just a speculative design idea, not currently sup
 
 .. code::
 
-    @process(policy=OrdersPolicy)
+    @process(orders_policy)
     def orders():
         reservations() + payments()
 
-    @process(policy=ReservationsPolicy)
+    @process(reservations_policy)
     def reservations():
         orders()
 
-    @process(policy=PaymentsPolicy)
+    @process(payments_policy)
     def payments():
         orders()
-
-
-
