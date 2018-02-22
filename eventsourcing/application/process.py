@@ -46,7 +46,7 @@ class Process(SimpleApplication):
         return notification_count
 
     def get_originator(self, event):
-        assert isinstance(event, EventWithOriginatorID)
+        assert isinstance(event, EventWithOriginatorID), type(event)
         return self.repository[event.originator_id]
 
     def write_records(self, aggregates, notification, upstream_application_name):

@@ -108,11 +108,11 @@ fails to update when an event is received, then the event will be lost forever t
 the projection, and the projection will be forever inconsistent.
 
 Of course, it is possible to follow a fixed sequence of events, for example
-using notification logs.
+by tracking notification logs.
 
 
-Reading notification logs
--------------------------
+Tracking notification logs
+--------------------------
 
 If the events of an application are presented as a sequence of
 notifications, then the events can be projected using a notification
@@ -120,21 +120,19 @@ reader to pull unseen items.
 
 Getting new items can be triggered by pushing prompts to e.g. an AMQP
 messaging system, and having the remote components handle the prompts
-by pulling the new notifications. To minimise load on the messaging
+by pulling the new notifications.
+
+To minimise load on the messaging
 infrastructure, it may be sufficient simply to send an empty message,
-and thereby prompt receivers into pulling new notifications. This may
+thereby prompting receivers to pull new notifications. This may
 reduce latency or avoid excessive polling for updates, but the benefit
 would be obtained at the cost of additional complexity. Prompts
 that include the position of the notification in its sequence would
 allow a follower to know when it is being prompted about notifications
 it already pulled, and could then skip the pulling operation.
 
-If an application has many notification logs, they could be consumed
+If an application has partitioned notification logs, they could be consumed
 concurrently.
-
-
-Tracking notifications
----------------------
 
 If a projection creates a sequence that it appends to at least once for each
 notification, the position in the notification log can be tracked as part of
@@ -152,98 +150,14 @@ is to separate the concerns, and write a tracking record for each notification
 that is consumed, and then optionally any records created for the projection
 in response to the notification.
 
-A tracking record could simply have the position of a notification in a log. If
+A tracking record can simply have the position of a notification in a log. If
 the notifications are interpreted as commands, then a command log could function
 effectively to track the notifications, so long as one command is written for
-each notification (which might then involve "null" commands).
-
-The tracking records would need to be written in the same atomic database
+each notification (which might then involve "null" commands). For reliability,
+the tracking records need to be written in the same atomic database
 transaction as the projection records.
 
-
-
-Process application
--------------------
-
-The library has a subclass of ``SimpleApplication`` called ``Process``,
-which is a "process application".
-
-A process application, here, is defined as an event sourced application,
-that also functions as a projection, responding to notifications by calling
-aggregate methods, and then writing all resulting event and notification
-log records, along with the tracking record, in a single atomic database
-transaction. Such a process could follow another in a system; one process
-could follow two other processes; and it could follow itself.
-
-Such a process can be defined as productive in this sense: consumption with
-recording determines production. Either the tracking record is written or it
-isn't: if something is wrong with the policy, or with the aggregates' behaviour,
-or when committing the records, then the process reliably doesn't progress at
-all until the trouble goes away, after which the process will reliably continue.
-
-If there is contention on the aggregate state, or if there is a conflict
-writing the notification log, or something crashes, the tracking record
-won't be written. If the tracking record isn't written, the position doesn't
-move, and the processing will have to be tried again. There might be failures in the
-infrastructure, and bugs in the aggregates and the policies, which prevent
-the tracking record from being written, but this process in itself is as reliable
-as its database transactions.
-
-In that sense, errors in the process' policy, or in the aggregates, or in the
-infrastructure, are not considered to affect the reliability of this process in
-itself. Only if the atomicity of the record writing is somehow broken, can the process become
-unreliable. If an aggregate produces the wrong events, that's a behavioural
-problem, something that will be performed reliably by the process.
-
-Many application processes could be run in a single operating system
-process, even with a single thread, but they could also be run concurrently
-on different nodes in a network. A set of such processes could be pulsed from
-a clock, and also prompted by pushing notifications, reducing latency and
-avoiding aggressive polling intervals.
-
-Notifications from an application process could be placed in a single
-notification log and processed in series. To scale throughput, notifications
-could be distributed across many logs. Hence one application process could
-usefully employ many operating system processes (one per notification log).
-But it could also be run with many threads of an asynchronous event loop.
-
-To summarise the important concerns for process reliability are, probably: consumed
-notifications must be tracked one-for-one (one tracking record for each notification)
-with one tracking sequence for each notification sequence consumed by the process; the
-position in the consumed notification log is determined by the last committed record
-in its tracking sequence; the tracking sequence records must not contribute to the
-process' notification log (except for the special case where a process can use the
-events it records to keep track of the position in the notification log, which means
-the process must write at least one record for each notification, which is perfect
-for replicating records or creating simple indexes); most importantly, all records
-must be written in the same atomic database transaction.
-
-Process DSL
-~~~~~~~~~~~
-
-Speculatively....
-
-.. code::
-
-    @process(policy=OrdersPolicy)
-    def orders():
-        reservations() + payments()
-
-    @process(policy=ReservationsPolicy)
-    def reservations():
-        orders()
-
-    @process(policy=PaymentsPolicy)
-    def payments():
-        orders()
-
-
-The definition of a system is scale-independent: such a system of application processes could be deployed with a
-single thread or in a huge cluster.
-
-
-Examples
---------
+The library's ``Process`` class uses tracking records.
 
 Application state replication
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -252,11 +166,7 @@ Using event record notifications, the state of an application can be
 replicated perfectly. If an application can present its event records
 as a notification log, then a "replicator" can read the notification
 log and write copies of the original records into a replica's record
-manager. (If the original application could be partitioned, with each
-partition having its own notification log, then the partitions could
-be replicated concurrently, which would allow scaling by application
-partition. Partitioning an application isn't currently supported in
-the library.)
+manager.
 
 In the example below, the ``SimpleApplication`` class is used, which
 has a ``RecordManagerNotificationLog`` as its ``notification_log``.
@@ -417,10 +327,6 @@ needing to serialise their access to the replica with locks: if the two jobs
 happen to collide, one will succeed and the other will encounter a concurrency
 error exception that can be ignored.
 
-Although the current implementation of the notification log reader pulls sections of
-notifications in series, the sections could be pulled in parallel, which
-may help when copying a very large sequence of notifications to a new replica.
-
 The replica could itself be followed, by using its notification log. Although
 replicating replicas indefinitely is perhaps pointless, it suggests how
 notification logs can be potentially be chained with processing being done
@@ -437,17 +343,14 @@ from each commands could be many or none, which shows that a sequence of
 events can be projected equally reliably into a different sequence with a different
 length.
 
+
 Index of email addresses
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Todo: Projection into an index. Application with big array command sequence and
-aggregates that represent index locations. A one-way function that goes from
-real index keys to aggregate IDs. And something that runs a command before
-putting it in the log, so that failures to command aggregates are tried on
-the next pull. Ignore errors about creating an aggregate that already exists,
-and also about discarding an aggregate that doesn't exist. Or use transactions,
-if possible, so that the command and the index aggregates are updated together.
-Set position of reader as max ID in command log.
+This example is similar to the replication example above, in that notifications are
+tracked with the records of the projected state. In consequence, an index entry is
+added for each notification received, which means progress can be made along the
+notification log even when the notification doesn't imply a real entry in the index.
 
 .. code:: python
 
@@ -617,13 +520,6 @@ Set position of reader as max ID in command log.
     assert user1.id in original.repository
     assert user1.id not in index.repository
 
-
-System of processes
-~~~~~~~~~~~~~~~~~~~
-
-.. code:: python
-
-    from eventsourcing.application.process import Process
 
 
 ----

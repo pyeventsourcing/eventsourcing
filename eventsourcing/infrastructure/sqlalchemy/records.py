@@ -73,7 +73,7 @@ class NotificationTrackingRecord(Base):
     partition_id = Column(UUIDType(), primary_key=True)
 
     # Notification ID.
-    notification_id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, index=True, unique=True)
+    notification_id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
     # Sequence ID (e.g. an entity or aggregate ID).
     originator_id = Column(UUIDType(), nullable=False)
@@ -84,7 +84,6 @@ class NotificationTrackingRecord(Base):
     __table_args__ = (
         Index('notification_tracking_event_index', 'originator_id', 'originator_version', unique=True),
     )
-
 
 
 class TimestampSequencedWithIDRecord(Base):
