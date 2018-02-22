@@ -53,7 +53,6 @@ Example
 
 The example below shows an orders-reservations-payments system.
 
-Todo: Orders, reservations, and payments system.
 
 .. code:: python
 
