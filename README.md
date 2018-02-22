@@ -14,7 +14,7 @@ the Python Package Index.
     $ pip install eventsourcing
     
 
-Please refer to the [documentation](http://eventsourcing.readthedocs.io/) for installation and usage guides.
+Please refer to the [documentation](https://eventsourcing.readthedocs.io/) for installation and usage guides.
 
 Register questions, requests and [issues on GitHub](https://github.com/johnbywater/eventsourcing/issues).
 
