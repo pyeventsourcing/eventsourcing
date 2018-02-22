@@ -188,7 +188,8 @@ The example below shows an orders-reservations-payments system.
 
 
 
-Todo: "Splitting" process that has two applications, two different notification logs that can be consumed separately.
+.. Todo: "Splitting" process that has two applications, two different notification logs that can be consumed
+.. separately.
 
 
 Process DSL
