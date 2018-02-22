@@ -71,14 +71,14 @@ The example below shows an orders-reservations-payments system.
         class Created(Event, AggregateRoot.Created):
             pass
 
-        def reserved(self):
+        def reserve(self):
             self.__trigger_event__(Order.Reserved)
 
         class Reserved(Event):
             def mutate(self, order):
                 order.is_reserved = True
 
-        def paid(self):
+        def pay(self):
             self.__trigger_event__(self.Paid)
 
         class Paid(Event):
@@ -117,13 +117,13 @@ The example below shows an orders-reservations-payments system.
         if isinstance(event, Reservation.Created):
             # Set order as reserved.
             order = process.repository[event.order_id]
-            order.reserved()
+            order.reserve()
             unsaved_aggregates.append(order)
 
         elif isinstance(event, Payment.Created):
             # Set order as paid.
             order = process.repository[event.order_id]
-            order.paid()
+            order.pay()
             unsaved_aggregates.append(order)
 
         return unsaved_aggregates, causal_dependencies
