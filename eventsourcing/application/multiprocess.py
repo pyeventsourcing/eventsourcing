@@ -1,15 +1,14 @@
 import multiprocessing
-
-import redis
 import time
 
-import six
+import redis
 
 from eventsourcing.application.process import Process, Prompt
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 
 
 class OperatingSystemProcess(multiprocessing.Process):
+    application_process_class = Process
 
     def __init__(self, process_name, process_policy, process_persist_event_type, upstream_names, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
@@ -33,7 +32,7 @@ class OperatingSystemProcess(multiprocessing.Process):
         self.pubsub = self.redis.pubsub()
 
         # Construct process.
-        self.process = Process(
+        self.process = self.application_process_class(
             self.process_name,
             policy=self.process_policy,
             persist_event_type=self.process_persist_event_type,
@@ -51,15 +50,17 @@ class OperatingSystemProcess(multiprocessing.Process):
         try:
             self.run_loop_with_subscription()
             # self.run_loop_with_sleep()
+
         finally:
             unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
 
     def run_loop_with_subscription(self):
         while True:
-            item = self.pubsub.get_message()
+            # Note, get_message() returns immediately with None if timeout == 0.
+            item = self.pubsub.get_message(timeout=10, ignore_subscribe_messages=True)
             # print("Pubsub message: {}".format(item))
             if item is None:
-                continue
+                self.process.run()
             elif item['type'] in ['subscribe', 'unsubscribe']:
                 continue
             elif item['type'] == 'message':
@@ -67,6 +68,7 @@ class OperatingSystemProcess(multiprocessing.Process):
 
                 if item['data'] == b"KILL":
                     self.pubsub.unsubscribe()
+                    self.process.close()
                     break
                 else:
                     # try:
@@ -76,21 +78,24 @@ class OperatingSystemProcess(multiprocessing.Process):
                     # assert isinstance(expected_position, six.integer_types)
                     # Sometimes the prompt arrives before the data is visible in the database.
                     count_tries = 0
-                    max_tries = 5
+                    # max_tries = 10
+                    # max_tries = 5
+                    max_tries = 1
                     upstream_application_name = item['channel'].decode('utf8')
                     prompt = Prompt(upstream_application_name)
 
+                    # time.sleep(0.1)
                     while not self.process.run(prompt) and count_tries < max_tries:
                         # if self.process.run(prompt):
                         # if self.process.run(prompt):
                         #     break
-                            # tracking_end_position = self.process.tracking_record_manager.get_max_record_id(
-                            #     self.process.name, upstream_application_name
-                            # )
-                            # if tracking_end_position >= expected_position:
-                            #     time.sleep(0.05)
-                            #     self.process.run()
-                            #     break
+                        # tracking_end_position = self.process.tracking_record_manager.get_max_record_id(
+                        #     self.process.name, upstream_application_name
+                        # )
+                        # if tracking_end_position >= expected_position:
+                        #     time.sleep(0.05)
+                        #     self.process.run()
+                        #     break
 
                         count_tries += 1
                         time.sleep(0.05 * count_tries)

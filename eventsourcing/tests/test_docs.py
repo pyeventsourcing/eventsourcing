@@ -41,7 +41,7 @@ class TestDocs(TestCase):
             for name in filenames:
                 if name in skipped:
                     continue
-                # if name.endswith('.rst'):
+                if name.endswith('.rst'):
                 # if name.endswith('aggregates_in_ddd.rst'):
                 # if name.endswith('example_application.rst'):
                 # if name.endswith('everything.rst'):
@@ -51,7 +51,7 @@ class TestDocs(TestCase):
                 # if name.endswith('snapshotting.rst'):
                 # if name.endswith('notifications.rst'):
                 # if name.endswith('projections.rst'):
-                if name.endswith('process.rst'):
+                # if name.endswith('process.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)
@@ -167,6 +167,9 @@ class TestDocs(TestCase):
         out = out.replace(temp_path, doc_path)
         err = err.replace(temp_path, doc_path)
         exit_status = p.wait()
+
+        print(out)
+        print(err)
 
         # Check for errors running the code.
         if exit_status:

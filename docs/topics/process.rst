@@ -219,63 +219,114 @@ pub-sub service. Multiple operating system processes could share the same databa
 database. They could also use different databases, even in an memory database, but its notification log would need
 to be presented in an API and its readers would need to use a remote notification log object.
 
-The example below shows the application processes, defined above, in a system that uses one operating system per
-application process to listen for and respond to prompts published to Redis. A MySQL database is shared by the
-application processes.
+The example below shows a system with multiple operating system processes.
+
+A MySQL database is shared by the application processes.
 
 .. code:: python
 
     import os
+
+    os.environ['DB_URI'] = 'mysql://root:@127.0.0.1/eventsourcing'
+
+
+Redis pub-sub is used to broadcast prompts to pull new notifications.
+
+.. code:: python
+
     import time
 
     import redis
 
-    from eventsourcing.application.multiprocess import OperatingSystemProcess
-
-    os.environ['DB_URI'] = 'mysql://username:password@localhost/eventsourcing'
-    #os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
     r = redis.Redis()
 
+
+There is one operating system per application process.
+
+.. code:: python
+
+    from eventsourcing.application.multiprocess import OperatingSystemProcess
+
+    # Setup the system with multiple operating system processes.
+    orders = OperatingSystemProcess(
+        process_name='orders',
+        process_policy=orders_policy,
+        process_persist_event_type=Order.Event,
+        upstream_names=['reservations', 'payments'],
+    )
+
+    reservations = OperatingSystemProcess(
+        process_name='reservations',
+        process_policy=reservations_policy,
+        process_persist_event_type=Reservation.Event,
+        upstream_names=['orders'],
+    )
+
+    payments = OperatingSystemProcess(
+        process_name='payments',
+        process_policy=payments_policy,
+        process_persist_event_type=Payment.Event,
+        upstream_names=['orders'],
+    )
+
+
+External input can be provided to the system of application processes, using a
+simple application that persists domain events published by aggregates that are
+commanded in response to direct user input.
+
+.. code:: python
+
+    from eventsourcing.application.simple import SimpleApplication
+
+    with SimpleApplication(persist_event_type=Order.Event) as app:
+
+        # Create a new order, and broadcast a prompt.
+        position = app.notification_log.get_end_position()
+        order_id = create_new_order()
+
+        assert order_id in app.repository
+
+
+The database table for storing events was setup by SimpleApplication when it was constructed.
+However, before starting the operation system processes, the database table for notification
+tracking records must exist.
+
+.. code:: python
+
+    with SimpleApplication(setup_table=False) as app:
+
+        app_process_class = OperatingSystemProcess.application_process_class
+
+        app.datastore.setup_table(app_process_class.tracking_record_manager_class.record_class)
+
+
+The operating system processes can now be started (the ``if __name__ == 'main'`` idiom
+is required by the multiprocessing library to distinguish parent process code from child
+process code).
+
+.. code:: python
+
+    # Multiprocessing "parent process" code block.
+
     if __name__ == '__main__':
-        # Setup the system with multiple operating system processes.
-        orders = OperatingSystemProcess(
-            process_name='orders',
-            process_policy=orders_policy,
-            process_persist_event_type=Order.Event,
-            upstream_names=['reservations', 'payments'],
-        )
 
-        reservations = OperatingSystemProcess(
-            process_name='reservations',
-            process_policy=reservations_policy,
-            process_persist_event_type=Reservation.Event,
-            upstream_names=['orders'],
-        )
-
-        payments = OperatingSystemProcess(
-            process_name='payments',
-            process_policy=payments_policy,
-            process_persist_event_type=Payment.Event,
-            upstream_names=['orders'],
-        )
-
-        app = Process('orders', persist_event_type=Order.Event, policy=None, setup_table=True)
-
+        # Start application system's operating system processes.
         orders.start()
         reservations.start()
         payments.start()
 
-        with app:
-            # Create a new order, and broadcast a prompt.
-            position = app.notification_log.get_end_position()
-            order_id = create_new_order()
+        # Wait for orders channel subscriptions.
+        p = r.pubsub()
+        p.subscribe('orders')
+        assert p.get_message(timeout=10)
+        assert p.get_message(timeout=10)
+        assert p.get_message(timeout=10)
 
-            # Todo: Subscribe to the Prompt and pass the position in the notification log...
-            # Make sure the subscribers are setup.
-            while not r.publish('orders', ''):
-                pass
+        # Prompt channel subscribers to pull notifications from orders application.
+        r.publish('orders', '')
 
-            # Wait for the results.
+        # Wait for the results.
+        with SimpleApplication(setup_table=False) as app:
             retries = 0
             while retries < 100:
                 order = app.repository[order_id]
@@ -296,26 +347,21 @@ application processes.
             else:
                 assert False
 
+        # Clean up.
         r.publish('orders', 'KILL')
         r.publish('reservations', 'KILL')
         r.publish('payments', 'KILL')
-        time.sleep(0.1)
 
-        orders.join(timeout=12)
-        reservations.join(timeout=12)
-        payments.join(timeout=12)
-
-        if orders.is_alive or reservations.is_alive or payments.is_alive:
-            time.sleep(1)
-            orders.terminate()
-            reservations.terminate()
-            payments.terminate()
+        print("Joining...")
 
         orders.join(timeout=2)
         reservations.join(timeout=2)
         payments.join(timeout=2)
 
-
+        if orders.is_alive or reservations.is_alive or payments.is_alive:
+            orders.terminate()
+            reservations.terminate()
+            payments.terminate()
 
 
 The example above uses a single database for all of the processes in the system, but if the notifications for each

@@ -3,6 +3,7 @@ sudo: required
 services:
   - cassandra
   - redis-server
+  - mysql
 
 python:
   - 2.7
@@ -13,6 +14,9 @@ python:
   - 3.6
   - 3.6-dev
   - pypy
+
+before_install:
+  - mysql -e 'CREATE DATABASE eventsourcing;'
 
 install:
 - pip install -U pip wheel

@@ -17,6 +17,8 @@ class Prompt(object):
 
 
 class Process(SimpleApplication):
+    tracking_record_manager_class = TrackingRecordManager
+
     def __init__(self, name, policy, setup_table=True, session=None, persist_event_type=None, **kwargs):
         persist_event_type = persist_event_type or AggregateRoot.Event
         super(Process, self).__init__(setup_table=setup_table, session=session,
@@ -26,7 +28,7 @@ class Process(SimpleApplication):
         self.readers = OrderedDict()
 
         # Setup tracking records.
-        self.tracking_record_manager = TrackingRecordManager(self.datastore.session)
+        self.tracking_record_manager = self.tracking_record_manager_class(self.datastore.session)
         if setup_table and not session:
             self.datastore.setup_table(
                 self.tracking_record_manager.record_class
@@ -78,8 +80,14 @@ class Process(SimpleApplication):
                 unsaved_aggregates, causal_dependencies = self.policy(self, event)
 
                 # Write records.
-                self.write_records(unsaved_aggregates, notification, self.name, upstream_application_name)
-                # Todo: Use causal_dependencies to construct notification records (depends on notification records).
+                try:
+                    self.write_records(unsaved_aggregates, notification, self.name, upstream_application_name)
+                    # Todo: Use causal_dependencies to construct notification records (depends on notification records).
+                except Exception as e:
+                    if 'Deadlock' in str(e):
+                        pass
+                    else:
+                        raise
 
         # Publish a prompt if there are new notifications.
         if notification_count:
