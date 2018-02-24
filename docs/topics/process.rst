@@ -232,8 +232,8 @@ application processes.
 
     from eventsourcing.application.multiprocess import OperatingSystemProcess
 
-    #os.environ['DB_URI'] = 'mysql://username:password@localhost/eventsourcing'
-    os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
+    os.environ['DB_URI'] = 'mysql://username:password@localhost/eventsourcing'
+    #os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
     r = redis.Redis()
 
     if __name__ == '__main__':
@@ -300,6 +300,10 @@ application processes.
         r.publish('reservations', 'KILL')
         r.publish('payments', 'KILL')
         time.sleep(0.1)
+
+        orders.join(timeout=12)
+        reservations.join(timeout=12)
+        payments.join(timeout=12)
 
         if orders.is_alive or reservations.is_alive or payments.is_alive:
             time.sleep(1)

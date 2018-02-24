@@ -76,14 +76,14 @@ class OperatingSystemProcess(multiprocessing.Process):
                     # assert isinstance(expected_position, six.integer_types)
                     # Sometimes the prompt arrives before the data is visible in the database.
                     count_tries = 0
-                    max_tries = 20
+                    max_tries = 5
                     upstream_application_name = item['channel'].decode('utf8')
                     prompt = Prompt(upstream_application_name)
 
-                    while count_tries < max_tries:
+                    while not self.process.run(prompt) and count_tries < max_tries:
                         # if self.process.run(prompt):
-                        if self.process.run(prompt):
-                            break
+                        # if self.process.run(prompt):
+                        #     break
                             # tracking_end_position = self.process.tracking_record_manager.get_max_record_id(
                             #     self.process.name, upstream_application_name
                             # )

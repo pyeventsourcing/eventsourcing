@@ -17,6 +17,10 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
     def _write_records(self, records, tracking_record=None):
         try:
+            if tracking_record:
+                # Add tracking record to session.
+                self.session.add(tracking_record)
+
             if self.contiguous_record_ids:
                 for record in records:
                     # Execute "insert select max" statement with values from record obj.
@@ -27,10 +31,6 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                     # Execute "insert values" statement with values from record obj.
                     params = {c: getattr(record, c) for c in self.field_names}
                     self.session.bind.execute(self.insert_values, **params)
-
-            if tracking_record:
-                # Add tracking record to session.
-                self.session.add(tracking_record)
 
             # Commit the records.
             self.session.commit()
