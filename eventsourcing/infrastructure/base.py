@@ -209,6 +209,10 @@ class RelationalRecordManager(AbstractRecordManager):
 
         # Try to identify record ID conflicts.
         if self.contiguous_record_ids:
+
+            # Todo: Identify other constraints (tracking conflict, notification record conflict)...
+            # Todo: if hasattr('id', self.record_class):
+
             # Assume record ID is primary key.
             #  - SQLite
             if "UNIQUE constraint failed: {}.id".format(self.record_table_name) in error:
@@ -238,5 +242,5 @@ class AbstractTrackingRecordManager(six.with_metaclass(ABCMeta)):
         """Returns tracking record class."""
 
     @abstractmethod
-    def get_max_record_id(self, upstream_application_name, partition_id=None):
+    def get_max_record_id(self, application_name, upstream_application_name, partition_id=None):
         """Returns maximum record ID for given application name."""

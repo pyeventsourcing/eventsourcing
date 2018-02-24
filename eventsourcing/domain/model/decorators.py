@@ -14,7 +14,7 @@ from eventsourcing.domain.model.events import subscribe
 from eventsourcing.exceptions import ProgrammingError
 
 
-def subscribe_to(event_class=None):
+def subscribe_to(*event_classes):
     """
     Decorator for making a custom event handler function subscribe to a certain class of event.
 
@@ -41,17 +41,23 @@ def subscribe_to(event_class=None):
             todo = TodoProjection(id=event.originator_id, title=event.title)
             todo.save()
     """
+    event_classes = list(event_classes)
+
     def wrap(func):
         def handler(event):
             if isinstance(event, (list, tuple)):
                 for e in event:
-                    if event_class is None or isinstance(e, event_class):
-                        func(e)
-            elif event_class is None or isinstance(event, event_class):
+                    handler(e)
+            elif not event_classes or isinstance(event, tuple(event_classes)):
                 func(event)
         subscribe(handler=handler, predicate=lambda _: True)
         return func
-    return wrap
+
+    if len(event_classes) == 1 and isfunction(event_classes[0]):
+        func = event_classes.pop()
+        return wrap(func)
+    else:
+        return wrap
 
 
 def mutator(arg=None):

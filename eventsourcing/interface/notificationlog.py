@@ -140,7 +140,10 @@ class RecordManagerNotificationLog(LocalNotificationLog):
         return notifications
 
     def get_next_position(self):
-        return self.record_manager.get_max_record_id() or 1
+        return self.get_end_position() or 1
+
+    def get_end_position(self):
+        return self.record_manager.get_max_record_id() or 0
 
 
 class BigArrayNotificationLog(LocalNotificationLog):

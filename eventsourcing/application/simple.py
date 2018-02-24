@@ -17,7 +17,7 @@ from eventsourcing.utils.random import decode_random_bytes
 
 
 class SimpleApplication(object):
-    def __init__(self, persist_event_type=None, uri=None, session=None, cipher_key=None,
+    def __init__(self, persistence_policy=None, persist_event_type=None, uri=None, session=None, cipher_key=None,
                  stored_event_record_class=None, setup_table=True, contiguous_record_ids=True):
 
         # Setup cipher (optional).
@@ -41,10 +41,14 @@ class SimpleApplication(object):
         self.setup_repository()
 
         # Setup a persistence policy.
-        self.setup_persistence_policy(persist_event_type)
+        self.persistence_policy = None
+        if persistence_policy is None:
+            self.setup_persistence_policy(persist_event_type)
+        elif persistence_policy:
+            self.persistence_policy = persistence_policy
 
         # Setup table in database.
-        if setup_table:
+        if setup_table and not session:
             self.setup_table()
 
     def setup_cipher(self, cipher_key):
@@ -92,7 +96,8 @@ class SimpleApplication(object):
 
     def close(self):
         # Close the persistence policy.
-        self.persistence_policy.close()
+        if self.persistence_policy:
+            self.persistence_policy.close()
 
         # Close database connection.
         self.datastore.close_connection()

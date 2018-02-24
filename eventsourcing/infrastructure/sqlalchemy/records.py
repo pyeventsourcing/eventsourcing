@@ -69,20 +69,24 @@ class NotificationTrackingRecord(Base):
     # Application ID.
     application_id = Column(UUIDType(), primary_key=True)
 
+    # Upstream application ID.
+    upstream_application_id = Column(UUIDType(), primary_key=True)
+
     # Partition ID.
     partition_id = Column(UUIDType(), primary_key=True)
 
     # Notification ID.
     notification_id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
-    # Sequence ID (e.g. an entity or aggregate ID).
+    # Aggregate ID.
     originator_id = Column(UUIDType(), nullable=False)
 
-    # Position (index) of item in sequence.
+    # Aggregate version.
     originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
 
     __table_args__ = (
-        Index('notification_tracking_event_index', 'originator_id', 'originator_version', unique=True),
+        Index('notification_tracking_event_index', 'application_id', 'upstream_application_id', 'originator_id',
+              'originator_version', unique=True),
     )
 
 

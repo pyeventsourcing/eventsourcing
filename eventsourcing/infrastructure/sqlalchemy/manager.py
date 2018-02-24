@@ -199,10 +199,12 @@ class TrackingRecordManager(AbstractTrackingRecordManager):
     def __init__(self, session):
         self.session = session
 
-    def get_max_record_id(self, upstream_application_name, partition_id=None):
-        application_id = uuid_from_application_name(upstream_application_name)
+    def get_max_record_id(self, application_name, upstream_application_name, partition_id=None):
+        application_id = uuid_from_application_name(application_name)
+        upstream_application_id = uuid_from_application_name(upstream_application_name)
         query = self.session.query(func.max(self.record_class.notification_id))
         query = query.filter(self.record_class.application_id == application_id)
+        query = query.filter(self.record_class.upstream_application_id == upstream_application_id)
         partition_id = partition_id or application_id
         query = query.filter(self.record_class.partition_id == partition_id)
         return query.scalar()

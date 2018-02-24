@@ -39,6 +39,10 @@ the ID and version of the aggregates necessary for processing the notification).
 Hence one application process could usefully and reliably employ many concurrent
 operating system processes.
 
+
+Process
+-------
+
 The library class ``Process``, a subclass of ``SimpleApplication``, can be
 used to write a scale-independent definition of a system.
 
@@ -48,9 +52,6 @@ used to write a scale-independent definition of a system.
     from eventsourcing.application.process import Process
 
 
-Example
-~~~~~~~
-
 The example below shows an orders-reservations-payments system.
 
 
@@ -58,6 +59,7 @@ The example below shows an orders-reservations-payments system.
 
 
     from eventsourcing.domain.model.aggregate import AggregateRoot
+
 
     class Order(AggregateRoot):
         def __init__(self, **kwargs):
@@ -84,6 +86,11 @@ The example below shows an orders-reservations-payments system.
         class Paid(Event):
             def mutate(self, order):
                 order.is_paid = True
+
+    def create_new_order():
+        order = Order.__create__()
+        order.__save__()
+        return order.id
 
 
     class Reservation(AggregateRoot):
@@ -153,39 +160,162 @@ The example below shows an orders-reservations-payments system.
         return unsaved_aggregates, causal_dependencies
 
 
+############### Remove this before committing
+
     # Define processes.
-    orders = Process(policy=orders_policy, persist_event_type=Order.Event)
-    reservations = Process(policy=reservations_policy, persist_event_type=Reservation.Event)
-    payments = Process(policy=payments_policy, persist_event_type=Payment.Event)
+    orders = Process('orders',
+        policy=orders_policy,
+        persist_event_type=Order.Event,
+    )
 
-    # Follow notification logs.
-    reservations.follow(orders.notification_log, 'orders')
-    payments.follow(orders.notification_log, 'orders')
-    orders.follow(reservations.notification_log, 'reservations')
-    orders.follow(payments.notification_log, 'payments')
+    reservations = Process('reservations',
+        policy=reservations_policy,
+        persist_event_type=Reservation.Event,
+    )
 
-    # Create new order aggregate.
-    order = Order.__create__()
-    order.__save__()
+    payments = Process('payments',
+        policy=payments_policy,
+        persist_event_type=Payment.Event,
+    )
 
-    # Check the order is not reserved or paid.
-    assert not orders.repository[order.id].is_reserved
-    assert not orders.repository[order.id].is_paid
+    orders.follow('reservations', reservations.notification_log)
+    orders.follow('payments', payments.notification_log)
+    reservations.follow('orders', orders.notification_log)
+    payments.follow('orders', orders.notification_log)
 
-    # Prompt the reservations and order process.
-    reservations.run()
-    orders.run()
+    # Create new order.
+    order_id = create_new_order()
 
-    # Check the order is reserved.
-    assert orders.repository[order.id].is_reserved
+    # Check the order is reserved and paid.
+    assert orders.repository[order_id].is_reserved
+    assert orders.repository[order_id].is_paid
 
-    # Prompt the payments and order process.
-    payments.run()
-    orders.run()
+    # Clean up.
+    orders.close()
+    reservations.close()
+    payments.close()
 
-    # Check the order has been paid.
-    assert orders.repository[order.id].is_paid
 
+Distributed system
+------------------
+
+The system above runs in a single thread, but it could be run in multiple-threads in a single process,
+as multiple processes on a single node, or on multiple nodes.
+
+Using multiple threads would involve each thread running a loop that either polls for new notifications and sleeps
+for a little bit, or works on items its gets in blocking mode from a thread-safe queue. Both could operate at the
+same time, so long as contention errors are handled without crashing the loop. The items on the queue would be
+prompts added to the queue by a handler subscribed by the application process to receive prompts published to the
+library's pub-sub mechanism. The threads could be constructed and started, and sent poison pills and joined to
+shutdown the system, in the normal way. The process applications could use the same or different databases. If
+process applications use different databases, they won't be able to access the aggregates of the other applications,
+which may be desirable but it may also be inconvenient. Using a different database for each process might be
+desirable for example if each process is developed by a separate team, and it may improve performance in a system
+with a lot of processes.
+
+Using multiple operating system processes is similar to multi-threading in a single process. Each would need to
+run a loop, that would poll for notifications and sleep for a little bit, or subscribe and publish prompts to a
+pub-sub service. Multiple operating system processes could share the same database, just not the same in-memory
+database. They could also use different databases, even in an memory database, but its notification log would need
+to be presented in an API and its readers would need to use a remote notification log object.
+
+The example below shows the application processes, defined above, in a system that uses one operating system per
+application process to listen for and respond to prompts published to Redis. A MySQL database is shared by the
+application processes.
+
+.. code:: python
+
+    import os
+    import time
+
+    import redis
+
+    from eventsourcing.application.multiprocess import OperatingSystemProcess
+
+    #os.environ['DB_URI'] = 'mysql://username:password@localhost/eventsourcing'
+    os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
+    r = redis.Redis()
+
+    if __name__ == '__main__':
+        # Setup the system with multiple operating system processes.
+        orders = OperatingSystemProcess(
+            process_name='orders',
+            process_policy=orders_policy,
+            process_persist_event_type=Order.Event,
+            upstream_names=['reservations', 'payments'],
+        )
+
+        reservations = OperatingSystemProcess(
+            process_name='reservations',
+            process_policy=reservations_policy,
+            process_persist_event_type=Reservation.Event,
+            upstream_names=['orders'],
+        )
+
+        payments = OperatingSystemProcess(
+            process_name='payments',
+            process_policy=payments_policy,
+            process_persist_event_type=Payment.Event,
+            upstream_names=['orders'],
+        )
+
+        app = Process('orders', persist_event_type=Order.Event, policy=None, setup_table=True)
+
+        orders.start()
+        reservations.start()
+        payments.start()
+
+        with app:
+            # Create a new order, and broadcast a prompt.
+            position = app.notification_log.get_end_position()
+            order_id = create_new_order()
+
+            # Todo: Subscribe to the Prompt and pass the position in the notification log...
+            # Make sure the subscribers are setup.
+            while not r.publish('orders', ''):
+                pass
+
+            # Wait for the results.
+            retries = 0
+            while retries < 100:
+                order = app.repository[order_id]
+                if app.repository[order_id].is_reserved:
+                    break
+                time.sleep(0.1)
+                retries += 1
+            else:
+                assert False
+
+            retries = 0
+            while retries < 100:
+                order = app.repository[order_id]
+                if app.repository[order_id].is_paid:
+                    break
+                time.sleep(0.1)
+                retries += 1
+            else:
+                assert False
+
+        r.publish('orders', 'KILL')
+        r.publish('reservations', 'KILL')
+        r.publish('payments', 'KILL')
+        time.sleep(0.1)
+
+        if orders.is_alive or reservations.is_alive or payments.is_alive:
+            time.sleep(1)
+            orders.terminate()
+            reservations.terminate()
+            payments.terminate()
+
+        orders.join(timeout=2)
+        reservations.join(timeout=2)
+        payments.join(timeout=2)
+
+
+
+
+The example above uses a single database for all of the processes in the system, but if the notifications for each
+process are presented in an API for others to read remotely, each process could use its own database.
 
 
 .. Todo: "Splitting" process that has two applications, two different notification logs that can be consumed
