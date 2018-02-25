@@ -115,6 +115,8 @@ Before continuing with code examples below, we need to setup an event store.
 
 .. code:: python
 
+    from uuid import uuid4
+
     from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
     from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
     from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
@@ -138,6 +140,7 @@ Before continuing with code examples below, we need to setup an event store.
         record_class=StoredEventRecord,
         sequenced_item_class=StoredEvent,
         contiguous_record_ids=True,
+        application_id=uuid4(),
     )
 
     # Setup a sequenced item mapper.

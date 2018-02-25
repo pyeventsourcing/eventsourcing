@@ -12,7 +12,7 @@ class InfrastructureFactory(object):
 
     def __init__(self, record_manager_class=None, sequenced_item_class=None,
                  integer_sequenced_record_class=None, timestamp_sequenced_record_class=None,
-                 snapshot_record_class=None, contiguous_record_ids=False, session=None):
+                 snapshot_record_class=None, contiguous_record_ids=False, session=None, application_id=None):
 
         self.record_manager_class = record_manager_class or self.record_manager_class
 
@@ -26,6 +26,7 @@ class InfrastructureFactory(object):
         self.snapshot_record_class = snapshot_record_class or self.snapshot_record_class
 
         self.contiguous_record_ids = contiguous_record_ids
+        self.application_id = application_id
         self.session = session
 
     def construct_integer_sequenced_record_manager(self, record_class=None):
@@ -55,5 +56,6 @@ class InfrastructureFactory(object):
             sequenced_item_class=sequenced_item_class,
             record_class=record_class,
             contiguous_record_ids=self.contiguous_record_ids,
+            application_id=self.application_id,
             **kwargs
         )

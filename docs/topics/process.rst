@@ -234,14 +234,12 @@ Redis pub-sub is used to broadcast prompts to pull new notifications.
 
 .. code:: python
 
-    import time
-
     import redis
 
     r = redis.Redis()
 
 
-There is one operating system per application process.
+In this system, each application process runs in its own operating system process.
 
 .. code:: python
 
@@ -270,26 +268,27 @@ There is one operating system per application process.
     )
 
 
-External input can be provided to the system of application processes, using a
-simple application that persists domain events published by aggregates that are
-commanded in response to direct user input.
+External input can be provided to the system's applications by using a simple
+application object that persists domain events published by aggregates that are
+commanded in response to direct user input. In the code below, the orders
+application is instantiated as a simple application object. And with that context,
+a new Order aggregate is created.
 
 .. code:: python
 
     from eventsourcing.application.simple import SimpleApplication
 
-    with SimpleApplication(persist_event_type=Order.Event) as app:
+    with SimpleApplication(name='orders', persist_event_type=Order.Event) as app:
 
         # Create a new order, and broadcast a prompt.
-        position = app.notification_log.get_end_position()
         order_id = create_new_order()
-
         assert order_id in app.repository
 
 
-The database table for storing events was setup by SimpleApplication when it was constructed.
-However, before starting the operation system processes, the database table for notification
-tracking records must exist.
+The database table for storing events was setup by the simple application when it was constructed.
+
+However, before starting the operation system processes defined above, the database table for
+notification tracking records must be set up.
 
 .. code:: python
 
@@ -326,9 +325,10 @@ process code).
         r.publish('orders', '')
 
         # Wait for the results.
-        with SimpleApplication(setup_table=False) as app:
+        import time
+        with SimpleApplication(name='orders', setup_table=False) as app:
             retries = 0
-            while retries < 100:
+            while retries < 40:
                 order = app.repository[order_id]
                 if app.repository[order_id].is_reserved:
                     break
@@ -338,7 +338,7 @@ process code).
                 assert False
 
             retries = 0
-            while retries < 100:
+            while retries < 40:
                 order = app.repository[order_id]
                 if app.repository[order_id].is_paid:
                     break
@@ -354,9 +354,9 @@ process code).
 
         print("Joining...")
 
-        orders.join(timeout=2)
-        reservations.join(timeout=2)
-        payments.join(timeout=2)
+        orders.join(timeout=10)
+        reservations.join(timeout=10)
+        payments.join(timeout=10)
 
         if orders.is_alive or reservations.is_alive or payments.is_alive:
             orders.terminate()

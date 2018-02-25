@@ -8,11 +8,17 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedI
 
 
 class AbstractRecordManager(six.with_metaclass(ABCMeta)):
-    def __init__(self, record_class, sequenced_item_class=SequencedItem, contiguous_record_ids=False):
+    def __init__(self, record_class, sequenced_item_class=SequencedItem, contiguous_record_ids=False,
+                 application_id=None):
         self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
         self.contiguous_record_ids = contiguous_record_ids and hasattr(self.record_class, 'id')
+        self.application_id = application_id
+        if hasattr(self.record_class, 'application_id'):
+            assert application_id, "'application_id' not set when required"
+            assert contiguous_record_ids, "'contiguous_record_ids' not set when required"
+
 
     @abstractmethod
     def append(self, sequenced_item_or_items):
@@ -51,6 +57,9 @@ class AbstractRecordManager(six.with_metaclass(ABCMeta)):
 
         # Construct and return an ORM object.
         kwargs = self.get_field_kwargs(sequenced_item)
+        if hasattr(self.record_class, 'application_id'):
+            # assert self.application_id is not None
+            kwargs['application_id'] = self.application_id
         return self.record_class(**kwargs)
 
     def from_record(self, record):
@@ -128,7 +137,11 @@ class RelationalRecordManager(AbstractRecordManager):
         by selecting max ID from indexed table records.
         """
         if self._insert_select_max is None:
-            self._insert_select_max = self._prepare_insert(self._insert_select_max_tmpl)
+            if hasattr(self.record_class, 'application_id'):
+                tmpl = self._insert_select_max_where_application_id_tmpl
+            else:
+                tmpl = self._insert_select_max_tmpl
+            self._insert_select_max = self._prepare_insert(tmpl)
         return self._insert_select_max
 
     @abstractmethod
@@ -141,6 +154,12 @@ class RelationalRecordManager(AbstractRecordManager):
         "INSERT INTO {tablename} (id, {columns}) "
         "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
         "FROM {tablename};"
+    )
+
+    _insert_select_max_where_application_id_tmpl = (
+        "INSERT INTO {tablename} (id, {columns}) "
+        "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
+        "FROM {tablename} WHERE application_id=:application_id;"
     )
 
     @property

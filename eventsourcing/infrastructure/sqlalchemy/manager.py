@@ -25,6 +25,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                 for record in records:
                     # Execute "insert select max" statement with values from record obj.
                     params = {c: getattr(record, c) for c in self.field_names}
+                    if hasattr(self.record_class, 'application_id'):
+                        params['application_id'] = self.application_id
                     self.session.bind.execute(self.insert_select_max, **params)
             else:
                 for record in records:
@@ -53,15 +55,19 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         an indexed ID column, the database-side SQL max function, the
         insert-select-from form, and optimistic concurrency control.
         """
+        field_names = list(self.field_names)
+        if hasattr(self.record_class, 'application_id'):
+            field_names.append('application_id')
+
         statement = text(tmpl.format(
             tablename=self.record_table_name,
-            columns=", ".join(self.field_names),
-            placeholders=", ".join([":{}".format(f) for f in self.field_names]),
+            columns=", ".join(field_names),
+            placeholders=", ".join([":{}".format(f) for f in field_names]),
         ))
 
         # Define bind parameters with explicit types taken from record column types.
         bindparams = []
-        for col_name in self.field_names:
+        for col_name in field_names:
             column_type = getattr(self.record_class, col_name).type
             bindparams.append(bindparam(col_name, type_=column_type))
 
@@ -96,8 +102,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             lte=lte,
             limit=limit,
             query_ascending=query_ascending,
-            results_ascending=results_ascending,
-
+            results_ascending=results_ascending
         )
         for item in six.moves.map(self.from_record, records):
             yield item
@@ -107,6 +112,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         assert limit is None or limit >= 1, limit
         try:
             filter_kwargs = {self.field_names.sequence_id: sequence_id}
+            if hasattr(self.record_class, 'application_id'):
+                filter_kwargs['application_id'] = self.application_id
             query = self.filter(**filter_kwargs)
 
             position_field = getattr(self.record_class, self.field_names.position)
@@ -153,16 +160,10 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         Intended to support getting all application domain events
         in order, especially if the records have contiguous IDs.
         """
-        # query = self.filter(**kwargs)
-        # if resume is not None:
-        #     query = query.offset(resume + 1)
-        # else:
-        #     resume = 0
-        # query = query.limit(100)
-        # for i, record in enumerate(query):
-        #     yield record, i + resume
         try:
             query = self.query
+            if hasattr(self.record_class, 'application_id'):
+                query = query.filter(self.record_class.application_id == self.application_id)
             if hasattr(self.record_class, 'id'):
                 query = query.order_by(asc('id'))
                 # NB '+1' because record IDs start from 1.

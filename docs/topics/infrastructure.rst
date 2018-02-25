@@ -457,7 +457,8 @@ and used to store events using SQLAlchemy.
         sequenced_item_class=StoredEvent,
         record_class=StoredEventRecord,
         session=datastore.session,
-        contiguous_record_ids=True
+        contiguous_record_ids=True,
+        application_id=uuid4()
     )
 
 Sequenced items (or "stored events" in this example) can be appended to the database
@@ -1016,7 +1017,11 @@ can be used to construct an event store that uses the SQLAlchemy classes.
 
     from eventsourcing.infrastructure.sqlalchemy import factory
 
-    event_store = factory.construct_sqlalchemy_eventstore(session=datastore.session)
+    event_store = factory.construct_sqlalchemy_eventstore(
+        session=datastore.session,
+        application_id=uuid4(),
+        contiguous_record_ids=True,
+    )
 
 
 By default, the event store is constructed with the ``StoredEvent`` sequenced item named tuple,

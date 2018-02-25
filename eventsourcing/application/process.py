@@ -21,9 +21,8 @@ class Process(SimpleApplication):
 
     def __init__(self, name, policy, setup_table=True, session=None, persist_event_type=None, **kwargs):
         persist_event_type = persist_event_type or AggregateRoot.Event
-        super(Process, self).__init__(setup_table=setup_table, session=session,
+        super(Process, self).__init__(name=name, setup_table=setup_table, session=session,
                                       persist_event_type=persist_event_type, **kwargs)
-        self.name = name
         self.policy = policy
         self.readers = OrderedDict()
 
@@ -68,7 +67,9 @@ class Process(SimpleApplication):
             if prompt and prompt.sender_process_name != upstream_application_name:
                 continue
 
-            for notification in reader.read():
+            # Todo: Change this to use a generator (rather than a list).
+            new_notifications = reader.read()
+            for notification in new_notifications:
                 notification_count += 1
                 # Domain event from notification.
                 event = self.event_store.sequenced_item_mapper.from_topic_and_data(

@@ -5,6 +5,9 @@ import redis
 
 from eventsourcing.application.process import Process, Prompt
 from eventsourcing.domain.model.events import subscribe, unsubscribe
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
+from eventsourcing.utils.uuids import uuid_from_application_name
 
 
 class OperatingSystemProcess(multiprocessing.Process):
@@ -41,11 +44,39 @@ class OperatingSystemProcess(multiprocessing.Process):
 
         # Follow upstream notification logs.
         for upstream_name in self.upstream_names:
-            self.process.follow(upstream_name, self.process.notification_log)
+            if upstream_name == self.process.name:
+                # Upstream is this process's application,
+                # so use own notification log.
+                notification_log = self.process.notification_log
+            else:
+                # For a different application, we need to construct a notification
+                # log with a record manager that has the upstream application ID.
+                # Currently assumes all applications are using the same database
+                # and record manager class. If it wasn't the same database,we would
+                # to use a remote notification log, and upstream would need to provide
+                # an API from which we can pull. It's not unreasonable to have a fixed
+                # number of application processes connecting to the same database.
+                record_manager = self.process.event_store.record_manager
+                assert isinstance(record_manager, SQLAlchemyRecordManager)
+                application_id = uuid_from_application_name(upstream_name)
+                notification_log = RecordManagerNotificationLog(
+                    record_manager=type(record_manager)(
+                        session=record_manager.session,
+                        record_class=record_manager.record_class,
+                        contiguous_record_ids=record_manager.contiguous_record_ids,
+                        sequenced_item_class=record_manager.sequenced_item_class,
+                        application_id=application_id
+                    ),
+                    section_size=self.process.notification_log.section_size
+                )
+
+            # Configure to follow the upstream notification log.
+            self.process.follow(upstream_name, notification_log)
 
             # Subscribe to prompts from upstream channels.
             self.pubsub.subscribe(upstream_name)
 
+        # Loop.
         subscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
         try:
             self.run_loop_with_subscription()
@@ -58,49 +89,26 @@ class OperatingSystemProcess(multiprocessing.Process):
         while True:
             # Note, get_message() returns immediately with None if timeout == 0.
             item = self.pubsub.get_message(timeout=10, ignore_subscribe_messages=True)
-            # print("Pubsub message: {}".format(item))
             if item is None:
+                # Bascially, we're polling after each timeout interval.
                 self.process.run()
-            elif item['type'] in ['subscribe', 'unsubscribe']:
-                continue
             elif item['type'] == 'message':
-                # raise Exception(item)
-
+                # Identify message, and take appropriate action.
                 if item['data'] == b"KILL":
+                    # Shutdown.
                     self.pubsub.unsubscribe()
                     self.process.close()
                     break
                 else:
-                    # try:
-                    #     expected_position = int(item['data'])
-                    # except ValueError as e:
-                    #     raise Exception("{}: {}".format(e, item))
-                    # assert isinstance(expected_position, six.integer_types)
-                    # Sometimes the prompt arrives before the data is visible in the database.
-                    count_tries = 0
-                    # max_tries = 10
-                    # max_tries = 5
-                    max_tries = 1
+                    # Pull from upstream.
                     upstream_application_name = item['channel'].decode('utf8')
                     prompt = Prompt(upstream_application_name)
+                    if not self.process.run(prompt):
+                        # Have another go.
+                        time.sleep(0.01)
+                        self.process.run(prompt)
 
-                    # time.sleep(0.1)
-                    while not self.process.run(prompt) and count_tries < max_tries:
-                        # if self.process.run(prompt):
-                        # if self.process.run(prompt):
-                        #     break
-                        # tracking_end_position = self.process.tracking_record_manager.get_max_record_id(
-                        #     self.process.name, upstream_application_name
-                        # )
-                        # if tracking_end_position >= expected_position:
-                        #     time.sleep(0.05)
-                        #     self.process.run()
-                        #     break
-
-                        count_tries += 1
-                        time.sleep(0.05 * count_tries)
-
-                    # Todo: Check the reader position reflect the
+                    # Todo: Check the reader position reflect the prompt notification ID.
                     # Todo: Replace above sleep with check the prompted notification is available (otherwise repeat).
                     # Todo: Put the notification ID in the prompt?
                     # Todo: Put the whole notification in the prompt, so if it's the only thing we don't have,
