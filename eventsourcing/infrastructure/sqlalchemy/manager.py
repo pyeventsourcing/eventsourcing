@@ -21,17 +21,27 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                 # Add tracking record to session.
                 self.session.add(tracking_record)
 
-            if self.contiguous_record_ids:
-                for record in records:
+            for record in records:
+                if hasattr(self.record_class, 'id') and record.id is None and self.contiguous_record_ids:
                     # Execute "insert select max" statement with values from record obj.
                     params = {c: getattr(record, c) for c in self.field_names}
                     if hasattr(self.record_class, 'application_id'):
                         params['application_id'] = self.application_id
                     self.session.bind.execute(self.insert_select_max, **params)
-            else:
-                for record in records:
+                else:
                     # Execute "insert values" statement with values from record obj.
                     params = {c: getattr(record, c) for c in self.field_names}
+                    if hasattr(self.record_class, 'application_id'):
+                        params['application_id'] = self.application_id
+
+                    if hasattr(self.record_class, 'id'):
+                        if hasattr(self.record_class, 'application_id'):
+                            try:
+                                assert record.id, "record ID not set when required"
+                            except:
+                                raise
+                        # Or else, assume the record ID is autoincrementing.
+                        params['id'] = record.id
                     self.session.bind.execute(self.insert_values, **params)
 
             # Commit the records.
@@ -44,6 +54,9 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             self.session.rollback()
             self.raise_after_operational_error(e)
 
+        except:
+            raise
+
         finally:
             self.session.close()
 
@@ -51,7 +64,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def record_table_name(self):
         return self.record_class.__table__.name
 
-    def _prepare_insert(self, tmpl):
+    def _prepare_insert(self, tmpl, placeholder_for_id=False):
         """
         With transaction isolation level of "read committed" this should
         generate records with a contiguous sequence of integer IDs, assumes
@@ -61,6 +74,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         field_names = list(self.field_names)
         if hasattr(self.record_class, 'application_id'):
             field_names.append('application_id')
+        if hasattr(self.record_class, 'id') and placeholder_for_id:
+            field_names.append('id')
 
         statement = text(tmpl.format(
             tablename=self.record_table_name,
@@ -181,7 +196,11 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             self.session.close()
 
     def get_max_record_id(self):
-        return self.session.query(func.max(self.record_class.id)).scalar()
+        query = self.session.query(func.max(self.record_class.id))
+        if self.application_id:
+            query = query.filter(self.record_class.application_id == self.application_id)
+        max_id = query.scalar()
+        return max_id
 
     def delete_record(self, record):
         """

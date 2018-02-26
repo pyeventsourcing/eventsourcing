@@ -144,7 +144,7 @@ class RelationalRecordManager(AbstractRecordManager):
         return self._insert_select_max
 
     @abstractmethod
-    def _prepare_insert(self, tmpl):
+    def _prepare_insert(self, tmpl, placeholder_for_id=False):
         """
         Compile SQL statement with placeholders for bind parameters.
         """
@@ -167,7 +167,10 @@ class RelationalRecordManager(AbstractRecordManager):
         SQL statement that inserts records without ID.
         """
         if self._insert_values is None:
-            self._insert_values = self._prepare_insert(tmpl=self._insert_values_tmpl)
+            self._insert_values = self._prepare_insert(
+                tmpl=self._insert_values_tmpl,
+                placeholder_for_id=True,
+            )
         return self._insert_values
 
     _insert_values_tmpl = (
