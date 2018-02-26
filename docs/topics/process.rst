@@ -61,19 +61,45 @@ of the system could then be defined and scaled independently (library doesn't
 support this yet).
 
 
-Process
--------
+Kahn Process Networks
+---------------------
 
-The library class ``Process`` can be used to define an application process. It is
-a subclass of the library's ``SimpleApplication`` class.
+A system of process applications that pull from each other's notifications logs,
+can be recognised as a `Kahn Process Network <https://en.wikipedia.org/wiki/Kahn_process_networks>`__ (KPN).
+Supercomputers are designed as Kahn Process Networks. In contrast with the unbounded
+nondeterminism of messaging systems in general, and the Actor Model in particular,
+Kahn Process Networks are deterministic. For the same input history they must always
+produce exactly the same output.
+
+Kahn Process Networks appears to be an underused model of distributed computation.
+At the time of writing, there is nothing in `Google Search
+<https://www.google.co.uk/search?q=%22Domain+Driven+Design%22+%22Kahn+Process+Network%22`__
+about "Domain Driven Design" and "Kahn Process Networks". There is only one video on YouTube,
+a talk about hardware, `implementing KPNs in silicone <https://www.youtube.com/watch?v=sDuuvyUaIAc>`__.
+
+Maybe KPNs been tried for DDD, and it doesn't work very well. If so, apparently there are no traces online.
+However the Agile and LEAN approaches are fundamentally "pull" and not "push", so it
+might make good sense for the systems produced by iterative and incremental development
+to pull notifications rather than push messages.
+
+It's hard to see how KPNs are included in the common definition and understanding of distributed
+computing, that it fundamentally involves `passing messages
+<https://en.wikipedia.org/wiki/Distributed_computing>`__, which is understood as pushing messages,
+for example AMQP systems or Actor frameworks.
+
+Application process
+-------------------
+
+The library class ``Process`` can be used to define an application process.
 
 .. code:: python
 
     from eventsourcing.application.process import Process
 
+The ``Process`` class is a subclass of the library's ``SimpleApplication`` class.
 
-The example below is suggestive of an orders-reservations-payments system. The
-system automatically processes new orders by making a reservation, and
+The example below is suggestive of an orders-reservations-payments system.
+The system automatically processes new orders by making a reservation, and
 automatically makes a payment whenever an order is reserved.
 
 Firstly, event sourced aggregates are defined, for "order", "reservation", and "payment".
