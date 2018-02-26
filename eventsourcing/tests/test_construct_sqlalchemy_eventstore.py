@@ -9,11 +9,14 @@ from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy
 
 class TestFactory(TestCase):
     def test_construct_sqlalchemy_eventstore(self):
-
         datastore = SQLAlchemyDatastore(settings=SQLAlchemySettings())
         datastore.setup_connection()
 
-        event_store = construct_sqlalchemy_eventstore(datastore.session)
+        event_store = construct_sqlalchemy_eventstore(
+            session=datastore.session,
+            contiguous_record_ids=True,
+            application_id=uuid4()
+        )
         datastore.setup_table(event_store.record_manager.record_class)
 
         self.assertIsInstance(event_store, EventStore)

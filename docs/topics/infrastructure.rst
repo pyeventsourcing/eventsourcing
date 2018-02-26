@@ -457,7 +457,8 @@ and used to store events using SQLAlchemy.
         sequenced_item_class=StoredEvent,
         record_class=StoredEventRecord,
         session=datastore.session,
-        contiguous_record_ids=True
+        contiguous_record_ids=True,
+        application_id=uuid4()
     )
 
 Sequenced items (or "stored events" in this example) can be appended to the database
@@ -500,18 +501,49 @@ infrastructure classes for SQLAlchemy have been tested with MySQL, PostgreSQL, a
 MySQL
 ~~~~~
 
-For MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
-can be used.
+For MySQL, the Python package `mysql-connector-python-rf <https://pypi.python.org/pypi/mysql-connector-python-rf>`__
+can be used (licenced GPL v2). Please note, I had problems running this driver with Python 2.7 (unicode error
+when it raises exceptions).
+
+.. code::
+
+    $ pip install mysql-connector-python-rf
+
+The ``uri`` for MySQL used with this driver would look something like this.
+
+.. code::
+
+    mysql+mysqlconnector://username:password@localhost/eventsourcing
+
+
+Alternatively for MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
+can be used (also licenced GPL v2). I didn't have problems using this driver with Python 2.7.
 
 .. code::
 
     $ pip install mysqlclient
 
-The ``uri`` for MySQL would look something like this.
+The ``uri`` for MySQL used with this driver would look something like this.
 
 .. code::
 
-    mysql://username:password@localhost/eventsourcing
+    mysql+mysqldb://username:password@localhost/eventsourcing
+
+
+Another alternative is `PyMySQL <https://pypi.python.org/pypi/PyMySQL>`__. It has a BSD licence.
+
+.. code::
+
+    $ pip install PyMySQL
+
+The ``uri`` for MySQL used with this driver would look something like this.
+
+.. code::
+
+    mysql+pymysql://username:password@localhost/eventsourcing
+
+For more alternatives, see `the SQLAlchemy documentation
+<http://docs.sqlalchemy.org/en/latest/dialects/mysql.html>`__.
 
 
 PostgreSQL
@@ -524,11 +556,11 @@ can be used.
 
     $ pip install psycopg2
 
-The ``uri`` for PostgreSQL would look something like this.
+The ``uri`` for PostgreSQL used with this driver would look something like this.
 
 .. code::
 
-    postgresql://username:password@localhost:5432/eventsourcing
+    postgresql+psycopg2://username:password@localhost:5432/eventsourcing
 
 
 SQLite
@@ -1016,7 +1048,11 @@ can be used to construct an event store that uses the SQLAlchemy classes.
 
     from eventsourcing.infrastructure.sqlalchemy import factory
 
-    event_store = factory.construct_sqlalchemy_eventstore(session=datastore.session)
+    event_store = factory.construct_sqlalchemy_eventstore(
+        session=datastore.session,
+        application_id=uuid4(),
+        contiguous_record_ids=True,
+    )
 
 
 By default, the event store is constructed with the ``StoredEvent`` sequenced item named tuple,

@@ -69,7 +69,7 @@ system (such as ``psycopg2`` or ``mysqlclient``).
 
     postgresql://scott:tiger@localhost:5432/mydatabase
 
-    mysql://scott:tiger@hostname/dbname
+    mysql+mysqldb://scott:tiger@hostname/dbname
 
 
 Encryption is optionally enabled in ``SimpleApplication`` with a

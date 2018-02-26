@@ -63,6 +63,9 @@ class DomainEntity(QualnameABC):
             """
             Checks obj state before mutating.
             """
+            # Check obj is not None.
+            assert obj is not None, "'obj' is None"
+
             # Check ID matches originator ID.
             if obj.id != self.originator_id:
                 raise OriginatorIDError(
@@ -236,10 +239,11 @@ class VersionedEntity(DomainEntity):
 
         def __check_obj__(self, obj):
             """
-            Also checks the event's originator version follows this entity's version.
+            Extended superclass method by checking the event's
+            originator version follows (1 +) this entity's version.
             """
             super(VersionedEntity.Event, self).__check_obj__(obj)
-            if obj.__version__ + 1 != self.originator_version:
+            if self.originator_version != obj.__version__ + 1:
                 raise OriginatorVersionError(
                     ("Event originated from entity at version {}, "
                      "but entity is currently at version {}. "

@@ -3,16 +3,21 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.exceptions import RecordIDConflict, SequencedItemConflict
+from eventsourcing.exceptions import OperationalError, RecordIDConflict, SequencedItemConflict
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 
 
 class AbstractRecordManager(six.with_metaclass(ABCMeta)):
-    def __init__(self, record_class, sequenced_item_class=SequencedItem, contiguous_record_ids=False):
+    def __init__(self, record_class, sequenced_item_class=SequencedItem, contiguous_record_ids=False,
+                 application_id=None):
         self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
         self.contiguous_record_ids = contiguous_record_ids and hasattr(self.record_class, 'id')
+        self.application_id = application_id
+        if hasattr(self.record_class, 'application_id'):
+            assert application_id, "'application_id' not set when required"
+            assert contiguous_record_ids, "'contiguous_record_ids' not set when required"
 
     @abstractmethod
     def append(self, sequenced_item_or_items):
@@ -51,6 +56,9 @@ class AbstractRecordManager(six.with_metaclass(ABCMeta)):
 
         # Construct and return an ORM object.
         kwargs = self.get_field_kwargs(sequenced_item)
+        if hasattr(self.record_class, 'application_id'):
+            # assert self.application_id is not None
+            kwargs['application_id'] = self.application_id
         return self.record_class(**kwargs)
 
     def from_record(self, record):
@@ -128,11 +136,15 @@ class RelationalRecordManager(AbstractRecordManager):
         by selecting max ID from indexed table records.
         """
         if self._insert_select_max is None:
-            self._insert_select_max = self._prepare_insert(self._insert_select_max_tmpl)
+            if hasattr(self.record_class, 'application_id'):
+                tmpl = self._insert_select_max_where_application_id_tmpl
+            else:
+                tmpl = self._insert_select_max_tmpl
+            self._insert_select_max = self._prepare_insert(tmpl)
         return self._insert_select_max
 
     @abstractmethod
-    def _prepare_insert(self, tmpl):
+    def _prepare_insert(self, tmpl, placeholder_for_id=False):
         """
         Compile SQL statement with placeholders for bind parameters.
         """
@@ -143,13 +155,22 @@ class RelationalRecordManager(AbstractRecordManager):
         "FROM {tablename};"
     )
 
+    _insert_select_max_where_application_id_tmpl = (
+        "INSERT INTO {tablename} (id, {columns}) "
+        "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
+        "FROM {tablename} WHERE application_id=:application_id;"
+    )
+
     @property
     def insert_values(self):
         """
         SQL statement that inserts records without ID.
         """
         if self._insert_values is None:
-            self._insert_values = self._prepare_insert(tmpl=self._insert_values_tmpl)
+            self._insert_values = self._prepare_insert(
+                tmpl=self._insert_values_tmpl,
+                placeholder_for_id=True,
+            )
         return self._insert_values
 
     _insert_values_tmpl = (
@@ -209,6 +230,10 @@ class RelationalRecordManager(AbstractRecordManager):
 
         # Try to identify record ID conflicts.
         if self.contiguous_record_ids:
+
+            # Todo: Identify other constraints (tracking conflict, notification record conflict)...
+            # Todo: if hasattr('id', self.record_class):
+
             # Assume record ID is primary key.
             #  - SQLite
             if "UNIQUE constraint failed: {}.id".format(self.record_table_name) in error:
@@ -220,6 +245,14 @@ class RelationalRecordManager(AbstractRecordManager):
             elif 'duplicate key value violates unique constraint "{}_pkey"'.format(self.record_table_name) in error:
                 self.raise_record_id_conflict()
         self.raise_sequenced_item_conflict()
+
+    def raise_after_operational_error(self, e):
+        error = str(e)
+        if 'Deadlock found when trying to get lock' in error:
+            msg = "There was a record ID conflict"
+            raise RecordIDConflict(msg)
+        else:
+            raise OperationalError(e)
 
     @staticmethod
     def raise_record_id_conflict():
@@ -238,5 +271,5 @@ class AbstractTrackingRecordManager(six.with_metaclass(ABCMeta)):
         """Returns tracking record class."""
 
     @abstractmethod
-    def get_max_record_id(self, upstream_application_name, partition_id=None):
+    def get_max_record_id(self, application_name, upstream_application_name, partition_id=None):
         """Returns maximum record ID for given application name."""

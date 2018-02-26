@@ -130,42 +130,77 @@ class TestDecorators(TestCase):
             originator_id=entity_id1,
             originator_version=1,
         )
-        handler = mock.Mock()
+        handler1 = mock.Mock()
+        handler2 = mock.Mock()
+        handler3 = mock.Mock()
 
         # Check we can assert there are no event handlers subscribed.
         assert_event_handlers_empty()
 
+        # Original style (one event class arg).
         @subscribe_to(Example.Created)
-        def test_handler(e):
+        def test_handler1(e):
             """Doc string"""
-            handler(e)
+            handler1(e)
+
+        # Naked style (not called).
+        @subscribe_to
+        def test_handler2(e):
+            """Doc string"""
+            handler2(e)
+
+        # Multi-event style (many event class args).
+        @subscribe_to((Example.Created, Example.Discarded))
+        def test_handler3(e):
+            """Doc string"""
+            handler3(e)
 
         # Check the decorator doesn't mess with the function doc string.
-        self.assertEqual('Doc string', test_handler.__doc__)
+        self.assertEqual('Doc string', test_handler1.__doc__)
+        self.assertEqual('Doc string', test_handler2.__doc__)
+        self.assertEqual('Doc string', test_handler3.__doc__)
 
         # Check can fail to assert event handlers empty.
         self.assertRaises(EventHandlersNotEmptyError, assert_event_handlers_empty)
 
         # Check event is received when published individually.
         publish(event1)
-        handler.assert_called_once_with(event1)
+        handler1.assert_called_once_with(event1)
+        handler2.assert_called_once_with(event1)
+        handler3.assert_called_once_with(event1)
 
         # Check event of wrong type is not received.
-        handler.reset_mock()
+        handler1.reset_mock()
+        handler2.reset_mock()
+        handler3.reset_mock()
         publish(event2)
-        self.assertFalse(handler.call_count)
+        self.assertFalse(handler1.call_count)
+        handler2.assert_called_once_with(event2)
+        handler3.assert_called_once_with(event2)
 
         # Check a list of events can be filtered.
-        handler.reset_mock()
+        handler1.reset_mock()
+        handler2.reset_mock()
+        handler3.reset_mock()
         publish([event1, event2])
-        handler.assert_called_once_with(event1)
+        handler1.assert_called_once_with(event1)
+        self.assertEqual(handler2.call_count, 2)
+        self.assertEqual(handler3.call_count, 2)
 
-        handler.reset_mock()
+        handler1.reset_mock()
+        handler2.reset_mock()
+        handler3.reset_mock()
         publish([event1, event1])
-        self.assertEqual(2, handler.call_count)
+        self.assertEqual(2, handler1.call_count)
+        self.assertEqual(2, handler2.call_count)
+        self.assertEqual(2, handler3.call_count)
 
-        handler.reset_mock()
+        handler1.reset_mock()
+        handler2.reset_mock()
+        handler3.reset_mock()
         publish([event2, event2])
-        self.assertEqual(0, handler.call_count)
+        self.assertEqual(0, handler1.call_count)
+        self.assertEqual(2, handler2.call_count)
+        self.assertEqual(2, handler3.call_count)
 
         _event_handlers.clear()

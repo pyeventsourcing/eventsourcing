@@ -1,13 +1,13 @@
 import six
 from sqlalchemy import asc, bindparam, desc, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, InternalError, OperationalError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import func
 
-from eventsourcing.utils.uuids import uuid_from_application_name
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.base import RelationalRecordManager, AbstractTrackingRecordManager
+from eventsourcing.infrastructure.base import AbstractTrackingRecordManager, RelationalRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import NotificationTrackingRecord
+from eventsourcing.utils.uuids import uuid_from_application_name
 
 
 class SQLAlchemyRecordManager(RelationalRecordManager):
@@ -17,27 +17,45 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
     def _write_records(self, records, tracking_record=None):
         try:
-            if self.contiguous_record_ids:
-                for record in records:
-                    # Execute "insert select max" statement with values from record obj.
-                    params = {c: getattr(record, c) for c in self.field_names}
-                    self.session.bind.execute(self.insert_select_max, **params)
-            else:
-                for record in records:
-                    # Execute "insert values" statement with values from record obj.
-                    params = {c: getattr(record, c) for c in self.field_names}
-                    self.session.bind.execute(self.insert_values, **params)
-
             if tracking_record:
                 # Add tracking record to session.
                 self.session.add(tracking_record)
+
+            for record in records:
+                if hasattr(self.record_class, 'id') and record.id is None and self.contiguous_record_ids:
+                    # Execute "insert select max" statement with values from record obj.
+                    params = {c: getattr(record, c) for c in self.field_names}
+                    if hasattr(self.record_class, 'application_id'):
+                        params['application_id'] = self.application_id
+                    self.session.bind.execute(self.insert_select_max, **params)
+                else:
+                    # Execute "insert values" statement with values from record obj.
+                    params = {c: getattr(record, c) for c in self.field_names}
+                    if hasattr(self.record_class, 'application_id'):
+                        params['application_id'] = self.application_id
+
+                    if hasattr(self.record_class, 'id'):
+                        if hasattr(self.record_class, 'application_id'):
+                            try:
+                                assert record.id, "record ID not set when required"
+                            except:
+                                raise
+                        # Or else, assume the record ID is autoincrementing.
+                        params['id'] = record.id
+                    self.session.bind.execute(self.insert_values, **params)
 
             # Commit the records.
             self.session.commit()
         except IntegrityError as e:
             self.session.rollback()
-
             self.raise_after_integrity_error(e)
+
+        except (OperationalError, InternalError) as e:
+            self.session.rollback()
+            self.raise_after_operational_error(e)
+
+        except:
+            raise
 
         finally:
             self.session.close()
@@ -46,22 +64,28 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def record_table_name(self):
         return self.record_class.__table__.name
 
-    def _prepare_insert(self, tmpl):
+    def _prepare_insert(self, tmpl, placeholder_for_id=False):
         """
         With transaction isolation level of "read committed" this should
         generate records with a contiguous sequence of integer IDs, assumes
         an indexed ID column, the database-side SQL max function, the
         insert-select-from form, and optimistic concurrency control.
         """
+        field_names = list(self.field_names)
+        if hasattr(self.record_class, 'application_id'):
+            field_names.append('application_id')
+        if hasattr(self.record_class, 'id') and placeholder_for_id:
+            field_names.append('id')
+
         statement = text(tmpl.format(
             tablename=self.record_table_name,
-            columns=", ".join(self.field_names),
-            placeholders=", ".join([":{}".format(f) for f in self.field_names]),
+            columns=", ".join(field_names),
+            placeholders=", ".join([":{}".format(f) for f in field_names]),
         ))
 
         # Define bind parameters with explicit types taken from record column types.
         bindparams = []
-        for col_name in self.field_names:
+        for col_name in field_names:
             column_type = getattr(self.record_class, col_name).type
             bindparams.append(bindparam(col_name, type_=column_type))
 
@@ -96,8 +120,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             lte=lte,
             limit=limit,
             query_ascending=query_ascending,
-            results_ascending=results_ascending,
-
+            results_ascending=results_ascending
         )
         for item in six.moves.map(self.from_record, records):
             yield item
@@ -107,6 +130,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         assert limit is None or limit >= 1, limit
         try:
             filter_kwargs = {self.field_names.sequence_id: sequence_id}
+            if hasattr(self.record_class, 'application_id'):
+                filter_kwargs['application_id'] = self.application_id
             query = self.filter(**filter_kwargs)
 
             position_field = getattr(self.record_class, self.field_names.position)
@@ -153,16 +178,10 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         Intended to support getting all application domain events
         in order, especially if the records have contiguous IDs.
         """
-        # query = self.filter(**kwargs)
-        # if resume is not None:
-        #     query = query.offset(resume + 1)
-        # else:
-        #     resume = 0
-        # query = query.limit(100)
-        # for i, record in enumerate(query):
-        #     yield record, i + resume
         try:
             query = self.query
+            if hasattr(self.record_class, 'application_id'):
+                query = query.filter(self.record_class.application_id == self.application_id)
             if hasattr(self.record_class, 'id'):
                 query = query.order_by(asc('id'))
                 # NB '+1' because record IDs start from 1.
@@ -177,7 +196,11 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             self.session.close()
 
     def get_max_record_id(self):
-        return self.session.query(func.max(self.record_class.id)).scalar()
+        query = self.session.query(func.max(self.record_class.id))
+        if self.application_id:
+            query = query.filter(self.record_class.application_id == self.application_id)
+        max_id = query.scalar()
+        return max_id
 
     def delete_record(self, record):
         """
@@ -199,10 +222,12 @@ class TrackingRecordManager(AbstractTrackingRecordManager):
     def __init__(self, session):
         self.session = session
 
-    def get_max_record_id(self, upstream_application_name, partition_id=None):
-        application_id = uuid_from_application_name(upstream_application_name)
+    def get_max_record_id(self, application_name, upstream_application_name, partition_id=None):
+        application_id = uuid_from_application_name(application_name)
+        upstream_application_id = uuid_from_application_name(upstream_application_name)
         query = self.session.query(func.max(self.record_class.notification_id))
         query = query.filter(self.record_class.application_id == application_id)
+        query = query.filter(self.record_class.upstream_application_id == upstream_application_id)
         partition_id = partition_id or application_id
         query = query.filter(self.record_class.partition_id == partition_id)
         return query.scalar()
