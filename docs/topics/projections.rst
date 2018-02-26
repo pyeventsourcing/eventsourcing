@@ -31,7 +31,7 @@ tracking records.
 
 Projections can update more or less anything. To be reliable, the projection must
 write in the same atomic database transaction all the records that result from
-processing a notification. Otherwise it is possible to tracl the position
+processing a notification. Otherwise it is possible to track the position
 and fail to update the projection, or vice versa.
 
 A projection that both consumes and creates notifications can be called a "process".

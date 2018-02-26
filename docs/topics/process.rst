@@ -2,58 +2,81 @@
 Process and system
 ==================
 
-In general, process can be defined as productive in this sense: consumption with
-recording determines production. In particular, the library's ``Process`` class is
-defined as a projection that also functions as an event sourced application. It
-responds to notifications by calling aggregate methods, sometimes triggering new
-events, then writing a new tracking record along with any new event and notification
-records in a single atomic database transaction.
+In this section, the projections in the previous section are developed
+further into "process applications": event sourced applications that both
+consume notification logs and call command methods on aggregates, producing
+new domain events that are placed in a notification log for others to consume.
 
-The point is that if some of the new records can't be written, none are. If
-something is wrong with the policy, or with the aggregates, or with the
-infrastructure, then the transaction will be rolled back, and none of the
-records will be written. If the tracking record isn't written, the position doesn't
-move, and the processing will have to be tried again. If an aggregate produces
-the wrong events, or the policies make things go around in circles indefinitely,
-that's behaviour that will be processed reliably, so long as processing can happen at all.
-The process, in itself, is as reliable as database transactions.
+Process can be generally understood in this way: consumption with recording
+determines production. In other words, if both consumption and recording
+are reliable, the process is reliable. A system of reliable processes is
+also reliable.
 
-Such an application process could follow another such process in a system. One process
-could follow two other processes in a slightly more complicated system. A process
-could simply follow itself, stepping though state transitions that involve
-many aggregates. There could be a vastly complicated system of processes
+For a process application to be reliable, its consumption of notification
+logs and its recording of its projected state must be reliable. Essentially,
+a process must both be able to read a notification log and write its records
+atomically. The records that track its consumption of notification logs, the
+domain events it records, and the new notification log records must be written
+together in a single database transaction.
+
+The library's ``Process`` class is defined as a projection that also functions
+as an event sourced application. It responds to notifications by calling aggregate
+methods, sometimes triggering new events, then writing a new tracking record,
+along with any new event and notification records, in a single atomic database
+transaction.
+
+If some of the new records can't be written, none are. If something is wrong
+with the policy, or with the aggregates, or with the infrastructure, then the
+transaction will not be successful, so it will fail, and none of the records
+will be written. If the tracking record isn't written, the process doesn't
+move forward, as if nothing happened. If an aggregate produces the wrong events,
+or the policies make things go around in circles indefinitely, that's behaviour
+that will be processed reliably. So long as processing can happen at all, it will
+happen in a reliable way. Such a process is as reliable as database transactions.
+
+Such an application process could follow another such application process in a
+system. One process could follow two other processes in a slightly more complicated
+system. A process could simply follow itself, stepping though state transitions
+that involve many aggregates. There could be a vastly complicated system of processes
 without introducing any systemically emergent unreliability in the processing
 of the events.
 
-A number of application processes could be run in a single operating system
-process, even with a single thread. They could also be run concurrently
-on different nodes in a network. A set of such processes could be pulsed from
-a clock, and also prompted by pushing notifications, reducing latency and
-avoiding aggressive polling intervals.
+A number of application processes could be deployed in a single thread, or with
+multiple threads in a single operating system process. Each thread could
+have its own operating system process, and each operating system process
+could run on its own machine. A set of such processes could be prompted to
+pull new notifications by sending messages.
 
-To keep things simple, all notifications from an application process can be
-placed in a single notification log sequence, and processed in series. To scale
-throughput beyond the limits of processing a single sequence, notifications could
-be distributed across many logs (with immediate causal dependencies inferred from
-the ID and version of the aggregates necessary for processing the notification).
-Hence one application process could usefully and reliably employ many concurrent
-operating system processes.
+All notifications from an application process could be placed in a single
+notification log sequence, and processed in series. To scale throughput
+beyond the limits of processing a single sequence, notifications could
+be distributed across many logs (with causal dependencies easily inferred from
+aggregate IDs and versions involved in generating new events). Hence one
+application process could usefully and reliably employ many concurrent operating
+system processes.
+
+A system of processes could be defined without reference to threads, operating
+system processes, network nodes, or notification log partitions. The deployment
+of the system could then be defined and scaled independently (library doesn't
+support this yet).
 
 
 Process
 -------
 
-The library class ``Process``, a subclass of ``SimpleApplication``, can be
-used to write a scale-independent definition of a system.
-
+The library class ``Process`` can be used to define an application process. It is
+a subclass of the library's ``SimpleApplication`` class.
 
 .. code:: python
 
     from eventsourcing.application.process import Process
 
 
-The example below shows an orders-reservations-payments system.
+The example below is suggestive of an orders-reservations-payments system. The
+system automatically processes new orders by making a reservation, and
+automatically makes a payment whenever an order is reserved.
 
+Firstly, event sourced aggregates are defined, for "order", "reservation", and "payment".
 
 .. code:: python
 
@@ -117,6 +140,12 @@ The example below shows an orders-reservations-payments system.
             pass
 
 
+With the aggregates, the policies of the process can be defined.
+In general, policies respond to domain events by executing commands
+on aggregates.
+
+.. code:: python
+
     def orders_policy(process, event):
         unsaved_aggregates = []
         causal_dependencies = []
@@ -160,9 +189,20 @@ The example below shows an orders-reservations-payments system.
         return unsaved_aggregates, causal_dependencies
 
 
-############### Remove this before committing
+With the policies, the processes can be defined. They can be
+configured to follow each other. At least, the orders and the
+reservations processes follow each other. The payments and
+the orders processes also follow each other. However, the
+payments process does not follow the reservations process.
 
-    # Define processes.
+.. Todo: Have a simpler example that just uses one process,
+.. instantiated without subclasses. Then defined these processes
+.. as subclasses, so they can be used in this example, and then
+.. reused in the operating system processes.
+
+.. code:: python
+
+    # Define processes, each uses its own in-memory database.
     orders = Process('orders',
         policy=orders_policy,
         persist_event_type=Order.Event,
@@ -178,17 +218,32 @@ The example below shows an orders-reservations-payments system.
         persist_event_type=Payment.Event,
     )
 
+    # Configure followers.
     orders.follow('reservations', reservations.notification_log)
     orders.follow('payments', payments.notification_log)
     reservations.follow('orders', orders.notification_log)
     payments.follow('orders', orders.notification_log)
 
-    # Create new order.
+
+Having set up the system of processes, we can run the system by
+publishing an event that it responds to. In the code below,
+a new order is created. The system responds by making a
+reservation and a payment, facts that are registered with
+the order.
+
+.. code:: python
+
+    # Create new Order aggregate.
     order_id = create_new_order()
 
     # Check the order is reserved and paid.
     assert orders.repository[order_id].is_reserved
     assert orders.repository[order_id].is_paid
+
+
+The system can be closed by closing all the processes.
+
+.. code:: python
 
     # Clean up.
     orders.close()
@@ -196,32 +251,37 @@ The example below shows an orders-reservations-payments system.
     payments.close()
 
 
+The system above runs in a single thread, but it could also be distributed.
+
+
 Distributed system
 ------------------
 
-The system above runs in a single thread, but it could be run in multiple-threads in a single process,
-as multiple processes on a single node, or on multiple nodes.
+The processes defined above could run in different threads in a single process.
+Those threads could run in different processes on a single node. Those process
+could run on different nodes in a network.
 
-Using multiple threads would involve each thread running a loop that either polls for new notifications and sleeps
-for a little bit, or works on items its gets in blocking mode from a thread-safe queue. Both could operate at the
-same time, so long as contention errors are handled without crashing the loop. The items on the queue would be
-prompts added to the queue by a handler subscribed by the application process to receive prompts published to the
-library's pub-sub mechanism. The threads could be constructed and started, and sent poison pills and joined to
-shutdown the system, in the normal way. The process applications could use the same or different databases. If
-process applications use different databases, they won't be able to access the aggregates of the other applications,
-which may be desirable but it may also be inconvenient. Using a different database for each process might be
-desirable for example if each process is developed by a separate team, and it may improve performance in a system
-with a lot of processes.
+Each thread could run a loop that makes a call for prompts pushed via
+messaging infrastructure. The prompts can be responded to be pulling
+from the prompting channel. The call for new messages can timeout,
+and the timeout can be handled by pulling any new notifications from
+all upstream notification logs, so that effectively the notification log
+is polled at a regular interval whenever there are no prompts.
 
-Using multiple operating system processes is similar to multi-threading in a single process. Each would need to
-run a loop, that would poll for notifications and sleep for a little bit, or subscribe and publish prompts to a
-pub-sub service. Multiple operating system processes could share the same database, just not the same in-memory
-database. They could also use different databases, even in an memory database, but its notification log would need
-to be presented in an API and its readers would need to use a remote notification log object.
+The process applications could all use the same single database, or they
+could each use their own database. If the process applications of a system
+use different databases, they can still read each other's notification
+log object.
+
+Using multiple operating system processes is similar to multi-threading
+in a single process. Multiple operating system processes could share
+the same database, just not the same in-memory database. They could also
+use different databases, even in an memory database, but its notification
+log would need to be presented in an API and its readers would need to
+use a remote notification log object to pull notifications from the API.
 
 The example below shows a system with multiple operating system processes.
-
-A MySQL database is shared by the application processes.
+All the application processes share a single MySQL database.
 
 .. code:: python
 
@@ -230,7 +290,7 @@ A MySQL database is shared by the application processes.
     os.environ['DB_URI'] = 'mysql://root:@127.0.0.1/eventsourcing'
 
 
-Redis pub-sub is used to broadcast prompts to pull new notifications.
+Redis is used to publish prompts, so downstream can pull new notifications without polling latency.
 
 .. code:: python
 
@@ -268,40 +328,8 @@ In this system, each application process runs in its own operating system proces
     )
 
 
-External input can be provided to the system's applications by using a simple
-application object that persists domain events published by aggregates that are
-commanded in response to direct user input. In the code below, the orders
-application is instantiated as a simple application object. And with that context,
-a new Order aggregate is created.
-
-.. code:: python
-
-    from eventsourcing.application.simple import SimpleApplication
-
-    with SimpleApplication(name='orders', persist_event_type=Order.Event) as app:
-
-        # Create a new order, and broadcast a prompt.
-        order_id = create_new_order()
-        assert order_id in app.repository
-
-
-The database table for storing events was setup by the simple application when it was constructed.
-
-However, before starting the operation system processes defined above, the database table for
-notification tracking records must be set up.
-
-.. code:: python
-
-    with SimpleApplication(setup_table=False) as app:
-
-        app_process_class = OperatingSystemProcess.application_process_class
-
-        app.datastore.setup_table(app_process_class.tracking_record_manager_class.record_class)
-
-
-The operating system processes can now be started (the ``if __name__ == 'main'`` idiom
-is required by the multiprocessing library to distinguish parent process code from child
-process code).
+An ``if __name__ == 'main'`` block is required by the multiprocessing
+library to distinguish parent process code from child process code.
 
 .. code:: python
 
@@ -309,45 +337,102 @@ process code).
 
     if __name__ == '__main__':
 
-        # Start application system's operating system processes.
+Start the operating system processes.
+
+.. code:: python
+
+
+        # Start operating system processes.
         orders.start()
         reservations.start()
         payments.start()
 
-        # Wait for orders channel subscriptions.
+
+.. Todo: Find out why we timeout waiting for subscribers if the create_new_order code is moved below the following.
+
+A process application object can be used to create the
+database tables for storing events and tracking records.
+
+.. code:: python
+
+        app = Process(name='orders', policy=None, persist_event_type=Order.Event)
+
+        order_id = create_new_order()
+
+        assert order_id in app.repository
+
+
+Wait for followers to subscribe.
+
+.. code:: python
+
         p = r.pubsub()
         p.subscribe('orders')
-        assert p.get_message(timeout=10)
-        assert p.get_message(timeout=10)
-        assert p.get_message(timeout=10)
+        assert p.get_message(timeout=5)
+        assert p.get_message(timeout=5)
+        assert p.get_message(timeout=5)
 
-        # Prompt channel subscribers to pull notifications from orders application.
+
+An event was persisted by the simple application object, but a prompt hasn't been
+published. We could wait for followers to poll, but we can save time by publishing
+a prompt. So prompt all channel subscribers to pull notifications from the orders application.
+
+By prompting followers of the orders process, the reservations system will
+immediately pull the ``Order.Created`` event from the orders process's notification
+log, and its policy will cause it to create a reservation object, and so on until
+the order is paid.
+
+.. code:: python
+
         r.publish('orders', '')
 
-        # Wait for the results.
-        import time
-        with SimpleApplication(name='orders', setup_table=False) as app:
-            retries = 0
-            while retries < 40:
-                order = app.repository[order_id]
-                if app.repository[order_id].is_reserved:
-                    break
-                time.sleep(0.1)
-                retries += 1
-            else:
-                assert False
 
-            retries = 0
-            while retries < 40:
-                order = app.repository[order_id]
-                if app.repository[order_id].is_paid:
-                    break
-                time.sleep(0.1)
-                retries += 1
-            else:
-                assert False
+Wait for the results. The aggregate state can be polled. We could also pull notifications.
+
+.. code:: python
+
+        import time
+
+
+        retries = 100
+        while not app.repository[order_id].is_reserved:
+            time.sleep(0.1)
+            retries -= 1
+            assert retries, "Failed set order.is_reserved"
+
+        while retries and not app.repository[order_id].is_paid:
+            time.sleep(0.1)
+            retries -= 1
+            assert retries, "Failed set order.is_paid"
+
+
+Do it again.
+
+.. code:: python
+
+        # Create a new order.
+        order2_id = create_new_order()
+        assert order2_id in app.repository
+
+        retries = 100
+        while not app.repository[order2_id].is_reserved:
+            time.sleep(0.1)
+            retries -= 1
+            assert retries, "Failed set order.is_reserved"
+
+        while retries and not app.repository[order2_id].is_paid:
+            time.sleep(0.1)
+            retries -= 1
+            assert retries, "Failed set order.is_paid"
+
+
+The system's operating system processes can be terminated by sending a "kill" message.
+
+.. code:: python
+
 
         # Clean up.
+        app.close()
         r.publish('orders', 'KILL')
         r.publish('reservations', 'KILL')
         r.publish('payments', 'KILL')
@@ -364,12 +449,17 @@ process code).
             payments.terminate()
 
 
-The example above uses a single database for all of the processes in the system, but if the notifications for each
-process are presented in an API for others to read remotely, each process could use its own database.
+The example above uses a single database for all of the processes in the
+system, but if the notifications for each process are presented in an API
+for others to read remotely, each process could use its own database.
 
 
-.. Todo: "Splitting" process that has two applications, two different notification logs that can be consumed
-.. separately.
+.. Todo: "Instrument" the tracking records (with a notification log?) so we can
+.. measure how far behind downstream is processing events from upstream.
+
+.. Todo: Maybe a "splitting" process that has two applications, two
+.. different notification logs that can be consumed separately.
+
 
 
 Process DSL

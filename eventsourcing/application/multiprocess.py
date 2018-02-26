@@ -22,9 +22,9 @@ class OperatingSystemProcess(multiprocessing.Process):
         self.upstream_names = upstream_names
         self.daemon = True
 
-    # Configure to publish prompts to Redis.
-    def broadcast_prompt(self, event):
-        self.redis.publish(event.sender_process_name, event.end_position)
+    def broadcast_prompt(self, prompt):
+        assert isinstance(prompt, Prompt)
+        self.redis.publish(prompt.sender_process_name, prompt.end_position)
 
     @staticmethod
     def is_prompt(event):
@@ -39,7 +39,7 @@ class OperatingSystemProcess(multiprocessing.Process):
             self.process_name,
             policy=self.process_policy,
             persist_event_type=self.process_persist_event_type,
-            setup_table=False,
+            # setup_table=False,
         )
 
         # Follow upstream notification logs.
@@ -88,7 +88,8 @@ class OperatingSystemProcess(multiprocessing.Process):
     def run_loop_with_subscription(self):
         while True:
             # Note, get_message() returns immediately with None if timeout == 0.
-            item = self.pubsub.get_message(timeout=10, ignore_subscribe_messages=True)
+            timeout = 1
+            item = self.pubsub.get_message(timeout=timeout, ignore_subscribe_messages=True)
             if item is None:
                 # Bascially, we're polling after each timeout interval.
                 self.process.run()
