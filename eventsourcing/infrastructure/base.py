@@ -1,7 +1,6 @@
 from abc import ABCMeta, abstractmethod
 
 import six
-from sqlalchemy.exc import OperationalError
 
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import OperationalError, RecordIDConflict, SequencedItemConflict

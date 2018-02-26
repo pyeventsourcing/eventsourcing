@@ -3,7 +3,7 @@ from collections import OrderedDict
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.events import EventWithOriginatorID, publish, subscribe, unsubscribe
-from eventsourcing.exceptions import ConcurrencyError, SequencedItemConflict
+from eventsourcing.exceptions import ConcurrencyError, SequencedItemConflict, OperationalError
 from eventsourcing.infrastructure.base import RelationalRecordManager
 from eventsourcing.infrastructure.sqlalchemy.manager import TrackingRecordManager
 from eventsourcing.interface.notificationlog import NotificationLogReader
@@ -52,13 +52,16 @@ class Process(SimpleApplication):
     def follow(self, upstream_application_name, notification_log):
         # Create a reader.
         reader = NotificationLogReader(notification_log)
+        self.reset_position(reader, upstream_application_name)
+        self.readers[upstream_application_name] = reader
+
+    def reset_position(self, reader, upstream_application_name):
         max_record_id = self.tracking_record_manager.get_max_record_id(
             application_name=self.name,
             upstream_application_name=upstream_application_name,
         )
         current_position = max_record_id or 0
         reader.seek(current_position)
-        self.readers[upstream_application_name] = reader
 
     def run(self, prompt=None):
         notification_count = 0
@@ -70,25 +73,27 @@ class Process(SimpleApplication):
             # Todo: Change this to use a generator (rather than a list).
             continue_reading = True
             while continue_reading:
-                for notification in reader.read_items(advance_by=10):
-                    notification_count += 1
-                    # Domain event from notification.
-                    event = self.event_store.sequenced_item_mapper.from_topic_and_data(
-                        topic=notification['event_type'],
-                        data=notification['state']
-                    )
+                try:
+                    for notification in reader.read_items(advance_by=10):
+                        notification_count += 1
+                        # Domain event from notification.
+                        event = self.event_store.sequenced_item_mapper.from_topic_and_data(
+                            topic=notification['event_type'],
+                            data=notification['state']
+                        )
 
-                    # Execute the policy with the event.
-                    unsaved_aggregates, causal_dependencies = self.policy(event)
+                        # Execute the policy with the event.
+                        unsaved_aggregates, causal_dependencies = self.policy(event)
 
-                    # Write records.
-                    self.write_records(unsaved_aggregates, notification, self.name, upstream_application_name)
-                    # Todo: Use causal_dependencies to construct notification records (depends on notification
-                    # records).
+                        # Write records.
+                        self.write_records(unsaved_aggregates, notification, self.name, upstream_application_name)
+                        # Todo: Use causal_dependencies to construct notification records (depends on notification
+                        # records).
 
-                    # time.sleep(0.001)
-                else:
-                    continue_reading = False
+                    else:
+                        continue_reading = False
+                except (OperationalError, ConcurrencyError):
+                    self.reset_position(reader, upstream_application_name)
 
         # Publish a prompt if there are new notifications.
         if notification_count:

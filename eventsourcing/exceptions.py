@@ -74,7 +74,7 @@ class RecordIDConflict(SequencedItemConflict):
     "Raised when a record ID conflict is detected."
 
 
-class OperationalError(SequencedItemConflict):
+class OperationalError(EventSourcingError):
     "Raised when an operational error is encountered."
 
 

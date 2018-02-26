@@ -17,6 +17,7 @@ class OperatingSystemProcess(multiprocessing.Process):
         self.application_process_class = application_process_class
         self.upstream_names = upstream_names
         self.daemon = True
+        self.poll_interval = 1
 
     def broadcast_prompt(self, prompt):
         assert isinstance(prompt, Prompt)
@@ -81,8 +82,10 @@ class OperatingSystemProcess(multiprocessing.Process):
     def run_loop_with_subscription(self):
         while True:
             # Note, get_message() returns immediately with None if timeout == 0.
-            timeout = 1
-            item = self.pubsub.get_message(timeout=timeout, ignore_subscribe_messages=True)
+            item = self.pubsub.get_message(
+                timeout=self.poll_interval,
+                ignore_subscribe_messages=True,
+            )
             if item is None:
                 # Basically, we're polling after each timeout interval.
                 self.process.run()

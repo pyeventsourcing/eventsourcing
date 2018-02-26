@@ -380,7 +380,7 @@ Wait for the results, by polling the aggregate state.
 
             import time
 
-            retries = 100
+            retries = 1000
             while not app.repository[order_id].is_reserved:
                 time.sleep(0.1)
                 retries -= 1
@@ -396,9 +396,18 @@ Do it again.
 
 .. code:: python
 
+            import datetime
+
+            #started = datetime.datetime.now()
+
             # Create some new orders.
-            num = 5
-            order_ids = [create_new_order() for _ in range(5)]
+            #num = 500
+            num = 500
+            order_ids = []
+            for _ in range(num):
+                order_id = create_new_order()
+                order_ids.append(order_id)
+                r.publish('orders', '')
 
             r.publish('orders', '')
 
@@ -407,15 +416,17 @@ Do it again.
             for i, order_id in enumerate(order_ids):
 
                 while not app.repository[order_id].is_reserved:
-                    time.sleep(0.1)
+                    time.sleep(0.3)
                     retries -= 1
                     assert retries, "Failed set order.is_reserved ({})".format(i)
 
                 while retries and not app.repository[order_id].is_paid:
-                    time.sleep(0.1)
+                    time.sleep(0.3)
                     retries -= 1
                     assert retries, "Failed set order.is_paid ({})".format(i)
 
+
+            #raise Exception((datetime.datetime.now() - started).total_seconds() / float(num))
 
 The system's operating system processes can be terminated by sending a "kill" message.
 
@@ -443,8 +454,6 @@ The system's operating system processes can be terminated by sending a "kill" me
                 payments.terminate()
 
             app.close()
-
-
 
 
 The example above uses a single database for all of the processes in the
