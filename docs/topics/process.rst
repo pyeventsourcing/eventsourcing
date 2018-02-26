@@ -312,8 +312,9 @@ All the application processes share a single MySQL database.
 
     import os
 
-    os.environ['DB_URI'] = 'mysql+mysqlconnector://root:@127.0.0.1/eventsourcing'
     #os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
+    #os.environ['DB_URI'] = 'mysql+mysqlconnector://root:@127.0.0.1/eventsourcing'
+    os.environ['DB_URI'] = 'mysql+mysqldb://root:@127.0.0.1/eventsourcing'
 
 
 Redis is used to publish prompts, so downstream can pull new notifications without polling latency.
@@ -428,7 +429,7 @@ Do it again.
 
             # Create some new orders.
             #num = 500
-            num = 500
+            num = 5
             order_ids = []
             for _ in range(num):
                 order_id = create_new_order()
