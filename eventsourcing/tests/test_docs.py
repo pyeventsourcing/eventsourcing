@@ -5,6 +5,8 @@ from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
 from unittest.case import TestCase
 
+import six
+
 import eventsourcing
 
 base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
@@ -29,6 +31,11 @@ class TestDocs(TestCase):
         skipped = [
             # 'deployment.rst'
         ]
+        if six.PY2:
+            # Due to encoding problem with mysql-connected in Python 2,
+            # and screeds of warnings from mysqlclient in Python 3, I
+            # have selected to use mysql-connected and skip this test in Python 2.7.
+            skipped.append('process.rst')
 
         self._out = ''
         docs_path = os.path.join(base_dir, 'docs')
@@ -40,7 +47,7 @@ class TestDocs(TestCase):
         for dirpath, _, filenames in os.walk(docs_path):
             for name in filenames:
                 if name in skipped:
-                    continue
+                    print("Skipping {}".format(name))
                 # if name.endswith('.rst'):
                 # if name.endswith('aggregates_in_ddd.rst'):
                 # if name.endswith('example_application.rst'):
