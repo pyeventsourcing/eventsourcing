@@ -1,13 +1,13 @@
 import six
 from sqlalchemy import asc, bindparam, desc, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, InternalError, OperationalError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import func
 
-from eventsourcing.utils.uuids import uuid_from_application_name
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.base import RelationalRecordManager, AbstractTrackingRecordManager
+from eventsourcing.infrastructure.base import AbstractTrackingRecordManager, RelationalRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import NotificationTrackingRecord
+from eventsourcing.utils.uuids import uuid_from_application_name
 
 
 class SQLAlchemyRecordManager(RelationalRecordManager):
@@ -38,8 +38,11 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             self.session.commit()
         except IntegrityError as e:
             self.session.rollback()
-
             self.raise_after_integrity_error(e)
+
+        except (OperationalError, InternalError) as e:
+            self.session.rollback()
+            self.raise_after_operational_error(e)
 
         finally:
             self.session.close()

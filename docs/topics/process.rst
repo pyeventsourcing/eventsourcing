@@ -140,60 +140,9 @@ Firstly, event sourced aggregates are defined, for "order", "reservation", and "
             pass
 
 
-With the aggregates, the policies of the process can be defined.
-In general, policies respond to domain events by executing commands
+Define the processes. Policies respond to domain events by executing commands
 on aggregates.
 
-.. code:: python
-
-    def orders_policy(process, event):
-        unsaved_aggregates = []
-        causal_dependencies = []
-
-        if isinstance(event, Reservation.Created):
-            # Set order as reserved.
-            order = process.repository[event.order_id]
-            order.reserved()
-            unsaved_aggregates.append(order)
-
-        elif isinstance(event, Payment.Created):
-            # Set order as paid.
-            order = process.repository[event.order_id]
-            order.paid()
-            unsaved_aggregates.append(order)
-
-        return unsaved_aggregates, causal_dependencies
-
-
-    def reservations_policy(process, event):
-        unsaved_aggregates = []
-        causal_dependencies = []
-
-        if isinstance(event, Order.Created):
-            # Create a reservation.
-            reservation = Reservation.__create__(order_id=event.originator_id)
-            unsaved_aggregates.append(reservation)
-
-        return unsaved_aggregates, causal_dependencies
-
-
-    def payments_policy(process, event):
-        unsaved_aggregates = []
-        causal_dependencies = []
-
-        if isinstance(event, Order.Reserved):
-            # Create a payment.
-            payment = Payment.__create__(order_id=event.originator_id)
-            unsaved_aggregates.append(payment)
-
-        return unsaved_aggregates, causal_dependencies
-
-
-With the policies, the processes can be defined. They can be
-configured to follow each other. At least, the orders and the
-reservations processes follow each other. The payments and
-the orders processes also follow each other. However, the
-payments process does not follow the reservations process.
 
 .. Todo: Have a simpler example that just uses one process,
 .. instantiated without subclasses. Then defined these processes
@@ -203,29 +152,79 @@ payments process does not follow the reservations process.
 .. code:: python
 
     # Define processes, each uses its own in-memory database.
-    orders = Process('orders',
-        policy=orders_policy,
-        persist_event_type=Order.Event,
-    )
+    class Orders(Process):
+        persist_event_type=Order.Event
 
-    reservations = Process('reservations',
-        policy=reservations_policy,
-        persist_event_type=Reservation.Event,
-    )
+        def policy(self, event):
+            unsaved_aggregates = []
+            causal_dependencies = []
 
-    payments = Process('payments',
-        policy=payments_policy,
-        persist_event_type=Payment.Event,
-    )
+            if isinstance(event, Reservation.Created):
+                # Set order as reserved.
+                order = self.repository[event.order_id]
+                order.reserved()
+                unsaved_aggregates.append(order)
 
-    # Configure followers.
+            elif isinstance(event, Payment.Created):
+                # Set order as paid.
+                order = self.repository[event.order_id]
+                order.paid()
+                unsaved_aggregates.append(order)
+
+            return unsaved_aggregates, causal_dependencies
+
+
+    class Reservations(Process):
+        persist_event_type=Reservation.Event
+
+        def policy(self, event):
+            unsaved_aggregates = []
+            causal_dependencies = []
+
+            if isinstance(event, Order.Created):
+                # Create a reservation.
+                reservation = Reservation.__create__(order_id=event.originator_id)
+                unsaved_aggregates.append(reservation)
+
+            return unsaved_aggregates, causal_dependencies
+
+
+    class Payments(Process):
+        persist_event_type=Payment.Event
+
+        def policy(self, event):
+            unsaved_aggregates = []
+            causal_dependencies = []
+
+            if isinstance(event, Order.Reserved):
+                # Create a payment.
+                payment = Payment.__create__(order_id=event.originator_id)
+                unsaved_aggregates.append(payment)
+
+            return unsaved_aggregates, causal_dependencies
+
+
+    # Construct process applications, each uses its own in-memory database.
+    orders = Orders()
+    reservations = Reservations()
+    payments = Payments()
+
+
+Configure the orders and the reservations processes to follow
+each other. The payments and the orders processes also follow
+each other. However, the payments process does not follow the
+reservations process.
+
+.. code:: python
+
     orders.follow('reservations', reservations.notification_log)
-    orders.follow('payments', payments.notification_log)
     reservations.follow('orders', orders.notification_log)
+
+    orders.follow('payments', payments.notification_log)
     payments.follow('orders', orders.notification_log)
 
 
-Having set up the system of processes, we can run the system by
+Having set up a system of processes, we can run the system by
 publishing an event that it responds to. In the code below,
 a new order is created. The system responds by making a
 reservation and a payment, facts that are registered with
@@ -287,7 +286,8 @@ All the application processes share a single MySQL database.
 
     import os
 
-    os.environ['DB_URI'] = 'mysql://root:@127.0.0.1/eventsourcing'
+    os.environ['DB_URI'] = 'mysql+mysqlconnector://root:@127.0.0.1/eventsourcing'
+    #os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
 
 
 Redis is used to publish prompts, so downstream can pull new notifications without polling latency.
@@ -305,25 +305,18 @@ In this system, each application process runs in its own operating system proces
 
     from eventsourcing.application.multiprocess import OperatingSystemProcess
 
-    # Setup the system with multiple operating system processes.
     orders = OperatingSystemProcess(
-        process_name='orders',
-        process_policy=orders_policy,
-        process_persist_event_type=Order.Event,
+        application_process_class=Orders,
         upstream_names=['reservations', 'payments'],
     )
 
     reservations = OperatingSystemProcess(
-        process_name='reservations',
-        process_policy=reservations_policy,
-        process_persist_event_type=Reservation.Event,
+        application_process_class=Reservations,
         upstream_names=['orders'],
     )
 
     payments = OperatingSystemProcess(
-        process_name='payments',
-        process_policy=payments_policy,
-        process_persist_event_type=Payment.Event,
+        application_process_class=Payments,
         upstream_names=['orders'],
     )
 
@@ -342,10 +335,14 @@ Start the operating system processes.
 .. code:: python
 
 
-        # Start operating system processes.
-        orders.start()
-        reservations.start()
-        payments.start()
+        app = Process(name='orders', policy=None, persist_event_type=Order.Event)
+
+        try:
+
+            # Start operating system processes.
+            orders.start()
+            reservations.start()
+            payments.start()
 
 
 .. Todo: Find out why we timeout waiting for subscribers if the create_new_order code is moved below the following.
@@ -355,22 +352,10 @@ database tables for storing events and tracking records.
 
 .. code:: python
 
-        app = Process(name='orders', policy=None, persist_event_type=Order.Event)
 
-        order_id = create_new_order()
+            order_id = create_new_order()
 
-        assert order_id in app.repository
-
-
-Wait for followers to subscribe.
-
-.. code:: python
-
-        p = r.pubsub()
-        p.subscribe('orders')
-        assert p.get_message(timeout=5)
-        assert p.get_message(timeout=5)
-        assert p.get_message(timeout=5)
+            assert order_id in app.repository
 
 
 An event was persisted by the simple application object, but a prompt hasn't been
@@ -384,69 +369,82 @@ the order is paid.
 
 .. code:: python
 
-        r.publish('orders', '')
+            count = 0
+            while count < 2:
+                count += r.publish('orders', '')
 
 
-Wait for the results. The aggregate state can be polled. We could also pull notifications.
+Wait for the results, by polling the aggregate state.
 
 .. code:: python
 
-        import time
+            import time
 
+            retries = 100
+            while not app.repository[order_id].is_reserved:
+                time.sleep(0.1)
+                retries -= 1
+                assert retries, "Failed set order.is_reserved"
 
-        retries = 100
-        while not app.repository[order_id].is_reserved:
-            time.sleep(0.1)
-            retries -= 1
-            assert retries, "Failed set order.is_reserved"
-
-        while retries and not app.repository[order_id].is_paid:
-            time.sleep(0.1)
-            retries -= 1
-            assert retries, "Failed set order.is_paid"
+            while retries and not app.repository[order_id].is_paid:
+                time.sleep(0.1)
+                retries -= 1
+                assert retries, "Failed set order.is_paid"
 
 
 Do it again.
 
 .. code:: python
 
-        # Create a new order.
-        order2_id = create_new_order()
-        assert order2_id in app.repository
+            # Create some new orders.
+            num = 5
+            order_ids = [create_new_order() for _ in range(5)]
 
-        retries = 100
-        while not app.repository[order2_id].is_reserved:
-            time.sleep(0.1)
-            retries -= 1
-            assert retries, "Failed set order.is_reserved"
+            r.publish('orders', '')
 
-        while retries and not app.repository[order2_id].is_paid:
-            time.sleep(0.1)
-            retries -= 1
-            assert retries, "Failed set order.is_paid"
+            retries = num * 2
+
+            for i, order_id in enumerate(order_ids):
+
+                while not app.repository[order_id].is_reserved:
+                    time.sleep(0.1)
+                    retries -= 1
+                    assert retries, "Failed set order.is_reserved ({})".format(i)
+
+                while retries and not app.repository[order_id].is_paid:
+                    time.sleep(0.1)
+                    retries -= 1
+                    assert retries, "Failed set order.is_paid ({})".format(i)
 
 
 The system's operating system processes can be terminated by sending a "kill" message.
 
 .. code:: python
 
+        finally:
+            # Clean up.
+            r.publish('orders', 'KILL')
+            r.publish('reservations', 'KILL')
+            r.publish('payments', 'KILL')
 
-        # Clean up.
-        app.close()
-        r.publish('orders', 'KILL')
-        r.publish('reservations', 'KILL')
-        r.publish('payments', 'KILL')
+            print("Joining...")
 
-        print("Joining...")
+            orders.join(timeout=1)
+            reservations.join(timeout=1)
+            payments.join(timeout=1)
 
-        orders.join(timeout=10)
-        reservations.join(timeout=10)
-        payments.join(timeout=10)
+            if orders.is_alive:
+                orders.terminate()
 
-        if orders.is_alive or reservations.is_alive or payments.is_alive:
-            orders.terminate()
-            reservations.terminate()
-            payments.terminate()
+            if reservations.is_alive:
+                reservations.terminate()
+
+            if payments.is_alive:
+                payments.terminate()
+
+            app.close()
+
+
 
 
 The example above uses a single database for all of the processes in the

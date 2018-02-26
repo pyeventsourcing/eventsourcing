@@ -26,7 +26,7 @@ class TestSimpleApplication(TestCase):
 
             # Check the notifications.
             reader = NotificationLogReader(app.notification_log)
-            notifications = reader.read()
+            notifications = reader.read_list()
             self.assertEqual(1, len(notifications))
             topic = 'eventsourcing.tests.core_tests.test_aggregate_root#ExampleAggregateRoot.Created'
             self.assertEqual(topic, notifications[0]['event_type'])

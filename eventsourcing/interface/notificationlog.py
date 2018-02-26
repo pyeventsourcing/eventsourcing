@@ -8,7 +8,7 @@ import six
 
 from eventsourcing.domain.model.array import BigArray
 from eventsourcing.infrastructure.base import RelationalRecordManager
-from eventsourcing.utils.transcoding import ObjectJSONDecoder, json_dumps, ObjectJSONEncoder
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder, json_dumps
 
 
 class Section(object):
@@ -208,19 +208,19 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
         if isinstance(item, slice):
             assert item.start >= 0, item.start
             self.seek(item.start)
-            return self.get_items(item.stop)
+            return self.read_items(item.stop)
         else:
             assert isinstance(item, int), type(item)
             assert item >= 0, item
             self.seek(item)
-            return self.read(advance_by=1)[0]
+            return self.read_list(advance_by=1)[0]
 
     def __iter__(self):
-        return self.get_items()
+        return self.read_items()
 
     def __next__(self):
         try:
-            return self.read(advance_by=1)[0]
+            return self.read_list(advance_by=1)[0]
         except IndexError:
             raise StopIteration
 
@@ -235,7 +235,7 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
             raise ValueError("Position less than zero: {}".format(position))
         self.position = position
 
-    def get_items(self, stop_index=None, advance_by=None):
+    def read_items(self, stop_index=None, advance_by=None):
         self.section_count = 0
 
         start_item_num = self.position + 1
@@ -295,8 +295,11 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
             else:
                 break
 
+    def read_list(self, advance_by=None):
+        return list(self.read_items(advance_by=advance_by))
+
     def read(self, advance_by=None):
-        return list(self.get_items(advance_by=advance_by))
+        return self.read_list(advance_by=advance_by)
 
 
 class NotificationLogView(object):

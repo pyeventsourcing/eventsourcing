@@ -501,18 +501,21 @@ infrastructure classes for SQLAlchemy have been tested with MySQL, PostgreSQL, a
 MySQL
 ~~~~~
 
-For MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
+.. For MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
+.. can be used.
+
+For MySQL, the Python package `mysql-connector-python-rf <https://pypi.python.org/pypi/mysql-connector-python-rf>`__
 can be used.
 
 .. code::
 
-    $ pip install mysqlclient
+    $ pip install mysql-connector-python-rf
 
-The ``uri`` for MySQL would look something like this.
+The ``uri`` for MySQL used with this driver would look something like this.
 
 .. code::
 
-    mysql://username:password@localhost/eventsourcing
+    mysql+sqlconnector://username:password@localhost/eventsourcing
 
 
 PostgreSQL
@@ -525,11 +528,11 @@ can be used.
 
     $ pip install psycopg2
 
-The ``uri`` for PostgreSQL would look something like this.
+The ``uri`` for PostgreSQL used with this driver would look something like this.
 
 .. code::
 
-    postgresql://username:password@localhost:5432/eventsourcing
+    postgresql+psycopg2://username:password@localhost:5432/eventsourcing
 
 
 SQLite

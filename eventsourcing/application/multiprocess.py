@@ -3,7 +3,7 @@ import time
 
 import redis
 
-from eventsourcing.application.process import Process, Prompt
+from eventsourcing.application.process import Prompt
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
@@ -11,14 +11,10 @@ from eventsourcing.utils.uuids import uuid_from_application_name
 
 
 class OperatingSystemProcess(multiprocessing.Process):
-    application_process_class = Process
 
-    def __init__(self, process_name, process_policy, process_persist_event_type, upstream_names, *args, **kwargs):
+    def __init__(self, application_process_class, upstream_names, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
-
-        self.process_name = process_name
-        self.process_policy = process_policy
-        self.process_persist_event_type = process_persist_event_type
+        self.application_process_class = application_process_class
         self.upstream_names = upstream_names
         self.daemon = True
 
@@ -36,9 +32,6 @@ class OperatingSystemProcess(multiprocessing.Process):
 
         # Construct process.
         self.process = self.application_process_class(
-            self.process_name,
-            policy=self.process_policy,
-            persist_event_type=self.process_persist_event_type,
             # setup_table=False,
         )
 
@@ -91,7 +84,7 @@ class OperatingSystemProcess(multiprocessing.Process):
             timeout = 1
             item = self.pubsub.get_message(timeout=timeout, ignore_subscribe_messages=True)
             if item is None:
-                # Bascially, we're polling after each timeout interval.
+                # Basically, we're polling after each timeout interval.
                 self.process.run()
             elif item['type'] == 'message':
                 # Identify message, and take appropriate action.
@@ -119,7 +112,5 @@ class OperatingSystemProcess(multiprocessing.Process):
 
     def run_loop_with_sleep(self):
         while True:
-            if self.process.run():
-                time.sleep(.1)
-            else:
-                time.sleep(1)
+            self.process.run()
+            time.sleep(.1)

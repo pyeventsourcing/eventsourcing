@@ -1,9 +1,10 @@
 from abc import ABCMeta, abstractmethod
 
 import six
+from sqlalchemy.exc import OperationalError
 
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.exceptions import RecordIDConflict, SequencedItemConflict
+from eventsourcing.exceptions import OperationalError, RecordIDConflict, SequencedItemConflict
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 
 
@@ -18,7 +19,6 @@ class AbstractRecordManager(six.with_metaclass(ABCMeta)):
         if hasattr(self.record_class, 'application_id'):
             assert application_id, "'application_id' not set when required"
             assert contiguous_record_ids, "'contiguous_record_ids' not set when required"
-
 
     @abstractmethod
     def append(self, sequenced_item_or_items):
@@ -243,6 +243,14 @@ class RelationalRecordManager(AbstractRecordManager):
             elif 'duplicate key value violates unique constraint "{}_pkey"'.format(self.record_table_name) in error:
                 self.raise_record_id_conflict()
         self.raise_sequenced_item_conflict()
+
+    def raise_after_operational_error(self, e):
+        error = str(e)
+        if 'Deadlock found when trying to get lock' in error:
+            msg = "There was a record ID conflict"
+            raise RecordIDConflict(msg)
+        else:
+            raise OperationalError(e)
 
     @staticmethod
     def raise_record_id_conflict():

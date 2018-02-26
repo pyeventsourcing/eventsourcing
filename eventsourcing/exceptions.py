@@ -74,5 +74,9 @@ class RecordIDConflict(SequencedItemConflict):
     "Raised when a record ID conflict is detected."
 
 
+class OperationalError(SequencedItemConflict):
+    "Raised when an operational error is encountered."
+
+
 class TimeSequenceError(EventSourcingError):
     "Raised when a time sequence error occurs e.g. trying to save a timestamp that already exists."

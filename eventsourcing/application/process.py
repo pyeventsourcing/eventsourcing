@@ -19,11 +19,11 @@ class Prompt(object):
 class Process(SimpleApplication):
     tracking_record_manager_class = TrackingRecordManager
 
-    def __init__(self, name, policy, setup_table=True, session=None, persist_event_type=None, **kwargs):
+    def __init__(self, name=None, policy=None, setup_table=True, session=None, persist_event_type=None, **kwargs):
         persist_event_type = persist_event_type or AggregateRoot.Event
         super(Process, self).__init__(name=name, setup_table=setup_table, session=session,
                                       persist_event_type=persist_event_type, **kwargs)
-        self.policy = policy
+        self.policy_func = policy
         self.readers = OrderedDict()
 
         # Setup tracking records.
@@ -68,33 +68,36 @@ class Process(SimpleApplication):
                 continue
 
             # Todo: Change this to use a generator (rather than a list).
-            new_notifications = reader.read()
-            for notification in new_notifications:
-                notification_count += 1
-                # Domain event from notification.
-                event = self.event_store.sequenced_item_mapper.from_topic_and_data(
-                    topic=notification['event_type'],
-                    data=notification['state']
-                )
+            continue_reading = True
+            while continue_reading:
+                for notification in reader.read_items(advance_by=10):
+                    notification_count += 1
+                    # Domain event from notification.
+                    event = self.event_store.sequenced_item_mapper.from_topic_and_data(
+                        topic=notification['event_type'],
+                        data=notification['state']
+                    )
 
-                # Execute the policy with the event.
-                unsaved_aggregates, causal_dependencies = self.policy(self, event)
+                    # Execute the policy with the event.
+                    unsaved_aggregates, causal_dependencies = self.policy(event)
 
-                # Write records.
-                try:
+                    # Write records.
                     self.write_records(unsaved_aggregates, notification, self.name, upstream_application_name)
-                    # Todo: Use causal_dependencies to construct notification records (depends on notification records).
-                except Exception as e:
-                    if 'Deadlock' in str(e):
-                        pass
-                    else:
-                        raise
+                    # Todo: Use causal_dependencies to construct notification records (depends on notification
+                    # records).
+
+                    # time.sleep(0.001)
+                else:
+                    continue_reading = False
 
         # Publish a prompt if there are new notifications.
         if notification_count:
             self.publish_prompt()
 
         return notification_count
+
+    def policy(self, event):
+        return self.policy_func(self, event)
 
     def get_originator(self, event):
         assert isinstance(event, EventWithOriginatorID), type(event)
@@ -147,5 +150,3 @@ class Process(SimpleApplication):
         unsubscribe(predicate=self.is_upstream_prompt, handler=self.run)
         unsubscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt)
         super(Process, self).close()
-
-
