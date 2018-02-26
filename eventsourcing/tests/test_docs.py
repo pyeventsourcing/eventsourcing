@@ -48,6 +48,7 @@ class TestDocs(TestCase):
             for name in filenames:
                 if name in skipped:
                     print("Skipping {}".format(name))
+                    continue
                 # if name.endswith('.rst'):
                 # if name.endswith('aggregates_in_ddd.rst'):
                 # if name.endswith('example_application.rst'):
