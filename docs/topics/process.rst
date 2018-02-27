@@ -406,7 +406,7 @@ Wait for the results, by polling the aggregate state.
 
             import time
 
-            retries = 1000
+            retries = 100
             while not app.repository[order_id].is_reserved:
                 time.sleep(0.1)
                 retries -= 1
@@ -437,22 +437,22 @@ Do it again.
 
             r.publish('orders', '')
 
-            retries = num * 2
+            retries = num * 10
 
             for i, order_id in enumerate(order_ids):
 
                 while not app.repository[order_id].is_reserved:
-                    time.sleep(0.3)
+                    time.sleep(0.1)
                     retries -= 1
                     assert retries, "Failed set order.is_reserved ({})".format(i)
 
                 while retries and not app.repository[order_id].is_paid:
-                    time.sleep(0.3)
+                    time.sleep(0.1)
                     retries -= 1
                     assert retries, "Failed set order.is_paid ({})".format(i)
 
 
-            raise Exception((datetime.datetime.now() - started).total_seconds() / float(num))
+            #raise Exception((datetime.datetime.now() - started).total_seconds() / float(num))
 
 The system's operating system processes can be terminated by sending a "kill" message.
 

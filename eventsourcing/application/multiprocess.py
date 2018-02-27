@@ -12,12 +12,12 @@ from eventsourcing.utils.uuids import uuid_from_application_name
 
 class OperatingSystemProcess(multiprocessing.Process):
 
-    def __init__(self, application_process_class, upstream_names, *args, **kwargs):
+    def __init__(self, application_process_class, upstream_names, poll_interval=1, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
         self.upstream_names = upstream_names
         self.daemon = True
-        self.poll_interval = 1
+        self.poll_interval = poll_interval
 
     def broadcast_prompt(self, prompt):
         assert isinstance(prompt, Prompt)
@@ -99,10 +99,13 @@ class OperatingSystemProcess(multiprocessing.Process):
                     # Pull from upstream.
                     upstream_application_name = item['channel'].decode('utf8')
                     prompt = Prompt(upstream_application_name)
-                    if not self.process.run(prompt):
-                        # Have another go.
-                        time.sleep(0.01)
-                        self.process.run(prompt)
+
+                    self.process.run(prompt)
+
+                    # if not self.process.run(prompt):
+                    #     # Have another go.
+                    #     time.sleep(0.01)
+                    #     self.process.run(prompt)
 
                     # Todo: Check the reader position reflect the prompt notification ID.
                     # Todo: Replace above sleep with check the prompted notification is available (otherwise repeat).
