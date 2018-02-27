@@ -125,8 +125,6 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         assert limit is None or limit >= 1, limit
         try:
             filter_kwargs = {self.field_names.sequence_id: sequence_id}
-            #if hasattr(self.record_class, 'application_id'):
-            #    filter_kwargs['application_id'] = self.application_id
             query = self.filter(**filter_kwargs)
 
             position_field = getattr(self.record_class, self.field_names.position)

@@ -452,7 +452,9 @@ Do it again.
                     assert retries, "Failed set order.is_paid ({})".format(i)
 
 
-            #raise Exception((datetime.datetime.now() - started).total_seconds() / float(num))
+            print("Orders system processing time per-order: {:.3f}s".format(
+                (datetime.datetime.now() - started).total_seconds() / float(num)
+            ))
 
 The system's operating system processes can be terminated by sending a "kill" message.
 
@@ -463,8 +465,6 @@ The system's operating system processes can be terminated by sending a "kill" me
             r.publish('orders', 'KILL')
             r.publish('reservations', 'KILL')
             r.publish('payments', 'KILL')
-
-            print("Joining...")
 
             orders.join(timeout=1)
             reservations.join(timeout=1)
