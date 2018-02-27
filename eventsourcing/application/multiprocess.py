@@ -84,7 +84,6 @@ class OperatingSystemProcess(multiprocessing.Process):
             # Note, get_message() returns immediately with None if timeout == 0.
             item = self.pubsub.get_message(
                 timeout=self.poll_interval,
-                ignore_subscribe_messages=True,
             )
             if item is None:
                 # Basically, we're polling after each timeout interval.
@@ -110,6 +109,12 @@ class OperatingSystemProcess(multiprocessing.Process):
                     # Todo: Put the notification ID in the prompt?
                     # Todo: Put the whole notification in the prompt, so if it's the only thing we don't have,
                     # it can be processed.
+
+            elif item['type'] == 'subscribe':
+                pass
+            elif item['type'] == 'unsubscribe':
+                pass
+
             else:
                 raise Exception(item)
 

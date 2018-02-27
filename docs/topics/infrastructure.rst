@@ -505,7 +505,8 @@ MySQL
 .. can be used.
 
 For MySQL, the Python package `mysql-connector-python-rf <https://pypi.python.org/pypi/mysql-connector-python-rf>`__
-can be used.
+can be used (licenced GPL v2). Please note, I had problems running this driver with Python 2.7 (unicode error
+when it raises exceptions).
 
 .. code::
 
@@ -515,7 +516,34 @@ The ``uri`` for MySQL used with this driver would look something like this.
 
 .. code::
 
-    mysql+sqlconnector://username:password@localhost/eventsourcing
+    mysql+mysqlconnector://username:password@localhost/eventsourcing
+
+
+Alternatively for MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
+can be used (also licenced GPL v2). I didn't have problems using this driver with Python 2.7.
+
+.. code::
+
+    $ pip install mysqlclient
+
+The ``uri`` for MySQL used with this driver would look something like this.
+
+.. code::
+
+    mysql+mysqldb://username:password@localhost/eventsourcing
+
+
+Another alternative is `PyMySQL <https://pypi.python.org/pypi/PyMySQL>`__. It has a BSD licence.
+
+.. code::
+
+    $ pip install PyMySQL
+
+The ``uri`` for MySQL used with this driver would look something like this.
+
+.. code::
+
+    mysql+pymysql://username:password@localhost/eventsourcing
 
 
 PostgreSQL

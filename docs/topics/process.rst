@@ -424,11 +424,11 @@ Do it again.
 
             import datetime
 
-            #started = datetime.datetime.now()
+            started = datetime.datetime.now()
 
             # Create some new orders.
             #num = 500
-            num = 500
+            num = 15
             order_ids = []
             for _ in range(num):
                 order_id = create_new_order()
@@ -452,7 +452,7 @@ Do it again.
                     assert retries, "Failed set order.is_paid ({})".format(i)
 
 
-            #raise Exception((datetime.datetime.now() - started).total_seconds() / float(num))
+            raise Exception((datetime.datetime.now() - started).total_seconds() / float(num))
 
 The system's operating system processes can be terminated by sending a "kill" message.
 

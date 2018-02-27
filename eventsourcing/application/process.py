@@ -129,12 +129,20 @@ class Process(SimpleApplication):
         elif not isinstance(aggregates, (list, tuple)):
             aggregates = [aggregates]
         event_records = []
+
+        record_manager = self.event_store.record_manager
+
         for aggregate in aggregates:
             pending_events = aggregate.__batch_pending_events__()
             sequenced_items = self.event_store.to_sequenced_item(pending_events)
-            record_manager = self.event_store.record_manager
             assert isinstance(record_manager, RelationalRecordManager)
             event_records += record_manager.to_records(sequenced_items)
+
+        current_max = record_manager.get_max_record_id() or 0
+        for event_record in event_records:
+            current_max += 1
+            event_record.id = current_max
+
         return event_records
 
     def construct_tracking_record(self, notification, application_name, upstream_application_name):
