@@ -274,6 +274,14 @@ reservations process.
     orders.follow('payments', payments.notification_log)
     payments.follow('orders', orders.notification_log)
 
+It would be possible for the tracking records of one process to
+be presented as notification logs, so an upstream process
+pull information from downstream processes about their progress.
+This would allow upstream to delete notifications that have
+been processed downstream, and also perhaps the event records.
+Tracking records except the last can also be removed, if processing
+with a single thread, otherwise a sufficient history to block slow
+and stale threads from committing successfully could be chosen.
 
 Having set up a system of processes, we can run the system by
 publishing an event that it responds to. In the code below,
@@ -346,6 +354,13 @@ just as well with PostgreSQL.
 
 
 In this system, each application process runs in its own operating system process.
+The library's ``OperatingSystemProcess`` class extends ``multiprocessing.Process``.
+When is starts running, it constructs an application proces object, subscribes
+for upstream prompts, and loops on getting prompts from messsaging infrastructure.
+
+It uses Redis, but it could use any publish-subscribe mechanism. We could also
+use an actor framework to start operating system processes and send prompt
+messages directly to followers that have subscribed (just didn't get that far yet).
 
 .. code:: python
 
@@ -386,7 +401,7 @@ library to distinguish parent process code from child process code.
     if __name__ == '__main__':
 
 
-Start the operating system processes.
+Start the operating system processes (uses the multiprocessing library).
 
 .. code:: python
 
@@ -399,32 +414,38 @@ Start the operating system processes.
             payments.start()
 
 
-.. Todo: Find out why we timeout waiting for subscribers if the create_new_order code is moved below the following.
-
 A process application object can be used in the parent process to persist
-the new orders. We reuse the orders process application class, but it might
-be better to have a command logging process, and have the orders process
-follow the command process. Then each application would be running in just
-one thread. However in this example, two instances of the orders process
-are running concurrently
+Order events. The ``Orders`` process application class can be used. It might
+be better to have had a command logging process, and have the orders process
+follow the command process. Then, each application would be running in just
+one thread. However, in this example, two instances of the orders process
+are running concurrently, which means the library needs to be robust against
+notification log conflicts and branching the state of aggregate (which it is).
 
 .. code:: python
 
             app = Process(name='orders', policy=None, persist_event_type=Order.Event)
 
 
-This ``app`` is working concurrently with the ``orders`` process
-that is running in the operating system process we just started. That
-means when we create orders, we might conflict with notification log entries
-written by the other orders process, as it responds to reservations and payments.
-The other process may encounter the same kind of conflict.
+This ``app`` will be working concurrently with the ``orders`` process
+that is running in the operating system process that was started in the
+previous step. Because there are two instances of the ``Orders`` process,
+each may make changes at the same time to the same aggregates, and
+there may be conflicts writing to the notification log. Since the conflicts
+will causes database transactions to rollback, and commands to be restarted,
+it isn't a very good design, but it still works because the process is reliable.
 
-Conflicts, and also operation errors, can be usefully retried. That is why
-the ``retry`` decorator is applied to the ``create_new_order()`` factory, above.
-For the same reason the ``@retry`` decorator is applied the ``run()`` method
-of the process application class ``Process``. In extreme circumstances, these
+The ``retry`` decorator is applied to the ``create_new_order()`` factory, so
+that when conflicts are encountered, the operation can be retried. For the
+same reason, the ``@retry`` decorator is applied the ``run()`` method
+of the process application class, ``Process``. In extreme circumstances, these
 retries will be exhausted, and the original exception will be reraised by the
-decorator.
+decorator. Obviously, if that happened in this example, the ``create_new_order()``
+call would fail, and so the code would terminate. But the ``OperatingSystemProcess``
+class has a loop that is robust to normal exceptions, and so if the application
+process ``run()`` method exhausts its retries, the operating system process loop
+will continue, calling the application indefinitely until the operating system
+process is terminated.
 
 .. code:: python
 
@@ -437,16 +458,17 @@ An event was persisted by the simple application object, but a prompt hasn't bee
 published. We could wait for followers to poll, but we can save time by publishing
 a prompt.
 
+.. code:: python
+
+            # Wait for the two followers to subscribe.
+            while r.publish('orders', '') < 2:
+                pass
+
+
 By prompting followers of the orders process, the reservations system will
 immediately pull the ``Order.Created`` event from the orders process's notification
 log, and its policy will cause it to create a reservation object, and so on until
 the order is paid.
-
-.. code:: python
-
-            count = 0
-            while count < 2:
-                count += r.publish('orders', '')
 
 
 Wait for the results, by polling the aggregate state.
@@ -454,7 +476,6 @@ Wait for the results, by polling the aggregate state.
 .. code:: python
 
             import time
-
 
             retries = 100
             while not app.repository[order_id].is_reserved:
@@ -478,7 +499,7 @@ Do it again, lots of times.
 
             # Create some new orders.
             #num = 500
-            num = 1
+            num = 25
             order_ids = []
             for _ in range(num):
                 order_id = create_new_order()
