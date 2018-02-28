@@ -16,6 +16,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def __init__(self, session, *args, **kwargs):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
+    def invalidate_max_record_id(self):
+        self._max_record_id = None
 
     def _write_records(self, records, tracking_record=None):
         try:
@@ -25,11 +27,6 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                     # Add tracking record to session.
                     params = {c: getattr(tracking_record, c) for c in self.tracking_record_field_names}
                     connection.execute(self.insert_tracking_record, **params)
-
-                    # self.session.add(tracking_record)
-
-                    # self.session.flush()
-                    # raise Exception('blah')
 
                 for record in records:
                     if hasattr(self.record_class, 'id') and record.id is None and self.contiguous_record_ids:
@@ -215,16 +212,12 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         finally:
             self.session.close()
 
-    # def get_max_record_id(self):
-    #     return self.session.query(func.max(self.record_class.id)).scalar()
-
     def get_max_record_id(self):
         query = self.session.query(func.max(self.record_class.id))
         if hasattr(self.record_class, 'application_id'):
             assert self.application_id, "application_id not set when required"
             query = query.filter(self.record_class.application_id == self.application_id)
-        max_id = query.scalar()
-        return max_id
+        return query.scalar()
 
     def delete_record(self, record):
         """

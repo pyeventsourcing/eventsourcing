@@ -121,21 +121,23 @@ Event sourced aggregates are defined, for "order", "reservation", and "payment".
         class Created(Event, AggregateRoot.Created):
             pass
 
-        def reserved(self):
-            self.__trigger_event__(Order.Reserved)
+        def set_is_reserved(self, reservation_id):
+            self.__trigger_event__(Order.Reserved, reservation_id=reservation_id)
 
         class Reserved(Event):
             def mutate(self, order):
                 assert not order.is_reserved, "Order {} already reserved.".format(order.id)
                 order.is_reserved = True
+                order.reservation_id = self.reservation_id
 
-        def paid(self):
-            self.__trigger_event__(self.Paid)
+        def set_is_paid(self, payment_id):
+            self.__trigger_event__(self.Paid, payment_id=payment_id)
 
         class Paid(Event):
             def mutate(self, order):
                 assert not order.is_paid, "Order {} already paid.".format(order.id)
                 order.is_paid = True
+                order.payment_id = self.payment_id
 
     from eventsourcing.domain.model.decorators import retry
     from eventsourcing.exceptions import OperationalError, RecordConflictError
@@ -152,6 +154,10 @@ Event sourced aggregates are defined, for "order", "reservation", and "payment".
             super(Reservation, self).__init__(**kwargs)
             self.order_id = order_id
 
+        @classmethod
+        def create(cls, order_id):
+            return cls.__create__(order_id=order_id)
+
         class Event(AggregateRoot.Event):
             pass
 
@@ -163,6 +169,10 @@ Event sourced aggregates are defined, for "order", "reservation", and "payment".
         def __init__(self, order_id, **kwargs):
             super(Payment, self).__init__(**kwargs)
             self.order_id = order_id
+
+        @classmethod
+        def make(self, order_id):
+            return self.__create__(order_id=order_id)
 
         class Event(AggregateRoot.Event):
             pass
@@ -192,15 +202,18 @@ on aggregates.
             causal_dependencies = []
 
             if isinstance(event, Reservation.Created):
+
                 # Set order as reserved.
-                order = self.repository[event.order_id]
-                order.reserved()
+                reservation = self.get_originator(event, use_cache=False)
+                order = self.get_originator(reservation.order_id)
+                order.set_is_reserved(reservation.id)
                 unsaved_aggregates.append(order)
 
             elif isinstance(event, Payment.Created):
                 # Set order as paid.
-                order = self.repository[event.order_id]
-                order.paid()
+                payment = self.get_originator(event, use_cache=False)
+                order = self.get_originator(payment.order_id)
+                order.set_is_paid(payment.id)
                 unsaved_aggregates.append(order)
 
             return unsaved_aggregates, causal_dependencies
@@ -218,7 +231,7 @@ on aggregates.
                 order = self.repository[event.originator_id]
 
                 # Create a reservation.
-                reservation = Reservation.__create__(order_id=order.id)
+                reservation = Reservation.create(order_id=order.id)
                 unsaved_aggregates.append(reservation)
 
             return unsaved_aggregates, causal_dependencies
@@ -232,8 +245,11 @@ on aggregates.
             causal_dependencies = []
 
             if isinstance(event, Order.Reserved):
-                # Create a payment.
-                payment = Payment.__create__(order_id=event.originator_id)
+                # Get details of the order (alternative method).
+                order = self.get_originator(event, use_cache=False)
+
+                # Make a payment.
+                payment = Payment.make(order_id=order.id)
                 unsaved_aggregates.append(payment)
 
             return unsaved_aggregates, causal_dependencies
@@ -462,14 +478,12 @@ Do it again, lots of times.
 
             # Create some new orders.
             #num = 500
-            num = 15
+            num = 1
             order_ids = []
             for _ in range(num):
                 order_id = create_new_order()
                 order_ids.append(order_id)
                 r.publish('orders', '')
-
-            r.publish('orders', '')
 
             retries = num * 10
             #retries = num * 20  # need more time for chaos injection
@@ -486,9 +500,10 @@ Do it again, lots of times.
                     retries -= 1
                     assert retries, "Failed set order.is_paid ({})".format(i)
 
-
-            print("Orders system processed {} orders at rate of {:.2f} orders/s".format(
-                num, float(num) / (datetime.datetime.now() - started).total_seconds()
+            duration = (datetime.datetime.now() - started).total_seconds()
+            rate = float(num) / duration
+            print("Orders system processed {} orders in {:.2f}s at rate of {:.2f} orders/s".format(
+                num, duration, rate
             ))
 
 The system's operating system processes can be terminated by sending a "kill" message.

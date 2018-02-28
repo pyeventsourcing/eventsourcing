@@ -73,18 +73,21 @@ class OperatingSystemProcess(multiprocessing.Process):
         # Loop.
         subscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
         try:
-            self.run_loop_with_subscription()
-            # self.run_loop_with_sleep()
+            while True:
+                try:
+                    self.run_loop_with_subscription()
+                    # self.run_loop_with_sleep()
+                except Exception as e:
+                    # Todo: Log this, or stderr?
+                    print("Caught exception: {}".format(e))
 
         finally:
             unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
 
     def run_loop_with_subscription(self):
         while True:
-            # Note, get_message() returns immediately with None if timeout == 0.
-            item = self.pubsub.get_message(
-                timeout=self.poll_interval,
-            )
+            # Note, get_message() returns immediately with None if timeout=0.
+            item = self.pubsub.get_message(timeout=self.poll_interval)
             if item is None:
                 # Basically, we're polling after each timeout interval.
                 self.process.run()
@@ -102,10 +105,6 @@ class OperatingSystemProcess(multiprocessing.Process):
 
                     self.process.run(prompt)
 
-                    # if not self.process.run(prompt):
-                    #     # Have another go.
-                    #     time.sleep(0.01)
-                    #     self.process.run(prompt)
 
                     # Todo: Check the reader position reflect the prompt notification ID.
                     # Todo: Replace above sleep with check the prompted notification is available (otherwise repeat).
