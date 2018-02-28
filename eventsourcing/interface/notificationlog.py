@@ -235,6 +235,9 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
             raise ValueError("Position less than zero: {}".format(position))
         self.position = position
 
+    def read(self, advance_by=None):
+        return self.read_items(advance_by=advance_by)
+
     def read_items(self, stop_index=None, advance_by=None):
         self.section_count = 0
 
@@ -297,9 +300,6 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
 
     def read_list(self, advance_by=None):
         return list(self.read_items(advance_by=advance_by))
-
-    def read(self, advance_by=None):
-        return self.read_list(advance_by=advance_by)
 
 
 class NotificationLogView(object):

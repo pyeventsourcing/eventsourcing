@@ -1,9 +1,9 @@
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 from eventsourcing.application.simple import SimpleApplication
-from eventsourcing.domain.model.aggregate import AggregateRoot
+from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import EventWithOriginatorID, publish, subscribe, unsubscribe
-from eventsourcing.exceptions import ConcurrencyError, SequencedItemConflict, OperationalError
+from eventsourcing.exceptions import OperationalError, RecordConflictError, PromptFailed
 from eventsourcing.infrastructure.base import RelationalRecordManager
 from eventsourcing.infrastructure.sqlalchemy.manager import TrackingRecordManager
 from eventsourcing.interface.notificationlog import NotificationLogReader
@@ -20,11 +20,11 @@ class Process(SimpleApplication):
     tracking_record_manager_class = TrackingRecordManager
 
     def __init__(self, name=None, policy=None, setup_table=True, session=None, persist_event_type=None, **kwargs):
-        persist_event_type = persist_event_type or AggregateRoot.Event
         super(Process, self).__init__(name=name, setup_table=setup_table, session=session,
                                       persist_event_type=persist_event_type, **kwargs)
         self.policy_func = policy
         self.readers = OrderedDict()
+        self.is_reader_position_ok = defaultdict(bool)
 
         # Setup tracking records.
         self.tracking_record_manager = self.tracking_record_manager_class(self.datastore.session)
@@ -47,53 +47,65 @@ class Process(SimpleApplication):
             sender_process_name=self.name,
             # end_position=self.notification_log.get_end_position()
         )
-        publish(prompt)
+        try:
+            publish(prompt)
+        except Exception as e:
+            raise PromptFailed(e)
 
     def follow(self, upstream_application_name, notification_log):
         # Create a reader.
         reader = NotificationLogReader(notification_log)
-        self.reset_position(reader, upstream_application_name)
         self.readers[upstream_application_name] = reader
 
-    def reset_position(self, reader, upstream_application_name):
+    def set_reader_position_from_tracking_records(self, reader, upstream_application_name):
         max_record_id = self.tracking_record_manager.get_max_record_id(
             application_name=self.name,
             upstream_application_name=upstream_application_name,
         )
         current_position = max_record_id or 0
+        print("Setting '{}' reader in '{}' process to position: {}".format(
+            upstream_application_name, self.name, current_position)
+        )
         reader.seek(current_position)
 
+    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
     def run(self, prompt=None):
+
+        if prompt is None:
+            readers_items = self.readers.items()
+        else:
+            readers_items = [(prompt.sender_process_name, self.readers[prompt.sender_process_name])]
+
         notification_count = 0
-        for upstream_application_name, reader in self.readers.items():
+        for upstream_application_name, reader in readers_items:
+
+            if not self.is_reader_position_ok[upstream_application_name]:
+                self.set_reader_position_from_tracking_records(reader, upstream_application_name)
+                self.is_reader_position_ok[upstream_application_name] = True
 
             if prompt and prompt.sender_process_name != upstream_application_name:
                 continue
 
-            # Todo: Change this to use a generator (rather than a list).
-            continue_reading = True
-            while continue_reading:
+            for notification in reader.read():
+                notification_count += 1
+                # Domain event from notification.
+                event = self.event_store.sequenced_item_mapper.from_topic_and_data(
+                    topic=notification['event_type'],
+                    data=notification['state']
+                )
+
+                # Call policy with the event.
+                unsaved_aggregates, causal_dependencies = self.policy(event)
+
+                # Write records.
                 try:
-                    for notification in reader.read_items(advance_by=10):
-                        notification_count += 1
-                        # Domain event from notification.
-                        event = self.event_store.sequenced_item_mapper.from_topic_and_data(
-                            topic=notification['event_type'],
-                            data=notification['state']
-                        )
+                    self.write_records(unsaved_aggregates, notification, self.name, upstream_application_name)
+                except:
+                    self.is_reader_position_ok[upstream_application_name] = False
+                    raise
 
-                        # Execute the policy with the event.
-                        unsaved_aggregates, causal_dependencies = self.policy(event)
-
-                        # Write records.
-                        self.write_records(unsaved_aggregates, notification, self.name, upstream_application_name)
-                        # Todo: Use causal_dependencies to construct notification records (depends on notification
-                        # records).
-
-                    else:
-                        continue_reading = False
-                except (OperationalError, ConcurrencyError):
-                    self.reset_position(reader, upstream_application_name)
+                # Todo: Use causal_dependencies to construct notification records (depends on notification
+                # records).
 
         # Publish a prompt if there are new notifications.
         if notification_count:
@@ -118,10 +130,7 @@ class Process(SimpleApplication):
         # Write event records with tracking record.
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, RelationalRecordManager)
-        try:
-            record_manager.write_records(records=event_records, tracking_record=tracking_record)
-        except SequencedItemConflict as e:
-            raise ConcurrencyError(e)
+        record_manager.write_records(records=event_records, tracking_record=tracking_record)
 
     def construct_event_records(self, aggregates):
         if aggregates is None:

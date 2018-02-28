@@ -2,8 +2,7 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.domain.model.decorators import retry
-from eventsourcing.exceptions import OperationalError, RecordIDConflict, SequencedItemConflict
+from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 
 
@@ -85,18 +84,29 @@ class AbstractRecordManager(six.with_metaclass(ABCMeta)):
 
     def raise_sequenced_item_conflict(self):
         msg = "Position already taken in sequence"
-        raise SequencedItemConflict(msg)
+        raise RecordConflictError(msg)
 
     def raise_index_error(self, eq):
         raise IndexError("Sequence index out of range: {}".format(eq))
 
 
 class RelationalRecordManager(AbstractRecordManager):
+    tracking_record_class = None
+
+    tracking_record_field_names = [
+        'application_id',
+        'upstream_application_id',
+        'partition_id',
+        'notification_id',
+        'originator_id',
+        'originator_version',
+    ]
 
     def __init__(self, *args, **kwargs):
         super(RelationalRecordManager, self).__init__(*args, **kwargs)
         self._insert_select_max = None
         self._insert_values = None
+        self._insert_tracking_record = None
 
     def append(self, sequenced_item_or_items):
         # Convert sequenced item(s) to database record(s).
@@ -112,16 +122,15 @@ class RelationalRecordManager(AbstractRecordManager):
             records = [self.to_record(sequenced_item_or_items)]
         return records
 
-    @retry(RecordIDConflict, max_attempts=100, wait=0.005)
     def write_records(self, records, tracking_record=None):
         """
         Calls _write_records() implemented by concrete classes.
 
-        Retries call in case of a RecordIDConflict.
         :param tracking_record:
         """
         self._write_records(records, tracking_record=tracking_record)
 
+    # Todo: Remove this now that we have no retry decorator on above.
     @abstractmethod
     def _write_records(self, records, tracking_record=None):
         """
@@ -140,11 +149,15 @@ class RelationalRecordManager(AbstractRecordManager):
                 tmpl = self._insert_select_max_where_application_id_tmpl
             else:
                 tmpl = self._insert_select_max_tmpl
-            self._insert_select_max = self._prepare_insert(tmpl)
+            self._insert_select_max = self._prepare_insert(
+                tmpl=tmpl,
+                record_class=self.record_class,
+                field_names=list(self.field_names),
+            )
         return self._insert_select_max
 
     @abstractmethod
-    def _prepare_insert(self, tmpl, placeholder_for_id=False):
+    def _prepare_insert(self, tmpl, record_class, field_names, placeholder_for_id=False):
         """
         Compile SQL statement with placeholders for bind parameters.
         """
@@ -170,8 +183,24 @@ class RelationalRecordManager(AbstractRecordManager):
             self._insert_values = self._prepare_insert(
                 tmpl=self._insert_values_tmpl,
                 placeholder_for_id=True,
+                record_class=self.record_class,
+                field_names=self.field_names,
             )
         return self._insert_values
+
+    @property
+    def insert_tracking_record(self):
+        """
+        SQL statement that inserts tracking records.
+        """
+        if self._insert_tracking_record is None:
+            self._insert_tracking_record = self._prepare_insert(
+                tmpl=self._insert_values_tmpl,
+                placeholder_for_id=True,
+                record_class=self.tracking_record_class,
+                field_names=self.tracking_record_field_names,
+            )
+        return self._insert_tracking_record
 
     _insert_values_tmpl = (
         "INSERT INTO {tablename} ({columns}) "
@@ -215,52 +244,33 @@ class RelationalRecordManager(AbstractRecordManager):
     def get_max_record_id(self):
         """Return maximum ID of existing records."""
 
-    @property
     @abstractmethod
-    def record_table_name(self):
+    def get_record_table_name(self, record_class):
         """
-        Returns table name - used in raw queries,
-        and to detect record ID conflicts.
+        Returns table name - used in raw queries.
 
         :rtype: str
         """
 
-    def raise_after_integrity_error(self, e):
-        error = str(e)
+    def raise_record_integrity_error(self, e):
+        raise RecordConflictError(e)
 
-        # Try to identify record ID conflicts.
-        if self.contiguous_record_ids:
+    def raise_operational_error(self, e):
+        raise OperationalError(e)
+        # error = str(e)
+        # if 'Deadlock found when trying to get lock' in error:
+        #     msg = "There was a record ID conflict"
+        #     raise RecordIDConflict(msg)
+        # else:
+        #     raise OperationalError(e)
 
-            # Todo: Identify other constraints (tracking conflict, notification record conflict)...
-            # Todo: if hasattr('id', self.record_class):
-
-            # Assume record ID is primary key.
-            #  - SQLite
-            if "UNIQUE constraint failed: {}.id".format(self.record_table_name) in error:
-                self.raise_record_id_conflict()
-            #  - MySQL
-            elif 'Duplicate entry' in error and "for key 'PRIMARY'" in error:
-                self.raise_record_id_conflict()
-            #  - PostgreSQL
-            elif 'duplicate key value violates unique constraint "{}_pkey"'.format(self.record_table_name) in error:
-                self.raise_record_id_conflict()
-        self.raise_sequenced_item_conflict()
-
-    def raise_after_operational_error(self, e):
-        error = str(e)
-        if 'Deadlock found when trying to get lock' in error:
-            msg = "There was a record ID conflict"
-            raise RecordIDConflict(msg)
-        else:
-            raise OperationalError(e)
-
-    @staticmethod
-    def raise_record_id_conflict():
-        """
-        Raises RecordIDConflict exception.
-        """
-        msg = "There was a record ID conflict"
-        raise RecordIDConflict(msg)
+    # @staticmethod
+    # def raise_record_id_conflict():
+    #     """
+    #     Raises RecordIDConflict exception.
+    #     """
+    #     msg = "There was a record ID conflict"
+    #     raise RecordIDConflict(msg)
 
 
 class AbstractTrackingRecordManager(six.with_metaclass(ABCMeta)):

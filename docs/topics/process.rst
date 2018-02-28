@@ -106,6 +106,9 @@ Firstly, event sourced aggregates are defined, for "order", "reservation", and "
 
 .. code:: python
 
+    import os
+    os.environ['DB_URI'] = 'mysql+mysqlconnector://root:@127.0.0.1/eventsourcing'
+
 
     from eventsourcing.domain.model.aggregate import AggregateRoot
 
@@ -127,6 +130,7 @@ Firstly, event sourced aggregates are defined, for "order", "reservation", and "
 
         class Reserved(Event):
             def mutate(self, order):
+                assert not order.is_reserved, "Order {} already reserved.".format(order.id)
                 order.is_reserved = True
 
         def paid(self):
@@ -134,8 +138,13 @@ Firstly, event sourced aggregates are defined, for "order", "reservation", and "
 
         class Paid(Event):
             def mutate(self, order):
+                assert not order.is_paid, "Order {} already paid.".format(order.id)
                 order.is_paid = True
 
+    from eventsourcing.domain.model.decorators import retry
+    from eventsourcing.exceptions import OperationalError, RecordConflictError
+
+    @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
     def create_new_order():
         order = Order.__create__()
         order.__save__()
@@ -257,6 +266,7 @@ reservation and a payment, facts that are registered with
 the order.
 
 .. code:: python
+
 
     # Create new Order aggregate.
     order_id = create_new_order()
@@ -406,6 +416,7 @@ Wait for the results, by polling the aggregate state.
 
             import time
 
+
             retries = 100
             while not app.repository[order_id].is_reserved:
                 time.sleep(0.1)
@@ -428,7 +439,7 @@ Do it again.
 
             # Create some new orders.
             #num = 500
-            num = 15
+            num = 40
             order_ids = []
             for _ in range(num):
                 order_id = create_new_order()
@@ -438,13 +449,14 @@ Do it again.
             r.publish('orders', '')
 
             retries = num * 10
+            #retries = num * 20  # need more time for chaos injection
 
             for i, order_id in enumerate(order_ids):
 
                 while not app.repository[order_id].is_reserved:
                     time.sleep(0.1)
                     retries -= 1
-                    assert retries, "Failed set order.is_reserved ({})".format(i)
+                    assert retries, "Failed set order.is_reserved {} ({})".format(order_id, i)
 
                 while retries and not app.repository[order_id].is_paid:
                     time.sleep(0.1)

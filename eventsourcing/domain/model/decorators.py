@@ -11,7 +11,7 @@ except ImportError:
     from singledispatch import singledispatch
 
 from eventsourcing.domain.model.events import subscribe
-from eventsourcing.exceptions import ProgrammingError
+from eventsourcing.exceptions import ProgrammingError, TooManyRetries
 
 
 def subscribe_to(*event_classes):
@@ -164,13 +164,15 @@ def retry(exc=Exception, max_attempts=1, wait=0):
             while True:
                 try:
                     return func(*args, **kwargs)
-                except exc:
+                except exc as e:
                     attempts += 1
-                    if attempts < max_attempts:
+                    if max_attempts is None or attempts < max_attempts:
                         sleep(wait * (1 + 0.1 * (random() - 0.5)))
+                        print("Retry attempt: {}: {}".format(attempts, e))
                     else:
+                        print("Too many retries: {}: {}".format(attempts, e))
                         # Max retries exceeded.
-                        raise
+                        raise TooManyRetries(e)
 
         return wrapper
 
