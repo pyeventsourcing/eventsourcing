@@ -74,10 +74,6 @@ class DatasourceSettingsError(EventSourcingError):
     "Raised when an error is detected in settings for a datasource."
 
 
-class TooManyRetries(EventSourcingError):
-    "Raised after too many retries."
-
-
 class OperationalError(EventSourcingError):
     "Raised when an operational error is encountered."
 

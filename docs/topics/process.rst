@@ -102,13 +102,9 @@ The example below is suggestive of an orders-reservations-payments system.
 The system automatically processes new orders by making a reservation, and
 automatically makes a payment whenever an order is reserved.
 
-Firstly, event sourced aggregates are defined, for "order", "reservation", and "payment".
+Event sourced aggregates are defined, for "order", "reservation", and "payment".
 
 .. code:: python
-
-    import os
-    os.environ['DB_URI'] = 'mysql+mysqlconnector://root:@127.0.0.1/eventsourcing'
-
 
     from eventsourcing.domain.model.aggregate import AggregateRoot
 
@@ -175,7 +171,8 @@ Firstly, event sourced aggregates are defined, for "order", "reservation", and "
             pass
 
 
-Define the processes. Policies respond to domain events by executing commands
+There application processes are defined to use the aggregates,
+with policies that respond to domain events by executing commands
 on aggregates.
 
 
@@ -217,8 +214,11 @@ on aggregates.
             causal_dependencies = []
 
             if isinstance(event, Order.Created):
+                # Get details of the order.
+                order = self.repository[event.originator_id]
+
                 # Create a reservation.
-                reservation = Reservation.__create__(order_id=event.originator_id)
+                reservation = Reservation.__create__(order_id=order.id)
                 unsaved_aggregates.append(reservation)
 
             return unsaved_aggregates, causal_dependencies
@@ -239,10 +239,10 @@ on aggregates.
             return unsaved_aggregates, causal_dependencies
 
 
-    # Construct process applications, each uses its own in-memory database.
+    # Construct process applications, each uses the same in-memory database.
     orders = Orders()
-    reservations = Reservations()
-    payments = Payments()
+    reservations = Reservations(session=orders.session)
+    payments = Payments(session=orders.session)
 
 
 Configure the orders and the reservations processes to follow
@@ -263,7 +263,9 @@ Having set up a system of processes, we can run the system by
 publishing an event that it responds to. In the code below,
 a new order is created. The system responds by making a
 reservation and a payment, facts that are registered with
-the order.
+the order. Everything happens synchronously in a single
+thread, so by the time the ``create_new_order()`` factory
+has returned, the system has already processed the order.
 
 .. code:: python
 
@@ -292,31 +294,32 @@ The system above runs in a single thread, but it could also be distributed.
 Distributed system
 ------------------
 
-The processes defined above could run in different threads in a single process.
-Those threads could run in different processes on a single node. Those process
-could run on different nodes in a network.
+The application processes above could be run in different threads in a
+single process. Those threads could run in different processes on a
+single node. Those process could run on different nodes in a network.
 
-Each thread could run a loop that makes a call for prompts pushed via
-messaging infrastructure. The prompts can be responded to be pulling
-from the prompting channel. The call for new messages can timeout,
-and the timeout can be handled by pulling any new notifications from
-all upstream notification logs, so that effectively the notification log
-is polled at a regular interval whenever there are no prompts.
+If there are many threads, each thread could run a loop that begins by
+making a call to messaging infrastructure for prompts pushed from upstream
+via messaging infrastructure. Prompts can be responded to immediately
+by pulling new notifications. If the call to get new prompts times out,
+any new notifications from upstream notification logs can be pulled, so
+that the notification log is effectively polled at a regular interval
+whenever there are no prompts. This protects against failed push.
 
 The process applications could all use the same single database, or they
 could each use their own database. If the process applications of a system
-use different databases, they can still read each other's notification
-log object.
+in the same operating system processes use different databases, they can
+still use each other's notification log object.
 
-Using multiple operating system processes is similar to multi-threading
-in a single process. Multiple operating system processes could share
-the same database, just not the same in-memory database. They could also
-use different databases, even in an memory database, but its notification
-log would need to be presented in an API and its readers would need to
-use a remote notification log object to pull notifications from the API.
+Using multiple operating system processes is similar to multi-threading,
+each process will run a thead that runs a loop. Multiple operating system
+processes could share the same database. They could also use different
+databases, but then the notification logs may need to be presented in
+an API and its readers may need to to pull notifications from the API.
 
 The example below shows a system with multiple operating system processes.
-All the application processes share a single MySQL database.
+All the application processes share one MySQL database. The example works
+just as well with PostgreSQL.
 
 .. code:: python
 
@@ -324,15 +327,6 @@ All the application processes share a single MySQL database.
 
     os.environ['DB_URI'] = 'mysql+mysqlconnector://root:@127.0.0.1/eventsourcing'
     #os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
-
-
-Redis is used to publish prompts, so downstream can pull new notifications without polling latency.
-
-.. code:: python
-
-    import redis
-
-    r = redis.Redis()
 
 
 In this system, each application process runs in its own operating system process.
@@ -357,6 +351,15 @@ In this system, each application process runs in its own operating system proces
     )
 
 
+This example uses Redis to publish and subscribe to prompts.
+
+.. code:: python
+
+    import redis
+
+    r = redis.Redis()
+
+
 An ``if __name__ == 'main'`` block is required by the multiprocessing
 library to distinguish parent process code from child process code.
 
@@ -366,12 +369,11 @@ library to distinguish parent process code from child process code.
 
     if __name__ == '__main__':
 
+
 Start the operating system processes.
 
 .. code:: python
 
-
-        app = Process(name='orders', policy=None, persist_event_type=Order.Event)
 
         try:
 
@@ -383,11 +385,32 @@ Start the operating system processes.
 
 .. Todo: Find out why we timeout waiting for subscribers if the create_new_order code is moved below the following.
 
-A process application object can be used to create the
-database tables for storing events and tracking records.
+A process application object can be used in the parent process to persist
+the new orders. We reuse the orders process application class, but it might
+be better to have a command logging process, and have the orders process
+follow the command process. Then each application would be running in just
+one thread. However in this example, two instances of the orders process
+are running concurrently
 
 .. code:: python
 
+            app = Process(name='orders', policy=None, persist_event_type=Order.Event)
+
+
+This ``app`` is working concurrently with the ``orders`` process
+that is running in the operating system process we just started. That
+means when we create orders, we might conflict with notification log entries
+written by the other orders process, as it responds to reservations and payments.
+The other process may encounter the same kind of conflict.
+
+Conflicts, and also operation errors, can be usefully retried. That is why
+the ``retry`` decorator is applied to the ``create_new_order()`` factory, above.
+For the same reason the ``@retry`` decorator is applied the ``run()`` method
+of the process application class ``Process``. In extreme circumstances, these
+retries will be exhausted, and the original exception will be reraised by the
+decorator.
+
+.. code:: python
 
             order_id = create_new_order()
 
@@ -396,7 +419,7 @@ database tables for storing events and tracking records.
 
 An event was persisted by the simple application object, but a prompt hasn't been
 published. We could wait for followers to poll, but we can save time by publishing
-a prompt. So prompt all channel subscribers to pull notifications from the orders application.
+a prompt.
 
 By prompting followers of the orders process, the reservations system will
 immediately pull the ``Order.Created`` event from the orders process's notification
@@ -429,7 +452,7 @@ Wait for the results, by polling the aggregate state.
                 assert retries, "Failed set order.is_paid"
 
 
-Do it again.
+Do it again, lots of times.
 
 .. code:: python
 
@@ -439,7 +462,7 @@ Do it again.
 
             # Create some new orders.
             #num = 500
-            num = 40
+            num = 15
             order_ids = []
             for _ in range(num):
                 order_id = create_new_order()
@@ -464,8 +487,8 @@ Do it again.
                     assert retries, "Failed set order.is_paid ({})".format(i)
 
 
-            print("Orders system processing time per-order: {:.3f}s".format(
-                (datetime.datetime.now() - started).total_seconds() / float(num)
+            print("Orders system processed {} orders at rate of {:.2f} orders/s".format(
+                num, float(num) / (datetime.datetime.now() - started).total_seconds()
             ))
 
 The system's operating system processes can be terminated by sending a "kill" message.

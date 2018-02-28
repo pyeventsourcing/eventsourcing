@@ -50,7 +50,7 @@ class Process(SimpleApplication):
         try:
             publish(prompt)
         except Exception as e:
-            raise PromptFailed(e)
+            raise PromptFailed("{}: {}".format(type(e), str(e)))
 
     def follow(self, upstream_application_name, notification_log):
         # Create a reader.
@@ -63,9 +63,9 @@ class Process(SimpleApplication):
             upstream_application_name=upstream_application_name,
         )
         current_position = max_record_id or 0
-        print("Setting '{}' reader in '{}' process to position: {}".format(
-            upstream_application_name, self.name, current_position)
-        )
+        # print("Setting '{}' reader in '{}' process to position: {}".format(
+        #     upstream_application_name, self.name, current_position)
+        # )
         reader.seek(current_position)
 
     @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)

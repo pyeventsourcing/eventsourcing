@@ -57,6 +57,10 @@ class SimpleApplication(object):
         if setup_table and not session:
             self.setup_table()
 
+    @property
+    def session(self):
+        return self.datastore.session
+
     def setup_cipher(self, cipher_key):
         cipher_key = decode_random_bytes(cipher_key or os.getenv('CIPHER_KEY', ''))
         self.cipher = AESCipher(cipher_key) if cipher_key else None
@@ -69,17 +73,24 @@ class SimpleApplication(object):
 
     def setup_event_store(self):
         # Construct event store.
-        self.event_store = construct_sqlalchemy_eventstore(
+        self.event_store = self.construct_event_store(self.application_id)
+
+    def construct_event_store(self, application_id):
+        return construct_sqlalchemy_eventstore(
             session=self.datastore.session,
             cipher=self.cipher,
             record_class=self.stored_event_record_class,
             contiguous_record_ids=self.contiguous_record_ids,
-            application_id=self.application_id,
+            application_id=application_id,
         )
 
     def setup_repository(self, **kwargs):
-        self.repository = EventSourcedRepository(
-            event_store=self.event_store,
+        event_store = self.event_store
+        self.repository = self.construct_repository(event_store, **kwargs)
+
+    def construct_repository(self, event_store, **kwargs):
+        return EventSourcedRepository(
+            event_store=event_store,
             **kwargs
         )
 
