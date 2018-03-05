@@ -205,11 +205,10 @@ which gives "exactly once" processing.
 
 
     # Construct original application.
-    original = SimpleApplication()
+    original = SimpleApplication(persist_event_type=AggregateRoot.Event)
 
     # Construct replica application.
     replica = SimpleApplication()
-    replica.persistence_policy.close()
 
     # Construct replicator.
     replicator = RecordReplicator(

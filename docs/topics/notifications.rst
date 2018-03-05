@@ -117,14 +117,15 @@ Before continuing with code examples below, we need to setup an event store.
 
     from uuid import uuid4
 
-    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
-    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
-    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+    from eventsourcing.application.policies import PersistencePolicy
+    from eventsourcing.domain.model.entity import DomainEntity
     from eventsourcing.infrastructure.eventstore import EventStore
     from eventsourcing.infrastructure.repositories.array import BigArrayRepository
-    from eventsourcing.application.policies import PersistencePolicy
     from eventsourcing.infrastructure.sequenceditem import StoredEvent
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
 
     # Setup the database.
     datastore = SQLAlchemyDatastore(
@@ -157,6 +158,7 @@ Before continuing with code examples below, we need to setup an event store.
     # Set up a persistence policy.
     persistence_policy = PersistencePolicy(
         event_store=event_store,
+        event_type=DomainEntity.Event
     )
 
 Please note, the ``SQLAlchemyRecordManager`` is has its
@@ -1136,7 +1138,7 @@ Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-lik
     reader.seek(0)
 
     # Read all existing notifications.
-    all_notifications = reader.read()
+    all_notifications = reader.read_list()
     assert len(all_notifications) == 9
 
     # Resolve the notifications to domain events.
@@ -1158,14 +1160,14 @@ Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-lik
     VersionedEntity.__create__()
 
     # Read all subsequent notifications (should be two).
-    subsequent_notifications = reader.read()
+    subsequent_notifications = reader.read_list()
     assert len(subsequent_notifications) == 2
 
     # Check the position has advanced.
     assert reader.position == 11
 
     # Read all subsequent notifications (should be none).
-    subsequent_notifications = reader.read()
+    subsequent_notifications = reader.read_list()
     len(subsequent_notifications) == 0
 
     # Publish three more events.
@@ -1174,7 +1176,7 @@ Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-lik
     last_entity = VersionedEntity.__create__()
 
     # Read all subsequent notifications (should be three).
-    subsequent_notifications = reader.read()
+    subsequent_notifications = reader.read_list()
     assert len(subsequent_notifications) == 3
 
     # Check the position has advanced.
@@ -1189,7 +1191,7 @@ Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-lik
     assert last_domain_event.originator_id == last_entity.id
 
     # Read all subsequent notifications (should be none).
-    subsequent_notifications = reader.read()
+    subsequent_notifications = reader.read_list()
     assert subsequent_notifications == []
 
     # Check the position has advanced.

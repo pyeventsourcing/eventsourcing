@@ -48,21 +48,13 @@ class ExampleAggregate(AggregateRoot):
             aggregate.moved_on = True
 
 
-def example_policy(process, event):
-    unsaved_aggregates = []
-    causal_dependencies = []
+def example_policy(process, repository, event):
 
     # Whenever an aggregate is created, then "move it on".
     if isinstance(event, ExampleAggregate.Created):
         # Get aggregate and move it on.
-        aggregate = process.get_originator(event)
-        originator_id = aggregate.id
-        originator_version = aggregate.__version__
-        causal_dependencies.append((originator_id, originator_version))
+        aggregate = repository[event.originator_id]
 
         assert isinstance(aggregate, ExampleAggregate)
         aggregate.move_on()
 
-        unsaved_aggregates.append(aggregate)
-
-    return unsaved_aggregates, causal_dependencies
