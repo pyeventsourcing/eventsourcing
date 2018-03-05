@@ -6,6 +6,7 @@ from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import EventWithOriginatorID, publish, subscribe, unsubscribe
 from eventsourcing.exceptions import OperationalError, PromptFailed, RecordConflictError
 from eventsourcing.infrastructure.base import RelationalRecordManager
+from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sqlalchemy.manager import TrackingRecordManager
 from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.utils.uuids import uuid_from_application_name
@@ -15,6 +16,24 @@ class Prompt(object):
     def __init__(self, sender_process_name, end_position=None):
         self.sender_process_name = sender_process_name
         self.end_position = end_position
+
+
+class RepositoryWrapper(object):
+    def __init__(self, repository):
+        self.retrieved_aggregates = {}
+        assert isinstance(repository, EventSourcedRepository)
+        self.repository = repository
+
+    def __getitem__(self, entity_id):
+        try:
+            return self.retrieved_aggregates[entity_id]
+        except KeyError:
+            entity = self.repository.__getitem__(entity_id)
+            self.retrieved_aggregates[entity_id] = entity
+            return entity
+
+    def __contains__(self, entity_id):
+        return self.repository.__contains__(entity_id)
 
 
 class Process(SimpleApplication):
@@ -78,7 +97,7 @@ class Process(SimpleApplication):
                 )
 
                 # Call policy with the event.
-                unsaved_aggregates, causal_dependencies = self.policy(event)
+                unsaved_aggregates, causal_dependencies = self.call_policy(event)
 
                 # Write records.
                 try:
@@ -116,8 +135,19 @@ class Process(SimpleApplication):
         )
         reader.seek(max_record_id or 0)
 
-    def policy(self, event):
-        return self.policy_func(self, event)
+    def call_policy(self, event):
+        repository = RepositoryWrapper(self.repository)
+        causal_dependencies = []
+        new_aggregates = self.policy(repository, event)
+        unsaved_aggregates = list(repository.retrieved_aggregates.values())
+        if new_aggregates is not None:
+            if not isinstance(new_aggregates, (list, tuple)):
+                new_aggregates = [new_aggregates]
+            unsaved_aggregates += new_aggregates
+        return unsaved_aggregates, causal_dependencies
+
+    def policy(self, repository, event):
+        return self.policy_func(self, repository, event)
 
     def write_records(self, aggregates, notification, application_name, upstream_application_name):
         # Construct tracking record.

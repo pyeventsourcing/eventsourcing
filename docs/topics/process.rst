@@ -197,62 +197,39 @@ on aggregates.
     class Orders(Process):
         persist_event_type=Order.Event
 
-        def policy(self, event):
-            unsaved_aggregates = []
-            causal_dependencies = []
-
+        def policy(self, repository, event):
             if isinstance(event, Reservation.Created):
-
-                # Set order as reserved.
-                reservation = self.get_originator(event, use_cache=False)
-                order = self.get_originator(reservation.order_id)
+                reservation = repository[event.originator_id]
+                order = repository[reservation.order_id]
                 order.set_is_reserved(reservation.id)
-                unsaved_aggregates.append(order)
 
             elif isinstance(event, Payment.Created):
-                # Set order as paid.
-                payment = self.get_originator(event, use_cache=False)
-                order = self.get_originator(payment.order_id)
+                payment = repository[event.originator_id]
+                order = repository[payment.order_id]
                 order.set_is_paid(payment.id)
-                unsaved_aggregates.append(order)
-
-            return unsaved_aggregates, causal_dependencies
 
 
     class Reservations(Process):
         persist_event_type=Reservation.Event
 
-        def policy(self, event):
-            unsaved_aggregates = []
-            causal_dependencies = []
+        def policy(self, repository, event):
 
             if isinstance(event, Order.Created):
                 # Get details of the order.
-                order = self.repository[event.originator_id]
+                order = repository[event.originator_id]
 
                 # Create a reservation.
-                reservation = Reservation.create(order_id=order.id)
-                unsaved_aggregates.append(reservation)
-
-            return unsaved_aggregates, causal_dependencies
+                return Reservation.create(order_id=order.id)
 
 
     class Payments(Process):
         persist_event_type=Payment.Event
 
-        def policy(self, event):
-            unsaved_aggregates = []
-            causal_dependencies = []
+        def policy(self, repository, event):
 
             if isinstance(event, Order.Reserved):
-                # Get details of the order (alternative method).
-                order = self.get_originator(event, use_cache=False)
-
-                # Make a payment.
-                payment = Payment.make(order_id=order.id)
-                unsaved_aggregates.append(payment)
-
-            return unsaved_aggregates, causal_dependencies
+                order = repository[event.originator_id]
+                return Payment.make(order_id=order.id)
 
 
     # Construct process applications, each uses the same in-memory database.
