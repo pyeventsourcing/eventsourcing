@@ -58,9 +58,9 @@ class DjangoRecordManager(RelationalRecordManager):
                         record.save()
 
         except IntegrityError as e:
-            self.raise_after_integrity_error(e)
+            self.raise_record_integrity_error(e)
 
-    def _prepare_insert(self, tmpl):
+    def _prepare_insert(self, tmpl, record_class, field_names):
         """
         With transaction isolation level of "read committed" this should
         generate records with a contiguous sequence of integer IDs, using
@@ -68,15 +68,15 @@ class DjangoRecordManager(RelationalRecordManager):
         insert-select-from form, and optimistic concurrency control.
         """
         statement = tmpl.format(
-            tablename=self.record_table_name,
-            columns=", ".join(self.field_names),
-            placeholders=", ".join(['%s' for _ in self.field_names]),
+            tablename=self.get_record_table_name(record_class),
+            columns=", ".join(field_names),
+            placeholders=", ".join(['%s' for _ in field_names]),
         )
         return statement
 
-    @property
-    def record_table_name(self):
-        return self.record_class._meta.db_table
+    def get_record_table_name(self, record_class):
+        """Returns table name from SQLAlchemy record class."""
+        return record_class._meta.db_table
 
     def get_item(self, sequence_id, eq):
         records = self.record_class.objects.filter(sequence_id=sequence_id, position=eq).all()

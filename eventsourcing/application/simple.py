@@ -14,11 +14,16 @@ from eventsourcing.infrastructure.sqlalchemy.records import SnapshotRecord
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_random_bytes
+from eventsourcing.utils.uuids import uuid_from_application_name
 
 
 class SimpleApplication(object):
-    def __init__(self, persist_event_type=None, uri=None, session=None, cipher_key=None,
-                 stored_event_record_class=None, setup_table=True, contiguous_record_ids=True):
+    persist_event_type = None
+
+    def __init__(self, name='', persistence_policy=None, persist_event_type=None, uri=None, session=None,
+                 cipher_key=None, stored_event_record_class=None, setup_table=True, contiguous_record_ids=True):
+
+        self.name = name or type(self).__name__.lower()
 
         # Setup cipher (optional).
         self.setup_cipher(cipher_key)
@@ -29,6 +34,7 @@ class SimpleApplication(object):
         # Setup the event store.
         self.stored_event_record_class = stored_event_record_class
         self.contiguous_record_ids = contiguous_record_ids
+        self.application_id = uuid_from_application_name(self.name)
         self.setup_event_store()
 
         # Setup notifications.
@@ -41,11 +47,19 @@ class SimpleApplication(object):
         self.setup_repository()
 
         # Setup a persistence policy.
-        self.setup_persistence_policy(persist_event_type)
+        self.persistence_policy = None
+        if persistence_policy is None:
+            self.setup_persistence_policy(persist_event_type or type(self).persist_event_type)
+        elif persistence_policy:
+            self.persistence_policy = persistence_policy
 
         # Setup table in database.
-        if setup_table:
+        if setup_table and not session:
             self.setup_table()
+
+    @property
+    def session(self):
+        return self.datastore.session
 
     def setup_cipher(self, cipher_key):
         cipher_key = decode_random_bytes(cipher_key or os.getenv('CIPHER_KEY', ''))
@@ -59,16 +73,24 @@ class SimpleApplication(object):
 
     def setup_event_store(self):
         # Construct event store.
-        self.event_store = construct_sqlalchemy_eventstore(
+        self.event_store = self.construct_event_store(self.application_id)
+
+    def construct_event_store(self, application_id):
+        return construct_sqlalchemy_eventstore(
             session=self.datastore.session,
             cipher=self.cipher,
             record_class=self.stored_event_record_class,
             contiguous_record_ids=self.contiguous_record_ids,
+            application_id=application_id,
         )
 
     def setup_repository(self, **kwargs):
-        self.repository = EventSourcedRepository(
-            event_store=self.event_store,
+        event_store = self.event_store
+        self.repository = self.construct_repository(event_store, **kwargs)
+
+    def construct_repository(self, event_store, **kwargs):
+        return EventSourcedRepository(
+            event_store=event_store,
             **kwargs
         )
 
@@ -92,7 +114,8 @@ class SimpleApplication(object):
 
     def close(self):
         # Close the persistence policy.
-        self.persistence_policy.close()
+        if self.persistence_policy:
+            self.persistence_policy.close()
 
         # Close database connection.
         self.datastore.close_connection()

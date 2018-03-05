@@ -10,7 +10,7 @@ from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
     Logged
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.exceptions import RecordIDConflict, SequencedItemConflict
+from eventsourcing.exceptions import RecordConflictError
 from eventsourcing.infrastructure.base import AbstractRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
@@ -124,7 +124,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         self.assertEqual(retrieved_items[0].data, item1.data)
         self.assertEqual(retrieved_items[0].topic, item1.topic)
 
-        # Check raises SequencedItemConflict when appending an item at same position in same sequence.
+        # Check raises RecordConflictError when appending an item at same position in same sequence.
         data3 = json.dumps({'name': 'value3'})
         item3 = SequencedItem(
             sequence_id=item1.sequence_id,
@@ -136,8 +136,8 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         self.assertEqual(position1, item3.position)
         self.assertNotEqual(item1.topic, item3.topic)
         self.assertNotEqual(item1.data, item3.data)
-        # - check appending item as single item
-        with self.assertRaises(SequencedItemConflict):
+        # - append conflicting item as single item
+        with self.assertRaises(RecordConflictError):
             self.record_manager.append(item3)
 
         item4 = SequencedItem(
@@ -152,8 +152,8 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC2,
             data=data3,
         )
-        # - check appending item as a list of items (none should be appended)
-        with self.assertRaises(SequencedItemConflict):
+        # - append conflicting item in list with new items (none should be appended)
+        with self.assertRaises(RecordConflictError):
             self.record_manager.append([item3, item4, item5])
 
         # Check there is still only one item.
@@ -311,27 +311,6 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
             self.record_manager.delete_record(records)
         records = list(self.record_manager.all_records())
         self.assertFalse(len(records))
-
-        # Check the record ID error.
-        record_manager = self.record_manager
-        if record_manager.contiguous_record_ids:
-            #  - for SQLite
-            with self.assertRaises(RecordIDConflict):
-                error = 'UNIQUE constraint failed: {}.id'.format(record_manager.record_table_name)
-                record_manager.raise_after_integrity_error(error)
-            #  - for MySQL
-            with self.assertRaises(RecordIDConflict):
-                error = "Duplicate entry XXXXXXXXXX for key 'PRIMARY'"
-                record_manager.raise_after_integrity_error(error)
-            #  - for MySQL
-            with self.assertRaises(RecordIDConflict):
-                error = 'duplicate key value violates unique constraint "{}_pkey"'.format(
-                    record_manager.record_table_name
-                )
-                record_manager.raise_after_integrity_error(error)
-            with self.assertRaises(SequencedItemConflict):
-                error = ''
-                record_manager.raise_after_integrity_error(error)
 
 
 class WithRecordManagers(AbstractDatastoreTestCase):

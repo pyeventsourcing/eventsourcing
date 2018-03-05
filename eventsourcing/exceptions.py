@@ -10,8 +10,16 @@ class EntityVersionNotFound(EventSourcingError):
     """Raise when accessing an entity version that does not exist."""
 
 
-class ConcurrencyError(EventSourcingError):
-    """Raised when appending events at the wrong version to a versioned stream."""
+class RecordConflictError(EventSourcingError):
+    """Raised when database raises an integrity error."""
+
+
+class PromptFailed(EventSourcingError):
+    """Raised when prompt fails."""
+
+
+class ConcurrencyError(RecordConflictError):
+    """Raised when a record conflict is due to concurrency."""
 
 
 class ConsistencyError(EventSourcingError):
@@ -66,12 +74,8 @@ class DatasourceSettingsError(EventSourcingError):
     "Raised when an error is detected in settings for a datasource."
 
 
-class SequencedItemConflict(EventSourcingError):
-    "Raised when a sequence error occurs e.g. trying to save a version that already exists."
-
-
-class RecordIDConflict(SequencedItemConflict):
-    "Raised when a record ID conflict is detected."
+class OperationalError(EventSourcingError):
+    "Raised when an operational error is encountered."
 
 
 class TimeSequenceError(EventSourcingError):

@@ -13,10 +13,10 @@ Overview
 
 An application object normally has repositories and policies.
 A repository allows aggregates to be retrieved by ID, using a
-dictionary-like interface. Whereas aggregates implement
-commands that publish events, obversely, policies subscribe to
-events and then execute commands as events are received.
-An application can be well understood by understanding its policies,
+dictionary-like interface. Whereas aggregates implement commands
+that publish events, policies subscribe to events and execute commands.
+
+An application can be understood by understanding its policies,
 aggregates, commands, and events.
 
 An application object can have methods ("application services")
@@ -40,7 +40,6 @@ To run the examples below, please install the library with the
 Simple application
 ==================
 
-
 The library provides a simple application class ``SimpleApplication``
 which can be constructed directly.
 
@@ -61,7 +60,7 @@ Here are some example connection strings: for an SQLite
 file; for a PostgreSQL database; or for a MySQL database.
 See SQLAlchemy's create_engine() documentation for details.
 You may need to install drivers for your database management
-system (such as ``psycopg2`` or ``mysqlclient``).
+system (such as ``psycopg2`` or ``mysql-connector-python-rf``).
 
 ::
 
@@ -69,7 +68,7 @@ system (such as ``psycopg2`` or ``mysqlclient``).
 
     postgresql://scott:tiger@localhost:5432/mydatabase
 
-    mysql://scott:tiger@hostname/dbname
+    mysql+sqlconnector://scott:tiger@hostname/dbname
 
 
 Encryption is optionally enabled in ``SimpleApplication`` with a
@@ -91,17 +90,20 @@ and the ``cipher_key`` value can be set as environment variable
 .. code:: python
 
     from eventsourcing.application.simple import SimpleApplication
+    from eventsourcing.domain.model.aggregate import AggregateRoot
 
     app = SimpleApplication(
         uri='sqlite:///:memory:',
-        cipher_key=cipher_key
+        cipher_key=cipher_key,
+        persist_event_type=AggregateRoot.Event,
     )
 
 
-As an alternative to providing a URI, an already existing SQLAlchemy
-session can be passed in with a constructor argument called ``session``,
-for example a session object provided by a framework extension such as
-`Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__.
+Instead of providing a URI, an already existing SQLAlchemy
+session can be passed in, using constructor argument ``session``.
+For example, a session object provided by a framework extension such as
+`Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__ could be passed
+to the application object.
 
 Once constructed, the ``SimpleApplication`` will have an event store, provided
 by the library's ``EventStore`` class, for which it uses the library's
@@ -127,8 +129,8 @@ library's ``PersistencePolicy`` class.
 
     app.persistence_policy
 
-The persistence policy appends domain events to its event store whenever
-they are published.
+The persistence policy appends domain events of type `persist_event_type`
+to its event store whenever they are published.
 
 The ``SimpleApplication`` also has a repository, an instance of
 the library's ``EventSourcedRepository`` class.
@@ -142,14 +144,11 @@ Both the repository and persistence policy use the event store.
 The aggregate repository is generic, and can retrieve all
 aggregates in an application, regardless of their class.
 
-The ``SimpleApplication`` can be used as a context manager.
 The example below uses the ``AggregateRoot`` class directly
 to create a new aggregate object that is available in the
 application's repository.
 
 .. code:: python
-
-    from eventsourcing.domain.model.aggregate import AggregateRoot
 
     obj = AggregateRoot.__create__()
     obj.__change_attribute__(name='a', value=1)
@@ -218,6 +217,10 @@ that can create new ``CustomAggregate`` entities.
 .. code:: python
 
     class MyApplication(SimpleApplication):
+        def __init__(self, **kwargs):
+            super(MyApplication, self).__init__(
+                persist_event_type=CustomAggregate.Event, **kwargs)
+
         def create_aggregate(self, a):
             return CustomAggregate.__create__(a=1)
 

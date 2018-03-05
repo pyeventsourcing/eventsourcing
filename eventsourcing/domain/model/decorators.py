@@ -14,7 +14,7 @@ from eventsourcing.domain.model.events import subscribe
 from eventsourcing.exceptions import ProgrammingError
 
 
-def subscribe_to(event_class=None):
+def subscribe_to(*event_classes):
     """
     Decorator for making a custom event handler function subscribe to a certain class of event.
 
@@ -41,17 +41,24 @@ def subscribe_to(event_class=None):
             todo = TodoProjection(id=event.originator_id, title=event.title)
             todo.save()
     """
+    event_classes = list(event_classes)
+
     def wrap(func):
         def handler(event):
             if isinstance(event, (list, tuple)):
                 for e in event:
-                    if event_class is None or isinstance(e, event_class):
-                        func(e)
-            elif event_class is None or isinstance(event, event_class):
+                    handler(e)
+            elif not event_classes or isinstance(event, tuple(event_classes)):
                 func(event)
+
         subscribe(handler=handler, predicate=lambda _: True)
         return func
-    return wrap
+
+    if len(event_classes) == 1 and isfunction(event_classes[0]):
+        func = event_classes.pop()
+        return wrap(func)
+    else:
+        return wrap
 
 
 def mutator(arg=None):
@@ -158,13 +165,13 @@ def retry(exc=Exception, max_attempts=1, wait=0):
             while True:
                 try:
                     return func(*args, **kwargs)
-                except exc:
+                except exc as e:
                     attempts += 1
-                    if attempts < max_attempts:
+                    if max_attempts is None or attempts < max_attempts:
                         sleep(wait * (1 + 0.1 * (random() - 0.5)))
                     else:
                         # Max retries exceeded.
-                        raise
+                        raise e
 
         return wrapper
 
