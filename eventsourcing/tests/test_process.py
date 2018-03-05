@@ -12,7 +12,7 @@ class TestProcess(TestCase):
 
     def test_process_with_example_policy(self):
         # Construct example process.
-        process = Process('test', policy=example_policy)
+        process = Process('test', policy=example_policy, persist_event_type=ExampleAggregate.Event)
 
         # Make the process follow itself.
         process.follow('test', process.notification_log)

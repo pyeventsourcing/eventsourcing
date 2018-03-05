@@ -7,6 +7,7 @@ from sqlalchemy.sql.sqltypes import BigInteger, Integer, String, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
 from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -83,7 +84,10 @@ class ExampleApplicationWithExtendedSequencedItemType(object):
         self.repository = ExampleRepository(
             event_store=self.event_store,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(
+            event_store=self.event_store,
+            event_type=DomainEvent,
+        )
 
     def close(self):
         self.persistence_policy.close()

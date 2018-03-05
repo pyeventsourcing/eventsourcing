@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from eventsourcing.application.simple import SimpleApplication, SnapshottingApplication
-from eventsourcing.domain.model.events import assert_event_handlers_empty
+from eventsourcing.domain.model.events import assert_event_handlers_empty, DomainEvent
 from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.tests.core_tests.test_aggregate_root import ExampleAggregateRoot
 from eventsourcing.utils.random import encode_random_bytes
@@ -34,7 +34,11 @@ class TestSimpleApplication(TestCase):
             app.drop_table()
 
     def get_application(self):
-        return SimpleApplication(cipher_key=encode_random_bytes(16))
+        return SimpleApplication(
+            cipher_key=encode_random_bytes(16),
+            persist_event_type=DomainEvent,
+
+        )
 
     def tearDown(self):
         # Check the close() method leaves everything unsubscribed.

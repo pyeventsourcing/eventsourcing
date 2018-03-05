@@ -16,6 +16,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def __init__(self, session, *args, **kwargs):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
+
     def invalidate_max_record_id(self):
         self._max_record_id = None
 
@@ -34,7 +35,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                         params = {c: getattr(record, c) for c in self.field_names}
                         if hasattr(self.record_class, 'application_id'):
                             params['application_id'] = self.application_id
-                            connection.execute(self.insert_select_max, **params)
+                        connection.execute(self.insert_select_max, **params)
                     else:
                         # Execute "insert values" statement with values from record obj.
                         params = {c: getattr(record, c) for c in self.field_names}
@@ -47,7 +48,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                                 assert record.id, "record ID not set when required"
                             params['id'] = record.id
 
-                            connection.execute(self.insert_values, **params)
+                        connection.execute(self.insert_values, **params)
 
                     # import random
                     # d = random.random()
@@ -213,11 +214,14 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             self.session.close()
 
     def get_max_record_id(self):
-        query = self.session.query(func.max(self.record_class.id))
-        if hasattr(self.record_class, 'application_id'):
-            assert self.application_id, "application_id not set when required"
-            query = query.filter(self.record_class.application_id == self.application_id)
-        return query.scalar()
+        try:
+            query = self.session.query(func.max(self.record_class.id))
+            if hasattr(self.record_class, 'application_id'):
+                assert self.application_id, "application_id not set when required"
+                query = query.filter(self.record_class.application_id == self.application_id)
+            return query.scalar()
+        finally:
+            self.session.close()
 
     def delete_record(self, record):
         """
