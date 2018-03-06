@@ -1,18 +1,82 @@
 import multiprocessing
 import time
+from time import sleep
 
 import redis
+from collections import defaultdict
 
-from eventsourcing.application.process import Prompt
+from eventsourcing.application.process import Prompt, System
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.uuids import uuid_from_application_name
 
 
+class Multiprocess(object):
+
+    def __init__(self, system):
+        assert isinstance(system, System)
+        self.system = system
+        self.os_processes = None
+
+    def start(self):
+        assert self.os_processes is None, "Already started"
+        self.os_processes = []
+
+        self.followings = defaultdict(list)
+        for follower, followed in self.system.definition:
+            self.followings[follower].append(followed)
+
+        for process_class, upstream_classes in self.followings.items():
+            os_process = OperatingSystemProcess(
+                application_process_class=process_class,
+                upstream_names=[cls.__name__.lower() for cls in upstream_classes]
+            )
+            os_process.start()
+            self.os_processes.append(os_process)
+
+        self.r = redis.Redis()
+
+    def prompt(self, process_name=None):
+        for os_process in self.os_processes:
+            process_class = os_process.application_process_class
+            name = process_class.__name__.lower()
+            expected_subscriptions = len(self.followings[process_class])
+
+            patience = 50
+            while self.r.publish(name, '') < expected_subscriptions:
+                if patience:
+                    sleep(0.1)
+                    patience -= 1
+                else:
+                    raise Exception("Couldn't publish to expected number of subscribers "
+                                    "({}, {})".format(name, expected_subscriptions))
+
+    def close(self):
+        for os_process in self.os_processes:
+            self.r.publish(os_process.application_process_class.__name__.lower(), 'KILL')
+
+        for os_process in self.os_processes:
+            os_process.join(timeout=1)
+
+        for os_process in self.os_processes:
+            if os_process.is_alive:
+                os_process.terminate()
+
+        self.os_processes = None
+
+    def __enter__(self):
+        self.start()
+        self.prompt()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+
 class OperatingSystemProcess(multiprocessing.Process):
 
-    def __init__(self, application_process_class, upstream_names, poll_interval=1, *args, **kwargs):
+    def __init__(self, application_process_class, upstream_names, poll_interval=10, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
         self.upstream_names = upstream_names

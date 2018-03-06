@@ -120,11 +120,8 @@ class Process(SimpleApplication):
                     # else:
                     #     self.publish_prompt(max_notification_id)
 
-
                 # Todo: Use causal_dependencies to construct notification records (depends on notification
                 # records).
-
-
 
         return notification_count
 
@@ -238,5 +235,41 @@ class Process(SimpleApplication):
 
 
 class System(object):
-    def __init__(self, definition):
+    def __init__(self, *definition):
         self.definition = definition
+        assert isinstance(self.definition, (list, tuple))
+        for pair in self.definition:
+            assert len(pair) == 2, len(pair)
+            for process_class in pair:
+                assert issubclass(process_class, Process), process_class
+        self.processes_by_class = None
+        self.classes_by_process_name = None
+
+    def __getattr__(self, item):
+        process_class = self.classes_by_process_name[item]
+        return self.processes_by_class[process_class]
+
+    def setup(self):
+        assert self.processes_by_class is None, "Already running"
+        self.process_classes = set([pc for pair in self.definition for pc in pair])
+        self.processes_by_class = {}
+        self.classes_by_process_name = {}
+        session = None
+        for process_class in self.process_classes:
+            process = process_class(session=session)
+            self.processes_by_class[process_class] = process
+            self.classes_by_process_name[process.name] = process_class
+            if session is None:
+                session = process.session
+
+        for follower_class, followed_class in self.definition:
+            follower = self.processes_by_class[follower_class]
+            followed = self.processes_by_class[followed_class]
+            follower.follow(followed.name, followed.notification_log)
+
+    def close(self):
+        assert self.processes_by_class is not None, "Not running"
+        for process in self.processes_by_class.values():
+            process.close()
+        self.processes_by_class = None
+        self.classes_by_process_name = None
