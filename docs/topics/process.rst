@@ -2,44 +2,71 @@
 Process and system
 ==================
 
+The most important requirement pursued in this section is to obtain a reliable
+process. A process is considered reliable if processing can be resumed after a
+breakdown happening at any time, such that the product of the resumed process is
+indistinguishable from that which would have been produced without the interruption.
+
 Process can be understood as productive in this way: consumption with recording
-determines production. If the product of a process must be reliable, then its
+determines production. So if the product of a process must be reliable, then its
 consumption and its recording must be reliable. If the consumption and the
 recording are reliable, then for so long as processing can happen at all, it
-will happen in a reliable way.
+will happen in a reliable way. A system of such reliable processes will also
+be reliable. If the processes are determinate, then the system will be determinate.
+
+The basic unit of computation in this design is the triad "consume-compute-record".
+In particular, the final step when processing a notification is to record a
+notification. In this design, pull notifications are pulled and notifications are
+recorded. Events are not sent by pushing messages, although pushing prompts may help to
+reduce latency.
 
 .. contents:: :local:
 
-Summary
--------
+Process application
+-------------------
 
-The library's ``Process`` class is a subclass of ``SimpleApplication`` that
-effectively functions as both an event-sourced application and an event-sourced
-projection. A process application pulls event notifications (in a reliable order)
-from a notification log reader. The process responds to these events in turn according
-to a policy. The policy might do nothing in response to one type of event, and it might
-call an aggregate method in response to another type of event. To keep track of the
-progress through the notification log, the process will create a new tracking record
-for each notification, and will write the tracking record along with any new event
-records, in a single atomic database transaction. The tracking records determine how
-far the process has progressed through the notification log (they are used to set the
-position of the notification log reader).
+The library defines a "process application" with the ``Process`` class, which is a
+subclass of ``SimpleApplication``, that functions as both a projection and as an
+event-sourced application.
+
+It will consume events by reading event notifications from a notification log reader.
+The events are retried in a reliable order, without race conditions or duplicates.
+To keep track of the progress through the notification log, the process will create
+a new tracking record for each notification.
+
+It will respond to events according to its policy. Its policy might do nothing in
+response to one type of event, and it might call an aggregate method in response
+to another type of event.
+
+It will write the tracking record along with any new event records, in an atomic
+database transaction. The tracking records determine how far the process has progressed
+through the notification log (they are used to set the position of the notification log
+reader when the process is resumed).
 
 Most importantly, if some of the new records can't be written, then none are. If anything
 goes wrong with the infrastructure before the records are committed, the transaction will
-fail, and so long as the transaction is atomic, none of the records will be written. Until
-the tracking record has been written, the process hasn't progressed. Tracking records are
-unique, once the tracking record has been written it can't be written again, so if an event
-can be processed then it will be processed exactly once. Whatever the behaviours of the
-aggregates and the policies used by a process, the processing of those behaviours will be
-reliable. Just as a ratchet is as reliable as its pawl, a process application is as reliable
-as its database transactions.
+fail, and so long as the transaction is atomic, none of the records will be written. If
+the tracking record has been written, the process has progressed, otherwise it hasn't.
 
-One such process could follow another, in a system. One process could follow two
+There can only be one unique tracking record for each notification, once the
+tracking record has been written it can't be written again. So if an event can be
+processed then it will be processed exactly once. Whatever the behaviours of the
+aggregates and the policies of a process, including pathological behaviours such as
+infinite loops or deadlocks, the processing of those behaviours will be equally reliable.
+Just as a ratchet is as reliable as its pawl, a process application is as reliable as
+its database transactions.
+
+
+System of processes
+-------------------
+
+One such process could follow another in a system of processes. One process could follow two
 other processes in a slightly more complicated system. A process could simply follow
 itself, stepping though state transitions that involve many aggregates. There could
 be a vastly complicated system of processes without introducing any systemically
-emergent unreliability in the processing of the events.
+emergent unreliability in the processing of the events (there isn't a "tolerable"
+level of error in each process that would eventually compound into an intolerable
+level of error in a complicated system).
 
 A number of application processes could be run from a single thread. They could also
 have one thread each. Each thread could have its own operating system process, and
@@ -61,8 +88,8 @@ the policy of the process). Hence one application process could usefully and rel
 employ many concurrent operating system processes (the library doesn't support this yet).
 
 
-Kahn Process Networks
----------------------
+Kahn process networks
+~~~~~~~~~~~~~~~~~~~~~
 
 Since a notification log functions effectively as a durable FIFO buffer, a system of
 determinate process applications pulling notifications logs can be recognised as a
@@ -71,8 +98,8 @@ If a system happens to involve processes that are not determinate, the system wi
 determinate, and could be described in more general terms as "dataflow" or "stream processing".
 
 
-Application process
--------------------
+Orders, reservations, payments
+------------------------------
 
 The example below is suggestive of an orders-reservations-payments system.
 The system automatically processes new orders by making a reservation, and
@@ -81,6 +108,10 @@ automatically makes a payment whenever an order is reserved.
 Event sourced aggregate root classes are defined, the ``Order`` class is
 for "orders", the ``Reservation`` class is for "reservations", and the
 ``Payment`` class is for "payments".
+
+
+Domain model
+~~~~~~~~~~~~
 
 An ``Order`` aggregate can be created. An order
 can be set as reserved, which involves a reservation
@@ -176,7 +207,8 @@ to be resilient against both concurrency conflicts and operational errors.
         order.__save__()
         return order.id
 
-
+Process applications
+~~~~~~~~~~~~~~~~~~~~
 
 The library's ``Process`` class is a subclass of the library's ``SimpleApplication`` class.
 
@@ -255,20 +287,16 @@ implemented as a separate process. (The library doesn't currently have any
 "push-API adapter" process classes).
 
 System of processes
--------------------
+~~~~~~~~~~~~~~~~~~~
 
-A system can be defined by describing the connections between the
+A system can now be defined by describing the connections between the
 processes in the system.
 
 The library's ``System`` class can be constructed with sequences of
 process classes, that show which process follows which other process
-in the system.
-
-For example, the sequence (A, B, C) shows that B follows A,
+in the system. For example, the sequence (A, B, C) shows that B follows A,
 and C follows B. The sequence (A, A) shows that A follows A.
-
 The sequence (A, B, A) shows that B follows A, and A follows B.
-
 The sequences ((A, B, A), (A, C, A)) is equivalent to (A, B, A, C, A).
 
 In this example, the orders and the reservations processes need to
@@ -389,16 +417,16 @@ with one operating system process for each application process.
     multiprocess = Multiprocess(system)
 
 
-An ``if __name__ == 'main'`` block is required by the multiprocessing
+An ``if __name__ == '__main__'`` block is required for the multiprocessing
 library to distinguish parent process code from child process code.
-
-Start the operating system processes (uses the multiprocessing library).
-Wait for the results, by polling the aggregate state.
 
 By prompting the system processes, the reservations system will
 immediately pull the ``Order.Created`` event from the orders
 notification log, and its policy will cause it to create a
 reservation object, and so on until the order is paid.
+
+Start the operating system processes (uses the multiprocessing library).
+Wait for the results, by polling the aggregate state.
 
 .. code:: python
 
@@ -489,10 +517,9 @@ process is terminated.
                 ))
 
 Using the Python ``multiprocessing`` library is one way to deploy the application process
-system.
-
-An alternative is Actor frameworks to start and monitor new processes, which makes it possible to
-run the system in a cluster of machines.
+system. Alternatively, an Actor framework could be used to start and monitor operating system
+processes running the process applications, and send the prompts. An Actor framework might also
+provide a way to run multiple processes on different nodes in a cluster.
 
 Actor framework
 ---------------
