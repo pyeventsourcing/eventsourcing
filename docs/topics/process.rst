@@ -421,19 +421,20 @@ reservation object, and so on until the order is paid.
                 assert retries, "Failed set order.is_paid"
 
 
-Do it again, lots of times.
-
-This time, ``app`` will be working concurrently with the ``orders`` process
-that is running in the operating system process that was started in the
-previous step. Because there are two instances of the ``Orders`` process,
-each may make changes at the same time to the same aggregates, and
+Let's do that again, but with a batch of orders. Below, ``app`` will be working
+concurrently with the ``orders`` process that is running in the operating
+system process that was started in the previous step. The ``reservations``
+and the ``payments`` process will also be processing concurrently with
+the ``orders`` process. Because there are two instances of the ``Orders``
+process, each may make changes at the same time to the same aggregates, and
 there may be conflicts writing to the notification log. Since the conflicts
 will causes database transactions to rollback, and commands to be restarted,
-it isn't a very good design, but it still works because the process is reliable.
+it isn't a very good design, but this bad design helps to demonstrate the
+processing of the system is reliable.
 
-The ``retry`` decorator is applied to the ``create_new_order()`` factory, so
-that when conflicts are encountered, the operation can be retried. For the
-same reason, the ``@retry`` decorator is applied the ``run()`` method
+Please note, the ``retry`` decorator is applied to the ``create_new_order()``
+factory, so that when conflicts are encountered, the operation can be retried.
+For the same reason, the ``@retry`` decorator is applied the ``run()`` method
 of the process application class, ``Process``. In extreme circumstances, these
 retries will be exhausted, and the original exception will be reraised by the
 decorator. Obviously, if that happened in this example, the ``create_new_order()``
@@ -487,6 +488,16 @@ process is terminated.
                     num, duration, rate
                 ))
 
+Using the Python ``multiprocessing`` library is one way to deploy the application process
+system.
+
+An alternative is Actor frameworks to start and monitor new processes, which makes it possible to
+run the system in a cluster of machines.
+
+Actor framework
+---------------
+
+Todo: Actor framework deployment of system.
 
 .. Todo: Have a simpler example that just uses one process,
 .. instantiated without subclasses. Then defined these processes
