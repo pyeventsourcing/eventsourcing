@@ -635,6 +635,14 @@ notification items of ``None``. But where there are gaps, there
 can be race conditions, where the gaps are filled. Only a contiguous
 sequence, which has no gaps, can exclude gaps being filled later.
 
+Please note: there is an unimplemented enhancement which
+would allow this data structure to be modified in a single transaction,
+because the new non-leaf nodes can be determined from the position of
+the new leaf node, however currently a less optimal approach is used
+which attempts to add all non-leaf nodes and carries on in case of
+conflicts.
+
+.. Todo: Implement the big array enhancement: determine non-lead nodes and write all records in single transaction.
 
 Notification logs
 -----------------
