@@ -235,3 +235,8 @@ class Process(SimpleApplication):
         unsubscribe(predicate=self.is_upstream_prompt, handler=self.run)
         unsubscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt)
         super(Process, self).close()
+
+
+class System(object):
+    def __init__(self, definition):
+        self.definition = definition

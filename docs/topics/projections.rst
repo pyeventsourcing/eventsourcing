@@ -6,6 +6,12 @@ A projection is a function of application state. If the state of an application 
 event sourced, projections can operate by processing the events of an application.
 There are lots of different kinds of projection.
 
+
+.. contents:: :local:
+
+Overview
+--------
+
 Projected state can be updated by direct event subscription, or by following notification
 logs that propagate the events of an application. Notification logs are described in the
 previous section.
@@ -16,25 +22,15 @@ could by pushed onto the message bus, but if order is lost, the projection will 
 refer to the notification log.
 
 Projections can track the notifications that have been processed: the position
-in an upstream notification log can be recorded. It is possible for the position
-can be recorded as a value in the projected application state, if the nature of the
-projection lends itself to be used also to track notifications. Otherwise, the position
+in an upstream notification log can be recorded. The position can be recorded
+as a value in the projected application state, if the nature of the projection
+lends itself to be used also to track  notifications. Alternatively, the position
 in the notification log can be recorded with a separate tracking record.
-
-If upstream notifications are distributed across many notification logs, then a
-projection can be deployed with many concurrent operating system processes.
-
-Any causal ordering between notifications in different logs can be maintained
-if each operating system process waits until all upstream notification dependencies
-have been processed, which it can do by polling for the existence of the corresponding
-tracking records.
 
 Projections can update more or less anything. To be reliable, the projection must
 write in the same atomic database transaction all the records that result from
 processing a notification. Otherwise it is possible to track the position
 and fail to update the projection, or vice versa.
-
-A projection that both consumes and creates notifications can be called a "process".
 
 Since projections can update more or less anything, they can also call
 command methods on event sourced aggregates. The important thing is for
@@ -46,17 +42,21 @@ can be written in the same database transaction. A projection that operates by
 calling methods on aggregates and recording events with notifications, can be
 called an "application process".
 
-Different application processes can work together as a coherent and reliable
-system, for example an orders-reservations-payments system. An application
-process DSL can be could describe such a system of application processes,
-as function definitions that call each other, with decorators on these
-functions to associate each with a policy.
-
-Optimistic concurrency control of uniqueness constraints on the tracking and
-event records would allow safe redundant processing of each application process.
-
-
-.. contents:: :local:
+.. Different application processes can work together as a coherent and reliable
+.. system, for example an orders-reservations-payments system. An application
+.. process DSL can be could describe such a system of application processes,
+.. as function definitions that call each other, with decorators on these
+.. functions to associate each with a policy.
+..
+.. Optimistic concurrency control of uniqueness constraints on the tracking and
+.. event records would allow safe redundant processing of each application process.
+..
+.. Horizontal scaling can be introduced if upstream notifications are distributed
+.. across many notification logs, then a projection can be deployed with many
+.. concurrent operating system processes. Any causal ordering between notifications
+.. in different logs can be maintained if each operating system process waits until
+.. all upstream notification dependencies have been processed, which it can do by
+.. polling for the existence of the corresponding tracking records (not yet implemented).
 
 
 Subscribing to events

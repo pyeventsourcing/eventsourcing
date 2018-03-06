@@ -8,23 +8,31 @@ consumption and its recording must be reliable. If the consumption and the
 recording are reliable, then for so long as processing can happen at all, it
 will happen in a reliable way.
 
+.. contents:: :local:
+
+Summary
+-------
+
 The library's ``Process`` class is a subclass of ``SimpleApplication`` that
 effectively functions as both an event-sourced application and an event-sourced
-projection. This process application class consumes by pulling notifications
-from a notification log reader. It responds to events according to a policy.
-The policy might do nothing in response to some types of event, and it might
-call aggregate methods in response to other types of event. The process writes
-a new tracking record for each notification, along with any new event records
-in a single atomic database transaction. The tracking records determines the
-current progress of the process in the notification log (it is used to set the
-position of the notification log reader).
+projection. The process application class pulls event notifications in a reliable order
+from a notification log reader. The process responds to these events in turn according
+to a policy. The policy might do nothing in response to one type of event, and it might
+call an aggregate method in response to another type of event. To keep track of the
+progress through the notification log, the process will write a new tracking record
+for each notification, along with any new event records it triggers, in a single atomic
+database transaction. The tracking records determine how far the process has progressed
+through the notification log (they are used to set the position of the notification log
+reader). Therefore, such a process is as reliable as its database transactions are atomic.
 
-If some of the new records can't be written, then none are. If anything goes wrong
-with the infrastructure before the records are committed, the transaction will
-simply not be successful, so none of the records will be written. And until the
-tracking record has been written, the process effectively doesn't progress. Whatever
-the behaviours of the aggregates and the policies used by a process, they will be
-processed reliably. Such a process is as reliable as its database transactions.
+Most importantly, if some of the new records can't be written, then none are. If anything
+goes wrong with the infrastructure before the records are committed, the transaction will
+simply not be successful, so none of the records will be written. Until the
+tracking record has been written, the process effectively doesn't progress. Tracking
+records are unique, once the tracking record has been written it can't be
+written again, so if an event can be processed then it will be processed exactly once.
+Whatever the behaviours of the aggregates and the policies used by a process, the
+processing of those behaviours will be reliable.
 
 One such process could follow another, in a system. One process could follow two
 other processes in a slightly more complicated system. A process could simply follow
@@ -39,34 +47,29 @@ could be prompted to pull new notifications by sending messages. Although there
 is parallelism in such a system, this isn't the kind of parallelism that will
 allow the system to be scaled horizontally.
 
-All notifications from an application process could be placed in a single
-notification log sequence, and processed in series. To scale throughput
-beyond the limits of processing a single sequence, notifications could
-be distributed across many logs. Hence one application process could usefully
-and reliably employ many concurrent operating system processes (the library doesn't
-support this yet).
+To scale the throughput of a process beyond the limit of processing a single sequence
+in series, notifications could be distributed across many logs. Casual dependencies
+across notification logs can be automatically inferred from the aggregates used by
+the policy of the process. Hence one application process could usefully and reliably
+employ many concurrent operating system processes (the library doesn't support this yet).
 
-A system of processes could be defined without reference to threads, operating
-system processes, network nodes, or notification log partitions. The deployment
-of the system could then be defined and scaled independently.
+A system of processes can be defined without reference to the threads, or operating
+system processes, or network nodes, or notification log partitions. The deployment
+of the system could then be defined independently of the deployment, and the deployment
+can be scaled independently of the system definition.
 
 
 Kahn Process Networks
 ---------------------
 
-A system of process applications that pull from each other's notifications logs,
+A system of process applications that read each other's notifications logs,
 can be recognised as a `Kahn Process Network <https://en.wikipedia.org/wiki/Kahn_process_networks>`__ (KPN).
-Supercomputers are designed as Kahn Process Networks. Kahn Process Networks are
-considered to be an underused model of distributed computation. At the time of writing,
-there is nothing in `Google Search
-<https://www.google.co.uk/search?q=%22Domain+Driven+Design%22+%22Kahn+Process+Network%22`__
-about "Domain Driven Design" and "Kahn Process Networks". There is only one video on YouTube,
+Althoug supercomputers are designed as Kahn Process Networks, and image processing
+is often used as an example, Kahn Process Networks are considered to be an under used
+model of distributed computation. At the time of writing, there is nothing in `Google Search
+<https://www.google.co.uk/search?q=%22Domain+Driven+Design%22+%22Kahn+Process+Network%22>`__
+about both "Domain Driven Design" and "Kahn Process Networks". There is only one video on YouTube,
 a talk about hardware, `implementing KPNs in silicone <https://www.youtube.com/watch?v=sDuuvyUaIAc>`__.
-
-Maybe KPNs been tried for DDD, and it doesn't work very well. If so, apparently there are no traces online.
-However the Agile, and LEAN, approaches are fundamentally "pull" systems, not "push", so it
-would perhaps make good sense for the systems developed in an iterative and incremental manner
-to pull not push.
 
 
 Application process
@@ -74,17 +77,15 @@ Application process
 
 The library's ``Process`` class is a subclass of the library's ``SimpleApplication`` class.
 
-.. code:: python
-
-    from eventsourcing.application.process import Process
-
 The example below is suggestive of an orders-reservations-payments system.
 The system automatically processes new orders by making a reservation, and
 automatically makes a payment whenever an order is reserved.
 
-Event sourced aggregate root classes are defined, for "orders", for "reservations", and for "payments".
+Event sourced aggregate root classes are defined, the ``Order`` class is
+for "orders", the ``Reservation`` class is for "reservations", and the
+``Payment`` class is for "payments".
 
-The ``Order`` aggregate can firstly be created. Having been created, an order
+Firstly, an ``Order`` aggregate can be created. Having been created, an order
 can be set as reserved, which involves a reservation ID. And having been reserved,
 it can be set as paid, which involves a payment ID.
 
@@ -123,6 +124,10 @@ it can be set as paid, which involves a payment ID.
                 order.is_paid = True
                 order.payment_id = self.payment_id
 
+
+A ``Reservation`` can be created, and a ``Payment`` can be made.
+
+.. code:: python
 
     class Reservation(AggregateRoot):
         def __init__(self, order_id, **kwargs):
@@ -174,14 +179,13 @@ to be resilient against both concurrency conflicts and operational errors.
         return order.id
 
 
-The application processes are defined with policies that respond
+The processes are defined with policies that respond
 to domain events by executing commands. In the code below, the
 Reservations process responds to new orders by creating a reservation.
 The Orders process responds to new reservations by setting the order
 as reserved. The Payments process responds to orders being reserved
-by making a payment. And the Orders process also responds to new
+by making a payment. The Orders process also responds to new
 payments by setting the order as paid.
-
 
 .. Todo: Have a simpler example that just uses one process,
 .. instantiated without subclasses. Then defined these processes
@@ -190,10 +194,14 @@ payments by setting the order as paid.
 
 .. code:: python
 
+    from eventsourcing.application.process import Process
+
+
     class Orders(Process):
         persist_event_type=Order.Event
 
         def policy(self, repository, event):
+
             if isinstance(event, Reservation.Created):
                 reservation = repository[event.originator_id]
                 order = repository[reservation.order_id]
@@ -228,13 +236,41 @@ payments by setting the order as paid.
                 return Payment.make(order_id=order.id)
 
 
+The Orders process, specifically the Order aggregate combined with the
+Orders process policy, is more or less equivalent to "saga", or "process
+manager", or "workflow", in that it effectively controls a sequence of
+steps involving other bounded contexts and aggregates, steps that would
+otherwise perhaps be controlled with a "long-lived transaction".
+
+The difference is that, here, there are only policies and aggregates, and
+the way they are processed. There isn't a special mechanism that provides
+reliability despite the system, each aggregate is equally capable of
+functioning as a saga object, every policy is capable of functioning as
+a process manager or workflow. There doesn't need to be a special mechanism
+for coding compensating transactions. If required, a failure (e.g. to make
+a payment) can be coded as an event that can processed to reverse previous
+steps (e.g. to cancel a reservation).
+
+Third-party systems that provide a server API that you need to call can be
+integrated by processing events by calling the APIs. Callbacks that you need
+to support can be handled by calling commands on aggregates. It could be
+implemented as a separate process. (The library doesn't currently have any
+"push-API adapter" process classes).
 
 Having defined the processes, we can compose them into a system.
 
-.. code:: python
-
-
-
+.. .. code:: python
+..
+..     from eventsourcing.application.process import System
+..
+..
+..     system = System(
+..         (Orders, ['reservations', 'payments']),
+..         (Reservations, ['orders']),
+..         (Payments, ['orders']),
+..     )
+..
+.. Todo: Make everything below work from this system definition.
 
 .. code:: python
 
@@ -245,10 +281,9 @@ Having defined the processes, we can compose them into a system.
     payments = Payments(session=orders.session)
 
 
-Configure the orders and the reservations processes to follow
-each other. Also configure the payments and the orders processes
-to follow each other. Please note, the payments process does not
-follow the reservations process.
+The orders and the reservations processes need to follow each other. Also
+the payments and the orders processes need to follow each other. There is
+no direct following relationship between reservations and payments.
 
 .. code:: python
 
@@ -313,7 +348,7 @@ via messaging infrastructure. Prompts can be responded to immediately
 by pulling new notifications. If the call to get new prompts times out,
 any new notifications from upstream notification logs can be pulled, so
 that the notification log is effectively polled at a regular interval
-whenever there are no prompts. This protects against failed push.
+whenever no prompts are received.
 
 The process applications could all use the same single database, or they
 could each use their own database. If the process applications of a system
