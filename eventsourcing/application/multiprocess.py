@@ -23,11 +23,7 @@ class Multiprocess(object):
         assert self.os_processes is None, "Already started"
         self.os_processes = []
 
-        self.followings = defaultdict(list)
-        for follower, followed in self.system.definition:
-            self.followings[follower].append(followed)
-
-        for process_class, upstream_classes in self.followings.items():
+        for process_class, upstream_classes in self.system.followings.items():
             os_process = OperatingSystemProcess(
                 application_process_class=process_class,
                 upstream_names=[cls.__name__.lower() for cls in upstream_classes]
@@ -37,13 +33,12 @@ class Multiprocess(object):
 
         self.r = redis.Redis()
 
-    def prompt(self, process_name=None):
-        for os_process in self.os_processes:
-            process_class = os_process.application_process_class
-            name = process_class.__name__.lower()
-            expected_subscriptions = len(self.followings[process_class])
+    def prompt(self):
+        for process_class in self.system.process_classes:
+            expected_subscriptions = len(self.system.followings[process_class])
 
             patience = 50
+            name = process_class.__name__.lower()
             while self.r.publish(name, '') < expected_subscriptions:
                 if patience:
                     sleep(0.1)

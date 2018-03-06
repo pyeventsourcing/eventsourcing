@@ -12,30 +12,6 @@ from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.utils.uuids import uuid_from_application_name
 
 
-class Prompt(object):
-    def __init__(self, sender_process_name, end_position=None):
-        self.sender_process_name = sender_process_name
-        self.end_position = end_position
-
-
-class RepositoryWrapper(object):
-    def __init__(self, repository):
-        self.retrieved_aggregates = {}
-        assert isinstance(repository, EventSourcedRepository)
-        self.repository = repository
-
-    def __getitem__(self, entity_id):
-        try:
-            return self.retrieved_aggregates[entity_id]
-        except KeyError:
-            entity = self.repository.__getitem__(entity_id)
-            self.retrieved_aggregates[entity_id] = entity
-            return entity
-
-    def __contains__(self, entity_id):
-        return self.repository.__contains__(entity_id)
-
-
 class Process(SimpleApplication):
     tracking_record_manager_class = TrackingRecordManager
 
@@ -54,14 +30,13 @@ class Process(SimpleApplication):
                 self.tracking_record_manager.record_class
             )
 
-        # Todo: Maybe make a prompts policy object?
-        #
         ## Prompts policy.
         #
         # 1. Publish prompts whenever domain events are published (important: after persisted).
         # 2. Run this process whenever upstream prompted followers to pull for new notification.
         subscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt)
         subscribe(predicate=self.is_upstream_prompt, handler=self.run)
+        # Todo: Maybe make a prompts policy object?
 
     def follow(self, upstream_application_name, notification_log):
         # Create a reader.
@@ -101,7 +76,7 @@ class Process(SimpleApplication):
 
                 # Write records.
                 try:
-                    new_notification_ids = self.write_records(
+                    event_records = self.write_records(
                         unsaved_aggregates, notification, self.name, upstream_application_name
                     )
                 except:
@@ -110,18 +85,8 @@ class Process(SimpleApplication):
                     raise
                 else:
                     # Publish a prompt if there are new notifications.
-                    if new_notification_ids:
-                        # self.publish_prompt(max(new_notification_ids))
-                        self.publish_prompt('')
-                    # try:
-                    #     max_notification_id = max(new_notification_ids)
-                    # except ValueError:
-                    #     pass
-                    # else:
-                    #     self.publish_prompt(max_notification_id)
-
-                # Todo: Use causal_dependencies to construct notification records (depends on notification
-                # records).
+                    if event_records:
+                        self.publish_prompt()
 
         return notification_count
 
@@ -158,19 +123,13 @@ class Process(SimpleApplication):
         assert isinstance(record_manager, RelationalRecordManager)
         record_manager.write_records(records=event_records, tracking_record=tracking_record)
 
-        new_notification_ids = [e.id for e in event_records]
-        return new_notification_ids
+        return event_records
 
     def is_upstream_prompt(self, event):
         return isinstance(event, Prompt) and event.sender_process_name in self.readers.keys()
 
-    def publish_prompt(self, max_notification_id=''):
-        # if not isinstance(max_notification_id, six.integer_types):
-        #     max_notification_id = None
-        prompt = Prompt(
-            sender_process_name=self.name,
-            end_position=max_notification_id
-        )
+    def publish_prompt(self, _=None):
+        prompt = Prompt(sender_process_name=self.name)
         try:
             publish(prompt)
         except Exception as e:
@@ -234,42 +193,101 @@ class Process(SimpleApplication):
         super(Process, self).close()
 
 
+class RepositoryWrapper(object):
+    def __init__(self, repository):
+        self.retrieved_aggregates = {}
+        assert isinstance(repository, EventSourcedRepository)
+        self.repository = repository
+
+    def __getitem__(self, entity_id):
+        try:
+            return self.retrieved_aggregates[entity_id]
+        except KeyError:
+            entity = self.repository.__getitem__(entity_id)
+            self.retrieved_aggregates[entity_id] = entity
+            return entity
+
+    def __contains__(self, entity_id):
+        return self.repository.__contains__(entity_id)
+
+
+class Prompt(object):
+    def __init__(self, sender_process_name, end_position=None, notifications=None):
+        self.new_notifications = notifications
+        self.sender_process_name = sender_process_name
+        self.end_position = end_position
+
+
 class System(object):
     def __init__(self, *definition):
+        """
+        Initialises a "process network" system object.
+
+        :param definition: Sequences of process classes.
+
+        Each sequence of process classes shows directly which process
+        follows which other process in the system.
+
+        For example, the sequence (A, B, C) shows that B follows A,
+        and C follows B.
+
+        The sequence (A, A) shows that A follows A.
+
+        The sequence (A, B, A) shows that B follows A, and A follows B.
+
+        The sequences ((A, B, A), (A, C, A)) is equivalent to (A, B, A, C, A).
+        """
+        self.processes_by_name = None
         self.definition = definition
         assert isinstance(self.definition, (list, tuple))
-        for pair in self.definition:
-            assert len(pair) == 2, len(pair)
-            for process_class in pair:
-                assert issubclass(process_class, Process), process_class
-        self.processes_by_class = None
-        self.classes_by_process_name = None
+        self.process_classes = set([c for l in self.definition for c in l])
 
-    def __getattr__(self, item):
-        process_class = self.classes_by_process_name[item]
-        return self.processes_by_class[process_class]
+        # Determine which process follows which.
+        self.followings = OrderedDict()
+        for sequence in self.definition:
+            previous = None
+            for process_class in sequence:
+                assert issubclass(process_class, Process), process_class
+                if previous is not None:
+                    # Follower follows the followed.
+                    follower = process_class
+                    followed = previous
+                    try:
+                        follows = self.followings[follower]
+                    except KeyError:
+                        follows = []
+                        self.followings[follower] = follows
+
+                    if followed not in follows:
+                        follows.append(followed)
+
+                previous = process_class
 
     def setup(self):
-        assert self.processes_by_class is None, "Already running"
-        self.process_classes = set([pc for pair in self.definition for pc in pair])
-        self.processes_by_class = {}
-        self.classes_by_process_name = {}
+        assert self.processes_by_name is None, "Already running"
+        self.processes_by_name = {}
         session = None
+
+        # Construct the processes.
         for process_class in self.process_classes:
             process = process_class(session=session)
-            self.processes_by_class[process_class] = process
-            self.classes_by_process_name[process.name] = process_class
+            self.processes_by_name[process.name] = process
             if session is None:
                 session = process.session
 
-        for follower_class, followed_class in self.definition:
-            follower = self.processes_by_class[follower_class]
-            followed = self.processes_by_class[followed_class]
-            follower.follow(followed.name, followed.notification_log)
+        # Configure which process follows which.
+        for follower_class, follows in self.followings.items():
+            follower = self.processes_by_name[follower_class.__name__.lower()]
+            for followed_class in follows:
+                followed = self.processes_by_name[followed_class.__name__.lower()]
+                follower.follow(followed.name, followed.notification_log)
+
+    def __getattr__(self, process_name):
+        assert self.processes_by_name is not None, "Not running"
+        return self.processes_by_name[process_name]
 
     def close(self):
-        assert self.processes_by_class is not None, "Not running"
-        for process in self.processes_by_class.values():
+        assert self.processes_by_name is not None, "Not running"
+        for process in self.processes_by_name.values():
             process.close()
-        self.processes_by_class = None
-        self.classes_by_process_name = None
+        self.processes_by_name = None

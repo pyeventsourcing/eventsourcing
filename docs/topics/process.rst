@@ -258,11 +258,23 @@ System of processes
 -------------------
 
 A system can be defined by describing the connections between the
-processes in the system, as a list of pairs of process classes.
+processes in the system.
 
-The orders and the reservations processes need to follow each other. Also
-the payments and the orders processes need to follow each other. There is
-no direct relationship between reservations and payments.
+The library's ``System`` class can be constructed with sequences of
+process classes, that show which process follows which other process
+in the system.
+
+For example, the sequence (A, B, C) shows that B follows A,
+and C follows B. The sequence (A, A) shows that A follows A.
+
+The sequence (A, B, A) shows that B follows A, and A follows B.
+
+The sequences ((A, B, A), (A, C, A)) is equivalent to (A, B, A, C, A).
+
+In this example, the orders and the reservations processes need to
+follow each other. Also the payments and the orders processes need
+to follow each other. There is no direct relationship between
+reservations and payments.
 
 .. code:: python
 
@@ -270,10 +282,8 @@ no direct relationship between reservations and payments.
 
 
     system = System(
-        (Orders, Reservations),
-        (Reservations, Orders),
-        (Orders, Payments),
-        (Payments, Orders),
+        (Orders, Reservations, Orders),
+        (Orders, Payments, Orders),
     )
 
 
