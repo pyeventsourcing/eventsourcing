@@ -418,16 +418,8 @@ with one operating system process for each application process.
     multiprocess = Multiprocess(system)
 
 
-An ``if __name__ == '__main__'`` block is required for the multiprocessing
-library to distinguish parent process code from child process code.
-
-By prompting the system processes, the reservations system will
-immediately pull the ``Order.Created`` event from the orders
-notification log, and its policy will cause it to create a
-reservation object, and so on until the order is paid.
-
-Start the operating system processes (uses the multiprocessing library).
-Wait for the results, by polling the aggregate state.
+Start the operating system processes by using ``multiprocess`` as a
+context manager. Wait for the results, by polling the aggregate state.
 
 .. code:: python
 
