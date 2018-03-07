@@ -26,7 +26,7 @@ how to use application services when responding to event notifications.
 
 It will consume events by reading event notifications from a notification log reader.
 The events are retrieved in a reliable order, without race conditions or duplicates.
-To keep track of the progress through the notification log, the process will create
+To keep track of its position in the notification log, the process will create
 a new tracking record for each notification.
 
 It will respond to events according to its policy. Its policy might do nothing in
