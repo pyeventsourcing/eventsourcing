@@ -107,11 +107,11 @@ then a payment.
 Domain model
 ~~~~~~~~~~~~
 
-Event-sourced aggregates are defined. The ``Order`` class is
-for "orders". The ``Reservation`` class is for "reservations". And the
-``Payment`` class is for "payments".
+In the code below, event-sourced aggregates are defined for orders, reservations,
+and payments. The ``Order`` class is for "orders". The ``Reservation`` class is
+for "reservations". And the ``Payment`` class is for "payments".
 
-An ``Order`` aggregate can be created. An order
+A new ``Order`` aggregate can be created. An unreserved order
 can be set as reserved, which involves a reservation
 ID. Having been created and reserved, an order can be
 set as paid, which involves a payment ID.
