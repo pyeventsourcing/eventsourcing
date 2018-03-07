@@ -446,7 +446,7 @@ Let's do that again, but with a batch of orders that is created after the system
 operating system processes have been started. Below, ``app`` will be working
 concurrently with the ``multiprocess`` system. Because there are two instances
 of the ``Orders`` process, there may be conflicts writing to the notification
-log. That is why the ``retry`` decorator is applied to the ``create_new_order()``
+log. That is why the ``@retry`` decorator is applied to the ``create_new_order()``
 factory, so that when conflicts are encountered, the operation can be retried.
 
 For the same reason, the ``@retry`` decorator is applied the ``run()`` method
