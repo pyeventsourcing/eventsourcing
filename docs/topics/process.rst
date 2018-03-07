@@ -148,7 +148,7 @@ set as paid, which involves a payment ID.
                 order.payment_id = self.payment_id
 
 
-A ``Reservation`` can be created, and a ``Payment`` can be made.
+A ``Reservation`` can be created.
 
 .. code:: python
 
@@ -167,6 +167,10 @@ A ``Reservation`` can be created, and a ``Payment`` can be made.
         class Created(Event, AggregateRoot.Created):
             pass
 
+
+And a ``Payment`` can be made.
+
+.. code:: python
 
     class Payment(AggregateRoot):
         def __init__(self, order_id, **kwargs):
@@ -201,6 +205,9 @@ to be resilient against both concurrency conflicts and operational errors.
         order.__save__()
         return order.id
 
+As shown in previous sections, the behaviours of this domain model can be fully tested
+with simple test cases, without involving any other components.
+
 Process applications
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -209,11 +216,11 @@ The library's ``Process`` class is a subclass of the library's ``SimpleApplicati
 The processes of the orders-reservations-payments system have
 policies that respond to domain events by executing commands.
 
-In the code below, the Reservations process responds to new orders by
-creating a reservation. The Orders process responds to new reservations
-by setting the order as reserved. The Payments process responds to orders
-being reserved by making a payment. The Orders process also responds to new
-payments by setting the order as paid.
+In the code below, the Orders process responds to new reservations
+by setting the order as reserved. The Reservations process responds
+to new orders by creating a reservation. The Orders process responds
+to new payments by setting the order as paid. And the Payments
+process responds to orders being reserved by making a payment.
 
 .. code:: python
 
@@ -258,6 +265,22 @@ payments by setting the order as paid.
                 order = repository[event.originator_id]
                 return Payment.make(order_id=order.id)
 
+The process class policies are easy to test.
+
+.. code:: python
+
+    # Prepare fake repository.
+    order = Order(id=1)
+    fake_repository = {order.id: order}
+
+    # Construct the payments process.
+    with Payments() as process:
+
+        # Check policy makes payment whenever order is reserved.
+        event = Order.Reserved(originator_id=order.id, originator_version=1)
+        payment = process.policy(fake_repository, event)
+        assert isinstance(payment, Payment), payment
+        assert payment.order_id == order.id
 
 The Orders process, specifically the Order aggregate combined with the
 Orders process policy, is more or less equivalent to "saga", or "process
@@ -265,22 +288,16 @@ manager", or "workflow", in that it effectively controls a sequence of
 steps involving other bounded contexts and aggregates, steps that would
 otherwise perhaps be controlled with a "long-lived transaction".
 
-The difference is that, here, there are no special components, only policies
-and aggregates, and the way they are processed. There isn't a special mechanism
-that provides reliability despite the rest of the system, each aggregate is
-equally capable of functioning as a saga object, every policy is capable of
-functioning as a process manager or workflow. There doesn't need to be a
-special mechanism for coding compensating transactions. If required, a
-failure (e.g. to make a payment) can be coded as an event that can processed
-to reverse previous steps (e.g. to cancel a reservation).
-
-Other systems which provide only an server API to call, and do not pull notifications,
-can be integrated by calling APIs in response to events. However if there is a
-breakdown during the call, perhaps just before it is made, or perhaps just after,
-then it may be necessary to repeat the call. Any callbacks that the API will make
-can be handled by calling commands on aggregates. Such an integration could be
-implemented as a separate "push-API adapter" process, however the library doesn't
-currently have any such adapter process classes).
+In this design, except for the definition and implementation of process,
+there are no special concepts or components. There are only policies and
+aggregates and events, and the way they are processed in a process application.
+There isn't a special mechanism that provides reliability despite the rest
+of the system, each aggregate is equally capable of functioning as a saga object,
+every policy is capable of functioning as a process manager or workflow.
+There doesn't need to be a special mechanism for coding compensating
+transactions. If required, a failure (e.g. to make a payment) can be
+coded as an event that can processed to reverse previous steps (e.g.
+to cancel a reservation).
 
 System of processes
 ~~~~~~~~~~~~~~~~~~~
@@ -295,10 +312,9 @@ and C follows B. The sequence (A, A) shows that A follows A.
 The sequence (A, B, A) shows that B follows A, and A follows B.
 The sequences ((A, B, A), (A, C, A)) is equivalent to (A, B, A, C, A).
 
-In this example, the orders and the reservations processes need to
-follow each other. Also the payments and the orders processes need
-to follow each other. There is no direct relationship between
-reservations and payments.
+In this example, the orders and the reservations processes follow
+each other. Also the payments and the orders processes follow each
+other. There is no direct relationship between reservations and payments.
 
 .. code:: python
 
@@ -520,6 +536,33 @@ Actor framework
 ---------------
 
 Todo: Actor framework deployment of system.
+
+
+Integration with APIs
+---------------------
+
+Integration with other systems that present a server API or otherwise need to
+be sent messages rather than using notification logs, can be integrated by
+responding to events with a policy that uses a client to call the API or
+send a message. However, if there is a breakdown during the API call, or
+before the tracking record is written, then to avoid failing to make the call,
+it may happen that the call is made twice. If the call is not idempotent,
+and is not otherwise guarded against duplicate calls, there may be consequences
+to making the call twice, and so the situation cannot really be described as reliable.
+
+If the server response is asynchronous, any callbacks
+that the server will make could be handled by calling commands on aggregates.
+However, if callbacks might be retried, perhaps because the handler crashes
+after successfully calling a command, unless the callbacks are also tracked
+(with exclusive tracking records written atomically with new event and
+notification records) the aggregate commands will need to be idempotent, or
+otherwise guarded against duplicate callbacks. Such an integration could be
+implemented as a separate "push-API adapter" process, and it might be useful
+to have a generic implementation that can be reused, with documentation
+describing how to make such an integration reliable, however the library doesn't
+currently have any such adapter process classes or documentation.
+
+
 
 .. Todo: Have a simpler example that just uses one process,
 .. instantiated without subclasses. Then defined these processes

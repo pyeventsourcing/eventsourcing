@@ -273,7 +273,7 @@ class VersionedEntity(DomainEntity):
 
 
 class TimestampedEntity(DomainEntity):
-    def __init__(self, __created_on__, **kwargs):
+    def __init__(self, __created_on__=None, **kwargs):
         super(TimestampedEntity, self).__init__(**kwargs)
         self.___created_on__ = __created_on__
         self.___last_modified__ = __created_on__
