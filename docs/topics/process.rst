@@ -12,13 +12,7 @@ determines production. So if the product of a process must be reliable, then its
 consumption and its recording must be reliable. If the consumption and the
 recording are reliable, then for so long as processing can happen at all, it
 will happen in a reliable way. A system of such reliable processes will also
-be reliable. If the processes are determinate, then the system will be determinate.
-
-The basic unit of computation in this design is the triad "consume-compute-record".
-In particular, the final step when processing a notification is to record a
-notification. In this design, pull notifications are pulled and notifications are
-recorded. Events are not sent by pushing messages, although pushing prompts may help to
-reduce latency.
+be reliable.
 
 .. contents:: :local:
 
@@ -30,7 +24,7 @@ subclass of ``SimpleApplication``, that functions as both a projection and as an
 event-sourced application.
 
 It will consume events by reading event notifications from a notification log reader.
-The events are retried in a reliable order, without race conditions or duplicates.
+The events are retrieved in a reliable order, without race conditions or duplicates.
 To keep track of the progress through the notification log, the process will create
 a new tracking record for each notification.
 
@@ -38,19 +32,20 @@ It will respond to events according to its policy. Its policy might do nothing i
 response to one type of event, and it might call an aggregate method in response
 to another type of event.
 
-It will write the tracking record along with any new event records, in an atomic
+It will write the tracking record along with any new event records in an atomic
 database transaction. The tracking records determine how far the process has progressed
-through the notification log (they are used to set the position of the notification log
-reader when the process is resumed).
+through the notification log. They are used to set the position of the notification log
+reader when the process is resumed.
 
 Most importantly, if some of the new records can't be written, then none are. If anything
 goes wrong with the infrastructure before the records are committed, the transaction will
-fail, and so long as the transaction is atomic, none of the records will be written. If
-the tracking record has been written, the process has progressed, otherwise it hasn't.
+fail, and so long as the transaction is atomic, none of the records will be written.
 
-There can only be one unique tracking record for each notification, once the
-tracking record has been written it can't be written again. So if an event can be
-processed then it will be processed exactly once. Whatever the behaviours of the
+If the tracking record has been written, the process has progressed, otherwise it hasn't.
+
+Furthermore, there can only be one unique tracking record for each notification.
+Once the tracking record has been written it can't be written again. So if an event can be
+processed at all, then it will be processed exactly once. Whatever the behaviours of the
 aggregates and the policies of a process, including pathological behaviours such as
 infinite loops or deadlocks, the processing of those behaviours will be equally reliable.
 Just as a ratchet is as reliable as its pawl, a process application is as reliable as
@@ -64,21 +59,15 @@ One such process could follow another in a system of processes. One process coul
 other processes in a slightly more complicated system. A process could simply follow
 itself, stepping though state transitions that involve many aggregates. There could
 be a vastly complicated system of processes without introducing any systemically
-emergent unreliability in the processing of the events (there isn't a "tolerable"
-level of error in each process that would eventually compound into an intolerable
-level of error in a complicated system).
+emergent unreliability in the processing of the events (it is "absolutely" reliable,
+there isn't a "tolerable" level of unreliability in each process that would eventually
+compound into an intolerable level of unreliability in a complicated system of processes).
 
-A number of application processes could be run from a single thread. They could also
-have one thread each. Each thread could have its own operating system process, and
-each operating system process could run on its own machine. A set of such processes
-could be prompted to pull new notifications by sending messages. Although there
-is parallelism in such a system, this isn't the kind of parallelism that will
+A number of application processes could be run from a single thread. Alternatively, they
+could each have one thread in a single process. Each thread could have its own operating
+system process, and each operating system process could run on its own machine. Although
+there is parallelism in such a system, this isn't the kind of parallelism that will
 allow the system to be scaled horizontally.
-
-A system of processes can be defined without reference to the threads, or operating
-system processes, or network nodes, or notification log partitions. The deployment
-of the system could then be defined independently of the deployment, and the deployment
-can be scaled independently of the system definition.
 
 To scale the throughput of a process horizontally, beyond the rate at which
 a single sequence can be processed in series, notifications could be divided
@@ -86,6 +75,11 @@ across many notification logs. Casual dependencies between events in different
 notification logs can be automatically inferred (from the aggregates used by
 the policy of the process). Hence one application process could usefully and reliably
 employ many concurrent operating system processes (the library doesn't support this yet).
+
+In the example below, a system of process applications is defined independently of its
+deployment with threads, or multiple operating system processes, or network nodes. It is
+then started for use in a single thread, and it is also started for use a multiple
+operating system processes.
 
 
 Kahn process networks
@@ -102,11 +96,11 @@ Orders, reservations, payments
 ------------------------------
 
 The example below is suggestive of an orders-reservations-payments system.
-The system automatically processes new orders by making a reservation, and
-automatically makes a payment whenever an order is reserved.
+The system automatically processes new orders by making a reservation and
+then a payment.
 
-Event sourced aggregate root classes are defined, the ``Order`` class is
-for "orders", the ``Reservation`` class is for "reservations", and the
+Event sourced aggregate root classes are defined. The ``Order`` class is
+for "orders". The ``Reservation`` class is for "reservations". And the
 ``Payment`` class is for "payments".
 
 
@@ -271,30 +265,32 @@ manager", or "workflow", in that it effectively controls a sequence of
 steps involving other bounded contexts and aggregates, steps that would
 otherwise perhaps be controlled with a "long-lived transaction".
 
-The difference is that, here, there are only policies and aggregates, and
-the way they are processed. There isn't a special mechanism that provides
-reliability despite the system, each aggregate is equally capable of
-functioning as a saga object, every policy is capable of functioning as
-a process manager or workflow. There doesn't need to be a special mechanism
-for coding compensating transactions. If required, a failure (e.g. to make
-a payment) can be coded as an event that can processed to reverse previous
-steps (e.g. to cancel a reservation).
+The difference is that, here, there are no special components, only policies
+and aggregates, and the way they are processed. There isn't a special mechanism
+that provides reliability despite the rest of the system, each aggregate is
+equally capable of functioning as a saga object, every policy is capable of
+functioning as a process manager or workflow. There doesn't need to be a
+special mechanism for coding compensating transactions. If required, a
+failure (e.g. to make a payment) can be coded as an event that can processed
+to reverse previous steps (e.g. to cancel a reservation).
 
-Third-party systems that provide a server API that you need to call can be
-integrated by processing events by calling the APIs. Callbacks that you need
-to support can be handled by calling commands on aggregates. It could be
-implemented as a separate process. (The library doesn't currently have any
-"push-API adapter" process classes).
+Other systems which provide only an server API to call, and do not pull notifications,
+can be integrated by calling APIs in response to events. However if there is a
+breakdown during the call, perhaps just before it is made, or perhaps just after,
+then it may be necessary to repeat the call. Any callbacks that the API will make
+can be handled by calling commands on aggregates. Such an integration could be
+implemented as a separate "push-API adapter" process, however the library doesn't
+currently have any such adapter process classes).
 
 System of processes
 ~~~~~~~~~~~~~~~~~~~
 
-A system can now be defined by describing the connections between the
-processes in the system.
+A system can now be defined as processes that follow each other, with sequences
+of process application classes.
 
 The library's ``System`` class can be constructed with sequences of
 process classes, that show which process follows which other process
-in the system. For example, the sequence (A, B, C) shows that B follows A,
+in the system. For example, sequence (A, B, C) shows that B follows A,
 and C follows B. The sequence (A, A) shows that A follows A.
 The sequence (A, B, A) shows that B follows A, and A follows B.
 The sequences ((A, B, A), (A, C, A)) is equivalent to (A, B, A, C, A).
@@ -310,8 +306,7 @@ reservations and payments.
 
 
     system = System(
-        (Orders, Reservations, Orders),
-        (Orders, Payments, Orders),
+        (Orders, Reservations, Orders, Payments, Orders),
     )
 
 
