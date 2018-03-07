@@ -19,9 +19,10 @@ be reliable.
 Process application
 -------------------
 
-The library defines a "process application" with the ``Process`` class, which is a
-subclass of ``SimpleApplication``, that functions as both a projection and as an
-event-sourced application.
+The library's process class, ``Process``, functions as both a projection and as an
+event-sourced application. It is a subclass of ``SimpleApplication`` that also
+has a notification log reader and tracking records, and a policy that defines
+how to use application services when responding to event notifications.
 
 It will consume events by reading event notifications from a notification log reader.
 The events are retrieved in a reliable order, without race conditions or duplicates.
@@ -60,7 +61,7 @@ other processes in a slightly more complicated system. A process could simply fo
 itself, stepping though state transitions that involve many aggregates. There could
 be a vastly complicated system of processes without introducing any systemically
 emergent unreliability in the processing of the events (it is "absolutely" reliable,
-there isn't a "tolerable" level of unreliability in each process that would eventually
+there isn't somehow a "tolerable" level of unreliability in each process that would eventually
 compound into an intolerable level of unreliability in a complicated system of processes).
 
 A number of application processes could be run from a single thread. Alternatively, they
@@ -78,8 +79,8 @@ employ many concurrent operating system processes (the library doesn't support t
 
 In the example below, a system of process applications is defined independently of its
 deployment with threads, or multiple operating system processes, or network nodes. It is
-then started for use in a single thread, and it is also started for use a multiple
-operating system processes.
+then started as a single thread. And later it is also started as multiple operating
+system processes.
 
 
 Kahn process networks
@@ -88,8 +89,12 @@ Kahn process networks
 Since a notification log functions effectively as a durable FIFO buffer, a system of
 determinate process applications pulling notifications logs can be recognised as a
 `Kahn Process Network <https://en.wikipedia.org/wiki/Kahn_process_networks>`__ (KPN).
-If a system happens to involve processes that are not determinate, the system will not be
-determinate, and could be described in more general terms as "dataflow" or "stream processing".
+
+Kahn Process Networks are determinate systems. If a system of process applications
+happens to involve processes that are not determinate, the system as a whole will
+not be determinate, and could be described in more general terms as "dataflow" or
+"stream processing". However, in these cases, it may help that other components
+are determinated, and work together in a determinate way.
 
 
 Orders, reservations, payments
@@ -99,13 +104,12 @@ The example below is suggestive of an orders-reservations-payments system.
 The system automatically processes new orders by making a reservation and
 then a payment.
 
-Event sourced aggregate root classes are defined. The ``Order`` class is
-for "orders". The ``Reservation`` class is for "reservations". And the
-``Payment`` class is for "payments".
-
-
 Domain model
 ~~~~~~~~~~~~
+
+Event-sourced aggregates are defined. The ``Order`` class is
+for "orders". The ``Reservation`` class is for "reservations". And the
+``Payment`` class is for "payments".
 
 An ``Order`` aggregate can be created. An order
 can be set as reserved, which involves a reservation
@@ -211,8 +215,6 @@ with simple test cases, without involving any other components.
 Process applications
 ~~~~~~~~~~~~~~~~~~~~
 
-The library's ``Process`` class is a subclass of the library's ``SimpleApplication`` class.
-
 The processes of the orders-reservations-payments system have
 policies that respond to domain events by executing commands.
 
@@ -221,6 +223,8 @@ by setting the order as reserved. The Reservations process responds
 to new orders by creating a reservation. The Orders process responds
 to new payments by setting the order as paid. And the Payments
 process responds to orders being reserved by making a payment.
+
+The library's ``Process`` class is a subclass of the library's ``SimpleApplication`` class.
 
 .. code:: python
 
