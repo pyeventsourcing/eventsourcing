@@ -12,7 +12,12 @@ class TestProcess(TestCase):
 
     def test_process_with_example_policy(self):
         # Construct example process.
-        process = Process('test', policy=example_policy, persist_event_type=ExampleAggregate.Event)
+        process = Process(
+            'test',
+            policy=example_policy,
+            persist_event_type=ExampleAggregate.Event,
+            setup_tables=True,
+        )
 
         # Make the process follow itself.
         process.follow('test', process.notification_log)
@@ -49,7 +54,6 @@ class ExampleAggregate(AggregateRoot):
 
 
 def example_policy(process, repository, event):
-
     # Whenever an aggregate is created, then "move it on".
     if isinstance(event, ExampleAggregate.Created):
         # Get aggregate and move it on.
@@ -57,4 +61,3 @@ def example_policy(process, repository, event):
 
         assert isinstance(aggregate, ExampleAggregate)
         aggregate.move_on()
-

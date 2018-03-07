@@ -15,7 +15,7 @@ from eventsourcing.utils.uuids import uuid_from_application_name
 class Process(SimpleApplication):
     tracking_record_manager_class = TrackingRecordManager
 
-    def __init__(self, name=None, policy=None, setup_tables=True, setup_table=True, session=None,
+    def __init__(self, name=None, policy=None, setup_tables=False, setup_table=False, session=None,
                  persist_event_type=None, **kwargs):
         setup_table = setup_tables = setup_table or setup_tables
         super(Process, self).__init__(name=name, setup_table=setup_table, session=session,
@@ -265,6 +265,7 @@ class System(object):
 
                 previous = process_class
 
+    # Todo: Move this to 'Singlethread' class or something (like the 'Multiprocess' class)?
     def setup(self):
         assert self.processes_by_name is None, "Already running"
         self.processes_by_name = {}
@@ -272,7 +273,7 @@ class System(object):
 
         # Construct the processes.
         for process_class in self.process_classes:
-            process = process_class(session=session)
+            process = process_class(session=session, setup_tables=bool(session is None))
             self.processes_by_name[process.name] = process
             if session is None:
                 session = process.session

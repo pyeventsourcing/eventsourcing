@@ -32,10 +32,8 @@ class OperatingSystemProcess(multiprocessing.Process):
         self.redis = redis.Redis()
         self.pubsub = self.redis.pubsub()
 
-        # Construct process.
-        self.process = self.application_process_class(
-            setup_tables=False,
-        )
+        # Construct process application.
+        self.process = self.application_process_class()
 
         # Follow upstream notification logs.
         for upstream_name in self.upstream_names:

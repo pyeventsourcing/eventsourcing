@@ -306,8 +306,7 @@ to cancel a reservation).
 System of processes
 ~~~~~~~~~~~~~~~~~~~
 
-A system can now be defined as processes that follow each other, with sequences
-of process application classes.
+The system can now be defined as a network of processes that follow each other.
 
 The library's ``System`` class can be constructed with sequences of
 process classes, that show which process follows which other process
@@ -359,7 +358,7 @@ has returned, the system has already processed the order.
     assert repository[order_id].is_paid
 
 
-The system can be closed, which closes all the system's process applications.
+The system's ``close()`` closes its process applications (unsubscribes event handlers).
 
 .. code:: python
 
@@ -373,12 +372,14 @@ The system above runs in a single thread, but it could also be distributed.
 Distributed system
 ------------------
 
-The application processes above could be run in different threads in a
-single process. Those threads could run in different processes on a
+The process applications above could be run in different threads in a
+single process. Alternatively, they run in different processes on a
 single node. Those process could run on different nodes in a network.
+The example below shows the process applications running in different
+processes on the same node, using Python's ``multiprocessing` library.
 
-If there are many threads, each thread could run a loop that begins by
-making a call to messaging infrastructure for prompts pushed from upstream
+With multiple threads or operating system processes, each could run a loop that
+begins by making a call to messaging infrastructure for prompts pushed from upstream
 via messaging infrastructure. Prompts can be responded to immediately
 by pulling new notifications. If the call to get new prompts times out,
 any new notifications from upstream notification logs can be pulled, so
@@ -386,18 +387,16 @@ that the notification log is effectively polled at a regular interval
 whenever no prompts are received.
 
 The process applications could all use the same single database, or they
-could each use their own database. If the process applications of a system
-in the same operating system processes use different databases, they can
-still use each other's notification log object.
-
-Using multiple operating system processes is similar to multi-threading,
-each process will run a thead that runs a loop. Multiple operating system
-processes could share the same database. They could also use different
-databases, but then the notification logs may need to be presented in
-an API and its readers may need to to pull notifications from the API.
+could each use their own database. If different process applications of a system
+are running in the same operating system process, they can use each other's
+notification log object (and repository object). Otherwise, the notification
+logs (and aggregates) may need to be presented in an API and downstream processes
+would need to pull notifications from an upstream API. In this example, the
+processes applications use the same database.
 
 The example below shows a system with multiple operating system processes.
-All the application processes share one MySQL database. The example works
+It uses Redis as a publish-subscribe mechanism, to push prompts. All the
+application processes share one MySQL database. The example works
 just as well with PostgreSQL.
 
 .. code:: python
@@ -408,20 +407,14 @@ just as well with PostgreSQL.
     #os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
 
 
-The ``Process`` class can be used to setup the database tables.
-
-.. code:: python
-
-    Process(setup_tables=True).close()
-
-
-A simple application object can be used to persist ``Order.Created`` events.
+Before starting the system's operating, let's create a new Order. The database tables
+will be created because the Orders process is constructed with ``setup_tables=True``.
 
 .. code:: python
 
     from eventsourcing.application.simple import SimpleApplication
 
-    with SimpleApplication(name='orders', persist_event_type=Order.Created) as app:
+    with Orders(setup_tables=True) as app:
 
         # Create a new order.
         order_id = create_new_order()
