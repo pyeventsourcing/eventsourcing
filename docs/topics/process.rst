@@ -444,27 +444,15 @@ context manager. Wait for the results, by polling the aggregate state.
 
 Let's do that again, but with a batch of orders that is created after the system
 operating system processes have been started. Below, ``app`` will be working
-concurrently with the ``orders`` process that is running in the operating
-system process that was started in the previous step. The ``reservations``
-and the ``payments`` process will also be processing concurrently with
-the ``orders`` process. Because there are two instances of the ``Orders``
-process, each may make changes at the same time to the same aggregates, and
-there may be conflicts writing to the notification log. Since the conflicts
-will causes database transactions to rollback, and commands to be restarted,
-it isn't a very good design, but this bad design helps to demonstrate the
-processing of the system is reliable.
-
-Please note, the ``retry`` decorator is applied to the ``create_new_order()``
+concurrently with the ``multiprocess`` system. Because there are two instances
+of the ``Orders`` process, there may be conflicts writing to the notification
+log. That is why the ``retry`` decorator is applied to the ``create_new_order()``
 factory, so that when conflicts are encountered, the operation can be retried.
+
 For the same reason, the ``@retry`` decorator is applied the ``run()`` method
 of the process application class, ``Process``. In extreme circumstances, these
 retries will be exhausted, and the original exception will be reraised by the
-decorator. Obviously, if that happened in this example, the ``create_new_order()``
-call would fail, and so the code would terminate. But the ``OperatingSystemProcess``
-class has a loop that is robust to normal exceptions, and so if the application
-process ``run()`` method exhausts its retries, the operating system process loop
-will continue, calling the application indefinitely until the operating system
-process is terminated.
+decorator.
 
 .. code:: python
 
@@ -475,7 +463,7 @@ process is terminated.
         # Start multiprocessing system.
         with multiprocess:
 
-            # Start another Orders process, to inject some commands.
+            # Start another Orders process, to persist Order.Created events.
             with Orders() as app:
 
                 # Start timing duration.
@@ -520,9 +508,8 @@ run processes on different nodes.
 Actor framework
 ---------------
 
-Using the Python ``multiprocessing`` library is one way to deploy the application process
-system. Alternatively, an Actor framework could be used to start and monitor operating system
-processes running the process applications, and send prompt messages directly, removing the
+An Actor framework could be used to start and monitor operating system
+processes running the process applications. Prompts could be sent directly, removing the
 need for a publish-subscribe service. Because notifications are pulled from notification logs,
 we don't need to worry about resending messages after a crash. Actors could usefull send
 error messages. An Actor framework would also provide a way to run multiple processes on
