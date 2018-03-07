@@ -513,18 +513,21 @@ order, the next order might concurrently be being reserved, whilst a third order
 the same time being created.
 
 
-Actor model
------------
+Actor model system
+------------------
 
 An Actor model library, such as `Thespian Actor Library
-<https://github.com/kquick/Thespian>`__, could be used to start and monitor operating system
-processes running the process applications. Prompts could be sent directly, removing the
+<https://github.com/kquick/Thespian>`__, could be used to start the
+process applications of a system as actors. Prompts could be sent directly, removing the
 need for a publish-subscribe service. Because notifications are pulled from notification logs,
 we don't need to worry about resending messages after a crash. Actors could usefully send
-error messages. An Actor framework would also provide a way to run process applications
-in operating system processes on different nodes in a cluster. (Not yet implemented.)
+error messages. Actors would also provide a way to run process applications
+in operating system processes on different nodes in a cluster. Actors could be
+run without parallelism using a simple actor system implementation (e.g. "simpleSystemBase"
+in Thespian) to ease development and testing. (Running a system of process applications
+with actors is not yet implemented.)
 
-Todo: Actor framework deployment of system.
+Todo: Actor model deployment of system.
 
 
 Integration with APIs
