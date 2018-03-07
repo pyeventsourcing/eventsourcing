@@ -15,7 +15,9 @@ from eventsourcing.utils.uuids import uuid_from_application_name
 class Process(SimpleApplication):
     tracking_record_manager_class = TrackingRecordManager
 
-    def __init__(self, name=None, policy=None, setup_table=True, session=None, persist_event_type=None, **kwargs):
+    def __init__(self, name=None, policy=None, setup_tables=True, setup_table=True, session=None,
+                 persist_event_type=None, **kwargs):
+        setup_table = setup_tables = setup_table or setup_tables
         super(Process, self).__init__(name=name, setup_table=setup_table, session=session,
                                       persist_event_type=persist_event_type, **kwargs)
         self._cached_entities = {}
@@ -25,7 +27,7 @@ class Process(SimpleApplication):
 
         # Setup tracking records.
         self.tracking_record_manager = self.tracking_record_manager_class(self.datastore.session)
-        if setup_table and not session:
+        if setup_tables and not session:
             self.datastore.setup_table(
                 self.tracking_record_manager.record_class
             )
