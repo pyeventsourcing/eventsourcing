@@ -345,7 +345,7 @@ by making a reservation and a payment, facts that are registered
 with the order. Everything happens synchronously, in a single
 thread, so by the time the ``create_new_order()`` factory
 has returned, the system has already processed the order,
-which can be retried from the "orders" repository.
+which can be retrieved from the "orders" repository.
 
 .. code:: python
 
