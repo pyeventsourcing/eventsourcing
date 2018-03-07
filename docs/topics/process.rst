@@ -329,54 +329,37 @@ other. There is no direct relationship between reservations and payments.
     )
 
 
-The system definition can used directly to setup a single threaded system.
-
-.. code:: python
-
-    system.setup()
-
-
-Having set up a system of processes, we can publish an
-event that it responds to, for example an ``Order.Created``
-event.
+If system object is used as a context manager, the process
+applications will be setup to work in the current process.
 
 In the code below, a new order is created. The system responds
 by making a reservation and a payment, facts that are registered
-with the order. Everything happens synchronously in a single
+with the order. Everything happens synchronously, in a single
 thread, so by the time the ``create_new_order()`` factory
 has returned, the system has already processed the order.
 
 .. code:: python
 
+    with system:
+        # Create new Order aggregate.
+        order_id = create_new_order()
 
-    # Create new Order aggregate.
-    order_id = create_new_order()
-
-    # Check the order is reserved and paid.
-    repository = system.orders.repository
-    assert repository[order_id].is_reserved
-    assert repository[order_id].is_paid
-
-
-The system's ``close()`` closes its process applications (unsubscribes event handlers).
-
-.. code:: python
-
-    # Clean up.
-    system.close()
-
-
-The system above runs in a single thread, but it could also be distributed.
+        # Check the order is reserved and paid.
+        repository = system.orders.repository
+        assert repository[order_id].is_reserved
+        assert repository[order_id].is_paid
 
 
 Distributed system
 ------------------
 
-The process applications above could be run in different threads in a
-single process. Alternatively, they run in different processes on a
-single node. Those process could run on different nodes in a network.
-The example below shows the process applications running in different
-processes on the same node, using Python's ``multiprocessing` library.
+The process applications above could be run in different threads (not
+yet implemented). Alternatively, they run in different processes on a
+single node (see below). Those process could run on different nodes in
+a network (not yet implemented). The example below shows the process
+applications running in different processes on the same node, using
+the library's ``Multiprocess`` class, which uses Python's ``multiprocessing``
+library.
 
 With multiple threads or operating system processes, each could run a loop that
 begins by making a call to messaging infrastructure for prompts pushed from upstream
@@ -384,7 +367,8 @@ via messaging infrastructure. Prompts can be responded to immediately
 by pulling new notifications. If the call to get new prompts times out,
 any new notifications from upstream notification logs can be pulled, so
 that the notification log is effectively polled at a regular interval
-whenever no prompts are received.
+whenever no prompts are received. The ``Multiprocess`` class uses Redis
+publish-subscribe to push prompts.
 
 The process applications could all use the same single database, or they
 could each use their own database. If different process applications of a system
@@ -395,8 +379,7 @@ would need to pull notifications from an upstream API. In this example, the
 processes applications use the same database.
 
 The example below shows a system with multiple operating system processes.
-It uses Redis as a publish-subscribe mechanism, to push prompts. All the
-application processes share one MySQL database. The example works
+All the application processes share one MySQL database. The example works
 just as well with PostgreSQL.
 
 .. code:: python
@@ -408,8 +391,8 @@ just as well with PostgreSQL.
 
 
 Before starting the system's operating, let's create a new Order. The database tables
-will be created because the Orders process is constructed with ``setup_tables=True``.
-The Orders process will store the Order.Created event that is published by the
+will be created when the Orders process is constructed, because ``setup_tables=True``.
+The Orders process will store the ``Order.Created`` event that is published by the
 ``create_new_order()`` factory.
 
 .. code:: python
@@ -467,7 +450,8 @@ Wait for the results, by polling the aggregate state.
                 assert retries, "Failed set order.is_paid"
 
 
-Let's do that again, but with a batch of orders. Below, ``app`` will be working
+Let's do that again, but with a batch of orders that is created after the system
+operating system processes have been started. Below, ``app`` will be working
 concurrently with the ``orders`` process that is running in the operating
 system process that was started in the previous step. The ``reservations``
 and the ``payments`` process will also be processing concurrently with
@@ -499,8 +483,8 @@ process is terminated.
         # Start multiprocessing system.
         with multiprocess:
 
-            # Start simple 'orders' application.
-            with SimpleApplication(name='orders', persist_event_type=Order.Created) as app:
+            # Start another Orders process, to inject some commands.
+            with Orders() as app:
 
                 # Start timing duration.
                 started = datetime.datetime.now()
@@ -534,13 +518,23 @@ process is terminated.
                     num, duration, rate
                 ))
 
-Using the Python ``multiprocessing`` library is one way to deploy the application process
-system. Alternatively, an Actor framework could be used to start and monitor operating system
-processes running the process applications, and send the prompts. An Actor framework might also
-provide a way to run multiple processes on different nodes in a cluster.
+Running the system with multiple operating system processes means the different steps
+for processing an order happen concurrently, so that as a payment is being made for one
+order, the next order might concurrently be being reserved, whilst a third order is at
+the same time being created. However, the ``multiprocessing`` library doesn't help to
+run processes on different nodes.
+
 
 Actor framework
 ---------------
+
+Using the Python ``multiprocessing`` library is one way to deploy the application process
+system. Alternatively, an Actor framework could be used to start and monitor operating system
+processes running the process applications, and send prompt messages directly, removing the
+need for a publish-subscribe service. Because notifications are pulled from notification logs,
+we don't need to worry about resending messages after a crash. Actors could usefull send
+error messages. An Actor framework would also provide a way to run multiple processes on
+different nodes in a cluster. (Not yet implemented.)
 
 Todo: Actor framework deployment of system.
 

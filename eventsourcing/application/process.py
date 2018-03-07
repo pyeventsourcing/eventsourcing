@@ -294,3 +294,10 @@ class System(object):
         for process in self.processes_by_name.values():
             process.close()
         self.processes_by_name = None
+
+    def __enter__(self):
+        self.setup()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
