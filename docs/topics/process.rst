@@ -94,7 +94,7 @@ Kahn Process Networks are determinate systems. If a system of process applicatio
 happens to involve processes that are not determinate, the system as a whole will
 not be determinate, and could be described in more general terms as "dataflow" or
 "stream processing". However, in these cases, it may help that other components
-are determinated, and work together in a determinate way.
+are determinate.
 
 
 Orders, reservations, payments
