@@ -409,6 +409,8 @@ just as well with PostgreSQL.
 
 Before starting the system's operating, let's create a new Order. The database tables
 will be created because the Orders process is constructed with ``setup_tables=True``.
+The Orders process will store the Order.Created event that is published by the
+``create_new_order()`` factory.
 
 .. code:: python
 
@@ -419,8 +421,9 @@ will be created because the Orders process is constructed with ``setup_tables=Tr
         # Create a new order.
         order_id = create_new_order()
 
-        # Check order exists in the repository.
+        # Check new order exists in the repository.
         assert order_id in app.repository
+
 
 The library's ``Multiprocess`` class can be used to run the ``system``,
 with one operating system process for each application process.
