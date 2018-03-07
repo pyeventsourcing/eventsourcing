@@ -104,8 +104,8 @@ The example below is suggestive of an orders-reservations-payments system.
 The system automatically processes new orders by making a reservation and
 then a payment.
 
-Domain model
-~~~~~~~~~~~~
+Aggregates
+~~~~~~~~~~
 
 In the code below, event-sourced aggregates are defined for orders, reservations,
 and payments. The ``Order`` class is for "orders". The ``Reservation`` class is
@@ -212,8 +212,8 @@ to be resilient against both concurrency conflicts and operational errors.
 As shown in previous sections, the behaviours of this domain model can be fully tested
 with simple test cases, without involving any other components.
 
-Process applications
-~~~~~~~~~~~~~~~~~~~~
+Processes
+~~~~~~~~~
 
 The processes of the orders-reservations-payments system have
 policies that respond to domain events by executing commands.
@@ -303,8 +303,8 @@ transactions. If required, a failure (e.g. to make a payment) can be
 coded as an event that can processed to reverse previous steps (e.g.
 to cancel a reservation).
 
-System of processes
-~~~~~~~~~~~~~~~~~~~
+System
+~~~~~~
 
 The system can now be defined as a network of processes that follow each other.
 
