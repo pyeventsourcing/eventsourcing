@@ -329,14 +329,23 @@ other. There is no direct relationship between reservations and payments.
     )
 
 
-If system object is used as a context manager, the process
-applications will be setup to work in the current process.
+Single threaded system
+----------------------
 
-In the code below, a new order is created. The system responds
+If the ``system`` object is used as a context manager, the process
+applications will be setup to work in the current process. Events
+will be processed with a single thread of execution, with synchronous
+handling of prompts, so that policies effectively call each other
+recursively. This avoids concurrency and is useful when developing
+and testing a system of process applications.
+
+In the code below, the ``system`` object is used as a context manager.
+In that context, a new order is created. The system responds
 by making a reservation and a payment, facts that are registered
 with the order. Everything happens synchronously, in a single
 thread, so by the time the ``create_new_order()`` factory
-has returned, the system has already processed the order.
+has returned, the system has already processed the order,
+which can be retried from the "orders" repository.
 
 .. code:: python
 
@@ -350,8 +359,8 @@ has returned, the system has already processed the order.
         assert repository[order_id].is_paid
 
 
-Distributed system
-------------------
+Multiprocessing system
+----------------------
 
 The process applications above could be run in different threads (not
 yet implemented). Alternatively, they run in different processes on a
@@ -501,19 +510,19 @@ decorator.
 Running the system with multiple operating system processes means the different steps
 for processing an order happen concurrently, so that as a payment is being made for one
 order, the next order might concurrently be being reserved, whilst a third order is at
-the same time being created. However, the ``multiprocessing`` library doesn't help to
-run processes on different nodes.
+the same time being created.
 
 
-Actor framework
----------------
+Actor model
+-----------
 
-An Actor framework could be used to start and monitor operating system
+An Actor model library, such as `Thespian Actor Library
+<https://github.com/kquick/Thespian>`__, could be used to start and monitor operating system
 processes running the process applications. Prompts could be sent directly, removing the
 need for a publish-subscribe service. Because notifications are pulled from notification logs,
-we don't need to worry about resending messages after a crash. Actors could usefull send
-error messages. An Actor framework would also provide a way to run multiple processes on
-different nodes in a cluster. (Not yet implemented.)
+we don't need to worry about resending messages after a crash. Actors could usefully send
+error messages. An Actor framework would also provide a way to run process applications
+in operating system processes on different nodes in a cluster. (Not yet implemented.)
 
 Todo: Actor framework deployment of system.
 
@@ -521,8 +530,8 @@ Todo: Actor framework deployment of system.
 Integration with APIs
 ---------------------
 
-Integration with other systems that present a server API or otherwise need to
-be sent messages rather than using notification logs, can be integrated by
+Integration with systems that present a server API or otherwise need to
+be sent messages (rather than using notification logs), can be integrated by
 responding to events with a policy that uses a client to call the API or
 send a message. However, if there is a breakdown during the API call, or
 before the tracking record is written, then to avoid failing to make the call,
@@ -530,17 +539,16 @@ it may happen that the call is made twice. If the call is not idempotent,
 and is not otherwise guarded against duplicate calls, there may be consequences
 to making the call twice, and so the situation cannot really be described as reliable.
 
-If the server response is asynchronous, any callbacks
-that the server will make could be handled by calling commands on aggregates.
-However, if callbacks might be retried, perhaps because the handler crashes
-after successfully calling a command, unless the callbacks are also tracked
-(with exclusive tracking records written atomically with new event and
-notification records) the aggregate commands will need to be idempotent, or
-otherwise guarded against duplicate callbacks. Such an integration could be
-implemented as a separate "push-API adapter" process, and it might be useful
-to have a generic implementation that can be reused, with documentation
-describing how to make such an integration reliable, however the library doesn't
-currently have any such adapter process classes or documentation.
+If the server response is asynchronous, any callbacks that the server will make
+could be handled by calling commands on aggregates. However, if callbacks might
+be retried, perhaps because the handler crashes after successfully calling a
+command, unless the callbacks are also tracked (with exclusive tracking records
+written atomically with new event and notification records) the aggregate commands
+will need to be idempotent, or otherwise guarded against duplicate callbacks. Such
+an integration could be implemented as a separate "push-API adapter" process, and
+it might be useful to have a generic implementation that can be reused, with
+documentation describing how to make such an integration reliable, however the
+library doesn't currently have any such adapter process classes or documentation.
 
 
 
