@@ -404,7 +404,7 @@ just as well with PostgreSQL.
 
     import os
 
-    os.environ['DB_URI'] = 'mysql+mysqlconnector://root:@127.0.0.1/eventsourcing2'
+    os.environ['DB_URI'] = 'mysql+mysqlconnector://root:@127.0.0.1/eventsourcing'
     #os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
 
 
