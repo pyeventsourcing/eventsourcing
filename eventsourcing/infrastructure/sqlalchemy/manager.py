@@ -149,9 +149,16 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                     query_ascending=True, results_ascending=True):
         assert limit is None or limit >= 1, limit
         try:
-            filter_kwargs = {self.field_names.sequence_id: sequence_id}
+            # Filter by sequence_id.
+            filter_kwargs = {
+                self.field_names.sequence_id: sequence_id
+            }
+            # Optionally, filter by application_id.
+            if hasattr(self.record_class, 'application_id'):
+                filter_kwargs['application_id'] = self.application_id
             query = self.filter(**filter_kwargs)
 
+            # Filter and order by position.
             position_field = getattr(self.record_class, self.field_names.position)
 
             if query_ascending:
@@ -168,14 +175,17 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             if lte is not None:
                 query = query.filter(position_field <= lte)
 
+            # Limit the results.
             if limit is not None:
                 query = query.limit(limit)
 
+            # Get the result set.
             results = query.all()
 
         finally:
             self.session.close()
 
+        # Reverse if necessary.
         if results_ascending != query_ascending:
             # This code path is under test, but not otherwise used ATM.
             results.reverse()

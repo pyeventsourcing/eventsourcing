@@ -151,6 +151,7 @@ class StoredEventRecord(Base):
     __table_args__ = (
         Index(
             'stored_events_primary_index',
+            'application_id',
             'originator_id',
             'originator_version',
             unique=True

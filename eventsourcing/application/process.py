@@ -75,6 +75,7 @@ class Process(SimpleApplication):
 
                 # Call policy with the event.
                 unsaved_aggregates, causal_dependencies = self.call_policy(event)
+                # Todo: Also include the received event in the causal dependencies.
 
                 # Write records.
                 try:

@@ -3,60 +3,69 @@ Process and system
 ==================
 
 The most important requirement pursued in this section is to obtain a reliable
-process. A process is considered reliable if the product of a process that was
-resumed after being terminated is indistinguishable from that which would have
-been produced by an uninterrupted process, regardless of when or how the process
-was terminated.
+process. A process is considered to be reliable if the product is unaffected
+by sudden terminations of the process, except in being delayed until the
+processing is resumed.
 
-A process can be understood as productive in this sense: consumption with recording
-determines production. That is, if the consumption and the recording are reliable,
-then for so long as processing can happen at all, it will happen in a reliable way.
-By extension, a system composed exclusively of reliable processes will also be reliable.
+Process is understood as productive in the following sense: consumption with recording
+determines production. If the consumption and the recording are reliable, then for so
+long as processing can happen at all, production will also be reliable. By extension,
+a system composed exclusively of reliable processes will also be reliable.
 
-Please note, the definition of "reliability" doesn't include "availability".
-Although gridlocked streets will make your arrival unreliable, your reliable
-vehicle won't breakdown. You shouldn't arrive at the wrong destination, just
-because you were diverted. In other words, infrastructure failures should only
-cause process *delays*.
+The definition of "reliability" doesn't include "availability". A disorderly environment
+shouldn't cause disorderly processing. Infrastructure failures should only cause processing
+*delays*.
+
+To limit the scope of this discussion, it is assumed here that whatever records
+have been committed by a process are not somehow damaged by random sudden
+terminations of the process. But a record is not a process, and the reliability
+of records is beyond the scope of this discussion.
+
+(Please note, the code in these examples currently only works with SQLAlchemy record
+manager. Django support is planned. Cassandra support is being considered.)
 
 .. contents:: :local:
+
 
 Process application
 -------------------
 
-The library's process class, ``Process``, functions as both a projection and as an
-event-sourced application. It is a subclass of ``SimpleApplication`` that also
-has a notification log reader and tracking records, and a policy that defines
-how to use application services when responding to event notifications.
+The library's process class, ``Process``, functions as both an event-sourced projection
+(see previous section) and as an event-sourced application. It is a subclass of
+``SimpleApplication`` that also has a notification log reader and tracking records. It
+also has a policy that defines how the process responds to events.
 
-It will consume events by reading event notifications from a notification log reader.
-The events are retrieved in a reliable order, without race conditions or duplicates.
-To keep track of its position in the notification log, the process will create
-a new tracking record for each notification.
+A process application consumes events by reading event notifications from its notification
+log reader. The events are retrieved in a reliable order, without race conditions or
+duplicates or missing items.
 
-It will respond to events according to its policy. Its policy might do nothing in
-response to one type of event, and it might call an aggregate method in response
-to another type of event.
+To keep track of its position in the notification log, a process application will create
+a new tracking record for each notification. The tracking records determine how far the
+process has progressed through the notification log. They are used to set the position
+of the notification log reader when the process is commenced or resumed.
 
-It will write the tracking record along with any new event records in an atomic
-database transaction. The tracking records determine how far the process has progressed
-through the notification log. They are used to set the position of the notification log
-reader when the process is resumed.
+A process application will respond to events according to its policy. Its policy might
+do nothing in response to one type of event, and it might call an aggregate method in
+response to another type of event.
+
+However the policy responds to an event, the process application will write a tracking
+record, along with any new event records, in an atomic database transaction.
 
 Most importantly, if some of the new records can't be written, then none are. If anything
-goes wrong with the infrastructure before the records are committed, the transaction will
-fail, and so long as the transaction is atomic, none of the records will be written.
-
-If the tracking record has been written, the process has progressed, otherwise it hasn't.
+goes wrong before all the records have been written, the transaction will rollback, none
+of the records will be written, and the process will not have progressed. On the other hand,
+if the tracking record has been written, then so will any new event records, and the process
+will have fully completed an atomic progression.
 
 Furthermore, there can only be one unique tracking record for each notification.
-Once the tracking record has been written it can't be written again. So if an event can be
-processed at all, then it will be processed exactly once. Whatever the behaviours of the
-aggregates and the policies of a process, including possible pathological behaviours such as
-infinite loops, the processing of those behaviours will be reliable.
+Once the tracking record has been written it can't be written again, and neither can
+any new events unfortunately triggered by duplicate calls to aggregate commands (which
+may even succeed and which may not be idempotent). If an event can be processed at all,
+then it will be processed exactly once.
 
-Just as a ratchet is as reliable as its pawl, a process application is as reliable as
-its database transactions are atomic.
+The processing will be reliable even if the behaviour of the policies and the aggregates
+is dysfunctional. Like the ratchet is as reliable as its pawl, a process application
+is as reliable as its database transactions are atomic.
 
 
 System of processes
@@ -84,10 +93,10 @@ can be automatically inferred (from the aggregates used by the policy of the pro
 Hence one application process could usefully and reliably employ many concurrent operating
 system processes (the library doesn't support this, yet).
 
-In the example below, a system of process applications is defined independently of its
-deployment with threads, or multiple operating system processes, or network nodes. It is
-then started as a single thread. And later it is also started as multiple operating
-system processes.
+In the example below, a system of process applications is defined independently of
+how it may be run. Then, the system is run as a single threaded system. Afterwards, the
+system is run with multiprocessing, with one operating system process for each process
+application in the system, which then operate concurrently.
 
 
 Kahn process networks
@@ -100,7 +109,7 @@ determinate process applications pulling notifications logs can be recognised as
 Kahn Process Networks are determinate systems. If a system of process applications
 happens to involve processes that are not determinate, the system as a whole will
 not be determinate, and could be described in more general terms as "dataflow" or
-"stream processing". However, in these cases, it may help that other components
+"stream processing". However, in these cases, it may help that some components
 are determinate.
 
 
@@ -109,7 +118,7 @@ Orders, reservations, payments
 
 The example below is suggestive of an orders-reservations-payments system.
 The system automatically processes new orders by making a reservation and
-then a payment.
+then a payment, facts registered with the order.
 
 Aggregates
 ~~~~~~~~~~
@@ -219,6 +228,7 @@ to be resilient against both concurrency conflicts and operational errors.
 As shown in previous sections, the behaviours of this domain model can be fully tested
 with simple test cases, without involving any other components.
 
+
 Processes
 ~~~~~~~~~
 
@@ -231,7 +241,8 @@ to new orders by creating a reservation. The Orders process responds
 to new payments by setting the order as paid. And the Payments
 process responds to orders being reserved by making a payment.
 
-The library's ``Process`` class is a subclass of the library's ``SimpleApplication`` class.
+The library's ``Process`` class is a subclass of the library's
+``SimpleApplication`` class.
 
 .. code:: python
 
@@ -239,76 +250,105 @@ The library's ``Process`` class is a subclass of the library's ``SimpleApplicati
 
 
     class Orders(Process):
-        persist_event_type=Order.Event
+        persist_event_type=Order.Created
 
         def policy(self, repository, event):
-
             if isinstance(event, Reservation.Created):
-                reservation = repository[event.originator_id]
-                order = repository[reservation.order_id]
-                order.set_is_reserved(reservation.id)
+                # Set order is reserved.
+                order = repository[event.order_id]
+                assert not order.is_reserved
+                order.set_is_reserved(event.originator_id)
 
             elif isinstance(event, Payment.Created):
-                payment = repository[event.originator_id]
-                order = repository[payment.order_id]
-                order.set_is_paid(payment.id)
+                order = repository[event.order_id]
+                assert not order.is_paid
+                order.set_is_paid(event.originator_id)
 
 
     class Reservations(Process):
-        persist_event_type=Reservation.Event
-
         def policy(self, repository, event):
-
             if isinstance(event, Order.Created):
-                # Get details of the order.
-                order = repository[event.originator_id]
-
                 # Create a reservation.
-                return Reservation.create(order_id=order.id)
+                return Reservation.create(order_id=event.originator_id)
 
 
     class Payments(Process):
-        persist_event_type=Payment.Event
-
         def policy(self, repository, event):
-
             if isinstance(event, Order.Reserved):
-                order = repository[event.originator_id]
-                return Payment.make(order_id=order.id)
+                # Make a payment.
+                return Payment.make(order_id=event.originator_id)
+
 
 The policies are easy to test. Here's a test for the payments policy.
 
 .. code:: python
 
     def test_payments_policy():
-        # Prepare fake repository.
-        order = Order(id=1)
+
+        # Prepare fake repository with a real Order aggregate.
+        order = Order.__create__()
         fake_repository = {order.id: order}
 
-        # Construct the payments process.
-        with Payments() as process:
+        # Check policy makes payment whenever order is reserved.
+        event = Order.Reserved(originator_id=order.id, originator_version=1)
 
-            # Check policy makes payment whenever order is reserved.
-            event = Order.Reserved(originator_id=order.id, originator_version=1)
-            payment = process.policy(fake_repository, event)
+        with Payments() as process:
+            payment = process.policy(repository=fake_repository, event=event)
             assert isinstance(payment, Payment), payment
             assert payment.order_id == order.id
 
     # Run the test.
     test_payments_policy()
 
+
+In this test, a new aggregate is created by the policy, and checked by the test.
+The test is able to check the new aggregate because the new aggregate is returned
+by the policy. Policies should normally return new aggregates to the caller.
+
+If a policy retrieves and changes an already existing aggregate, the aggregate does
+not need to be returned by the policy to the caller. The test will have already
+constructed the aggregate, before passing it to the policy in a Python dict, as
+the policy's ``repository`` arg, so the test is in a good position to check the
+aggregate is changed by the policy in the expected way.
+
+Here's a test for the orders policy responding to a ``Reservation.Created``
+event. It shows how to test that an already existing aggregate is changed in
+an expected way by a policy.
+
+.. code:: python
+
+    from uuid import uuid4
+
+    def test_orders_policy():
+        # Prepare fake repository with a real Order aggregate.
+        order = Order.__create__()
+        fake_repository = {order.id: order}
+
+        # Check order is not reserved.
+        assert not order.is_reserved
+
+        # Check order is set as reserved when reservation is created for the order.
+        with Orders() as process:
+
+            event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
+            process.policy(repository=fake_repository, event=event)
+
+        # Check order is reserved.
+        assert order.is_reserved
+
+    # Run the test.
+    test_orders_policy()
+
+
 In normal use, the ``policy()`` method is called by the ``call_policy()``
-method of the ``Process`` class, which wraps the application repository
-with a wrapper which tracks which aggregates are used by the policy. This
-allows any changes caused by the policy to be automatically detected, and
-also all of the causal dependencies can be inferred. However, new aggregates
-aren't visible to the repository, so to be included in the recording, they
-must be returned by the policy to its caller. Therefore, if the policy should
-create a new aggregate, then the test can check the policy return value. And
-if the policy should manipulate existing aggregates, then those aggreagates
-must have been passed into the test in  the ``fake_repository``, so the
-test will have references to those aggregates, and so is in a good position
-to check the aggregates were changed by the policy in the expected way.
+method of the ``Process`` class, when new events are retrieved from an upstream
+notification log. The ``call_policy()`` method wraps the process application's
+aggregate repository with a wrapper that detects which aggregates are used by
+the policy and which were changed, so any changes caused by the policy can be
+automatically detected, and also all of the causal dependencies can be
+automatically inferred, before new records are committed. Returning a new
+aggregate is necessary to include its events in this atomic recording.
+
 
 System
 ~~~~~~
