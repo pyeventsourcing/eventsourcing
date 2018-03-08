@@ -87,6 +87,8 @@ class Process(SimpleApplication):
                     raise
                 else:
                     # Publish a prompt if there are new notifications.
+                    # Todo: Optionally send events as prompts, will save reading database
+                    # if it arrives in correct order, but risks overloading the recipient.
                     if event_records:
                         self.publish_prompt()
 
@@ -120,10 +122,19 @@ class Process(SimpleApplication):
         # Construct event records.
         event_records = self.construct_event_records(aggregates)
 
-        # Write event records with tracking record.
-        record_manager = self.event_store.record_manager
-        assert isinstance(record_manager, RelationalRecordManager)
-        record_manager.write_records(records=event_records, tracking_record=tracking_record)
+        # # Write event records with tracking record.
+        # if event_records:
+        #     write_records = True
+        # elif notification['id'] % 10 == 0:
+        #     write_records = True
+        # else:
+        #     # write_records = False
+        write_records = True
+
+        if write_records:
+            record_manager = self.event_store.record_manager
+            assert isinstance(record_manager, RelationalRecordManager)
+            record_manager.write_records(records=event_records, tracking_record=tracking_record)
 
         return event_records
 

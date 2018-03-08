@@ -3,16 +3,21 @@ Process and system
 ==================
 
 The most important requirement pursued in this section is to obtain a reliable
-process. A process is considered reliable if processing can be resumed after a
-breakdown happening at any time, such that the product of the resumed process is
-indistinguishable from that which would have been produced without the interruption.
+process. A process is considered reliable if the product of a process that was
+resumed after being terminated is indistinguishable from that which would have
+been produced by an uninterrupted process, regardless of when or how the process
+was terminated.
 
-Process can be understood as productive in this way: consumption with recording
-determines production. So if the product of a process must be reliable, then its
-consumption and its recording must be reliable. If the consumption and the
-recording are reliable, then for so long as processing can happen at all, it
-will happen in a reliable way. A system of such reliable processes will also
-be reliable.
+A process can be understood as productive in this sense: consumption with recording
+determines production. That is, if the consumption and the recording are reliable,
+then for so long as processing can happen at all, it will happen in a reliable way.
+By extension, a system composed exclusively of reliable processes will also be reliable.
+
+Please note, the definition of "reliability" doesn't include "availability".
+Although gridlocked streets will make your arrival unreliable, your reliable
+vehicle won't breakdown. You shouldn't arrive at the wrong destination, just
+because you were diverted. In other words, infrastructure failures should only
+cause process *delays*.
 
 .. contents:: :local:
 
@@ -47,10 +52,11 @@ If the tracking record has been written, the process has progressed, otherwise i
 Furthermore, there can only be one unique tracking record for each notification.
 Once the tracking record has been written it can't be written again. So if an event can be
 processed at all, then it will be processed exactly once. Whatever the behaviours of the
-aggregates and the policies of a process, including pathological behaviours such as
-infinite loops or deadlocks, the processing of those behaviours will be equally reliable.
+aggregates and the policies of a process, including possible pathological behaviours such as
+infinite loops, the processing of those behaviours will be reliable.
+
 Just as a ratchet is as reliable as its pawl, a process application is as reliable as
-its database transactions.
+its database transactions are atomic.
 
 
 System of processes
@@ -68,14 +74,15 @@ A number of application processes could be run from a single thread. Alternative
 could each have one thread in a single process. Each thread could have its own operating
 system process, and each operating system process could run on its own machine. Although
 there is parallelism in such a system, this isn't the kind of parallelism that will
-allow the system to be scaled horizontally.
+allow the system to scale horizontally (adding more machines).
 
 To scale the throughput of a process horizontally, beyond the rate at which
 a single sequence can be processed in series, notifications could be divided
-across many notification logs. Casual dependencies between events in different
-notification logs can be automatically inferred (from the aggregates used by
-the policy of the process). Hence one application process could usefully and reliably
-employ many concurrent operating system processes (the library doesn't support this yet).
+across many notification logs. Each notification log could be processed
+concurrently. Casual dependencies between events in different notification logs
+can be automatically inferred (from the aggregates used by the policy of the process).
+Hence one application process could usefully and reliably employ many concurrent operating
+system processes (the library doesn't support this, yet).
 
 In the example below, a system of process applications is defined independently of its
 deployment with threads, or multiple operating system processes, or network nodes. It is
@@ -269,39 +276,39 @@ The library's ``Process`` class is a subclass of the library's ``SimpleApplicati
                 order = repository[event.originator_id]
                 return Payment.make(order_id=order.id)
 
-The process class policies are easy to test.
+The policies are easy to test. Here's a test for the payments policy.
 
 .. code:: python
 
-    # Prepare fake repository.
-    order = Order(id=1)
-    fake_repository = {order.id: order}
+    def test_payments_policy():
+        # Prepare fake repository.
+        order = Order(id=1)
+        fake_repository = {order.id: order}
 
-    # Construct the payments process.
-    with Payments() as process:
+        # Construct the payments process.
+        with Payments() as process:
 
-        # Check policy makes payment whenever order is reserved.
-        event = Order.Reserved(originator_id=order.id, originator_version=1)
-        payment = process.policy(fake_repository, event)
-        assert isinstance(payment, Payment), payment
-        assert payment.order_id == order.id
+            # Check policy makes payment whenever order is reserved.
+            event = Order.Reserved(originator_id=order.id, originator_version=1)
+            payment = process.policy(fake_repository, event)
+            assert isinstance(payment, Payment), payment
+            assert payment.order_id == order.id
 
-The Orders process, specifically the Order aggregate combined with the
-Orders process policy, is more or less equivalent to "saga", or "process
-manager", or "workflow", in that it effectively controls a sequence of
-steps involving other bounded contexts and aggregates, steps that would
-otherwise perhaps be controlled with a "long-lived transaction".
+    # Run the test.
+    test_payments_policy()
 
-In this design, except for the definition and implementation of process,
-there are no special concepts or components. There are only policies and
-aggregates and events, and the way they are processed in a process application.
-There isn't a special mechanism that provides reliability despite the rest
-of the system, each aggregate is equally capable of functioning as a saga object,
-every policy is capable of functioning as a process manager or workflow.
-There doesn't need to be a special mechanism for coding compensating
-transactions. If required, a failure (e.g. to make a payment) can be
-coded as an event that can processed to reverse previous steps (e.g.
-to cancel a reservation).
+In normal use, the ``policy()`` method is called by the ``call_policy()``
+method of the ``Process`` class, which wraps the application repository
+with a wrapper which tracks which aggregates are used by the policy. This
+allows any changes caused by the policy to be automatically detected, and
+also all of the causal dependencies can be inferred. However, new aggregates
+aren't visible to the repository, so to be included in the recording, they
+must be returned by the policy to its caller. Therefore, if the policy should
+create a new aggregate, then the test can check the policy return value. And
+if the policy should manipulate existing aggregates, then those aggreagates
+must have been passed into the test in  the ``fake_repository``, so the
+test will have references to those aggregates, and so is in a good position
+to check the aggregates were changed by the policy in the expected way.
 
 System
 ~~~~~~
@@ -327,6 +334,28 @@ other. There is no direct relationship between reservations and payments.
     system = System(
         (Orders, Reservations, Orders, Payments, Orders),
     )
+
+
+In this system, the Orders process, specifically the Order aggregate
+combined with the Orders process policy, is more or less equivalent to
+"saga", or "process manager", or "workflow", in that it effectively
+controls a sequence of steps involving other bounded contexts and
+aggregates, steps that would otherwise perhaps be controlled with a
+"long-lived transaction". The convoluted design, of running everything
+through orders aggregate, is supposed to demonstrate how an aggregate
+can control a sequence of transactions. A simpler design, the payments
+process would respond directly to the reservation events.
+
+In this design, except for the definition and implementation of process,
+there are no special concepts or components. There are only policies and
+aggregates and events, and the way they are processed in a process application.
+There isn't a special mechanism that provides reliability despite the rest
+of the system, each aggregate is equally capable of functioning as a saga object,
+every policy is capable of functioning as a process manager or workflow.
+There doesn't need to be a special mechanism for coding compensating
+transactions. If required, a failure (e.g. to make a payment) can be
+coded as an event that can processed to reverse previous steps (e.g.
+to cancel a reservation).
 
 
 Single threaded system
@@ -439,7 +468,7 @@ context manager. Wait for the results, by polling the aggregate state.
         # Start multiprocessing system.
         with multiprocess:
 
-            retries = 100
+            retries = 50
             while not app.repository[order_id].is_reserved:
                 time.sleep(0.1)
                 retries -= 1
@@ -475,16 +504,14 @@ decorator.
             # Start another Orders process, to persist Order.Created events.
             with Orders() as app:
 
-                # Start timing duration.
-                started = datetime.datetime.now()
-
                 # Create some new orders.
                 num = 25
                 order_ids = []
                 for _ in range(num):
                     order_id = create_new_order()
                     order_ids.append(order_id)
-                    multiprocess.prompt()
+
+                    multiprocess.prompt_about('orders')
 
                 # Wait for orders to be reserved and paid.
                 retries = num * 10
@@ -500,12 +527,22 @@ decorator.
                         retries -= 1
                         assert retries, "Failed set order.is_paid ({})".format(i)
 
-                # Print rate of order processing.
-                duration = (datetime.datetime.now() - started).total_seconds()
-                rate = float(num) / duration
-                print("Orders system processed {} orders in {:.2f}s at rate of {:.2f} orders/s".format(
-                    num, duration, rate
-                ))
+                # Print timings.
+                orders = [app.repository[oid] for oid in order_ids]
+                first_timestamp = min([o.__created_on__ for o in orders])
+                last_timestamp = max([o.__last_modified__ for o in orders])
+                duration = last_timestamp - first_timestamp
+                rate = num / float(duration)
+                period = 1 / rate
+                print("Orders system processed {} orders in {:.3f}s at rate of {:.1f} "
+                      "orders/s, {:.3f}s each".format(num, duration, rate, period))
+
+                # Print min, average, max duration.
+                durations = [o.__last_modified__ - o.__created_on__ for o in orders]
+                print("Min order processing time: {:.3f}s".format(min(durations)))
+                print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
+                print("Max order processing time: {:.3f}s".format(max(durations)))
+
 
 Running the system with multiple operating system processes means the different steps
 for processing an order happen concurrently, so that as a payment is being made for one
@@ -517,15 +554,97 @@ Actor model system
 ------------------
 
 An Actor model library, such as `Thespian Actor Library
-<https://github.com/kquick/Thespian>`__, could be used to start the
-process applications of a system as actors. Prompts could be sent directly, removing the
-need for a publish-subscribe service. Because notifications are pulled from notification logs,
-we don't need to worry about resending messages after a crash. Actors could usefully send
-error messages. Actors would also provide a way to run process applications
-in operating system processes on different nodes in a cluster. Actors could be
-run without parallelism using a simple actor system implementation (e.g. "simpleSystemBase"
-in Thespian) to ease development and testing. (Running a system of process applications
-with actors is not yet implemented.)
+<https://github.com/kquick/Thespian>`__, could be used to run
+a system of process applications as actors.
+
+Actors could be run on different nodes in a cluster. Actors could
+be supervised, so that failures could be reported, and actors restarted.
+
+Prompts could be sent as actor messages, rather than with a publish-subscribe service.
+
+To aid development and testing, actors could run without any
+parallelism, for example with the "simpleSystemBase" actor
+system in Thespian.
+
+However, it seems that actors aren't a very reliable way of propagating application
+state. The reason is that actor frameworks will not, in a single atomic transaction,
+remove an event from its inbox, and also store new domain events, and also write
+to another actor's inbox. Hence, for any given message that has been received, one
+or two of those things could happen whilst the other or others do not.
+
+For example what happens when the actor suddenly terminates after a new domain event
+has been stored but before the event can be sent as a message? Will the message never be sent?
+If the actor records which messages have been sent, what if the actor suddenly terminates after
+the message is sent but before the sending could be recorded? Will there be a duplicate?
+
+Similarly, if normally a message is removed from an actor's inbox and then new domain
+event records are made, what happens if the actor suddenly terminates before the new
+domain event records can be committed?
+
+If something goes wrong after one thing has happened but before another thing
+has happened, resuming after a breakdown will cause duplicates or missing items
+or a jumbled sequence. It is hard to understand how this situation can be made reliable.
+
+And if a new actor is introduced after the application has been generating events
+for a while, how does it catch up? If there is a separate way for it to catch up,
+switching over to receive new events without receiving duplicates or missing events
+or stopping the system seems like a hard problem.
+
+In some applications, reliability may not be required, for example with some
+analytics applications. But if reliability does matter, if accuracy if required,
+remedies such as resending and deduplication, and waiting and reordering, seem
+expensive and complicated and slow. Idempotent operations are possible but it
+is a restrictive approach. Even with no infrastructure breakdowns, sending messages
+can overrun unbounded buffers, and if the buffers are bounded, then write will block.
+The overloading can be remedied by implementing back-pressure, for which a standard
+has been written.
+
+Even if durable FIFO channels were used to send messages between actors, which would
+be quite slow relative to normal actor message sending, unless the FIFO channels were
+written in the same atomic transaction as the stored event records, and removing the
+received event from the in-box, in other words, the actor framework and the event
+sourcing framework were intimately related, the process wouldn't be reliable.
+
+Altogether, this collection of issues and remedies seems exciting at first but mostly
+inhibits confidence that the actor model offers a simple, reliable, and maintainable
+approach to propagating the state of an application. It seems like a unreliable
+approach for projecting the state of an event sourced application, and therefore cannot
+be the basis of a reliable system that processes domain events by generating other
+domain events. Most of the remedies each seem much more complicated than the notification
+log approach implemented in this library.
+
+It may speed a system to send events as messages, and if events are sent as messages
+and they happen to be received in the correct order, they can be consumed in that way,
+which should save reading new events from the database, and will therefore help to
+avoid the database bottlenecking event propagation, and also races if the downstream
+process is reading notifications from a lagging database replica. But if new events are generated
+and stored because older events are being processed, then to be reliable, to underwrite the
+unreliability of sending messages, the process must firstly produce reliable
+records, before optionally sending the events as prompts. It is worth noting that sending
+events as prompts loads the messaging system more heavily that just sending empty prompts,
+so unless the database is a bottleneck for reading events, then sending events as
+messages might slow down the system (sending events is slower than sending empty prompts
+when using multiprocessing and Redis on a laptop).
+
+The low-latency of sending messages can be obtained by pushing empty prompts. Prompts could
+be rate limited, to avoid overloading downstream processes, which wouldn't involve any loss
+in the delivery of events to downstream processes. The high-throughput of sending events as
+messages directly between actors could help avoid database bandwidth problems. But in case
+of any disruption to the sequence, high-accuracy in propagating a sequence of events can be
+obtained, in the final resort if not the first, by pulling events from a notification log.
+
+Although sending events as messages with actors doesn't seem to offer a very reliable
+way of processing domain events for applications with event-sourced aggregates, actors
+do seem like a great way of orchestrating event-sourced process applications. The "based
+on physics" thing seems to fit well with infrastructure, which is inherently imperfect.
+If an actor fails then it can be resumed. We just need to make sure that the recorded
+state of our application determines the subsequent processing, and the recorded state
+is changed atomically from one coherent state to another, so that processing can resume
+in a coherent state as if there was no failure, and so that infrastructure failures only
+cause processing delays.
+
+(Running a system of process applications with actors is not yet implemented in the library.)
+
 
 Todo: Actor model deployment of system.
 
