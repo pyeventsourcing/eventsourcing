@@ -148,6 +148,25 @@ class OperatingSystemProcess(multiprocessing.Process):
                     ),
                     section_size=self.process.notification_log_section_size
                 )
+                # Todo: Support upstream partition IDs different from self.partition_id.
+                # Todo: Support combining partitions. Read from different partitions but write to the same partition,
+                # could be one os process that reads from many logs of the same upstream app, or many processes each
+                # reading one partition with contention writing to the same partition).
+                # Todo: Support dividing partitions Read from one but write to many. Maybe one process per
+                # upstream partition, round-robin to pick partition for write. Or have many processes reading
+                # with each taking it in turn to skip processing somehow.
+                # Todo: Dividing partitions would allow a stream to flow at the same rate through slower
+                # process applications.
+                # Todo: Support merging results from "replicated state machines" - could have a command
+                # logging process that takes client commands and presents them in a notification log.
+                # Then the system could be deployed in different places, running independently, receiving
+                # the same commands, and running the same processes. The command logging process could
+                # be accompanied with a result logging process that reads results from replicas as they
+                # are available. Not sure what to do if replicas return different things. If one replica
+                # goes down, then it could resume by pulling events from another? Not sure what to do.
+                # External systems could be modelled as commands.
+
+
 
             # Make the process follow the upstream notification log.
             self.process.follow(upstream_name, notification_log)

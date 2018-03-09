@@ -12,29 +12,30 @@ process. A process is considered to be reliable if the product is unaffected
 by sudden terminations of the process, except in being delayed until the
 processing is resumed.
 
+This definition of the reliability ("safety") doesn't include availability ("liveness").
+Infrastructure unreliability may cause processing delays, but disorderly environments
+shouldn't damage the product of a process. The product, whenever it is obtained,
+should be unaffected by infrastructure failures. Of course, the availability of
+infrastructure inherently limits the availability of the product. Nevertheless
+infrastructure availability is beyond the scope of this discussion. To limit the
+scope a little bit further, it is assumed here that whatever records have been
+committed by a process will not somehow be damaged by a sudden termination of the
+process. A record is not a process, and the reliability of records is beyond the
+scope of this discussion. To limit this discussion about process reliability even
+further, the reliability of the event processing described below is a separate
+concern from any programming errors in the policies of aggregates of a process
+application that may define pathological behaviour. That is, policy and aggregate
+programming errors are beyond the scope of this discussion.
+
 .. contents:: :local:
 
 
-This definition of reliability doesn't include availability. Infrastructure
-unreliability may cause processing delays, but disorderly environments shouldn't
-cause disorderly processing. The product of a process, whenever it is obtained,
-should be invariant with respect to any infrastructure failures. Of course, the
-availability of infrastructure inherently limits the availability of the product,
-but nevertheless infrastructure availability is beyond the scope of this discussion.
-To limit the scope a little bit further, it is assumed here that whatever records
-have been committed by a process will not somehow be damaged by a sudden termination
-of the process. A record is not a process, and the reliability of records is beyond
-the scope of this discussion. To limit this discussion about process reliability even
-further, the reliability of the event processing design described below is a separate
-concern from any programming errors in the policies of aggregates of a process
-application that may define pathological behaviour.
-
-(Please note, the code in these examples currently only works with the library's
-SQLAlchemy record manager. Django support is planned, Cassandra support is being
-considered but will probably be restricted to processes similar to replication or
-translation that will write one record for each event notification received, and
-use that record as tracking record, event record, and notification log record,
-due to the limited atomicity of Cassandra's light weight transactions.)
+Please note, the library code presented in the example below currently only works
+with the library's SQLAlchemy record manager. Django support is planned, Cassandra
+support is being considered but will probably be restricted to processes similar
+to replication or translation that will write one record for each event notification
+received, and use that record as tracking record, event record, and notification
+log record, due to the limited atomicity of Cassandra's light weight transactions.
 
 
 Process application
