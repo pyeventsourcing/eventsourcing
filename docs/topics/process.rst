@@ -280,8 +280,9 @@ The library's ``Process`` class is a subclass of the library's
                 # Make a payment.
                 return Payment.make(order_id=event.originator_id)
 
-Please remember, do not call the ``__save__()`` method of aggregates, the
-pending events will be collected after the ``policy()`` method has been called.
+Please remember, do not call the ``__save__()`` method of aggregates in process
+application policies, because the pending events will be collected after the
+``policy()`` method has been called.
 
 The policies are easy to test. Here's a test for the payments policy.
 
@@ -308,19 +309,31 @@ The policies are easy to test. Here's a test for the payments policy.
 In this test, a new aggregate is created by the policy, and checked by the test.
 The test is able to check the new aggregate because the new aggregate is returned
 by the policy. Policies should normally return new aggregates to the caller.
-Remember, do not call the __save__() method of new aggregates: their pending
-events will be collected after the ``policy()`` method has returned.
+Remember, do not call the ``__save__()`` method of new aggregates in a process
+policy: pending events will be collected after the ``policy()`` method has returned.
 
 If a policy retrieves and changes an already existing aggregate, the aggregate does
-not need to be returned by the policy to the caller. Again, there is no need to call
-the ``__save__()`` method of changed aggregates, pending events will be collected
- after the ``policy()`` method has finished. The test will already have a reference
-to the aggregate, because it will have constructed the aggregate before passing it
-to the policy, so the test will be in a good position to check the aggregate changes
-as expected.
+not need to be returned by the policy to the caller.
+The test will already have a reference to the aggregate, because it will have
+constructed the aggregate before passing it to the policy, so the test will be in
+a good position to check the aggregate changes as expected.
+
+Do not call the ``__save__()`` method of new or changed aggregates in a process
+application policy. A process application saves events atomically with a tracking
+record, and calling ``__save__()`` will by-pass this safety. To explain a little bit,
+in normal use, when new events are retrieved from an upstream notification log, the
+``policy()`` method is called by the ``call_policy()`` method of the ``Process``
+class. The ``call_policy()`` method wraps the process application's aggregate
+repository with a wrapper that detects which aggregates are used by the policy
+and which were changed. Any changes caused by the policy are automatically detected,
+new events collected by requesting pending events from the aggregates detected by the
+wrapper. The records are then committed atomically. Hence, returning a new aggregate
+is necessary to include its domain events in this atomic recording. The policy should
+never call aggregate ``__save__()`` methods for this reason: events will not be committed
+atomically with the tracking record, and so the processing will not be reliable.
 
 Here's a test for the orders policy responding to a ``Reservation.Created``
-event. It shows how a policies that change already existing aggregates can
+event. It shows how policies that change already existing aggregates can
 be tested.
 
 .. code:: python
@@ -346,18 +359,6 @@ be tested.
 
     # Run the test.
     test_orders_policy()
-
-
-In normal use, the ``policy()`` method is called by the ``call_policy()``
-method of the ``Process`` class, when new events are retrieved from an upstream
-notification log. The ``call_policy()`` method wraps the process application's
-aggregate repository with a wrapper that detects which aggregates are used by
-the policy and which were changed, so any changes caused by the policy can be
-automatically detected, and new records automatically committed. Returning a
-new aggregate is necessary to include its events in this atomic recording.
-
-New events are collected by requesting pending events from the aggregates.
-The policy shouldn't call aggregate ``__save__()`` methods for this reason.
 
 Causal dependencies between events could be detected and used to synchronise
 the processing of different partitions downstream, so that downstream
