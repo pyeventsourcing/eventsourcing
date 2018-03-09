@@ -47,7 +47,7 @@ application also has a policy that defines how the process application responds 
 it receives from its notification log readers.
 
 A process application consumes events by reading event notifications from its notification
-log reader. The events are retrieved in a reliable order, without race conditions or
+log readers. The events are retrieved in a reliable order, without race conditions or
 duplicates or missing items.
 
 To keep track of its position in the notification log, a process application will create
