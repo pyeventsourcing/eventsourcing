@@ -8,24 +8,29 @@ production will be reliable. A system composed exclusively of reliable processes
 will also be reliable.
 
 The most important requirement pursued in this section is to obtain a reliable
-process. A process is considered to be reliable if the product is unaffected
-by sudden terminations of the process, except in being delayed until the
-processing is resumed.
+process. A process is considered to be reliable if its product is entirely
+unaffected by all sudden terminations of the process, except in being delayed
+until the processing is resumed.
 
-This definition of the reliability ("safety") doesn't include availability ("liveness").
-Infrastructure unreliability may cause processing delays, but disorderly environments
-shouldn't damage the product of a process. The product, whenever it is obtained,
-should be unaffected by infrastructure failures. Of course, the availability of
-infrastructure inherently limits the availability of the product. Nevertheless
-infrastructure availability is beyond the scope of this discussion. To limit the
-scope a little bit further, it is assumed here that whatever records have been
-committed by a process will not somehow be damaged by a sudden termination of the
-process. A record is not a process, and the reliability of records is beyond the
-scope of this discussion. To limit this discussion about process reliability even
-further, the reliability of the event processing described below is a separate
-concern from any programming errors in the policies of aggregates of a process
-application that may define pathological behaviour. That is, policy and aggregate
-programming errors are beyond the scope of this discussion.
+This definition of the reliability of a process doesn't include availability,
+without any infrastructure, the processing may be delayed indefinitely. Infrastructure
+unreliability may cause processing delays, but disorderly environments shouldn't
+cause disorderly processing. The product, whenever obtained, should be unaffected
+by infrastructure failures (unless the specific purpose of the process lies in
+recording infrastructure failures). Of course, the availability of infrastructure
+inherently limits the availability of the product. Nevertheless, infrastructure
+availability is beyond the scope of this discussion.
+
+To limit the scope a little bit further, it is assumed here that whatever records
+have been committed by a process will not somehow be damaged by a sudden termination
+of the process. Just like an egg is not a chicken, a record is not a process, and
+so the reliability of records is beyond the scope of this discussion.
+
+To limit this discussion about process reliability even further, the reliability
+of the event processing described below is a separate concern from any programming
+errors in the policies or aggregates of a process application that may define
+pathological behaviour. Behavioural programming errors in process policies and in
+aggregate methods are beyond the scope of this discussion.
 
 .. contents:: :local:
 
