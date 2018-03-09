@@ -64,13 +64,13 @@ is commenced or resumed.
 
 A process application will respond to events according to its policy. Its policy might
 do nothing in response to one type of event, and it might call an aggregate method in
-response to another type of event. No matter how the policy responds to an event, the process
-application will write a tracking record, along with any new event records, in an atomic
-database transaction.
+response to another type of event.
 
-Because the recording is atomic, the process proceeds atomically, with progressive steps.
+No matter how the policy responds to an event, the process application will write a
+tracking record, along with any new event records, in an atomic database transaction.
+Because the recording is atomic, the process can proceed atomically.
 
-Most importantly, if some of the new records can't be written, then none are. If anything
+If some of the new records can't be written, then none are. If anything
 goes wrong before all the records have been written, the transaction will rollback, and none
 of the records will be written. If none of the records have been written, the process has
 not progressed. On the other hand, if the tracking record has been written, then so will
@@ -82,14 +82,13 @@ any new events unfortunately triggered by duplicate calls to aggregate commands 
 may even succeed and which may not be idempotent). If an event can be processed at all,
 then it will be processed exactly once.
 
-Therefore, the processing will be reliable even if the behaviour of the policies and
-the aggregates is dysfunctional. Just like a ratchet is as good as its teeth and pawl
-are strong, similarly a process application is as reliable as its database transactions
-are atomic. The atomicity of the database transactions guarantees separately the
-reliability of both upstream notification log (teeth), and the downstream tracking
-records (pawl). Hence the application domain event records are reliable, and so is
-the process application's notification log, from which its domain events are propagated.
-
+A ratchet is as strong as its teeth and pawl. Similarly, a process application is
+as reliable as the atomicity of its database transactions. The atomicity of the
+database transactions guarantees separately the reliability of both the upstream
+notification log (teeth) and the downstream tracking records (pawl). The atomicity
+of the recording and consumption determines the production as atomic: a continuous
+stream of events is processed in discreet, indivisible units. Hence, interruptions
+can only cause delays.
 
 System of processes
 -------------------
