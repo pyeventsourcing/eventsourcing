@@ -257,6 +257,7 @@ class System(object):
         The sequences ((A, B, A), (A, C, A)) is equivalent to (A, B, A, C, A).
         """
         self.processes_by_name = None
+        self.is_session_shared = True
         self.definition = definition
         assert isinstance(self.definition, (list, tuple))
         self.process_classes = set([c for l in self.definition for c in l])
@@ -286,14 +287,15 @@ class System(object):
     def setup(self):
         assert self.processes_by_name is None, "Already running"
         self.processes_by_name = {}
-        session = None
 
         # Construct the processes.
+        session = None
         for process_class in self.process_classes:
             process = process_class(session=session, setup_tables=bool(session is None))
             self.processes_by_name[process.name] = process
-            if session is None:
-                session = process.session
+            if self.is_session_shared:
+                if session is None:
+                    session = process.session
 
         # Configure which process follows which.
         for follower_class, follows in self.followings.items():

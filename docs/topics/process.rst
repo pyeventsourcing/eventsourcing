@@ -12,14 +12,16 @@ determines production. If the consumption and the recording are reliable, then f
 long as processing can happen at all, production will also be reliable. By extension,
 a system composed exclusively of reliable processes will also be reliable.
 
-This definition of reliability doesn't include availability. Infrastructure failures
-may cause processing *delays*. But disorderly environments shouldn't cause disorderly
-processing.
-
-To limit the scope of this discussion, it is assumed here that whatever records
-have been committed by a process are not somehow damaged by random sudden
-terminations of the process. But a record is not a process, and the reliability
-of records (database administration) is beyond the scope of this discussion.
+This definition of reliability doesn't include availability. Infrastructure
+unreliability may cause processing *delays*. Disorderly environments shouldn't
+cause disorderly processing. The product of a process should be invariant with
+respect to infrastructure failures. Of course, the reliability of infrastructure
+(availability) inherently limits the availability of the product, but nevertheless
+is beyond the scope of this discussion. To limit the scope further, it is assumed
+here that whatever records have been committed by a process will not somehow be
+damaged by sudden a termination of the process. A record is not a process, and
+the reliability of records (database administration) is beyond the scope of this
+discussion.
 
 (Please note, the code in these examples currently only works with the library's
 SQLAlchemy record manager. Django support is planned, Cassandra support is being
@@ -50,7 +52,7 @@ position of the notification log reader when the process is commenced or resumed
 
 A process application will respond to events according to its policy. Its policy might
 do nothing in response to one type of event, and it might call an aggregate method in
-response to another type of event. However the policy responds to an event, the process
+response to another type of event. No matter how the policy responds to an event, the process
 application will write a tracking record, along with any new event records, in an atomic
 database transaction.
 
@@ -114,8 +116,7 @@ determinate process applications pulling notifications logs can be recognised as
 Kahn Process Networks are determinate systems. If a system of process applications
 happens to involve processes that are not determinate, the system as a whole will
 not be determinate, and could be described in more general terms as "dataflow" or
-"stream processing". However, in these cases, it may help that some components
-are determinate.
+"stream processing".
 
 
 Orders, reservations, payments
@@ -488,12 +489,8 @@ logs could to be presented in an API, and downstream could pull notifications
 from an upstream API using a remote notification log object (as discussed in
 a previous section).
 
-In this example, the process applications use the same MySQL database. However,
-even though all the process applications use the same database, the aggregates
-are segregated in their process application, so each application can only access
-its own aggregates from its repository. The state of a process application is
-only available to others applications by propagating events in notification
-logs. The example works just as well with PostgreSQL.
+In this example, the process applications use a MySQL database, but it works just
+as well with PostgreSQL.
 
 .. code:: python
 
@@ -780,16 +777,15 @@ and is not otherwise guarded against duplicate calls, there may be consequences
 to making the call twice, and so the situation cannot really be described as reliable.
 
 If the server response is asynchronous, any callbacks that the server will make
-could be handled by calling commands on aggregates. However, if callbacks might
-be retried, perhaps because the handler crashes after successfully calling a
-command, unless the callbacks are also tracked (with exclusive tracking records
-written atomically with new event and notification records) the aggregate commands
-will need to be idempotent, or otherwise guarded against duplicate callbacks. Such
-an integration could be implemented as a separate "push-API adapter" process, and
-it might be useful to have a generic implementation that can be reused, with
-documentation describing how to make such an integration reliable, however the
+could be handled by calling commands on aggregates. If callbacks might be retried,
+perhaps because the handler crashes after successfully calling a command but before
+returning successfully to the caller, unless the callbacks are also tracked (with
+exclusive tracking records written atomically with new event and notification records)
+the aggregate commands will need to be idempotent, or otherwise guarded against duplicate
+callbacks. Such an integration could be implemented as a separate "push-API adapter"
+process, and it might be useful to have a generic implementation that can be reused,
+with documentation describing how to make such an integration reliable, however the
 library doesn't currently have any such adapter process classes or documentation.
-
 
 
 .. Todo: Have a simpler example that just uses one process,
