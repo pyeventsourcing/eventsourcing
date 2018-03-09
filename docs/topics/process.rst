@@ -23,13 +23,6 @@ of records (database administration) is beyond the scope of this discussion.
 
 (Please note, the code in these examples currently only works with the library's
 SQLAlchemy record manager. Django support is planned, Cassandra support is being
-considered but will probably be restricted to processes such as replication or
-transalation that will write once record for each notification received, and use
-that record as tracking record, event record, and notification log record, due
-to the limited atomicity of Cassandra's light weight transactions.)
-
-(Please note, the code in these examples currently only works with the library's
-SQLAlchemy record manager. Django support is planned, Cassandra support is being
 considered but will probably be restricted to processes similar to replication or
 translation that will write one record for each event notification received, and
 use that record as tracking record, event record, and notification log record,
