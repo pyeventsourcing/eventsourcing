@@ -28,9 +28,10 @@ so the reliability of records is beyond the scope of this discussion.
 
 To limit this discussion about process reliability even further, the reliability
 of the event processing described below is a separate concern from any programming
-errors in the policies or aggregates of a process application that may define
-pathological behaviour. Behavioural programming errors in process policies and in
-aggregate methods are beyond the scope of this discussion.
+errors in the policies, or aggregates, of a process application, errors that may define
+pathological behaviour. Unit testing for policies is demonstrated below. Behavioural
+programming errors, in process policies and in aggregate methods, are beyond the
+scope of this discussion.
 
 .. contents:: :local:
 
@@ -40,7 +41,7 @@ with the library's SQLAlchemy record manager. Django support is planned, Cassand
 support is being considered but will probably be restricted to processes similar
 to replication or translation that will write one record for each event notification
 received, and use that record as tracking record, event record, and notification
-log record, due to the limited atomicity of Cassandra's light weight transactions.
+log record, due to the limited atomicity of Cassandra's lightweight transactions.
 
 
 Process application
