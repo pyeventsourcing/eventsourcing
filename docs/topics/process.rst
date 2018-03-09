@@ -12,9 +12,9 @@ determines production. If the consumption and the recording are reliable, then f
 long as processing can happen at all, production will also be reliable. By extension,
 a system composed exclusively of reliable processes will also be reliable.
 
-The definition of "reliability" doesn't include "availability". A disorderly environment
-shouldn't cause disorderly processing. Infrastructure failures should only cause processing
-*delays*.
+This definition of reliability doesn't include availability. Infrastructure failures
+may cause processing *delays*. But disorderly environments shouldn't cause disorderly
+processing.
 
 To limit the scope of this discussion, it is assumed here that whatever records
 have been committed by a process are not somehow damaged by random sudden
@@ -22,7 +22,7 @@ terminations of the process. But a record is not a process, and the reliability
 of records is beyond the scope of this discussion.
 
 (Please note, the code in these examples currently only works with SQLAlchemy record
-manager. Django support is planned. Cassandra support is being considered.)
+manager. Django support is planned, Cassandra support is being considered.)
 
 .. contents:: :local:
 
@@ -30,10 +30,10 @@ manager. Django support is planned. Cassandra support is being considered.)
 Process application
 -------------------
 
-The library's process class, ``Process``, functions as both an event-sourced projection
+The library's process application class ``Process`` functions as both an event-sourced projection
 (see previous section) and as an event-sourced application. It is a subclass of
-``SimpleApplication`` that also has a notification log reader and tracking records. It
-also has a policy that defines how the process responds to events.
+``SimpleApplication`` that also has a notification log reader and tracking records. A process
+application also has a policy that defines how the process application responds to events.
 
 A process application consumes events by reading event notifications from its notification
 log reader. The events are retrieved in a reliable order, without race conditions or
@@ -63,8 +63,10 @@ may even succeed and which may not be idempotent). If an event can be processed 
 then it will be processed exactly once.
 
 The processing will be reliable even if the behaviour of the policies and the aggregates
-is dysfunctional. A ratchet is as reliable as its pawl and teeth. Similarly, a process
-application is as reliable as its database transactions.
+is dysfunctional. Just like a ratchet is as good as its teeth and pawl are strong,
+similarly a process application is as reliable as its database transactions are atomic.
+The atomicity of the database transactions guarantees the integrity of both notification
+log (teeth) and the tracking records (pawl).
 
 
 System of processes
