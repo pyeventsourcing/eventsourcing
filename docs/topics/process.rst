@@ -364,14 +364,12 @@ how to test a process application policy that changes an already existing aggreg
 Causal dependencies between events could be detected and used to synchronise
 the processing of different partitions downstream, so that downstream
 processing of one partition can wait for an event to be processed in another.
-
 The causal dependencies could be automatically inferred by detecting the originator
 ID and version of aggregates as they are retrieved from the wrapped repository. Those
 events could be examined to see if they were notified in a different partitions. If so,
 the event originator ID and version of the last event in each partition could be included
 in the notification. Then followers could wait for the corresponding tracking records to
 appear, and then continue by processing the causally dependent notification.
-
 (Causal dependencies not implemented, yet.)
 
 
@@ -558,18 +556,18 @@ for the results, by polling the aggregate state.
     if __name__ == '__main__':
 
         # Start multiprocessing system.
-        with multiprocess, Orders() as app:
+        with Orders() as app, multiprocess:
 
-                retries = 50
-                while not app.repository[order_id].is_reserved:
-                    time.sleep(0.1)
-                    retries -= 1
-                    assert retries, "Failed set order.is_reserved"
+            retries = 50
+            while not app.repository[order_id].is_reserved:
+                time.sleep(0.1)
+                retries -= 1
+                assert retries, "Failed set order.is_reserved"
 
-                while retries and not app.repository[order_id].is_paid:
-                    time.sleep(0.1)
-                    retries -= 1
-                    assert retries, "Failed set order.is_paid"
+            while retries and not app.repository[order_id].is_paid:
+                time.sleep(0.1)
+                retries -= 1
+                assert retries, "Failed set order.is_paid"
 
 
 Let's do that again, but with a batch of orders that is created after the system
