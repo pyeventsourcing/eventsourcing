@@ -332,9 +332,9 @@ is necessary to include its domain events in this atomic recording. The policy s
 never call aggregate ``__save__()`` methods for this reason: events will not be committed
 atomically with the tracking record, and so the processing will not be reliable.
 
-Here's a test for the orders policy responding to a ``Reservation.Created``
-event. It shows how policies that change already existing aggregates can
-be tested.
+Anyway, here's a test for the orders policy, at least the half that responds to a
+``Reservation.Created`` event by setting the order as "reserved". It shows how
+process application policies that change already existing aggregates can be tested.
 
 .. code:: python
 
