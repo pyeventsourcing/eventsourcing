@@ -12,6 +12,9 @@ process. A process is considered to be reliable if the product is unaffected
 by sudden terminations of the process, except in being delayed until the
 processing is resumed.
 
+.. contents:: :local:
+
+
 This definition of reliability doesn't include availability. Infrastructure
 unreliability may cause processing delays, but disorderly environments shouldn't
 cause disorderly processing. The product of a process, whenever it is obtained,
@@ -32,8 +35,6 @@ considered but will probably be restricted to processes similar to replication o
 translation that will write one record for each event notification received, and
 use that record as tracking record, event record, and notification log record,
 due to the limited atomicity of Cassandra's light weight transactions.)
-
-.. contents:: :local:
 
 
 Process application
