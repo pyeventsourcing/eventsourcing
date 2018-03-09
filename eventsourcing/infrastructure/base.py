@@ -17,10 +17,9 @@ class AbstractRecordManager(six.with_metaclass(ABCMeta)):
         if hasattr(self.record_class, 'application_id'):
             assert self.application_id, "'application_id' not set when required"
             assert contiguous_record_ids, "'contiguous_record_ids' not set when required"
-        self.partition_id = partition_id
         if hasattr(self.record_class, 'partition_id'):
             assert hasattr(self.record_class, 'application_id')
-            assert self.partition_id, "'partition_id' not set when required"
+        self.partition_id = partition_id or application_id
 
     @abstractmethod
     def append(self, sequenced_item_or_items):

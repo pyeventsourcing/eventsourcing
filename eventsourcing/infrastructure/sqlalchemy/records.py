@@ -139,26 +139,19 @@ class StoredEventRecord(Base):
     # Originator version of item in sequence.
     originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
+    # Partition ID.
+    partition_id = Column(UUIDType(), nullable=True)
+
+    # Record ID.
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
+
     # Type of the event (class name).
     event_type = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
 
-    # Partition ID.
-    partition_id = Column(UUIDType(), nullable=False)
-
-    # Record ID.
-    id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
-
     __table_args__ = (
-        Index(
-            'stored_events_primary_index',
-            'application_id',
-            'originator_id',
-            'originator_version',
-            unique=True
-        ),
         Index(
             'stored_events_notification_index',
             'application_id',
@@ -192,23 +185,10 @@ class NotificationTrackingRecord(Base):
 
     __table_args__ = (
         Index(
-            'notification_tracking_primary_index',
-            'application_id',
-            'upstream_application_id',
-            'partition_id',
-            'notification_id',
-            # 'originator_id',
-            # 'originator_version',
-            unique=True
-        ),
-        Index(
             'notification_tracking_event_index',
+            'application_id',
             'originator_id',
             'originator_version',
-            'application_id',
-            'upstream_application_id',
-            'partition_id',
-            # 'notification_id',
             unique=True
         ),
     )

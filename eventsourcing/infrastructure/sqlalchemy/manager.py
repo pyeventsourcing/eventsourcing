@@ -273,6 +273,5 @@ class TrackingRecordManager(AbstractTrackingRecordManager):
         query = self.session.query(func.max(self.record_class.notification_id))
         query = query.filter(self.record_class.application_id == application_id)
         query = query.filter(self.record_class.upstream_application_id == upstream_application_id)
-        partition_id = partition_id
         query = query.filter(self.record_class.partition_id == partition_id)
         return query.scalar()

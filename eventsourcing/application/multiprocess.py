@@ -10,6 +10,9 @@ from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.uuids import uuid_from_application_name
 
 
+DEFAULT_POLL_INTERVAL = 5
+
+
 class Multiprocess(object):
 
     def __init__(self, system, partition_ids=None):
@@ -17,7 +20,7 @@ class Multiprocess(object):
         # if partition_ids is None:
         #     partition_ids = [uuid4()]
         self.partition_ids = partition_ids
-        self.poll_interval = 10
+        self.poll_interval = DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
         self.os_processes = None
 
@@ -43,7 +46,6 @@ class Multiprocess(object):
     def prompt_about(self, process_name, partition_id):
         for process_class in self.system.process_classes:
 
-            patience = 50
             name = process_class.__name__.lower()
 
             if process_name and process_name != name:
@@ -51,13 +53,17 @@ class Multiprocess(object):
 
             num_expected_subscriptions = len(self.system.followings[process_class])
             channel_name = make_channel_name(name, partition_id)
+            patience = 50
             while self.redis.publish(channel_name, '') < num_expected_subscriptions:
                 if patience:
-                    sleep(0.1)
                     patience -= 1
+                    sleep(0.1)  # How long does it take to subscribe?
                 else:
                     raise Exception("Couldn't publish to expected number of subscribers "
                                     "({}, {})".format(name, num_expected_subscriptions))
+
+            sleep(0.001)
+
 
     def close(self):
         for os_process in self.os_processes:
@@ -85,7 +91,8 @@ class Multiprocess(object):
 
 class OperatingSystemProcess(multiprocessing.Process):
 
-    def __init__(self, application_process_class, upstream_names, partition_id=None, poll_interval=5, *args, **kwargs):
+    def __init__(self, application_process_class, upstream_names, partition_id=None,
+                 poll_interval=DEFAULT_POLL_INTERVAL, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
         self.upstream_names = upstream_names
@@ -150,7 +157,7 @@ class OperatingSystemProcess(multiprocessing.Process):
                 except Exception as e:
                     # Todo: Log this, or stderr?
                     print("Caught exception: {}".format(e))
-                    raise e
+                    # raise e
 
         finally:
             unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)

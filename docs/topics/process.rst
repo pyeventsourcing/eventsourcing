@@ -88,15 +88,17 @@ allow the system to scale horizontally (adding more machines).
 To scale the throughput of a process horizontally, beyond the rate at which
 a single sequence can be processed in series, notifications could be divided
 across many notification logs. Each notification log could be processed
-concurrently. Casual dependencies between events in different notification logs
-can be automatically inferred (from the aggregates used by the policy of the process).
-Hence one application process could usefully and reliably employ many concurrent operating
-system processes (the library doesn't support this, yet).
+concurrently. Hence one application process could usefully and reliably employ many concurrent
+operating system processes. This feature is demonstrated below.
 
 In the example below, a system of process applications is defined independently of
-how it may be run. Then, the system is run as a single threaded system. Afterwards, the
-system is run with multiprocessing, with one operating system process for each process
-application in the system, which then operate concurrently.
+how it may be run. The process application use a domain model with three aggregates.
+The process applications each have a policy, which defines how they respond to events
+received by the application in notification logs of the applications it is following.
+The system is run as a single threaded system. Afterwards, the system is run with with
+partitioned notification logs and multiprocessing, so there is one operating system
+process for each partition for each process application in the system, all of which
+then operate concurrently, demonstrating both kinds of parallelism.
 
 
 Kahn process networks
@@ -278,6 +280,8 @@ The library's ``Process`` class is a subclass of the library's
                 # Make a payment.
                 return Payment.make(order_id=event.originator_id)
 
+Please remember, do not call the ``__save__()`` method of aggregates, the
+pending events will be collected after the ``policy()`` method has been called.
 
 The policies are easy to test. Here's a test for the payments policy.
 
@@ -304,16 +308,20 @@ The policies are easy to test. Here's a test for the payments policy.
 In this test, a new aggregate is created by the policy, and checked by the test.
 The test is able to check the new aggregate because the new aggregate is returned
 by the policy. Policies should normally return new aggregates to the caller.
+Remember, do not call the __save__() method of new aggregates: their pending
+events will be collected after the ``policy()`` method has returned.
 
 If a policy retrieves and changes an already existing aggregate, the aggregate does
-not need to be returned by the policy to the caller. The test will have already
-constructed the aggregate, before passing it to the policy in a Python dict, as
-the policy's ``repository`` arg, so the test is in a good position to check the
-aggregate is changed by the policy in the expected way.
+not need to be returned by the policy to the caller. Again, there is no need to call
+the ``__save__()`` method of changed aggregates, pending events will be collected
+ after the ``policy()`` method has finished. The test will already have a reference
+to the aggregate, because it will have constructed the aggregate before passing it
+to the policy, so the test will be in a good position to check the aggregate changes
+as expected.
 
 Here's a test for the orders policy responding to a ``Reservation.Created``
-event. It shows how to test that an already existing aggregate is changed in
-an expected way by a policy.
+event. It shows how a policies that change already existing aggregates can
+be tested.
 
 .. code:: python
 
@@ -345,9 +353,24 @@ method of the ``Process`` class, when new events are retrieved from an upstream
 notification log. The ``call_policy()`` method wraps the process application's
 aggregate repository with a wrapper that detects which aggregates are used by
 the policy and which were changed, so any changes caused by the policy can be
-automatically detected, and also all of the causal dependencies can be
-automatically inferred, before new records are committed. Returning a new
-aggregate is necessary to include its events in this atomic recording.
+automatically detected, and new records automatically committed. Returning a
+new aggregate is necessary to include its events in this atomic recording.
+
+New events are collected by requesting pending events from the aggregates.
+The policy shouldn't call aggregate ``__save__()`` methods for this reason.
+
+Causal dependencies between events could be detected and used to synchronise
+the processing of different partitions downstream, so that downstream
+processing of one partition can wait for an event to be processed in another.
+
+The causal dependencies could be automatically inferred by detecting the originator
+ID and version of aggregates as they are retrieved from the wrapped repository. Those
+events could be examined to see if they were notified in a different partitions. If so,
+the event originator ID and version of the last event in each partition could be included
+in the notification. Then followers could wait for the corresponding tracking records to
+appear, and then continue by processing the causally dependent notification.
+
+(Causal dependencies not implemented, yet.)
 
 
 System
@@ -428,37 +451,38 @@ which can be retrieved from the "orders" repository.
         assert repository[order_id].is_paid
 
 
+The process applications above could be run in different threads (not
+yet implemented).
+
 Multiprocessing system
 ----------------------
 
-The process applications above could be run in different threads (not
-yet implemented). Alternatively, they run in different processes on a
-single node (see below). Those process could run on different nodes in
-a network (not yet implemented). The example below shows the process
-applications running in different processes on the same node, using
-the library's ``Multiprocess`` class, which uses Python's ``multiprocessing``
-library.
+The example below shows the system of process applications running in
+different processes on the same node, using the library's ``Multiprocess``
+class, which uses Python's ``multiprocessing`` library.
 
-With multiple threads or operating system processes, each could run a loop that
-begins by making a call to messaging infrastructure for prompts pushed from upstream
-via messaging infrastructure. Prompts can be responded to immediately
-by pulling new notifications. If the call to get new prompts times out,
-any new notifications from upstream notification logs can be pulled, so
-that the notification log is effectively polled at a regular interval
-whenever no prompts are received. The ``Multiprocess`` class uses Redis
-publish-subscribe to push prompts.
+With multiple threads or operating system processes, each process can run
+a loop that begins by making a call to messaging infrastructure for prompts
+pushed from upstream via messaging infrastructure. Prompts can be responded
+to immediately by pulling new notifications. If the call to get new prompts
+times out, any new notifications from upstream notification logs can be pulled
+anyway, so that the notification log is effectively polled at a regular
+interval. The ``Multiprocess`` class happens to use Redis publish-subscribe
+to push prompts.
 
 The process applications could all use the same single database, or they
-could each use their own database. If different process applications of a system
-are running in the same operating system process, they can use each other's
-notification log object (and repository object). Otherwise, the notification
-logs (and aggregates) may need to be presented in an API and downstream processes
-would need to pull notifications from an upstream API. In this example, the
-processes applications use the same database.
+could each use their own database.
+If the process applications use different databases, upstream notification
+logs could to be presented in an API, and downstream could pull notifications
+from an upstream API using a remote notification log object (as discussed in
+a previous section).
 
-The example below shows a system with multiple operating system processes.
-All the application processes share one MySQL database. The example works
-just as well with PostgreSQL.
+In this example, the process applications use the same MySQL database. However,
+even though all the process applications use the same database, the aggregates
+are segregated in their process application, so each application can only access
+its own aggregates from its repository. The state of a process application is
+only available to others applications by propagating events in notification
+logs. The example works just as well with PostgreSQL.
 
 .. code:: python
 
@@ -468,20 +492,32 @@ just as well with PostgreSQL.
     #os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
 
 
-Before starting the system's operating, let's create a new Order. The database tables
-will be created when the Orders process is constructed, because ``setup_tables=True``.
-The Orders process will store the ``Order.Created`` event that is published by the
-``create_new_order()`` factory.
+The multiprocessing system notification logs will be partitioned. Partitioning
+will cause three separate instances of the system running concurrently, sharing
+the same database. Aggregates of an application are available to all partitions
+of that application. Partitioning can be configured statically. (Dynamic
+configuration is not yet implemented, Auto-scaling is being considered).
+
+This example uses three partitions, each identified in the records with a UUID.
 
 .. code:: python
 
     from uuid import uuid4
 
-    partition_id = uuid4()
+    # These should be static configuration values.
+    partition_ids = [uuid4(), uuid4(), uuid4()]
+
+
+Before starting the system's operating system processes, let's create a new order aggregate.
+The Orders process is constructed so that any ``Order.Created`` events published by the
+``create_new_order()`` factory will be persisted. The process application needs to be
+told which partition to use for the event notification.
+
+.. code:: python
 
     from eventsourcing.application.simple import SimpleApplication
 
-    with Orders(setup_tables=True, partition_id=partition_id) as app:
+    with Orders(setup_tables=True, partition_id=partition_ids[0]) as app:
 
         # Create a new order.
         order_id = create_new_order()
@@ -490,18 +526,28 @@ The Orders process will store the ``Order.Created`` event that is published by t
         assert order_id in app.repository
 
 
-The library's ``Multiprocess`` class can be used to run the ``system``,
-with one operating system process for each application process.
+The MySQL database tables were created by the code above, because the ``Orders`` process
+was constructed with ``setup_tables=True``, which is by default ``False`` in the ``Process``
+class.
+
+The library's ``Multiprocess`` class can be used to run the ``system``. The system
+is run with three partitions. There is one operating system process for each partition
+for each application process, which makes nine operating system processes.
+This system example can work with partitions because there are no causal dependencies
+between events in different partitions. (Causal dependencies not yet implemented.)
+
+The ``multiprocess`` object is constructed with the list of ``partition_ids``.
 
 .. code:: python
 
     from eventsourcing.application.multiprocess import Multiprocess
 
-    multiprocess = Multiprocess(system, partition_ids=[partition_id])
+    multiprocess = Multiprocess(system, partition_ids=partition_ids)
 
 
-Start the operating system processes by using ``multiprocess`` as a
-context manager. Wait for the results, by polling the aggregate state.
+The operating system processes can be started by using ``multiprocess`` as a
+context manager (calls ``start()`` on entry and ``close()`` on exit). Wait
+for the results, by polling the aggregate state.
 
 .. code:: python
 
@@ -510,11 +556,9 @@ context manager. Wait for the results, by polling the aggregate state.
     if __name__ == '__main__':
 
         # Start multiprocessing system.
-        with multiprocess:
+        with multiprocess, Orders() as app:
 
-            with Orders(partition_id=partition_id) as app:
-
-                retries = 500
+                retries = 50
                 while not app.repository[order_id].is_reserved:
                     time.sleep(0.1)
                     retries -= 1
@@ -528,15 +572,10 @@ context manager. Wait for the results, by polling the aggregate state.
 
 Let's do that again, but with a batch of orders that is created after the system
 operating system processes have been started. Below, ``app`` will be working
-concurrently with the ``multiprocess`` system. Because there are two instances
-of the ``Orders`` process, there may be conflicts writing to the notification
-log. That is why the ``@retry`` decorator is applied to the ``create_new_order()``
-factory, so that when conflicts are encountered, the operation can be retried.
-
-For the same reason, the ``@retry`` decorator is applied the ``run()`` method
-of the process application class, ``Process``. In extreme circumstances, these
-retries will be exhausted, and the original exception will be reraised by the
-decorator.
+concurrently with the ``multiprocess`` system, which causes contention.
+Twenty-five orders are created in each partition, making seventy-five
+event-sourced orders in total, processed reliably, with two different kinds
+of parallelism, and contention.
 
 .. code:: python
 
@@ -547,20 +586,26 @@ decorator.
         # Start multiprocessing system.
         with multiprocess:
 
-            # Start another Orders process, to persist Order.Created events.
-            with Orders(partition_id=partition_id) as app:
+            # Create some new orders.
+            #num = 250
+            num = 25
+            order_ids = []
 
-                # Create some new orders.
-                num = 25
-                order_ids = []
-                for _ in range(num):
-                    order_id = create_new_order()
-                    order_ids.append(order_id)
+            for _ in range(num):
 
-                    multiprocess.prompt_about('orders', partition_id)
+                for partition_id in partition_ids:
 
-                # Wait for orders to be reserved and paid.
-                retries = num * 10
+                    with Orders(partition_id=partition_id) as app:
+
+                        order_id = create_new_order()
+                        order_ids.append(order_id)
+
+                        multiprocess.prompt_about('orders', partition_id)
+
+
+            # Wait for orders to be reserved and paid.
+            with Orders() as app:
+                retries = 10 * num * len(partition_ids)
                 for i, order_id in enumerate(order_ids):
 
                     while not app.repository[order_id].is_reserved:
@@ -578,10 +623,10 @@ decorator.
                 first_timestamp = min([o.__created_on__ for o in orders])
                 last_timestamp = max([o.__last_modified__ for o in orders])
                 duration = last_timestamp - first_timestamp
-                rate = num / float(duration)
+                rate = len(order_ids) / float(duration)
                 period = 1 / rate
                 print("Orders system processed {} orders in {:.3f}s at rate of {:.1f} "
-                      "orders/s, {:.3f}s each".format(num, duration, rate, period))
+                      "orders/s, {:.3f}s each".format(len(order_ids), duration, rate, period))
 
                 # Print min, average, max duration.
                 durations = [o.__last_modified__ - o.__created_on__ for o in orders]
@@ -593,7 +638,23 @@ decorator.
 Running the system with multiple operating system processes means the different steps
 for processing an order happen concurrently, so that as a payment is being made for one
 order, the next order might concurrently be being reserved, whilst a third order is at
-the same time being created.
+the same time being created. Because of the partitioning, a fourth, fifth and sixth
+order may be being processed in the next partition. And so on for all the partitions.
+
+Because the orders are created with a second instance of the ``Orders`` process
+application, rather than e.g. a command process application that is followed
+by the orders process, there will be contention and conflicts writing to the
+orders process notification log. The example was designed to cause this contention,
+and the ``@retry`` decorator was applied to the ``create_new_order()`` factory, so
+when conflicts are encountered, the operation will be retried and will most probably
+eventually succeed. For the same reason, the same ``@retry``  decorator is applied
+the ``run()`` method of the library class ``Process``.
+
+In case retries are exhausted,
+the original exception will be reraised by the decorator. But when the process
+application is run with ``Multiprocess``, it runs a loop which will catch exceptions,
+and the process will be reset from committed records, and processing will start
+again, looping indefinitely until the process is closed (or terminated).
 
 
 Actor model system
