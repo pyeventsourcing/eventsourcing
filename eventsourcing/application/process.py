@@ -127,6 +127,10 @@ class Process(SimpleApplication):
         # Construct event records.
         event_records = self.construct_event_records(aggregates)
 
+        # Todo: Optimise by skipping writing lots of solo tracking records.
+        # Todo: - maybe just write one at the end of a run, if necessary, or only once during a period of time when
+        # nothing happens
+
         # # Write event records with tracking record.
         # if event_records:
         #     write_records = True
