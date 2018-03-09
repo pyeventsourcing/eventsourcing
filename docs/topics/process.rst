@@ -318,23 +318,24 @@ The test will already have a reference to the aggregate, because it will have
 constructed the aggregate before passing it to the policy, so the test will be in
 a good position to check the aggregate changes as expected.
 
-Do not call the ``__save__()`` method of new or changed aggregates in a process
-application policy. A process application saves events atomically with a tracking
-record, and calling ``__save__()`` will by-pass this safety. To explain a little bit,
-in normal use, when new events are retrieved from an upstream notification log, the
-``policy()`` method is called by the ``call_policy()`` method of the ``Process``
-class. The ``call_policy()`` method wraps the process application's aggregate
-repository with a wrapper that detects which aggregates are used by the policy
-and which were changed. Any changes caused by the policy are automatically detected,
-new events collected by requesting pending events from the aggregates detected by the
-wrapper. The records are then committed atomically. Hence, returning a new aggregate
-is necessary to include its domain events in this atomic recording. The policy should
-never call aggregate ``__save__()`` methods for this reason: events will not be committed
-atomically with the tracking record, and so the processing will not be reliable.
+The policy should never call aggregate ``__save__()`` methods, because events will not
+be committed atomically with the tracking record, and so the processing will not be
+reliable. To be reliable, a process application needs to commit events atomically with
+a tracking record, and calling ``__save__()`` will commit new events in a separate
+transaction. To explain a little bit, in normal use, when new events are retrieved
+from an upstream notification log, the ``policy()`` method is called by the
+``call_policy()`` method of the ``Process`` class. The ``call_policy()`` method wraps
+the process application's aggregate repository with a wrapper that detects which
+aggregates are used by the policy. New aggregates returned by the policy are appended
+to this list. New events are collected by requesting pending events from this list of
+aggregates. The records are then committed atomically with the tracking record. Calling
+``__save__()`` will avoid the new events being included in this mechanism and will spoil
+the reliability of the process. As a rule, don't ever call the ``__save__()`` method of
+new or changed aggregates in a process application policy.
 
 Anyway, here's a test for the orders policy, at least the half that responds to a
-``Reservation.Created`` event by setting the order as "reserved". It shows how
-process application policies that change already existing aggregates can be tested.
+``Reservation.Created`` event by setting the order as "reserved". At least it shows
+how to test a process application policy that changes an already existing aggregate.
 
 .. code:: python
 
