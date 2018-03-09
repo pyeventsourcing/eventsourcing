@@ -2,26 +2,29 @@
 Process and system
 ==================
 
+Process is understood as productive in the following sense: consumption with recording
+determines production. For example, if consumption and recording are reliable, then
+production will be reliable. A system composed exclusively of reliable processes
+will also be reliable.
+
 The most important requirement pursued in this section is to obtain a reliable
 process. A process is considered to be reliable if the product is unaffected
 by sudden terminations of the process, except in being delayed until the
 processing is resumed.
 
-Process is understood as productive in the following sense: consumption with recording
-determines production. If the consumption and the recording are reliable, then for so
-long as processing can happen at all, production will also be reliable. By extension,
-a system composed exclusively of reliable processes will also be reliable.
-
 This definition of reliability doesn't include availability. Infrastructure
-unreliability may cause processing *delays*. Disorderly environments shouldn't
-cause disorderly processing. The product of a process should be invariant with
-respect to infrastructure failures. Of course, the reliability of infrastructure
-(availability) inherently limits the availability of the product, but nevertheless
-is beyond the scope of this discussion. To limit the scope further, it is assumed
-here that whatever records have been committed by a process will not somehow be
-damaged by sudden a termination of the process. A record is not a process, and
-the reliability of records (database administration) is beyond the scope of this
-discussion.
+unreliability may cause processing delays, but disorderly environments shouldn't
+cause disorderly processing. The product of a process, whenever it is obtained,
+should be invariant with respect to any infrastructure failures. Of course, the
+availability of infrastructure inherently limits the availability of the product,
+but nevertheless infrastructure availability is beyond the scope of this discussion.
+To limit the scope a little bit further, it is assumed here that whatever records
+have been committed by a process will not somehow be damaged by a sudden termination
+of the process. A record is not a process, and the reliability of records is beyond
+the scope of this discussion. To limit this discussion about process reliability even
+further, the reliability of the event processing design described below is a separate
+concern from any programming errors in the policies of aggregates of a process
+application that may define pathological behaviour.
 
 (Please note, the code in these examples currently only works with the library's
 SQLAlchemy record manager. Django support is planned, Cassandra support is being
