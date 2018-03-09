@@ -21,7 +21,8 @@ class SimpleApplication(object):
     persist_event_type = None
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None, uri=None, session=None,
-                 cipher_key=None, stored_event_record_class=None, setup_table=True, contiguous_record_ids=True):
+                 cipher_key=None, stored_event_record_class=None, setup_table=True, contiguous_record_ids=True,
+                 partition_id=None):
 
         self.name = name or type(self).__name__.lower()
 
@@ -35,6 +36,7 @@ class SimpleApplication(object):
         self.stored_event_record_class = stored_event_record_class
         self.contiguous_record_ids = contiguous_record_ids
         self.application_id = uuid_from_application_name(self.name)
+        self.partition_id = partition_id or self.application_id
         self.setup_event_store()
 
         # Setup notifications.
@@ -73,15 +75,16 @@ class SimpleApplication(object):
 
     def setup_event_store(self):
         # Construct event store.
-        self.event_store = self.construct_event_store(self.application_id)
+        self.event_store = self.construct_event_store(self.application_id, self.partition_id)
 
-    def construct_event_store(self, application_id):
+    def construct_event_store(self, application_id, partition_id):
         return construct_sqlalchemy_eventstore(
             session=self.datastore.session,
             cipher=self.cipher,
             record_class=self.stored_event_record_class,
             contiguous_record_ids=self.contiguous_record_ids,
             application_id=application_id,
+            partition_id=partition_id,
         )
 
     def setup_repository(self, **kwargs):

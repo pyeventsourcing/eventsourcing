@@ -133,20 +133,23 @@ class StoredEventRecord(Base):
     # Application ID.
     application_id = Column(UUIDType(), primary_key=True)
 
-    # Record ID.
-    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
-
     # Originator ID (e.g. an entity or aggregate ID).
-    originator_id = Column(UUIDType(), nullable=False)
+    originator_id = Column(UUIDType(), primary_key=True)
 
     # Originator version of item in sequence.
-    originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
+    originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
     # Type of the event (class name).
     event_type = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
+
+    # Partition ID.
+    partition_id = Column(UUIDType(), nullable=False)
+
+    # Record ID.
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
 
     __table_args__ = (
         Index(
@@ -159,6 +162,7 @@ class StoredEventRecord(Base):
         Index(
             'stored_events_notification_index',
             'application_id',
+            'partition_id',
             'id',
             unique=True
         ),

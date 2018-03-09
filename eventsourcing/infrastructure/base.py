@@ -8,15 +8,19 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedI
 
 class AbstractRecordManager(six.with_metaclass(ABCMeta)):
     def __init__(self, record_class, sequenced_item_class=SequencedItem, contiguous_record_ids=False,
-                 application_id=None):
+                 application_id=None, partition_id=None):
         self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
         self.contiguous_record_ids = contiguous_record_ids and hasattr(self.record_class, 'id')
         self.application_id = application_id
         if hasattr(self.record_class, 'application_id'):
-            assert application_id, "'application_id' not set when required"
+            assert self.application_id, "'application_id' not set when required"
             assert contiguous_record_ids, "'contiguous_record_ids' not set when required"
+        self.partition_id = partition_id
+        if hasattr(self.record_class, 'partition_id'):
+            assert hasattr(self.record_class, 'application_id')
+            assert self.partition_id, "'partition_id' not set when required"
 
     @abstractmethod
     def append(self, sequenced_item_or_items):
@@ -146,6 +150,8 @@ class RelationalRecordManager(AbstractRecordManager):
         """
         if self._insert_select_max is None:
             if hasattr(self.record_class, 'application_id'):
+                # Todo: Maybe make it support application_id with partition_id?
+                assert hasattr(self.record_class, 'partition_id')
                 tmpl = self._insert_select_max_where_application_id_tmpl
             else:
                 tmpl = self._insert_select_max_tmpl
@@ -171,7 +177,7 @@ class RelationalRecordManager(AbstractRecordManager):
     _insert_select_max_where_application_id_tmpl = (
         "INSERT INTO {tablename} (id, {columns}) "
         "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
-        "FROM {tablename} WHERE application_id=:application_id;"
+        "FROM {tablename} WHERE application_id=:application_id AND partition_id=:partition_id;"
     )
 
     @property
@@ -281,5 +287,5 @@ class AbstractTrackingRecordManager(six.with_metaclass(ABCMeta)):
         """Returns tracking record class."""
 
     @abstractmethod
-    def get_max_record_id(self, application_name, upstream_application_name, partition_id=None):
+    def get_max_record_id(self, application_name, upstream_application_name, partition_id):
         """Returns maximum record ID for given application name."""

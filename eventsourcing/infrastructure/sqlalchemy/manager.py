@@ -35,12 +35,16 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                         params = {c: getattr(record, c) for c in self.field_names}
                         if hasattr(self.record_class, 'application_id'):
                             params['application_id'] = self.application_id
+                        if hasattr(self.record_class, 'partition_id'):
+                            params['partition_id'] = self.partition_id
                         connection.execute(self.insert_select_max, **params)
                     else:
                         # Execute "insert values" statement with values from record obj.
                         params = {c: getattr(record, c) for c in self.field_names}
                         if hasattr(self.record_class, 'application_id'):
                             params['application_id'] = self.application_id
+                        if hasattr(self.record_class, 'partition_id'):
+                            params['partition_id'] = self.partition_id
 
                         if hasattr(self.record_class, 'id'):
                             if hasattr(self.record_class, 'application_id'):
@@ -94,6 +98,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         field_names = list(field_names)
         if hasattr(record_class, 'application_id') and 'application_id' not in field_names:
             field_names.append('application_id')
+        if hasattr(record_class, 'partition_id') and 'partition_id' not in field_names:
+            field_names.append('partition_id')
         if hasattr(record_class, 'id') and placeholder_for_id and 'id' not in field_names:
             field_names.append('id')
 
@@ -201,7 +207,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
     def all_records(self, start=None, stop=None, *args, **kwargs):
         """
-        Returns all records in the table.
+        Returns all records in a notification log.
 
         Intended to support getting all application domain events
         in order, especially if the records have contiguous IDs.
@@ -209,7 +215,11 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         try:
             query = self.query
             if hasattr(self.record_class, 'application_id'):
+                assert self.application_id, "application_id not set when required"
                 query = query.filter(self.record_class.application_id == self.application_id)
+            if hasattr(self.record_class, 'partition_id'):
+                assert self.partition_id, "partition_id not set when required"
+                query = query.filter(self.record_class.partition_id == self.partition_id)
             if hasattr(self.record_class, 'id'):
                 query = query.order_by(asc('id'))
                 # NB '+1' because record IDs start from 1.
@@ -229,6 +239,10 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             if hasattr(self.record_class, 'application_id'):
                 assert self.application_id, "application_id not set when required"
                 query = query.filter(self.record_class.application_id == self.application_id)
+            if hasattr(self.record_class, 'partition_id'):
+                assert self.partition_id, "partition_id not set when required"
+                query = query.filter(self.record_class.partition_id == self.partition_id)
+
             return query.scalar()
         finally:
             self.session.close()
@@ -253,12 +267,12 @@ class TrackingRecordManager(AbstractTrackingRecordManager):
     def __init__(self, session):
         self.session = session
 
-    def get_max_record_id(self, application_name, upstream_application_name, partition_id=None):
+    def get_max_record_id(self, application_name, upstream_application_name, partition_id):
         application_id = uuid_from_application_name(application_name)
         upstream_application_id = uuid_from_application_name(upstream_application_name)
         query = self.session.query(func.max(self.record_class.notification_id))
         query = query.filter(self.record_class.application_id == application_id)
         query = query.filter(self.record_class.upstream_application_id == upstream_application_id)
-        partition_id = partition_id or application_id
+        partition_id = partition_id
         query = query.filter(self.record_class.partition_id == partition_id)
         return query.scalar()

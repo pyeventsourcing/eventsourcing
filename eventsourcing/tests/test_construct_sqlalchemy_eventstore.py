@@ -15,7 +15,8 @@ class TestFactory(TestCase):
         event_store = construct_sqlalchemy_eventstore(
             session=datastore.session,
             contiguous_record_ids=True,
-            application_id=uuid4()
+            application_id=uuid4(),
+            partition_id=uuid4(),
         )
         datastore.setup_table(event_store.record_manager.record_class)
 

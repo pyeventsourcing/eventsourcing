@@ -475,9 +475,13 @@ The Orders process will store the ``Order.Created`` event that is published by t
 
 .. code:: python
 
+    from uuid import uuid4
+
+    partition_id = uuid4()
+
     from eventsourcing.application.simple import SimpleApplication
 
-    with Orders(setup_tables=True) as app:
+    with Orders(setup_tables=True, partition_id=partition_id) as app:
 
         # Create a new order.
         order_id = create_new_order()
@@ -493,7 +497,7 @@ with one operating system process for each application process.
 
     from eventsourcing.application.multiprocess import Multiprocess
 
-    multiprocess = Multiprocess(system)
+    multiprocess = Multiprocess(system, partition_ids=[partition_id])
 
 
 Start the operating system processes by using ``multiprocess`` as a
@@ -508,16 +512,18 @@ context manager. Wait for the results, by polling the aggregate state.
         # Start multiprocessing system.
         with multiprocess:
 
-            retries = 50
-            while not app.repository[order_id].is_reserved:
-                time.sleep(0.1)
-                retries -= 1
-                assert retries, "Failed set order.is_reserved"
+            with Orders(partition_id=partition_id) as app:
 
-            while retries and not app.repository[order_id].is_paid:
-                time.sleep(0.1)
-                retries -= 1
-                assert retries, "Failed set order.is_paid"
+                retries = 500
+                while not app.repository[order_id].is_reserved:
+                    time.sleep(0.1)
+                    retries -= 1
+                    assert retries, "Failed set order.is_reserved"
+
+                while retries and not app.repository[order_id].is_paid:
+                    time.sleep(0.1)
+                    retries -= 1
+                    assert retries, "Failed set order.is_paid"
 
 
 Let's do that again, but with a batch of orders that is created after the system
@@ -542,7 +548,7 @@ decorator.
         with multiprocess:
 
             # Start another Orders process, to persist Order.Created events.
-            with Orders() as app:
+            with Orders(partition_id=partition_id) as app:
 
                 # Create some new orders.
                 num = 25
@@ -551,7 +557,7 @@ decorator.
                     order_id = create_new_order()
                     order_ids.append(order_id)
 
-                    multiprocess.prompt_about('orders')
+                    multiprocess.prompt_about('orders', partition_id)
 
                 # Wait for orders to be reserved and paid.
                 retries = num * 10

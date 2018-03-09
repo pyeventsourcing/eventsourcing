@@ -51,8 +51,10 @@ class Process(SimpleApplication):
         if prompt is None:
             readers_items = self.readers.items()
         else:
-            upstream_application_name = prompt.sender_process_name
-            reader = self.readers[prompt.sender_process_name]
+            assert isinstance(prompt, Prompt)
+            # Todo: This in a better way.
+            upstream_application_name = prompt.channel_name.split('-')[0]
+            reader = self.readers[upstream_application_name]
             readers_items = [(upstream_application_name, reader)]
 
         notification_count = 0
@@ -80,12 +82,12 @@ class Process(SimpleApplication):
                 # Write records.
                 try:
                     event_records = self.write_records(
-                        unsaved_aggregates, notification, self.name, upstream_application_name
+                        unsaved_aggregates, notification, upstream_application_name
                     )
-                except:
+                except Exception as e:
                     self.is_reader_position_ok[upstream_application_name] = False
                     self._cached_entities = {}
-                    raise
+                    raise e
                 else:
                     # Publish a prompt if there are new notifications.
                     # Todo: Optionally send events as prompts, will save reading database
@@ -99,6 +101,7 @@ class Process(SimpleApplication):
         max_record_id = self.tracking_record_manager.get_max_record_id(
             application_name=self.name,
             upstream_application_name=upstream_application_name,
+            partition_id=self.partition_id,
         )
         reader.seek(max_record_id or 0)
 
@@ -116,9 +119,9 @@ class Process(SimpleApplication):
     def policy(self, repository, event):
         return self.policy_func(self, repository, event)
 
-    def write_records(self, aggregates, notification, application_name, upstream_application_name):
+    def write_records(self, aggregates, notification, upstream_application_name):
         # Construct tracking record.
-        tracking_record = self.construct_tracking_record(notification, application_name, upstream_application_name)
+        tracking_record = self.construct_tracking_record(notification, upstream_application_name)
 
         # Construct event records.
         event_records = self.construct_event_records(aggregates)
@@ -140,10 +143,10 @@ class Process(SimpleApplication):
         return event_records
 
     def is_upstream_prompt(self, event):
-        return isinstance(event, Prompt) and event.sender_process_name in self.readers.keys()
+        return isinstance(event, Prompt) and event.channel_name.split('-')[0] in self.readers.keys()
 
     def publish_prompt(self, _=None):
-        prompt = Prompt(sender_process_name=self.name)
+        prompt = Prompt(make_channel_name(self.name, self.partition_id))
         try:
             publish(prompt)
         except Exception as e:
@@ -187,15 +190,13 @@ class Process(SimpleApplication):
 
         return event_records
 
-    def construct_tracking_record(self, notification, application_name, upstream_application_name):
-        application_id = uuid_from_application_name(application_name)
+    def construct_tracking_record(self, notification, upstream_application_name):
         upstream_application_id = uuid_from_application_name(upstream_application_name)
-        partition_id = application_id
         kwargs = {
-            'notification_id': notification['id'],
-            'application_id': application_id,
+            'application_id': self.application_id,
             'upstream_application_id': upstream_application_id,
-            'partition_id': partition_id,
+            'partition_id': self.partition_id,
+            'notification_id': notification['id'],
             'originator_id': notification['originator_id'],
             'originator_version': notification['originator_version']
         }
@@ -226,9 +227,8 @@ class RepositoryWrapper(object):
 
 
 class Prompt(object):
-    def __init__(self, sender_process_name, end_position=None, notifications=None):
-        self.new_notifications = notifications
-        self.sender_process_name = sender_process_name
+    def __init__(self, channel_name, end_position=None):
+        self.channel_name = channel_name
         self.end_position = end_position
 
 
@@ -313,3 +313,7 @@ class System(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+
+def make_channel_name(name, partition_id):
+    return "{}-{}".format(name, partition_id)
