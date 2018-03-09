@@ -41,21 +41,20 @@ duplicates or missing items.
 
 To keep track of its position in the notification log, a process application will create
 a new tracking record for each notification. The tracking records determine how far the
-process has progressed through the notification log. They are used to set the position
-of the notification log reader when the process is commenced or resumed.
+process has progressed through the notification log. Tracking records are used to set the
+position of the notification log reader when the process is commenced or resumed.
 
 A process application will respond to events according to its policy. Its policy might
 do nothing in response to one type of event, and it might call an aggregate method in
-response to another type of event.
-
-However the policy responds to an event, the process application will write a tracking
-record, along with any new event records, in an atomic database transaction.
+response to another type of event. However the policy responds to an event, the process
+application will write a tracking record, along with any new event records, in an atomic
+database transaction.
 
 Most importantly, if some of the new records can't be written, then none are. If anything
-goes wrong before all the records have been written, the transaction will rollback, none
-of the records will be written, and the process will not have progressed. On the other hand,
-if the tracking record has been written, then so will any new event records, and the process
-will have fully completed an atomic progression.
+goes wrong before all the records have been written, the transaction will rollback, and none
+of the records will be written. If none of the records have been written, the process has
+not progressed. On the other hand, if the tracking record has been written, then so will
+any new event records, and the process will have fully completed an atomic progression.
 
 Furthermore, there can only be one unique tracking record for each notification.
 Once the tracking record has been written it can't be written again, and neither can
@@ -64,19 +63,19 @@ may even succeed and which may not be idempotent). If an event can be processed 
 then it will be processed exactly once.
 
 The processing will be reliable even if the behaviour of the policies and the aggregates
-is dysfunctional. Like the ratchet is as reliable as its pawl, a process application
-is as reliable as its database transactions are atomic.
+is dysfunctional. A ratchet is as reliable as its pawl and teeth. Similarly, a process
+application is as reliable as its database transactions.
 
 
 System of processes
 -------------------
 
-One such process could follow another in a system of processes. One process could follow two
-other processes in a slightly more complicated system. A process could simply follow
-itself, stepping though state transitions that involve many aggregates. There could
-be a vastly complicated system of processes without introducing any systemically
-emergent unreliability in the processing of the events (it is "absolutely" reliable,
-there isn't somehow a "tolerable" level of unreliability in each process that would eventually
+One process application could follow another in a system of processes. One process could
+follow two other processes in a slightly more complicated system. A process could simply
+follow itself, stepping though state transitions that involve many aggregates. There could
+be a vastly complicated system of processes without introducing any systemically emergent
+unreliability in the processing of the events (it is "absolutely" reliable, there isn't
+somehow a "tolerable" level of unreliability in each process that would eventually
 compound into an intolerable level of unreliability in a complicated system of processes).
 
 A number of application processes could be run from a single thread. Alternatively, they
@@ -86,19 +85,17 @@ there is parallelism in such a system, this isn't the kind of parallelism that w
 allow the system to scale horizontally (adding more machines).
 
 To scale the throughput of a process horizontally, beyond the rate at which
-a single sequence can be processed in series, notifications could be divided
-across many notification logs. Each notification log could be processed
-concurrently. Hence one application process could usefully and reliably employ many concurrent
-operating system processes. This feature is demonstrated below.
+a single sequence can be processed in series, notifications can be partitioned
+across many notification logs. Each partition could be processed concurrently.
+Hence one application process could usefully and reliably employ many concurrent
+operating system processes. Both kinds of parallelism are demonstrated below.
 
 In the example below, a system of process applications is defined independently of
-how it may be run. The process application use a domain model with three aggregates.
-The process applications each have a policy, which defines how they respond to events
-received by the application in notification logs of the applications it is following.
-The system is run as a single threaded system. Afterwards, the system is run with with
-partitioned notification logs and multiprocessing, so there is one operating system
-process for each partition for each process application in the system, all of which
-then operate concurrently, demonstrating both kinds of parallelism.
+how it may be run. The system of process applications uses a domain model layer with three
+aggregates. Each process application is configured to follow others.
+
+The system is firstly run as a single threaded system. Afterwards, the system is run with
+both multiprocessing and partitioned notification logs.
 
 
 Kahn process networks
@@ -119,8 +116,8 @@ Orders, reservations, payments
 ------------------------------
 
 The example below is suggestive of an orders-reservations-payments system.
-The system automatically processes new orders by making a reservation and
-then a payment, facts registered with the order.
+The system automatically processes new orders by making a reservation, and
+then a payment; facts that are registered with the order, as they happen.
 
 Aggregates
 ~~~~~~~~~~
@@ -170,7 +167,7 @@ set as paid, which involves a payment ID.
                 order.payment_id = self.payment_id
 
 
-A ``Reservation`` can be created.
+A ``Reservation`` can be created. A reservation has an ``order_id``.
 
 .. code:: python
 
@@ -190,7 +187,7 @@ A ``Reservation`` can be created.
             pass
 
 
-And a ``Payment`` can be made.
+And a ``Payment`` can be made. A payment also has an ``order_id``.
 
 .. code:: python
 
@@ -211,7 +208,7 @@ And a ``Payment`` can be made.
 
 
 The orders factory ``create_new_order()`` is decorated with the ``@retry`` decorator,
-to be resilient against both concurrency conflicts and operational errors.
+to be resilient against both concurrency conflicts and any operational errors.
 
 .. Todo: Raise and catch ConcurrencyError instead of RecordConflictError.
 
@@ -234,17 +231,14 @@ with simple test cases, without involving any other components.
 Processes
 ~~~~~~~~~
 
-The processes of the orders-reservations-payments system have
-policies that respond to domain events by executing commands.
+Process applications have a policy, that responds to domain events by executing commands.
 
-In the code below, the Orders process responds to new reservations
-by setting the order as reserved. The Reservations process responds
-to new orders by creating a reservation. The Orders process responds
-to new payments by setting the order as paid. And the Payments
-process responds to orders being reserved by making a payment.
+In the code below, the Reservations process responds to new orders by creating a
+reservation. The Orders process responds to new reservations by setting as order
+as reserved. The Payments process responds by making a payment when as orders
+is reserved. The Orders process responds to new payments by setting an order as paid.
 
-The library's ``Process`` class is a subclass of the library's
-``SimpleApplication`` class.
+The library's ``Process`` class is a subclass of the library's ``SimpleApplication`` class.
 
 .. code:: python
 
@@ -256,12 +250,13 @@ The library's ``Process`` class is a subclass of the library's
 
         def policy(self, repository, event):
             if isinstance(event, Reservation.Created):
-                # Set order is reserved.
+                # Set the order as reserved.
                 order = repository[event.order_id]
                 assert not order.is_reserved
                 order.set_is_reserved(event.originator_id)
 
             elif isinstance(event, Payment.Created):
+                # Set the order as paid.
                 order = repository[event.order_id]
                 assert not order.is_paid
                 order.set_is_paid(event.originator_id)
@@ -280,9 +275,10 @@ The library's ``Process`` class is a subclass of the library's
                 # Make a payment.
                 return Payment.make(order_id=event.originator_id)
 
-Please remember, do not call the ``__save__()`` method of aggregates in process
-application policies, because the pending events will be collected after the
-``policy()`` method has been called.
+Please note, nowhere in these policies is a call made to the ``__save__()``
+method of aggregates, the pending events will be collected and records
+committed automatically by the ``Process`` after the ``policy()`` method has
+been called.
 
 The policies are easy to test. Here's a test for the payments policy.
 
@@ -309,14 +305,18 @@ The policies are easy to test. Here's a test for the payments policy.
 In this test, a new aggregate is created by the policy, and checked by the test.
 The test is able to check the new aggregate because the new aggregate is returned
 by the policy. Policies should normally return new aggregates to the caller.
-Remember, do not call the ``__save__()`` method of new aggregates in a process
-policy: pending events will be collected after the ``policy()`` method has returned.
+Remember, do not call the ``__save__()`` method of aggregates in a process policy:
+pending events will be collected after the ``policy()`` method has returned.
 
-If a policy retrieves and changes an already existing aggregate, the aggregate does
-not need to be returned by the policy to the caller.
-The test will already have a reference to the aggregate, because it will have
-constructed the aggregate before passing it to the policy, so the test will be in
-a good position to check the aggregate changes as expected.
+Please note, although it is necessary to return new aggregates, if a policy
+retrieves and changes an already existing aggregate, the aggregate does
+not need to be returned by the policy to the caller. The ``Process`` can detect
+which aggregates were used from the repository, and these aggregates can be
+examined for pending events. It isn't necessary to return changed aggregates
+for testing purposes, since the test will already have a reference to the
+aggregate, because it will have constructed the aggregate before passing it
+to the policy, so the test will already be in a good position to check already
+existing aggregates are changed by the policy as expected.
 
 The policy should never call aggregate ``__save__()`` methods, because events will not
 be committed atomically with the tracking record, and so the processing will not be
@@ -326,16 +326,21 @@ transaction. To explain a little bit, in normal use, when new events are retriev
 from an upstream notification log, the ``policy()`` method is called by the
 ``call_policy()`` method of the ``Process`` class. The ``call_policy()`` method wraps
 the process application's aggregate repository with a wrapper that detects which
-aggregates are used by the policy. New aggregates returned by the policy are appended
-to this list. New events are collected by requesting pending events from this list of
-aggregates. The records are then committed atomically with the tracking record. Calling
-``__save__()`` will avoid the new events being included in this mechanism and will spoil
-the reliability of the process. As a rule, don't ever call the ``__save__()`` method of
-new or changed aggregates in a process application policy.
+aggregates are used by the policy, and calls the ``policy()`` method with the events
+and the wrapped repository. New aggregates returned by the policy are appended
+to this list. New events are collected from this list of aggregates by getting
+any (and all) pending events. The records are then committed atomically with the
+tracking record. Calling ``__save__()`` will avoid the new events being included
+in this mechanism and will spoil the reliability of the process. As a rule, don't
+ever call the ``__save__()`` method of new or changed aggregates in a process
+application policy. And always use the given ``repository`` to retrieve aggregates,
+rather than the original process application's repository (``self.repository``)
+which doesn't detect which aggregates were used when your policy was called.
 
 Anyway, here's a test for the orders policy, at least the half that responds to a
-``Reservation.Created`` event by setting the order as "reserved". At least it shows
-how to test a process application policy that changes an already existing aggregate.
+``Reservation.Created`` event by setting the order as "reserved". This test shows
+how to test a process application policy that should change an already existing
+aggregate in response to a specific type of event.
 
 .. code:: python
 
