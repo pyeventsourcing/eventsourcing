@@ -22,8 +22,9 @@ class SimpleApplication(object):
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None, uri=None, session=None,
                  cipher_key=None, stored_event_record_class=None, setup_table=True, contiguous_record_ids=True,
-                 partition_id=None):
+                 partition_id=None, notification_log_section_size=None):
 
+        self.notification_log_section_size = notification_log_section_size
         self.name = name or type(self).__name__.lower()
 
         # Setup cipher (optional).
@@ -42,7 +43,7 @@ class SimpleApplication(object):
         # Setup notifications.
         self.notification_log = RecordManagerNotificationLog(
             self.event_store.record_manager,
-            section_size=20,
+            section_size=self.notification_log_section_size
         )
 
         # Setup an event sourced repository.

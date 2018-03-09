@@ -15,14 +15,15 @@ DEFAULT_POLL_INTERVAL = 5
 
 class Multiprocess(object):
 
-    def __init__(self, system, partition_ids=None):
+    def __init__(self, system, partition_ids=None, poll_interval=None, notification_log_section_size=10):
         self.system = system
         # if partition_ids is None:
         #     partition_ids = [uuid4()]
         self.partition_ids = partition_ids
-        self.poll_interval = DEFAULT_POLL_INTERVAL
+        self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
         self.os_processes = None
+        self.notification_log_section_size = notification_log_section_size
 
     def start(self):
         assert self.os_processes is None, "Already started"
@@ -39,6 +40,7 @@ class Multiprocess(object):
                     upstream_names=[cls.__name__.lower() for cls in upstream_classes],
                     poll_interval=self.poll_interval,
                     partition_id=partition_id,
+                    notification_log_section_size=self.notification_log_section_size
                 )
                 os_process.start()
                 self.os_processes.append(os_process)
@@ -92,20 +94,25 @@ class Multiprocess(object):
 class OperatingSystemProcess(multiprocessing.Process):
 
     def __init__(self, application_process_class, upstream_names, partition_id=None,
-                 poll_interval=DEFAULT_POLL_INTERVAL, *args, **kwargs):
+                 poll_interval=DEFAULT_POLL_INTERVAL, notification_log_section_size=None,
+                 *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
         self.upstream_names = upstream_names
         self.daemon = True
         self.partition_id = partition_id
         self.poll_interval = poll_interval
+        self.notification_log_section_size = notification_log_section_size
 
     def run(self):
         self.redis = redis.Redis()
         self.pubsub = self.redis.pubsub()
 
         # Construct process application.
-        self.process = self.application_process_class(partition_id=self.partition_id)
+        self.process = self.application_process_class(
+            partition_id=self.partition_id,
+            notification_log_section_size=self.notification_log_section_size
+        )
 
         # Follow upstream notification logs.
         for upstream_name in self.upstream_names:
@@ -139,7 +146,7 @@ class OperatingSystemProcess(multiprocessing.Process):
                         application_id=upstream_application_id,
                         partition_id=self.partition_id
                     ),
-                    section_size=self.process.notification_log.section_size
+                    section_size=self.process.notification_log_section_size
                 )
 
             # Make the process follow the upstream notification log.

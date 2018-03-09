@@ -64,6 +64,7 @@ class Process(SimpleApplication):
                 self.set_reader_position_from_tracking_records(reader, upstream_application_name)
                 self.is_reader_position_ok[upstream_application_name] = True
 
+            # for notification in reader.read(advance_by=self.notification_log_section_size):
             for notification in reader.read():
                 # Todo: Put this on a queue and then get the next one.
                 notification_count += 1

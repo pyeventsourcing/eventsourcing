@@ -10,6 +10,8 @@ from eventsourcing.domain.model.array import BigArray
 from eventsourcing.infrastructure.base import RelationalRecordManager
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder, json_dumps
 
+DEFAULT_SECTION_SIZE = 20
+
 
 class Section(object):
     """
@@ -46,8 +48,8 @@ class LocalNotificationLog(AbstractNotificationLog):
     Presents a sequence of sections from a sequence of notifications.
     """
 
-    def __init__(self, section_size):
-        self.section_size = section_size
+    def __init__(self, section_size=None):
+        self.section_size = section_size or DEFAULT_SECTION_SIZE
         # self.last_start = None
 
     def __getitem__(self, section_id):
