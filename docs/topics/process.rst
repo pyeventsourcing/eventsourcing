@@ -42,8 +42,9 @@ Process application
 
 The library's process application class ``Process`` functions as both an event-sourced projection
 (see previous section) and as an event-sourced application. It is a subclass of
-``SimpleApplication`` that also has a notification log reader and tracking records. A process
-application also has a policy that defines how the process application responds to events.
+``SimpleApplication`` that also has notification log readers and tracking records. A process
+application also has a policy that defines how the process application responds to domain events
+it receives from its notification log readers.
 
 A process application consumes events by reading event notifications from its notification
 log reader. The events are retrieved in a reliable order, without race conditions or
