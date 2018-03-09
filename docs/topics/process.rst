@@ -51,15 +51,18 @@ log readers. The events are retrieved in a reliable order, without race conditio
 duplicates or missing items.
 
 To keep track of its position in the notification log, a process application will create
-a new tracking record for each notification. The tracking records determine how far the
-process has progressed through the notification log. Tracking records are used to set the
-position of the notification log reader when the process is commenced or resumed.
+a new tracking record for each event notification it processes. The tracking records
+determine how far the process has progressed through the notification log. Tracking
+records are used to set the position of the notification log reader when the process
+is commenced or resumed.
 
 A process application will respond to events according to its policy. Its policy might
 do nothing in response to one type of event, and it might call an aggregate method in
 response to another type of event. No matter how the policy responds to an event, the process
 application will write a tracking record, along with any new event records, in an atomic
 database transaction.
+
+Because the recording is atomic, the process proceeds atomically, with progressive steps.
 
 Most importantly, if some of the new records can't be written, then none are. If anything
 goes wrong before all the records have been written, the transaction will rollback, and none
@@ -73,11 +76,13 @@ any new events unfortunately triggered by duplicate calls to aggregate commands 
 may even succeed and which may not be idempotent). If an event can be processed at all,
 then it will be processed exactly once.
 
-The processing will be reliable even if the behaviour of the policies and the aggregates
-is dysfunctional. Just like a ratchet is as good as its teeth and pawl are strong,
-similarly a process application is as reliable as its database transactions are atomic.
-The atomicity of the database transactions guarantees the integrity of both notification
-log (teeth) and the tracking records (pawl).
+Therefore, the processing will be reliable even if the behaviour of the policies and
+the aggregates is dysfunctional. Just like a ratchet is as good as its teeth and pawl
+are strong, similarly a process application is as reliable as its database transactions
+are atomic. The atomicity of the database transactions guarantees separately the
+reliability of both upstream notification log (teeth), and the downstream tracking
+records (pawl). Hence the application domain event records are reliable, and so is
+the process application's notification log, from which its domain events are propagated.
 
 
 System of processes
