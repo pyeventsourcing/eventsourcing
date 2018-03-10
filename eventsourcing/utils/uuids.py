@@ -1,9 +1,11 @@
 import uuid
 
 
-def uuid_from_url(url):
-    return uuid.uuid5(uuid.NAMESPACE_URL, url.encode('utf8') if bytes == str else url)
-
-
 def uuid_from_application_name(application_name):
-    return uuid_from_url('eventsourcing:///applications/{}'.format(application_name))
+    return uuid_from_uri('eventsourcing:///applications/{}'.format(application_name))
+
+def uuid_from_partition_name(partition_name):
+    return uuid_from_uri('eventsourcing:///partitions/{}'.format(partition_name))
+
+def uuid_from_uri(uri):
+    return uuid.uuid5(uuid.NAMESPACE_URL, uri.encode('utf8') if bytes == str else uri)

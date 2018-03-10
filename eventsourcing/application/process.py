@@ -322,5 +322,5 @@ class System(object):
         self.close()
 
 
-def make_channel_name(name, partition_id):
-    return "{}-{}".format(name, partition_id)
+def make_channel_name(application_name, partition_id):
+    return "{}-{}".format(application_name, partition_id)

@@ -32,11 +32,11 @@ class TestDocs(TestCase):
             # 'deployment.rst'
         ]
 
-        if six.PY2:
-            # Due to encoding problem with mysql-connected in Python 2,
-            # and screeds of warnings from mysqlclient in Python 3, I
-            # have selected to use mysql-connected and skip this test in Python 2.7.
-            skipped.append('process.rst')
+        # if six.PY2:
+        #     # Due to encoding problem with mysql-connected in Python 2,
+        #     # and screeds of warnings from mysqlclient in Python 3, I
+        #     # have selected to use mysql-connected and skip this test in Python 2.7.
+        #     skipped.append('process.rst')
 
         self._out = ''
         docs_path = os.path.join(base_dir, 'docs')
@@ -49,7 +49,7 @@ class TestDocs(TestCase):
             for name in filenames:
                 if name in skipped:
                     continue
-                if name.endswith('.rst'):
+                # if name.endswith('.rst'):
                 # if name.endswith('aggregates_in_ddd.rst'):
                 # if name.endswith('example_application.rst'):
                 # if name.endswith('everything.rst'):
@@ -59,7 +59,7 @@ class TestDocs(TestCase):
                 # if name.endswith('snapshotting.rst'):
                 # if name.endswith('notifications.rst'):
                 # if name.endswith('projections.rst'):
-                # if name.endswith('process.rst'):
+                if name.endswith('process.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)

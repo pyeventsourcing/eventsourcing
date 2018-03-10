@@ -14,13 +14,15 @@ from eventsourcing.infrastructure.sqlalchemy.records import SnapshotRecord
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_random_bytes
-from eventsourcing.utils.uuids import uuid_from_application_name
+from eventsourcing.utils.uuids import uuid_from_application_name, uuid_from_partition_name
+
+DEFAULT_PARTITION_ID = uuid_from_partition_name('default')
 
 
 class SimpleApplication(object):
     persist_event_type = None
 
-    def __init__(self, name='', persistence_policy=None, persist_event_type=None, uri=None, session=None,
+    def __init__(self, name='', persistence_policy=None, persist_event_type=None, uri=None, pool_size=5, session=None,
                  cipher_key=None, stored_event_record_class=None, setup_table=True, contiguous_record_ids=True,
                  partition_id=None, notification_log_section_size=None):
 
@@ -31,13 +33,13 @@ class SimpleApplication(object):
         self.setup_cipher(cipher_key)
 
         # Setup connection to database.
-        self.setup_datastore(session, uri)
+        self.setup_datastore(session, uri, pool_size)
 
         # Setup the event store.
         self.stored_event_record_class = stored_event_record_class
         self.contiguous_record_ids = contiguous_record_ids
         self.application_id = uuid_from_application_name(self.name)
-        self.partition_id = partition_id or self.application_id
+        self.partition_id = partition_id or DEFAULT_PARTITION_ID
         self.setup_event_store()
 
         # Setup notifications.
@@ -68,9 +70,9 @@ class SimpleApplication(object):
         cipher_key = decode_random_bytes(cipher_key or os.getenv('CIPHER_KEY', ''))
         self.cipher = AESCipher(cipher_key) if cipher_key else None
 
-    def setup_datastore(self, session, uri):
+    def setup_datastore(self, session, uri, pool_size=5):
         self.datastore = SQLAlchemyDatastore(
-            settings=SQLAlchemySettings(uri=uri),
+            settings=SQLAlchemySettings(uri=uri, pool_size=pool_size),
             session=session,
         )
 

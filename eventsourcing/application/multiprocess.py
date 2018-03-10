@@ -4,6 +4,7 @@ from time import sleep
 import redis
 
 from eventsourcing.application.process import Prompt, System, make_channel_name
+from eventsourcing.application.simple import DEFAULT_PARTITION_ID
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
@@ -13,89 +14,11 @@ from eventsourcing.utils.uuids import uuid_from_application_name
 DEFAULT_POLL_INTERVAL = 5
 
 
-class Multiprocess(object):
-
-    def __init__(self, system, partition_ids=None, poll_interval=None, notification_log_section_size=10):
-        self.system = system
-        # if partition_ids is None:
-        #     partition_ids = [uuid4()]
-        self.partition_ids = partition_ids
-        self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
-        assert isinstance(system, System)
-        self.os_processes = None
-        self.notification_log_section_size = notification_log_section_size
-
-    def start(self):
-        assert self.os_processes is None, "Already started"
-        self.redis = redis.Redis()
-
-        self.os_processes = []
-
-        for process_class, upstream_classes in self.system.followings.items():
-
-            for partition_id in self.partition_ids:
-                # Start operating system process.
-                os_process = OperatingSystemProcess(
-                    application_process_class=process_class,
-                    upstream_names=[cls.__name__.lower() for cls in upstream_classes],
-                    poll_interval=self.poll_interval,
-                    partition_id=partition_id,
-                    notification_log_section_size=self.notification_log_section_size
-                )
-                os_process.start()
-                self.os_processes.append(os_process)
-
-    def prompt_about(self, process_name, partition_id):
-        for process_class in self.system.process_classes:
-
-            name = process_class.__name__.lower()
-
-            if process_name and process_name != name:
-                continue
-
-            num_expected_subscriptions = len(self.system.followings[process_class])
-            channel_name = make_channel_name(name, partition_id)
-            patience = 50
-            while self.redis.publish(channel_name, '') < num_expected_subscriptions:
-                if patience:
-                    patience -= 1
-                    sleep(0.1)  # How long does it take to subscribe?
-                else:
-                    raise Exception("Couldn't publish to expected number of subscribers "
-                                    "({}, {})".format(name, num_expected_subscriptions))
-
-            sleep(0.001)
-
-
-    def close(self):
-        for os_process in self.os_processes:
-            for partition_id in self.partition_ids:
-                name = os_process.application_process_class.__name__.lower()
-                channel_name = make_channel_name(name, partition_id)
-                self.redis.publish(channel_name, 'KILL')
-
-        for os_process in self.os_processes:
-            os_process.join(timeout=1)
-
-        for os_process in self.os_processes:
-            if os_process.is_alive:
-                os_process.terminate()
-
-        self.os_processes = None
-
-    def __enter__(self):
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-
 class OperatingSystemProcess(multiprocessing.Process):
 
     def __init__(self, application_process_class, upstream_names, partition_id=None,
                  poll_interval=DEFAULT_POLL_INTERVAL, notification_log_section_size=None,
-                 *args, **kwargs):
+                 pool_size=5, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
         self.upstream_names = upstream_names
@@ -103,6 +26,7 @@ class OperatingSystemProcess(multiprocessing.Process):
         self.partition_id = partition_id
         self.poll_interval = poll_interval
         self.notification_log_section_size = notification_log_section_size
+        self.pool_size = pool_size
 
     def run(self):
         self.redis = redis.Redis()
@@ -111,14 +35,18 @@ class OperatingSystemProcess(multiprocessing.Process):
         # Construct process application.
         self.process = self.application_process_class(
             partition_id=self.partition_id,
-            notification_log_section_size=self.notification_log_section_size
+            notification_log_section_size=self.notification_log_section_size,
+            pool_size=self.pool_size,
         )
 
         # Follow upstream notification logs.
         for upstream_name in self.upstream_names:
 
-            # Subscribe to prompts from upstream channels.
-            channel_name = make_channel_name(upstream_name, partition_id=self.partition_id)
+            # Subscribe to prompts from upstream partition.
+            channel_name = make_channel_name(
+                application_name=upstream_name,
+                partition_id=self.partition_id
+            )
             self.pubsub.subscribe(channel_name)
 
             # Obtain a notification log for the upstream process.
@@ -167,7 +95,6 @@ class OperatingSystemProcess(multiprocessing.Process):
                 # External systems could be modelled as commands.
 
 
-
             # Make the process follow the upstream notification log.
             self.process.follow(upstream_name, notification_log)
 
@@ -183,7 +110,7 @@ class OperatingSystemProcess(multiprocessing.Process):
                 except Exception as e:
                     # Todo: Log this, or stderr?
                     print("Caught exception: {}".format(e))
-                    # raise e
+                    raise e
 
         finally:
             unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
@@ -242,4 +169,84 @@ class OperatingSystemProcess(multiprocessing.Process):
     #     while True:
     #         self.process.run()
     #         time.sleep(.1)
+
+
+class Multiprocess(object):
+
+    def __init__(self, system, partition_ids=None, poll_interval=None, notification_log_section_size=10,
+                 pool_size=1):
+        self.pool_size = pool_size
+        self.system = system
+        # if partition_ids is None:
+        #     partition_ids = [uuid4()]
+        self.partition_ids = partition_ids or [DEFAULT_PARTITION_ID]
+        self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
+        assert isinstance(system, System)
+        self.os_processes = None
+        self.notification_log_section_size = notification_log_section_size
+
+    def start(self):
+        assert self.os_processes is None, "Already started"
+        self.redis = redis.Redis()
+
+        self.os_processes = []
+
+        for process_class, upstream_classes in self.system.followings.items():
+
+            for partition_id in self.partition_ids:
+                # Start operating system process.
+                os_process = OperatingSystemProcess(
+                    application_process_class=process_class,
+                    upstream_names=[cls.__name__.lower() for cls in upstream_classes],
+                    poll_interval=self.poll_interval,
+                    partition_id=partition_id,
+                    notification_log_section_size=self.notification_log_section_size,
+                    pool_size=self.pool_size,
+                )
+                os_process.start()
+                self.os_processes.append(os_process)
+
+    def prompt_about(self, process_name, partition_id):
+        for process_class in self.system.process_classes:
+
+            name = process_class.__name__.lower()
+
+            if process_name and process_name != name:
+                continue
+
+            num_expected_subscriptions = len(self.system.followings[process_class])
+            channel_name = make_channel_name(name, partition_id)
+            patience = 50
+            while self.redis.publish(channel_name, '') < num_expected_subscriptions:
+                if patience:
+                    patience -= 1
+                    sleep(0.01)  # How long does it take to subscribe?
+                else:
+                    raise Exception("Couldn't publish to expected number of subscribers "
+                                    "({}, {})".format(name, num_expected_subscriptions))
+
+            sleep(0.001)
+
+    def close(self):
+        for os_process in self.os_processes:
+            for partition_id in self.partition_ids:
+                name = os_process.application_process_class.__name__.lower()
+                channel_name = make_channel_name(name, partition_id)
+                self.redis.publish(channel_name, 'KILL')
+
+        for os_process in self.os_processes:
+            os_process.join(timeout=1)
+
+        for os_process in self.os_processes:
+            if os_process.is_alive:
+                os_process.terminate()
+
+        self.os_processes = None
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 

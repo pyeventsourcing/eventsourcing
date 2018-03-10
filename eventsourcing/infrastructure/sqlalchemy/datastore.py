@@ -13,8 +13,10 @@ DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///:memory:'
 
 
 class SQLAlchemySettings(DatastoreSettings):
-    def __init__(self, uri=None):
+    def __init__(self, uri=None, pool_size=5):
         self.uri = uri or os.getenv('DB_URI', DEFAULT_SQLALCHEMY_DB_URI)
+        self.pool_size = pool_size
+        # self.pool_size = pool_size if not self.uri.startswith('sqlite') else 1
 
 
 class SQLAlchemyDatastore(Datastore):
@@ -40,9 +42,14 @@ class SQLAlchemyDatastore(Datastore):
     def setup_connection(self):
         assert isinstance(self.settings, SQLAlchemySettings), self.settings
         if self._engine is None:
+            if self.settings.uri == 'sqlite:///:memory:':
+                kwargs = {'pool_size': self.settings.pool_size}
+            else:
+                kwargs = {}
             self._engine = create_engine(
                 self.settings.uri,
                 strategy=self._connection_strategy,
+                **kwargs
             )
 
     def setup_tables(self, tables=None):

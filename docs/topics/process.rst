@@ -135,6 +135,13 @@ not be determinate, and could be described in more general terms as "dataflow" o
 "stream processing".
 
 
+.. Refactoring
+.. ~~~~~~~~~~~
+
+.. Todo: Something about moving from a single process application to two. Migrate
+.. aggregates by replicating those events from the notification log, and just carry
+.. on.
+
 Orders, reservations, payments
 ------------------------------
 
@@ -265,6 +272,8 @@ The library's ``Process`` class is a subclass of the library's ``SimpleApplicati
 
 .. code:: python
 
+    from time import sleep
+
     from eventsourcing.application.process import Process
 
 
@@ -289,6 +298,7 @@ The library's ``Process`` class is a subclass of the library's ``SimpleApplicati
         def policy(self, repository, event):
             if isinstance(event, Order.Created):
                 # Create a reservation.
+                sleep(0.5)
                 return Reservation.create(order_id=event.originator_id)
 
 
@@ -296,6 +306,7 @@ The library's ``Process`` class is a subclass of the library's ``SimpleApplicati
         def policy(self, repository, event):
             if isinstance(event, Order.Reserved):
                 # Make a payment.
+                sleep(0.5)
                 return Payment.make(order_id=event.originator_id)
 
 Please note, nowhere in these policies is a call made to the ``__save__()``
@@ -489,21 +500,24 @@ The example below shows the system of process applications running in
 different processes on the same node, using the library's ``Multiprocess``
 class, which uses Python's ``multiprocessing`` library.
 
-With multiple threads or operating system processes, each process can run
-a loop that begins by making a call to messaging infrastructure for prompts
-pushed from upstream via messaging infrastructure. Prompts can be responded
-to immediately by pulling new notifications. If the call to get new prompts
-times out, any new notifications from upstream notification logs can be pulled
-anyway, so that the notification log is effectively polled at a regular
-interval. The ``Multiprocess`` class happens to use Redis publish-subscribe
-to push prompts.
+Running the system with multiple operating system processes means the five steps
+for processing an order in this example happen concurrently, so that as the payment
+is made for one order, the another order might get reserved, whilst a third order is at
+the same time created.
+
+With operating system processes, each can run a loop that begins by making a
+call to messaging infrastructure for prompts pushed from upstream via messaging
+infrastructure. Prompts can be responded to immediately by pulling new
+notifications. If the call to get new prompts times out, any new notifications
+from upstream notification logs can be pulled anyway, so that the notification
+log is effectively polled at a regular interval. The ``Multiprocess`` class
+happens to use Redis publish-subscribe to push prompts.
 
 The process applications could all use the same single database, or they
-could each use their own database.
-If the process applications use different databases, upstream notification
-logs could to be presented in an API, and downstream could pull notifications
-from an upstream API using a remote notification log object (as discussed in
-a previous section).
+could each use their own database. If the process applications were using
+different databases, upstream notification logs would need to be presented
+in an API, so that downstream could pull notifications using a remote
+notification log object (as discussed in a previous section).
 
 In this example, the process applications use a MySQL database, but it works just
 as well with PostgreSQL.
@@ -516,32 +530,19 @@ as well with PostgreSQL.
     #os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
 
 
-The multiprocessing system notification logs will be partitioned. Partitioning
-will cause three separate instances of the system running concurrently, sharing
-the same database. Aggregates of an application are available to all partitions
-of that application. Partitioning can be configured statically. (Dynamic
-configuration is not yet implemented, Auto-scaling is being considered).
-
-This example uses three partitions, each identified in the records with a UUID.
-
-.. code:: python
-
-    from uuid import uuid4
-
-    # These should be static configuration values.
-    partition_ids = [uuid4(), uuid4(), uuid4()]
-
+Single partition
+~~~~~~~~~~~~~~~~
 
 Before starting the system's operating system processes, let's create a new order aggregate.
 The Orders process is constructed so that any ``Order.Created`` events published by the
-``create_new_order()`` factory will be persisted. The process application needs to be
-told which partition to use for the event notification.
+``create_new_order()`` factory will be persisted. The process application will use the default
+partition.
 
 .. code:: python
 
     from eventsourcing.application.simple import SimpleApplication
 
-    with Orders(setup_tables=True, partition_id=partition_ids[0]) as app:
+    with Orders(setup_tables=True) as app:
 
         # Create a new order.
         order_id = create_new_order()
@@ -554,24 +555,20 @@ The MySQL database tables were created by the code above, because the ``Orders``
 was constructed with ``setup_tables=True``, which is by default ``False`` in the ``Process``
 class.
 
-The library's ``Multiprocess`` class can be used to run the ``system``. The system
-is run with three partitions. There is one operating system process for each partition
-for each application process, which makes nine operating system processes.
-This system example can work with partitions because there are no causal dependencies
-between events in different partitions. (Causal dependencies not yet implemented.)
-
-The ``multiprocess`` object is constructed with the list of ``partition_ids``.
+The code below uses the library's ``Multiprocess`` class to run the ``system``.
+It will start one operating system process for each process application, which
+gives three child operating system processes.
 
 .. code:: python
 
     from eventsourcing.application.multiprocess import Multiprocess
 
-    multiprocess = Multiprocess(system, partition_ids=partition_ids)
+    multiprocess = Multiprocess(system)
 
 
 The operating system processes can be started by using ``multiprocess`` as a
 context manager (calls ``start()`` on entry and ``close()`` on exit). Wait
-for the results, by polling the aggregate state.
+for the results by polling the aggregate state.
 
 .. code:: python
 
@@ -594,16 +591,67 @@ for the results, by polling the aggregate state.
                 assert retries, "Failed set order.is_paid"
 
 
-Let's do that again, but with a batch of orders that is created after the system
-operating system processes have been started. Below, ``app`` will be working
-concurrently with the ``multiprocess`` system, which causes contention.
-Twenty-five orders are created in each partition, making seventy-five
-event-sourced orders in total, processed reliably, with two different kinds
-of parallelism, and contention.
+Because the orders are created with a second instance of the ``Orders`` process
+application, rather than e.g. a command process application that is followed
+by the orders process, there will be contention and conflicts writing to the
+orders process notification log. The example was designed to cause this contention,
+and the ``@retry`` decorator was applied to the ``create_new_order()`` factory, so
+when conflicts are encountered, the operation will be retried and will most probably
+eventually succeed. For the same reason, the same ``@retry``  decorator is applied
+the ``run()`` method of the library class ``Process``. Contention is managed successfully
+with this approach.
+
+
+Multiple partitions
+~~~~~~~~~~~~~~~~~~~
+
+Now let's process a batch of orders that is created after the system
+has been started.
+
+This time, the process applications will be partitioned across the system.
+Each partition of each application will run in a separate operating
+system process.
+
+Because of the partitioning, many orders can be processed by the same process application
+at the same time.
+
+Events generated in one partition will (normally) be processed in the
+same partition of a downstream application.
+
+Aggregates are segregated within an application, but aggregates created by an application
+are accessible to all partitions of that application.
+
+In the example below, there are five partitions and three process applications, which
+gives fifteen child operating system processes. All fifteen will share the same database.
+
+Partitioning is configured statically. (Dynamic configuration is not yet implemented,
+auto-scaling is being considered).
+
+
+.. code:: python
+
+    from eventsourcing.utils.uuids import uuid_from_partition_name
+
+    num_partitions = 5
+
+    partition_ids = [uuid_from_partition_name(i) for i in range(num_partitions)]
+
+    multiprocess = Multiprocess(system, partition_ids=partition_ids)
+
+
+Twenty-five orders are created in each partition, giving one hundred and twenty-five
+orders in total.
+
+Please note, when creating the new aggregates, the process application needs to be
+told which partition to use.
 
 .. code:: python
 
     import datetime
+
+    multiprocess = Multiprocess(system, partition_ids=partition_ids)
+
+    num_orders_per_partition = 5
 
     if __name__ == '__main__':
 
@@ -611,11 +659,9 @@ of parallelism, and contention.
         with multiprocess:
 
             # Create some new orders.
-            #num = 250
-            num = 25
             order_ids = []
 
-            for _ in range(num):
+            for _ in range(num_orders_per_partition):
 
                 for partition_id in partition_ids:
 
@@ -629,7 +675,7 @@ of parallelism, and contention.
 
             # Wait for orders to be reserved and paid.
             with Orders() as app:
-                retries = 10 * num * len(partition_ids)
+                retries = 10 + 10 * num_orders_per_partition * len(partition_ids)
                 for i, order_id in enumerate(order_ids):
 
                     while not app.repository[order_id].is_reserved:
@@ -659,120 +705,152 @@ of parallelism, and contention.
                 print("Max order processing time: {:.3f}s".format(max(durations)))
 
 
-Running the system with multiple operating system processes means the different steps
-for processing an order happen concurrently, so that as a payment is being made for one
-order, the next order might concurrently be being reserved, whilst a third order is at
-the same time being created. Because of the partitioning, a fourth, fifth and sixth
-order may be being processed in the next partition. And so on for all the partitions.
+With the policy's ``sleep(0.5)`` statements, which ensures each order takes at least one second
+to process, varying the number of partitions and the number of orders shows that, even on a
+machine with only a few cores (e.g. my laptop), processing is truly concurrent both along the
+upstream-downstream line of the system of process applications, and across the partitions of the system.
 
-Because the orders are created with a second instance of the ``Orders`` process
-application, rather than e.g. a command process application that is followed
-by the orders process, there will be contention and conflicts writing to the
-orders process notification log. The example was designed to cause this contention,
-and the ``@retry`` decorator was applied to the ``create_new_order()`` factory, so
-when conflicts are encountered, the operation will be retried and will most probably
-eventually succeed. For the same reason, the same ``@retry``  decorator is applied
-the ``run()`` method of the library class ``Process``.
+With ``Multiprocess`, although it isn't possibe to start processes on remote hosts, it would be possible
+to run the system with partions 0-7 on one machine, partitions 8-15 on another machine, and so on.
 
-In case retries are exhausted,
-the original exception will be reraised by the decorator. But when the process
-application is run with ``Multiprocess``, it runs a loop which will catch exceptions,
-and the process will be reset from committed records, and processing will start
-again, looping indefinitely until the process is closed (or terminated).
+If most business applications process less than one command per second, one system partition would probably
+be sufficient for most situations. However, in case of spikes in the demand, or if continuous usage
+gives ten or a hundred times more commands per second, then the number of partitions could be increased
+accordingly. The process of increasing the number of partitions, and starting new operating system
+processes, could be automated. Also the cluster scaling could be automated, and processes distributed
+automatically across the cluster. Actor model seems like a good foundation for such automation.
 
+.. Todo: Make option to send event as prompt. Change Process to use event passed as prompt.
 
 Actor model system
 ------------------
 
 An Actor model library, such as `Thespian Actor Library
 <https://github.com/kquick/Thespian>`__, could be used to run
-a system of process applications as actors.
+a partitioned system of process applications as actors.
 
-Actors could be run on different nodes in a cluster. Actors could
-be supervised, so that failures could be reported, and actors restarted.
+A system actor could start a process application-partition actor
+when its address is requested, or otherwise make sure there is
+one running actor for each process application-partition.
 
-Prompts could be sent as actor messages, rather than with a publish-subscribe service.
+An actor could stop when there are
+no new event notifications to process for a perdiod of time.
+
+Actor processes could be automatically distributed across a cluster. The
+cluster could auto-scale according to CPU usage (or perhaps network usage).
+New nodes could run a container that begins by registering with the actor
+system, (unless there isn't one, when it begins an election to become leader?)
+and the actor system could run actors on it, reducing the load on other nodes.
+
+Prompts from one process application-partition could be sent to another
+as actor messages, rather than with a publish-subscribe service. The address
+could be requested from the system, and the prompt sent directly.
 
 To aid development and testing, actors could run without any
 parallelism, for example with the "simpleSystemBase" actor
 system in Thespian.
 
-However, it seems that actors aren't a very reliable way of propagating application
-state. The reason is that actor frameworks will not, in a single atomic transaction,
-remove an event from its inbox, and also store new domain events, and also write
-to another actor's inbox. Hence, for any given message that has been received, one
-or two of those things could happen whilst the other or others do not.
+Partitioning of the system could be automated with actors. A system actor
+(started how? leader election? Kubernetes configuration?) could increase or
+decrease the number of system partitions, according to the rate at which events
+are being added to the system command process, compared to the known (or measured)
+rate at which commands can be processed by the system. If there are too many actors
+dying from lack of work, then to reduce latency of starting an actor for each event
+(extreme case), the number of partitions could be reduced, so that there are enough
+events to keep actors alive. If there are fewer partitions than nodes, then some node
+will have nothing to do, and can be easily removed from the cluster. A machine that
+continues to run an actor could be more forcefully removed by killing the remaining
+actors and restarting them elsewhere. Maybe heartbeats could be used to detect
+when an actor has been killed and needs restarting? Maybe it's possible to stop
+anything new from being started on a machine, so that it can eventually be removed
+without force.
 
-For example what happens when the actor suddenly terminates after a new domain event
-has been stored but before the event can be sent as a message? Will the message never be sent?
-If the actor records which messages have been sent, what if the actor suddenly terminates after
-the message is sent but before the sending could be recorded? Will there be a duplicate?
 
-Similarly, if normally a message is removed from an actor's inbox and then new domain
-event records are made, what happens if the actor suddenly terminates before the new
-domain event records can be committed?
+.. However, it seems that actors aren't a very reliable way of propagating application
+.. state. The reason is that actor frameworks will not, in a single atomic transaction,
+.. remove an event from its inbox, and also store new domain events, and also write
+.. to another actor's inbox. Hence, for any given message that has been received, one
+.. or two of those things could happen whilst the other or others do not.
+..
+.. For example what happens when the actor suddenly terminates after a new domain event
+.. has been stored but before the event can be sent as a message? Will the message never be sent?
+.. If the actor records which messages have been sent, what if the actor suddenly terminates after
+.. the message is sent but before the sending could be recorded? Will there be a duplicate?
+..
+.. Similarly, if normally a message is removed from an actor's inbox and then new domain
+.. event records are made, what happens if the actor suddenly terminates before the new
+.. domain event records can be committed?
+..
+.. If something goes wrong after one thing has happened but before another thing
+.. has happened, resuming after a breakdown will cause duplicates or missing items
+.. or a jumbled sequence. It is hard to understand how this situation can be made reliable.
+..
+.. And if a new actor is introduced after the application has been generating events
+.. for a while, how does it catch up? If there is a separate way for it to catch up,
+.. switching over to receive new events without receiving duplicates or missing events
+.. or stopping the system seems like a hard problem.
+..
+.. In some applications, reliability may not be required, for example with some
+.. analytics applications. But if reliability does matter, if accuracy if required,
+.. remedies such as resending and deduplication, and waiting and reordering, seem
+.. expensive and complicated and slow. Idempotent operations are possible but it
+.. is a restrictive approach. Even with no infrastructure breakdowns, sending messages
+.. can overrun unbounded buffers, and if the buffers are bounded, then write will block.
+.. The overloading can be remedied by implementing back-pressure, for which a standard
+.. has been written.
+..
+.. Even if durable FIFO channels were used to send messages between actors, which would
+.. be quite slow relative to normal actor message sending, unless the FIFO channels were
+.. written in the same atomic transaction as the stored event records, and removing the
+.. received event from the in-box, in other words, the actor framework and the event
+.. sourcing framework were intimately related, the process wouldn't be reliable.
+..
+.. Altogether, this collection of issues and remedies seems exciting at first but mostly
+.. inhibits confidence that the actor model offers a simple, reliable, and maintainable
+.. approach to propagating the state of an application. It seems like a unreliable
+.. approach for projecting the state of an event sourced application, and therefore cannot
+.. be the basis of a reliable system that processes domain events by generating other
+.. domain events. Most of the remedies each seem much more complicated than the notification
+.. log approach implemented in this library.
+..
+.. It may speed a system to send events as messages, and if events are sent as messages
+.. and they happen to be received in the correct order, they can be consumed in that way,
+.. which should save reading new events from the database, and will therefore help to
+.. avoid the database bottlenecking event propagation, and also races if the downstream
+.. process is reading notifications from a lagging database replica. But if new events are generated
+.. and stored because older events are being processed, then to be reliable, to underwrite the
+.. unreliability of sending messages, the process must firstly produce reliable
+.. records, before optionally sending the events as prompts. It is worth noting that sending
+.. events as prompts loads the messaging system more heavily that just sending empty prompts,
+.. so unless the database is a bottleneck for reading events, then sending events as
+.. messages might slow down the system (sending events is slower than sending empty prompts
+.. when using multiprocessing and Redis on a laptop).
+..
+.. The low-latency of sending messages can be obtained by pushing empty prompts. Prompts could
+.. be rate limited, to avoid overloading downstream processes, which wouldn't involve any loss
+.. in the delivery of events to downstream processes. The high-throughput of sending events as
+.. messages directly between actors could help avoid database bandwidth problems. But in case
+.. of any disruption to the sequence, high-accuracy in propagating a sequence of events can be
+.. obtained, in the final resort if not the first, by pulling events from a notification log.
 
-If something goes wrong after one thing has happened but before another thing
-has happened, resuming after a breakdown will cause duplicates or missing items
-or a jumbled sequence. It is hard to understand how this situation can be made reliable.
-
-And if a new actor is introduced after the application has been generating events
-for a while, how does it catch up? If there is a separate way for it to catch up,
-switching over to receive new events without receiving duplicates or missing events
-or stopping the system seems like a hard problem.
-
-In some applications, reliability may not be required, for example with some
-analytics applications. But if reliability does matter, if accuracy if required,
-remedies such as resending and deduplication, and waiting and reordering, seem
-expensive and complicated and slow. Idempotent operations are possible but it
-is a restrictive approach. Even with no infrastructure breakdowns, sending messages
-can overrun unbounded buffers, and if the buffers are bounded, then write will block.
-The overloading can be remedied by implementing back-pressure, for which a standard
-has been written.
-
-Even if durable FIFO channels were used to send messages between actors, which would
-be quite slow relative to normal actor message sending, unless the FIFO channels were
-written in the same atomic transaction as the stored event records, and removing the
-received event from the in-box, in other words, the actor framework and the event
-sourcing framework were intimately related, the process wouldn't be reliable.
-
-Altogether, this collection of issues and remedies seems exciting at first but mostly
-inhibits confidence that the actor model offers a simple, reliable, and maintainable
-approach to propagating the state of an application. It seems like a unreliable
-approach for projecting the state of an event sourced application, and therefore cannot
-be the basis of a reliable system that processes domain events by generating other
-domain events. Most of the remedies each seem much more complicated than the notification
-log approach implemented in this library.
-
-It may speed a system to send events as messages, and if events are sent as messages
-and they happen to be received in the correct order, they can be consumed in that way,
-which should save reading new events from the database, and will therefore help to
-avoid the database bottlenecking event propagation, and also races if the downstream
-process is reading notifications from a lagging database replica. But if new events are generated
-and stored because older events are being processed, then to be reliable, to underwrite the
-unreliability of sending messages, the process must firstly produce reliable
-records, before optionally sending the events as prompts. It is worth noting that sending
-events as prompts loads the messaging system more heavily that just sending empty prompts,
-so unless the database is a bottleneck for reading events, then sending events as
-messages might slow down the system (sending events is slower than sending empty prompts
-when using multiprocessing and Redis on a laptop).
-
-The low-latency of sending messages can be obtained by pushing empty prompts. Prompts could
-be rate limited, to avoid overloading downstream processes, which wouldn't involve any loss
-in the delivery of events to downstream processes. The high-throughput of sending events as
-messages directly between actors could help avoid database bandwidth problems. But in case
-of any disruption to the sequence, high-accuracy in propagating a sequence of events can be
-obtained, in the final resort if not the first, by pulling events from a notification log.
-
-Although sending events as messages with actors doesn't seem to offer a very reliable
-way of processing domain events for applications with event-sourced aggregates, actors
-do seem like a great way of orchestrating event-sourced process applications. The "based
+Although propagating application state by sending events as messages with actors doesn't
+seem to offer a reliable way of projecting the state of an event-sourced application, actors
+do seem like a great way of orchestrating a system of event-sourced process applications. The "based
 on physics" thing seems to fit well with infrastructure, which is inherently imperfect.
-If an actor fails then it can be resumed. We just need to make sure that the recorded
-state of our application determines the subsequent processing, and the recorded state
-is changed atomically from one coherent state to another, so that processing can resume
-in a coherent state as if there was no failure, and so that infrastructure failures only
-cause processing delays.
+We just don't need, by default to instantiate unbounded nondeterminism for every concern
+in the system. But since actors can fail and be restarted automatically, and since a process
+application needs to be run continuously if possible. it seems that an actor and process process
+applications-partitions would go well together. The process appliation-actor idea seems like a
+much better idea that the aggregate-actor idea. Perhaps aggregates could also usefully be actors,
+but they would need to be coded to process messages as commands, to return pending events as
+messages, and so on, to represent themselves as message, and so on. It can help to have many
+threads running consecutively through an aggregate, especially readers. The consistency of the
+aggregate state is protected with optimistic concurrency control. Wrapping an aggregate as
+an actor won't speed things up, unless the actor is persistent, which uses resources. Aggregates
+could be cached inside the process application-partition, especially if it is know that they will
+probably be reused.
+
+.. Todo: Method to fastforward an aggregate, by querying for and applying new events?
 
 (Running a system of process applications with actors is not yet implemented in the library.)
 
@@ -824,3 +902,5 @@ library doesn't currently have any such adapter process classes or documentation
 .. processing with multiple threads, a slightly longer history of
 .. tracking records may help to block slow and stale threads from
 .. committing successfully. This hasn't been implemented in the library.
+
+.. Todo: Something about deleting old tracking records automatically.
