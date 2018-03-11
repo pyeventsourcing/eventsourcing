@@ -32,11 +32,11 @@ class TestDocs(TestCase):
             # 'deployment.rst'
         ]
 
-        # if six.PY2:
-        #     # Due to encoding problem with mysql-connected in Python 2,
-        #     # and screeds of warnings from mysqlclient in Python 3, I
-        #     # have selected to use mysql-connected and skip this test in Python 2.7.
-        #     skipped.append('process.rst')
+        if six.PY2:
+            # Due to encoding problem with mysql-connected in Python 2,
+            # and screeds of warnings from mysqlclient in Python 3, I
+            # have selected to use mysql-connected and skip this test in Python 2.7.
+            skipped.append('process.rst')
 
         self._out = ''
         docs_path = os.path.join(base_dir, 'docs')
