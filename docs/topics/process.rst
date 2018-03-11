@@ -438,28 +438,35 @@ other. There is no direct relationship between reservations and payments.
         (Orders, Reservations, Orders, Payments, Orders),
     )
 
+Please note, aggregates are segregated within an application. Each
+application can only access from its repository the aggregates it
+has created. For example, an order aggregate created by the orders
+process will not be available in the repositories of the reservations
+and the payments applications.
+
+Application state is only propagated between process applications
+in a system through notification logs. If one application could
+use the aggregates of another application, processing could produce
+different results at different times, and in consequence the process
+wouldn't be reliable.
 
 In this system, the Orders process, specifically the Order aggregate
 combined with the Orders process policy, is more or less equivalent to
 "saga", or "process manager", or "workflow", in that it effectively
 controls a sequence of steps involving other bounded contexts and
-aggregates, steps that would otherwise perhaps be controlled with a
-"long-lived transaction". The convoluted design, of running everything
-through orders aggregate, is supposed to demonstrate how an aggregate
-can control a sequence of transactions. A simpler design, the payments
-process would respond directly to the reservation events.
+other aggregates, steps that would otherwise perhaps be controlled with a
+"long-lived transaction".
 
-In this design, except for the definition and implementation of process,
-there are no special concepts or components. There are only policies and
-aggregates and events, and the way they are processed in a process application.
-There isn't a special mechanism that provides reliability despite the rest
-of the system, each aggregate is equally capable of functioning as a saga object,
-every policy is capable of functioning as a process manager or workflow.
-There doesn't need to be a special mechanism for coding compensating
-transactions. If required, a failure (e.g. to make a payment) can be
-coded as an event that can processed to reverse previous steps (e.g.
-to cancel a reservation).
-
+.. Except for the definition and implementation of process,
+.. there are no special concepts or components. There are only policies and
+.. aggregates and events, and the way they are processed in a process application.
+.. There isn't a special mechanism that provides reliability despite the rest
+.. of the system, each aggregate is equally capable of functioning as a saga object,
+.. every policy is capable of functioning as a process manager or workflow.
+.. There doesn't need to be a special mechanism for coding compensating
+.. transactions. If required, a failure (e.g. to make a payment) can be
+.. coded as an event that can processed to reverse previous steps (e.g.
+.. to cancel a reservation).
 
 Single threaded system
 ----------------------
@@ -536,8 +543,7 @@ Single partition
 
 Before starting the system's operating system processes, let's create a new order aggregate.
 The Orders process is constructed so that any ``Order.Created`` events published by the
-``create_new_order()`` factory will be persisted. The process application will use the default
-partition.
+``create_new_order()`` factory will be persisted.
 
 .. code:: python
 
@@ -560,16 +566,22 @@ The code below uses the library's ``Multiprocess`` class to run the ``system``.
 It will start one operating system process for each process application, which
 gives three child operating system processes.
 
+
 .. code:: python
 
     from eventsourcing.application.multiprocess import Multiprocess
 
     multiprocess = Multiprocess(system)
 
+The system is unpartitioned, the process applications use the default partition.
 
-The operating system processes can be started by using ``multiprocess`` as a
-context manager (calls ``start()`` on entry and ``close()`` on exit). Wait
-for the results by polling the aggregate state.
+In the code below, the operating system processes are started by using
+the ``multiprocess`` object as a context manager. It calls ``start()`` on
+entry and ``close()`` on exit.
+
+The process applications read their upstream notification logs when they
+start, so the ``Order.Created`` event is picked up and processed, causing
+the flow through the syste. Wait for the results by polling the aggregate state.
 
 .. code:: python
 
@@ -592,41 +604,38 @@ for the results by polling the aggregate state.
                 assert retries, "Failed set order.is_paid"
 
 
-Because the orders are created with a second instance of the ``Orders`` process
-application, rather than e.g. a command process application that is followed
-by the orders process, there will be contention and conflicts writing to the
-orders process notification log. The example was designed to cause this contention,
-and the ``@retry`` decorator was applied to the ``create_new_order()`` factory, so
-when conflicts are encountered, the operation will be retried and will most probably
-eventually succeed. For the same reason, the same ``@retry``  decorator is applied
-the ``run()`` method of the library class ``Process``. Contention is managed successfully
-with this approach.
-
+.. Because the orders are created with a second instance of the ``Orders`` process
+.. application, rather than e.g. a command process application that is followed
+.. by the orders process, there will be contention and conflicts writing to the
+.. orders process notification log. The example was designed to cause this contention,
+.. and the ``@retry`` decorator was applied to the ``create_new_order()`` factory, so
+.. when conflicts are encountered, the operation will be retried and will most probably
+.. eventually succeed. For the same reason, the same ``@retry``  decorator is applied
+.. the ``run()`` method of the library class ``Process``. Contention is managed successfully
+.. with this approach.
+..
+.. Todo: Change this to use a command logging process application, and have the Orders process follow it.
 
 Multiple partitions
 ~~~~~~~~~~~~~~~~~~~
 
 Now let's process a batch of orders that is created after the system
-has been started.
+has been started. This time, the process applications will be partitioned
+across the system. Each process application-partition will run in a
+separate operating system process.
 
-This time, the process applications will be partitioned across the system.
-Each partition of each application will run in a separate operating
-system process.
+Because of the partitioning, many orders can be processed by the
+same process application at the same time. Events generated in one partition
+will (normally) be processed in the same partition of a downstream application.
 
-Because of the partitioning, many orders can be processed by the same process application
-at the same time.
-
-Events generated in one partition will (normally) be processed in the
-same partition of a downstream application.
-
-Aggregates are segregated within an application, but aggregates created by an application
-are accessible to all partitions of that application.
+Aggregates continue to be segregated within an application (one application can't
+access from its repository the aggregates created by another application) but
+aggregates created by one application are accessible across all partitions of
+that application.
 
 In the example below, there are five partitions and three process applications, which
 gives fifteen child operating system processes. All fifteen will share the same database.
-
-Partitioning is configured statically. (Dynamic configuration is not yet implemented,
-auto-scaling is being considered).
+Here, partitioning is configured statically.
 
 
 .. code:: python
