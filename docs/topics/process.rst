@@ -88,7 +88,7 @@ as reliable as the atomicity of its database transactions. The atomicity of the
 database transactions guarantees separately the reliability of both the upstream
 notification log (teeth) and the downstream tracking records (pawl). The atomicity
 of the recording and consumption determines the production as atomic: a continuous
-stream of events is processed in discreet, indivisible units. Hence, interruptions
+stream of events is processed in discrete, indivisible units. Hence, interruptions
 can only cause delays.
 
 System of processes
