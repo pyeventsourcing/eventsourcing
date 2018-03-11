@@ -119,7 +119,8 @@ how it may be run. The system of process applications uses a domain model layer 
 aggregates. Each process application is configured to follow others.
 
 The system is firstly run as a single threaded system. Afterwards, the system is run with
-both multiprocessing and partitioned notification logs.
+both multiprocessing using the default partition and then also with notification logs and
+processing partitioned into multiple system partitions.
 
 
 Kahn process networks
