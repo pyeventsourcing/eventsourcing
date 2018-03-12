@@ -858,12 +858,12 @@ Although propagating application state by sending events as messages with actors
 seem to offer a reliable way of projecting the state of an event-sourced application, actors
 do seem like a great way of orchestrating a system of event-sourced process applications. The "based
 on physics" thing seems to fit well with infrastructure, which is inherently imperfect.
-We just don't need, by default to instantiate unbounded nondeterminism for every concern
+We just don't need by default to instantiate unbounded nondeterminism for every concern
 in the system. But since actors can fail and be restarted automatically, and since a process
-application needs to be run continuously if possible. it seems that an actor and process process
-applications-partitions would go well together. The process appliation-actor idea seems like a
+application needs to be run by something. it seems that an actor and process process
+applications-partitions go well together. The process appliation-actor idea seems like a
 much better idea that the aggregate-actor idea. Perhaps aggregates could also usefully be actors,
-but they would need to be coded to process messages as commands, to return pending events as
+but an adapter would need to be coded to process messages as commands, to return pending events as
 messages, and so on, to represent themselves as message, and so on. It can help to have many
 threads running consecutively through an aggregate, especially readers. The consistency of the
 aggregate state is protected with optimistic concurrency control. Wrapping an aggregate as
