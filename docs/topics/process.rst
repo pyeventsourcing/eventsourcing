@@ -778,7 +778,7 @@ are being added to the system command process, compared to the known (or measure
 rate at which commands can be processed by the system. If there are too many actors
 dying from lack of work, then to reduce latency of starting an actor for each event
 (extreme case), the number of partitions could be reduced, so that there are enough
-events to keep actors alive. If there are fewer partitions than nodes, then some node
+events to keep actors alive. If there are fewer partitions than nodes, then some nodes
 will have nothing to do, and can be easily removed from the cluster. A machine that
 continues to run an actor could be more forcefully removed by killing the remaining
 actors and restarting them elsewhere. Maybe heartbeats could be used to detect
