@@ -705,13 +705,14 @@ Causal dependencies between events in different partitions could be detected and
 synchronise the processing of partitions downstream, so that downstream processing of one
 partition can wait for an event to be processed in another. The causal dependencies could
 be automatically inferred by detecting the originator ID and version of aggregates as they
-are retrieved from the wrapped repository. Those events could be examined to see if they
-were notified in a different partitions. If so, the originator ID and version of the
-last event in each partition could be included in the notification, so that downstream
-can wait for the causal dependencies to be processed before processing the causally dependent
-notification. Putting causal dependencies within the same partition would allow the partition
-to be processed in parallel to the extent that events aren't always causally dependent
-on the preceding event in the notification log. (Causal dependencies not implemented, yet.)
+are retrieved from the wrapped repository. If the dependencies were notified in a different
+partition, the originator ID and version could be included in the new notification, so that
+downstream can wait for the causal dependencies to be processed before processing the
+causally dependent notification. In case there are many dependencies, only the highest
+notification of each partition would need to be included. Including causal dependencies
+within the partition would allow the partition to be processed in parallel to the extent
+that events aren't causally dependent on the immediately preceding events in the same
+notification log. (Causal dependencies not implemented, yet.)
 
 The policy's ``sleep(0.5)`` statements ensure each order takes at least one second
 to process, and varying the number of partitions and the number of orders demonstrates
