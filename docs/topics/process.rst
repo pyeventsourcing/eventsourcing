@@ -8,16 +8,16 @@ production will be reliable. A system composed exclusively of reliable processes
 will also be reliable.
 
 The most important requirement pursued in this section is to obtain a reliable
-process. A process is considered to be reliable if its product is entirely
-unaffected by all sudden terminations of the process, except in being delayed
+process. A process is reliable if its product is entirely unaffected by sudden
+termination of the process happening at any time, except in being delayed
 until the processing is resumed.
 
-This definition of the reliability of a process doesn't include availability,
-without any infrastructure, the processing may be delayed indefinitely. Infrastructure
+This definition of the reliability of a process doesn't include availability.
+Without any infrastructure, the processing may be delayed indefinitely. Infrastructure
 unreliability may cause processing delays, but disorderly environments shouldn't
-cause disorderly processing. The product, whenever obtained, should be unaffected
-by infrastructure failures (unless the specific purpose of the process lies in
-recording infrastructure failures). Of course, the availability of infrastructure
+cause disorderly processing. The product, whenever obtained, should be invariant
+to infrastructure failures (unless the specific purpose of the process is to
+record infrastructure failures). Of course, the availability of infrastructure
 inherently limits the availability of the product. Nevertheless, infrastructure
 availability is beyond the scope of this discussion.
 
@@ -479,12 +479,7 @@ recursively. This avoids concurrency and is useful when developing
 and testing a system of process applications.
 
 In the code below, the ``system`` object is used as a context manager.
-In that context, a new order is created. The system responds
-by making a reservation and a payment, facts that are registered
-with the order. Everything happens synchronously, in a single
-thread, so by the time the ``create_new_order()`` factory
-has returned, the system has already processed the order,
-which can be retrieved from the "orders" repository.
+In that context, a new order is created.
 
 .. code:: python
 
@@ -496,6 +491,11 @@ which can be retrieved from the "orders" repository.
         repository = system.orders.repository
         assert repository[order_id].is_reserved
         assert repository[order_id].is_paid
+
+The system responds by making a reservation and a payment, facts that are registered
+with the order. Everything happens synchronously, in a single thread, so by the time
+the ``create_new_order()`` factory has returned, the system has already processed the
+order, which can be retrieved from the "orders" repository.
 
 
 The process applications above could be run in different threads (not
@@ -626,7 +626,8 @@ separate operating system process.
 
 Because of the partitioning, many orders can be processed by the
 same process application at the same time. Events generated in one partition
-will (normally) be processed in the same partition of a downstream application.
+will normally be processed in the same partition downstream (by default, an
+application reads and writes in the same partition).
 
 Aggregates continue to be segregated within an application (one application can't
 access from its repository the aggregates created by another application) but
@@ -650,14 +651,10 @@ Here, partitioning is configured statically.
 
 
 Twenty-five orders are created in each partition, giving one hundred and twenty-five
-orders in total.
-
-Please note, when creating the new aggregates, the process application needs to be
-told which partition to use.
+orders in total. Please note, when creating the new aggregates, the process application
+needs to be told which partition to use.
 
 .. code:: python
-
-    import datetime
 
     multiprocess = Multiprocess(system, partition_ids=partition_ids)
 
@@ -698,7 +695,7 @@ told which partition to use.
                         retries -= 1
                         assert retries, "Failed set order.is_paid ({})".format(i)
 
-                # Print timings.
+                # Calculate timings from event timestamps.
                 orders = [app.repository[oid] for oid in order_ids]
                 first_timestamp = min([o.__created_on__ for o in orders])
                 last_timestamp = max([o.__last_modified__ for o in orders])
@@ -714,23 +711,37 @@ told which partition to use.
                 print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
                 print("Max order processing time: {:.3f}s".format(max(durations)))
 
+The policy's ``sleep(0.5)`` statements ensure each order takes at least one second
+to process, so varying the number of partitions and the number of orders demonstrates
+on a machine with only a few cores (e.g. my laptop) that processing is truly concurrent
+both along the upstream-downstream line of the system of process applications, and across
+the partitions of the system.
 
-With the policy's ``sleep(0.5)`` statements, which ensures each order takes at least one second
-to process, varying the number of partitions and the number of orders shows that, even on a
-machine with only a few cores (e.g. my laptop), processing is truly concurrent both along the
-upstream-downstream line of the system of process applications, and across the partitions of the system.
+Although it isn't possible to start processes on remote hosts using Python's
+``multiprocessing`` library, it is possible to run the system with e.g. partitions
+0-7 on one machine, partitions 8-15 on another machine, and so on.
 
-With ``Multiprocess`, although it isn't possibe to start processes on remote hosts, it would be possible
-to run the system with partions 0-7 on one machine, partitions 8-15 on another machine, and so on.
+Without the ``sleep(0.5)`` statements, the system with its five-step process can process
+about twenty-five orders per second per partition (on my laptop), approximately 40ms each,
+with an average processing time of approximately 200ms. If most business applications process
+less than one command per second, one system partition would probably be sufficient for most
+situations. However, to process spikes in the demand without increased latency, or if continuous
+usage gives ten or a hundred times more commands per second, then the number of partitions could
+be increased accordingly. Eventually with this design, the shared database would limit
+throughput. But since the operations are partitioned, the database could be scaled
+vertically in proportion to the number of partitions. (Scaling like this hasn't been
+tested, yet.)
 
-If most business applications process less than one command per second, one system partition would probably
-be sufficient for most situations. However, in case of spikes in the demand, or if continuous usage
-gives ten or a hundred times more commands per second, then the number of partitions could be increased
-accordingly. The process of increasing the number of partitions, and starting new operating system
-processes, could be automated. Also the cluster scaling could be automated, and processes distributed
-automatically across the cluster. Actor model seems like a good foundation for such automation.
+The work of increasing the number of partitions, and starting new operating system
+processes, could be automated. Also, the cluster scaling could be automated, and
+processes distributed automatically across the cluster. Actor model seems like a
+good foundation for such automation.
+
 
 .. Todo: Make option to send event as prompt. Change Process to use event passed as prompt.
+
+.. There are other ways in which the reliability could be relaxed. Persistence could be
+.. optional. ...
 
 Actor model system
 ------------------
