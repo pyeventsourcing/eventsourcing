@@ -720,16 +720,18 @@ both across the process applications, and across the partitions of the system.
 
 Without the ``sleep(0.5)`` statements, the system with its five-step process can process
 on a small laptop about twenty-five orders per second per partition, approximately 40ms
-for each order, with max and average order processing times of approximately 100ms and
-180ms for the five steps.
+for each order, with min and average order processing times of approximately 100ms and
+150ms for the five steps (20ms or 30ms per step). The atomic database transaction code
+takes about 4ms from opening the transaction in Python to closing the session in Python.
+So there's lots of room for reducing the latency.
 
 If most business applications process less than one command per second, one system partition
 would probably be sufficient for most situations. However, to process spikes in the demand
-without increased latency, or if continuous usage gives ten or a hundred times more commands
+without spikes in latency, or if continuous usage gives ten or a hundred times more commands
 per second, then the number of partitions could be increased accordingly. Eventually with
 this design, the shared database would limit throughput. But since the operations are
 partitioned, the database could be scaled vertically in proportion to the number of
-partitions. (Scaling like this hasn't been tested, yet.)
+partitions.
 
 Although it isn't possible to start processes on remote hosts using Python's
 ``multiprocessing`` library, it is possible to run the system with e.g. partitions
