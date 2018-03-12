@@ -13,13 +13,13 @@ termination of the process happening at any time, except in being delayed
 until the processing is resumed.
 
 This definition of the reliability of a process doesn't include availability.
-Without any infrastructure, the processing may be delayed indefinitely. Infrastructure
-unreliability may cause processing delays, but disorderly environments shouldn't
-cause disorderly processing. The product, whenever obtained, should be invariant
-to infrastructure failures (unless the specific purpose of the process is to
-record infrastructure failures). Of course, the availability of infrastructure
-inherently limits the availability of the product. Nevertheless, infrastructure
-availability is beyond the scope of this discussion.
+Obviously without any infrastructure, the processing will be delayed indefinitely.
+Infrastructure unreliability may cause processing delays but disorderly environments
+shouldn't cause disorderly processing. The product, whenever obtained, should be invariant
+to infrastructure failures unless the specific purpose of the process is to
+record infrastructure failures. Of course, the availability of infrastructure
+inherently limits the availability of the product. Nevertheless, the availability
+of infrastructure is beyond the scope of this discussion.
 
 To limit the scope a little bit further, it is assumed here that whatever records
 have been committed by a process will not somehow be damaged by a sudden termination
@@ -581,7 +581,7 @@ entry and ``close()`` on exit.
 
 The process applications read their upstream notification logs when they
 start, so the ``Order.Created`` event is picked up and processed, causing
-the flow through the syste. Wait for the results by polling the aggregate state.
+the flow through the system. Wait for the results by polling the aggregate state.
 
 .. code:: python
 
