@@ -4,8 +4,7 @@ Process and system
 
 Process is understood as productive in the following sense: consumption with recording
 determines production. For example, if consumption and recording are reliable, then
-production will be reliable. A system composed exclusively of reliable processes
-will also be reliable.
+production will be reliable.
 
 The most important requirement pursued in this section is to obtain a reliable
 process. A process is reliable if its product is entirely unaffected by sudden
@@ -29,9 +28,7 @@ so the reliability of records is beyond the scope of this discussion.
 To limit this discussion about process reliability even further, the reliability
 of the event processing described below is a separate concern from any programming
 errors in the policies, or aggregates, of a process application, errors that may define
-pathological behaviour. Unit testing for policies is demonstrated below. Behavioural
-programming errors, in process policies and in aggregate methods, are beyond the
-scope of this discussion.
+pathological behaviour.
 
 .. contents:: :local:
 
@@ -126,14 +123,25 @@ processing partitioned into multiple system partitions.
 Kahn process networks
 ~~~~~~~~~~~~~~~~~~~~~
 
-Since a notification log functions effectively as a durable FIFO buffer, a system of
-determinate process applications pulling notifications logs can be recognised as a
-`Kahn Process Network <https://en.wikipedia.org/wiki/Kahn_process_networks>`__ (KPN).
+Because notification logs function effectively as durable FIFO buffers, a system of
+determinate process applications can be recognised as a `Kahn Process Network
+<https://en.wikipedia.org/wiki/Kahn_process_networks>`__ (KPN).
 
 Kahn Process Networks are determinate systems. If a system of process applications
-happens to involve processes that are not determinate, the system as a whole will
-not be determinate, and could be described in more general terms as "dataflow" or
-"stream processing".
+happens to involve processes that are not determinate, or if the processes split and
+combine or feedback in a random way, so that nondeterminacy is introduced by design,
+the system as a whole will not be determinate, and could be described in more general
+terms as "dataflow" or "stream processing".
+
+Whether or not a system of process applications is determinate, the processing will
+be reliable.
+
+.. If persistence were optional, this design could be used for high-performance applications
+.. which would be understood to be less durable. Data could be streamed out asynchronously
+.. and still stored atomically but after the processing notifications are available.
+.. Resuming could then go back several steps, and perhaps a signal could be sent so
+.. downstream restarts from an earlier step. Or maybe the new repeat processing could
+.. be ignored by downstream, having already processed those items.
 
 
 .. Refactoring
@@ -173,14 +181,9 @@ set as paid, which involves a payment ID.
             self.is_reserved = False
             self.is_paid = False
 
-        class Event(AggregateRoot.Event):
-            pass
+        class Event(AggregateRoot.Event): pass
 
-        class Created(Event, AggregateRoot.Created):
-            pass
-
-        def set_is_reserved(self, reservation_id):
-            self.__trigger_event__(Order.Reserved, reservation_id=reservation_id)
+        class Created(Event, AggregateRoot.Created): pass
 
         class Reserved(Event):
             def mutate(self, order):
@@ -188,14 +191,17 @@ set as paid, which involves a payment ID.
                 order.is_reserved = True
                 order.reservation_id = self.reservation_id
 
-        def set_is_paid(self, payment_id):
-            self.__trigger_event__(self.Paid, payment_id=payment_id)
-
         class Paid(Event):
             def mutate(self, order):
                 assert not order.is_paid, "Order {} already paid.".format(order.id)
                 order.is_paid = True
                 order.payment_id = self.payment_id
+
+        def set_is_reserved(self, reservation_id):
+            self.__trigger_event__(Order.Reserved, reservation_id=reservation_id)
+
+        def set_is_paid(self, payment_id):
+            self.__trigger_event__(self.Paid, payment_id=payment_id)
 
 
 A ``Reservation`` can be created. A reservation has an ``order_id``.
@@ -207,18 +213,16 @@ A ``Reservation`` can be created. A reservation has an ``order_id``.
             super(Reservation, self).__init__(**kwargs)
             self.order_id = order_id
 
-        class Event(AggregateRoot.Event):
-            pass
+        class Event(AggregateRoot.Event): pass
+
+        class Created(Event, AggregateRoot.Created): pass
 
         @classmethod
         def create(cls, order_id):
             return cls.__create__(order_id=order_id)
 
-        class Created(Event, AggregateRoot.Created):
-            pass
 
-
-And a ``Payment`` can be made. A payment also has an ``order_id``.
+A ``Payment`` can be made. A payment also has an ``order_id``.
 
 .. code:: python
 
@@ -227,21 +231,17 @@ And a ``Payment`` can be made. A payment also has an ``order_id``.
             super(Payment, self).__init__(**kwargs)
             self.order_id = order_id
 
-        class Event(AggregateRoot.Event):
-            pass
+        class Event(AggregateRoot.Event): pass
+
+        class Created(Event, AggregateRoot.Created): pass
 
         @classmethod
         def make(self, order_id):
             return self.__create__(order_id=order_id)
 
-        class Created(Event, AggregateRoot.Created):
-            pass
-
 
 The orders factory ``create_new_order()`` is decorated with the ``@retry`` decorator,
 to be resilient against both concurrency conflicts and any operational errors.
-
-.. Todo: Raise and catch ConcurrencyError instead of RecordConflictError.
 
 .. code:: python
 
@@ -250,10 +250,12 @@ to be resilient against both concurrency conflicts and any operational errors.
 
     @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
     def create_new_order():
-        """Orders factory"""
         order = Order.__create__()
         order.__save__()
         return order.id
+
+.. Todo: Raise and catch ConcurrencyError instead of RecordConflictError (convert somewhere
+.. or just raise ConcurrencyError when there is a record conflict?).
 
 As shown in previous sections, the behaviours of this domain model can be fully tested
 with simple test cases, without involving any other components.
@@ -264,10 +266,12 @@ Processes
 
 Process applications have a policy, that responds to domain events by executing commands.
 
-In the code below, the Reservations process responds to new orders by creating a
-reservation. The Orders process responds to new reservations by setting as order
-as reserved. The Payments process responds by making a payment when as orders
-is reserved. The Orders process responds to new payments by setting an order as paid.
+In the code below, the Reservations process responds to new orders, by creating a
+reservation. The Orders process responds to new reservations, by setting an order
+as reserved.
+
+The Payments process responds when as order is reserved, by making a payment. The
+Orders process responds to new payments, by setting an order as paid.
 
 The library's ``Process`` class is a subclass of the library's ``SimpleApplication`` class.
 
@@ -309,6 +313,7 @@ The library's ``Process`` class is a subclass of the library's ``SimpleApplicati
                 # Make a payment.
                 sleep(0.5)
                 return Payment.make(order_id=event.originator_id)
+
 
 Please note, nowhere in these policies is a call made to the ``__save__()``
 method of aggregates, the pending events will be collected and records
@@ -727,31 +732,31 @@ within the partition would allow the partition to be processed in parallel to th
 that events aren't causally dependent on the immediately preceding events in the same
 notification log. (Causal dependencies not implemented, yet.)
 
-Since the policy's ``sleep(0.5)`` statements ensure each order takes at least one second
+Since the above policy ``sleep(0.5)`` statements ensure each order takes at least one second
 to process, so varying the number of partitions and the number of orders demonstrates
-even on a machine with only a few cores (e.g. my laptop) that processing is truly
+even on a machine with few cores (e.g. my laptop) that processing is truly
 concurrent both across the process applications and across the partitions of the
 system. (The total processing time for a batch of orders tends towards the duration
 of the longest step, multiplied by the size of the batch, divided by the number of
 partitions. So the maximum rate of a system is the number of partitions divided by
-the duration of the longest step. The minimum processing time for a single order,
-total latecy, remains the sum of the durations of each step, regardless of the batch
-size or the number of partitions.)
+the duration of the longest step. Obviously, the minimum processing time for a single
+order, its total latecy, is equal to the sum of the durations of each step regardless
+of the batch size or the number of partitions.)
 
 Without the ``sleep(0.5)`` statements, the system with its five-step process can process
-on a small laptop about twenty-five orders per second per partition, approximately 40ms
+on my small laptop about twenty-five orders per second per partition, approximately 40ms
 for each order, with min and average order processing times of approximately 100ms and
-150ms for the five steps (20ms or 30ms per step). The atomic database transaction code
-takes about 4ms from opening the transaction in Python to closing the session in Python.
-So there's lots of room for reducing the latency in future versions of the library.
+150ms for the five steps. The atomic database transaction code takes about 4ms from opening
+the transaction in Python to closing the session in Python. So it seems there is room for
+improving performance in future versions of the library.
 
 If most business applications process less than one command per second, one system partition
 would probably be sufficient for most situations. However, to process spikes in the demand
 without spikes in latency, or if continuous usage gives ten or a hundred times more commands
 per second, then the number of partitions could be increased accordingly. Eventually with
 this design, the shared database would limit throughput. But since the operations are
-partitioned, the database could be scaled vertically in proportion to the number of
-partitions.
+partitioned, the database could be scaled vertically (more CPUs) in proportion to the number
+of partitions.
 
 Although it isn't possible to start processes on remote hosts using Python's
 ``multiprocessing`` library, it is possible to run the system with e.g. partitions
