@@ -547,6 +547,18 @@ The Orders process is constructed so that any ``Order.Created`` events published
         assert order_id in app.repository
 
 
+.. Todo: Command logging process application, that is presented
+.. as being suitable for use in both a multi-threaded Web
+.. application server, and a worker queue processing stuff, the
+.. worker or the Web application instance could have their commands
+.. distributed across partitions in a system at random. The command
+.. logging process could do that. A command could be the name of a
+.. method on the process application object, and it could have args
+.. used to call the method. An actor could be used to send a message,
+.. and the actor ID could be included in the command, so that when
+.. a response is created (how?), the request actor could be sent
+.. a message, so clients get a blocking call that doesn't involve polling.
+
 The MySQL database tables were created by the code above, because the ``Orders`` process
 was constructed with ``setup_tables=True``, which is by default ``False`` in the ``Process``
 class.
@@ -639,15 +651,16 @@ Here, partitioning is configured statically.
     multiprocess = Multiprocess(system, partition_ids=partition_ids)
 
 
-Twenty-five orders are created in each partition, giving one hundred and twenty-five
-orders in total. Please note, when creating the new aggregates, the process application
-needs to be told which partition to use.
+Twenty-five orders are created in each of the five partitions, giving one hundred and
+twenty-five orders in total. Please note, when creating the new aggregates, the
+process application needs to be told which partition to use (otherwise it will use
+the default partition, which isn't being used in this multi-partition configuration).
 
 .. code:: python
 
     multiprocess = Multiprocess(system, partition_ids=partition_ids)
 
-    num_orders_per_partition = 5
+    num_orders_per_partition = 25
 
     if __name__ == '__main__':
 
@@ -714,17 +727,23 @@ within the partition would allow the partition to be processed in parallel to th
 that events aren't causally dependent on the immediately preceding events in the same
 notification log. (Causal dependencies not implemented, yet.)
 
-The policy's ``sleep(0.5)`` statements ensure each order takes at least one second
-to process, and varying the number of partitions and the number of orders demonstrates
-even on a machine with only a few cores (e.g. my laptop) that processing is truly concurrent
-both across the process applications, and across the partitions of the system.
+Since the policy's ``sleep(0.5)`` statements ensure each order takes at least one second
+to process, so varying the number of partitions and the number of orders demonstrates
+even on a machine with only a few cores (e.g. my laptop) that processing is truly
+concurrent both across the process applications and across the partitions of the
+system. (The total processing time for a batch of orders tends towards the duration
+of the longest step, multiplied by the size of the batch, divided by the number of
+partitions. So the maximum rate of a system is the number of partitions divided by
+the duration of the longest step. The minimum processing time for a single order,
+total latecy, remains the sum of the durations of each step, regardless of the batch
+size or the number of partitions.)
 
 Without the ``sleep(0.5)`` statements, the system with its five-step process can process
 on a small laptop about twenty-five orders per second per partition, approximately 40ms
 for each order, with min and average order processing times of approximately 100ms and
 150ms for the five steps (20ms or 30ms per step). The atomic database transaction code
 takes about 4ms from opening the transaction in Python to closing the session in Python.
-So there's lots of room for reducing the latency.
+So there's lots of room for reducing the latency in future versions of the library.
 
 If most business applications process less than one command per second, one system partition
 would probably be sufficient for most situations. However, to process spikes in the demand
