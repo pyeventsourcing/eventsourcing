@@ -401,17 +401,6 @@ aggregate in response to a specific type of event.
     # Run the test.
     test_orders_policy()
 
-Causal dependencies between events could be detected and used to synchronise
-the processing of different partitions downstream, so that downstream
-processing of one partition can wait for an event to be processed in another.
-The causal dependencies could be automatically inferred by detecting the originator
-ID and version of aggregates as they are retrieved from the wrapped repository. Those
-events could be examined to see if they were notified in a different partitions. If so,
-the event originator ID and version of the last event in each partition could be included
-in the notification. Then followers could wait for the corresponding tracking records to
-appear, and then continue by processing the causally dependent notification.
-(Causal dependencies not implemented, yet.)
-
 
 System
 ~~~~~~
@@ -620,8 +609,8 @@ Multiple partitions
 ~~~~~~~~~~~~~~~~~~~
 
 Now let's process a batch of orders that is created after the system
-has been started. This time, the process applications will be partitioned
-across the system. Each process application-partition will run in a
+has been started. This time, the system will be partitioned across the
+process applications. Each process application-partition will run in a
 separate operating system process.
 
 Because of the partitioning, many orders can be processed by the
@@ -711,26 +700,40 @@ needs to be told which partition to use.
                 print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
                 print("Max order processing time: {:.3f}s".format(max(durations)))
 
+In this example, there are no causal dependencies between events in different partitions.
+Causal dependencies between events in different partitions could be detected and used to
+synchronise the processing of partitions downstream, so that downstream processing of one
+partition can wait for an event to be processed in another. The causal dependencies could
+be automatically inferred by detecting the originator ID and version of aggregates as they
+are retrieved from the wrapped repository. Those events could be examined to see if they
+were notified in a different partitions. If so, the originator ID and version of the
+last event in each partition could be included in the notification, so that downstream
+can wait for the causal dependencies to be processed before processing the causally dependent
+notification. Putting causal dependencies within the same partition would allow the partition
+to be processed in parallel to the extent that events aren't always causally dependent
+on the preceding event in the notification log. (Causal dependencies not implemented, yet.)
+
 The policy's ``sleep(0.5)`` statements ensure each order takes at least one second
-to process, so varying the number of partitions and the number of orders demonstrates
-on a machine with only a few cores (e.g. my laptop) that processing is truly concurrent
-both along the upstream-downstream line of the system of process applications, and across
-the partitions of the system.
+to process, and varying the number of partitions and the number of orders demonstrates
+even on a machine with only a few cores (e.g. my laptop) that processing is truly concurrent
+both across the process applications, and across the partitions of the system.
+
+Without the ``sleep(0.5)`` statements, the system with its five-step process can process
+on a small laptop about twenty-five orders per second per partition, approximately 40ms
+for each order, with max and average order processing times of approximately 100ms and
+180ms for the five steps.
+
+If most business applications process less than one command per second, one system partition
+would probably be sufficient for most situations. However, to process spikes in the demand
+without increased latency, or if continuous usage gives ten or a hundred times more commands
+per second, then the number of partitions could be increased accordingly. Eventually with
+this design, the shared database would limit throughput. But since the operations are
+partitioned, the database could be scaled vertically in proportion to the number of
+partitions. (Scaling like this hasn't been tested, yet.)
 
 Although it isn't possible to start processes on remote hosts using Python's
 ``multiprocessing`` library, it is possible to run the system with e.g. partitions
 0-7 on one machine, partitions 8-15 on another machine, and so on.
-
-Without the ``sleep(0.5)`` statements, the system with its five-step process can process
-about twenty-five orders per second per partition (on my laptop), approximately 40ms each,
-with an average processing time of approximately 200ms. If most business applications process
-less than one command per second, one system partition would probably be sufficient for most
-situations. However, to process spikes in the demand without increased latency, or if continuous
-usage gives ten or a hundred times more commands per second, then the number of partitions could
-be increased accordingly. Eventually with this design, the shared database would limit
-throughput. But since the operations are partitioned, the database could be scaled
-vertically in proportion to the number of partitions. (Scaling like this hasn't been
-tested, yet.)
 
 The work of increasing the number of partitions, and starting new operating system
 processes, could be automated. Also, the cluster scaling could be automated, and
