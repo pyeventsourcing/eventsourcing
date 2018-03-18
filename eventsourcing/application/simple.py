@@ -7,7 +7,8 @@ from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepo
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
-from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, \
+    SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import SnapshotRecord
