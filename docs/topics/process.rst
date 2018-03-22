@@ -6,10 +6,11 @@ Process is understood as productive in the following sense: consumption with rec
 determines production. For example, if consumption and recording are reliable, then
 production will be reliable.
 
-The most important requirement pursued in this section is to obtain a reliable
+The most important concern pursued in this section is to obtain a reliable
 process. A process is reliable if its product is entirely unaffected by sudden
-termination of the process happening at any time, except in being delayed
-until the processing is resumed.
+termination of the process happening at any time ("safety"), except in being delayed
+until the processing is resumed ("liveness"). The other concerns are maintainability
+and scalability.
 
 This definition of the reliability of a process doesn't include availability.
 Obviously without any infrastructure, the processing will be delayed indefinitely.
@@ -157,6 +158,9 @@ Orders, reservations, payments
 The example below is suggestive of an orders-reservations-payments system.
 The system automatically processes new orders by making a reservation, and
 then a payment; facts that are registered with the order, as they happen.
+
+Please note, the behaviour of the system is entirely defined by the
+combination of the aggregates and the process policies.
 
 Aggregates
 ~~~~~~~~~~
