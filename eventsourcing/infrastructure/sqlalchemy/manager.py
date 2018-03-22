@@ -126,7 +126,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def get_item(self, sequence_id, eq):
         try:
             filter_args = {self.field_names.sequence_id: sequence_id}
-            query = self.filter(**filter_args)
+            query = self.filter_by(**filter_args)
             position_field = getattr(self.record_class, self.field_names.position)
             query = query.filter(position_field == eq)
             result = query.one()
@@ -162,7 +162,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             # Optionally, filter by application_id.
             if hasattr(self.record_class, 'application_id'):
                 filter_kwargs['application_id'] = self.application_id
-            query = self.filter(**filter_kwargs)
+            query = self.filter_by(**filter_kwargs)
 
             # Filter and order by position.
             position_field = getattr(self.record_class, self.field_names.position)
@@ -198,7 +198,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
         return results
 
-    def filter(self, **kwargs):
+    def filter_by(self, **kwargs):
         return self.query.filter_by(**kwargs)
 
     @property
