@@ -21,6 +21,7 @@ before_install:
 install:
 - pip install -U pip wheel
 - CASS_DRIVER_NO_CYTHON=1 pip install -e .[testing]
+- pip install pymysql
 - pip install mysql-connector-python-rf
 - pip install python-coveralls
 

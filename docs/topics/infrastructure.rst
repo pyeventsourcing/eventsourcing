@@ -510,13 +510,13 @@ when it raises exceptions).
 
 .. code::
 
-    $ pip install mysql-connector-python-rf
+    $ pip install pymysql-connector-python-rf
 
 The ``uri`` for MySQL used with this driver would look something like this.
 
 .. code::
 
-    mysql+mysqlconnector://username:password@localhost/eventsourcing
+    mysql+pymysql://username:password@localhost/eventsourcing
 
 
 Alternatively for MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__

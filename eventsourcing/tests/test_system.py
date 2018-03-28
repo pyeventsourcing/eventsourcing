@@ -1,7 +1,9 @@
 import os
 import time
-from unittest import TestCase
+from unittest import TestCase, skipIf
 from uuid import uuid4
+
+import six
 
 from eventsourcing.application.multiprocess import Multiprocess
 from eventsourcing.application.process import Process, System
@@ -26,9 +28,10 @@ class TestSystem(TestCase):
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
+    # @skipIf(six.PY2, "Skipping for Python 2")
     def test_multi_process_system(self):
 
-        os.environ['DB_URI'] = 'mysql+mysqlconnector://root:@127.0.0.1/eventsourcing'
+        os.environ['DB_URI'] = 'mysql+pymysql://root:@127.0.0.1/eventsourcing'
 
         with Orders(setup_tables=True) as app:
             # Create a new order.
@@ -59,10 +62,11 @@ class TestSystem(TestCase):
                     retries -= 1
                     assert retries, "Failed set order.is_paid"
 
+    @skipIf(six.PY2, "Skipping for Python 2")
     def test_multi_pipeline(self):
         from eventsourcing.utils.uuids import uuid_from_pipeline_name
 
-        os.environ['DB_URI'] = 'mysql+mysqlconnector://root:@127.0.0.1/eventsourcing'
+        os.environ['DB_URI'] = 'mysql+pymysql://root:@127.0.0.1/eventsourcing'
 
         # Set up the database.
         with Orders(setup_tables=True):

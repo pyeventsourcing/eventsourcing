@@ -60,14 +60,21 @@ Here are some example connection strings: for an SQLite
 file; for a PostgreSQL database; or for a MySQL database.
 See SQLAlchemy's create_engine() documentation for details.
 You may need to install drivers for your database management
-system (such as ``psycopg2`` or ``mysql-connector-python-rf``).
+system (such as ``psycopg2`` for PostreSQL or ``pymysql`` or
+even ``mysql-connector-python-rf`` for MySQL).
 
 ::
 
+    # SQLite with a file on disk.
     sqlite:////tmp/mydatabase
 
-    postgresql://scott:tiger@localhost:5432/mydatabase
+    # PostgreSQL with psycopg2.
+    postgresql+psycopg2://scott:tiger@localhost:5432/mydatabase
 
+    # MySQL with pymysql.
+    mysql+pymysql://scott:tiger@hostname/dbname
+
+    # MySQL with mysql-connector-python-rf.
     mysql+sqlconnector://scott:tiger@hostname/dbname
 
 
