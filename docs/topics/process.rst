@@ -9,8 +9,8 @@ production will be reliable.
 The most important concern pursued in this section is to obtain a reliable
 process. A process is reliable if its product is entirely unaffected by sudden
 termination of the process happening at any time ("safety"), except in being delayed
-until the processing is resumed ("liveness"). The other concerns are maintainability
-and scalability.
+until the processing is resumed ("liveness"). The other important concerns are
+maintainability and scalability.
 
 This definition of the reliability of a process doesn't include availability.
 Obviously without any infrastructure, the processing will be delayed indefinitely.
@@ -524,6 +524,16 @@ could each use their own database. If the process applications were using
 different databases, upstream notification logs would need to be presented
 in an API, so that downstream could pull notifications using a remote
 notification log object (as discussed in a previous section).
+
+(For those concerned about having too much data in the relational database, it
+would be possible to expand capacity by: replicating events from the relational
+database to a more scalable distributed database; changing the event store to
+read older events from the distributed database if the relational database doesn't
+have those events, and then removing older events and older snapshots from the
+relational database. Snapshotting could be configured to avoid getting
+events from the distributed database for normal operations. The relational
+database could than have a relatively constant volume of data. Please note, this
+isn't currently supported in the library.)
 
 In this example, the process applications use a MySQL database, but it works just
 as well with PostgreSQL.
