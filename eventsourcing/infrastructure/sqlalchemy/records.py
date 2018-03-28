@@ -140,7 +140,7 @@ class StoredEventRecord(Base):
     originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
     # Partition ID.
-    partition_id = Column(UUIDType(), nullable=True)
+    pipeline_id = Column(UUIDType(), nullable=True)
 
     # Record ID.
     id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
@@ -155,7 +155,7 @@ class StoredEventRecord(Base):
         Index(
             'stored_events_notification_index',
             'application_id',
-            'partition_id',
+            'pipeline_id',
             'id',
             unique=True
         ),
@@ -172,7 +172,7 @@ class NotificationTrackingRecord(Base):
     upstream_application_id = Column(UUIDType(), primary_key=True)
 
     # Partition ID.
-    partition_id = Column(UUIDType(), primary_key=True)
+    pipeline_id = Column(UUIDType(), primary_key=True)
 
     # Notification ID.
     notification_id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)

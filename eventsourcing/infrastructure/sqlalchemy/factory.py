@@ -33,7 +33,7 @@ def construct_sqlalchemy_eventstore(session,
                                     record_class=None,
                                     contiguous_record_ids=False,
                                     application_id=None,
-                                    partition_id=None,
+                                    pipeline_id=None,
                                     ):
     sequenced_item_class = sequenced_item_class or StoredEvent
     sequenced_item_mapper = SequencedItemMapper(
@@ -50,7 +50,7 @@ def construct_sqlalchemy_eventstore(session,
         sequenced_item_class=sequenced_item_class,
         contiguous_record_ids=contiguous_record_ids,
         application_id=application_id,
-        partition_id=partition_id,
+        pipeline_id=pipeline_id,
     )
     record_manager = factory.construct_integer_sequenced_record_manager()
     event_store = EventStore(

@@ -4,7 +4,7 @@ from time import sleep
 import redis
 
 from eventsourcing.application.process import Prompt, System, make_channel_name
-from eventsourcing.application.simple import DEFAULT_PARTITION_ID
+from eventsourcing.application.simple import DEFAULT_PIPELINE_ID
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
@@ -16,14 +16,14 @@ DEFAULT_POLL_INTERVAL = 5
 
 class OperatingSystemProcess(multiprocessing.Process):
 
-    def __init__(self, application_process_class, upstream_names, partition_id=None,
+    def __init__(self, application_process_class, upstream_names, pipeline_id=None,
                  poll_interval=DEFAULT_POLL_INTERVAL, notification_log_section_size=None,
                  pool_size=5, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
         self.upstream_names = upstream_names
         self.daemon = True
-        self.partition_id = partition_id
+        self.pipeline_id = pipeline_id
         self.poll_interval = poll_interval
         self.notification_log_section_size = notification_log_section_size
         self.pool_size = pool_size
@@ -34,7 +34,7 @@ class OperatingSystemProcess(multiprocessing.Process):
 
         # Construct process application.
         self.process = self.application_process_class(
-            partition_id=self.partition_id,
+            pipeline_id=self.pipeline_id,
             notification_log_section_size=self.notification_log_section_size,
             pool_size=self.pool_size,
         )
@@ -45,7 +45,7 @@ class OperatingSystemProcess(multiprocessing.Process):
             # Subscribe to prompts from upstream partition.
             channel_name = make_channel_name(
                 application_name=upstream_name,
-                partition_id=self.partition_id
+                pipeline_id=self.pipeline_id
             )
             self.pubsub.subscribe(channel_name)
 
@@ -72,11 +72,11 @@ class OperatingSystemProcess(multiprocessing.Process):
                         contiguous_record_ids=record_manager.contiguous_record_ids,
                         sequenced_item_class=record_manager.sequenced_item_class,
                         application_id=upstream_application_id,
-                        partition_id=self.partition_id
+                        pipeline_id=self.pipeline_id
                     ),
                     section_size=self.process.notification_log_section_size
                 )
-                # Todo: Support upstream partition IDs different from self.partition_id.
+                # Todo: Support upstream partition IDs different from self.pipeline_id.
                 # Todo: Support combining partitions. Read from different partitions but write to the same partition,
                 # could be one os process that reads from many logs of the same upstream app, or many processes each
                 # reading one partition with contention writing to the same partition).
@@ -111,6 +111,8 @@ class OperatingSystemProcess(multiprocessing.Process):
                     # Todo: Log this, or stderr?
                     print("Caught exception: {}".format(e))
                     raise e
+                else:
+                    break
 
         finally:
             unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
@@ -130,8 +132,7 @@ class OperatingSystemProcess(multiprocessing.Process):
                 self.process.run()
             elif item['type'] == 'message':
                 # Identify message, and take appropriate action.
-                if item['data'] == b"KILL":
-                    # Shutdown.
+                if item['data'] == b"QUIT":
                     self.pubsub.unsubscribe()
                     self.process.close()
                     break
@@ -173,13 +174,13 @@ class OperatingSystemProcess(multiprocessing.Process):
 
 class Multiprocess(object):
 
-    def __init__(self, system, partition_ids=None, poll_interval=None, notification_log_section_size=10,
+    def __init__(self, system, pipeline_ids=None, poll_interval=None, notification_log_section_size=5,
                  pool_size=1):
         self.pool_size = pool_size
         self.system = system
-        # if partition_ids is None:
-        #     partition_ids = [uuid4()]
-        self.partition_ids = partition_ids or [DEFAULT_PARTITION_ID]
+        # if pipeline_ids is None:
+        #     pipeline_ids = [uuid4()]
+        self.pipeline_ids = pipeline_ids or [DEFAULT_PIPELINE_ID]
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
         self.os_processes = None
@@ -193,20 +194,20 @@ class Multiprocess(object):
 
         for process_class, upstream_classes in self.system.followings.items():
 
-            for partition_id in self.partition_ids:
+            for pipeline_id in self.pipeline_ids:
                 # Start operating system process.
                 os_process = OperatingSystemProcess(
                     application_process_class=process_class,
                     upstream_names=[cls.__name__.lower() for cls in upstream_classes],
                     poll_interval=self.poll_interval,
-                    partition_id=partition_id,
+                    pipeline_id=pipeline_id,
                     notification_log_section_size=self.notification_log_section_size,
                     pool_size=self.pool_size,
                 )
                 os_process.start()
                 self.os_processes.append(os_process)
 
-    def prompt_about(self, process_name, partition_id):
+    def prompt_about(self, process_name, pipeline_id):
         for process_class in self.system.process_classes:
 
             name = process_class.__name__.lower()
@@ -215,7 +216,7 @@ class Multiprocess(object):
                 continue
 
             num_expected_subscriptions = len(self.system.followings[process_class])
-            channel_name = make_channel_name(name, partition_id)
+            channel_name = make_channel_name(name, pipeline_id)
             patience = 50
             while self.redis.publish(channel_name, '') < num_expected_subscriptions:
                 if patience:
@@ -229,16 +230,16 @@ class Multiprocess(object):
 
     def close(self):
         for os_process in self.os_processes:
-            for partition_id in self.partition_ids:
+            for pipeline_id in self.pipeline_ids:
                 name = os_process.application_process_class.__name__.lower()
-                channel_name = make_channel_name(name, partition_id)
-                self.redis.publish(channel_name, 'KILL')
+                channel_name = make_channel_name(name, pipeline_id)
+                self.redis.publish(channel_name, 'QUIT')
 
         for os_process in self.os_processes:
-            os_process.join(timeout=1)
+            os_process.join(timeout=10)
 
         for os_process in self.os_processes:
-            if os_process.is_alive:
+            if os_process.is_alive():
                 os_process.terminate()
 
         self.os_processes = None

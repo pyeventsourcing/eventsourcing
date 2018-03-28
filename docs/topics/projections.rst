@@ -303,6 +303,7 @@ which gives "exactly once" processing.
 
     # Clean up.
     original.close()
+    replica.close()
 
 For simplicity in the example, the notification log reader uses a local
 notification log in the same process as the events originated. Perhaps

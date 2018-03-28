@@ -100,25 +100,28 @@ unreliability in the processing of the events (it is "absolutely" reliable, ther
 somehow a "tolerable" level of unreliability in each process that would eventually
 compound into an intolerable level of unreliability in a complicated system of processes).
 
-A number of application processes could be run from a single thread. Alternatively, they
-could each have one thread in a single process. Each thread could have its own operating
-system process, and each operating system process could run on its own machine. Although
-there is parallelism in such a system, this isn't the kind of parallelism that will
-allow the system to scale horizontally (adding more machines).
-
-To scale the throughput of a process horizontally, beyond the rate at which
-a single sequence can be processed in series, notifications can be partitioned
-across many notification logs. Each partition could be processed concurrently.
-Hence one application process could usefully and reliably employ many concurrent
-operating system processes. Both kinds of parallelism are demonstrated below.
-
 In the example below, a system of process applications is defined independently of
 how it may be run. The system of process applications uses a domain model layer with three
 aggregates. Each process application is configured to follow others.
 
-The system is firstly run as a single threaded system. Afterwards, the system is run with
-both multiprocessing using the default partition and then also with notification logs and
-processing partitioned into multiple system partitions.
+A multi-process system can be run in a single thread. This is intended as a development mode,
+with synchronous processing of events to make things easier to follow.
+
+A multi-process system can also be run with multiple threads, either in a single
+operating system process, or with multiple operating system processes. In this mode,
+events are processed asynchronously. Different operating system processes could run on the same
+or different machines. This is "diachronic" parallelism, like the way a CPU pipeline
+can finish one instruction per clock cycle, simultaneously executing one instruction
+whilst both decoding the next instruction and fetching the one after that. However, performance
+improvement is limited by the number of stages in the pipeline, and the number of stages is
+defined by the number of processes in the system which is fixed.
+
+To scale the throughput of a process, we need "synchronic" parallelism, so that many events can
+be processed at the same time. Just like a CPU can have many cores, a multi-process system can
+have many pipelines operating concurrently. Both kinds of parallelism are demonstrated below.
+
+In the example below, the system is firstly run as a single threaded system. Afterwards, the system
+is run with both multiprocessing using a single pipeline, and then also with multiple pipelines.
 
 
 Kahn process networks
@@ -531,9 +534,11 @@ database to a more scalable distributed database; changing the event store to
 read older events from the distributed database if the relational database doesn't
 have those events, and then removing older events and older snapshots from the
 relational database. Snapshotting could be configured to avoid getting
-events from the distributed database for normal operations. The relational
-database could than have a relatively constant volume of data. Please note, this
-isn't currently supported in the library.)
+events from the distributed database for normal operations. The relational database
+could than have a relatively constant  volume of data. Following the analogy
+with CPUs, the relational database might correspond to the L2 cache, and the
+distributed database might correspond to the L3 cache. Please note, this idea
+isn't currently implemented in the library.)
 
 In this example, the process applications use a MySQL database, but it works just
 as well with PostgreSQL.
@@ -546,8 +551,8 @@ as well with PostgreSQL.
     #os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
 
 
-Single partition
-~~~~~~~~~~~~~~~~
+Single pipeline
+~~~~~~~~~~~~~~~
 
 Before starting the system's operating system processes, let's create a new order aggregate.
 The Orders process is constructed so that any ``Order.Created`` events published by the
@@ -570,7 +575,7 @@ The Orders process is constructed so that any ``Order.Created`` events published
 .. as being suitable for use in both a multi-threaded Web
 .. application server, and a worker queue processing stuff, the
 .. worker or the Web application instance could have their commands
-.. distributed across partitions in a system at random. The command
+.. distributed across pipelines in a system at random. The command
 .. logging process could do that. A command could be the name of a
 .. method on the process application object, and it could have args
 .. used to call the method. An actor could be used to send a message,
@@ -593,11 +598,10 @@ gives three child operating system processes.
 
     multiprocess = Multiprocess(system)
 
-The system is unpartitioned, the process applications use the default partition.
 
-In the code below, the operating system processes are started by using
-the ``multiprocess`` object as a context manager. It calls ``start()`` on
-entry and ``close()`` on exit.
+The operating system processes are started by using the ``multiprocess``
+object as a context manager. It calls ``start()`` on entry and ``close()``
+on exit.
 
 The process applications read their upstream notification logs when they
 start, so the ``Order.Created`` event is picked up and processed, causing
@@ -609,8 +613,8 @@ the flow through the system. Wait for the results by polling the aggregate state
 
     if __name__ == '__main__':
 
-        # Start multiprocessing system.
-        with Orders() as app, multiprocess:
+        # Start multiprocessing system, and Orders application.
+        with multiprocess, Orders() as app:
 
             retries = 50
             while not app.repository[order_id].is_reserved:
@@ -636,50 +640,38 @@ the flow through the system. Wait for the results by polling the aggregate state
 ..
 .. Todo: Change this to use a command logging process application, and have the Orders process follow it.
 
-Multiple partitions
-~~~~~~~~~~~~~~~~~~~
+Multiple pipelines
+~~~~~~~~~~~~~~~~~~
 
-Now let's process a batch of orders that is created after the system
-has been started. This time, the system will be partitioned across the
-process applications. Each process application-partition will run in a
-separate operating system process.
+The system can be run with many pipelines. With many pipelines, many events can
+be processed at the same time by each process in the system.
 
-Because of the partitioning, many orders can be processed by the
-same process application at the same time. Events generated in one partition
-will normally be processed in the same partition downstream (by default, an
-application reads and writes in the same partition).
-
-Aggregates continue to be segregated within an application (one application can't
-access from its repository the aggregates created by another application) but
-aggregates created by one application are accessible across all partitions of
-that application.
-
-In the example below, there are five partitions and three process applications, which
+In the example below, there are five pipelines and three process applications, which
 gives fifteen child operating system processes. All fifteen will share the same database.
-Here, partitioning is configured statically.
+Here, pipelines are configured statically.
 
 
 .. code:: python
 
-    from eventsourcing.utils.uuids import uuid_from_partition_name
+    from eventsourcing.utils.uuids import uuid_from_pipeline_name
 
-    num_partitions = 5
+    num_pipelines = 5
 
-    partition_ids = [uuid_from_partition_name(i) for i in range(num_partitions)]
+    pipeline_ids = [uuid_from_pipeline_name(i) for i in range(num_pipelines)]
 
-    multiprocess = Multiprocess(system, partition_ids=partition_ids)
+    multiprocess = Multiprocess(system, pipeline_ids=pipeline_ids)
 
 
-Twenty-five orders are created in each of the five partitions, giving one hundred and
-twenty-five orders in total. Please note, when creating the new aggregates, the
-process application needs to be told which partition to use (otherwise it will use
-the default partition, which isn't being used in this multi-partition configuration).
+Twenty-five orders are created in each of the five pipelines, giving one hundred and
+twenty-five orders in total. Please note, when creating the new aggregates, the Orders
+process application needs to be told which pipeline to use. (Todo: Replace with command
+process?)
 
 .. code:: python
 
-    multiprocess = Multiprocess(system, partition_ids=partition_ids)
+    multiprocess = Multiprocess(system, pipeline_ids=pipeline_ids)
 
-    num_orders_per_partition = 25
+    num_orders_per_pipeline = 25
 
     if __name__ == '__main__':
 
@@ -689,21 +681,21 @@ the default partition, which isn't being used in this multi-partition configurat
             # Create some new orders.
             order_ids = []
 
-            for _ in range(num_orders_per_partition):
+            for _ in range(num_orders_per_pipeline):
 
-                for partition_id in partition_ids:
+                for pipeline_id in pipeline_ids:
 
-                    with Orders(partition_id=partition_id) as app:
+                    with Orders(pipeline_id=pipeline_id) as app:
 
                         order_id = create_new_order()
                         order_ids.append(order_id)
 
-                        multiprocess.prompt_about('orders', partition_id)
+                        multiprocess.prompt_about('orders', pipeline_id)
 
 
             # Wait for orders to be reserved and paid.
             with Orders() as app:
-                retries = 10 + 10 * num_orders_per_partition * len(partition_ids)
+                retries = 10 + 10 * num_orders_per_pipeline * len(pipeline_ids)
                 for i, order_id in enumerate(order_ids):
 
                     while not app.repository[order_id].is_reserved:
@@ -732,51 +724,51 @@ the default partition, which isn't being used in this multi-partition configurat
                 print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
                 print("Max order processing time: {:.3f}s".format(max(durations)))
 
-In this example, there are no causal dependencies between events in different partitions.
-Causal dependencies between events in different partitions could be detected and used to
-synchronise the processing of partitions downstream, so that downstream processing of one
-partition can wait for an event to be processed in another. The causal dependencies could
+In this example, there are no causal dependencies between events in different pipelines.
+Causal dependencies between events in different pipelines could be detected and used to
+synchronise the processing of pipelines downstream, so that downstream processing of one
+pipeline can wait for an event to be processed in another. The causal dependencies could
 be automatically inferred by detecting the originator ID and version of aggregates as they
 are retrieved from the wrapped repository. If the dependencies were notified in a different
-partition, the originator ID and version could be included in the new notification, so that
+pipeline, the originator ID and version could be included in the new notification, so that
 downstream can wait for the causal dependencies to be processed before processing the
 causally dependent notification. In case there are many dependencies, only the highest
-notification of each partition would need to be included. Including causal dependencies
-within the partition would allow the partition to be processed in parallel to the extent
+notification of each pipeline would need to be included. Including causal dependencies
+within the pipeline would allow the pipeline to be processed in parallel to the extent
 that events aren't causally dependent on the immediately preceding events in the same
 notification log. (Causal dependencies not implemented, yet.)
 
 Since the above policy ``sleep(0.5)`` statements ensure each order takes at least one second
-to process, so varying the number of partitions and the number of orders demonstrates
+to process, so varying the number of pipelines and the number of orders demonstrates
 even on a machine with few cores (e.g. my laptop) that processing is truly
-concurrent both across the process applications and across the partitions of the
+concurrent both across the process applications and across the pipelines of the
 system. (The total processing time for a batch of orders tends towards the duration
 of the longest step, multiplied by the size of the batch, divided by the number of
-partitions. So the maximum rate of a system is the number of partitions divided by
+pipelines. So the maximum rate of a system is the number of pipelines divided by
 the duration of the longest step. Obviously, the minimum processing time for a single
 order, its total latecy, is equal to the sum of the durations of each step regardless
-of the batch size or the number of partitions.)
+of the batch size or the number of pipelines.)
 
 Without the ``sleep(0.5)`` statements, the system with its five-step process can process
-on my small laptop about twenty-five orders per second per partition, approximately 40ms
+on my small laptop about twenty-five orders per second per pipeline, approximately 40ms
 for each order, with min and average order processing times of approximately 100ms and
 150ms for the five steps. The atomic database transaction code takes about 4ms from opening
 the transaction in Python to closing the session in Python. So it seems there is room for
 improving performance in future versions of the library.
 
-If most business applications process less than one command per second, one system partition
+If most business applications process less than one command per second, one system pipeline
 would probably be sufficient for most situations. However, to process spikes in the demand
 without spikes in latency, or if continuous usage gives ten or a hundred times more commands
-per second, then the number of partitions could be increased accordingly. Eventually with
+per second, then the number of pipelines could be increased accordingly. Eventually with
 this design, the shared database would limit throughput. But since the operations are
-partitioned, the database could be scaled vertically (more CPUs) in proportion to the number
-of partitions.
+pipelined, the database could be scaled vertically (more CPUs) in proportion to the number
+of pipelines.
 
 Although it isn't possible to start processes on remote hosts using Python's
-``multiprocessing`` library, it is possible to run the system with e.g. partitions
-0-7 on one machine, partitions 8-15 on another machine, and so on.
+``multiprocessing`` library, it is possible to run the system with e.g. pipelines
+0-7 on one machine, pipelines 8-15 on another machine, and so on.
 
-The work of increasing the number of partitions, and starting new operating system
+The work of increasing the number of pipelines, and starting new operating system
 processes, could be automated. Also, the cluster scaling could be automated, and
 processes distributed automatically across the cluster. Actor model seems like a
 good foundation for such automation.
@@ -792,14 +784,11 @@ Actor model system
 
 An Actor model library, such as `Thespian Actor Library
 <https://github.com/kquick/Thespian>`__, could be used to run
-a partitioned system of process applications as actors.
+a pipelined system of process applications as actors.
 
-A system actor could start a process application-partition actor
+A system actor could start an actor for each pipeline-stage
 when its address is requested, or otherwise make sure there is
-one running actor for each process application-partition.
-
-An actor could stop when there are
-no new event notifications to process for a perdiod of time.
+one running actor for each process application-pipeline.
 
 Actor processes could be automatically distributed across a cluster. The
 cluster could auto-scale according to CPU usage (or perhaps network usage).
@@ -807,7 +796,7 @@ New nodes could run a container that begins by registering with the actor
 system, (unless there isn't one, when it begins an election to become leader?)
 and the actor system could run actors on it, reducing the load on other nodes.
 
-Prompts from one process application-partition could be sent to another
+Prompts from one process application-pipeline could be sent to another
 as actor messages, rather than with a publish-subscribe service. The address
 could be requested from the system, and the prompt sent directly.
 
@@ -817,12 +806,12 @@ system in Thespian.
 
 Partitioning of the system could be automated with actors. A system actor
 (started how? leader election? Kubernetes configuration?) could increase or
-decrease the number of system partitions, according to the rate at which events
+decrease the number of system pipelines, according to the rate at which events
 are being added to the system command process, compared to the known (or measured)
 rate at which commands can be processed by the system. If there are too many actors
 dying from lack of work, then to reduce latency of starting an actor for each event
-(extreme case), the number of partitions could be reduced, so that there are enough
-events to keep actors alive. If there are fewer partitions than nodes, then some nodes
+(extreme case), the number of pipelines could be reduced, so that there are enough
+events to keep actors alive. If there are fewer pipelines than nodes, then some nodes
 will have nothing to do, and can be easily removed from the cluster. A machine that
 continues to run an actor could be more forcefully removed by killing the remaining
 actors and restarting them elsewhere. Maybe heartbeats could be used to detect
@@ -905,14 +894,14 @@ on physics" thing seems to fit well with infrastructure, which is inherently imp
 We just don't need by default to instantiate unbounded nondeterminism for every concern
 in the system. But since actors can fail and be restarted automatically, and since a process
 application needs to be run by something. it seems that an actor and process process
-applications-partitions go well together. The process appliation-actor idea seems like a
+applications-pipelines go well together. The process appliation-actor idea seems like a
 much better idea that the aggregate-actor idea. Perhaps aggregates could also usefully be actors,
 but an adapter would need to be coded to process messages as commands, to return pending events as
 messages, and so on, to represent themselves as message, and so on. It can help to have many
 threads running consecutively through an aggregate, especially readers. The consistency of the
 aggregate state is protected with optimistic concurrency control. Wrapping an aggregate as
 an actor won't speed things up, unless the actor is persistent, which uses resources. Aggregates
-could be cached inside the process application-partition, especially if it is know that they will
+could be cached inside the process application-pipeline, especially if it is know that they will
 probably be reused.
 
 .. Todo: Method to fastforward an aggregate, by querying for and applying new events?

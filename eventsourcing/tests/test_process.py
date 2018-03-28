@@ -5,9 +5,6 @@ from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.events import clear_event_handlers
 
 
-# Todo: Test case for OperatingSystemProcess class.
-
-
 class TestProcess(TestCase):
 
     def test_process_with_example_policy(self):
@@ -32,6 +29,8 @@ class TestProcess(TestCase):
     def tearDown(self):
         clear_event_handlers()
 
+
+# First example.
 
 class ExampleAggregate(AggregateRoot):
     def __init__(self, **kwargs):

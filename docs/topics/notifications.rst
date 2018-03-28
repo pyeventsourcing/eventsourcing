@@ -831,7 +831,7 @@ mechanism would allow the number of logs to be increased and decreased, with agg
 event notifications switching from one log to another and still be processed coherently.
 
 
-Todo: Define notification records in SQLAlchemy: application_id, partition_id, record_id, originator_id,
+Todo: Define notification records in SQLAlchemy: application_id, pipeline_id, record_id, originator_id,
 originator_version with unique index on (application_id, log_id, record_id) and unique index on
 (originator_id, originator_version). Give notification record class to record manager.
 Change manager to write a notification record for each event. Maybe change aggregate

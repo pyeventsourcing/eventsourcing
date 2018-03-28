@@ -42,7 +42,7 @@ class SQLAlchemyDatastore(Datastore):
     def setup_connection(self):
         assert isinstance(self.settings, SQLAlchemySettings), self.settings
         if self._engine is None:
-            if self.settings.uri == 'sqlite:///:memory:':
+            if self.is_sqlite_in_memory():
                 kwargs = {'pool_size': self.settings.pool_size}
             else:
                 kwargs = {}
@@ -51,6 +51,9 @@ class SQLAlchemyDatastore(Datastore):
                 strategy=self._connection_strategy,
                 **kwargs
             )
+
+    def is_sqlite_in_memory(self):
+        return self.settings.uri == 'sqlite:///:memory:'
 
     def setup_tables(self, tables=None):
         if self._tables is not None:
@@ -76,4 +79,8 @@ class SQLAlchemyDatastore(Datastore):
             self._session.close()
             self._session = None
         if self._engine:
+            # Call dispose(). Unless sqlite in memory, to avoid error  'stored_events'
+            # table does not exist in projections.rst doc (everything else seems to work).
+            if not self.is_sqlite_in_memory():
+                self._engine.dispose()
             self._engine = None

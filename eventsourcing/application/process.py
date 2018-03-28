@@ -102,7 +102,7 @@ class Process(SimpleApplication):
         max_record_id = self.tracking_record_manager.get_max_record_id(
             application_name=self.name,
             upstream_application_name=upstream_application_name,
-            partition_id=self.partition_id,
+            pipeline_id=self.pipeline_id,
         )
         reader.seek(max_record_id or 0)
 
@@ -151,7 +151,7 @@ class Process(SimpleApplication):
         return isinstance(event, Prompt) and event.channel_name.split('-')[0] in self.readers.keys()
 
     def publish_prompt(self, _=None):
-        prompt = Prompt(make_channel_name(self.name, self.partition_id))
+        prompt = Prompt(make_channel_name(self.name, self.pipeline_id))
         try:
             publish(prompt)
         except Exception as e:
@@ -200,7 +200,7 @@ class Process(SimpleApplication):
         kwargs = {
             'application_id': self.application_id,
             'upstream_application_id': upstream_application_id,
-            'partition_id': self.partition_id,
+            'pipeline_id': self.pipeline_id,
             'notification_id': notification['id'],
             'originator_id': notification['originator_id'],
             'originator_version': notification['originator_version']
@@ -322,5 +322,5 @@ class System(object):
         self.close()
 
 
-def make_channel_name(application_name, partition_id):
-    return "{}-{}".format(application_name, partition_id)
+def make_channel_name(application_name, pipeline_id):
+    return "{}-{}".format(application_name, pipeline_id)

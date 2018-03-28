@@ -19,6 +19,11 @@ class TestDocs(TestCase):
             print("Warning: event handlers still subscribed: {}".format(_event_handlers))
         _event_handlers.clear()
 
+        try:
+            del(os.environ['DB_URI'])
+        except KeyError:
+            pass
+
     def test_readme(self):
         self._out = ''
         path = join(base_dir, 'README.md')

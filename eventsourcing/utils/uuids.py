@@ -4,7 +4,7 @@ import uuid
 def uuid_from_application_name(application_name):
     return uuid_from_uri('eventsourcing:///applications/{}'.format(application_name))
 
-def uuid_from_partition_name(partition_name):
+def uuid_from_pipeline_name(partition_name):
     return uuid_from_uri('eventsourcing:///partitions/{}'.format(partition_name))
 
 def uuid_from_uri(uri):
