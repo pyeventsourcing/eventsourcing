@@ -32,7 +32,6 @@ env:
 script:
 - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
       coverage run --concurrency=multiprocessing -m unittest discover eventsourcing.tests -v;
-      coverage combine;
   fi
 - if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then
       python -m unittest discover eventsourcing.tests -v;
@@ -40,5 +39,6 @@ script:
 
 after_success:
 - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
+      coverage combine;
       coveralls;
   fi
