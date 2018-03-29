@@ -2,10 +2,10 @@
 Process and system
 ==================
 
-The most important concern in this is reliability. A process is considered to
+Reliability is the most important concern in this section. A process is considered to
 be reliable if its product is entirely unaffected by a sudden termination of the process
 happening at any time, except in being delayed. The other important concerns are
-maintainability and scalability.
+scalability and maintainability.
 
 The only trick here that process is understood in the following way: consumption with
 recording determines production. In particular, if consumption and recording are both
