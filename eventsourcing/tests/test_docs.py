@@ -64,6 +64,7 @@ class TestDocs(TestCase):
                 # if name.endswith('snapshotting.rst'):
                 # if name.endswith('notifications.rst'):
                 # if name.endswith('projections.rst'):
+                # if name.endswith('deployment.rst'):
                 # if name.endswith('process.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 

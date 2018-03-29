@@ -28,7 +28,6 @@ class TestSystem(TestCase):
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
-    # @skipIf(six.PY2, "Skipping for Python 2")
     def test_multi_process_system(self):
 
         os.environ['DB_URI'] = 'mysql+pymysql://root:@127.0.0.1/eventsourcing'
@@ -62,7 +61,6 @@ class TestSystem(TestCase):
                     retries -= 1
                     assert retries, "Failed set order.is_paid"
 
-    @skipIf(six.PY2, "Skipping for Python 2")
     def test_multi_pipeline(self):
         from eventsourcing.utils.uuids import uuid_from_pipeline_name
 

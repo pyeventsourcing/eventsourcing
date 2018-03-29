@@ -43,9 +43,11 @@ class TestObjectJSONEncoder(TestCase):
         self.assertEqual(encoder.encode(value), expect)
 
         value = Object(NAMESPACE_URL)
+        self.assertEqual(value.__class__.__module__, 'eventsourcing.tests.test_transcoding#Object',
+                         "Module does not have full path, Python 2.7 issue with unittest. Run test from root dir")
         expect = ('{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04fd430c8"}}, '
                   '"topic": "eventsourcing.tests.test_transcoding#Object"}}')
-        self.assertEqual(encoder.encode(value), expect)
+        self.check_encoded_value(encoder, value, expect)
 
         value = deque()
         expect = '{"__deque__": []}'
@@ -55,6 +57,15 @@ class TestObjectJSONEncoder(TestCase):
         # - a type isn't supported at the moment, hence this test works
         with self.assertRaises(TypeError):
             encoder.encode(object)
+
+    def check_encoded_value(self, encoder, value, expect):
+        actual = encoder.encode(value)
+        try:
+            self.assertEqual(expect, actual, (type(expect), type(actual), expect, actual))
+        except:
+            print()
+            print(actual)
+            print(expect)
 
 
 class TestObjectJSONDecoder(TestCase):

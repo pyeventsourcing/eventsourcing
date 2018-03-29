@@ -7,13 +7,13 @@ services:
 
 python:
   - 2.7
-#  - 3.3
   - 3.4
   - 3.5
   - 3.5-dev
   - 3.6
   - 3.6-dev
   - pypy
+  - pypy3
 
 before_install:
   - mysql -e 'CREATE DATABASE eventsourcing;'

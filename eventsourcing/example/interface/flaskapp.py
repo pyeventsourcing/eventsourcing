@@ -15,7 +15,6 @@ application = Flask(__name__)
 application.config['SQLALCHEMY_DATABASE_URI'] = uri
 application.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-
 # Define database connection.
 db = SQLAlchemy(application)
 

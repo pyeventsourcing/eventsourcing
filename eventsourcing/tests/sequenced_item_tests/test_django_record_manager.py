@@ -37,8 +37,6 @@ class TestDjangoRecordManagerWithoutContiguousRecordIDs(DjangoTestCase, IntegerS
 
 
 class TestDjangoRecordManagerWithTimestampSequences(DjangoTestCase, TimestampSequencedItemTestCase):
-    cancel_sqlite3_decimal_converter = True
-
     def construct_record_manager(self):
         return self.construct_timestamp_sequenced_record_manager()
 

@@ -2,6 +2,7 @@ import os
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from eventsourcing.infrastructure.datastore import Datastore, DatastoreSettings
 from eventsourcing.infrastructure.sqlalchemy.records import Base
@@ -42,18 +43,26 @@ class SQLAlchemyDatastore(Datastore):
     def setup_connection(self):
         assert isinstance(self.settings, SQLAlchemySettings), self.settings
         if self._engine is None:
-            if self.is_sqlite_in_memory():
-                kwargs = {'pool_size': self.settings.pool_size}
+            if self.is_sqlite():
+                kwargs = {
+                    'connect_args': {'check_same_thread': False},
+                }
+            elif self.settings.pool_size == 1:
+                kwargs = {
+                    'poolclass': StaticPool
+                }
             else:
-                kwargs = {}
+                kwargs = {
+                    'pool_size': self.settings.pool_size,
+                }
             self._engine = create_engine(
                 self.settings.uri,
                 strategy=self._connection_strategy,
                 **kwargs
             )
 
-    def is_sqlite_in_memory(self):
-        return self.settings.uri == 'sqlite:///:memory:'
+    def is_sqlite(self):
+        return self.settings.uri.startswith('sqlite')
 
     def setup_tables(self, tables=None):
         if self._tables is not None:
