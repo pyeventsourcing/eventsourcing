@@ -62,6 +62,10 @@ class SimpleApplication(object):
         if setup_table and not session:
             self.setup_table()
 
+    def change_pipeline(self, pipeline_id):
+        self.pipeline_id = pipeline_id
+        self.event_store.record_manager.pipeline_id = pipeline_id
+
     @property
     def session(self):
         return self.datastore.session

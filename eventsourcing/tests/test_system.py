@@ -74,63 +74,59 @@ class TestSystem(TestCase):
             (Orders, Reservations, Orders, Payments, Orders),
         )
 
-        num_pipelines = 5
+        num_pipelines = 3
 
         pipeline_ids = [uuid_from_pipeline_name(i) for i in range(num_pipelines)]
 
         multiprocess = Multiprocess(system, pipeline_ids=pipeline_ids)
 
-        num_orders_per_pipeline = 25
+        num_orders_per_pipeline = 5
+        order_ids = []
 
         # Start multiprocessing system.
-        with multiprocess:
+        with multiprocess, Orders() as app:
 
-            order_ids = []
+            # Create some new orders.
+            for _ in range(num_orders_per_pipeline):
 
-            with Orders(pipeline_id=pipeline_ids[0]) as app:
-                # Create some new orders.
-                for _ in range(num_orders_per_pipeline):
+                for pipeline_id in pipeline_ids:
 
-                    for pipeline_id in pipeline_ids:
+                    app.change_pipeline(pipeline_id)
 
-                        app.event_store.record_manager.pipeline_id = pipeline_id
+                    order_id = create_new_order()
+                    order_ids.append(order_id)
 
-                        order_id = create_new_order()
-                        order_ids.append(order_id)
+                    time.sleep(0.05)
 
-                        multiprocess.prompt_about('orders', pipeline_id)
+            # Wait for orders to be reserved and paid.
+            retries = 10 + 10 * num_orders_per_pipeline * len(pipeline_ids)
+            for i, order_id in enumerate(order_ids):
 
-                        time.sleep(0.03)
+                while not app.repository[order_id].is_reserved:
+                    time.sleep(0.1)
+                    retries -= 1
+                    assert retries, "Failed set order.is_reserved {} ({})".format(order_id, i)
 
-                # Wait for orders to be reserved and paid.
-                retries = 10 + 10 * num_orders_per_pipeline * len(pipeline_ids)
-                for i, order_id in enumerate(order_ids):
+                while retries and not app.repository[order_id].is_paid:
+                    time.sleep(0.1)
+                    retries -= 1
+                    assert retries, "Failed set order.is_paid ({})".format(i)
 
-                    while not app.repository[order_id].is_reserved:
-                        time.sleep(0.1)
-                        retries -= 1
-                        assert retries, "Failed set order.is_reserved {} ({})".format(order_id, i)
+            # Calculate timings from event timestamps.
+            orders = [app.repository[oid] for oid in order_ids]
+            first_timestamp = min([o.__created_on__ for o in orders])
+            last_timestamp = max([o.__last_modified__ for o in orders])
+            duration = last_timestamp - first_timestamp
+            rate = len(order_ids) / float(duration)
+            period = 1 / rate
+            print("Orders system processed {} orders in {:.3f}s at rate of {:.1f} "
+                  "orders/s, {:.3f}s each".format(len(order_ids), duration, rate, period))
 
-                    while retries and not app.repository[order_id].is_paid:
-                        time.sleep(0.1)
-                        retries -= 1
-                        assert retries, "Failed set order.is_paid ({})".format(i)
-
-                # Calculate timings from event timestamps.
-                orders = [app.repository[oid] for oid in order_ids]
-                first_timestamp = min([o.__created_on__ for o in orders])
-                last_timestamp = max([o.__last_modified__ for o in orders])
-                duration = last_timestamp - first_timestamp
-                rate = len(order_ids) / float(duration)
-                period = 1 / rate
-                print("Orders system processed {} orders in {:.3f}s at rate of {:.1f} "
-                      "orders/s, {:.3f}s each".format(len(order_ids), duration, rate, period))
-
-                # Print min, average, max duration.
-                durations = [o.__last_modified__ - o.__created_on__ for o in orders]
-                print("Min order processing time: {:.3f}s".format(min(durations)))
-                print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
-                print("Max order processing time: {:.3f}s".format(max(durations)))
+            # Print min, average, max duration.
+            durations = [o.__last_modified__ - o.__created_on__ for o in orders]
+            print("Min order processing time: {:.3f}s".format(min(durations)))
+            print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
+            print("Max order processing time: {:.3f}s".format(max(durations)))
 
     def test_payments_policy(self):
         # Prepare fake repository with a real Order aggregate.

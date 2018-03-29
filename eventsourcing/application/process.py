@@ -1,6 +1,8 @@
 from collections import OrderedDict, defaultdict
 from uuid import UUID
 
+import six
+
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import EventWithOriginatorID, publish, subscribe, unsubscribe
@@ -36,7 +38,7 @@ class Process(SimpleApplication):
         #
         # 1. Publish prompts whenever domain events are published (important: after persisted).
         # 2. Run this process whenever upstream prompted followers to pull for new notification.
-        subscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt)
+        subscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
         subscribe(predicate=self.is_upstream_prompt, handler=self.run)
         # Todo: Maybe make a prompts policy object?
 
@@ -52,10 +54,8 @@ class Process(SimpleApplication):
             readers_items = self.readers.items()
         else:
             assert isinstance(prompt, Prompt)
-            # Todo: This in a better way.
-            upstream_application_name = prompt.channel_name.split('-')[0]
-            reader = self.readers[upstream_application_name]
-            readers_items = [(upstream_application_name, reader)]
+            reader = self.readers[prompt.process_name]
+            readers_items = [(prompt.process_name, reader)]
 
         notification_count = 0
         for upstream_application_name, reader in readers_items:
@@ -94,7 +94,7 @@ class Process(SimpleApplication):
                     # Todo: Optionally send events as prompts, will save reading database
                     # if it arrives in correct order, but risks overloading the recipient.
                     if event_records:
-                        self.publish_prompt()
+                        self.publish_prompt(max([e.id for e in event_records]))
 
         return notification_count
 
@@ -131,27 +131,24 @@ class Process(SimpleApplication):
         # Todo: - maybe just write one at the end of a run, if necessary, or only once during a period of time when
         # nothing happens
 
-        # # Write event records with tracking record.
-        # if event_records:
-        #     write_records = True
-        # elif notification['id'] % 10 == 0:
-        #     write_records = True
-        # else:
-        #     # write_records = False
-        write_records = True
-
-        if write_records:
-            record_manager = self.event_store.record_manager
-            assert isinstance(record_manager, RelationalRecordManager)
-            record_manager.write_records(records=event_records, tracking_record=tracking_record)
+        # Write event records with tracking record.
+        record_manager = self.event_store.record_manager
+        assert isinstance(record_manager, RelationalRecordManager)
+        record_manager.write_records(records=event_records, tracking_record=tracking_record)
 
         return event_records
 
-    def is_upstream_prompt(self, event):
-        return isinstance(event, Prompt) and event.channel_name.split('-')[0] in self.readers.keys()
+    def is_upstream_prompt(self, prompt):
+        return isinstance(prompt, Prompt) and prompt.process_name in self.readers.keys()
 
-    def publish_prompt(self, _=None):
-        prompt = Prompt(make_channel_name(self.name, self.pipeline_id))
+    def publish_prompt_from_event(self, _):
+        # Don't have record, so just prompt without an end position.
+        self.publish_prompt()
+
+    def publish_prompt(self, end_position=None):
+        if end_position is not None:
+            assert isinstance(end_position, six.integer_types), end_position
+        prompt = Prompt(self.name, self.pipeline_id, end_position=end_position)
         try:
             publish(prompt)
         except Exception as e:
@@ -209,7 +206,7 @@ class Process(SimpleApplication):
 
     def close(self):
         unsubscribe(predicate=self.is_upstream_prompt, handler=self.run)
-        unsubscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt)
+        unsubscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
         super(Process, self).close()
 
 
@@ -232,8 +229,9 @@ class RepositoryWrapper(object):
 
 
 class Prompt(object):
-    def __init__(self, channel_name, end_position=None):
-        self.channel_name = channel_name
+    def __init__(self, process_name, pipeline_id, end_position=None):
+        self.process_name = process_name
+        self.pipeline_id = pipeline_id
         self.end_position = end_position
 
 
@@ -283,7 +281,7 @@ class System(object):
 
                 previous = process_class
 
-    # Todo: Move this to 'Singlethread' class or something (like the 'Multiprocess' class)?
+    # Todo: Extract function to new 'SinglethreadRunner' class or something (like the 'Multiprocess' class)?
     def setup(self):
         assert self.processes_by_name is None, "Already running"
         self.processes_by_name = {}
@@ -320,7 +318,3 @@ class System(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-
-
-def make_channel_name(application_name, pipeline_id):
-    return "{}-{}".format(application_name, pipeline_id)

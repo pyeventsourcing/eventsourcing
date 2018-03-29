@@ -1,15 +1,15 @@
 import multiprocessing
+from multiprocessing import Manager
 from time import sleep
 
-import redis
+import six
 
-from eventsourcing.application.process import Prompt, System, make_channel_name
+from eventsourcing.application.process import Prompt, System
 from eventsourcing.application.simple import DEFAULT_PIPELINE_ID
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.uuids import uuid_from_application_name
-
 
 DEFAULT_POLL_INTERVAL = 5
 
@@ -28,14 +28,32 @@ class Multiprocess(object):
 
     def start(self):
         assert self.os_processes is None, "Already started"
-        self.redis = redis.Redis()
 
         self.os_processes = []
 
-        for process_class, upstream_classes in self.system.followings.items():
+        self.manager = Manager()
+        self.inboxes = {}
+        self.outboxes = {}
 
-            for pipeline_id in self.pipeline_ids:
-                # Start operating system process.
+        # Setup queues.
+        for pipeline_id in self.pipeline_ids:
+            for process_class, upstream_classes in self.system.followings.items():
+                inbox_id = (pipeline_id, process_class.__name__.lower())
+                if inbox_id not in self.inboxes:
+                    self.inboxes[inbox_id] = self.manager.Queue()
+                for upstream_class in upstream_classes:
+                    outbox_id = (pipeline_id, upstream_class.__name__.lower())
+                    if outbox_id not in self.outboxes:
+                        self.outboxes[outbox_id] = Outbox()
+                    if inbox_id not in self.outboxes[outbox_id].downstream_inboxes:
+                        self.outboxes[outbox_id].downstream_inboxes[inbox_id] = self.inboxes[inbox_id]
+
+        # Subscribe to broadcast prompts published by a process application.
+        subscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
+
+        # Start operating system process.
+        for pipeline_id in self.pipeline_ids:
+            for process_class, upstream_classes in self.system.followings.items():
                 os_process = OperatingSystemProcess(
                     application_process_class=process_class,
                     upstream_names=[cls.__name__.lower() for cls in upstream_classes],
@@ -43,37 +61,27 @@ class Multiprocess(object):
                     pipeline_id=pipeline_id,
                     notification_log_section_size=self.notification_log_section_size,
                     pool_size=self.pool_size,
+                    inbox=self.inboxes[(pipeline_id, process_class.__name__.lower())],
+                    outbox=self.outboxes[(pipeline_id, process_class.__name__.lower())],
                 )
+                os_process.daemon = True
                 os_process.start()
                 self.os_processes.append(os_process)
+                sleep(0.1)
 
-    def prompt_about(self, process_name, pipeline_id):
-        for process_class in self.system.process_classes:
+    def broadcast_prompt(self, prompt):
+        outbox_id = (prompt.pipeline_id, prompt.process_name)
+        self.outboxes[outbox_id].put(prompt)
 
-            name = process_class.__name__.lower()
-
-            if process_name and process_name != name:
-                continue
-
-            num_expected_subscriptions = len(self.system.followings[process_class])
-            channel_name = make_channel_name(name, pipeline_id)
-            patience = 50
-            while self.redis.publish(channel_name, '') < num_expected_subscriptions:
-                if patience:
-                    patience -= 1
-                    sleep(0.01)  # How long does it take to subscribe?
-                else:
-                    raise Exception("Couldn't publish to expected number of subscribers "
-                                    "({}, {})".format(name, num_expected_subscriptions))
-
-            sleep(0.001)
+    @staticmethod
+    def is_prompt(event):
+        return isinstance(event, Prompt)
 
     def close(self):
+        unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
+
         for os_process in self.os_processes:
-            for pipeline_id in self.pipeline_ids:
-                name = os_process.application_process_class.__name__.lower()
-                channel_name = make_channel_name(name, pipeline_id)
-                self.redis.publish(channel_name, 'QUIT')
+            os_process.inbox.put('QUIT')
 
         for os_process in self.os_processes:
             os_process.join(timeout=10)
@@ -83,6 +91,7 @@ class Multiprocess(object):
                 os_process.terminate()
 
         self.os_processes = None
+        self.manager = None
 
     def __enter__(self):
         self.start()
@@ -92,11 +101,20 @@ class Multiprocess(object):
         self.close()
 
 
+class Outbox(object):
+    def __init__(self):
+        self.downstream_inboxes = {}
+
+    def put(self, msg):
+        for q in self.downstream_inboxes.values():
+            q.put(msg)
+
+
 class OperatingSystemProcess(multiprocessing.Process):
 
     def __init__(self, application_process_class, upstream_names, pipeline_id=None,
                  poll_interval=DEFAULT_POLL_INTERVAL, notification_log_section_size=None,
-                 pool_size=5, *args, **kwargs):
+                 pool_size=5, inbox=None, outbox=None, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
         self.upstream_names = upstream_names
@@ -105,12 +123,11 @@ class OperatingSystemProcess(multiprocessing.Process):
         self.poll_interval = poll_interval
         self.notification_log_section_size = notification_log_section_size
         self.pool_size = pool_size
+        self.inbox = inbox
+        self.outbox = outbox
 
     def run(self):
-        self.redis = redis.Redis()
-        self.pubsub = self.redis.pubsub()
-
-        # Construct process application.
+        # Construct process application object.
         self.process = self.application_process_class(
             pipeline_id=self.pipeline_id,
             notification_log_section_size=self.notification_log_section_size,
@@ -120,14 +137,7 @@ class OperatingSystemProcess(multiprocessing.Process):
         # Follow upstream notification logs.
         for upstream_name in self.upstream_names:
 
-            # Subscribe to prompts from upstream partition.
-            channel_name = make_channel_name(
-                application_name=upstream_name,
-                pipeline_id=self.pipeline_id
-            )
-            self.pubsub.subscribe(channel_name)
-
-            # Obtain a notification log for the upstream process.
+            # Obtain a notification log object (local or remote) for the upstream process.
             if upstream_name == self.process.name:
                 # Upstream is this process's application,
                 # so use own notification log.
@@ -172,7 +182,6 @@ class OperatingSystemProcess(multiprocessing.Process):
                 # goes down, then it could resume by pulling events from another? Not sure what to do.
                 # External systems could be modelled as commands.
 
-
             # Make the process follow the upstream notification log.
             self.process.follow(upstream_name, notification_log)
 
@@ -203,49 +212,28 @@ class OperatingSystemProcess(multiprocessing.Process):
         # Loop on getting prompts.
         while True:
             # Note, get_message() returns immediately with None if timeout=0.
-            item = self.pubsub.get_message(timeout=self.poll_interval)
-            # Todo: Make the poll interval gradually increase if there only timeouts?
-            if item is None:
-                # Basically, we're polling after each timeout interval.
-                self.process.run()
-            elif item['type'] == 'message':
-                # Identify message, and take appropriate action.
-                if item['data'] == b"QUIT":
-                    self.pubsub.unsubscribe()
+            try:
+                # Todo: Make the poll interval gradually increase if there are only timeouts?
+                item = self.inbox.get(timeout=self.poll_interval)
+
+                if item == 'QUIT':
                     self.process.close()
                     break
+
+                elif isinstance(item, Prompt):
+                    # Basically, we're being prompted by a particular process.
+                    self.process.run(item)
+
                 else:
-                    # Pull from upstream.
-                    channel_name = item['channel'].decode('utf8')
-                    prompt = Prompt(channel_name)
+                    raise Exception("Not supported: {}".format(item))
 
-                    self.process.run(prompt)
-
-                    # Todo: Check the reader position reflects the prompt notification ID? Skip if done.
-                    # Todo: Replace above sleep with check the prompted notification is available (otherwise repeat).
-                    # Todo: Put the notification ID in the prompt?
-                    # Todo: Put the whole notification in the prompt, so if it's the only thing we don't have,
-                    # it can be processed.
-
-            elif item['type'] == 'subscribe':
-                pass
-            elif item['type'] == 'unsubscribe':
-                pass
-
-            else:
-                raise Exception(item)
+            except six.moves.queue.Empty:
+                # Basically, we're polling after a timeout.
+                self.process.run()
 
     def broadcast_prompt(self, prompt):
-        assert isinstance(prompt, Prompt)
-        self.redis.publish(prompt.channel_name, prompt.end_position)
+        self.outbox.put(prompt)
 
     @staticmethod
     def is_prompt(event):
         return isinstance(event, Prompt)
-
-
-    # def run_loop_with_sleep(self):
-    #     while True:
-    #         self.process.run()
-    #         time.sleep(.1)
-

@@ -676,7 +676,7 @@ process?)
     if __name__ == '__main__':
 
         # Start multiprocessing system.
-        with multiprocess:
+        with multiprocess, Orders() as app:
 
             # Create some new orders.
             order_ids = []
@@ -685,44 +685,43 @@ process?)
 
                 for pipeline_id in pipeline_ids:
 
-                    with Orders(pipeline_id=pipeline_id) as app:
+                    app.change_pipeline(pipeline_id)
 
-                        order_id = create_new_order()
-                        order_ids.append(order_id)
+                    order_id = create_new_order()
+                    order_ids.append(order_id)
 
-                        multiprocess.prompt_about('orders', pipeline_id)
+                    time.sleep(0.01)
 
 
             # Wait for orders to be reserved and paid.
-            with Orders() as app:
-                retries = 10 + 10 * num_orders_per_pipeline * len(pipeline_ids)
-                for i, order_id in enumerate(order_ids):
+            retries = 10 + 10 * num_orders_per_pipeline * len(pipeline_ids)
+            for i, order_id in enumerate(order_ids):
 
-                    while not app.repository[order_id].is_reserved:
-                        time.sleep(0.1)
-                        retries -= 1
-                        assert retries, "Failed set order.is_reserved {} ({})".format(order_id, i)
+                while not app.repository[order_id].is_reserved:
+                    time.sleep(0.1)
+                    retries -= 1
+                    assert retries, "Failed set order.is_reserved {} ({})".format(order_id, i)
 
-                    while retries and not app.repository[order_id].is_paid:
-                        time.sleep(0.1)
-                        retries -= 1
-                        assert retries, "Failed set order.is_paid ({})".format(i)
+                while retries and not app.repository[order_id].is_paid:
+                    time.sleep(0.1)
+                    retries -= 1
+                    assert retries, "Failed set order.is_paid ({})".format(i)
 
-                # Calculate timings from event timestamps.
-                orders = [app.repository[oid] for oid in order_ids]
-                first_timestamp = min([o.__created_on__ for o in orders])
-                last_timestamp = max([o.__last_modified__ for o in orders])
-                duration = last_timestamp - first_timestamp
-                rate = len(order_ids) / float(duration)
-                period = 1 / rate
-                print("Orders system processed {} orders in {:.3f}s at rate of {:.1f} "
-                      "orders/s, {:.3f}s each".format(len(order_ids), duration, rate, period))
+            # Calculate timings from event timestamps.
+            orders = [app.repository[oid] for oid in order_ids]
+            first_timestamp = min([o.__created_on__ for o in orders])
+            last_timestamp = max([o.__last_modified__ for o in orders])
+            duration = last_timestamp - first_timestamp
+            rate = len(order_ids) / float(duration)
+            period = 1 / rate
+            print("Orders system processed {} orders in {:.3f}s at rate of {:.1f} "
+                  "orders/s, {:.3f}s each".format(len(order_ids), duration, rate, period))
 
-                # Print min, average, max duration.
-                durations = [o.__last_modified__ - o.__created_on__ for o in orders]
-                print("Min order processing time: {:.3f}s".format(min(durations)))
-                print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
-                print("Max order processing time: {:.3f}s".format(max(durations)))
+            # Print min, average, max duration.
+            durations = [o.__last_modified__ - o.__created_on__ for o in orders]
+            print("Min order processing time: {:.3f}s".format(min(durations)))
+            print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
+            print("Max order processing time: {:.3f}s".format(max(durations)))
 
 In this example, there are no causal dependencies between events in different pipelines.
 Causal dependencies between events in different pipelines could be detected and used to
@@ -756,13 +755,14 @@ for each order, with min and average order processing times of approximately 100
 the transaction in Python to closing the session in Python. So it seems there is room for
 improving performance in future versions of the library.
 
-If most business applications process less than one command per second, one system pipeline
-would probably be sufficient for most situations. However, to process spikes in the demand
+If most business applications process less than one command per second, then one or two
+pipelines would be sufficient for most situations. However, to process spikes in the demand
 without spikes in latency, or if continuous usage gives ten or a hundred times more commands
 per second, then the number of pipelines could be increased accordingly. Eventually with
 this design, the shared database would limit throughput. But since the operations are
 pipelined, the database could be scaled vertically (more CPUs) in proportion to the number
-of pipelines.
+of pipelines. (On "Amazon Prime Day" in 2016, Amazon Inc. sold an estimated 636 items per
+second.)
 
 Although it isn't possible to start processes on remote hosts using Python's
 ``multiprocessing`` library, it is possible to run the system with e.g. pipelines
