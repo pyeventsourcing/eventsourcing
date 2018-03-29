@@ -22,8 +22,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
     def _write_records(self, records, tracking_record=None):
         try:
-            connection = self.session.bind.connect()
-            with connection.begin():
+            with self.session.bind.begin() as connection:
                 if tracking_record:
                     # Add tracking record to session.
                     params = {c: getattr(tracking_record, c) for c in self.tracking_record_field_names}
@@ -82,8 +81,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         except OperationalError as e:
             self.raise_operational_error(e)
 
-        finally:
-            self.session.close()
+        # finally:
+            # self.session.close()
 
     def get_record_table_name(self, record_class):
         return record_class.__table__.name

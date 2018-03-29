@@ -663,7 +663,7 @@ before each test by calling it in the ``setUp()`` method of a test case.
 
     from django.core.management import call_command
 
-    call_command('migrate')
+    call_command('migrate', verbosity=0, interactive=False)
 
 
 So long as a table exists for its record class, the ``DjangoRecordManager``

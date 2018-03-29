@@ -85,24 +85,24 @@ class TestSystem(TestCase):
         # Start multiprocessing system.
         with multiprocess:
 
-            # Create some new orders.
             order_ids = []
 
-            for pipeline_id in pipeline_ids:
+            with Orders(pipeline_id=pipeline_ids[0]) as app:
+                # Create some new orders.
+                for _ in range(num_orders_per_pipeline):
 
-                with Orders(pipeline_id=pipeline_id):
+                    for pipeline_id in pipeline_ids:
 
-                    for _ in range(num_orders_per_pipeline):
+                        app.event_store.record_manager.pipeline_id = pipeline_id
 
                         order_id = create_new_order()
                         order_ids.append(order_id)
 
                         multiprocess.prompt_about('orders', pipeline_id)
-                        time.sleep(0.001)
 
-            # return
-            # Wait for orders to be reserved and paid.
-            with Orders() as app:
+                        time.sleep(0.03)
+
+                # Wait for orders to be reserved and paid.
                 retries = 10 + 10 * num_orders_per_pipeline * len(pipeline_ids)
                 for i, order_id in enumerate(order_ids):
 

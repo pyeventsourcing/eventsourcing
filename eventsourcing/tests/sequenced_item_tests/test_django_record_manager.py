@@ -22,7 +22,7 @@ class DjangoTestCase(TransactionTestCase):
 
     def setUp(self):
         super(DjangoTestCase, self).setUp()
-        call_command('migrate')
+        call_command('migrate', verbosity=0, interactive=False)
 
 
 # @skipIf(six.PY2, 'Django 2.0 does not support Python 2.7')  # using 1.11

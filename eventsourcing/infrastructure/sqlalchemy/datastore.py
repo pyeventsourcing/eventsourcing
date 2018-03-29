@@ -88,8 +88,8 @@ class SQLAlchemyDatastore(Datastore):
             self._session.close()
             self._session = None
         if self._engine:
-            # Call dispose(). Unless sqlite in memory, to avoid error  'stored_events'
-            # table does not exist in projections.rst doc (everything else seems to work).
-            if not self.is_sqlite_in_memory():
+            # Call dispose(), unless sqlite (to avoid error 'stored_events'
+            # table does not exist in projections.rst doc).
+            if not self.is_sqlite():
                 self._engine.dispose()
             self._engine = None

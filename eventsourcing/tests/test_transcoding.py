@@ -43,8 +43,9 @@ class TestObjectJSONEncoder(TestCase):
         self.assertEqual(encoder.encode(value), expect)
 
         value = Object(NAMESPACE_URL)
-        self.assertEqual(value.__class__.__module__, 'eventsourcing.tests.test_transcoding#Object',
-                         "Module does not have full path, Python 2.7 issue with unittest. Run test from root dir")
+        self.assertEqual(value.__class__.__module__, 'eventsourcing.tests.test_transcoding',
+                         "Module does not have full path, Python 2.7 issue with unittest"
+                         " (need to run test from root dir")
         expect = ('{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04fd430c8"}}, '
                   '"topic": "eventsourcing.tests.test_transcoding#Object"}}')
         self.check_encoded_value(encoder, value, expect)
