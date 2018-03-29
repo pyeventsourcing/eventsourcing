@@ -154,31 +154,11 @@ class Process(SimpleApplication):
         except Exception as e:
             raise PromptFailed("{}: {}".format(type(e), str(e)))
 
-    def get_originator(self, event_or_id, use_cache=True):
-        if isinstance(event_or_id, EventWithOriginatorID):
-            originator_id = event_or_id.originator_id
-        else:
-            originator_id = event_or_id
-        assert isinstance(originator_id, UUID), type(originator_id)
-        if use_cache:
-            try:
-                originator = self._cached_entities[originator_id]
-            except KeyError:
-                originator = self.repository[originator_id]
-                self._cached_entities[originator_id] = originator
-        else:
-            originator = self.repository[originator_id]
-        return originator
-
     def construct_event_records(self, aggregates):
-        if aggregates is None:
-            aggregates = []
-        elif not isinstance(aggregates, (list, tuple)):
-            aggregates = [aggregates]
-        event_records = []
-
+        assert isinstance(aggregates, (list, tuple))
         record_manager = self.event_store.record_manager
 
+        event_records = []
         for aggregate in aggregates:
             pending_events = aggregate.__batch_pending_events__()
             sequenced_items = self.event_store.to_sequenced_item(pending_events)

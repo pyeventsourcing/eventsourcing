@@ -17,9 +17,6 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
 
-    def invalidate_max_record_id(self):
-        self._max_record_id = None
-
     def _write_records(self, records, tracking_record=None):
         try:
             with self.session.bind.begin() as connection:
@@ -82,7 +79,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             self.raise_operational_error(e)
 
         # finally:
-            # self.session.close()
+        # self.session.close()
 
     def get_record_table_name(self, record_class):
         return record_class.__table__.name

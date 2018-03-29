@@ -1,6 +1,7 @@
 from unittest import TestCase
+from uuid import uuid4
 
-from eventsourcing.application.process import Process
+from eventsourcing.application.process import Process, RepositoryWrapper
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.events import clear_event_handlers
 
@@ -26,11 +27,15 @@ class TestProcess(TestCase):
         # Check the aggregate has been automatically "moved on".
         self.assertTrue(process.repository[aggregate2.id].moved_on)
 
+        # Check the __contains__ method of the repo wrapper.
+        self.assertTrue(aggregate2.id in RepositoryWrapper(process.repository))
+        self.assertFalse(uuid4() in RepositoryWrapper(process.repository))
+
     def tearDown(self):
         clear_event_handlers()
 
 
-# First example.
+# Example aggregate (used in the test).
 
 class ExampleAggregate(AggregateRoot):
     def __init__(self, **kwargs):

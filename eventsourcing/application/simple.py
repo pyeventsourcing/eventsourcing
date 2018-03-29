@@ -52,11 +52,9 @@ class SimpleApplication(object):
         self.setup_repository()
 
         # Setup a persistence policy.
-        self.persistence_policy = None
-        if persistence_policy is None:
+        self.persistence_policy = persistence_policy
+        if self.persistence_policy is None:
             self.setup_persistence_policy(persist_event_type or type(self).persist_event_type)
-        elif persistence_policy:
-            self.persistence_policy = persistence_policy
 
         # Setup table in database.
         if setup_table and not session:
