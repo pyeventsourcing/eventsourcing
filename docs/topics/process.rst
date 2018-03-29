@@ -2,54 +2,48 @@
 Process and system
 ==================
 
-Process is understood as productive in the following sense: consumption with recording
-determines production. For example, if consumption and recording are reliable, then
-production will be reliable.
-
-The most important concern pursued in this section is to obtain a reliable
-process. A process is reliable if its product is entirely unaffected by sudden
-termination of the process happening at any time ("safety"), except in being delayed
-until the processing is resumed ("liveness"). The other important concerns are
+The most important concern in this is reliability. A process is considered to
+be reliable if its product is entirely unaffected by a sudden termination of the process
+happening at any time, except in being delayed. The other important concerns are
 maintainability and scalability.
 
-This definition of the reliability of a process doesn't include availability.
-Obviously without any infrastructure, the processing will be delayed indefinitely.
-Infrastructure unreliability may cause processing delays but disorderly environments
-shouldn't cause disorderly processing. The product, whenever obtained, should be invariant
-to infrastructure failures unless the specific purpose of the process is to
-record infrastructure failures. Of course, the availability of infrastructure
-inherently limits the availability of the product. Nevertheless, the availability
-of infrastructure is beyond the scope of this discussion.
+The only trick here that process is understood in the following way: consumption with
+recording determines production. In particular, if consumption and recording are both
+reliable, then the product will also be reliable.
 
-To limit the scope a little bit further, it is assumed here that whatever records
-have been committed by a process will not somehow be damaged by a sudden termination
-of the process. Just like an egg is not a chicken, a record is not a process, and
-so the reliability of records is beyond the scope of this discussion.
+This definition of the reliability of a process ("safety") doesn't include availability
+("liveness"). Infrastructure unreliability may cause processing delays, but disorderly
+environments shouldn't cause disorderly processing.
 
-To limit this discussion about process reliability even further, the reliability
-of the event processing described below is a separate concern from any programming
-errors in the policies, or aggregates, of a process application, errors that may define
-pathological behaviour.
+
+.. To limit this discussion even further, any programming errors in the policies or
+.. aggregates of a process that may inadvertently define pathological behaviour are
+.. considered to be a separate concern.
 
 .. contents:: :local:
 
 
 Please note, the library code presented in the example below currently only works
-with the library's SQLAlchemy record manager. Django support is planned, Cassandra
+with the library's SQLAlchemy record manager. Django support is planned. Cassandra
 support is being considered but will probably be restricted to processes similar
 to replication or translation that will write one record for each event notification
 received, and use that record as tracking record, event record, and notification
 log record, due to the limited atomicity of Cassandra's lightweight transactions.
 
-
 Process application
 -------------------
 
-The library's process application class ``Process`` functions as both an event-sourced projection
-(see previous section) and as an event-sourced application. It is a subclass of
-``SimpleApplication`` that also has notification log readers and tracking records. A process
-application also has a policy that defines how the process application responds to domain events
-it receives from its notification log readers.
+The library's process application class ``Process`` functions both as an
+event-sourced projection (see previous section) and as an event-sourced
+application. It is a subclass of ``SimpleApplication`` that also has
+notification log readers and tracking records.
+
+As well an event sourced repository for aggregates, a process application
+also has a policy that defines how the process application responds to the
+domain events it will receive from its notification log readers.
+
+Notification tracking
+~~~~~~~~~~~~~~~~~~~~~
 
 A process application consumes events by reading event notifications from its notification
 log readers. The events are retrieved in a reliable order, without race conditions or
@@ -61,67 +55,78 @@ determine how far the process has progressed through the notification log. Track
 records are used to set the position of the notification log reader when the process
 is commenced or resumed.
 
+New domain events
+~~~~~~~~~~~~~~~~~
+
 A process application will respond to events according to its policy. Its policy might
 do nothing in response to one type of event, and it might call an aggregate method in
-response to another type of event.
+response to another type of event. The aggregate method may trigger new domain events.
 
-No matter how the policy responds to an event, the process application will write a
-tracking record, along with any new event records, in an atomic database transaction.
-Because the recording is atomic, the process can proceed atomically.
-
-If some of the new records can't be written, then none are. If anything
-goes wrong before all the records have been written, the transaction will rollback, and none
-of the records will be written. If none of the records have been written, the process has
-not progressed. On the other hand, if the tracking record has been written, then so will
-any new event records, and the process will have fully completed an atomic progression.
-
-Furthermore, there can only be one unique tracking record for each notification.
-Once the tracking record has been written it can't be written again, and neither can
+There can only be one (unique) tracking record for each notification.
+So once the tracking record has been written it can't be written again, and neither can
 any new events unfortunately triggered by duplicate calls to aggregate commands (which
 may even succeed and which may not be idempotent). If an event can be processed at all,
 then it will be processed exactly once.
 
-A ratchet is as strong as its teeth and pawl. Similarly, a process application is
-as reliable as the atomicity of its database transactions. The atomicity of the
-database transactions guarantees separately the reliability of both the upstream
-notification log (teeth) and the downstream tracking records (pawl). The atomicity
-of the recording and consumption determines the production as atomic: a continuous
-stream of events is processed in discrete, indivisible units. Hence, interruptions
-can only cause delays.
+No matter how the policy responds to an event, unless an unhandled exception is raised,
+the process application will write one tracking record, along with any new event records,
+in an atomic database transaction.
+
+
+Atomicity
+~~~~~~~~~
+
+A process application is as reliable as the atomicity of its database transactions,
+just like a ratchet is as strong as its teeth and pawl. The atomicity of the
+database transactions guarantees separately the reliability of both the
+notification log being consumed (teeth) and the notification tracking records (pawl).
+
+The atomicity of the recording and consumption determines the production as atomic:
+a continuous stream of events is processed in discrete, indivisible units. Hence,
+interruptions can only cause delays.
+
+If some of the new records can't be written, then none are. If anything
+goes wrong before all the records have been written, the transaction will abort, and none
+of the records will be written. On the other hand, if a tracking record has been written,
+then so will any new event records, and the process will have fully completed an atomic progression.
+
+It is assumed that whatever records have been committed by a process will not somehow
+be damaged by a sudden termination of the process.
+
 
 System of processes
 -------------------
 
-One process application could follow another in a system of processes. One process could
-follow two other processes in a slightly more complicated system. A process could simply
-follow itself, stepping though state transitions that involve many aggregates. There could
-be a vastly complicated system of processes without introducing any systemically emergent
-unreliability in the processing of the events (it is "absolutely" reliable, there isn't
-somehow a "tolerable" level of unreliability in each process that would eventually
-compound into an intolerable level of unreliability in a complicated system of processes).
+One process application can follow another in a system. One process can
+follow two other processes in a slightly more complicated system. A system could be
+just one process following itself.
 
-In the example below, a system of process applications is defined independently of
-how it may be run. The system of process applications uses a domain model layer with three
-aggregates. Each process application is configured to follow others.
+Scale-independence
+~~~~~~~~~~~~~~~~~~
 
-A multi-process system can be run in a single thread. This is intended as a development mode,
-with synchronous processing of events to make things easier to follow.
+The library's class ``System`` can be used to
+define a system of process applications independently of how it may be run.
 
-A multi-process system can also be run with multiple threads, either in a single
-operating system process, or with multiple operating system processes. In this mode,
-events are processed asynchronously. Different operating system processes could run on the same
-or different machines. This is "diachronic" parallelism, like the way a CPU pipeline
-can finish one instruction per clock cycle, simultaneously executing one instruction
-whilst both decoding the next instruction and fetching the one after that. However, performance
-improvement is limited by the number of stages in the pipeline, and the number of stages is
-defined by the number of processes in the system which is fixed.
+A system of process applications can be run in a single thread, with synchronous propagation
+and processing of events. This is intended as a development mode.
 
-To scale the throughput of a process, we need "synchronic" parallelism, so that many events can
-be processed at the same time. Just like a CPU can have many cores, a multi-process system can
-have many pipelines operating concurrently. Both kinds of parallelism are demonstrated below.
+A system can also be run with multiple operating system processes, with one operating
+system process for each application process, and with asynchronous propagation
+and processing of events. This is "diachronic" parallelism, like the way a CPU pipeline
+has stages, so it can finish one instruction per clock cycle, simultaneously executing
+one instruction, whilst both decoding the next instruction, and fetching the one after
+that. Although this kind of parallelism can improve performance, it benefits us mostly
+with maintainability.
 
-In the example below, the system is firstly run as a single threaded system. Afterwards, the system
-is run with both multiprocessing using a single pipeline, and then also with multiple pipelines.
+To take advantage of "horizontal" and "vertical" scaling of the infrastructure, so that
+the throughput of a system may increase linearly, there is "synchronic" parallelism in the
+process applications. Just like a CPU can have many pipelines (cores), a system of process
+applications can have many pipelines running in parallel. Having many pipelines means that
+many events can be processed at the same stage at the same time.
+
+In example below, the "orders, reservations, payments" system is run: firstly
+as a single threaded system; then with multiprocessing using a single pipeline;
+and finally with both multiprocessing and multiple pipelines.
 
 
 Kahn process networks
@@ -133,7 +138,7 @@ determinate process applications can be recognised as a `Kahn Process Network
 
 Kahn Process Networks are determinate systems. If a system of process applications
 happens to involve processes that are not determinate, or if the processes split and
-combine or feedback in a random way, so that nondeterminacy is introduced by design,
+combine or feedback in a random way so that nondeterminacy is introduced by design,
 the system as a whole will not be determinate, and could be described in more general
 terms as "dataflow" or "stream processing".
 
@@ -613,8 +618,7 @@ the flow through the system. Wait for the results by polling the aggregate state
 
     if __name__ == '__main__':
 
-        # Start multiprocessing system, and Orders application.
-        with multiprocess, Orders() as app:
+        with Orders(setup_tables=True) as app, multiprocess:
 
             retries = 50
             while not app.repository[order_id].is_reserved:
@@ -675,8 +679,7 @@ process?)
 
     if __name__ == '__main__':
 
-        # Start multiprocessing system.
-        with multiprocess, Orders() as app:
+        with Orders(setup_tables=True) as app, multiprocess:
 
             # Create some new orders.
             order_ids = []
@@ -689,8 +692,6 @@ process?)
 
                     order_id = create_new_order()
                     order_ids.append(order_id)
-
-                    time.sleep(0.01)
 
 
             # Wait for orders to be reserved and paid.
@@ -709,13 +710,16 @@ process?)
 
             # Calculate timings from event timestamps.
             orders = [app.repository[oid] for oid in order_ids]
-            first_timestamp = min([o.__created_on__ for o in orders])
-            last_timestamp = max([o.__last_modified__ for o in orders])
-            duration = last_timestamp - first_timestamp
+            min_created_on = min([o.__created_on__ for o in orders])
+            max_created_on = max([o.__created_on__ for o in orders])
+            max_last_modified = max([o.__last_modified__ for o in orders])
+            create_duration = max_created_on - min_created_on
+            duration = max_last_modified - min_created_on
             rate = len(order_ids) / float(duration)
             period = 1 / rate
-            print("Orders system processed {} orders in {:.3f}s at rate of {:.1f} "
-                  "orders/s, {:.3f}s each".format(len(order_ids), duration, rate, period))
+            print("Orders created rate: {:.1f} order/s".format((len(order_ids) - 1) / create_duration))
+            print("Orders processed: {} orders in {:.3f}s at rate of {:.1f} "
+                  "orders/s, {:.3f}s each".format((len(order_ids) - 1), duration, rate, period))
 
             # Print min, average, max duration.
             durations = [o.__last_modified__ - o.__created_on__ for o in orders]
