@@ -7,7 +7,7 @@ be reliable if its product is entirely unaffected by a sudden termination of the
 happening at any time, except in being delayed. The other important concerns are
 scalability and maintainability.
 
-The only trick here that process is understood in the following way: consumption with
+The only trick here is that process is understood in the following way: consumption with
 recording determines production. In particular, if consumption and recording are both
 reliable, then the product will also be reliable.
 
@@ -347,7 +347,13 @@ been called.
 Tests
 -----
 
-The policies are easy to test. Here's a test for the payments policy.
+The policies are easy to test. In the payments process policy test below, a
+new ``Payment`` is created by the policy in response to a ``Order.Reserved``
+event.
+
+The new aggregate is returned by the policy. Policies should normally return
+new aggregates to the caller, but do not need to return existing aggregates
+that have been accessed or changed.
 
 .. code:: python
 
@@ -368,43 +374,44 @@ The policies are easy to test. Here's a test for the payments policy.
     # Run the test.
     test_payments_policy()
 
-
-In this test, a new aggregate is created by the policy, and checked by the test.
-The test is able to check the new aggregate because the new aggregate is returned
-by the policy. Policies should normally return new aggregates to the caller.
-Remember, do not call the ``__save__()`` method of aggregates in a process policy:
-pending events will be collected after the ``policy()`` method has returned.
-
-Please note, although it is necessary to return new aggregates, if a policy
-retrieves and changes an already existing aggregate, the aggregate does
-not need to be returned by the policy to the caller. The ``Process`` can detect
-which aggregates were used from the repository, and these aggregates can be
-examined for pending events. It isn't necessary to return changed aggregates
-for testing purposes, since the test will already have a reference to the
-aggregate, because it will have constructed the aggregate before passing it
-to the policy, so the test will already be in a good position to check already
-existing aggregates are changed by the policy as expected.
-
-The policy should never call aggregate ``__save__()`` methods, because events will not
-be committed atomically with the tracking record, and so the processing will not be
-reliable. To be reliable, a process application needs to commit events atomically with
+Please note, the ``__save__()`` method of aggregates should never be called in a process policy,
+because pending events will be collected by the process after the ``policy()`` method
+has returned. To be reliable, a process application needs to commit events atomically with
 a tracking record, and calling ``__save__()`` will commit new events in a separate
-transaction. To explain a little bit, in normal use, when new events are retrieved
-from an upstream notification log, the ``policy()`` method is called by the
-``call_policy()`` method of the ``Process`` class. The ``call_policy()`` method wraps
-the process application's aggregate repository with a wrapper that detects which
-aggregates are used by the policy, and calls the ``policy()`` method with the events
-and the wrapped repository. New aggregates returned by the policy are appended
-to this list. New events are collected from this list of aggregates by getting
-any (and all) pending events. The records are then committed atomically with the
-tracking record. Calling ``__save__()`` will avoid the new events being included
-in this mechanism and will spoil the reliability of the process. As a rule, don't
-ever call the ``__save__()`` method of new or changed aggregates in a process
-application policy. And always use the given ``repository`` to retrieve aggregates,
-rather than the original process application's repository (``self.repository``)
-which doesn't detect which aggregates were used when your policy was called.
+transaction.
 
-Anyway, here's a test for the orders policy, at least the half that responds to a
+A ``repository`` is given to the process application policy, as well as
+an event. In a process application policy, always use the given repository object to
+access existing aggregates (don't use ``self.repository``) so that changes and causal
+dependencies can be automatically detected by the process application. The test
+passes a ``fake_repository`` which contains the existing order expected by the policy.
+
+Although it is necessary to return new aggregates, if a policy
+retrieves and changes an already existing aggregate, the aggregate does
+not need to be returned by the policy to the caller. The ``Process`` gives the
+policy a wrapped version of its repository, so it can detect which aggregates
+were used. These aggregates are examined for pending events. It isn't necessary
+to return changed aggregates for testing purposes either, since the test will
+already have a reference to the aggregate, it will have constructed the aggregate
+before passing it to the policy, so the test will already be in a good position to
+check that already existing aggregates are changed by the policy as expected.
+
+.. To explain a little bit, in normal use, when new events are retrieved
+.. from an upstream notification log, the ``policy()`` method is called by the
+.. ``call_policy()`` method of the ``Process`` class. The ``call_policy()`` method wraps
+.. the process application's aggregate repository with a wrapper that detects which
+.. aggregates are used by the policy, and calls the ``policy()`` method with the events
+.. and the wrapped repository. New aggregates returned by the policy are appended
+.. to this list. New events are collected from this list of aggregates by getting
+.. any (and all) pending events. The records are then committed atomically with the
+.. tracking record. Calling ``__save__()`` will avoid the new events being included
+.. in this mechanism and will spoil the reliability of the process. As a rule, don't
+.. ever call the ``__save__()`` method of new or changed aggregates in a process
+.. application policy. And always use the given ``repository`` to retrieve aggregates,
+.. rather than the original process application's repository (``self.repository``)
+.. which doesn't detect which aggregates were used when your policy was called.
+
+Here's a test for the orders policy, at least the half that responds to a
 ``Reservation.Created`` event by setting the order as "reserved". This test shows
 how to test a process application policy that should change an already existing
 aggregate in response to a specific type of event.
@@ -433,11 +440,13 @@ aggregate in response to a specific type of event.
     # Run the test.
     test_orders_policy()
 
+Again, the test passes a ``fake_repository`` which contains the existing
+order expected by the policy.
 
 System
 ------
 
-The system can now be defined as a network of processes that follow each other.
+A system can be defined as a network of processes that follow each other.
 
 In this example, the orders and the reservations processes follow
 each other. Also the payments and the orders processes follow each
@@ -671,9 +680,8 @@ The system can be run with many pipelines. With many pipelines, many events can
 be processed at the same time by each process in the system.
 
 In the example below, there are five pipelines and three process applications, which
-gives fifteen child operating system processes. All fifteen will share the same database.
-Here, pipelines are configured statically.
-
+gives fifteen child operating system processes. All fifteen operating system processes
+will share the same database.
 
 .. code:: python
 
@@ -683,8 +691,6 @@ Here, pipelines are configured statically.
 
     pipeline_ids = [uuid_from_pipeline_name(i) for i in range(num_pipelines)]
 
-    multiprocess = Multiprocess(system, pipeline_ids=pipeline_ids)
-
 
 Twenty-five orders are created in each of the five pipelines, giving one hundred and
 twenty-five orders in total. Please note, when creating the new aggregates, the Orders
@@ -693,21 +699,16 @@ process?)
 
 .. code:: python
 
-    multiprocess = Multiprocess(system, pipeline_ids=pipeline_ids)
-
-    num_orders_per_pipeline = 25
-
     if __name__ == '__main__':
 
-        with Orders(setup_tables=True) as app, multiprocess:
+        with Orders() as app, Multiprocess(system, pipeline_ids=pipeline_ids):
 
-            # Create some new orders.
+            # Create new orders.
             order_ids = []
+            num_orders_per_pipeline = 25
 
             for _ in range(num_orders_per_pipeline):
-
                 for pipeline_id in pipeline_ids:
-
                     app.change_pipeline(pipeline_id)
 
                     order_id = create_new_order()
