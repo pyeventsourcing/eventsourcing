@@ -328,14 +328,10 @@ version of its repository, so it can detect which aggregates were used, and whic
 
 .. code:: python
 
-    from time import sleep
-
-
     class Reservations(Process):
         def policy(self, repository, event):
             if isinstance(event, Order.Created):
                 # Create a reservation.
-                sleep(0.5)
                 return Reservation.create(order_id=event.originator_id)
 
 
@@ -348,7 +344,6 @@ existing aggregates that have been accessed or changed.
         def policy(self, repository, event):
             if isinstance(event, Order.Reserved):
                 # Create a payment.
-                sleep(0.5)
                 return Payment.create(order_id=event.originator_id)
 
 
