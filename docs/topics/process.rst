@@ -676,7 +676,8 @@ be processed at the same time by each process in the system.
 
 In the example below, there are five pipelines and three process applications, which
 gives fifteen child operating system processes. All fifteen operating system processes
-will share the same database.
+will share the same database. It would be possible to run the system with e.g. pipelines
+0-7 on one machine, pipelines 8-15 on another machine, and so on.
 
 .. code:: python
 
@@ -687,10 +688,10 @@ will share the same database.
     pipeline_ids = [uuid_from_pipeline_name(i) for i in range(num_pipelines)]
 
 
-Twenty-five orders are created in each of the five pipelines, giving one hundred and
+Below, twenty-five orders are created in each of the five pipelines, giving one hundred and
 twenty-five orders in total. Please note, when creating the new aggregates, the Orders
-process application needs to be told which pipeline to use. (Todo: Replace with command
-process?)
+process application needs to be told which pipeline to use.
+.. Todo: Replace with command process?
 
 .. code:: python
 
@@ -724,69 +725,66 @@ process?)
                     retries -= 1
                     assert retries, "Failed set order.is_paid ({})".format(i)
 
-            # Calculate timings from event timestamps.
-            orders = [app.repository[oid] for oid in order_ids]
-            min_created_on = min([o.__created_on__ for o in orders])
-            max_created_on = max([o.__created_on__ for o in orders])
-            max_last_modified = max([o.__last_modified__ for o in orders])
-            create_duration = max_created_on - min_created_on
-            duration = max_last_modified - min_created_on
-            rate = len(order_ids) / float(duration)
-            period = 1 / rate
-            print("Orders created rate: {:.1f} order/s".format((len(order_ids) - 1) / create_duration))
-            print("Orders processed: {} orders in {:.3f}s at rate of {:.1f} "
-                  "orders/s, {:.3f}s each".format((len(order_ids) - 1), duration, rate, period))
+..            # Calculate timings from event timestamps.
+..            orders = [app.repository[oid] for oid in order_ids]
+..            min_created_on = min([o.__created_on__ for o in orders])
+..            max_created_on = max([o.__created_on__ for o in orders])
+..            max_last_modified = max([o.__last_modified__ for o in orders])
+..            create_duration = max_created_on - min_created_on
+..            duration = max_last_modified - min_created_on
+..            rate = len(order_ids) / float(duration)
+..            period = 1 / rate
+..            print("Orders created rate: {:.1f} order/s".format((len(order_ids) - 1) / create_duration))
+..            print("Orders processed: {} orders in {:.3f}s at rate of {:.1f} "
+..                  "orders/s, {:.3f}s each".format((len(order_ids) - 1), duration, rate, period))
+..
+..            # Print min, average, max duration.
+..            durations = [o.__last_modified__ - o.__created_on__ for o in orders]
+..            print("Min order processing time: {:.3f}s".format(min(durations)))
+..            print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
+..            print("Max order processing time: {:.3f}s".format(max(durations)))
 
-            # Print min, average, max duration.
-            durations = [o.__last_modified__ - o.__created_on__ for o in orders]
-            print("Min order processing time: {:.3f}s".format(min(durations)))
-            print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
-            print("Max order processing time: {:.3f}s".format(max(durations)))
+.. In this example, there are no causal dependencies between events in different pipelines.
+.. Causal dependencies between events in different pipelines could be detected and used to
+.. synchronise the processing of pipelines downstream, so that downstream processing of one
+.. pipeline can wait for an event to be processed in another. The causal dependencies could
+.. be automatically inferred by detecting the originator ID and version of aggregates as they
+.. are retrieved from the wrapped repository. If the dependencies were notified in a different
+.. pipeline, the originator ID and version could be included in the new notification, so that
+.. downstream can wait for the causal dependencies to be processed before processing the
+.. causally dependent notification. In case there are many dependencies, only the highest
+.. notification of each pipeline would need to be included. Including causal dependencies
+.. within the pipeline would allow the pipeline to be processed in parallel to the extent
+.. that events aren't causally dependent on the immediately preceding events in the same
+.. notification log. (Causal dependencies not implemented, yet.)
 
-In this example, there are no causal dependencies between events in different pipelines.
-Causal dependencies between events in different pipelines could be detected and used to
-synchronise the processing of pipelines downstream, so that downstream processing of one
-pipeline can wait for an event to be processed in another. The causal dependencies could
-be automatically inferred by detecting the originator ID and version of aggregates as they
-are retrieved from the wrapped repository. If the dependencies were notified in a different
-pipeline, the originator ID and version could be included in the new notification, so that
-downstream can wait for the causal dependencies to be processed before processing the
-causally dependent notification. In case there are many dependencies, only the highest
-notification of each pipeline would need to be included. Including causal dependencies
-within the pipeline would allow the pipeline to be processed in parallel to the extent
-that events aren't causally dependent on the immediately preceding events in the same
-notification log. (Causal dependencies not implemented, yet.)
+.. Todo: Causal dependencies.
 
-Since the above policy ``sleep(0.5)`` statements ensure each order takes at least one second
-to process, so varying the number of pipelines and the number of orders demonstrates
-even on a machine with few cores (e.g. my laptop) that processing is truly
-concurrent both across the process applications and across the pipelines of the
-system. (The total processing time for a batch of orders tends towards the duration
-of the longest step, multiplied by the size of the batch, divided by the number of
-pipelines. So the maximum rate of a system is the number of pipelines divided by
-the duration of the longest step. Obviously, the minimum processing time for a single
-order, its total latecy, is equal to the sum of the durations of each step regardless
-of the batch size or the number of pipelines.)
+.. Since the above policy ``sleep(0.5)`` statements ensure each order takes at least one second
+.. to process, so varying the number of pipelines and the number of orders demonstrates
+.. even on a machine with few cores (e.g. my laptop) that processing is truly
+.. concurrent both across the process applications and across the pipelines of the
+.. system. (The total processing time for a batch of orders tends towards the duration
+.. of the longest step, multiplied by the size of the batch, divided by the number of
+.. pipelines. So the maximum rate of a system is the number of pipelines divided by
+.. the duration of the longest step. Obviously, the minimum processing time for a single
+.. order, its total latecy, is equal to the sum of the durations of each step regardless
+.. of the batch size or the number of pipelines.)
 
-Without the ``sleep(0.5)`` statements, the system with its five-step process can process
-on my small laptop about twenty-five orders per second per pipeline, approximately 40ms
-for each order, with min and average order processing times of approximately 100ms and
-150ms for the five steps. The atomic database transaction code takes about 4ms from opening
-the transaction in Python to closing the session in Python. So it seems there is room for
-improving performance in future versions of the library.
+.. Without the ``sleep(0.5)`` statements, the system with its five-step process can process
+.. on my small laptop about twenty-five orders per second per pipeline, approximately 40ms
+.. for each order, with min and average order processing times of approximately 100ms and
+.. 150ms for the five steps. The atomic database transaction code takes about 4ms from opening
+.. the transaction in Python to closing the session in Python. So it seems there is room for
+.. improving performance in future versions of the library.
 
-If most business applications process less than one command per second, then one or two
-pipelines would be sufficient for most situations. However, to process spikes in the demand
-without spikes in latency, or if continuous usage gives ten or a hundred times more commands
-per second, then the number of pipelines could be increased accordingly. Eventually with
-this design, the shared database would limit throughput. But since the operations are
-pipelined, the database could be scaled vertically (more CPUs) in proportion to the number
-of pipelines. (On "Amazon Prime Day" in 2016, Amazon Inc. sold an estimated 636 items per
-second.)
-
-Although it isn't possible to start processes on remote hosts using Python's
-``multiprocessing`` library, it is possible to run the system with e.g. pipelines
-0-7 on one machine, pipelines 8-15 on another machine, and so on.
+.. Most business applications process less than one command per second. However, to process spikes
+.. in the demand without spikes in latency, or if continuous usage gives ten or a hundred
+.. times more commands per second, then the number of pipelines could be increased accordingly.
+.. On "Amazon Prime Day" in 2016, Amazon Inc. sold an estimated 636 items per second.
+.. Eventually with this design, the database would limit throughput. But since the operations
+.. are pipelined, the database could be scaled vertically (more cores and memory) in proportion
+.. to the number of pipelines.
 
 The work of increasing the number of pipelines, and starting new operating system
 processes, could be automated. Also, the cluster scaling could be automated, and
@@ -799,8 +797,8 @@ good foundation for such automation.
 .. There are other ways in which the reliability could be relaxed. Persistence could be
 .. optional. ...
 
-Actor model system
-~~~~~~~~~~~~~~~~~~
+Actor model
+~~~~~~~~~~~
 
 An Actor model library, such as `Thespian Actor Library
 <https://github.com/kquick/Thespian>`__, could be used to run
