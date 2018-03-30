@@ -259,7 +259,7 @@ A ``Payment`` can be made. A payment also has an ``order_id``.
         class Created(Event, AggregateRoot.Created): pass
 
         @classmethod
-        def make(self, order_id):
+        def create(self, order_id):
             return self.__create__(order_id=order_id)
 
 Factory
@@ -344,9 +344,9 @@ existing aggregates that have been accessed or changed.
     class Payments(Process):
         def policy(self, repository, event):
             if isinstance(event, Order.Reserved):
-                # Make a payment.
+                # Create a payment.
                 sleep(0.5)
-                return Payment.make(order_id=event.originator_id)
+                return Payment.create(order_id=event.originator_id)
 
 
 Please note, the ``__save__()`` method of aggregates should never be called in a process policy,
@@ -404,7 +404,7 @@ In the payments policy test below, a new payment is created because an order was
         order = Order.__create__()
         fake_repository[order.id] = order
 
-        # Check policy makes payment whenever order is reserved.
+        # Check policy creates payment whenever order is reserved.
         event = Order.Reserved(originator_id=order.id, originator_version=1)
 
         with Payments() as process:
@@ -493,7 +493,7 @@ other aggregates, steps that would otherwise perhaps be controlled with a
 .. of the system, each aggregate is equally capable of functioning as a saga object,
 .. every policy is capable of functioning as a process manager or workflow.
 .. There doesn't need to be a special mechanism for coding compensating
-.. transactions. If required, a failure (e.g. to make a payment) can be
+.. transactions. If required, a failure (e.g. to create a payment) can be
 .. coded as an event that can processed to reverse previous steps (e.g.
 .. to cancel a reservation).
 
@@ -557,17 +557,17 @@ different databases, upstream notification logs would need to be presented
 in an API, so that downstream could pull notifications using a remote
 notification log object (as discussed in a previous section).
 
-(For those concerned about having too much data in the relational database, it
-would be possible to expand capacity by: replicating events from the relational
-database to a more scalable distributed database; changing the event store to
-read older events from the distributed database if the relational database doesn't
-have those events, and then removing older events and older snapshots from the
-relational database. Snapshotting could be configured to avoid getting
-events from the distributed database for normal operations. The relational database
-could than have a relatively constant  volume of data. Following the analogy
-with CPUs, the relational database might correspond to the L2 cache, and the
-distributed database might correspond to the L3 cache. Please note, this idea
-isn't currently implemented in the library.)
+.. (For those concerned about having too much data in the relational database, it
+.. would be possible to expand capacity by: replicating events from the relational
+.. database to a more scalable distributed database; changing the event store to
+.. read older events from the distributed database if the relational database doesn't
+.. have those events, and then removing older events and older snapshots from the
+.. relational database. Snapshotting could be configured to avoid getting
+.. events from the distributed database for normal operations. The relational database
+.. could than have a relatively constant  volume of data. Following the analogy
+.. with CPUs, the relational database might correspond to the L2 cache, and the
+.. distributed database might correspond to the L3 cache. Please note, this idea
+.. isn't currently implemented in the library.)
 
 In this example, the process applications use a MySQL database, but it works just
 as well with PostgreSQL.
