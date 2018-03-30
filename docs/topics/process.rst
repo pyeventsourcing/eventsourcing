@@ -642,7 +642,7 @@ the flow through the system. Wait for the results by polling the aggregate state
 
     if __name__ == '__main__':
 
-        with Orders(setup_tables=True) as app, multiprocess:
+        with Orders() as app, multiprocess:
 
             retries = 50
             while not app.repository[order_id].is_reserved:
