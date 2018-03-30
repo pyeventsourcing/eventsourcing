@@ -114,27 +114,29 @@ could be just one process following itself.
 Scale-independence
 ~~~~~~~~~~~~~~~~~~
 
+The system can be run at different scales, but the definition of the system is
+independent of scale.
+
 A system of process applications can be run in a single thread, with synchronous propagation
 and processing of events. This is intended as a development mode.
 
-A system can also be run with multiple operating system processes, with one operating
-system process for each application process, and with asynchronous propagation
-and processing of events. This is "diachronic" parallelism, like the way a CPU pipeline
-has stages, so it can finish one instruction per clock cycle, simultaneously executing
-one instruction, whilst both decoding the next instruction, and fetching the one after
-that. Although this kind of parallelism can improve performance, it benefits us mostly
-with maintainability.
+A system can also be run with multiple operating system processes, one operating
+system process for each application process, with asynchronous propagation and
+processing of events. This is "diachronic" parallelism, like the way a pipelined CPU core
+has stages. Having an asynchronous pipeline means events can be processed at different
+stages at the same time. This kind of parallelism can improve performance, but perhaps its
+greatest benefit is the approach to reliable processing a complicated sequence involving
+different aggregates and perhaps different bounded contexts without long-lived transactions.
 
-To take advantage of "horizontal" and "vertical" scaling of the infrastructure, so that
-the throughput of a system may increase linearly, there is "synchronic" parallelism in the
-process applications. Just like a CPU can have many pipelines (cores), a system of process
-applications can have many pipelines running in parallel. Having many pipelines means that
-many events can be processed at the same stage at the same time.
+To take advantage of any "horizontal" or "vertical" scaling of the infrastructure, the system
+needs "synchronic" parallelism so the throughput can be increased linearly. Just like a CPU
+can have many pipelines (cores) running different programs in parallel, a system of process
+applications can be run with many pipelines processing events in parallel. Having many pipelines
+means that many events can be processed at the same stage at the same time.
 
-In example below, the "orders, reservations, payments" system is run: firstly
+In example below the "orders, reservations, payments" system is run: firstly
 as a single threaded system; then with multiprocessing using a single pipeline;
 and finally with both multiprocessing and multiple pipelines.
-
 
 Kahn process networks
 ~~~~~~~~~~~~~~~~~~~~~
