@@ -128,15 +128,11 @@ stages at the same time. This kind of parallelism can improve performance, but p
 greatest benefit is the reliable approach to processing a complicated sequence involving
 different aggregates and perhaps different bounded contexts, without long-lived transactions.
 
-To take advantage of any "horizontal" or "vertical" scaling of the infrastructure, the system
-needs "synchronic" parallelism, so the throughput can be increased linearly. Just like a CPU
-can have many pipelines (cores) running different programs in parallel, a system of process
-applications can be run with many pipelines processing events in parallel. Having many pipelines
-means that many events can be processed at the same stage at the same time.
-
-In example below the "orders, reservations, payments" system is run: firstly
-as a single threaded system; then with multiprocessing using a single pipeline;
-and finally with both multiprocessing and multiple pipelines.
+Just like a CPU can have many pipelines (cores) running different programs in parallel, a
+system of process applications can have many parallel pipelines. Having many pipelines
+means that many events can be processed at the same stage at the same time. This kind of
+"synchronic" parallelism allows the system to take advantage of the "horizontal" and
+"vertical" scale of its infrastructure.
 
 Kahn process networks
 ~~~~~~~~~~~~~~~~~~~~~
@@ -177,9 +173,12 @@ The example below is suggestive of an orders-reservations-payments system.
 The system automatically processes new orders by making a reservation, and
 then a payment; facts that are registered with the order, as they happen.
 
-Please note, the behaviour of the system is entirely defined by the
-combination of the aggregates and the process policies.
+The behaviour of the system is entirely defined by the combination of the
+aggregates and the process policies, and the sequence defined in the system.
 
+The "orders, reservations, payments" system is run: firstly
+as a single threaded system; then with multiprocessing using a single pipeline;
+and finally with both multiprocessing and multiple pipelines.
 
 Aggregates
 ----------
@@ -289,11 +288,14 @@ with simple test cases, without involving any other components.
 Processes
 ---------
 
-Process applications have a policy, that responds to domain events by executing commands.
+A process application has a policy. The policy may respond to a domain
+events by executing a command on an aggregate.
 
-In the code below, the Reservations process responds to new orders, by creating a
-reservation. The Orders process responds to new reservations, by setting an order
-as reserved. The Payments process responds when as order is reserved, by making a payment. The
+In the code below, the Reservations process policy responds to new orders by creating a
+reservation. The Orders process responds to new reservations by setting an order
+as reserved.
+
+The Payments process responds when as order is reserved by making a payment. The
 Orders process responds to new payments, by setting an order as paid.
 
 .. code:: python
@@ -500,11 +502,11 @@ Single threaded
 ~~~~~~~~~~~~~~~
 
 If the ``system`` object is used as a context manager, the process
-applications will be setup to work in the current process. Events
-will be processed with a single thread of execution, with synchronous
-handling of prompts, so that policies effectively call each other
-recursively. This avoids concurrency and is useful when developing
-and testing a system of process applications.
+applications will be setup to work in a single thread in the current
+process. Events will be processed with synchronous handling of prompts,
+so that policies effectively call each other recursively. This avoids
+concurrency and is useful when developing and testing a system of process
+applications, because it runs quickly and the behaviour is easy to follow.
 
 In the code below, the ``system`` object is used as a context manager.
 In that context, a new order is created.
