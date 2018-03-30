@@ -478,10 +478,11 @@ different results at different times, and in consequence the process
 wouldn't be reliable.
 
 In this system, the Orders process, specifically the Order aggregate
-combined with the Orders process policy, could be a "saga", or "process
-manager", or "workflow", in that it can effectively control a sequence
-of steps involving other bounded contexts and other aggregates, steps
-that would otherwise perhaps be controlled with a "long-lived transaction".
+combined with the Orders process policy, could function effectively as a
+"saga", or "process manager", or "workflow", in that it can effectively
+control a sequence of steps involving other bounded contexts and other
+aggregates, steps that might otherwise be controlled with a "long-lived
+transaction".
 
 .. Except for the definition and implementation of process,
 .. there are no special concepts or components. There are only policies and
@@ -684,6 +685,7 @@ will share the same database. It would be possible to run the system with e.g. p
 Below, twenty-five orders are created in each of the five pipelines, giving one hundred and
 twenty-five orders in total. Please note, when creating the new aggregates, the Orders
 process application needs to be told which pipeline to use.
+
 .. Todo: Replace with command process?
 
 .. code:: python
