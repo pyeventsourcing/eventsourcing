@@ -125,11 +125,11 @@ system process for each application process, with asynchronous propagation and
 processing of events. This is "diachronic" parallelism, like the way a pipelined CPU core
 has stages. Having an asynchronous pipeline means events can be processed at different
 stages at the same time. This kind of parallelism can improve performance, but perhaps its
-greatest benefit is the approach to reliable processing a complicated sequence involving
-different aggregates and perhaps different bounded contexts without long-lived transactions.
+greatest benefit is the reliable approach to processing a complicated sequence involving
+different aggregates and perhaps different bounded contexts, without long-lived transactions.
 
 To take advantage of any "horizontal" or "vertical" scaling of the infrastructure, the system
-needs "synchronic" parallelism so the throughput can be increased linearly. Just like a CPU
+needs "synchronic" parallelism, so the throughput can be increased linearly. Just like a CPU
 can have many pipelines (cores) running different programs in parallel, a system of process
 applications can be run with many pipelines processing events in parallel. Having many pipelines
 means that many events can be processed at the same stage at the same time.
@@ -204,26 +204,28 @@ set as paid, which involves a payment ID.
             self.is_reserved = False
             self.is_paid = False
 
-        class Event(AggregateRoot.Event): pass
+        class Event(AggregateRoot.Event):
+            pass
 
-        class Created(Event, AggregateRoot.Created): pass
+        class Created(Event, AggregateRoot.Created):
+            pass
 
         class Reserved(Event):
             def mutate(self, order):
-                assert not order.is_reserved, "Order {} already reserved.".format(order.id)
                 order.is_reserved = True
                 order.reservation_id = self.reservation_id
 
         class Paid(Event):
             def mutate(self, order):
-                assert not order.is_paid, "Order {} already paid.".format(order.id)
                 order.is_paid = True
                 order.payment_id = self.payment_id
 
         def set_is_reserved(self, reservation_id):
+            assert not self.is_reserved, "Order {} already reserved.".format(self.id)
             self.__trigger_event__(Order.Reserved, reservation_id=reservation_id)
 
         def set_is_paid(self, payment_id):
+            assert not self.is_paid, "Order {} already paid.".format(self.id)
             self.__trigger_event__(self.Paid, payment_id=payment_id)
 
 
@@ -236,9 +238,8 @@ A ``Reservation`` can be created. A reservation has an ``order_id``.
             super(Reservation, self).__init__(**kwargs)
             self.order_id = order_id
 
-        class Event(AggregateRoot.Event): pass
-
-        class Created(Event, AggregateRoot.Created): pass
+        class Created(AggregateRoot.Created):
+            pass
 
         @classmethod
         def create(cls, order_id):
@@ -254,9 +255,8 @@ A ``Payment`` can be made. A payment also has an ``order_id``.
             super(Payment, self).__init__(**kwargs)
             self.order_id = order_id
 
-        class Event(AggregateRoot.Event): pass
-
-        class Created(Event, AggregateRoot.Created): pass
+        class Created(AggregateRoot.Created):
+            pass
 
         @classmethod
         def create(self, order_id):
@@ -302,7 +302,7 @@ Orders process responds to new payments, by setting an order as paid.
 
 
     class Orders(Process):
-        persist_event_type=Order.Created
+        persist_event_type=Order.Event
 
         def policy(self, repository, event):
             if isinstance(event, Reservation.Created):
@@ -480,11 +480,10 @@ different results at different times, and in consequence the process
 wouldn't be reliable.
 
 In this system, the Orders process, specifically the Order aggregate
-combined with the Orders process policy, is more or less equivalent to
-"saga", or "process manager", or "workflow", in that it effectively
-controls a sequence of steps involving other bounded contexts and
-other aggregates, steps that would otherwise perhaps be controlled with a
-"long-lived transaction".
+combined with the Orders process policy, could be a "saga", or "process
+manager", or "workflow", in that it can effectively control a sequence
+of steps involving other bounded contexts and other aggregates, steps
+that would otherwise perhaps be controlled with a "long-lived transaction".
 
 .. Except for the definition and implementation of process,
 .. there are no special concepts or components. There are only policies and
@@ -617,24 +616,20 @@ was constructed with ``setup_tables=True``, which is by default ``False`` in the
 class.
 
 The code below uses the library's ``Multiprocess`` class to run the ``system``.
-It will start one operating system process for each process application, which
-gives three child operating system processes.
-
+By default, it starts one operating system process for each process application
+in the system, which in this example will give three child operating system processes.
 
 .. code:: python
 
     from eventsourcing.application.multiprocess import Multiprocess
 
-    multiprocess = Multiprocess(system)
-
-
-The operating system processes are started by using the ``multiprocess``
-object as a context manager. It calls ``start()`` on entry and ``close()``
+The operating system processes can be started by using the ``multiprocess``
+object as a context manager, which calls ``start()`` on entry and ``close()``
 on exit.
 
-The process applications read their upstream notification logs when they
-start, so the ``Order.Created`` event is picked up and processed, causing
-the flow through the system. Wait for the results by polling the aggregate state.
+The process applications read their upstream notification logs when they start,
+so the unprocessed ``Order.Created`` event is picked up and processed immediately.
+Wait for the results by polling the aggregate state.
 
 .. code:: python
 
@@ -642,7 +637,7 @@ the flow through the system. Wait for the results by polling the aggregate state
 
     if __name__ == '__main__':
 
-        with Orders() as app, multiprocess:
+        with Orders() as app, Multiprocess(system):
 
             retries = 50
             while not app.repository[order_id].is_reserved:
