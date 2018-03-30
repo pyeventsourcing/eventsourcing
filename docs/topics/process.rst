@@ -317,12 +317,14 @@ Orders process responds to new payments, by setting an order as paid.
                 assert not order.is_paid
                 order.set_is_paid(event.originator_id)
 
+The ``Orders`` process will persist events of type ``Order.Event``, so that
+orders can be created directly using the factory ``create_new_order()``.
 
-When called, a process policy is given a ``repository`` and an ``event``. Always
-use the given repository to access existing aggregates, so that changes and causal
-dependencies can be automatically detected by the process application. In other words,
-don't use ``self.repository``. The ``Process`` gives the policy a wrapped version of
-its repository, so it can detect which aggregates were used, and which were changed.
+When called, a process policy is given a ``repository`` and an ``event``. In process
+policies, always use the given repository to access existing aggregates, so that
+changes and causal dependencies can be automatically detected by the process application.
+In other words, don't use ``self.repository``. The ``Process`` gives the policy a wrapped
+version of its repository, so it can detect which aggregates were used, and which were changed.
 
 .. code:: python
 
@@ -335,6 +337,7 @@ its repository, so it can detect which aggregates were used, and which were chan
                 # Create a reservation.
                 sleep(0.5)
                 return Reservation.create(order_id=event.originator_id)
+
 
 Policies should normally return new aggregates to the caller, but do not need to return
 existing aggregates that have been accessed or changed.
