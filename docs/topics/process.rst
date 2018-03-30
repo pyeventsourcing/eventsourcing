@@ -12,7 +12,7 @@ recording determines production. In particular, if consumption and recording are
 reliable, then the product will also be reliable.
 
 This definition of the reliability of a process ("safety") doesn't include availability
-("liveness"). Infrastructure unreliability may cause processing delays, but disorderly
+("liveness"). Infrastructure unreliability may cause processing delays. But disorderly
 environments shouldn't cause disorderly processing.
 
 
@@ -29,6 +29,9 @@ support is being considered but will probably be restricted to processes similar
 to replication or translation that will write one record for each event notification
 received, and use that record as tracking record, event record, and notification
 log record, due to the limited atomicity of Cassandra's lightweight transactions.
+
+Overview
+========
 
 Process application
 -------------------
@@ -55,8 +58,8 @@ determine how far the process has progressed through the notification log. Track
 records are used to set the position of the notification log reader when the process
 is commenced or resumed.
 
-New domain events
-~~~~~~~~~~~~~~~~~
+Policies
+~~~~~~~~
 
 A process application will respond to events according to its policy. Its policy might
 do nothing in response to one type of event, and it might call an aggregate method in
@@ -160,8 +163,8 @@ be reliable.
 .. aggregates by replicating those events from the notification log, and just carry
 .. on.
 
-Orders, reservations, payments
-------------------------------
+Example
+=======
 
 The example below is suggestive of an orders-reservations-payments system.
 The system automatically processes new orders by making a reservation, and
@@ -171,7 +174,7 @@ Please note, the behaviour of the system is entirely defined by the
 combination of the aggregates and the process policies.
 
 Aggregates
-~~~~~~~~~~
+----------
 
 In the code below, event-sourced aggregates are defined for orders, reservations,
 and payments. The ``Order`` class is for "orders". The ``Reservation`` class is
@@ -251,6 +254,8 @@ A ``Payment`` can be made. A payment also has an ``order_id``.
         def make(self, order_id):
             return self.__create__(order_id=order_id)
 
+Factory
+-------
 
 The orders factory ``create_new_order()`` is decorated with the ``@retry`` decorator,
 to be resilient against both concurrency conflicts and any operational errors.
@@ -274,7 +279,7 @@ with simple test cases, without involving any other components.
 
 
 Processes
-~~~~~~~~~
+---------
 
 Process applications have a policy, that responds to domain events by executing commands.
 
@@ -331,6 +336,9 @@ Please note, nowhere in these policies is a call made to the ``__save__()``
 method of aggregates, the pending events will be collected and records
 committed automatically by the ``Process`` after the ``policy()`` method has
 been called.
+
+Tests
+-----
 
 The policies are easy to test. Here's a test for the payments policy.
 
@@ -420,7 +428,7 @@ aggregate in response to a specific type of event.
 
 
 System
-~~~~~~
+------
 
 The system can now be defined as a network of processes that follow each other.
 
@@ -474,8 +482,8 @@ other aggregates, steps that would otherwise perhaps be controlled with a
 .. coded as an event that can processed to reverse previous steps (e.g.
 .. to cancel a reservation).
 
-Single threaded system
-----------------------
+Single threaded
+~~~~~~~~~~~~~~~
 
 If the ``system`` object is used as a context manager, the process
 applications will be setup to work in the current process. Events
@@ -507,8 +515,8 @@ order, which can be retrieved from the "orders" repository.
 The process applications above could be run in different threads (not
 yet implemented).
 
-Multiprocessing system
-----------------------
+Multiprocessing
+~~~~~~~~~~~~~~~
 
 The example below shows the system of process applications running in
 different processes on the same node, using the library's ``Multiprocess``
@@ -784,7 +792,7 @@ good foundation for such automation.
 .. optional. ...
 
 Actor model system
-------------------
+~~~~~~~~~~~~~~~~~~
 
 An Actor model library, such as `Thespian Actor Library
 <https://github.com/kquick/Thespian>`__, could be used to run
@@ -917,7 +925,7 @@ Todo: Actor model deployment of system.
 
 
 Integration with APIs
----------------------
+=====================
 
 Integration with systems that present a server API or otherwise need to
 be sent messages (rather than using notification logs), can be integrated by
