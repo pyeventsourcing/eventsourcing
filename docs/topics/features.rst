@@ -27,7 +27,9 @@ the capabilities of this library by implementing snapshots as events.
 
 **Notifications and projections** — reliable propagation of application
 events with pull-based notifications allows the application state to be
-projected accurately into replicas, indexes, and view models.
+projected accurately into replicas, indexes, view models, and other applications.
+
+**Process and systems** — scalable pipelined event processing applications.
 
 **Abstract base classes** — suggest how to structure an event sourced application.
 The library has base classes for application objects, domain entities, entity repositories,

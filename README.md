@@ -12,7 +12,7 @@ Use pip to install the [stable distribution](https://pypi.python.org/pypi/events
 the Python Package Index.
 
     $ pip install eventsourcing
-    
+
 
 Please refer to the [documentation](https://eventsourcing.readthedocs.io/) for installation and usage guides.
 
@@ -51,6 +51,8 @@ the capabilities of this library by implementing snapshots as events.
 events with pull-based notifications allows the application state to be
 projected accurately into replicas, indexes, and view models.
 
+**Process and systems** — scalable pipelined event processing applications.
+
 **Abstract base classes** — suggest how to structure an event sourced application.
 The library has base classes for application objects, domain entities, entity repositories,
 domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
@@ -59,7 +61,7 @@ purposes. If you wanted to create a domain model that is entirely stand-alone (r
 purists for maximum longevity), you might start by replicating the library classes.
 
 **Worked examples** — a simple example application, with an example entity class,
-example domain events, and an example database table. Plus lots of examples in the documentation. 
+example domain events, and an example database table. Plus lots of examples in the documentation.
 
 
 
@@ -79,7 +81,7 @@ class World(AggregateRoot):
 
     def make_it_so(self, something):
         self.__trigger_event__(World.SomethingHappened, what=something)
-    
+
     class SomethingHappened(AggregateRoot.Event):
         def mutate(self, obj):
             obj.history.append(self)
@@ -102,7 +104,7 @@ import os
 # Cipher key (random bytes encoded with Base64).
 os.environ['CIPHER_KEY'] = cipher_key
 
-# SQLAlchemy-style database connection string. 
+# SQLAlchemy-style database connection string.
 os.environ['DB_URI'] = 'sqlite:///:memory:'
 ```
 
@@ -124,13 +126,13 @@ with SimpleApplication(persist_event_type=World.Event) as app:
     # Execute commands.
     world.make_it_so('dinosaurs')
     world.make_it_so('trucks')
-    
+
     # View current state of aggregate object.
     assert world.history[0].what == 'dinosaurs'
     assert world.history[1].what == 'trucks'
 
     # Note version of object at this stage.
-    version = world.__version__ 
+    version = world.__version__
 
     # Execute another command.
     world.make_it_so('internet')
@@ -149,7 +151,7 @@ with SimpleApplication(persist_event_type=World.Event) as app:
     assert copy.history[0].what == 'dinosaurs'
     assert copy.history[1].what == 'trucks'
     assert copy.history[2].what == 'internet'
-    
+
     # Verify retrieved state (cryptographically).
     assert copy.__head__ == world.__head__
 
@@ -195,9 +197,9 @@ with SimpleApplication(persist_event_type=World.Event) as app:
     record_manager = app.event_store.record_manager
     items = record_manager.get_items(world.id)
     for item in items:
-        for what in ['dinosaurs', 'trucks', 'internet']:         
+        for what in ['dinosaurs', 'trucks', 'internet']:
             assert what not in item.state
-        assert world.id == item.originator_id 
+        assert world.id == item.originator_id
 
     # Project application event notifications.
     from eventsourcing.interface.notificationlog import NotificationLogReader
@@ -208,10 +210,10 @@ with SimpleApplication(persist_event_type=World.Event) as app:
     # - create two more aggregates
     world = World.__create__()
     world.__save__()
-    
+
     world = World.__create__()
     world.__save__()
-    
+
     # - get the new event notifications from the reader
     notification_ids = [n['id'] for n in reader.read()]
     assert notification_ids == [6, 7]

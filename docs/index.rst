@@ -46,7 +46,6 @@ Please `register any issues, questions, and requests
    topics/domainmodel
    topics/application
    topics/snapshotting
-   topics/minimal
    topics/notifications
    topics/projections
    topics/process
