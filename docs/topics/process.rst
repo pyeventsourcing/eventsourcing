@@ -291,12 +291,8 @@ Process applications have a policy, that responds to domain events by executing 
 
 In the code below, the Reservations process responds to new orders, by creating a
 reservation. The Orders process responds to new reservations, by setting an order
-as reserved.
-
-The Payments process responds when as order is reserved, by making a payment. The
+as reserved. The Payments process responds when as order is reserved, by making a payment. The
 Orders process responds to new payments, by setting an order as paid.
-
-The library's ``Process`` class is a subclass of the library's ``SimpleApplication`` class.
 
 .. code:: python
 
@@ -322,6 +318,14 @@ The library's ``Process`` class is a subclass of the library's ``SimpleApplicati
                 order.set_is_paid(event.originator_id)
 
 
+When called, a process policy is given a ``repository`` and an ``event``. Always
+use the given repository to access existing aggregates, so that changes and causal
+dependencies can be automatically detected by the process application. In other words,
+don't use ``self.repository``. The ``Process`` gives the policy a wrapped version of
+its repository, so it can detect which aggregates were used, and which were changed.
+
+.. code:: python
+
     class Reservations(Process):
         def policy(self, repository, event):
             if isinstance(event, Order.Created):
@@ -329,6 +333,10 @@ The library's ``Process`` class is a subclass of the library's ``SimpleApplicati
                 sleep(0.5)
                 return Reservation.create(order_id=event.originator_id)
 
+Policies should normally return new aggregates to the caller, but do not need to return
+existing aggregates that have been accessed or changed.
+
+.. code:: python
 
     class Payments(Process):
         def policy(self, repository, event):
@@ -338,30 +346,60 @@ The library's ``Process`` class is a subclass of the library's ``SimpleApplicati
                 return Payment.make(order_id=event.originator_id)
 
 
-Please note, nowhere in these policies is a call made to the ``__save__()``
-method of aggregates, the pending events will be collected and records
-committed automatically by the ``Process`` after the ``policy()`` method has
-been called.
+Please note, the ``__save__()`` method of aggregates should never be called in a process policy,
+because pending events from both new and changed aggregates will be automatically collected by
+the process application after its ``policy()`` method has returned. To be reliable, a process
+application needs to commit all the event records atomically with a tracking record, and calling
+``__save__()`` will instead commit new events in a separate transaction.
 
 
 Tests
 -----
 
-The policies are easy to test. In the payments process policy test below, a
-new ``Payment`` is created by the policy in response to a ``Order.Reserved``
-event.
+Process policies are easy to test.
 
-The new aggregate is returned by the policy. Policies should normally return
-new aggregates to the caller, but do not need to return existing aggregates
-that have been accessed or changed.
+In the orders policy test below, an existing order is marked as reserved because
+a reservation was created.
+
+.. code:: python
+
+    from uuid import uuid4
+
+    def test_orders_policy():
+
+        # Prepare fake repository with a real Order aggregate.
+        fake_repository = {}
+
+        order = Order.__create__()
+        fake_repository[order.id] = order
+
+        # Check order is not reserved.
+        assert not order.is_reserved
+
+        # Process reservation created.
+        with Orders() as process:
+
+            event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
+            process.policy(repository=fake_repository, event=event)
+
+        # Check order is reserved.
+        assert order.is_reserved
+
+
+    # Run the test.
+    test_orders_policy()
+
+In the payments policy test below, a new payment is created because an order was reserved.
 
 .. code:: python
 
     def test_payments_policy():
 
         # Prepare fake repository with a real Order aggregate.
+        fake_repository = {}
+
         order = Order.__create__()
-        fake_repository = {order.id: order}
+        fake_repository[order.id] = order
 
         # Check policy makes payment whenever order is reserved.
         event = Order.Reserved(originator_id=order.id, originator_version=1)
@@ -371,30 +409,16 @@ that have been accessed or changed.
             assert isinstance(payment, Payment), payment
             assert payment.order_id == order.id
 
+
     # Run the test.
     test_payments_policy()
 
-Please note, the ``__save__()`` method of aggregates should never be called in a process policy,
-because pending events will be collected by the process after the ``policy()`` method
-has returned. To be reliable, a process application needs to commit events atomically with
-a tracking record, and calling ``__save__()`` will commit new events in a separate
-transaction.
-
-A ``repository`` is given to the process application policy, as well as
-an event. In a process application policy, always use the given repository object to
-access existing aggregates (don't use ``self.repository``) so that changes and causal
-dependencies can be automatically detected by the process application. The test
-passes a ``fake_repository`` which contains the existing order expected by the policy.
-
-Although it is necessary to return new aggregates, if a policy
-retrieves and changes an already existing aggregate, the aggregate does
-not need to be returned by the policy to the caller. The ``Process`` gives the
-policy a wrapped version of its repository, so it can detect which aggregates
-were used. These aggregates are examined for pending events. It isn't necessary
-to return changed aggregates for testing purposes either, since the test will
-already have a reference to the aggregate, it will have constructed the aggregate
-before passing it to the policy, so the test will already be in a good position to
-check that already existing aggregates are changed by the policy as expected.
+It isn't necessary to return changed aggregates for testing purposes. The test
+will already have a reference to the aggregate, since it will have constructed
+the aggregate before passing it to the policy, so the test will already be in a
+good position to check that already existing aggregates are changed by the policy
+as expected. The test gives a ``fake_repository`` to the policy, which contains
+the ``order`` aggregate expected by the policy.
 
 .. To explain a little bit, in normal use, when new events are retrieved
 .. from an upstream notification log, the ``policy()`` method is called by the
@@ -410,38 +434,6 @@ check that already existing aggregates are changed by the policy as expected.
 .. application policy. And always use the given ``repository`` to retrieve aggregates,
 .. rather than the original process application's repository (``self.repository``)
 .. which doesn't detect which aggregates were used when your policy was called.
-
-Here's a test for the orders policy, at least the half that responds to a
-``Reservation.Created`` event by setting the order as "reserved". This test shows
-how to test a process application policy that should change an already existing
-aggregate in response to a specific type of event.
-
-.. code:: python
-
-    from uuid import uuid4
-
-    def test_orders_policy():
-        # Prepare fake repository with a real Order aggregate.
-        order = Order.__create__()
-        fake_repository = {order.id: order}
-
-        # Check order is not reserved.
-        assert not order.is_reserved
-
-        # Check order is set as reserved when reservation is created for the order.
-        with Orders() as process:
-
-            event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
-            process.policy(repository=fake_repository, event=event)
-
-        # Check order is reserved.
-        assert order.is_reserved
-
-    # Run the test.
-    test_orders_policy()
-
-Again, the test passes a ``fake_repository`` which contains the existing
-order expected by the policy.
 
 System
 ------
