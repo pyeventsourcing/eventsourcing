@@ -439,13 +439,6 @@ System
 
 The system can now be defined as a network of processes that follow each other.
 
-The library's ``System`` class can be constructed with sequences of
-process classes, that show which process follows which other process
-in the system. For example, sequence (A, B, C) shows that B follows A,
-and C follows B. The sequence (A, A) shows that A follows A.
-The sequence (A, B, A) shows that B follows A, and A follows B.
-The sequences ((A, B, A), (A, C, A)) is equivalent to (A, B, A, C, A).
-
 In this example, the orders and the reservations processes follow
 each other. Also the payments and the orders processes follow each
 other. There is no direct relationship between reservations and payments.
@@ -458,6 +451,17 @@ other. There is no direct relationship between reservations and payments.
     system = System(
         (Orders, Reservations, Orders, Payments, Orders),
     )
+
+Although a process class can appear many times, there will only be one
+instance of each process in the system, however each process may
+follow more than one process.
+
+The library's ``System`` class is constructed with sequences of
+process classes. For example, sequence (A, B, C) shows that B
+follows A, and C follows B. The sequence (A, A) shows that A
+follows A. The sequence (A, B, A) shows that B follows A, and
+A follows B. The sequences ((A, B, A), (A, C, A)) is equivalent
+to (A, B, A, C, A).
 
 Please note, aggregates are segregated within an application. Each
 application can only access from its repository the aggregates it
