@@ -30,6 +30,7 @@ to replication or translation that will write one record for each event notifica
 received, and use that record as tracking record, event record, and notification
 log record, due to the limited atomicity of Cassandra's lightweight transactions.
 
+
 Overview
 ========
 
@@ -45,6 +46,7 @@ As well an event sourced repository for aggregates, a process application
 also has a policy that defines how the process application responds to the
 domain events it will receive from its notification log readers.
 
+
 Notification tracking
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -57,6 +59,7 @@ a new tracking record for each event notification it processes. The tracking rec
 determine how far the process has progressed through the notification log. Tracking
 records are used to set the position of the notification log reader when the process
 is commenced or resumed.
+
 
 Policies
 ~~~~~~~~
@@ -81,34 +84,35 @@ Atomicity
 
 A process application is as reliable as the atomicity of its database transactions,
 just like a ratchet is as strong as its teeth and pawl. The atomicity of the
-database transactions guarantees separately the reliability of both the
-notification log being consumed (teeth) and the notification tracking records (pawl).
+database transactions guarantees separately the reliability of both the notification
+log being consumed (teeth) and the notification tracking records (pawl).
+
+If some of the new records can't be written, then none are. If anything goes wrong
+before all the records have been written, the transaction will abort, and none of
+the records will be written. On the other hand, if a tracking record has been written,
+then so will any new event records, and the process will have fully completed an atomic
+progression.
 
 The atomicity of the recording and consumption determines the production as atomic:
 a continuous stream of events is processed in discrete, indivisible units. Hence,
-interruptions can only cause delays.
-
-If some of the new records can't be written, then none are. If anything
-goes wrong before all the records have been written, the transaction will abort, and none
-of the records will be written. On the other hand, if a tracking record has been written,
-then so will any new event records, and the process will have fully completed an atomic progression.
-
-It is assumed that whatever records have been committed by a process will not somehow
-be damaged by a sudden termination of the process.
+interruptions can only cause delays. It is assumed that whatever records have been
+committed by a process will not somehow be damaged by a sudden termination of the
+process.
 
 
 System of processes
 -------------------
 
-One process application can follow another in a system. One process can
-follow two other processes in a slightly more complicated system. A system could be
-just one process following itself.
+The library's class ``System`` can be used to
+define a system of process applications independently of how it may be run.
+
+In a system, one process application can follow another. One process can
+follow two other processes in a slightly more complicated system. A system
+could be just one process following itself.
+
 
 Scale-independence
 ~~~~~~~~~~~~~~~~~~
-
-The library's class ``System`` can be used to
-define a system of process applications independently of how it may be run.
 
 A system of process applications can be run in a single thread, with synchronous propagation
 and processing of events. This is intended as a development mode.
@@ -163,6 +167,7 @@ be reliable.
 .. aggregates by replicating those events from the notification log, and just carry
 .. on.
 
+
 Example
 =======
 
@@ -172,6 +177,7 @@ then a payment; facts that are registered with the order, as they happen.
 
 Please note, the behaviour of the system is entirely defined by the
 combination of the aggregates and the process policies.
+
 
 Aggregates
 ----------
@@ -337,6 +343,7 @@ method of aggregates, the pending events will be collected and records
 committed automatically by the ``Process`` after the ``policy()`` method has
 been called.
 
+
 Tests
 -----
 
@@ -482,6 +489,7 @@ other aggregates, steps that would otherwise perhaps be controlled with a
 .. coded as an event that can processed to reverse previous steps (e.g.
 .. to cancel a reservation).
 
+
 Single threaded
 ~~~~~~~~~~~~~~~
 
@@ -511,9 +519,9 @@ with the order. Everything happens synchronously, in a single thread, so by the 
 the ``create_new_order()`` factory has returned, the system has already processed the
 order, which can be retrieved from the "orders" repository.
 
-
 The process applications above could be run in different threads (not
 yet implemented).
+
 
 Multiprocessing
 ~~~~~~~~~~~~~~~
