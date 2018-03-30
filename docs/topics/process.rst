@@ -296,8 +296,6 @@ Orders process responds to new payments, by setting an order as paid.
 
 .. code:: python
 
-    from time import sleep
-
     from eventsourcing.application.process import Process
 
 
@@ -325,6 +323,9 @@ don't use ``self.repository``. The ``Process`` gives the policy a wrapped versio
 its repository, so it can detect which aggregates were used, and which were changed.
 
 .. code:: python
+
+    from time import sleep
+
 
     class Reservations(Process):
         def policy(self, repository, event):
