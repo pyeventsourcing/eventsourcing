@@ -464,19 +464,19 @@ other. There is no direct relationship between reservations and payments.
 
 
     system = System(
-        (Orders, Reservations, Orders, Payments, Orders),
+        Orders | Reservations | Orders,
+        Orders | Payments | Orders
     )
 
 Although a process class can appear many times, there will only be one
 instance of each process in the system, however each process may
 follow more than one process.
 
-The library's ``System`` class is constructed with sequences of
-process classes. For example, sequence (A, B, C) shows that B
-follows A, and C follows B. The sequence (A, A) shows that A
-follows A. The sequence (A, B, A) shows that B follows A, and
-A follows B. The sequences ((A, B, A), (A, C, A)) is equivalent
-to (A, B, A, C, A).
+The library's ``System`` class is constructed with pipelines of
+process classes. For example, ``A | B | C`` would have ``C``
+following ``B`` and ``B`` following ``A``.  The pipeline ``A | A``
+has that ``A`` following ``A``. The pipelines ``A | B | A, A | C | A`` is equivalent
+to the pipeline ``A | B | A | C | A``.
 
 Please note, aggregates are segregated within an application. Each
 application can only access from its repository the aggregates it

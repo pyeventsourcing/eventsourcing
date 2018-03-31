@@ -1,9 +1,7 @@
 import os
 import time
-from unittest import TestCase, skipIf
+from unittest import TestCase
 from uuid import uuid4
-
-import six
 
 from eventsourcing.application.multiprocess import Multiprocess
 from eventsourcing.application.process import Process, System
@@ -16,11 +14,12 @@ class TestSystem(TestCase):
 
     def test_single_threaded_system(self):
         system = System(
-            (Orders, Reservations, Orders, Payments, Orders),
+            Orders | Reservations | Orders,
+            Orders | Payments | Orders
         )
 
         with system:
-            # Create new Order aggregate.
+        # Create new Order aggregate.
             order_id = create_new_order()
 
             # Check the order is reserved and paid.
@@ -40,7 +39,8 @@ class TestSystem(TestCase):
             assert order_id in app.repository
 
         system = System(
-            (Orders, Reservations, Orders, Payments, Orders),
+            Orders | Reservations | Orders,
+            Orders | Payments | Orders
         )
 
         multiprocess = Multiprocess(system)

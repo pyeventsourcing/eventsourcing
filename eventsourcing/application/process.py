@@ -1,11 +1,11 @@
 from collections import OrderedDict, defaultdict
-from uuid import UUID
 
 import six
+from six import with_metaclass
 
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.domain.model.events import EventWithOriginatorID, publish, subscribe, unsubscribe
+from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import OperationalError, PromptFailed, RecordConflictError
 from eventsourcing.infrastructure.base import RelationalRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
@@ -14,7 +14,35 @@ from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.utils.uuids import uuid_from_application_name
 
 
-class Process(SimpleApplication):
+class Pipeline(object):
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+    def __or__(self, other):
+        return Pipeline(self, other)
+
+    def __iter__(self):
+        for term in (self.left, self.right):
+            if isinstance(term, Pipeline):
+                for item in term:
+                    yield item
+            else:
+                assert issubclass(term, Process), term
+                yield term
+
+
+class PipeableMetaclass(type):
+
+    def __or__(self, other):
+        return Pipeline(self, other)
+
+
+class Pipeable(with_metaclass(PipeableMetaclass)):
+    pass
+
+
+class Process(Pipeable, SimpleApplication):
     tracking_record_manager_class = TrackingRecordManager
 
     def __init__(self, name=None, policy=None, setup_tables=False, setup_table=False, session=None,
@@ -216,35 +244,34 @@ class Prompt(object):
 
 
 class System(object):
-    def __init__(self, *definition):
+    def __init__(self, *pipelines):
         """
         Initialises a "process network" system object.
 
-        :param definition: Sequences of process classes.
+        :param pipelines: Pipelines of process classes.
 
-        Each sequence of process classes shows directly which process
+        Each pipeline of process classes shows directly which process
         follows which other process in the system.
 
-        For example, the sequence (A, B, C) shows that B follows A,
+        For example, the pipeline (A | B | C) shows that B follows A,
         and C follows B.
 
-        The sequence (A, A) shows that A follows A.
+        The pipeline (A | A) shows that A follows A.
 
-        The sequence (A, B, A) shows that B follows A, and A follows B.
+        The pipeline (A | B | A) shows that B follows A, and A follows B.
 
-        The sequences ((A, B, A), (A, C, A)) is equivalent to (A, B, A, C, A).
+        The pipelines ((A | B | A), (A | C | A)) is equivalent to (A | B | A | C | A).
         """
+        self.pipelines = pipelines
+        self.process_classes = set([c for l in self.pipelines for c in l])
         self.processes_by_name = None
         self.is_session_shared = True
-        self.definition = definition
-        assert isinstance(self.definition, (list, tuple))
-        self.process_classes = set([c for l in self.definition for c in l])
 
         # Determine which process follows which.
         self.followings = OrderedDict()
-        for sequence in self.definition:
+        for pipeline in self.pipelines:
             previous = None
-            for process_class in sequence:
+            for process_class in pipeline:
                 assert issubclass(process_class, Process), process_class
                 if previous is not None:
                     # Follower follows the followed.
