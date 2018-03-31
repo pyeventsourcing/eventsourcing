@@ -2,14 +2,19 @@
 Process and system
 ==================
 
+This section is about process applications. A process application is
+a projection that also work as an event sourced application. A system
+of process applications can be constructed by placing the process
+applications in a pipeline.
+
 Reliability is the most important concern in this section. A process is considered to
 be reliable if its product is entirely unaffected by a sudden termination of the process
 happening at any time, except in being delayed. The other important concerns are
 scalability and maintainability.
 
-The only trick here is that process is understood in the following way: consumption with
-recording determines production. In particular, if consumption and recording are both
-reliable, then the product will also be reliable.
+The only trick is remembering consumption with recording determines production.
+In particular, if the product of the process must be reliable, then the consumption
+and the recording must be reliable.
 
 This definition of the reliability of a process ("safety") doesn't include availability
 ("liveness"). Infrastructure unreliability may cause processing delays. But disorderly
@@ -42,9 +47,8 @@ event-sourced projection (see previous section) and as an event-sourced
 application. It is a subclass of ``SimpleApplication`` that also has
 notification log readers and tracking records.
 
-As well an event sourced repository for aggregates, a process application
-also has a policy that defines how the process application responds to the
-domain events it will receive from its notification log readers.
+A process application also has a policy that defines how the process application
+responds to the domain events it will receive from its notification log readers.
 
 
 Notification tracking
@@ -68,15 +72,14 @@ A process application will respond to events according to its policy. Its policy
 do nothing in response to one type of event, and it might call an aggregate method in
 response to another type of event. The aggregate method may trigger new domain events.
 
-There can only be one (unique) tracking record for each notification.
-So once the tracking record has been written it can't be written again, and neither can
-any new events unfortunately triggered by duplicate calls to aggregate commands (which
-may even succeed and which may not be idempotent). If an event can be processed at all,
-then it will be processed exactly once.
+There can only be one tracking record for each notification. So once the tracking record
+has been written it can't be written again, and neither can any new events unfortunately
+triggered by duplicate calls to aggregate commands (which may even succeed and which may
+not be idempotent). If an event can be processed at all, then it will be processed exactly
+once.
 
-No matter how the policy responds to an event, unless an unhandled exception is raised,
-the process application will write one tracking record, along with any new event records,
-in an atomic database transaction.
+However the policy responds to an event, the process application will write one tracking
+record, along with any new event records, in an atomic database transaction.
 
 
 Atomicity
@@ -120,19 +123,27 @@ independent of scale.
 A system of process applications can be run in a single thread, with synchronous propagation
 and processing of events. This is intended as a development mode.
 
-A system can also be run with multiple operating system processes, one operating
-system process for each application process, with asynchronous propagation and
-processing of events. This is "diachronic" parallelism, like the way a pipelined CPU core
-has stages. Having an asynchronous pipeline means events can be processed at different
-stages at the same time. This kind of parallelism can improve performance, but perhaps its
-greatest benefit is the reliable approach to processing a complicated sequence involving
-different aggregates and perhaps different bounded contexts, without long-lived transactions.
+A system can also be run with multiple operating system processes, with asynchronous
+propagation and processing of events. This is "diachronic" parallelism, like the way
+a pipelined CPU core has stages. Having an asynchronous pipeline means events at
+different stages can be processed at the same time. This kind of parallelism can
+improve performance, but perhaps its greatest benefit is the reliable foundation for
+writing a "saga" or a "process managers", for accomplishing a complicated sequence
+involving different aggregates and perhaps different bounded contexts without
+long-lived transactions.
 
 Just like a CPU can have many pipelines (cores) running different programs in parallel, a
 system of process applications can have many parallel pipelines. Having many pipelines
 means that many events can be processed at the same stage at the same time. This kind of
 "synchronic" parallelism allows the system to take advantage of the "horizontal" and
 "vertical" scale of its infrastructure.
+
+It is possible to run such a syste with one operating system process dedicated to each
+application process for each pipeline (see below). It would be possible to have a pool of
+workers operating on a single of queue prompts, switching application and partition according
+to the prompt (not yet implemented).
+
+
 
 Kahn process networks
 ~~~~~~~~~~~~~~~~~~~~~
@@ -786,8 +797,12 @@ process application needs to be told which pipeline to use.
 The work of increasing the number of pipelines, and starting new operating system
 processes, could be automated. Also, the cluster scaling could be automated, and
 processes distributed automatically across the cluster. Actor model seems like a
-good foundation for such automation.
+good foundation for such automation. (Multiprocessing with pool of workers is not
+yet implemented.)
 
+An alternative to having a thread dedicated to every process application for each pipeline,
+the prompts could be sent to via a queue to a pool of workers, which change pipeline and
+application according to the prompt.
 
 .. Todo: Make option to send event as prompt. Change Process to use event passed as prompt.
 
