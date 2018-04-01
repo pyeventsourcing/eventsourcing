@@ -19,7 +19,7 @@ class TestSystem(TestCase):
         )
 
         with system:
-        # Create new Order aggregate.
+            # Create new Order aggregate.
             order_id = create_new_order()
 
             # Check the order is reserved and paid.
@@ -29,7 +29,7 @@ class TestSystem(TestCase):
 
     def test_multi_process_system(self):
 
-        os.environ['DB_URI'] = 'mysql+pymysql://root:@127.0.0.1/eventsourcing'
+        self.set_db_uri()
 
         with Orders(setup_tables=True) as app:
             # Create a new order.
@@ -64,7 +64,7 @@ class TestSystem(TestCase):
     def test_multi_pipeline(self):
         from eventsourcing.utils.uuids import uuid_from_pipeline_name
 
-        os.environ['DB_URI'] = 'mysql+pymysql://root:@127.0.0.1/eventsourcing'
+        self.set_db_uri()
 
         # Set up the database.
         with Orders(setup_tables=True):
@@ -127,6 +127,14 @@ class TestSystem(TestCase):
             print("Min order processing time: {:.3f}s".format(min(durations)))
             print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
             print("Max order processing time: {:.3f}s".format(max(durations)))
+
+    def set_db_uri(self):
+        host = os.getenv('MYSQL_HOST', '127.0.0.1')
+        user = os.getenv('MYSQL_USER', 'root')
+        password = os.getenv('MYSQL_PASSWORD', '')
+        db_uri = 'mysql+pymysql://{}:{}@{}/eventsourcing'.format(user, password, host)
+        # raise Exception(db_uri)
+        os.environ['DB_URI'] = db_uri
 
     def test_payments_policy(self):
         # Prepare fake repository with a real Order aggregate.

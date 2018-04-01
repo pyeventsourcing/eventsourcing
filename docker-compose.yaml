@@ -1,0 +1,31 @@
+version: '2'
+services:
+    eventsourcing:
+        build: .
+        image: "eventsourcing:latest"
+        volumes:
+            - .:/app
+        links:
+            - cassandra
+            - mysql
+            - redis
+        environment:
+            CASSANDRA_HOSTS: cassandra
+            MYSQL_HOST: mysql
+            MYSQL_USER: eventsourcing
+            MYSQL_PASSWORD: eventsourcing
+            REDIS_HOST: redis
+
+    cassandra:
+        image: "cassandra:latest"
+
+    mysql:
+        image: "mysql:latest"
+        environment:
+          MYSQL_ROOT_PASSWORD: eventsourcing
+          MYSQL_USER: eventsourcing
+          MYSQL_PASSWORD: eventsourcing
+          MYSQL_DATABASE: eventsourcing
+
+    redis:
+        image: "redis:latest"

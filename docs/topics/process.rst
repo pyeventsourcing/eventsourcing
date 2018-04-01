@@ -580,15 +580,16 @@ notification log object (as discussed in a previous section).
 .. distributed database might correspond to the L3 cache. Please note, this idea
 .. isn't currently implemented in the library.)
 
-In this example, the process applications use a MySQL database, but it works just
-as well with PostgreSQL.
+In this example, the process applications use a MySQL database.
 
 .. code:: python
 
     import os
 
-    os.environ['DB_URI'] = 'mysql+pymysql://root:@127.0.0.1/eventsourcing'
-    #os.environ['DB_URI'] = 'postgresql://username:password@localhost:5432/eventsourcing'
+    host = os.getenv('MYSQL_HOST', '127.0.0.1')
+    user = os.getenv('MYSQL_USER', 'root')
+    password = os.getenv('MYSQL_PASSWORD', '')
+    os.environ['DB_URI'] = 'mysql+pymysql://{}:{}@{}/eventsourcing'.format(user, password, host)
 
 
 Single pipeline
