@@ -1,3 +1,8 @@
+# To use this Docker Compose file in PyCharm, just add a new Docker Compose
+# project interpreter, and pick "all_eventsourcing_requirements" as the service. It
+# will take a little while to download and build everything, then all tests should pass.
+# Please note, both MySQL and Cassandra containers need a little while to get started
+# first time the containers are run, so connections might not work immediately.
 version: '2'
 services:
     all_eventsourcing_requirements:
