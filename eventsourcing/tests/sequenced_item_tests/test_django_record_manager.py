@@ -25,10 +25,10 @@ class DjangoTestCase(TransactionTestCase):
         call_command('migrate', verbosity=0, interactive=False)
 
 
-# @skipIf(six.PY2, 'Django 2.0 does not support Python 2.7')  # using 1.11
 class TestDjangoRecordManagerWithIntegerSequences(DjangoTestCase, IntegerSequencedRecordTestCase):
     def construct_record_manager(self):
         return self.construct_entity_record_manager()
+
 
 class TestDjangoRecordManagerWithoutContiguousRecordIDs(DjangoTestCase, IntegerSequencedRecordTestCase):
     contiguous_record_ids = False
