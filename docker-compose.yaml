@@ -1,8 +1,8 @@
 version: '2'
 services:
-    eventsourcing:
+    all_eventsourcing_requirements:
         build: .
-        image: "eventsourcing:latest"
+        image: "eventsourcing_requirements:latest"
         volumes:
             - .:/app
         links:
