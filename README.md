@@ -1,6 +1,6 @@
 # Event Sourcing in Python
 
-[![Latest Release](https://badge.fury.io/py/eventsourcing.svg)](https://pypi.python.org/pypi/eventsourcing)
+[![Latest Release](https://badge.fury.io/py/eventsourcing.svg)](https://pypi.org/project/eventsourcing/)
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg)](https://coveralls.io/github/johnbywater/eventsourcing)
 [![Build Status](https://secure.travis-ci.org/johnbywater/eventsourcing.png)](https://travis-ci.org/johnbywater/eventsourcing)
 
@@ -8,7 +8,7 @@ A library for event sourcing in Python.
 
 ## Installation
 
-Use pip to install the [stable distribution](https://pypi.python.org/pypi/eventsourcing) from
+Use pip to install the [stable distribution](https://pypi.org/project/eventsourcing/) from
 the Python Package Index.
 
     $ pip install eventsourcing
