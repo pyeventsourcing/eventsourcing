@@ -18,6 +18,7 @@ install_requires = singledispatch_requires + [
     'python-dateutil<=2.6.99999',
     'six<=1.11.99999',
     'pycryptodome<=3.4.99999',
+    'requests<=2.18.99999',
 ]
 
 sqlalchemy_requires = [
@@ -35,7 +36,6 @@ django_requires = [  # Note, Django 2 doesn't support Python 2.7
 
 testing_requires = [
     'mock<=2.0.99999',
-    'requests<=2.18.99999',
     'flask<=0.12.99999',
     'flask_sqlalchemy<=2.3.99',
     'uwsgi<=2.0.99999',
