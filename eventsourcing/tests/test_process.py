@@ -31,6 +31,13 @@ class TestProcess(TestCase):
         self.assertTrue(aggregate2.id in RepositoryWrapper(process.repository))
         self.assertFalse(uuid4() in RepositoryWrapper(process.repository))
 
+        # Check the repository wrapper tracks causal dependencies.
+        repository = RepositoryWrapper(process.repository)
+        aggregate2 = repository[aggregate2.id]
+        causal_dependencies = repository.causal_dependencies
+        self.assertEqual(len(causal_dependencies), 1)
+        self.assertEqual((aggregate2.id, aggregate2.__version__), causal_dependencies[0])
+
     def tearDown(self):
         clear_event_handlers()
 

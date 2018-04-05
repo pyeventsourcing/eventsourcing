@@ -223,6 +223,7 @@ class RepositoryWrapper(object):
         self.retrieved_aggregates = {}
         assert isinstance(repository, EventSourcedRepository)
         self.repository = repository
+        self.causal_dependencies = []
 
     def __getitem__(self, entity_id):
         try:
@@ -230,6 +231,7 @@ class RepositoryWrapper(object):
         except KeyError:
             entity = self.repository.__getitem__(entity_id)
             self.retrieved_aggregates[entity_id] = entity
+            self.causal_dependencies.append((entity.id, entity.__version__))
             return entity
 
     def __contains__(self, entity_id):
