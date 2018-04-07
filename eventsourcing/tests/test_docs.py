@@ -5,8 +5,6 @@ from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
 from unittest.case import TestCase
 
-import six
-
 import eventsourcing
 
 base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))

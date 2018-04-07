@@ -36,7 +36,7 @@ class TestProcess(TestCase):
         aggregate2 = repository[aggregate2.id]
         causal_dependencies = repository.causal_dependencies
         self.assertEqual(len(causal_dependencies), 1)
-        self.assertEqual((aggregate2.id, aggregate2.__version__), causal_dependencies[0])
+        self.assertEqual((aggregate2.id, 1), causal_dependencies[0])
 
     def tearDown(self):
         clear_event_handlers()

@@ -6,7 +6,9 @@ import six
 
 from eventsourcing.application.process import Prompt, System
 from eventsourcing.application.simple import DEFAULT_PIPELINE_ID
+from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
+from eventsourcing.exceptions import CausalDependencyFailed
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.uuids import uuid_from_application_name
@@ -204,6 +206,7 @@ class OperatingSystemProcess(multiprocessing.Process):
         finally:
             unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
 
+    @retry(CausalDependencyFailed, max_attempts=100, wait=0.1)
     def loop_on_prompts(self):
 
         # Run once, in case prompts were missed.
@@ -211,7 +214,6 @@ class OperatingSystemProcess(multiprocessing.Process):
 
         # Loop on getting prompts.
         while True:
-            # Note, get_message() returns immediately with None if timeout=0.
             try:
                 # Todo: Make the poll interval gradually increase if there are only timeouts?
                 item = self.inbox.get(timeout=self.poll_interval)

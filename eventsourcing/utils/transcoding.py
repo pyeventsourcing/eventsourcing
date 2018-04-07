@@ -98,7 +98,7 @@ class ObjectJSONDecoder(JSONDecoder):
         return obj
 
 
-def json_dumps(obj, cls):
+def json_dumps(obj, cls=None):
     return dumps(
         obj,
         separators=(',', ':'),
@@ -107,5 +107,5 @@ def json_dumps(obj, cls):
     )
 
 
-def json_loads(s, cls):
+def json_loads(s, cls=None):
     return loads(s, cls=cls)
