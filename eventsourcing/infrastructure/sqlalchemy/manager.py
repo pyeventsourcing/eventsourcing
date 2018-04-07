@@ -154,6 +154,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             yield item
 
     def get_notification(self, sequence_id, eq):
+        # Todo: Optimise query by selecting only two columns: pipeline_id and id (notification ID).
         records = self.get_records(sequence_id, gte=eq, limit=1)
         len_records = len(records)
         if len_records == 0:

@@ -174,13 +174,20 @@ class Process(Pipeable, SimpleApplication):
                 new_aggregates = [new_aggregates]
             all_aggregates += new_aggregates
 
-        causal_dependencies = []
+        highest = defaultdict(int)
         for entity_id, entity_version in repository.causal_dependencies:
             pipeline_id, notification_id = self.event_store.record_manager.get_notification(entity_id, entity_version)
+            if pipeline_id != self.pipeline_id:
+                highest[pipeline_id] = max(notification_id, highest[pipeline_id])
+
+        causal_dependencies = []
+        for pipeline_id, notification_id in highest.items():
             causal_dependencies.append({
-                'notification_id': str(notification_id),
                 'pipeline_id': str(pipeline_id),
+                'notification_id': notification_id
             })
+        # Todo: Optionally reference causal dependencies in current pipeline.
+        # Todo: Support processing notification from a single pipeline in parallel, according to dependencies.
         return all_aggregates, causal_dependencies
 
     def policy(self, repository, event):

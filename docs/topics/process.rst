@@ -756,21 +756,16 @@ process application needs to be told which pipeline to use.
 ..            print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
 ..            print("Max order processing time: {:.3f}s".format(max(durations)))
 
-.. In this example, there are no causal dependencies between events in different pipelines.
-.. Causal dependencies between events in different pipelines could be detected and used to
-.. synchronise the processing of pipelines downstream, so that downstream processing of one
-.. pipeline can wait for an event to be processed in another. The causal dependencies could
-.. be automatically inferred by detecting the originator ID and version of aggregates as they
-.. are retrieved from the wrapped repository. If the dependencies were notified in a different
-.. pipeline, the originator ID and version could be included in the new notification, so that
-.. downstream can wait for the causal dependencies to be processed before processing the
-.. causally dependent notification. In case there are many dependencies, only the highest
-.. notification of each pipeline would need to be included. Including causal dependencies
-.. within the pipeline would allow the pipeline to be processed in parallel to the extent
-.. that events aren't causally dependent on the immediately preceding events in the same
-.. notification log. (Causal dependencies not implemented, yet.)
-
-.. Todo: Causal dependencies.
+In this example, there are no causal dependencies between events in different pipelines.
+However, causal dependencies between events in different pipelines are be detected and used to
+synchronise the processing of pipelines downstream, so that downstream processing of one
+pipeline can wait for an event to be processed in another. The causal dependencies are
+automatically inferred by detecting the originator ID and version of aggregates as they
+are retrieved from the wrapped repository. If the dependencies were notified in a different
+pipeline, the old notification is referenced in the new notification, so that downstream
+can check all causal dependencies have been processed before processing the causally
+dependent notification. In case there are many dependencies, only the newest of the old
+notifications in each pipeline is referenced.
 
 .. Since the above policy ``sleep(0.5)`` statements ensure each order takes at least one second
 .. to process, so varying the number of pipelines and the number of orders demonstrates

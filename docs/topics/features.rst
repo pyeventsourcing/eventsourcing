@@ -29,7 +29,8 @@ the capabilities of this library by implementing snapshots as events.
 events with pull-based notifications allows the application state to be
 projected accurately into replicas, indexes, view models, and other applications.
 
-**Process and systems** — scalable pipelined event processing applications.
+**Process and systems** — scalable event processing with application pipelines. Parallel
+pipelines are synchronised with causal dependencies.
 
 **Abstract base classes** — suggest how to structure an event sourced application.
 The library has base classes for application objects, domain entities, entity repositories,
