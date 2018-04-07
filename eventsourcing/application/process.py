@@ -1,7 +1,9 @@
 from collections import OrderedDict, defaultdict
-from json import JSONDecodeError
 
 import six
+if not six.PY2:
+    from json import JSONDecodeError
+
 from six import with_metaclass
 
 from eventsourcing.application.simple import SimpleApplication
@@ -110,10 +112,13 @@ class Process(Pipeable, SimpleApplication):
                 # Wait for causal dependencies to be satisfied.
                 upstream_causal_dependencies = notification.get('causal_dependencies')
                 if upstream_causal_dependencies is not None:
-                    try:
+                    if six.PY2:
                         upstream_causal_dependencies = json_loads(upstream_causal_dependencies)
-                    except JSONDecodeError:
-                        raise Exception("Couldn't load JSON string: {}".format(notification['causal_dependencies']))
+                    else:
+                        try:
+                            upstream_causal_dependencies = json_loads(upstream_causal_dependencies)
+                        except JSONDecodeError:
+                            raise ValueError("Couldn't load JSON string: {}".format(notification['causal_dependencies']))
                 if upstream_causal_dependencies is None:
                     upstream_causal_dependencies = []
                 for causal_dependency in upstream_causal_dependencies:
