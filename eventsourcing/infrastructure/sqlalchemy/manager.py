@@ -300,7 +300,6 @@ class TrackingRecordManager(AbstractTrackingRecordManager):
         try:
             query.one()
         except (MultipleResultsFound, NoResultFound):
-            # Todo: Test to cover this path.
             return False
         else:
             return True
