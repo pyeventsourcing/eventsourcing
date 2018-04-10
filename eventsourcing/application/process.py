@@ -55,7 +55,7 @@ class Process(Pipeable, SimpleApplication):
         setup_table = setup_tables = setup_table or setup_tables
         super(Process, self).__init__(name=name, setup_table=setup_table, session=session,
                                       persist_event_type=persist_event_type, **kwargs)
-        self._cached_entities = {}
+        # self._cached_entities = {}
         self.policy_func = policy
         self.readers = OrderedDict()
         self.is_reader_position_ok = defaultdict(bool)
@@ -97,7 +97,6 @@ class Process(Pipeable, SimpleApplication):
                 self.set_reader_position_from_tracking_records(reader, upstream_application_name)
                 self.is_reader_position_ok[upstream_application_name] = True
 
-            # for notification in reader.read(advance_by=self.notification_log_section_size):
             for notification in reader.read():
                 # Todo: Put this on a queue and then get the next one.
                 notification_count += 1
@@ -131,7 +130,8 @@ class Process(Pipeable, SimpleApplication):
                             pipeline_id=pipeline_id,
                             notification_id=notification_id
                         ):
-                        # Todo: Write a test that covers this path.
+                        self.is_reader_position_ok[upstream_application_name] = False
+
                         raise CausalDependencyFailed({
                             'application_id': self.application_id,
                             'upstream_application_name': upstream_application_name,
@@ -150,7 +150,7 @@ class Process(Pipeable, SimpleApplication):
                     )
                 except Exception as e:
                     self.is_reader_position_ok[upstream_application_name] = False
-                    self._cached_entities = {}
+                    # self._cached_entities = {}
                     raise e
                 else:
                     # Publish a prompt if there are new notifications.
@@ -196,7 +196,7 @@ class Process(Pipeable, SimpleApplication):
         return all_aggregates, causal_dependencies
 
     def policy(self, repository, event):
-        return self.policy_func(self, repository, event)
+        return self.policy_func(self, repository, event) if self.policy_func is not None else None
 
     def write_records(self, aggregates, notification, upstream_application_name, causal_dependencies):
         # Construct tracking record.

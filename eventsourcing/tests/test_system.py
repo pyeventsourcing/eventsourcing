@@ -157,7 +157,7 @@ class TestSystem(TestCase):
         # Check order is not reserved.
         assert not order.is_reserved
 
-        # Check order is set as reserved when reservation is created for the order.
+        # Reservation created.
         with Orders() as process:
             event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
             process.policy(repository=fake_repository, event=event)
