@@ -112,6 +112,7 @@ def json_dumps(obj, cls=None):
 
 
 def json_loads(s, cls=None):
+    # Python 3 introduces JSONDecodeError.
     if six.PY2:
         return loads(s, cls=cls)
     else:
