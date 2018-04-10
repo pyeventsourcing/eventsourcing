@@ -67,6 +67,7 @@ class TestProcess(TestCase):
         )
 
         # Second event in partition 2.
+        # - it's important this is done in a policy so the causal dependency is identified
         core2.follow('core', core1.notification_log)
         core2.run()
 
