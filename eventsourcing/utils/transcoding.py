@@ -4,6 +4,10 @@ from json import JSONDecoder, JSONEncoder, dumps, loads
 from uuid import UUID
 
 import dateutil.parser
+import six
+
+if not six.PY2:
+    from json import JSONDecodeError
 
 from eventsourcing.utils.topic import get_topic, resolve_topic
 from collections import deque
@@ -108,4 +112,10 @@ def json_dumps(obj, cls=None):
 
 
 def json_loads(s, cls=None):
-    return loads(s, cls=cls)
+    if six.PY2:
+        return loads(s, cls=cls)
+    else:
+        try:
+            return loads(s, cls=cls)
+        except JSONDecodeError:
+            raise ValueError("Couldn't load JSON string: {}".format(s))

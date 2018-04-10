@@ -1,16 +1,12 @@
 from collections import OrderedDict, defaultdict
 
 import six
-if not six.PY2:
-    from json import JSONDecodeError
-
 from six import with_metaclass
 
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
-from eventsourcing.exceptions import OperationalError, PromptFailed, RecordConflictError, TrackingRecordNotFound, \
-    CausalDependencyFailed
+from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, PromptFailed, RecordConflictError
 from eventsourcing.infrastructure.base import RelationalRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sqlalchemy.manager import TrackingRecordManager
@@ -111,13 +107,7 @@ class Process(Pipeable, SimpleApplication):
                 # Wait for causal dependencies to be satisfied.
                 upstream_causal_dependencies = notification.get('causal_dependencies')
                 if upstream_causal_dependencies is not None:
-                    if six.PY2:
-                        upstream_causal_dependencies = json_loads(upstream_causal_dependencies)
-                    else:
-                        try:
-                            upstream_causal_dependencies = json_loads(upstream_causal_dependencies)
-                        except JSONDecodeError:
-                            raise ValueError("Couldn't load JSON string: {}".format(notification['causal_dependencies']))
+                    upstream_causal_dependencies = json_loads(upstream_causal_dependencies)
                 if upstream_causal_dependencies is None:
                     upstream_causal_dependencies = []
                 for causal_dependency in upstream_causal_dependencies:
@@ -125,11 +115,11 @@ class Process(Pipeable, SimpleApplication):
                     notification_id = causal_dependency['notification_id']
 
                     if not self.tracking_record_manager.has_tracking_record(
-                            application_id=self.application_id,
-                            upstream_application_name=upstream_application_name,
-                            pipeline_id=pipeline_id,
-                            notification_id=notification_id
-                        ):
+                        application_id=self.application_id,
+                        upstream_application_name=upstream_application_name,
+                        pipeline_id=pipeline_id,
+                        notification_id=notification_id
+                    ):
                         self.is_reader_position_ok[upstream_application_name] = False
 
                         raise CausalDependencyFailed({
