@@ -144,6 +144,20 @@ workers operating on a single of queue prompts, switching application and partit
 to the prompt (not yet implemented).
 
 
+Causal dependencies
+~~~~~~~~~~~~~~~~~~~
+
+If an aggregate is created and then updated, the second event is causally dependent on
+the first event. Causal dependencies between events are detected and used to synchronise
+the processing of parallel pipelines downstream. Downstream processing of one pipeline
+can wait for an event to be processed in another. The causal dependencies are automatically
+inferred by detecting the originator ID and version of aggregates as they are retrieved.
+The old notification is referenced in the new notification. Downstream can then check all causal
+dependencies have been processed, using its tracking records. As optimisation, in case there
+are many dependencies in the same pipeline, only the newest dependency in each pipeline is
+included. By default in the library, only dependencies in different pipelines are included.
+(If dependencies from all pipelines were included, each pipeline could be processed in parallel.)
+
 
 Kahn process networks
 ~~~~~~~~~~~~~~~~~~~~~
@@ -756,16 +770,7 @@ process application needs to be told which pipeline to use.
 ..            print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
 ..            print("Max order processing time: {:.3f}s".format(max(durations)))
 
-In this example, there are no causal dependencies between events in different pipelines.
-However, causal dependencies between events in different pipelines are be detected and used to
-synchronise the processing of pipelines downstream, so that downstream processing of one
-pipeline can wait for an event to be processed in another. The causal dependencies are
-automatically inferred by detecting the originator ID and version of aggregates as they
-are retrieved from the wrapped repository. If the dependencies were notified in a different
-pipeline, the old notification is referenced in the new notification, so that downstream
-can check all causal dependencies have been processed before processing the causally
-dependent notification. In case there are many dependencies, only the newest of the old
-notifications in each pipeline is referenced.
+
 
 .. Since the above policy ``sleep(0.5)`` statements ensure each order takes at least one second
 .. to process, so varying the number of pipelines and the number of orders demonstrates
@@ -796,12 +801,9 @@ notifications in each pipeline is referenced.
 The work of increasing the number of pipelines, and starting new operating system
 processes, could be automated. Also, the cluster scaling could be automated, and
 processes distributed automatically across the cluster. Actor model seems like a
-good foundation for such automation. (Multiprocessing with pool of workers is not
-yet implemented.)
+good foundation for such automation.
 
-An alternative to having a thread dedicated to every process application for each pipeline,
-the prompts could be sent to via a queue to a pool of workers, which change pipeline and
-application according to the prompt.
+
 
 .. Todo: Make option to send event as prompt. Change Process to use event passed as prompt.
 
@@ -938,7 +940,19 @@ probably be reused.
 (Running a system of process applications with actors is not yet implemented in the library.)
 
 
-Todo: Actor model deployment of system.
+.. Todo: Actor model deployment of system.
+
+
+
+
+Pool of workers
+~~~~~~~~~~~~~~~
+
+An alternative to having a thread dedicated to every process application for each pipeline,
+the prompts could be sent to via a queue to a pool of workers, which change pipeline and
+application according to the prompt. Causal dependencies would be needed for all notifications,
+which is not the library default. The library does not currently support processing events with
+a pool of workers.
 
 
 Integration with APIs
