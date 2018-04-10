@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import func
 
-from eventsourcing.exceptions import ProgrammingError
+from eventsourcing.exceptions import ProgrammingError, EventRecordNotFound
 from eventsourcing.infrastructure.base import AbstractTrackingRecordManager, RelationalRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import NotificationTrackingRecord
 from eventsourcing.utils.uuids import uuid_from_application_name
@@ -33,6 +33,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                             params['application_id'] = self.application_id
                         if hasattr(self.record_class, 'pipeline_id'):
                             params['pipeline_id'] = self.pipeline_id
+                        if hasattr(record, 'causal_dependencies'):
+                            params['causal_dependencies'] = record.causal_dependencies
                         connection.execute(self.insert_select_max, **params)
                     else:
                         # Execute "insert values" statement with values from record obj.
@@ -41,6 +43,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                             params['application_id'] = self.application_id
                         if hasattr(self.record_class, 'pipeline_id'):
                             params['pipeline_id'] = self.pipeline_id
+                        if hasattr(record, 'causal_dependencies'):
+                            params['causal_dependencies'] = record.causal_dependencies
 
                         if hasattr(self.record_class, 'id'):
                             if hasattr(self.record_class, 'application_id'):
@@ -96,6 +100,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             field_names.append('application_id')
         if hasattr(record_class, 'pipeline_id') and 'pipeline_id' not in field_names:
             field_names.append('pipeline_id')
+        if hasattr(record_class, 'causal_dependencies') and 'causal_dependencies' not in field_names:
+            field_names.append('causal_dependencies')
         if hasattr(record_class, 'id') and placeholder_for_id and 'id' not in field_names:
             field_names.append('id')
 
@@ -146,6 +152,18 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         )
         for item in six.moves.map(self.from_record, records):
             yield item
+
+    def get_notification(self, sequence_id, eq):
+        # Todo: Optimise query by selecting only two columns: pipeline_id and id (notification ID).
+        records = self.get_records(sequence_id, gte=eq, limit=1)
+        len_records = len(records)
+        if len_records == 0:
+            raise EventRecordNotFound
+        elif len_records > 1:
+            raise EventRecordNotFound("Too many records")
+        else:
+            record = records[0]
+        return record.pipeline_id, record.id
 
     def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                     query_ascending=True, results_ascending=True):
@@ -271,3 +289,17 @@ class TrackingRecordManager(AbstractTrackingRecordManager):
         query = query.filter(self.record_class.upstream_application_id == upstream_application_id)
         query = query.filter(self.record_class.pipeline_id == pipeline_id)
         return query.scalar()
+
+    def has_tracking_record(self, application_id, upstream_application_name, pipeline_id, notification_id):
+        upstream_application_id = uuid_from_application_name(upstream_application_name)
+        query = self.session.query(self.record_class)
+        query = query.filter(self.record_class.application_id == application_id)
+        query = query.filter(self.record_class.upstream_application_id == upstream_application_id)
+        query = query.filter(self.record_class.pipeline_id == pipeline_id)
+        query = query.filter(self.record_class.notification_id == notification_id)
+        try:
+            query.one()
+        except (MultipleResultsFound, NoResultFound):
+            return False
+        else:
+            return True

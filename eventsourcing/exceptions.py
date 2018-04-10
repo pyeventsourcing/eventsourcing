@@ -80,3 +80,12 @@ class OperationalError(EventSourcingError):
 
 class TimeSequenceError(EventSourcingError):
     "Raised when a time sequence error occurs e.g. trying to save a timestamp that already exists."
+
+class TrackingRecordNotFound(EventSourcingError):
+    "Raised when a tracking record is not found."
+
+class CausalDependencyFailed(EventSourcingError):
+    "Raised when a causal dependency fails (after its tracking record not found)."
+
+class EventRecordNotFound(EventSourcingError):
+    "Raised when an event record is not found."

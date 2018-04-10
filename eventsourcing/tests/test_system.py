@@ -8,6 +8,7 @@ from eventsourcing.application.process import Process, System
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import OperationalError, RecordConflictError
+from eventsourcing.tests.test_process import ExampleAggregate
 
 
 class TestSystem(TestCase):
@@ -27,7 +28,26 @@ class TestSystem(TestCase):
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
-    def test_multi_process_system(self):
+    def test_single_multiprocess_system(self):
+        system = System(Examples | Examples)
+
+        self.set_db_uri()
+
+        with Multiprocess(system), Examples() as app:
+            aggregate = ExampleAggregate.__create__()
+            aggregate.__save__()
+
+            assert aggregate.id in app.repository
+
+            # Check the aggregate is moved on.
+            retries = 50
+            while not app.repository[aggregate.id].is_moved_on:
+
+                time.sleep(0.1)
+                retries -= 1
+                assert retries, "Failed to move"
+
+    def test_multi_multiprocess_system(self):
 
         self.set_db_uri()
 
@@ -157,7 +177,7 @@ class TestSystem(TestCase):
         # Check order is not reserved.
         assert not order.is_reserved
 
-        # Check order is set as reserved when reservation is created for the order.
+        # Reservation created.
         with Orders() as process:
             event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
             process.policy(repository=fake_repository, event=event)
@@ -269,3 +289,11 @@ class Payments(Process):
             # Make a payment.
             # sleep(0.5)
             return Payment.make(order_id=event.originator_id)
+
+
+class Examples(Process):
+    persist_event_type = ExampleAggregate.Created
+
+    def policy(self, repository, event):
+        if isinstance(event, ExampleAggregate.Created):
+            repository[event.originator_id].move_on()

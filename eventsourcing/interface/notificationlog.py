@@ -138,6 +138,8 @@ class RecordManagerNotificationLog(LocalNotificationLog):
             notification = {'id': record.id}
             for field_name in self.record_manager.field_names:
                 notification[field_name] = getattr(record, field_name)
+            if hasattr(record, 'causal_dependencies'):
+                notification['causal_dependencies'] = record.causal_dependencies
             notifications.append(notification)
         return notifications
 

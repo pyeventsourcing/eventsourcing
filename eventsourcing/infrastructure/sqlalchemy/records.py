@@ -151,6 +151,9 @@ class StoredEventRecord(Base):
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
 
+    # Causal dependencies.
+    causal_dependencies = Column(Text())
+
     __table_args__ = (
         Index(
             'stored_events_notification_index',

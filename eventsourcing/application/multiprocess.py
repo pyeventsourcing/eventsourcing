@@ -6,7 +6,9 @@ import six
 
 from eventsourcing.application.process import Prompt, System
 from eventsourcing.application.simple import DEFAULT_PIPELINE_ID
+from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
+from eventsourcing.exceptions import CausalDependencyFailed
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.uuids import uuid_from_application_name
@@ -87,8 +89,7 @@ class Multiprocess(object):
             os_process.join(timeout=10)
 
         for os_process in self.os_processes:
-            if os_process.is_alive():
-                os_process.terminate()
+            os_process.is_alive() and os_process.terminate()
 
         self.os_processes = None
         self.manager = None
@@ -188,22 +189,15 @@ class OperatingSystemProcess(multiprocessing.Process):
         # Subscribe to broadcast prompts published by the process application.
         subscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
 
-        # Run a loop.
         try:
-            while True:
-                try:
-                    self.loop_on_prompts()
-                    # self.run_loop_with_sleep()
-                except Exception as e:
-                    print("Exception whilst looping on prompts: {}".format(e))
-                    # Todo: Log this?
-                    raise e
-                else:
-                    break
-
+            self.loop_on_prompts()
+        # except Exception as e:
+        #     # Todo: Put this on an error queue?
+        #     raise e
         finally:
             unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
 
+    @retry(CausalDependencyFailed, max_attempts=100, wait=0.1)
     def loop_on_prompts(self):
 
         # Run once, in case prompts were missed.
@@ -211,7 +205,6 @@ class OperatingSystemProcess(multiprocessing.Process):
 
         # Loop on getting prompts.
         while True:
-            # Note, get_message() returns immediately with None if timeout=0.
             try:
                 # Todo: Make the poll interval gradually increase if there are only timeouts?
                 item = self.inbox.get(timeout=self.poll_interval)
@@ -220,12 +213,8 @@ class OperatingSystemProcess(multiprocessing.Process):
                     self.process.close()
                     break
 
-                elif isinstance(item, Prompt):
-                    # Basically, we're being prompted by a particular process.
-                    self.process.run(item)
-
                 else:
-                    raise Exception("Not supported: {}".format(item))
+                    self.process.run(item)
 
             except six.moves.queue.Empty:
                 # Basically, we're polling after a timeout.

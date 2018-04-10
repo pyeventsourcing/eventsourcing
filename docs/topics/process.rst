@@ -127,7 +127,7 @@ A system can also be run with multiple operating system processes, with asynchro
 propagation and processing of events. This is "diachronic" parallelism, like the way
 a pipelined CPU core has stages. Having an asynchronous pipeline means events at
 different stages can be processed at the same time. This kind of parallelism can
-improve performance, but perhaps its greatest benefit is the reliable foundation for
+improve throughput, but perhaps its greatest benefit is the reliable foundation for
 writing a "saga" or a "process managers", for accomplishing a complicated sequence
 involving different aggregates and perhaps different bounded contexts without
 long-lived transactions.
@@ -468,34 +468,37 @@ other. There is no direct relationship between reservations and payments.
         Orders | Payments | Orders
     )
 
-Although a process class can appear many times, there will only be one
-instance of each process in the system, however each process may
-follow more than one process.
-
 The library's ``System`` class is constructed with pipelines of
 process classes. For example, ``A | B | C`` would have ``C``
 following ``B`` and ``B`` following ``A``.  The pipeline ``A | A``
 has that ``A`` following ``A``. The pipelines ``A | B | A, A | C | A`` is equivalent
 to the pipeline ``A | B | A | C | A``.
 
+Although a process class can appear many times, there will only be one
+instance of each process in the system. Each process may follow more
+than one process. This can be recognised as the "pipes and filters"
+pattern, where the applications function effectively as filters.
+
 Please note, aggregates are segregated within an application. Each
-application can only access from its repository the aggregates it
-has created. For example, an order aggregate created by the orders
-process will not be available in the repositories of the reservations
-and the payments applications.
+application can only access the aggregates it has created. In this example,
+an order aggregate created by the orders process is neither available in the
+repositories of the reservations nor the payments applications.
+This can be recognised as the "bounded context" pattern.
 
-Application state is only propagated between process applications
-in a system through notification logs. If one application could
-use the aggregates of another application, processing could produce
-different results at different times, and in consequence the process
-wouldn't be reliable.
+State is only propagated between applications in a system through
+notification logs only. If one application could use the aggregates
+of another application, processing could produce different results
+at different times, and in consequence the process wouldn't be reliable.
+If necessary, an application can always replicate the state of an
+aggregate within its own context in an application it is following,
+by projecting its events as they are read from the notification log.
 
-In this system, the Orders process, specifically the Order aggregate
+In this example, the Orders process, specifically the Order aggregate
 combined with the Orders process policy, could function effectively as a
-"saga", or "process manager", or "workflow", in that it can effectively
+"saga", or "process manager", or "workflow manager", in that it can effectively
 control a sequence of steps involving other bounded contexts and other
 aggregates, steps that might otherwise be controlled with a "long-lived
-transaction".
+transaction", with errors handled as part of the logic of the application.
 
 .. Except for the definition and implementation of process,
 .. there are no special concepts or components. There are only policies and
@@ -753,21 +756,16 @@ process application needs to be told which pipeline to use.
 ..            print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
 ..            print("Max order processing time: {:.3f}s".format(max(durations)))
 
-.. In this example, there are no causal dependencies between events in different pipelines.
-.. Causal dependencies between events in different pipelines could be detected and used to
-.. synchronise the processing of pipelines downstream, so that downstream processing of one
-.. pipeline can wait for an event to be processed in another. The causal dependencies could
-.. be automatically inferred by detecting the originator ID and version of aggregates as they
-.. are retrieved from the wrapped repository. If the dependencies were notified in a different
-.. pipeline, the originator ID and version could be included in the new notification, so that
-.. downstream can wait for the causal dependencies to be processed before processing the
-.. causally dependent notification. In case there are many dependencies, only the highest
-.. notification of each pipeline would need to be included. Including causal dependencies
-.. within the pipeline would allow the pipeline to be processed in parallel to the extent
-.. that events aren't causally dependent on the immediately preceding events in the same
-.. notification log. (Causal dependencies not implemented, yet.)
-
-.. Todo: Causal dependencies.
+In this example, there are no causal dependencies between events in different pipelines.
+However, causal dependencies between events in different pipelines are be detected and used to
+synchronise the processing of pipelines downstream, so that downstream processing of one
+pipeline can wait for an event to be processed in another. The causal dependencies are
+automatically inferred by detecting the originator ID and version of aggregates as they
+are retrieved from the wrapped repository. If the dependencies were notified in a different
+pipeline, the old notification is referenced in the new notification, so that downstream
+can check all causal dependencies have been processed before processing the causally
+dependent notification. In case there are many dependencies, only the newest of the old
+notifications in each pipeline is referenced.
 
 .. Since the above policy ``sleep(0.5)`` statements ensure each order takes at least one second
 .. to process, so varying the number of pipelines and the number of orders demonstrates

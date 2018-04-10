@@ -6,11 +6,12 @@ from six import with_metaclass
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
-from eventsourcing.exceptions import OperationalError, PromptFailed, RecordConflictError
+from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, PromptFailed, RecordConflictError
 from eventsourcing.infrastructure.base import RelationalRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.sqlalchemy.manager import TrackingRecordManager
 from eventsourcing.interface.notificationlog import NotificationLogReader
+from eventsourcing.utils.transcoding import json_dumps, json_loads
 from eventsourcing.utils.uuids import uuid_from_application_name
 
 
@@ -50,7 +51,7 @@ class Process(Pipeable, SimpleApplication):
         setup_table = setup_tables = setup_table or setup_tables
         super(Process, self).__init__(name=name, setup_table=setup_table, session=session,
                                       persist_event_type=persist_event_type, **kwargs)
-        self._cached_entities = {}
+        # self._cached_entities = {}
         self.policy_func = policy
         self.readers = OrderedDict()
         self.is_reader_position_ok = defaultdict(bool)
@@ -92,7 +93,6 @@ class Process(Pipeable, SimpleApplication):
                 self.set_reader_position_from_tracking_records(reader, upstream_application_name)
                 self.is_reader_position_ok[upstream_application_name] = True
 
-            # for notification in reader.read(advance_by=self.notification_log_section_size):
             for notification in reader.read():
                 # Todo: Put this on a queue and then get the next one.
                 notification_count += 1
@@ -104,6 +104,31 @@ class Process(Pipeable, SimpleApplication):
                     data=notification['state']
                 )
 
+                # Wait for causal dependencies to be satisfied.
+                upstream_causal_dependencies = notification.get('causal_dependencies')
+                if upstream_causal_dependencies is not None:
+                    upstream_causal_dependencies = json_loads(upstream_causal_dependencies)
+                if upstream_causal_dependencies is None:
+                    upstream_causal_dependencies = []
+                for causal_dependency in upstream_causal_dependencies:
+                    pipeline_id = causal_dependency['pipeline_id']
+                    notification_id = causal_dependency['notification_id']
+
+                    if not self.tracking_record_manager.has_tracking_record(
+                        application_id=self.application_id,
+                        upstream_application_name=upstream_application_name,
+                        pipeline_id=pipeline_id,
+                        notification_id=notification_id
+                    ):
+                        self.is_reader_position_ok[upstream_application_name] = False
+
+                        raise CausalDependencyFailed({
+                            'application_id': self.application_id,
+                            'upstream_application_name': upstream_application_name,
+                            'pipeline_id': pipeline_id,
+                            'notification_id': notification_id
+                        })
+
                 # Call policy with the event.
                 unsaved_aggregates, causal_dependencies = self.call_policy(event)
                 # Todo: Also include the received event in the causal dependencies.
@@ -111,11 +136,11 @@ class Process(Pipeable, SimpleApplication):
                 # Write records.
                 try:
                     event_records = self.write_records(
-                        unsaved_aggregates, notification, upstream_application_name
+                        unsaved_aggregates, notification, upstream_application_name, causal_dependencies
                     )
                 except Exception as e:
                     self.is_reader_position_ok[upstream_application_name] = False
-                    self._cached_entities = {}
+                    # self._cached_entities = {}
                     raise e
                 else:
                     # Publish a prompt if there are new notifications.
@@ -136,33 +161,48 @@ class Process(Pipeable, SimpleApplication):
 
     def call_policy(self, event):
         repository = RepositoryWrapper(self.repository)
-        causal_dependencies = []
         new_aggregates = self.policy(repository, event)
-        unsaved_aggregates = list(repository.retrieved_aggregates.values())
+        repo_aggregates = list(repository.retrieved_aggregates.values())
+        all_aggregates = repo_aggregates[:]
         if new_aggregates is not None:
             if not isinstance(new_aggregates, (list, tuple)):
                 new_aggregates = [new_aggregates]
-            unsaved_aggregates += new_aggregates
-        return unsaved_aggregates, causal_dependencies
+            all_aggregates += new_aggregates
+
+        highest = defaultdict(int)
+        for entity_id, entity_version in repository.causal_dependencies:
+            pipeline_id, notification_id = self.event_store.record_manager.get_notification(entity_id, entity_version)
+            if pipeline_id != self.pipeline_id:
+                highest[pipeline_id] = max(notification_id, highest[pipeline_id])
+
+        causal_dependencies = []
+        for pipeline_id, notification_id in highest.items():
+            causal_dependencies.append({
+                'pipeline_id': str(pipeline_id),
+                'notification_id': notification_id
+            })
+        # Todo: Optionally reference causal dependencies in current pipeline.
+        # Todo: Support processing notification from a single pipeline in parallel, according to dependencies.
+        return all_aggregates, causal_dependencies
 
     def policy(self, repository, event):
-        return self.policy_func(self, repository, event)
+        return self.policy_func(self, repository, event) if self.policy_func is not None else None
 
-    def write_records(self, aggregates, notification, upstream_application_name):
+    def write_records(self, aggregates, notification, upstream_application_name, causal_dependencies):
         # Construct tracking record.
         tracking_record = self.construct_tracking_record(notification, upstream_application_name)
 
         # Construct event records.
-        event_records = self.construct_event_records(aggregates)
-
-        # Todo: Optimise by skipping writing lots of solo tracking records.
-        # Todo: - maybe just write one at the end of a run, if necessary, or only once during a period of time when
-        # nothing happens
+        event_records = self.construct_event_records(aggregates, causal_dependencies)
 
         # Write event records with tracking record.
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, RelationalRecordManager)
         record_manager.write_records(records=event_records, tracking_record=tracking_record)
+        # Todo: Maybe optimise by skipping writing lots of solo tracking records
+        # (ie writes that don't have any new events). Maybe just write one at the
+        # end of a run, if necessary, or only once during a period of time when
+        # nothing happens.
 
         return event_records
 
@@ -179,10 +219,12 @@ class Process(Pipeable, SimpleApplication):
         prompt = Prompt(self.name, self.pipeline_id, end_position=end_position)
         try:
             publish(prompt)
+        except PromptFailed:
+            raise
         except Exception as e:
             raise PromptFailed("{}: {}".format(type(e), str(e)))
 
-    def construct_event_records(self, aggregates):
+    def construct_event_records(self, aggregates, causal_dependencies):
         assert isinstance(aggregates, (list, tuple))
         record_manager = self.event_store.record_manager
 
@@ -197,6 +239,12 @@ class Process(Pipeable, SimpleApplication):
         for event_record in event_records:
             current_max += 1
             event_record.id = current_max
+
+        causal_dependencies = json_dumps(causal_dependencies)
+
+        if hasattr(record_manager.record_class, 'causal_dependencies'):
+            for event_record in event_records:
+                event_record.causal_dependencies = causal_dependencies
 
         return event_records
 
@@ -223,6 +271,7 @@ class RepositoryWrapper(object):
         self.retrieved_aggregates = {}
         assert isinstance(repository, EventSourcedRepository)
         self.repository = repository
+        self.causal_dependencies = []
 
     def __getitem__(self, entity_id):
         try:
@@ -230,6 +279,7 @@ class RepositoryWrapper(object):
         except KeyError:
             entity = self.repository.__getitem__(entity_id)
             self.retrieved_aggregates[entity_id] = entity
+            self.causal_dependencies.append((entity.id, entity.__version__))
             return entity
 
     def __contains__(self, entity_id):

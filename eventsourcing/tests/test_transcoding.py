@@ -6,7 +6,7 @@ from uuid import NAMESPACE_URL
 from decimal import Decimal
 
 from eventsourcing.domain.model.events import QualnameABC
-from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
+from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder, json_loads
 from eventsourcing.utils.times import utc_timezone
 
 
@@ -106,6 +106,16 @@ class TestObjectJSONDecoder(TestCase):
                  '"topic": "eventsourcing.tests.test_transcoding#Object"}}')
         expect = Object(NAMESPACE_URL)
         self.assertEqual(decoder.decode(value), expect)
+
+        # Check raises ValueError when JSON string is invalid.
+        with self.assertRaises(ValueError):
+            decoder.decode('{')
+
+    def test_json_loads(self):
+        # Check raises ValueError when JSON string is invalid.
+        with self.assertRaises(ValueError):
+            json_loads('{')
+
 
 
 class Object(QualnameABC):

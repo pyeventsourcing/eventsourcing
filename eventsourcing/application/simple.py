@@ -23,8 +23,8 @@ class SimpleApplication(object):
     persist_event_type = None
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None, uri=None, pool_size=5, session=None,
-                 cipher_key=None, stored_event_record_class=None, setup_table=True, contiguous_record_ids=True,
-                 pipeline_id=None, notification_log_section_size=None):
+                 cipher_key=None, sequenced_item_class=None, stored_event_record_class=None, setup_table=True,
+                 contiguous_record_ids=True, pipeline_id=None, notification_log_section_size=None):
 
         self.notification_log_section_size = notification_log_section_size
         self.name = name or type(self).__name__.lower()
@@ -36,6 +36,7 @@ class SimpleApplication(object):
         self.setup_datastore(session, uri, pool_size)
 
         # Setup the event store.
+        self.sequenced_item_class = sequenced_item_class
         self.stored_event_record_class = stored_event_record_class
         self.contiguous_record_ids = contiguous_record_ids
         self.application_id = uuid_from_application_name(self.name)
@@ -84,6 +85,7 @@ class SimpleApplication(object):
 
     def construct_event_store(self, application_id, pipeline_id):
         return construct_sqlalchemy_eventstore(
+            sequenced_item_class=self.sequenced_item_class,
             session=self.datastore.session,
             cipher=self.cipher,
             record_class=self.stored_event_record_class,
