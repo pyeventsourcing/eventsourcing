@@ -133,7 +133,7 @@ class TestProcess(TestCase):
 class ExampleAggregate(AggregateRoot):
     def __init__(self, **kwargs):
         super(ExampleAggregate, self).__init__(**kwargs)
-        self.moved_on = False
+        self.is_moved_on = False
 
     class Event(AggregateRoot.Event):
         pass
@@ -147,7 +147,7 @@ class ExampleAggregate(AggregateRoot):
     class MovedOn(Event):
         def mutate(self, aggregate):
             assert isinstance(aggregate, ExampleAggregate)
-            aggregate.moved_on = True
+            aggregate.is_moved_on = True
 
 
 def example_policy(process, repository, event):

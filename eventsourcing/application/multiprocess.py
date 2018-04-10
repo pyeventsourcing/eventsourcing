@@ -89,8 +89,7 @@ class Multiprocess(object):
             os_process.join(timeout=10)
 
         for os_process in self.os_processes:
-            if os_process.is_alive():
-                os_process.terminate()
+            os_process.is_alive() and os_process.terminate()
 
         self.os_processes = None
         self.manager = None
@@ -190,19 +189,11 @@ class OperatingSystemProcess(multiprocessing.Process):
         # Subscribe to broadcast prompts published by the process application.
         subscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
 
-        # Run a loop.
         try:
-            while True:
-                try:
-                    self.loop_on_prompts()
-                    # self.run_loop_with_sleep()
-                except Exception as e:
-                    print("Exception whilst looping on prompts: {}".format(e))
-                    # Todo: Log this?
-                    raise e
-                else:
-                    break
-
+            self.loop_on_prompts()
+        # except Exception as e:
+        #     # Todo: Put this on an error queue?
+        #     raise e
         finally:
             unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
 
@@ -222,12 +213,8 @@ class OperatingSystemProcess(multiprocessing.Process):
                     self.process.close()
                     break
 
-                elif isinstance(item, Prompt):
-                    # Basically, we're being prompted by a particular process.
-                    self.process.run(item)
-
                 else:
-                    raise Exception("Not supported: {}".format(item))
+                    self.process.run(item)
 
             except six.moves.queue.Empty:
                 # Basically, we're polling after a timeout.
