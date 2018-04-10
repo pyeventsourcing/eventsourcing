@@ -28,7 +28,7 @@ class TestProcess(TestCase):
         aggregate2.__save__()
 
         # Check the aggregate has been automatically "moved on".
-        self.assertTrue(process.repository[aggregate2.id].moved_on)
+        self.assertTrue(process.repository[aggregate2.id].is_moved_on)
 
         # Check the __contains__ method of the repo wrapper.
         self.assertTrue(aggregate2.id in RepositoryWrapper(process.repository))
@@ -75,7 +75,7 @@ class TestProcess(TestCase):
         self.assertTrue(aggregate.id in core1.repository)
 
         # Check the aggregate has been "moved on".
-        self.assertTrue(core1.repository[aggregate.id].moved_on)
+        self.assertTrue(core1.repository[aggregate.id].is_moved_on)
 
         # Check the events have different partition IDs.
         records = core1.event_store.record_manager.get_records(aggregate.id)
