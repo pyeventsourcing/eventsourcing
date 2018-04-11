@@ -562,25 +562,26 @@ Multiprocessing
 ~~~~~~~~~~~~~~~
 
 The example below shows the system of process applications running in
-different processes on the same node, using the library's ``Multiprocess``
-class, which uses Python's ``multiprocessing`` library.
+different processes, using the library's ``Multiprocess`` class, which
+uses Python's ``multiprocessing`` library.
 
-Running the system with multiple operating system processes means the five steps
-for processing an order in this example happen concurrently, so that as the payment
-is made for one order, the another order might get reserved, whilst a third order is at
-the same time created.
+Running the system with multiple operating system processes means the different processes
+are running concurrently, so that as the payment is made for one order, another order might
+get reserved, whilst a third order is at the same time created.
 
-With operating system processes, each can run a loop that begins by making a
-call to messaging infrastructure for prompts pushed from upstream via messaging
-infrastructure. Prompts can be responded to immediately by pulling new
-notifications. If the call to get new prompts times out, any new notifications
-from upstream notification logs can be pulled anyway, so that the notification
-log is effectively polled at a regular interval. The ``Multiprocess`` class
-happens to use Redis publish-subscribe to push prompts.
+Each operating system processes runs a loop that begins by making a call to get prompts
+pushed from upstream. Prompts are pushed downstream after events are recorded. The prompts
+and responded to immediately by pulling new notifications and processing the events. If the
+call to get new prompts times out, any new notifications from upstream notification logs can
+be pulled anyway, so that the notification log is effectively polled at a regular interval.
+The upstream log is also pulled when the process starts. Hence if upstream suffers a sudden
+termination just before the prompt is pushed, or downstream suffers a sudden termination
+just after receiving the prompt, the processing will continue promptly after the process is
+restarted, even though the prompt was lost.
 
 The process applications could all use the same single database, or they
-could each use their own database. If the process applications were using
-different databases, upstream notification logs would need to be presented
+could each use their own separate database. If the process applications were
+using different databases, upstream notification logs would need to be presented
 in an API, so that downstream could pull notifications using a remote
 notification log object (as discussed in a previous section).
 
