@@ -135,10 +135,9 @@ long-lived transactions.
 Just like a CPU can have many pipelines (cores) running different programs in parallel, a
 system of process applications can have many parallel pipelines. Having many pipelines
 means that many events can be processed at the same stage at the same time. This kind of
-"synchronic" parallelism allows the system to take advantage of the "horizontal" and
-"vertical" scale of its infrastructure.
+"synchronic" parallelism allows the system to take advantage of the scale of its infrastructure.
 
-It is possible to run such a syste with one operating system process dedicated to each
+It is possible to run such a system with one operating system process dedicated to each
 application process for each pipeline (see below). It would be possible to have a pool of
 workers operating on a single of queue prompts, switching application and partition according
 to the prompt (not yet implemented).
@@ -148,7 +147,7 @@ Causal dependencies
 ~~~~~~~~~~~~~~~~~~~
 
 If an aggregate is created and then updated, the second event is causally dependent on
-the first event. Causal dependencies between events are detected and used to synchronise
+the first. Causal dependencies between events are detected and used to synchronise
 the processing of parallel pipelines downstream. Downstream processing of one pipeline
 can wait for an event to be processed in another. The causal dependencies are automatically
 inferred by detecting the originator ID and version of aggregates as they are retrieved.
