@@ -161,7 +161,7 @@ If dependencies from all pipelines were included, each pipeline could be process
 Kahn process networks
 ~~~~~~~~~~~~~~~~~~~~~
 
-Because reading notification logs function effectively as FIFO buffers, a system of
+Because a notification log functions effectively as a FIFO, a system of
 determinate process applications can be recognised as a `Kahn Process Network
 <https://en.wikipedia.org/wiki/Kahn_process_networks>`__ (KPN).
 
