@@ -152,16 +152,16 @@ the processing of parallel pipelines downstream. Downstream processing of one pi
 can wait for an event to be processed in another. The causal dependencies are automatically
 inferred by detecting the originator ID and version of aggregates as they are retrieved.
 The old notification is referenced in the new notification. Downstream can then check all causal
-dependencies have been processed, using its tracking records. As optimisation, in case there
+dependencies have been processed, using its tracking records. (As optimisation, in case there
 are many dependencies in the same pipeline, only the newest dependency in each pipeline is
 included. By default in the library, only dependencies in different pipelines are included.
-(If dependencies from all pipelines were included, each pipeline could be processed in parallel.)
+If dependencies from all pipelines were included, each pipeline could be processed in parallel.)
 
 
 Kahn process networks
 ~~~~~~~~~~~~~~~~~~~~~
 
-Because notification logs function effectively as durable FIFO buffers, a system of
+Because reading notification logs function effectively as FIFO buffers, a system of
 determinate process applications can be recognised as a `Kahn Process Network
 <https://en.wikipedia.org/wiki/Kahn_process_networks>`__ (KPN).
 
