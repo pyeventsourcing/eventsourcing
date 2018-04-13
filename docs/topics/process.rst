@@ -124,13 +124,13 @@ A system of process applications can be run in a single thread, with synchronous
 and processing of events. This is intended as a development mode.
 
 A system can also be run with multiple operating system processes, with asynchronous
-propagation and processing of events. This is "diachronic" parallelism, like the way
-a pipelined CPU core has stages. Having an asynchronous pipeline means events at
-different stages can be processed at the same time. This kind of parallelism can
-improve throughput, but perhaps its greatest benefit is the reliable foundation for
-writing a "saga" or a "process managers", for accomplishing a complicated sequence
-involving different aggregates and perhaps different bounded contexts without
-long-lived transactions.
+propagation and processing of events. Having an asynchronous pipeline means events at
+different stages can be processed at the same time. This is "diachronic" parallelism,
+like the way a pipelined CPU core has stages. This kind of parallelism can improve
+throughput, but perhaps its greatest benefit is the reliable foundation for writing
+a "saga" or a "process manager". In other words, a complicated sequence involving
+different aggregates, and perhaps different bounded contexts, can be processed reliably
+without long-lived transactions.
 
 Just like a CPU can have many pipelines (cores) running different programs in parallel, a
 system of process applications can have many parallel pipelines. Having many pipelines
@@ -152,7 +152,7 @@ the processing of parallel pipelines downstream. Downstream processing of one pi
 can wait for an event to be processed in another. The causal dependencies are automatically
 inferred by detecting the originator ID and version of aggregates as they are retrieved.
 The old notification is referenced in the new notification. Downstream can then check all causal
-dependencies have been processed, using its tracking records. (As optimisation, in case there
+dependencies have been processed, using its tracking records. (As an optimisation, in case there
 are many dependencies in the same pipeline, only the newest dependency in each pipeline is
 included. By default in the library, only dependencies in different pipelines are included.
 If dependencies from all pipelines were included, each pipeline could be processed in parallel.)
@@ -476,16 +476,22 @@ other. There is no direct relationship between reservations and payments.
     from eventsourcing.application.process import System
 
 
+    system = System(Orders | Reservations | Orders | Payments | Orders)
+
+The library's ``System`` class is constructed with a pipeline of
+process classes. For example, ``A | B | C`` would have ``C``
+following ``B`` and ``B`` following ``A``.  The pipeline ``A | A``
+has ``A`` following ``A``. It is also possible to construct a system
+with more than one pipeline. The pipelines ``A | B | A, A | C | A``
+is equivalent to the pipeline ``A | B | A | C | A``.
+
+.. code:: python
+
     system = System(
         Orders | Reservations | Orders,
         Orders | Payments | Orders
     )
 
-The library's ``System`` class is constructed with pipelines of
-process classes. For example, ``A | B | C`` would have ``C``
-following ``B`` and ``B`` following ``A``.  The pipeline ``A | A``
-has that ``A`` following ``A``. The pipelines ``A | B | A, A | C | A`` is equivalent
-to the pipeline ``A | B | A | C | A``.
 
 Although a process class can appear many times, there will only be one
 instance of each process in the system. Each process may follow more
