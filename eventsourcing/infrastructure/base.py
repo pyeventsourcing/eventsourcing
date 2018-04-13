@@ -6,20 +6,22 @@ from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 
 
-class AbstractRecordManager(six.with_metaclass(ABCMeta)):
+class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
     def __init__(self, record_class, sequenced_item_class=SequencedItem, contiguous_record_ids=False,
                  application_id=None, pipeline_id=None):
         self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
         self.contiguous_record_ids = contiguous_record_ids and hasattr(self.record_class, 'id')
-        self.application_id = application_id
         if hasattr(self.record_class, 'application_id'):
-            assert self.application_id, "'application_id' not set when required"
+            assert application_id, "'application_id' not set when required"
             assert contiguous_record_ids, "'contiguous_record_ids' not set when required"
+        self.application_id = application_id
         if hasattr(self.record_class, 'pipeline_id'):
-            assert hasattr(self.record_class, 'application_id')
-        self.pipeline_id = pipeline_id or application_id
+            assert hasattr(self.record_class, 'application_id'), "'application_id' column not defined"
+            pipeline_id = pipeline_id or application_id
+            assert pipeline_id, "'pipeline_id' not set when required"
+        self.pipeline_id = pipeline_id
 
     @abstractmethod
     def append(self, sequenced_item_or_items):
@@ -28,53 +30,76 @@ class AbstractRecordManager(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def get_item(self, sequence_id, eq):
+    def get_item(self, sequence_id, position):
         """
-        Reads sequenced item from the datastore.
+        Gets sequenced item from the datastore.
         """
 
     def list_items(self, *args, **kwargs):
         return list(self.get_items(*args, **kwargs))
 
-    @abstractmethod
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
         """
-        Reads sequenced items from the datastore.
+        Returns sequenced items.
+        """
+        records = self.get_records(
+            sequence_id=sequence_id,
+            gt=gt,
+            gte=gte,
+            lt=lt,
+            lte=lte,
+            limit=limit,
+            query_ascending=query_ascending,
+            results_ascending=results_ascending,
+
+        )
+        for item in six.moves.map(self.from_record, records):
+            yield item
+
+    @abstractmethod
+    def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
+                    query_ascending=True, results_ascending=True):
+        """
+        Returns records for a sequence.
         """
 
     def all_items(self, *args, **kwargs):
         """
         Returns all items across all sequences.
         """
-        return six.moves.map(self.from_record, self.all_records(*args, **kwargs))
+        return six.moves.map(self.from_record, self.get_notifications(*args, **kwargs))
 
     def to_record(self, sequenced_item):
         """
-        Returns a database record, from given sequenced item.
+        Constructs and returns an ORM object, from given sequenced item object.
         """
-        # Check we got a sequenced item.
-        assert isinstance(sequenced_item, self.sequenced_item_class), (type(sequenced_item), self.sequenced_item_class)
-
-        # Construct and return an ORM object.
         kwargs = self.get_field_kwargs(sequenced_item)
         if hasattr(self.record_class, 'application_id'):
-            # assert self.application_id is not None
             kwargs['application_id'] = self.application_id
         return self.record_class(**kwargs)
 
     def from_record(self, record):
         """
-        Returns a sequenced item instance, from given database record.
+        Constructs and returns a sequenced item object, from given ORM object.
         """
         kwargs = self.get_field_kwargs(record)
         return self.sequenced_item_class(**kwargs)
 
     @abstractmethod
-    def all_records(self, start=None, stop=None, *args, **kwargs):
+    def get_notifications(self, start=None, stop=None, *args, **kwargs):
         """
-        Returns all records in the table (possibly in chronological order, depending on database).
+        Returns records sequenced by notification ID, from application, for pipeline, in given range.
         """
+
+    @abstractmethod
+    def all_sequence_ids(self):
+        """
+        Returns all sequence IDs.
+        """
+
+    def list_sequence_ids(self):
+        return list(self.all_sequence_ids())
 
     @abstractmethod
     def delete_record(self, record):
@@ -89,11 +114,11 @@ class AbstractRecordManager(six.with_metaclass(ABCMeta)):
         msg = "Position already taken in sequence"
         raise RecordConflictError(msg)
 
-    def raise_index_error(self, eq):
-        raise IndexError("Sequence index out of range: {}".format(eq))
+    def raise_index_error(self, position):
+        raise IndexError("Sequence index out of range: {}".format(position))
 
 
-class RelationalRecordManager(AbstractRecordManager):
+class RelationalRecordManager(AbstractSequencedItemRecordManager):
     tracking_record_class = None
 
     tracking_record_field_names = [
@@ -212,39 +237,6 @@ class RelationalRecordManager(AbstractRecordManager):
         "VALUES ({placeholders});"
     )
 
-    def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                  query_ascending=True, results_ascending=True):
-        """
-        Returns items of a sequence.
-        """
-        records = self.get_records(
-            sequence_id=sequence_id,
-            gt=gt,
-            gte=gte,
-            lt=lt,
-            lte=lte,
-            limit=limit,
-            query_ascending=query_ascending,
-            results_ascending=results_ascending,
-
-        )
-        for item in six.moves.map(self.from_record, records):
-            yield item
-
-    @abstractmethod
-    def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                    query_ascending=True, results_ascending=True):
-        """
-        Returns records for a sequence.
-        """
-
-    # # Todo: Drop this, it doesn't really help.
-    # def __getitem__(self, item=None):
-    #     assert isinstance(item, slice), type(item)
-    #     # start = item.start or 0
-    #     # assert start >= 0, start
-    #     return self.all_records(start=item.start, stop=item.stop)
-
     @abstractmethod
     def get_max_record_id(self):
         """Return maximum ID of existing records."""
@@ -262,20 +254,6 @@ class RelationalRecordManager(AbstractRecordManager):
 
     def raise_operational_error(self, e):
         raise OperationalError(e)
-        # error = str(e)
-        # if 'Deadlock found when trying to get lock' in error:
-        #     msg = "There was a record ID conflict"
-        #     raise RecordIDConflict(msg)
-        # else:
-        #     raise OperationalError(e)
-
-    # @staticmethod
-    # def raise_record_id_conflict():
-    #     """
-    #     Raises RecordIDConflict exception.
-    #     """
-    #     msg = "There was a record ID conflict"
-    #     raise RecordIDConflict(msg)
 
 
 class AbstractTrackingRecordManager(six.with_metaclass(ABCMeta)):

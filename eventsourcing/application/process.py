@@ -171,7 +171,9 @@ class Process(Pipeable, SimpleApplication):
 
         highest = defaultdict(int)
         for entity_id, entity_version in repository.causal_dependencies:
-            pipeline_id, notification_id = self.event_store.record_manager.get_notification(entity_id, entity_version)
+            pipeline_id, notification_id = self.event_store.record_manager.get_pipeline_and_notification_id(
+                entity_id, entity_version
+            )
             if pipeline_id != self.pipeline_id:
                 highest[pipeline_id] = max(notification_id, highest[pipeline_id])
 

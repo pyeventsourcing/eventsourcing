@@ -109,20 +109,20 @@ class TestProcess(TestCase):
         with self.assertRaises(CausalDependencyFailed):
             downstream2.run()
 
-        self.assertEqual(0, len(downstream1.event_store.record_manager.all_records()))
-        self.assertEqual(0, len(downstream2.event_store.record_manager.all_records()))
+        self.assertEqual(0, len(downstream1.event_store.record_manager.get_notifications()))
+        self.assertEqual(0, len(downstream2.event_store.record_manager.get_notifications()))
 
         # Try to process pipeline 1, should work.
         downstream1.run()
 
-        self.assertEqual(1, len(downstream1.event_store.record_manager.all_records()))
-        self.assertEqual(0, len(downstream2.event_store.record_manager.all_records()))
+        self.assertEqual(1, len(downstream1.event_store.record_manager.get_notifications()))
+        self.assertEqual(0, len(downstream2.event_store.record_manager.get_notifications()))
 
         # Try again to process pipeline 2, should work this time.
         downstream2.run()
 
-        self.assertEqual(1, len(downstream1.event_store.record_manager.all_records()))
-        self.assertEqual(1, len(downstream2.event_store.record_manager.all_records()))
+        self.assertEqual(1, len(downstream1.event_store.record_manager.get_notifications()))
+        self.assertEqual(1, len(downstream2.event_store.record_manager.get_notifications()))
 
     def tearDown(self):
         clear_event_handlers()

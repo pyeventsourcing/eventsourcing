@@ -54,8 +54,8 @@ class DjangoRecordManager(RelationalRecordManager):
         """Returns table name from SQLAlchemy record class."""
         return record_class._meta.db_table
 
-    def get_item(self, sequence_id, eq):
-        records = self.record_class.objects.filter(sequence_id=sequence_id, position=eq).all()
+    def get_item(self, sequence_id, position):
+        records = self.record_class.objects.filter(sequence_id=sequence_id, position=position).all()
         return self.from_record(records[0])
 
     def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
@@ -98,13 +98,7 @@ class DjangoRecordManager(RelationalRecordManager):
 
         return records
 
-    def all_items(self, *args, **kwargs):
-        """
-        Returns all items across all sequences.
-        """
-        return six.moves.map(self.from_record, self.all_records(*args, **kwargs))
-
-    def all_records(self, start=None, stop=None, *args, **kwargs):
+    def get_notifications(self, start=None, stop=None, *args, **kwargs):
         """
         Returns all records in the table.
         """
@@ -130,3 +124,9 @@ class DjangoRecordManager(RelationalRecordManager):
             return self.record_class.objects.latest('id').id
         except self.record_class.DoesNotExist:
             return None
+
+    def all_sequence_ids(self):
+        sequence_id_fieldname = self.field_names.sequence_id
+        values_queryset = self.record_class.objects.values(sequence_id_fieldname).distinct()
+        for values in values_queryset:
+            yield values[sequence_id_fieldname]

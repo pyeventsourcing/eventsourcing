@@ -1,9 +1,9 @@
-from eventsourcing.infrastructure.base import AbstractRecordManager
+from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 
 
 class InfrastructureFactory(object):
-    record_manager_class = AbstractRecordManager
+    record_manager_class = AbstractSequencedItemRecordManager
     sequenced_item_class = SequencedItem
     integer_sequenced_record_class = None
     integer_sequenced_noid_record_class = None

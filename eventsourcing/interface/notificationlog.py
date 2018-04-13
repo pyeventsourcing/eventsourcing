@@ -134,7 +134,7 @@ class RecordManagerNotificationLog(LocalNotificationLog):
 
     def get_items(self, start, stop, next_position=None):
         notifications = []
-        for record in self.record_manager.all_records(start, stop):
+        for record in self.record_manager.get_notifications(start, stop):
             notification = {'id': record.id}
             for field_name in self.record_manager.field_names:
                 notification[field_name] = getattr(record, field_name)

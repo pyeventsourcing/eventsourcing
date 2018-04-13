@@ -118,10 +118,11 @@ class ExampleApplicationTestCase(WithExampleApplication):
 
             # Remove all the stored items and check the new value is still available (must be in snapshot).
             record_strategy = self.entity_record_manager
-            self.assertEqual(len(list(record_strategy.all_records())), 3)
-            for record in record_strategy.all_records():
+            records = record_strategy.get_records(example1.id)
+            self.assertEqual(len(records), 3)
+            for record in records:
                 record_strategy.delete_record(record)
-            self.assertFalse(list(record_strategy.all_records()))
+            self.assertFalse(record_strategy.get_records(example1.id))
             self.assertEqual(100, app.example_repository[example1.id].a)
 
             # Check only some of the old values are available in the repo.
@@ -138,7 +139,8 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertIsInstance(example1, Example)
 
             # - get the records to delete
-            all_records = list(record_strategy.all_records())
+            records = record_strategy.get_records(example1.id)
+            self.assertEqual(1, len(records))
 
             # - drop the table...
             if self.datastore:
@@ -146,7 +148,7 @@ class ExampleApplicationTestCase(WithExampleApplication):
 
             # - check exception is raised when records can't be deleted, so that
             #   test case runs through 'except' block, so rollback() is called
-            for record in all_records:
+            for record in records:
                 try:
                     record_strategy.delete_record(record)
                 except ProgrammingError:

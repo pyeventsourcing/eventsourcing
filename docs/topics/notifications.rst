@@ -348,22 +348,22 @@ relational record manager with an ``IntegerSequencedRecord`` that has an ID,
 such as the ``StoredEventRecord`` record class, and with a True value for its
 ``contiguous_record_ids`` constructor argument. The ``record_manager``
 above was constructed in this way. The records can be then be obtained
-using the ``all_records()`` method of the record manager. The record IDs
+using the ``get_notifications()`` method of the record manager. The record IDs
 will form a contiguous sequence, suitable for the ``RecordManagerNotificationLog``.
 
 .. code:: python
 
     from eventsourcing.domain.model.entity import VersionedEntity
 
-    all_records = record_manager.all_records()
+    notifications = record_manager.get_notifications()
 
-    assert len(all_records) == 0, all_records
+    assert len(notifications) == 0, notifications
 
     first_entity = VersionedEntity.__create__()
 
-    all_records = record_manager.all_records(start=0, stop=5)
+    notifications = record_manager.get_notifications(start=0, stop=5)
 
-    assert len(all_records) == 1, all_records
+    assert len(notifications) == 1, notifications
 
 The local notification log class ``RecordManagerNotificationLog``
 (see below) can adapt record managers, presenting the

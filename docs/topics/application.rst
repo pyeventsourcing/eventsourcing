@@ -407,13 +407,13 @@ to obtain records. After all, it's just an SQLAlchemy ORM object.
 
     app.event_store.record_manager.record_class
 
-The ``query`` property of the SQLAlchemy record manager
+The ``orm_query()`` method of the SQLAlchemy record manager
 is a convenient way to get a query object from the session
 for the record class.
 
 .. code:: python
 
-    event_records = app.event_store.record_manager.query.all()
+    event_records = app.event_store.record_manager.orm_query().all()
 
     assert len(event_records) == 4
 

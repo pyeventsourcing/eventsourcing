@@ -72,7 +72,7 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
             self.assertEqual(entity1.b, 'b')
 
             # Check there is a stored event.
-            all_records = list(app.event_store.record_manager.all_records())
+            all_records = list(app.event_store.record_manager.get_records(entity1.id))
             assert len(all_records) == 1, len(all_records)
             stored_event = all_records[0]
             assert isinstance(stored_event, StoredEventRecord), stored_event
