@@ -500,24 +500,24 @@ pattern, where the applications function effectively as filters.
 
 Please note, aggregates are segregated within an application. Each
 application can only access the aggregates it has created. In this example,
-an order aggregate created by the orders process is neither available in the
+an order aggregate created by the orders process is available neither in the
 repositories of the reservations nor the payments applications.
-This can be recognised as the "bounded context" pattern.
+This can perhaps be recognised as the "bounded context" pattern.
 
-State is only propagated between applications in a system through
-notification logs only. If one application could use the aggregates
-of another application, processing could produce different results
-at different times, and in consequence the process wouldn't be reliable.
-If necessary, an application can always replicate the state of an
-aggregate within its own context in an application it is following,
+State is propagated between applications in a system through notification
+logs only. If one application could use the aggregates of another application,
+processing could produce different results at different times, and in consequence
+the process wouldn't be reliable. If necessary, an application can always replicate
+the state of an aggregate within its own context in an application it is following,
 by projecting its events as they are read from the notification log.
 
 In this example, the Orders process, specifically the Order aggregate
 combined with the Orders process policy, could function effectively as a
-"saga", or "process manager", or "workflow manager", in that it can effectively
-control a sequence of steps involving other bounded contexts and other
-aggregates, steps that might otherwise be controlled with a "long-lived
-transaction", with errors handled as part of the logic of the application.
+"saga", or "process manager", or "workflow manager". That is, it could be
+effectively control a sequence of steps involving other bounded contexts,
+steps that might otherwise be controlled with a "long-lived transaction".
+Exceptional "unhappy path" behaviour can be handled as part of the logic
+of the application.
 
 .. Except for the definition and implementation of process,
 .. there are no special concepts or components. There are only policies and
@@ -577,19 +577,19 @@ get reserved, whilst a third order is at the same time created.
 
 Each operating system processes runs a loop that begins by making a call to get prompts
 pushed from upstream. Prompts are pushed downstream after events are recorded. The prompts
-and responded to immediately by pulling new notifications and processing the events. If the
-call to get new prompts times out, any new notifications from upstream notification logs can
-be pulled anyway, so that the notification log is effectively polled at a regular interval.
-The upstream log is also pulled when the process starts. Hence if upstream suffers a sudden
-termination just before the prompt is pushed, or downstream suffers a sudden termination
-just after receiving the prompt, the processing will continue promptly after the process is
-restarted, even though the prompt was lost.
+are responded to immediately by pulling and processing the new events. If the call to get
+new prompts times out, any new events in upstream notification logs can be pulled anyway,
+so that the notification log is effectively polled at a regular interval. The upstream log
+is also pulled when the process starts. Hence if upstream suffers a sudden termination just
+before the prompt is pushed, or downstream suffers a sudden termination just after receiving
+the prompt, the processing will continue promptly after the process is restarted, even though
+the prompt was lost.
 
 The process applications could all use the same single database, or they
 could each use their own separate database. If the process applications were
 using different databases, upstream notification logs would need to be presented
 in an API, so that downstream could pull notifications using a remote
-notification log object (as discussed in a previous section).
+notification log object (as discussed in the section about notifications).
 
 .. (For those concerned about having too much data in the relational database, it
 .. would be possible to expand capacity by: replicating events from the relational
