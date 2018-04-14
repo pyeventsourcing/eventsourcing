@@ -513,11 +513,10 @@ following, by projecting its events as they are read from the notification log.
 
 In this example, the Orders process, specifically the Order aggregate
 combined with the Orders process policy, could function effectively as a
-"saga", or "process manager", or "workflow manager". That is, it could be
-effectively control a sequence of steps involving other aggregates in other
-bounded contexts, steps that might otherwise be controlled with a "long-lived
-transaction". Exceptional "unhappy path" behaviour can be handled as part of the
-logic of the application.
+"saga", or "process manager", or "workflow manager". That is, it could effectively
+control a sequence of steps involving other aggregates in other bounded contexts,
+steps that might otherwise be controlled with a "long-lived transaction". Exceptional
+"unhappy path" behaviour is implemented as part of the logic of the application.
 
 .. Except for the definition and implementation of process,
 .. there are no special concepts or components. There are only policies and
