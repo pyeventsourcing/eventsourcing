@@ -16,7 +16,6 @@ class TestFactory(TestCase):
             session=datastore.session,
             contiguous_record_ids=True,
             application_id=uuid4(),
-            pipeline_id=uuid4(),
         )
         datastore.setup_table(event_store.record_manager.record_class)
 

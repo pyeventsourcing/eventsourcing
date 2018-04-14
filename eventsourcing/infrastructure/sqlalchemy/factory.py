@@ -33,7 +33,7 @@ def construct_sqlalchemy_eventstore(session,
                                     record_class=None,
                                     contiguous_record_ids=False,
                                     application_id=None,
-                                    pipeline_id=None,
+                                    pipeline_id=-1,
                                     ):
     sequenced_item_class = sequenced_item_class or StoredEvent
     sequenced_item_mapper = SequencedItemMapper(

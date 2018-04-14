@@ -712,11 +712,9 @@ will share the same database. It would be possible to run the system with e.g. p
 
 .. code:: python
 
-    from eventsourcing.utils.uuids import uuid_from_pipeline_name
-
     num_pipelines = 5
 
-    pipeline_ids = [uuid_from_pipeline_name(i) for i in range(num_pipelines)]
+    pipeline_ids = range(num_pipelines)
 
 
 Below, twenty-five orders are created in each of the five pipelines, giving one hundred and

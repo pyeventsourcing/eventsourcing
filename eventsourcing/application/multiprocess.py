@@ -5,7 +5,6 @@ from time import sleep
 import six
 
 from eventsourcing.application.process import Prompt, System
-from eventsourcing.application.simple import DEFAULT_PIPELINE_ID
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed
@@ -18,11 +17,11 @@ DEFAULT_POLL_INTERVAL = 5
 
 class Multiprocess(object):
 
-    def __init__(self, system, pipeline_ids=None, poll_interval=None, notification_log_section_size=5,
+    def __init__(self, system, pipeline_ids=(-1,), poll_interval=None, notification_log_section_size=5,
                  pool_size=1):
         self.pool_size = pool_size
         self.system = system
-        self.pipeline_ids = pipeline_ids or [DEFAULT_PIPELINE_ID]
+        self.pipeline_ids = pipeline_ids
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
         self.os_processes = None
@@ -113,7 +112,7 @@ class Outbox(object):
 
 class OperatingSystemProcess(multiprocessing.Process):
 
-    def __init__(self, application_process_class, upstream_names, pipeline_id=None,
+    def __init__(self, application_process_class, upstream_names, pipeline_id=-1,
                  poll_interval=DEFAULT_POLL_INTERVAL, notification_log_section_size=None,
                  pool_size=5, inbox=None, outbox=None, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)

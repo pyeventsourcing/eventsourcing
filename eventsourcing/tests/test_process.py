@@ -6,7 +6,6 @@ from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.events import clear_event_handlers
 from eventsourcing.exceptions import CausalDependencyFailed
 from eventsourcing.utils.transcoding import json_loads
-from eventsourcing.utils.uuids import uuid_from_pipeline_name
 
 
 class TestProcess(TestCase):
@@ -43,8 +42,8 @@ class TestProcess(TestCase):
 
     def test_causal_dependencies(self):
         # Try to process an event that has unresolved causal dependencies.
-        pipeline_id1 = uuid_from_pipeline_name(0)
-        pipeline_id2 = uuid_from_pipeline_name(1)
+        pipeline_id1 = 0
+        pipeline_id2 = 1
 
         # Create two events, one has causal dependency on the other.
         core1 = Process(
@@ -86,7 +85,7 @@ class TestProcess(TestCase):
         self.assertEqual(None, records[0].causal_dependencies)
         self.assertTrue({
             'notification_id': 1,
-            'pipeline_id': str(pipeline_id1)
+            'pipeline_id': pipeline_id1
         }, json_loads(records[1].causal_dependencies))
 
         # Setup downstream process.

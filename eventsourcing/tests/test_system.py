@@ -13,7 +13,7 @@ from eventsourcing.tests.test_process import ExampleAggregate
 
 class TestSystem(TestCase):
 
-    def test_single_threaded_system(self):
+    def test_singlethreaded_multiapp_system(self):
         system = System(
             Orders | Reservations | Orders,
             Orders | Payments | Orders
@@ -28,7 +28,7 @@ class TestSystem(TestCase):
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
-    def test_single_multiprocess_system(self):
+    def test_multiprocessing_singleapp_system(self):
         system = System(Examples | Examples)
 
         self.set_db_uri()
@@ -47,7 +47,7 @@ class TestSystem(TestCase):
                 retries -= 1
                 assert retries, "Failed to move"
 
-    def test_multi_multiprocess_system(self):
+    def test_multiprocessing_multiapp_system(self):
 
         self.set_db_uri()
 
@@ -81,8 +81,7 @@ class TestSystem(TestCase):
                     retries -= 1
                     assert retries, "Failed set order.is_paid"
 
-    def test_multi_pipeline(self):
-        from eventsourcing.utils.uuids import uuid_from_pipeline_name
+    def test_multipipeline_multiprocessing_multiapp(self):
 
         self.set_db_uri()
 
@@ -96,7 +95,7 @@ class TestSystem(TestCase):
 
         num_pipelines = 3
 
-        pipeline_ids = [uuid_from_pipeline_name(i) for i in range(num_pipelines)]
+        pipeline_ids = range(num_pipelines)
 
         multiprocess = Multiprocess(system, pipeline_ids=pipeline_ids)
 

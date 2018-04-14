@@ -17,8 +17,6 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def __init__(self, session, *args, **kwargs):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
-        if hasattr(self.record_class, 'pipeline_id'):
-            assert self.pipeline_id, "pipeline_id not set when required"
 
     def _prepare_insert(self, tmpl, record_class, field_names, placeholder_for_id=False):
         """
@@ -146,10 +144,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         try:
             query = self.orm_query()
             if hasattr(self.record_class, 'application_id'):
-                assert self.application_id, "application_id not set when required"
                 query = query.filter(self.record_class.application_id == self.application_id)
             if hasattr(self.record_class, 'pipeline_id'):
-                assert self.pipeline_id, "pipeline_id not set when required"
                 query = query.filter(self.record_class.pipeline_id == self.pipeline_id)
             if hasattr(self.record_class, 'id'):
                 query = query.order_by(asc('id'))
@@ -194,10 +190,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         try:
             query = self.session.query(func.max(self.record_class.id))
             if hasattr(self.record_class, 'application_id'):
-                assert self.application_id, "application_id not set when required"
                 query = query.filter(self.record_class.application_id == self.application_id)
             if hasattr(self.record_class, 'pipeline_id'):
-                assert self.pipeline_id, "pipeline_id not set when required"
                 query = query.filter(self.record_class.pipeline_id == self.pipeline_id)
 
             return query.scalar()
@@ -211,7 +205,6 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
         where_args = []
         if hasattr(self.record_class, 'application_id'):
-            assert self.application_id, "application_id not set when required"
             where_args.append(c.application_id == self.application_id)
 
         if len(where_args) > 1:

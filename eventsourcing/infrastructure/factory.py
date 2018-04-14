@@ -13,7 +13,7 @@ class InfrastructureFactory(object):
     def __init__(self, record_manager_class=None, sequenced_item_class=None,
                  integer_sequenced_record_class=None, timestamp_sequenced_record_class=None,
                  snapshot_record_class=None, contiguous_record_ids=False, session=None,
-                 application_id=None, pipeline_id=None):
+                 application_id=None, pipeline_id=-1):
 
         self.record_manager_class = record_manager_class or self.record_manager_class
 

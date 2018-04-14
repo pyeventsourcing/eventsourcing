@@ -8,7 +8,7 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedI
 
 class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
     def __init__(self, record_class, sequenced_item_class=SequencedItem, contiguous_record_ids=False,
-                 application_id=None, pipeline_id=None):
+                 application_id=None, pipeline_id=-1):
         self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
@@ -19,8 +19,6 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
         self.application_id = application_id
         if hasattr(self.record_class, 'pipeline_id'):
             assert hasattr(self.record_class, 'application_id'), "'application_id' column not defined"
-            pipeline_id = pipeline_id or application_id
-            assert pipeline_id, "'pipeline_id' not set when required"
         self.pipeline_id = pipeline_id
 
     @abstractmethod

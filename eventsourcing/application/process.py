@@ -180,7 +180,7 @@ class Process(Pipeable, SimpleApplication):
         causal_dependencies = []
         for pipeline_id, notification_id in highest.items():
             causal_dependencies.append({
-                'pipeline_id': str(pipeline_id),
+                'pipeline_id': pipeline_id,
                 'notification_id': notification_id
             })
         # Todo: Optionally reference causal dependencies in current pipeline.

@@ -14,9 +14,7 @@ from eventsourcing.infrastructure.sqlalchemy.records import SnapshotRecord
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_random_bytes
-from eventsourcing.utils.uuids import uuid_from_application_name, uuid_from_pipeline_name
-
-DEFAULT_PIPELINE_ID = uuid_from_pipeline_name('default')
+from eventsourcing.utils.uuids import uuid_from_application_name
 
 
 class SimpleApplication(object):
@@ -24,7 +22,7 @@ class SimpleApplication(object):
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None, uri=None, pool_size=5, session=None,
                  cipher_key=None, sequenced_item_class=None, stored_event_record_class=None, setup_table=True,
-                 contiguous_record_ids=True, pipeline_id=None, notification_log_section_size=None):
+                 contiguous_record_ids=True, pipeline_id=-1, notification_log_section_size=None):
 
         self.notification_log_section_size = notification_log_section_size
         self.name = name or type(self).__name__.lower()
@@ -40,7 +38,7 @@ class SimpleApplication(object):
         self.stored_event_record_class = stored_event_record_class
         self.contiguous_record_ids = contiguous_record_ids
         self.application_id = uuid_from_application_name(self.name)
-        self.pipeline_id = pipeline_id or DEFAULT_PIPELINE_ID
+        self.pipeline_id = pipeline_id
         self.setup_event_store()
 
         # Setup notifications.
