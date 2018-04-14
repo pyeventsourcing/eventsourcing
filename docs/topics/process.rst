@@ -507,17 +507,17 @@ This can perhaps be recognised as the "bounded context" pattern.
 State is propagated between applications in a system through notification
 logs only. If one application could use the aggregates of another application,
 processing could produce different results at different times, and in consequence
-the process wouldn't be reliable. If necessary, an application can always replicate
-the state of an aggregate within its own context in an application it is following,
-by projecting its events as they are read from the notification log.
+the processing wouldn't be reliable. If necessary, a process application could
+replicate the state of an aggregate within its own context in an application it is
+following, by projecting its events as they are read from the notification log.
 
 In this example, the Orders process, specifically the Order aggregate
 combined with the Orders process policy, could function effectively as a
 "saga", or "process manager", or "workflow manager". That is, it could be
-effectively control a sequence of steps involving other bounded contexts,
-steps that might otherwise be controlled with a "long-lived transaction".
-Exceptional "unhappy path" behaviour can be handled as part of the logic
-of the application.
+effectively control a sequence of steps involving other aggregates in other
+bounded contexts, steps that might otherwise be controlled with a "long-lived
+transaction". Exceptional "unhappy path" behaviour can be handled as part of the
+logic of the application.
 
 .. Except for the definition and implementation of process,
 .. there are no special concepts or components. There are only policies and
