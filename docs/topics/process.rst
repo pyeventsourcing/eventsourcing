@@ -125,36 +125,36 @@ and processing of events. This is intended as a development mode.
 
 A system can also run with multiple operating system processes, with asynchronous
 propagation and processing of events. Having an asynchronous pipeline means events at
-different stages can be processed at the same time. This is "diachronic" parallelism,
-like the way a pipelined CPU core has stages. This kind of parallelism can improve
-throughput, but perhaps its greatest benefit is the reliable foundation for writing
-a "saga" or a "process manager". In other words, a complicated sequence involving
-different aggregates, and perhaps different bounded contexts, can be processed reliably
-without long-lived transactions.
+different stages can be processed at the same time. This could be described as "diachronic"
+parallelism, like the way a pipelined CPU core has stages. This kind of parallelism can
+improve throughput, up to a limit. More importantly, the reliability of the processing can
+be used to write a reliable "saga" or a "process manager". In other words, a complicated
+sequence involving different aggregates, and perhaps different bounded contexts, can be
+implemented reliably without long-lived transactions.
 
-Just like a CPU can have many pipelines (cores) running different programs in parallel, a
-system of process applications can have many parallel pipelines. Having many pipelines
-means that many events can be processed at the same stage at the same time. This kind of
-"synchronic" parallelism allows the system to take advantage of the scale of its infrastructure.
-
-It is possible to run such a system with one operating system process dedicated to each
-application process for each pipeline (see below). The operating system processes can
-be started manually, but they could also be orchestrated with an actor model.
+To scale throughput linearly, just like a CPU can have many cores (pipelines) processing
+instruction in parallel, a system of process applications can run with parallel instances
+of the pipeline expressions. Having parallel pipelines means that many events can be processed
+at the same stage at the same time. This "synchronic" parallelism allows the system to take
+advantage of the scale of its infrastructure.
 
 
 Causal dependencies
 ~~~~~~~~~~~~~~~~~~~
 
 If an aggregate is created and then updated, the second event is causally dependent on
-the first. Causal dependencies between events are detected and used to synchronise
+the first. Causal dependencies between events can be detected and used to synchronise
 the processing of parallel pipelines downstream. Downstream processing of one pipeline
-can wait for an event to be processed in another. The causal dependencies are automatically
-inferred by detecting the originator ID and version of aggregates as they are retrieved.
-The old notification is referenced in the new notification. Downstream can then check all causal
-dependencies have been processed, using its tracking records. (As an optimisation, in case there
-are many dependencies in the same pipeline, only the newest dependency in each pipeline is
-included. By default in the library, only dependencies in different pipelines are included.
-If dependencies from all pipelines were included, each pipeline could be processed in parallel.)
+can wait for an event to be processed in another.
+
+In the process applications, the causal dependencies are automatically inferred by detecting
+the originator ID and version of aggregates as they are retrieved. The old notification is
+referenced in the new notification. Downstream can then check all causal dependencies have
+been processed, using its tracking records. (As an optimisation, in case there are many
+dependencies in the same pipeline, only the newest dependency in each pipeline is included.
+By default in the library, only dependencies in different pipelines are included. If
+causal dependencies from all pipelines were included in each notification, each pipeline
+could be processed in parallel.)
 
 
 Kahn process networks
@@ -244,11 +244,15 @@ set as paid, which involves a payment ID.
 
         def set_is_reserved(self, reservation_id):
             assert not self.is_reserved, "Order {} already reserved.".format(self.id)
-            self.__trigger_event__(Order.Reserved, reservation_id=reservation_id)
+            self.__trigger_event__(
+                Order.Reserved, reservation_id=reservation_id
+            )
 
         def set_is_paid(self, payment_id):
             assert not self.is_paid, "Order {} already paid.".format(self.id)
-            self.__trigger_event__(self.Paid, payment_id=payment_id)
+            self.__trigger_event__(
+                self.Paid, payment_id=payment_id
+            )
 
 
 A ``Reservation`` can be created. A reservation has an ``order_id``.
@@ -356,7 +360,6 @@ version of its repository, so it can detect which aggregates were used, and whic
     class Reservations(Process):
         def policy(self, repository, event):
             if isinstance(event, Order.Created):
-                # Create a reservation.
                 return Reservation.create(order_id=event.originator_id)
 
 
@@ -368,7 +371,6 @@ existing aggregates that have been accessed or changed.
     class Payments(Process):
         def policy(self, repository, event):
             if isinstance(event, Order.Reserved):
-                # Create a payment.
                 return Payment.create(order_id=event.originator_id)
 
 
