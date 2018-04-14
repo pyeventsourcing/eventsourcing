@@ -358,6 +358,7 @@ version of its repository, so it can detect which aggregates were used, and whic
 .. code:: python
 
     class Reservations(Process):
+
         def policy(self, repository, event):
             if isinstance(event, Order.Created):
                 return Reservation.create(order_id=event.originator_id)
@@ -369,6 +370,7 @@ existing aggregates that have been accessed or changed.
 .. code:: python
 
     class Payments(Process):
+
         def policy(self, repository, event):
             if isinstance(event, Order.Reserved):
                 return Payment.create(order_id=event.originator_id)
