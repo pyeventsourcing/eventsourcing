@@ -62,12 +62,6 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
         Returns records for a sequence.
         """
 
-    def all_items(self, *args, **kwargs):
-        """
-        Returns all items across all sequences.
-        """
-        return six.moves.map(self.from_record, self.get_notifications(*args, **kwargs))
-
     def to_record(self, sequenced_item):
         """
         Constructs and returns an ORM object, from given sequenced item object.
