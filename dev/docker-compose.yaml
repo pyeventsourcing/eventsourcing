@@ -5,26 +5,28 @@
 # first time the containers are run, so connections might not work immediately.
 version: '2'
 services:
-    all_eventsourcing_requirements:
-        build: .
+    eventsourcing_requirements:
+        build:
+            context: ..
+            dockerfile: ./dev/Dockerfile_eventsourcing_requirements
         image: "eventsourcing_requirements:latest"
         volumes:
             - .:/app
         links:
-            - cassandra
-            - mysql
-            - redis
+            - service_cassandra
+            - service_mysql
+            - service_redis
         environment:
-            CASSANDRA_HOSTS: cassandra
-            MYSQL_HOST: mysql
+            CASSANDRA_HOSTS: service_cassandra
+            MYSQL_HOST: service_mysql
             MYSQL_USER: eventsourcing
             MYSQL_PASSWORD: eventsourcing
-            REDIS_HOST: redis
+            REDIS_HOST: service_redis
 
-    cassandra:
+    service_cassandra:
         image: "cassandra:latest"
 
-    mysql:
+    service_mysql:
         image: "mysql:latest"
         environment:
           MYSQL_ROOT_PASSWORD: eventsourcing
@@ -32,5 +34,5 @@ services:
           MYSQL_PASSWORD: eventsourcing
           MYSQL_DATABASE: eventsourcing
 
-    redis:
+    service_redis:
         image: "redis:latest"
