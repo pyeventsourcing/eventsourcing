@@ -106,8 +106,8 @@ process.
 System of processes
 -------------------
 
-The library's class ``System`` can be used to
-define a system of process applications independently of how it may be run.
+The library's class ``System`` can be used to define a system of process applications,
+independently of scale.
 
 In a system, one process application can follow another. One process can
 follow two other processes in a slightly more complicated system. A system
@@ -117,13 +117,13 @@ could be just one process following itself.
 Scale-independence
 ~~~~~~~~~~~~~~~~~~
 
-The system can be run at different scales, but the definition of the system is
+The system can run at different scales, but the definition of the system is
 independent of scale.
 
-A system of process applications can be run in a single thread, with synchronous propagation
+A system of process applications can run in a single thread, with synchronous propagation
 and processing of events. This is intended as a development mode.
 
-A system can also be run with multiple operating system processes, with asynchronous
+A system can also run with multiple operating system processes, with asynchronous
 propagation and processing of events. Having an asynchronous pipeline means events at
 different stages can be processed at the same time. This is "diachronic" parallelism,
 like the way a pipelined CPU core has stages. This kind of parallelism can improve
@@ -138,9 +138,8 @@ means that many events can be processed at the same stage at the same time. This
 "synchronic" parallelism allows the system to take advantage of the scale of its infrastructure.
 
 It is possible to run such a system with one operating system process dedicated to each
-application process for each pipeline (see below). It would be possible to have a pool of
-workers operating on a single of queue prompts, switching application and partition according
-to the prompt (not yet implemented).
+application process for each pipeline (see below). The operating system processes can
+be started manually, but they could also be orchestrated with an actor model.
 
 
 Causal dependencies
@@ -465,47 +464,40 @@ the ``order`` aggregate expected by the policy.
 System
 ------
 
-A system can be defined as a network of processes that follow each other.
+A system of process applications can be defined using one or many pipeline expressions.
 
-In this example, the orders and the reservations processes follow
-each other. Also the payments and the orders processes follow each
-other. There is no direct relationship between reservations and payments.
+For example, the expression ``A | A`` has process application ``A`` following
+itself. The expression ``A | B | C`` would have ``C`` following ``B`` and ``B``
+following ``A``. This can perhaps be recognised as the "pipes and filters" pattern,
+where the process applications function effectively as the filters.
+
+In the example below, the `Orders` process and the `Reservations` process follow
+each other. Also the `Orders` and the `Payments` process follow each other.
+
+.. code:: python
+
+    reservations_pipeline = Orders | Reservations | Orders
+    payments_pipeline = Orders | Payments | Orders
+
+Each process may be followed by more than one process. Although a process application
+class can appear many times in the pipeline expressions, there will only be one instance
+of each process when the system is running.
+
+An orders-reservations-payments system can be defined using these pipeline expressions.
 
 .. code:: python
 
     from eventsourcing.application.process import System
 
+    system = System(reservations_pipeline, payments_pipeline)
 
-    system = System(Orders | Reservations | Orders | Payments | Orders)
+Please note, each application can only access the aggregates it has created. In
+this example, an order aggregate created by the orders process is available neither
+in the repositories of the reservations nor the payments applications. State is
+propagated between applications in a system through notification logs only. This can
+perhaps be recognised as the "bounded context" pattern.
 
-The library's ``System`` class is constructed with a pipeline of
-process classes. For example, ``A | B | C`` would have ``C``
-following ``B`` and ``B`` following ``A``.  The pipeline ``A | A``
-has ``A`` following ``A``. It is also possible to construct a system
-with more than one pipeline. The pipelines ``A | B | A, A | C | A``
-is equivalent to the pipeline ``A | B | A | C | A``.
-
-.. code:: python
-
-    system = System(
-        Orders | Reservations | Orders,
-        Orders | Payments | Orders
-    )
-
-
-Although a process class can appear many times, there will only be one
-instance of each process in the system. Each process may follow more
-than one process. This can be recognised as the "pipes and filters"
-pattern, where the applications function effectively as filters.
-
-Please note, aggregates are segregated within an application. Each
-application can only access the aggregates it has created. In this example,
-an order aggregate created by the orders process is available neither in the
-repositories of the reservations nor the payments applications.
-This can perhaps be recognised as the "bounded context" pattern.
-
-State is propagated between applications in a system through notification
-logs only. If one application could use the aggregates of another application,
+If one application could use the aggregates of another application,
 processing could produce different results at different times, and in consequence
 the processing wouldn't be reliable. If necessary, a process application could
 replicate the state of an aggregate within its own context in an application it is
@@ -534,8 +526,8 @@ Single threaded
 ~~~~~~~~~~~~~~~
 
 If the ``system`` object is used as a context manager, the process
-applications will be setup to work in a single thread in the current
-process. Events will be processed with synchronous handling of prompts,
+applications will run in a single thread in the current process.
+Events will be processed with synchronous handling of prompts,
 so that policies effectively call each other recursively. This avoids
 concurrency and is useful when developing and testing a system of process
 applications, because it runs quickly and the behaviour is easy to follow.
@@ -559,7 +551,7 @@ with the order. Everything happens synchronously, in a single thread, so by the 
 the ``create_new_order()`` factory has returned, the system has already processed the
 order, which can be retrieved from the "orders" repository.
 
-The process applications above could be run in different threads (not
+The process applications above could run in different threads (not
 yet implemented).
 
 
@@ -701,8 +693,9 @@ Wait for the results by polling the aggregate state.
 Multiple pipelines
 ~~~~~~~~~~~~~~~~~~
 
-The system can be run with many pipelines. With many pipelines, many events can
-be processed at the same time by each process in the system.
+The system can run with multiple instances of the system's pipeline expressions. Running the
+system with many parallel pipeline instances means that each process application in the system
+can process many events at the same time.
 
 In the example below, there are five pipelines and three process applications, which
 gives fifteen child operating system processes. All fifteen operating system processes
