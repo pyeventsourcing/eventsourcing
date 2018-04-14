@@ -16,8 +16,8 @@ The only trick is remembering consumption with recording determines production.
 In particular, if the product of the process must be reliable, then the consumption
 and the recording must be reliable.
 
-This definition of the reliability of a process ("safety") doesn't include availability
-("liveness"). Infrastructure unreliability may cause processing delays. But disorderly
+This definition of the reliability of a process doesn't include availability.
+Infrastructure unreliability may cause processing delays. Disorderly
 environments shouldn't cause disorderly processing.
 
 
@@ -475,8 +475,8 @@ itself. The expression ``A | B | C`` would have ``C`` following ``B`` and ``B``
 following ``A``. This can perhaps be recognised as the "pipes and filters" pattern,
 where the process applications function effectively as the filters.
 
-In the example below, the `Orders` process and the `Reservations` process follow
-each other. Also the `Orders` and the `Payments` process follow each other.
+In the example below, the ``Orders`` process and the ``Reservations`` process follow
+each other. Also the ``Orders`` and the ``Payments`` process follow each other.
 
 .. code:: python
 

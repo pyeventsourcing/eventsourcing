@@ -5,10 +5,12 @@ from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
+from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
 
 
 class TestFactory(TestCase):
     def test_construct_sqlalchemy_eventstore(self):
+        # Construct the infrastructure.
         datastore = SQLAlchemyDatastore(settings=SQLAlchemySettings())
         datastore.setup_connection()
 
@@ -21,6 +23,7 @@ class TestFactory(TestCase):
 
         self.assertIsInstance(event_store, EventStore)
 
+        # Store an event.
         aggregate_id = uuid4()
         aggregate_version = 0
         domain_event = DomainEvent(
@@ -29,6 +32,22 @@ class TestFactory(TestCase):
             originator_version=aggregate_version,
         )
         event_store.append(domain_event)
+
+        # Get the domain events.
         events = event_store.get_domain_events(originator_id=aggregate_id)
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0], domain_event)
+
+        # Test the while clause of all_sequence_ids() is filtering on application_id.
+        self.assertEqual(event_store.record_manager.record_class, StoredEventRecord)
+        sequence_ids = event_store.record_manager.list_sequence_ids()
+        self.assertEqual([aggregate_id], sequence_ids)
+
+        # - check the aggregate ID isn't listed by another application
+        event_store = construct_sqlalchemy_eventstore(
+            session=datastore.session,
+            contiguous_record_ids=True,
+            application_id=uuid4(),
+        )
+        sequence_ids = event_store.record_manager.list_sequence_ids()
+        self.assertEqual([], sequence_ids)

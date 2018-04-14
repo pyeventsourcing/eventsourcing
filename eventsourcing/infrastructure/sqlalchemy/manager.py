@@ -203,14 +203,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         sequence_id_col = getattr(c, self.field_names.sequence_id)
         expr = select([sequence_id_col], distinct=True)
 
-        where_args = []
         if hasattr(self.record_class, 'application_id'):
-            where_args.append(c.application_id == self.application_id)
-
-        if len(where_args) > 1:
-            expr = expr.where(reduce(or_, where_args[1:], where_args[0]))
-        elif len(where_args) == 1:
-            expr = expr.where(where_args[0])
+            expr = expr.where(c.application_id == self.application_id)
 
         try:
             for row in self.session.query(expr):
