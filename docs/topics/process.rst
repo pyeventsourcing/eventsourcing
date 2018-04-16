@@ -127,16 +127,16 @@ A system can also run with multiple operating system processes, with asynchronou
 propagation and processing of events. Having an asynchronous pipeline means events at
 different stages can be processed at the same time. This could be described as "diachronic"
 parallelism, like the way a pipelined CPU core has stages. This kind of parallelism can
-improve throughput, up to a limit. More importantly, the reliability of the processing can
-be used to write a reliable "saga" or a "process manager". In other words, a complicated
-sequence involving different aggregates, and perhaps different bounded contexts, can be
-implemented reliably without long-lived transactions.
+improve throughput, up to a limit. The reliability of the processing can be used to write
+a reliable "saga" or a "process manager". In other words, a complicated sequence involving
+different aggregates, and perhaps different bounded contexts, can be implemented reliably
+without long-lived transactions.
 
-To scale throughput linearly, just like a CPU can have many cores (pipelines) processing
-instruction in parallel, a system of process applications can run with parallel instances
-of the pipeline expressions. Having parallel pipelines means that many events can be processed
-at the same stage at the same time. This "synchronic" parallelism allows the system to take
-advantage of the scale of its infrastructure.
+To scale throughput linearly, a system of process applications can run with parallel instances
+of the pipeline expressions, just like the way an operating system can use many cores (pipelines)
+processing instruction in parallel. Having parallel pipelines means that many events can be
+processed at the same stage at the same time. This "synchronic" parallelism allows a system
+to take advantage of the scale of its infrastructure.
 
 
 Causal dependencies
