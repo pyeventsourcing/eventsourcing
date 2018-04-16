@@ -703,9 +703,8 @@ In this example, the process applications use a MySQL database.
 Single pipeline
 ~~~~~~~~~~~~~~~
 
-Before starting the system's operating system processes, let's create a new order aggregate.
-The Orders process is constructed so that any ``Order.Created`` events published by the
-``create_new_order()`` factory will be persisted.
+Before starting the system's operating system processes, let's create a Command
+using the ``create_new_order()`` method on the ``Commands`` process (defined above).
 
 .. code:: python
 
@@ -723,6 +722,10 @@ The Orders process is constructed so that any ``Order.Created`` events published
         assert not commands.repository[cmd_id].is_done
 
 
+The command aggregate functions as above, and because the system isn't yet running,
+the command remains not done.
+
+
 .. Todo: Command logging process application, that is presented
 .. as being suitable for use in both a multi-threaded Web
 .. application server, and a worker queue processing stuff, the
@@ -735,13 +738,14 @@ The Orders process is constructed so that any ``Order.Created`` events published
 .. a response is created (how?), the request actor could be sent
 .. a message, so clients get a blocking call that doesn't involve polling.
 
-The MySQL database tables were created by the code above, because the ``Orders`` process
+The MySQL database tables were created by the code above, because the ``Commands`` process
 was constructed with ``setup_tables=True``, which is by default ``False`` in the ``Process``
 class.
 
-The code below uses the library's ``Multiprocess`` class to run the ``system``.
-By default, it starts one operating system process for each process application
-in the system, which in this example will give four child operating system processes.
+Below, the code uses the library's ``Multiprocess`` class to run the ``system``.
+It starts one operating system process for each process application
+in the system, which in this example will give four child operating
+system processes.
 
 .. code:: python
 
@@ -796,9 +800,7 @@ e.g. pipelines 0-7 on one machine, pipelines 8-15 on another machine, and so on.
     pipeline_ids = range(num_pipelines)
 
 
-Below, five orders are processed in each pipeline, giving fifteen orders in total.
-By changing pipeline, the new commands can be spread across all the pipelines.
-
+Five orders are processed in each pipeline, giving fifteen in total.
 
 .. code:: python
 
