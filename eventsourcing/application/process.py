@@ -238,16 +238,17 @@ class Process(Pipeable, SimpleApplication):
             assert isinstance(record_manager, RelationalRecordManager)
             event_records += record_manager.to_records(sequenced_items)
 
-        current_max = record_manager.get_max_record_id() or 0
-        for event_record in event_records:
-            current_max += 1
-            event_record.id = current_max
-
-        causal_dependencies = json_dumps(causal_dependencies)
-
-        if hasattr(record_manager.record_class, 'causal_dependencies'):
+        if len(event_records):
+            current_max = record_manager.get_max_record_id() or 0
             for event_record in event_records:
-                event_record.causal_dependencies = causal_dependencies
+                current_max += 1
+                event_record.id = current_max
+
+            if hasattr(record_manager.record_class, 'causal_dependencies'):
+                causal_dependencies = json_dumps(causal_dependencies)
+
+                # Only need first event to carry the dependencies.
+                event_records[0].causal_dependencies = causal_dependencies
 
         return event_records
 
