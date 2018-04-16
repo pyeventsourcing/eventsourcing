@@ -7,12 +7,12 @@ a projection into an event sourced application. By linking applications
 together in a pipeline, a system of process applications can be constructed.
 
 Reliability is the most important concern in this section. A process is considered to
-be reliable if its product is entirely unaffected, except in being delayed, by sudden
+be reliable if its product is entirely unaffected (except in being delayed) by sudden
 terminations of the process, happening at any time.
 
 The only trick is remembering that consumption with recording determines production.
 In particular, if the consumption and the recording are reliable, then the product
-of the process (records) is bound to be reliable. That's the concept to keep in mind.
+of the process is bound to be reliable.
 
 This definition of the reliability of a process doesn't include availability.
 Infrastructure unreliability may cause processing delays. Disorderly
@@ -21,11 +21,9 @@ environments shouldn't cause disorderly processing.
 (If we can reject the pervasive definition of distributed systems as a system of
 passing messages, then we do not need to be concerned with the number of times a
 message is delivered, and can avoid failing to find a solution to the false problem
-of guaranteeing once-only delivery. Since production is everything, we can instead
-be concerned with once-only production.)
+of guaranteeing once-only delivery of messages.)
 
-The other important concerns are scalability and maintainability. We want our future
-systems to be reliable, scalable, and maintainable.
+The other important concerns discussed in this section are scalability and maintainability.
 
 .. To limit this discussion even further, any programming errors in the policies or
 .. aggregates of a process that may inadvertently define pathological behaviour are
@@ -37,8 +35,11 @@ systems to be reliable, scalable, and maintainable.
 Please note, the library code presented in the example below currently only works
 with the library's SQLAlchemy record manager. Django support is planned, but not yet
 implemented. Support for Cassandra is being considered but applications will probably
-be simple replication of application state, due to the limited atomicity of Cassandra's
-lightweight transactions.
+be simple replications of application state, due to the limited atomicity of Cassandra's
+lightweight transactions. Cassandra could be used to archive events written firstly into
+a relational database. Events could be removed from the relational database before storage
+limits are encountered. Events missing in the relational database could be sourced from
+Cassandra.
 
 
 Overview
@@ -47,11 +48,11 @@ Overview
 Process application
 -------------------
 
-The library's process application class ``Process`` functions as an
-event-sourced projection (see previous section) and an event-sourced
-application. It is a subclass of ``SimpleApplication`` which also reads
-notification logs and writes tracking records. A process application has
-a policy that defines how it will respond to domain events.
+The library's process application class ``Process`` functions as a projection into
+an event-sourced application. Applications and projections are discussed in previous
+sections. ``Process`` extended ``SimpleApplication`` by also reading notification logs
+and writing tracking records. A process application also has a policy that defines how
+it will respond to domain events it reads from notification logs.
 
 
 Notification tracking
@@ -179,12 +180,16 @@ terms as "dataflow" or "stream processing".
 Whether or not a system of process applications is determinate, the processing will
 be reliable.
 
+High performance or "real time" processing could be obtained by avoiding writing to a
+durable database and instead running applications with an in-memory database.
+
+
 Process manager
 ~~~~~~~~~~~~~~~
 
-A process application, specifically an aggregate combined with a policy, could function
-effectively as a "saga", or "process manager", or "workflow manager". That is, it could
-effectively control a sequence of steps involving other aggregates in other bounded contexts,
+A process application, specifically an aggregate combined with a policy in a process application,
+could function effectively as a "saga", or "process manager", or "workflow manager". That is, it
+could effectively control a sequence of steps involving other aggregates in other bounded contexts,
 steps that might otherwise be controlled with a "long-lived transaction". It could 'maintain
 the state of the sequence and determine the next processing step based on intermediate results'
 (quote from Enterprise Integration Patterns). Exceptional "unhappy path" behaviour can be
@@ -214,7 +219,8 @@ The system automatically processes a new Order by making a Reservation, and
 then a Payment; facts registered with the Order as they happen.
 
 The behaviour of the system is entirely defined by the combination of the
-aggregates and the policies of its process applications.
+aggregates and the policies of its process applications. This allows highly
+maintainable code, easily tested, easily understood, easily changed.
 
 Below, the "orders, reservations, payments" system is run: firstly
 as a single threaded system; then with multiprocessing using a single pipeline;
