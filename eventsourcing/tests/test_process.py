@@ -137,6 +137,12 @@ class TestProcess(TestCase):
 
 class TestCommands(TestCase):
 
+    def test_command_aggregate(self):
+        cmd = Command.__create__()
+        self.assertFalse(cmd.is_done)
+        cmd.done()
+        self.assertTrue(cmd.is_done)
+
     def test_command_process(self):
         commands = CommandProcess(
             setup_tables=True
