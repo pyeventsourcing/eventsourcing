@@ -1,10 +1,12 @@
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.application.process import Process, RepositoryWrapper
+from eventsourcing.application.process import CommandProcess, Process, RepositoryWrapper
 from eventsourcing.domain.model.aggregate import AggregateRoot
-from eventsourcing.domain.model.events import clear_event_handlers
+from eventsourcing.domain.model.command import Command
+from eventsourcing.domain.model.events import clear_event_handlers, assert_event_handlers_empty
 from eventsourcing.exceptions import CausalDependencyFailed
+from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import json_loads
 
 
@@ -40,6 +42,8 @@ class TestProcess(TestCase):
         self.assertEqual(len(causal_dependencies), 1)
         self.assertEqual((aggregate2.id, 1), causal_dependencies[0])
 
+        process.close()
+
     def test_causal_dependencies(self):
         # Try to process an event that has unresolved causal dependencies.
         pipeline_id1 = 0
@@ -53,17 +57,16 @@ class TestProcess(TestCase):
             pipeline_id=pipeline_id1,
         )
 
-        # First event in partition 1.
-        aggregate = ExampleAggregate.__create__()
-        aggregate.__save__()
-
         core2 = Process(
             'core',
-            # persist_event_type=None,
             pipeline_id=pipeline_id2,
             policy=example_policy,
             session=core1.session
         )
+
+        # First event in partition 1.
+        aggregate = ExampleAggregate.__create__()
+        aggregate.__save__()
 
         # Second event in partition 2.
         # - it's important this is done in a policy so the causal dependency is identified
@@ -123,8 +126,49 @@ class TestProcess(TestCase):
         self.assertEqual(1, len(downstream1.event_store.record_manager.get_notifications()))
         self.assertEqual(1, len(downstream2.event_store.record_manager.get_notifications()))
 
+        core1.close()
+        core2.close()
+        downstream1.close()
+        downstream2.close()
+
     def tearDown(self):
-        clear_event_handlers()
+        assert_event_handlers_empty()
+
+
+class TestCommands(TestCase):
+
+    def test_command_process(self):
+        commands = CommandProcess(
+            setup_tables=True
+        )
+        core = Process(
+            'core',
+            policy=example_policy,
+            session=commands.session
+        )
+
+        self.assertFalse(list(commands.event_store.all_domain_events()))
+
+        cmd = CreateExample.__create__()
+        # cmd = Command.__create__(cmd_method='create_example', cmd_args={})
+        cmd.__save__()
+
+        domain_events = list(commands.event_store.all_domain_events())
+        # self.assertTrue(domain_events)
+        self.assertEqual(len(domain_events), 1)
+
+        self.assertFalse(list(core.event_store.all_domain_events()))
+
+        core.follow('commands', commands.notification_log)
+        core.run()
+
+        self.assertTrue(list(core.event_store.all_domain_events()))
+
+        commands.close()
+        core.close()
+
+    def tearDown(self):
+        assert_event_handlers_empty()
 
 
 # Example aggregate (used in the test).
@@ -158,6 +202,11 @@ def example_policy(process, repository, event):
         assert isinstance(aggregate, ExampleAggregate)
         aggregate.move_on()
 
+    elif isinstance(event, Command.Created):
+        command_class = resolve_topic(event.originator_topic)
+        if command_class is CreateExample:
+            return ExampleAggregate.__create__()
+
 
 class LogMessage(AggregateRoot):
 
@@ -174,3 +223,7 @@ class LogMessage(AggregateRoot):
 
 def event_logging_policy(process, repository, event):
     return LogMessage.__create__(uuid4(), message=str(event))
+
+
+class CreateExample(Command):
+    pass

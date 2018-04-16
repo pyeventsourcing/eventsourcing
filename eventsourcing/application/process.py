@@ -4,6 +4,7 @@ import six
 from six import with_metaclass
 
 from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.domain.model.command import Command
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, PromptFailed, RecordConflictError
@@ -266,6 +267,10 @@ class Process(Pipeable, SimpleApplication):
         unsubscribe(predicate=self.is_upstream_prompt, handler=self.run)
         unsubscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
         super(Process, self).close()
+
+
+class CommandProcess(Process):
+    persist_event_type = Command.Event
 
 
 class RepositoryWrapper(object):

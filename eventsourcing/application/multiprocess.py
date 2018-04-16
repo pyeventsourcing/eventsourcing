@@ -72,6 +72,7 @@ class Multiprocess(object):
 
     def broadcast_prompt(self, prompt):
         outbox_id = (prompt.pipeline_id, prompt.process_name)
+        assert outbox_id in self.outboxes, (outbox_id, self.outboxes.keys())
         self.outboxes[outbox_id].put(prompt)
 
     @staticmethod

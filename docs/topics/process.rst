@@ -173,6 +173,20 @@ terms as "dataflow" or "stream processing".
 Whether or not a system of process applications is determinate, the processing will
 be reliable.
 
+Process manager
+~~~~~~~~~~~~~~~
+
+A process application, specifically an aggregate combined with a policy, could function
+effectively as a "saga", or "process manager", or "workflow manager". That is, it could
+effectively control a sequence of steps involving other aggregates in other bounded contexts,
+steps that might otherwise be controlled with a "long-lived transaction".
+
+For example, see the ``Orders`` process application below. To quote from the Enterprise
+Integration Patterns book, it could "maintain the state of the sequence and
+determine the next processing step based on intermediate results". Exceptional "unhappy
+path" behaviour can be implemented as part of the logic of the application.
+
+
 .. If persistence were optional, this design could be used for high-performance applications
 .. which would be understood to be less durable. Data could be streamed out asynchronously
 .. and still stored atomically but after the processing notifications are available.
@@ -221,8 +235,9 @@ set as paid, which involves a payment ID.
 
 
     class Order(AggregateRoot):
-        def __init__(self, **kwargs):
+        def __init__(self, command_id=None, **kwargs):
             super(Order, self).__init__(**kwargs)
+            self.command_id = command_id
             self.is_reserved = False
             self.is_paid = False
 
@@ -230,7 +245,9 @@ set as paid, which involves a payment ID.
             pass
 
         class Created(Event, AggregateRoot.Created):
-            pass
+            def __init__(self, **kwargs):
+                assert 'command_id' in kwargs, kwargs
+                super(Order.Created, self).__init__(**kwargs)
 
         class Reserved(Event):
             def mutate(self, order):
@@ -251,7 +268,7 @@ set as paid, which involves a payment ID.
         def set_is_paid(self, payment_id):
             assert not self.is_paid, "Order {} already paid.".format(self.id)
             self.__trigger_event__(
-                self.Paid, payment_id=payment_id
+                self.Paid, payment_id=payment_id, command_id=self.command_id
             )
 
 
@@ -267,10 +284,6 @@ A ``Reservation`` can be created. A reservation has an ``order_id``.
         class Created(AggregateRoot.Created):
             pass
 
-        @classmethod
-        def create(cls, order_id):
-            return cls.__create__(order_id=order_id)
-
 
 A ``Payment`` can be made. A payment also has an ``order_id``.
 
@@ -284,26 +297,42 @@ A ``Payment`` can be made. A payment also has an ``order_id``.
         class Created(AggregateRoot.Created):
             pass
 
-        @classmethod
-        def create(self, order_id):
-            return self.__create__(order_id=order_id)
 
-Factory
--------
-
-The orders factory ``create_new_order()`` is decorated with the ``@retry`` decorator,
-to be resilient against both concurrency conflicts and any operational errors.
+A command class ``CreateNewOrder`` is also defined using the library ``Command`` aggregate.
 
 .. code:: python
 
-    from eventsourcing.domain.model.decorators import retry
-    from eventsourcing.exceptions import OperationalError, RecordConflictError
+    from eventsourcing.domain.model.command import Command
+    from eventsourcing.domain.model.decorators import attribute
 
-    @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
-    def create_new_order():
-        order = Order.__create__()
-        order.__save__()
-        return order.id
+
+    class CreateNewOrder(Command):
+
+        @attribute
+        def order_id(self):
+            pass
+
+
+    cmd = CreateNewOrder.__create__()
+    assert cmd.order_id is None
+    assert cmd.is_done is False
+
+.. Factory
+.. -------
+..
+.. The orders factory ``create_new_order()`` is decorated with the ``@retry`` decorator,
+.. to be resilient against both concurrency conflicts and any operational errors.
+..
+.. .. code:: python
+..
+..     from eventsourcing.domain.model.decorators import retry
+..     from eventsourcing.exceptions import OperationalError, RecordConflictError
+..
+..     @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
+..     def create_new_order():
+..         order = Order.__create__()
+..         order.__save__()
+..         return order.id
 
 .. Todo: Raise and catch ConcurrencyError instead of RecordConflictError (convert somewhere
 .. or just raise ConcurrencyError when there is a record conflict?).
@@ -328,13 +357,20 @@ Orders process responds to new payments, by setting an order as paid.
 .. code:: python
 
     from eventsourcing.application.process import Process
+    from eventsourcing.utils.topic import resolve_topic
 
 
     class Orders(Process):
         persist_event_type=Order.Event
 
-        def policy(self, repository, event):
-            if isinstance(event, Reservation.Created):
+        @staticmethod
+        def policy(repository, event):
+            if isinstance(event, Command.Created):
+                command_class = resolve_topic(event.originator_topic)
+                if command_class is CreateNewOrder:
+                    return Order.__create__(command_id=event.originator_id)
+
+            elif isinstance(event, Reservation.Created):
                 # Set the order as reserved.
                 order = repository[event.order_id]
                 assert not order.is_reserved
@@ -349,38 +385,72 @@ Orders process responds to new payments, by setting an order as paid.
 The ``Orders`` process will persist events of type ``Order.Event``, so that
 orders can be created directly using the factory ``create_new_order()``.
 
-When called, a process policy is given a ``repository`` and an ``event``. In process
-policies, always use the given repository to access existing aggregates, so that
+A process policy is called with a ``repository`` and an ``event`` argument. A process
+policy should always use the given ``repository`` to access existing aggregates, so that
 changes and causal dependencies can be automatically detected by the process application.
 In other words, don't use ``self.repository``. The ``Process`` gives the policy a wrapped
 version of its repository, so it can detect which aggregates were used, and which were changed.
+
+Here's the process application for reservations. It responds to an ``Order.Created`` event
+by creating a new ``Reservation`` aggregate.
 
 .. code:: python
 
     class Reservations(Process):
 
-        def policy(self, repository, event):
+        @staticmethod
+        def policy(repository, event):
             if isinstance(event, Order.Created):
-                return Reservation.create(order_id=event.originator_id)
+                return Reservation.__create__(order_id=event.originator_id)
 
 
 Policies should normally return new aggregates to the caller, but do not need to return
 existing aggregates that have been accessed or changed.
 
+Here's the process application for payments. It responds to an ``Order.Reserved`` event
+by creating a new ``Payment``.
+
 .. code:: python
 
     class Payments(Process):
 
-        def policy(self, repository, event):
+        @staticmethod
+        def policy(repository, event):
             if isinstance(event, Order.Reserved):
-                return Payment.create(order_id=event.originator_id)
+                return Payment.__create__(order_id=event.originator_id)
+
+We also need to define a "commands" process, which can update a ``Command`` as processing
+happens. The library class ``CommandProcess`` is extended by defining a policy that
+responds to ``Order.Created`` events by setting the ``order_id`` on the command.
+
+.. code:: python
+
+    from eventsourcing.application.process import CommandProcess
+
+
+    class Commands(CommandProcess):
+
+        @staticmethod
+        def policy(repository, event):
+            if isinstance(event, Order.Created):
+                cmd = repository[event.command_id]
+                cmd.order_id = event.originator_id
+
+            elif isinstance(event, Order.Paid):
+                cmd = repository[event.command_id]
+                cmd.done()
+
+        def create_new_order(self):
+            cmd = CreateNewOrder.__create__()
+            cmd.__save__()
+            return cmd.id
 
 
 Please note, the ``__save__()`` method of aggregates should never be called in a process policy,
 because pending events from both new and changed aggregates will be automatically collected by
 the process application after its ``policy()`` method has returned. To be reliable, a process
 application needs to commit all the event records atomically with a tracking record, and calling
-``__save__()`` will instead commit new events in a separate transaction.
+``__save__()`` will instead commit events in a separate transaction.
 
 
 Tests
@@ -400,17 +470,16 @@ a reservation was created.
         # Prepare fake repository with a real Order aggregate.
         fake_repository = {}
 
-        order = Order.__create__()
+        order = Order.__create__(command_id=None)
         fake_repository[order.id] = order
 
         # Check order is not reserved.
         assert not order.is_reserved
 
         # Process reservation created.
-        with Orders() as process:
-
+        with Orders() as orders:
             event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
-            process.policy(repository=fake_repository, event=event)
+            orders.policy(repository=fake_repository, event=event)
 
         # Check order is reserved.
         assert order.is_reserved
@@ -428,14 +497,14 @@ In the payments policy test below, a new payment is created because an order was
         # Prepare fake repository with a real Order aggregate.
         fake_repository = {}
 
-        order = Order.__create__()
+        order = Order.__create__(command_id=None)
         fake_repository[order.id] = order
 
         # Check policy creates payment whenever order is reserved.
         event = Order.Reserved(originator_id=order.id, originator_version=1)
 
-        with Payments() as process:
-            payment = process.policy(repository=fake_repository, event=event)
+        with Payments() as payments:
+            payment = payments.policy(repository=fake_repository, event=event)
             assert isinstance(payment, Payment), payment
             assert payment.order_id == order.id
 
@@ -487,32 +556,39 @@ Each process may be followed by more than one process. Although a process applic
 class can appear many times in the pipeline expressions, there will only be one instance
 of each process when the system is running.
 
+The ``Commands`` process can be followed by the ``Orders`` process.
+
+.. code:: python
+
+    commands_pipeline = Commands | Orders | Commands
+
 An orders-reservations-payments system can be defined using these pipeline expressions.
 
 .. code:: python
 
     from eventsourcing.application.process import System
 
-    system = System(reservations_pipeline, payments_pipeline)
+    system = System(
+        commands_pipeline,
+        reservations_pipeline,
+        payments_pipeline
+    )
 
-Please note, each application can only access the aggregates it has created. In
-this example, an order aggregate created by the orders process is available neither
-in the repositories of the reservations nor the payments applications. State is
-propagated between applications in a system through notification logs only. This can
-perhaps be recognised as the "bounded context" pattern.
+This is equivalent to a system defined with the following single pipeline expression.
 
-If one application could use the aggregates of another application,
-processing could produce different results at different times, and in consequence
-the processing wouldn't be reliable. If necessary, a process application could
-replicate the state of an aggregate within its own context in an application it is
-following, by projecting its events as they are read from the notification log.
+    system = System(
+        Commands | Orders | Reservations | Orders | Payments | Orders | Commands
+    )
 
-In this example, the Orders process, specifically the Order aggregate
-combined with the Orders process policy, could function effectively as a
-"saga", or "process manager", or "workflow manager". That is, it could effectively
-control a sequence of steps involving other aggregates in other bounded contexts,
-steps that might otherwise be controlled with a "long-lived transaction". Exceptional
-"unhappy path" behaviour is implemented as part of the logic of the application.
+State is propagated between process applications through notification logs only. This can
+perhaps be recognised as the "bounded context" pattern. Each process application can directly
+access only the aggregates it has created. For example, an ``Order`` aggregate created by the
+``Orders`` process is available in neither the repository of ``Reservations`` nor the repository
+of ``Payments``. That is because if an application could directly use the aggregates of another
+application, processing could produce different results at different times, and in consequence
+the processing wouldn't be reliable. If necessary, a process application could replicate the
+state of an aggregate within its own context in an application it is following, by projecting
+its events as they are read from an upstream notification log.
 
 .. Except for the definition and implementation of process,
 .. there are no special concepts or components. There are only policies and
@@ -542,13 +618,25 @@ In that context, a new order is created.
 .. code:: python
 
     with system:
-        # Create new Order aggregate.
-        order_id = create_new_order()
+        # Create new order command.
+        cmd_id = system.commands.create_new_order()
+
+        # Check the command has an order ID and is done.
+        cmd = system.commands.repository[cmd_id]
+        assert cmd.order_id
+        assert cmd.is_done
 
         # Check the order is reserved and paid.
-        repository = system.orders.repository
-        assert repository[order_id].is_reserved
-        assert repository[order_id].is_paid
+        order = system.orders.repository[cmd.order_id]
+        assert order.is_reserved
+        assert order.is_paid
+
+        # Check the reservation exists.
+        reservation = system.reservations.repository[order.reservation_id]
+
+        # Check the payment exists.
+        payment = system.payments.repository[order.payment_id]
+
 
 The system responds by making a reservation and a payment, facts that are registered
 with the order. Everything happens synchronously, in a single thread, so by the time
@@ -621,13 +709,16 @@ The Orders process is constructed so that any ``Order.Created`` events published
 
     from eventsourcing.application.simple import SimpleApplication
 
-    with Orders(setup_tables=True) as app:
+    with Commands(setup_tables=True) as commands:
 
-        # Create a new order.
-        order_id = create_new_order()
+        # Create a new command.
+        cmd_id = commands.create_new_order()
 
-        # Check new order exists in the repository.
-        assert order_id in app.repository
+        # Check command exists in repository.
+        assert cmd_id in commands.repository
+
+        # Check command is not done.
+        assert not commands.repository[cmd_id].is_done
 
 
 .. Todo: Command logging process application, that is presented
@@ -648,38 +739,32 @@ class.
 
 The code below uses the library's ``Multiprocess`` class to run the ``system``.
 By default, it starts one operating system process for each process application
-in the system, which in this example will give three child operating system processes.
+in the system, which in this example will give four child operating system processes.
 
 .. code:: python
 
     from eventsourcing.application.multiprocess import Multiprocess
+
 
 The operating system processes can be started by using the ``multiprocess``
 object as a context manager, which calls ``start()`` on entry and ``close()``
 on exit.
 
 The process applications read their upstream notification logs when they start,
-so the unprocessed ``Order.Created`` event is picked up and processed immediately.
-Wait for the results by polling the aggregate state.
+so the unprocessed command is picked up and processed immediately.
 
 .. code:: python
 
-    import time
+    from eventsourcing.domain.model.decorators import retry
+
+    @retry(AssertionError, max_attempts=20, wait=0.5)
+    def assert_command_is_done(repository, cmd_id):
+        # Check the command is done.
+        assert repository[cmd_id].is_done
 
     if __name__ == '__main__':
-
-        with Orders() as app, Multiprocess(system):
-
-            retries = 50
-            while not app.repository[order_id].is_reserved:
-                time.sleep(0.1)
-                retries -= 1
-                assert retries, "Failed set order.is_reserved"
-
-            while retries and not app.repository[order_id].is_paid:
-                time.sleep(0.1)
-                retries -= 1
-                assert retries, "Failed set order.is_paid"
+        with Commands() as commands, Multiprocess(system):
+            assert_command_is_done(commands.repository, cmd_id)
 
 
 .. Because the orders are created with a second instance of the ``Orders`` process
@@ -701,68 +786,55 @@ The system can run with multiple instances of the system's pipeline expressions.
 system with many parallel pipeline instances means that each process application in the system
 can process many events at the same time.
 
-In the example below, there are five pipelines and three process applications, which
-gives fifteen child operating system processes. All fifteen operating system processes
-will share the same database. It would be possible to run the system with e.g. pipelines
-0-7 on one machine, pipelines 8-15 on another machine, and so on.
+In the example below, there are three pipelines and four process applications, which
+gives twelve child operating system processes. All the operating system processes
+share the same database in this example. It would be possible to run the system with
+e.g. pipelines 0-7 on one machine, pipelines 8-15 on another machine, and so on.
 
 .. code:: python
 
-    num_pipelines = 5
+    num_pipelines = 3
 
     pipeline_ids = range(num_pipelines)
 
 
-Below, twenty-five orders are created in each of the five pipelines, giving one hundred and
-twenty-five orders in total. Please note, when creating the new aggregates, the Orders
-process application needs to be told which pipeline to use.
-
-.. Todo: Replace with command process?
+Below, five orders are processed in each pipelines, giving fifteen orders in total. By changing
+pipeline, the new commands are spread across all the pipelines.
 
 .. code:: python
 
+    num_orders_per_pipeline = 5
+
     if __name__ == '__main__':
 
-        with Orders() as app, Multiprocess(system, pipeline_ids=pipeline_ids):
+        with Commands() as commands, Multiprocess(system, pipeline_ids=pipeline_ids):
 
             # Create new orders.
-            order_ids = []
-            num_orders_per_pipeline = 25
+            command_ids = []
 
             for _ in range(num_orders_per_pipeline):
                 for pipeline_id in pipeline_ids:
-                    app.change_pipeline(pipeline_id)
+                    commands.change_pipeline(pipeline_id)
+                    cmd_id = commands.create_new_order()
+                    command_ids.append(cmd_id)
 
-                    order_id = create_new_order()
-                    order_ids.append(order_id)
+            # Check all commands are done.
+            for i, command_id in enumerate(command_ids):
+                assert_command_is_done(commands.repository, command_id)
 
-
-            # Wait for orders to be reserved and paid.
-            retries = 10 + 10 * num_orders_per_pipeline * len(pipeline_ids)
-            for i, order_id in enumerate(order_ids):
-
-                while not app.repository[order_id].is_reserved:
-                    time.sleep(0.1)
-                    retries -= 1
-                    assert retries, "Failed set order.is_reserved {} ({})".format(order_id, i)
-
-                while retries and not app.repository[order_id].is_paid:
-                    time.sleep(0.1)
-                    retries -= 1
-                    assert retries, "Failed set order.is_paid ({})".format(i)
 
 ..            # Calculate timings from event timestamps.
-..            orders = [app.repository[oid] for oid in order_ids]
+..            orders = [app.repository[oid] for oid in command_ids]
 ..            min_created_on = min([o.__created_on__ for o in orders])
 ..            max_created_on = max([o.__created_on__ for o in orders])
 ..            max_last_modified = max([o.__last_modified__ for o in orders])
 ..            create_duration = max_created_on - min_created_on
 ..            duration = max_last_modified - min_created_on
-..            rate = len(order_ids) / float(duration)
+..            rate = len(command_ids) / float(duration)
 ..            period = 1 / rate
-..            print("Orders created rate: {:.1f} order/s".format((len(order_ids) - 1) / create_duration))
+..            print("Orders created rate: {:.1f} order/s".format((len(command_ids) - 1) / create_duration))
 ..            print("Orders processed: {} orders in {:.3f}s at rate of {:.1f} "
-..                  "orders/s, {:.3f}s each".format((len(order_ids) - 1), duration, rate, period))
+..                  "orders/s, {:.3f}s each".format((len(command_ids) - 1), duration, rate, period))
 ..
 ..            # Print min, average, max duration.
 ..            durations = [o.__last_modified__ - o.__created_on__ for o in orders]
@@ -835,7 +907,7 @@ To aid development and testing, actors could run without any
 parallelism, for example with the "simpleSystemBase" actor
 system in Thespian.
 
-Partitioning of the system could be automated with actors. A system actor
+Scaling the system could be automated with the help of actors. A system actor
 (started how? leader election? Kubernetes configuration?) could increase or
 decrease the number of system pipelines, according to the rate at which events
 are being added to the system command process, compared to the known (or measured)

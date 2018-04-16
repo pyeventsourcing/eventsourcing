@@ -7,6 +7,7 @@ from eventsourcing.application.multiprocess import Multiprocess
 from eventsourcing.application.process import Process, System
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import retry
+from eventsourcing.domain.model.events import clear_event_handlers, assert_event_handlers_empty
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.tests.test_process import ExampleAggregate
 
@@ -33,7 +34,7 @@ class TestSystem(TestCase):
 
         self.set_db_uri()
 
-        with Multiprocess(system), Examples() as app:
+        with Examples() as app, Multiprocess(system):
             aggregate = ExampleAggregate.__create__()
             aggregate.__save__()
 
@@ -185,6 +186,8 @@ class TestSystem(TestCase):
         assert order.is_reserved
 
     def tearDown(self):
+        assert_event_handlers_empty()
+        clear_event_handlers()
         try:
             del (os.environ['DB_URI'])
         except KeyError:

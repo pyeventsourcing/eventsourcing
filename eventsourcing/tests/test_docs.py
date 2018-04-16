@@ -6,6 +6,7 @@ from tempfile import NamedTemporaryFile
 from unittest.case import TestCase
 
 import eventsourcing
+from eventsourcing.domain.model.events import assert_event_handlers_empty
 
 base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
@@ -72,6 +73,7 @@ class TestDocs(TestCase):
             # print("Testing code snippets in file: {}".format(path))
             try:
                 self.check_code_snippets_in_file(path)
+                assert_event_handlers_empty()
             except self.failureException as e:
                 failures.append(e)
                 failed.append(path)

@@ -149,7 +149,7 @@ def attribute(getter):
 
         def new_getter(self):
             name = '_' + getter.__name__
-            return getattr(self, name)
+            return getattr(self, name, None)
 
         return property(fget=new_getter, fset=setter, doc=getter.__doc__)
     else:
