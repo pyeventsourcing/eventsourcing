@@ -757,7 +757,7 @@ so the unprocessed command is picked up and processed immediately.
 
 .. code:: python
 
-    @retry(AssertionError, max_attempts=20, wait=0.5)
+    @retry(AssertionError, max_attempts=10, wait=0.5)
     def assert_command_is_done(repository, cmd_id):
         assert repository[cmd_id].is_done
 
