@@ -295,7 +295,7 @@ A ``Payment`` can be made. A payment also has an ``order_id``.
             pass
 
 
-A command class ``CreateNewOrder`` is also defined using the library ``Command`` aggregate.
+Also, command class ``CreateNewOrder`` is defined using the library ``Command`` aggregate.
 
 .. code:: python
 
@@ -304,15 +304,21 @@ A command class ``CreateNewOrder`` is also defined using the library ``Command``
 
 
     class CreateNewOrder(Command):
-
         @attribute
         def order_id(self):
             pass
 
+Commands are event sourced aggregates, and can be created and set as done.
+
+.. code:: python
 
     cmd = CreateNewOrder.__create__()
     assert cmd.order_id is None
     assert cmd.is_done is False
+    cmd.done()
+    assert cmd.is_done is True
+
+    del(cmd)
 
 .. Factory
 .. -------
@@ -394,7 +400,6 @@ by creating a new ``Reservation`` aggregate.
 .. code:: python
 
     class Reservations(Process):
-
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Created):
@@ -410,7 +415,6 @@ by creating a new ``Payment``.
 .. code:: python
 
     class Payments(Process):
-
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Reserved):
@@ -428,7 +432,6 @@ responds to ``Order.Created`` events by setting the ``order_id`` on the command.
 
 
     class Commands(CommandProcess):
-
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Created):
@@ -791,8 +794,9 @@ e.g. pipelines 0-7 on one machine, pipelines 8-15 on another machine, and so on.
     pipeline_ids = range(num_pipelines)
 
 
-Below, five orders are processed in each pipelines, giving fifteen orders in total. By changing
-pipeline, the new commands are spread across all the pipelines.
+Below, five orders are processed in each pipeline, giving fifteen orders in total.
+By changing pipeline, the new commands can be spread across all the pipelines.
+
 
 .. code:: python
 
@@ -802,7 +806,6 @@ pipeline, the new commands are spread across all the pipelines.
 
         # Create new orders.
         command_ids = []
-
         for _ in range(num_orders_per_pipeline):
             for pipeline_id in pipeline_ids:
                 commands.change_pipeline(pipeline_id)
