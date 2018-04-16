@@ -713,7 +713,7 @@ this database already exists.
 
     os.environ['DB_URI'] = 'mysql+pymysql://{}:{}@{}/eventsourcing'.format(
         os.getenv('MYSQL_USER', 'root'),
-        os.getenv('MYSQL_PASSWORD', '')
+        os.getenv('MYSQL_PASSWORD', ''),
         os.getenv('MYSQL_HOST', '127.0.0.1'),
     )
 
