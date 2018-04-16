@@ -64,3 +64,7 @@ See also:
 
 -  `Kahn Process Networks <https://en.wikipedia.org/wiki/Kahn_process_networks>`__ page on Wikipedia
 
+Citations:
+
+- `An Evaluation on Using Coarse grained Events in an Event Sourcing Context and its Effects
+  Compared to Fine-grained Events <http://www.nada.kth.se/~ann/exjobb/brian_ye.pdf>`__ by Brian Ye
