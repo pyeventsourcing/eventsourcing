@@ -12,9 +12,9 @@ is considered to be reliable if its product is entirely unaffected
 (except in being delayed) by sudden terminations of the process,
 happening at any time.
 
-The only trick is remembering that consumption with recording determines
-production. In particular, if the consumption and the recording are reliable,
-then the product of the process is bound to be reliable.
+The only trick is remembering that, in general, production is determined
+by consumption with recording. In particular, if the consumption and the
+recording are reliable, then the product of the process is bound to be reliable.
 
 This definition of the reliability of a process doesn't include availability.
 Infrastructure unreliability may cause processing delays. Disorderly
