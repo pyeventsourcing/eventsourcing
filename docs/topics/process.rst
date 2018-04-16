@@ -98,14 +98,13 @@ Atomicity
 ~~~~~~~~~
 
 A process application is as reliable as the atomicity of its database transactions,
-just like a ratchet is as strong as its teeth and pawl. The atomicity of the
-database transactions guarantees separately the reliability of both the notification
-log being consumed (teeth) and the notification tracking records (pawl).
+just like a ratchet is as strong as its teeth (notification log) and pawl (tracking
+records).
 
 If some of the new records can't be written, then none are. If anything goes wrong
 before all the records have been written, the transaction will abort, and none of
-the records will be written. On the other hand, if a tracking record has been written,
-then so will any new event records, and the process will have fully completed an atomic
+the records will be written. On the other hand, if a tracking record is written,
+then so are any new event records, and the process has fully completed an atomic
 progression.
 
 The atomicity of the recording and consumption determines the production as atomic:
@@ -139,10 +138,11 @@ A system can also run with multiple operating system processes, with asynchronou
 propagation and processing of events. Having an asynchronous pipeline means events at
 different stages can be processed at the same time. This could be described as "diachronic"
 parallelism, like the way a pipelined CPU core has stages. This kind of parallelism can
-improve throughput, up to a limit (the number of stages). The reliability of the sequantial
-processing allows one to write a reliable "saga" or a "process manager". In other words, a
-complicated sequence involving different aggregates, and perhaps different bounded contexts,
-can be implemented reliably without long-lived transactions.
+improve throughput, up to a limit provided by the number of steps required by the domain.
+The reliability of the sequantial processing allows one to write a reliable "saga" or a
+"process manager". In other words, a complicated sequence involving different aggregates,
+and perhaps different bounded contexts, can be implemented reliably without long-lived
+transactions.
 
 To scale the system further, a system of process applications can run with parallel instances
 of the pipeline expressions, just like the way an operating system can use many cores (pipelines)
@@ -183,7 +183,7 @@ the system as a whole will not be determinate, and could be described in more ge
 terms as "dataflow" or "stream processing".
 
 Whether or not a system of process applications is determinate, the processing will
-be reliable.
+be reliable (results unaffected by infrastructure failures).
 
 High performance or "real time" processing could be obtained by avoiding writing to a
 durable database and instead running applications with an in-memory database.
@@ -227,9 +227,9 @@ The behaviour of the system is entirely defined by the combination of the
 aggregates and the policies of its process applications. This allows highly
 maintainable code, code that is easily tested, easily understood, easily changed.
 
-Below, the "orders, reservations, payments" system is run: firstly
-as a single threaded system; then with multiprocessing using a single pipeline;
-and finally with both multiprocessing and multiple pipelines.
+Below, the "orders, reservations, payments" system is run: firstly as a single
+threaded system; then with multiprocessing using a single pipeline; and finally
+with both multiprocessing and multiple pipelines.
 
 Aggregates
 ----------
