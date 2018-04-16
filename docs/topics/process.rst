@@ -3,23 +3,29 @@ Process and system
 ==================
 
 This section is about process applications. A process application is
-a projection that also work as an event sourced application. A system
-of process applications can be constructed by placing the process
-applications in a pipeline.
+a projection into an event sourced application. By linking applications
+together in a pipeline, a system of process applications can be constructed.
 
 Reliability is the most important concern in this section. A process is considered to
-be reliable if its product is entirely unaffected by a sudden termination of the process
-happening at any time, except in being delayed. The other important concerns are
-scalability and maintainability.
+be reliable if its product is entirely unaffected, except in being delayed, by sudden
+terminations of the process, happening at any time.
 
-The only trick is remembering consumption with recording determines production.
+The only trick is remembering that consumption with recording determines production.
 In particular, if the consumption and the recording are reliable, then the product
-of the process is bound to be reliable.
+of the process (records) is bound to be reliable. That's the concept to keep in mind.
 
 This definition of the reliability of a process doesn't include availability.
 Infrastructure unreliability may cause processing delays. Disorderly
 environments shouldn't cause disorderly processing.
 
+(If we can reject the pervasive definition of distributed systems as a system of
+passing messages, then we do not need to be concerned with the number of times a
+message is delivered, and can avoid failing to find a solution to the false problem
+of guaranteeing once-only delivery. Since production is everything, we can instead
+be concerned with once-only production.)
+
+The other important concerns are scalability and maintainability. We want our future
+systems to be reliable, scalable, and maintainable.
 
 .. To limit this discussion even further, any programming errors in the policies or
 .. aggregates of a process that may inadvertently define pathological behaviour are
@@ -29,11 +35,10 @@ environments shouldn't cause disorderly processing.
 
 
 Please note, the library code presented in the example below currently only works
-with the library's SQLAlchemy record manager. Django support is planned. Cassandra
-support is being considered but will probably be restricted to processes similar
-to replication or translation that will write one record for each event notification
-received, and use that record as tracking record, event record, and notification
-log record, due to the limited atomicity of Cassandra's lightweight transactions.
+with the library's SQLAlchemy record manager. Django support is planned, but not yet
+implemented. Support for Cassandra is being considered but applications will probably
+be simple replication of application state, due to the limited atomicity of Cassandra's
+lightweight transactions.
 
 
 Overview
@@ -42,44 +47,45 @@ Overview
 Process application
 -------------------
 
-The library's process application class ``Process`` functions both as an
-event-sourced projection (see previous section) and as an event-sourced
-application. It is a subclass of ``SimpleApplication`` that also has
-notification log readers and tracking records.
-
-A process application also has a policy that defines how the process application
-responds to the domain events it will receive from its notification log readers.
+The library's process application class ``Process`` functions as an
+event-sourced projection (see previous section) and an event-sourced
+application. It is a subclass of ``SimpleApplication`` which also reads
+notification logs and writes tracking records. A process application has
+a policy that defines how it will respond to domain events.
 
 
 Notification tracking
 ~~~~~~~~~~~~~~~~~~~~~
 
-A process application consumes events by reading event notifications from its notification
-log readers. The events are retrieved in a reliable order, without race conditions or
-duplicates or missing items.
+A process application consumes events by reading domain event notifications
+from its notification log readers. The events are retrieved in a reliable order,
+without race conditions or duplicates or missing items. Each notification in a
+notification log has a unique integer ID, and the notification log IDs form a
+contiguous sequence.
 
-To keep track of its position in the notification log, a process application will create
-a new tracking record for each event notification it processes. The tracking records
-determine how far the process has progressed through the notification log. Tracking
-records are used to set the position of the notification log reader when the process
-is commenced or resumed.
+To keep track of its position in the notification log, a process application
+will create a new tracking record for each event notification it processes.
+The tracking records determine how far the process has progressed through
+the notification log. The tracking records are used to set the position
+of the notification log reader when the process is commenced or resumed.
 
 
 Policies
 ~~~~~~~~
 
 A process application will respond to events according to its policy. Its policy might
-do nothing in response to one type of event, and it might call an aggregate method in
-response to another type of event. The aggregate method may trigger new domain events.
+do nothing in response to one type of event, and it might call an aggregate command method
+in response to another type of event. If the aggregate method triggers new domain events,
+they will be available in its notification log for others to read.
 
-There can only be one tracking record for each notification. So once the tracking record
+There can only be one tracking record for each notification. Once the tracking record
 has been written it can't be written again, and neither can any new events unfortunately
-triggered by duplicate calls to aggregate commands (which may even succeed and which may
-not be idempotent). If an event can be processed at all, then it will be processed exactly
-once.
+triggered by duplicate calls to aggregate commands (which may not be idempotent). If an
+event can be processed at all, then it will be processed exactly once.
 
-However the policy responds to an event, the process application will write one tracking
-record, along with any new event records, in an atomic database transaction.
+Whatever the policy response, the process application will write one tracking
+record for each notification, along with new stored event and notification records,
+in an atomic database transaction.
 
 
 Atomicity
@@ -106,7 +112,7 @@ process.
 System of processes
 -------------------
 
-The library's class ``System`` can be used to define a system of process applications,
+The library class ``System`` can be used to define a system of process applications,
 independently of scale.
 
 In a system, one process application can follow another. One process can
@@ -127,12 +133,12 @@ A system can also run with multiple operating system processes, with asynchronou
 propagation and processing of events. Having an asynchronous pipeline means events at
 different stages can be processed at the same time. This could be described as "diachronic"
 parallelism, like the way a pipelined CPU core has stages. This kind of parallelism can
-improve throughput, up to a limit. The reliability of the processing can be used to write
-a reliable "saga" or a "process manager". In other words, a complicated sequence involving
-different aggregates, and perhaps different bounded contexts, can be implemented reliably
-without long-lived transactions.
+improve throughput, up to a limit (the number of stages). The reliability of the sequantial
+processing allows one to write a reliable "saga" or a "process manager". In other words, a
+complicated sequence involving different aggregates, and perhaps different bounded contexts,
+can be implemented reliably without long-lived transactions.
 
-To scale throughput linearly, a system of process applications can run with parallel instances
+To scale the system further, a system of process applications can run with parallel instances
 of the pipeline expressions, just like the way an operating system can use many cores (pipelines)
 processing instruction in parallel. Having parallel pipelines means that many events can be
 processed at the same stage at the same time. This "synchronic" parallelism allows a system
@@ -160,7 +166,7 @@ could be processed in parallel.)
 Kahn process networks
 ~~~~~~~~~~~~~~~~~~~~~
 
-Because a notification log functions effectively as a FIFO, a system of
+Because a notification log and reader functions effectively as a FIFO, a system of
 determinate process applications can be recognised as a `Kahn Process Network
 <https://en.wikipedia.org/wiki/Kahn_process_networks>`__ (KPN).
 
@@ -204,13 +210,13 @@ Example
 =======
 
 The example below is suggestive of an orders-reservations-payments system.
-The system automatically processes new orders by making a reservation, and
-then a payment; facts that are registered with the order, as they happen.
+The system automatically processes a new Order by making a Reservation, and
+then a Payment; facts registered with the Order as they happen.
 
 The behaviour of the system is entirely defined by the combination of the
-aggregates and the process policies, and the sequence defined in the system.
+aggregates and the policies of its process applications.
 
-The "orders, reservations, payments" system is run: firstly
+Below, the "orders, reservations, payments" system is run: firstly
 as a single threaded system; then with multiprocessing using a single pipeline;
 and finally with both multiprocessing and multiple pipelines.
 
@@ -221,7 +227,7 @@ In the code below, event-sourced aggregates are defined for orders, reservations
 and payments. The ``Order`` class is for "orders". The ``Reservation`` class is
 for "reservations". And the ``Payment`` class is for "payments".
 
-A new ``Order`` aggregate can be created. An unreserved order
+In the model below, an order can be created. A new order
 can be set as reserved, which involves a reservation
 ID. Having been created and reserved, an order can be
 set as paid, which involves a payment ID.
@@ -269,7 +275,7 @@ set as paid, which involves a payment ID.
             )
 
 
-A ``Reservation`` can be created. A reservation has an ``order_id``.
+A reservation can be created. A reservation has an ``order_id``.
 
 .. code:: python
 
@@ -282,7 +288,7 @@ A ``Reservation`` can be created. A reservation has an ``order_id``.
             pass
 
 
-A ``Payment`` can be made. A payment also has an ``order_id``.
+Similarly, a payment can be created. A payment also has an ``order_id``.
 
 .. code:: python
 
@@ -295,7 +301,8 @@ A ``Payment`` can be made. A payment also has an ``order_id``.
             pass
 
 
-Also, command class ``CreateNewOrder`` is defined using the library ``Command`` aggregate.
+A command class ``CreateNewOrder`` is defined using the library ``Command`` aggregate.
+It has an event sourced ``order_id`` attribute.
 
 .. code:: python
 
@@ -308,7 +315,7 @@ Also, command class ``CreateNewOrder`` is defined using the library ``Command`` 
         def order_id(self):
             pass
 
-Commands are event sourced aggregates, and can be created and set as done.
+Commands are event sourced aggregates. A command can be created, and set as done.
 
 .. code:: python
 
@@ -319,6 +326,7 @@ Commands are event sourced aggregates, and can be created and set as done.
     assert cmd.is_done is True
 
     del(cmd)
+
 
 .. Factory
 .. -------
@@ -348,14 +356,11 @@ Processes
 ---------
 
 A process application has a policy. The policy may respond to a domain
-events by executing a command on an aggregate.
+event by executing a command on an aggregate.
 
-In the code below, the Reservations process policy responds to new orders by creating a
-reservation. The Orders process responds to new reservations by setting an order
-as reserved.
-
-The Payments process responds when as order is reserved by making a payment. The
-Orders process responds to new payments, by setting an order as paid.
+The ``Orders`` process responds to new commands by creating a new ``Order``. It responds
+to new reservations by setting an ``Order`` as reserved. And it responds to a new ``Payment``,
+ by setting an ``Order`` as paid.
 
 .. code:: python
 
@@ -385,16 +390,7 @@ Orders process responds to new payments, by setting an order as paid.
                 assert not order.is_paid
                 order.set_is_paid(event.originator_id)
 
-The ``Orders`` process will persist events of type ``Order.Event``, so that
-orders can be created directly using the factory ``create_new_order()``.
-
-A process policy is called with a ``repository`` and an ``event`` argument. A process
-policy should always use the given ``repository`` to access existing aggregates, so that
-changes and causal dependencies can be automatically detected by the process application.
-In other words, don't use ``self.repository``. The ``Process`` gives the policy a wrapped
-version of its repository, so it can detect which aggregates were used, and which were changed.
-
-Here's the process application for reservations. It responds to an ``Order.Created`` event
+The ``Reservations`` process application responds to an ``Order.Created`` event
 by creating a new ``Reservation`` aggregate.
 
 .. code:: python
@@ -406,10 +402,7 @@ by creating a new ``Reservation`` aggregate.
                 return Reservation.__create__(order_id=event.originator_id)
 
 
-Policies should normally return new aggregates to the caller, but do not need to return
-existing aggregates that have been accessed or changed.
-
-Here's the process application for payments. It responds to an ``Order.Reserved`` event
+The ``Payments`` process application responds to an ``Order.Reserved`` event
 by creating a new ``Payment``.
 
 .. code:: python
@@ -420,9 +413,9 @@ by creating a new ``Payment``.
             if isinstance(event, Order.Reserved):
                 return Payment.__create__(order_id=event.originator_id)
 
-We also need to define a "commands" process, which can update a ``Command`` as processing
-happens. The library class ``CommandProcess`` is extended by defining a policy that
-responds to ``Order.Created`` events by setting the ``order_id`` on the command.
+Additionally, the library class ``CommandProcess`` is extended by defining a policy that
+responds to ``Order.Created`` events by setting the ``order_id`` on the command. It also
+responds to ``Order.Paid`` events by setting the command as done.
 
 .. code:: python
 
@@ -454,13 +447,15 @@ Please note, the ``__save__()`` method of aggregates should never be called in a
 because pending events from both new and changed aggregates will be automatically collected by
 the process application after its ``policy()`` method has returned. To be reliable, a process
 application needs to commit all the event records atomically with a tracking record, and calling
-``__save__()`` will instead commit events in a separate transaction.
+``__save__()`` will instead commit events in a separate transaction. Policies should normally
+return new aggregates to the caller, but do not need to return existing aggregates that have
+been accessed or changed.
 
 
 Tests
 -----
 
-Process policies are easy to test.
+Process policies are just functions, and are easy to test.
 
 In the orders policy test below, an existing order is marked as reserved because
 a reservation was created.
@@ -552,11 +547,14 @@ each other. Also the ``Orders`` and the ``Payments`` process follow each other.
     reservations_pipeline = Orders | Reservations | Orders
     payments_pipeline = Orders | Payments | Orders
 
-Each process may be followed by more than one process. Although a process application
-class can appear many times in the pipeline expressions, there will only be one instance
-of each process when the system is running.
+Although a process application class can appear many times in the pipeline
+expressions, there will only be one instance of each process when the system
+is running. Each application can follow one or many applications, and can be
+followed by one or many applications.
 
-The ``Commands`` process can be followed by the ``Orders`` process.
+The ``Orders`` process will follow the ``Commands`` process so that orders can
+be created, and the ``Commands`` process will follow the ``Orders`` process so
+that commands can be marked as done.
 
 .. code:: python
 
@@ -615,7 +613,11 @@ concurrency and is useful when developing and testing a system of process
 applications, because it runs quickly and the behaviour is easy to follow.
 
 In the code below, the ``system`` object is used as a context manager.
-In that context, a new order is created.
+When used in this way, the process applications share an in-memory SQLite
+database.
+
+Given the system is running, when a "create new order" command is created, then
+the command is done, and an order has been both reservered and paid.
 
 .. code:: python
 
@@ -640,13 +642,12 @@ In that context, a new order is created.
         payment = system.payments.repository[order.payment_id]
 
 
-The system responds by making a reservation and a payment, facts that are registered
-with the order. Everything happens synchronously, in a single thread, so by the time
-the ``create_new_order()`` factory has returned, the system has already processed the
-order, which can be retrieved from the "orders" repository.
+Everything happens synchronously, in a single thread, so that by the time
+the ``create_new_order()`` factory has returned, the system has already
+processed the order, which can be retrieved from the "orders" repository.
 
-The process applications above could run in different threads (not
-yet implemented).
+.. The process applications above could run in different threads (not
+.. yet implemented).
 
 
 Multiprocessing
@@ -663,18 +664,19 @@ get reserved, whilst a third order is at the same time created.
 Each operating system processes runs a loop that begins by making a call to get prompts
 pushed from upstream. Prompts are pushed downstream after events are recorded. The prompts
 are responded to immediately by pulling and processing the new events. If the call to get
-new prompts times out, any new events in upstream notification logs can be pulled anyway,
+new prompts times out, then any new events in upstream notification logs are pulled anyway,
 so that the notification log is effectively polled at a regular interval. The upstream log
 is also pulled when the process starts. Hence if upstream suffers a sudden termination just
 before the prompt is pushed, or downstream suffers a sudden termination just after receiving
-the prompt, the processing will continue promptly after the process is restarted, even though
-the prompt was lost.
+the prompt, the processing will continue promptly and correctly after the process is restarted,
+even though the prompt was lost. Please note, prompts merely reduce latency of polling, and
+the system could function without them.
 
 The process applications could all use the same single database, or they
 could each use their own separate database. If the process applications were
 using different databases, upstream notification logs would need to be presented
-in an API, so that downstream could pull notifications using a remote
-notification log object (as discussed in the section about notifications).
+in an API, so that downstream could read notifications from a remote
+notification log (as discussed in the section about notifications).
 
 .. (For those concerned about having too much data in the relational database, it
 .. would be possible to expand capacity by: replicating events from the relational
@@ -688,27 +690,23 @@ notification log object (as discussed in the section about notifications).
 .. distributed database might correspond to the L3 cache. Please note, this idea
 .. isn't currently implemented in the library.)
 
-In this example, the process applications use a MySQL database.
+In this example, the process applications use a MySQL database. It is assumed
+this database already exists.
 
 .. code:: python
 
     import os
 
-    host = os.getenv('MYSQL_HOST', '127.0.0.1')
-    user = os.getenv('MYSQL_USER', 'root')
-    password = os.getenv('MYSQL_PASSWORD', '')
-    os.environ['DB_URI'] = 'mysql+pymysql://{}:{}@{}/eventsourcing'.format(user, password, host)
+    os.environ['DB_URI'] = 'mysql+pymysql://{}:{}@{}/eventsourcing'.format(
+        os.getenv('MYSQL_HOST', '127.0.0.1'),
+        os.getenv('MYSQL_USER', 'root'),
+        os.getenv('MYSQL_PASSWORD', '')
+    )
 
-
-Single pipeline
-~~~~~~~~~~~~~~~
-
-Before starting the system's operating system processes, let's create a Command
-using the ``create_new_order()`` method on the ``Commands`` process (defined above).
+Before starting the system's operating system processes, let's create a ``CreateNewOrder``
+command using the ``create_new_order()`` method on the ``Commands`` process (defined above).
 
 .. code:: python
-
-    from eventsourcing.application.simple import SimpleApplication
 
     with Commands(setup_tables=True) as commands:
 
@@ -721,9 +719,15 @@ using the ``create_new_order()`` method on the ``Commands`` process (defined abo
         # Check command is not done.
         assert not commands.repository[cmd_id].is_done
 
+The database tables for storing events and tracking notification were created by the code
+above, because the ``Commands`` process was constructed with ``setup_tables=True``, which
+is by default ``False`` in the ``Process`` class.
 
-The command aggregate functions as above, and because the system isn't yet running,
-the command remains not done.
+Because the system isn't yet running, the command remains unprocessed.
+
+
+Single pipeline
+~~~~~~~~~~~~~~~
 
 
 .. Todo: Command logging process application, that is presented
@@ -738,11 +742,7 @@ the command remains not done.
 .. a response is created (how?), the request actor could be sent
 .. a message, so clients get a blocking call that doesn't involve polling.
 
-The MySQL database tables were created by the code above, because the ``Commands`` process
-was constructed with ``setup_tables=True``, which is by default ``False`` in the ``Process``
-class.
-
-Below, the code uses the library's ``Multiprocess`` class to run the ``system``.
+The code below uses the library's ``Multiprocess`` class to run the ``system``.
 It starts one operating system process for each process application
 in the system, which in this example will give four child operating
 system processes.
@@ -753,8 +753,7 @@ system processes.
 
 
 The operating system processes can be started by using the ``multiprocess``
-object as a context manager, which calls ``start()`` on entry and ``close()``
-on exit.
+object as a context manager.
 
 The process applications read their upstream notification logs when they start,
 so the unprocessed command is picked up and processed immediately.
@@ -868,11 +867,8 @@ Five orders are processed in each pipeline, giving fifteen in total.
 .. are pipelined, the database could be scaled vertically (more cores and memory) in proportion
 .. to the number of pipelines.
 
-The work of increasing the number of pipelines, and starting new operating system
-processes, could be automated. Also, the cluster scaling could be automated, and
-processes distributed automatically across the cluster. Actor model seems like a
-good foundation for such automation.
-
+Especially if cluster scaling is automated, it would be useful for processes to be distributed
+automatically across the cluster. Actor model seems like a good foundation for such automation.
 
 
 .. Todo: Make option to send event as prompt. Change Process to use event passed as prompt.
