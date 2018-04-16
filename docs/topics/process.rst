@@ -3,25 +3,31 @@ Process and system
 ==================
 
 This section is about process applications. A process application is
-a projection into an event sourced application. By linking applications
-together in a pipeline, a system of process applications can be constructed.
+a projection into an event sourced application. A system of process
+applications can be constructed by linking applications together in
+a pipeline.
 
-Reliability is the most important concern in this section. A process is considered to
-be reliable if its product is entirely unaffected (except in being delayed) by sudden
-terminations of the process, happening at any time.
+Reliability is the most important concern in this section. A process
+is considered to be reliable if its product is entirely unaffected
+(except in being delayed) by sudden terminations of the process,
+happening at any time.
 
-The only trick is remembering that consumption with recording determines production.
-In particular, if the consumption and the recording are reliable, then the product
-of the process is bound to be reliable.
+The only trick is remembering that consumption with recording determines
+production. In particular, if the consumption and the recording are reliable,
+then the product of the process is bound to be reliable.
 
 This definition of the reliability of a process doesn't include availability.
 Infrastructure unreliability may cause processing delays. Disorderly
 environments shouldn't cause disorderly processing.
 
-(If we can reject the pervasive definition of distributed systems as a system of
-passing messages, then we do not need to be concerned with the number of times a
-message is delivered, and can avoid failing to find a solution to the false problem
-of guaranteeing once-only delivery of messages.)
+(If we can reject the pervasive description of `distributed systems
+<https://en.wikipedia.org/wiki/Distributed_computing>`__ as a system of
+passing messages, where `message passing means sending messages
+<https://en.wikipedia.org/wiki/Message_passing>`__ then we do not need
+to be concerned with the number of times a message is delivered, and can
+avoid failing to find a solution to the false problem of guaranteeing
+once-only delivery of messages, which in itself doesn't determine the
+processing as reliable.)
 
 The other important concerns discussed in this section are scalability and maintainability.
 
