@@ -9,7 +9,7 @@ a pipeline.
 
 Reliability is the most important concern in this section. A process
 is considered to be reliable if its product is entirely unaffected
-(except in being delayed) by sudden terminations of the process,
+(except in being delayed) by sudden a termination of the process
 happening at any time.
 
 The only trick is remembering that, in general, production is determined
