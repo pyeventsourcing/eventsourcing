@@ -13,8 +13,8 @@ happening at any time, except in being delayed. The other important concerns are
 scalability and maintainability.
 
 The only trick is remembering consumption with recording determines production.
-In particular, if the product of the process must be reliable, then the consumption
-and the recording must be reliable.
+In particular, if the consumption and the recording are reliable, then the product
+of the process is bound to be reliable.
 
 This definition of the reliability of a process doesn't include availability.
 Infrastructure unreliability may cause processing delays. Disorderly
@@ -179,13 +179,10 @@ Process manager
 A process application, specifically an aggregate combined with a policy, could function
 effectively as a "saga", or "process manager", or "workflow manager". That is, it could
 effectively control a sequence of steps involving other aggregates in other bounded contexts,
-steps that might otherwise be controlled with a "long-lived transaction".
-
-For example, see the ``Orders`` process application below. To quote from the Enterprise
-Integration Patterns book, it could "maintain the state of the sequence and
-determine the next processing step based on intermediate results". Exceptional "unhappy
-path" behaviour can be implemented as part of the logic of the application.
-
+steps that might otherwise be controlled with a "long-lived transaction". It could 'maintain
+the state of the sequence and determine the next processing step based on intermediate results'
+(quote from Enterprise Integration Patterns). Exceptional "unhappy path" behaviour can be
+implemented as part of the logic of the application.
 
 .. If persistence were optional, this design could be used for high-performance applications
 .. which would be understood to be less durable. Data could be streamed out asynchronously
@@ -426,6 +423,8 @@ responds to ``Order.Created`` events by setting the ``order_id`` on the command.
 .. code:: python
 
     from eventsourcing.application.process import CommandProcess
+    from eventsourcing.domain.model.decorators import retry
+    from eventsourcing.exceptions import OperationalError, RecordConflictError
 
 
     class Commands(CommandProcess):
@@ -435,16 +434,18 @@ responds to ``Order.Created`` events by setting the ``order_id`` on the command.
             if isinstance(event, Order.Created):
                 cmd = repository[event.command_id]
                 cmd.order_id = event.originator_id
-
             elif isinstance(event, Order.Paid):
                 cmd = repository[event.command_id]
                 cmd.done()
 
-        def create_new_order(self):
+        @staticmethod
+        @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
+        def create_new_order():
             cmd = CreateNewOrder.__create__()
             cmd.__save__()
             return cmd.id
 
+The ``@retry`` decorator here protects against contention on the ``Commands`` notification log.
 
 Please note, the ``__save__()`` method of aggregates should never be called in a process policy,
 because pending events from both new and changed aggregates will be automatically collected by
@@ -751,16 +752,12 @@ so the unprocessed command is picked up and processed immediately.
 
 .. code:: python
 
-    from eventsourcing.domain.model.decorators import retry
-
     @retry(AssertionError, max_attempts=20, wait=0.5)
     def assert_command_is_done(repository, cmd_id):
-        # Check the command is done.
         assert repository[cmd_id].is_done
 
-    if __name__ == '__main__':
-        with Commands() as commands, Multiprocess(system):
-            assert_command_is_done(commands.repository, cmd_id)
+    with Commands() as commands, Multiprocess(system):
+        assert_command_is_done(commands.repository, cmd_id)
 
 
 .. Because the orders are created with a second instance of the ``Orders`` process
@@ -801,22 +798,20 @@ pipeline, the new commands are spread across all the pipelines.
 
     num_orders_per_pipeline = 5
 
-    if __name__ == '__main__':
+    with Commands() as commands, Multiprocess(system, pipeline_ids=pipeline_ids):
 
-        with Commands() as commands, Multiprocess(system, pipeline_ids=pipeline_ids):
+        # Create new orders.
+        command_ids = []
 
-            # Create new orders.
-            command_ids = []
+        for _ in range(num_orders_per_pipeline):
+            for pipeline_id in pipeline_ids:
+                commands.change_pipeline(pipeline_id)
+                cmd_id = commands.create_new_order()
+                command_ids.append(cmd_id)
 
-            for _ in range(num_orders_per_pipeline):
-                for pipeline_id in pipeline_ids:
-                    commands.change_pipeline(pipeline_id)
-                    cmd_id = commands.create_new_order()
-                    command_ids.append(cmd_id)
-
-            # Check all commands are done.
-            for i, command_id in enumerate(command_ids):
-                assert_command_is_done(commands.repository, command_id)
+        # Check all commands are done.
+        for i, command_id in enumerate(command_ids):
+            assert_command_is_done(commands.repository, command_id)
 
 
 ..            # Calculate timings from event timestamps.
