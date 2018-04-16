@@ -234,6 +234,66 @@ Below, the "orders, reservations, payments" system is run: firstly as a single
 threaded system; then with multiprocessing using a single pipeline; and finally
 with both multiprocessing and multiple pipelines.
 
+
+Commands
+--------
+
+Commands have been discussed so far as methods on aggregate roots. Here, system
+commands are introduced, as event sourced aggregates.
+
+In the code below, the system command class ``CreateNewOrder`` is defined using the
+library ``Command`` aggregate. It has an event sourced ``order_id`` attribute.
+
+.. code:: python
+
+    from eventsourcing.domain.model.command import Command
+    from eventsourcing.domain.model.decorators import attribute
+
+
+    class CreateNewOrder(Command):
+        @attribute
+        def order_id(self):
+            pass
+
+Commands are event sourced aggregates. A ``Command`` can be created, and set as done.
+A ``CreateNewOrder`` command can be assigned an order ID, which is initially ``None``.
+
+The behaviour of a system command aggregate can be fully tested with simple test cases,
+without involving any other components.
+
+.. code:: python
+
+    from uuid import uuid4
+
+    def test_create_new_order_command():
+        # Create a "create new order" command.
+        cmd = CreateNewOrder.__create__()
+
+        # Check the initial values.
+        assert cmd.order_id is None
+        assert cmd.is_done is False
+
+        # Assign an order ID.
+        order_id = uuid4()
+        cmd.order_id = order_id
+        assert cmd.order_id == order_id
+
+        # Mark the command as "done".
+        cmd.done()
+        assert cmd.is_done is True
+
+        # Check the events.
+        events = cmd.__batch_pending_events__()
+        assert len(events) == 3
+        assert isinstance(events[0], CreateNewOrder.Created)
+        assert isinstance(events[1], CreateNewOrder.AttributeChanged)
+        assert isinstance(events[2], CreateNewOrder.Done)
+
+
+    # Run the test.
+    test_create_new_order_command()
+
+
 Aggregates
 ----------
 
@@ -289,7 +349,7 @@ set as paid, which involves a payment ID.
             )
 
 
-A reservation can be created. A reservation has an ``order_id``.
+A reservation can also be created. A reservation has an ``order_id``.
 
 .. code:: python
 
@@ -313,33 +373,6 @@ Similarly, a payment can be created. A payment also has an ``order_id``.
 
         class Created(AggregateRoot.Created):
             pass
-
-
-A command class ``CreateNewOrder`` is defined using the library ``Command`` aggregate.
-It has an event sourced ``order_id`` attribute.
-
-.. code:: python
-
-    from eventsourcing.domain.model.command import Command
-    from eventsourcing.domain.model.decorators import attribute
-
-
-    class CreateNewOrder(Command):
-        @attribute
-        def order_id(self):
-            pass
-
-Commands are event sourced aggregates. A command can be created, and set as done.
-
-.. code:: python
-
-    cmd = CreateNewOrder.__create__()
-    assert cmd.order_id is None
-    assert cmd.is_done is False
-    cmd.done()
-    assert cmd.is_done is True
-
-    del(cmd)
 
 
 .. Factory
@@ -374,7 +407,7 @@ event by executing a command on an aggregate.
 
 The ``Orders`` process responds to new commands by creating a new ``Order``. It responds
 to new reservations by setting an ``Order`` as reserved. And it responds to a new ``Payment``,
- by setting an ``Order`` as paid.
+by setting an ``Order`` as paid.
 
 .. code:: python
 
@@ -472,14 +505,17 @@ Tests
 Process policies are just functions, and are easy to test.
 
 In the orders policy test below, an existing order is marked as reserved because
-a reservation was created.
+a reservation was created. The only complication comes from needing to prepare
+at least a fake repository and a domain event, given as required arguments when
+calling the policy. If the policy response depends on already existing aggregates,
+will need to be added to the fake repository. A Python dict can function effectively
+as a fake repository in such tests. It seems simplest to directly use the model
+domain event classes and aggregate classes in these tests, rather than coding test
+doubles.
 
 .. code:: python
 
-    from uuid import uuid4
-
     def test_orders_policy():
-
         # Prepare repository with a real Order aggregate.
         order = Order.__create__(command_id=None)
         repository = {order.id: order}
