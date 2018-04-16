@@ -220,7 +220,7 @@ then a Payment; facts registered with the Order as they happen.
 
 The behaviour of the system is entirely defined by the combination of the
 aggregates and the policies of its process applications. This allows highly
-maintainable code, easily tested, easily understood, easily changed.
+maintainable code, code that is easily tested, easily understood, easily changed.
 
 Below, the "orders, reservations, payments" system is run: firstly
 as a single threaded system; then with multiprocessing using a single pipeline;
@@ -704,9 +704,9 @@ this database already exists.
     import os
 
     os.environ['DB_URI'] = 'mysql+pymysql://{}:{}@{}/eventsourcing'.format(
-        os.getenv('MYSQL_HOST', '127.0.0.1'),
         os.getenv('MYSQL_USER', 'root'),
         os.getenv('MYSQL_PASSWORD', '')
+        os.getenv('MYSQL_HOST', '127.0.0.1'),
     )
 
 Before starting the system's operating system processes, let's create a ``CreateNewOrder``
