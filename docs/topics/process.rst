@@ -32,14 +32,13 @@ The other important concerns discussed in this section are scalability and maint
 .. contents:: :local:
 
 
-Please note, the library code presented in the example below currently only works
-with the library's SQLAlchemy record manager. Django support is planned, but not yet
-implemented. Support for Cassandra is being considered but applications will probably
-be simple replications of application state, due to the limited atomicity of Cassandra's
-lightweight transactions. Cassandra could be used to archive events written firstly into
-a relational database. Events could be removed from the relational database before storage
-limits are encountered. Events missing in the relational database could be sourced from
-Cassandra.
+Please note, the code presented in the example below works only with the library's
+SQLAlchemy record manager. Django support is planned, but not yet implemented. Support
+for Cassandra is being considered but applications will probably be simple replications
+of application state, due to the limited atomicity of Cassandra's lightweight transactions.
+Cassandra could be used to archive events written firstly into a relational database.
+Events could be removed from the relational database before storage limits are encountered.
+Events missing in the relational database could be sourced from Cassandra.
 
 
 Overview
@@ -50,8 +49,8 @@ Process application
 
 The library's process application class ``Process`` functions as a projection into
 an event-sourced application. Applications and projections are discussed in previous
-sections. ``Process`` extended ``SimpleApplication`` by also reading notification logs
-and writing tracking records. A process application also has a policy that defines how
+sections. The ``Process`` class extends ``SimpleApplication`` by also reading notification
+logs and writing tracking records. A process application also has a policy that defines how
 it will respond to domain events it reads from notification logs.
 
 
