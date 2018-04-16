@@ -138,10 +138,19 @@ class TestProcess(TestCase):
 class TestCommands(TestCase):
 
     def test_command_aggregate(self):
+        # Create a command.
         cmd = Command.__create__()
+        assert isinstance(cmd, Command)
+
+        # Check is_done gets changed by done()
         self.assertFalse(cmd.is_done)
         cmd.done()
         self.assertTrue(cmd.is_done)
+
+        # Check the resulting domain events.
+        pending_events = cmd.__batch_pending_events__()
+        self.assertIsInstance(pending_events[0], Command.Created)
+        self.assertIsInstance(pending_events[1], Command.Done)
 
     def test_command_process(self):
         commands = CommandProcess(
