@@ -576,6 +576,8 @@ An orders-reservations-payments system can be defined using these pipeline expre
 
 This is equivalent to a system defined with the following single pipeline expression.
 
+.. code:: python
+
     system = System(
         Commands | Orders | Reservations | Orders | Payments | Orders | Commands
     )
