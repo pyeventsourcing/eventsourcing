@@ -23,11 +23,14 @@ environments shouldn't cause disorderly processing.
 (If we can reject the pervasive description of `distributed systems
 <https://en.wikipedia.org/wiki/Distributed_computing>`__ as a system of
 passing messages, where `message passing means sending messages
-<https://en.wikipedia.org/wiki/Message_passing>`__ then we do not need
+<https://en.wikipedia.org/wiki/Message_passing>`__ ,then we do not need
 to be concerned with the number of times a message is delivered, and can
-avoid failing to find a solution to the false problem of guaranteeing
+avoid failing to find a good solution to the false problem of guaranteeing
 once-only delivery of messages, which in itself doesn't determine the
-processing as reliable.)
+processing as reliable. Hence we do not need to protect against "at least
+once" delivery. We can avoid the restriction of making aggregate commands
+idempotent. We can also avoid storing all the received messages in order to
+de-duplicate and reorder.)
 
 The other important concerns discussed in this section are scalability and maintainability.
 
