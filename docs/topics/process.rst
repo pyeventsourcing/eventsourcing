@@ -467,11 +467,9 @@ a reservation was created.
 
     def test_orders_policy():
 
-        # Prepare fake repository with a real Order aggregate.
-        fake_repository = {}
-
+        # Prepare repository with a real Order aggregate.
         order = Order.__create__(command_id=None)
-        fake_repository[order.id] = order
+        repository = {order.id: order}
 
         # Check order is not reserved.
         assert not order.is_reserved
@@ -479,7 +477,7 @@ a reservation was created.
         # Process reservation created.
         with Orders() as orders:
             event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
-            orders.policy(repository=fake_repository, event=event)
+            orders.policy(repository=repository, event=event)
 
         # Check order is reserved.
         assert order.is_reserved
@@ -494,19 +492,17 @@ In the payments policy test below, a new payment is created because an order was
 
     def test_payments_policy():
 
-        # Prepare fake repository with a real Order aggregate.
-        fake_repository = {}
-
+        # Prepare repository with a real Order aggregate.
         order = Order.__create__(command_id=None)
-        fake_repository[order.id] = order
+        repository = {order.id: order}
 
-        # Check policy creates payment whenever order is reserved.
-        event = Order.Reserved(originator_id=order.id, originator_version=1)
-
+        # Check payment is created whenever order is reserved.
         with Payments() as payments:
-            payment = payments.policy(repository=fake_repository, event=event)
-            assert isinstance(payment, Payment), payment
-            assert payment.order_id == order.id
+            event = Order.Reserved(originator_id=order.id, originator_version=1)
+            payment = payments.policy(repository=repository, event=event)
+
+        assert isinstance(payment, Payment), payment
+        assert payment.order_id == order.id
 
 
     # Run the test.
@@ -516,7 +512,7 @@ It isn't necessary to return changed aggregates for testing purposes. The test
 will already have a reference to the aggregate, since it will have constructed
 the aggregate before passing it to the policy, so the test will already be in a
 good position to check that already existing aggregates are changed by the policy
-as expected. The test gives a ``fake_repository`` to the policy, which contains
+as expected. The test gives a ``repository`` to the policy, which contains
 the ``order`` aggregate expected by the policy.
 
 .. To explain a little bit, in normal use, when new events are retrieved
