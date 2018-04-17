@@ -42,6 +42,7 @@ class Multiprocess(object):
                 inbox_id = (pipeline_id, process_class.__name__.lower())
                 if inbox_id not in self.inboxes:
                     self.inboxes[inbox_id] = self.manager.Queue()
+                    # Todo: Limit the queue size, put items with timeout, and handle Queue.Full by retrying.
                 for upstream_class in upstream_classes:
                     outbox_id = (pipeline_id, upstream_class.__name__.lower())
                     if outbox_id not in self.outboxes:
@@ -49,7 +50,8 @@ class Multiprocess(object):
                     if inbox_id not in self.outboxes[outbox_id].downstream_inboxes:
                         self.outboxes[outbox_id].downstream_inboxes[inbox_id] = self.inboxes[inbox_id]
 
-        # Subscribe to broadcast prompts published by a process application.
+        # Subscribe to broadcast prompts published by a process
+        # application in the parent operating system process.
         subscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
 
         # Start operating system process.
