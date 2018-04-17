@@ -4,7 +4,8 @@ from time import sleep
 
 import six
 
-from eventsourcing.application.process import Prompt, System
+from eventsourcing.application.process import Prompt
+from eventsourcing.application.system import System
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed

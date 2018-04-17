@@ -4,7 +4,8 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.application.multiprocess import Multiprocess
-from eventsourcing.application.process import Process, System
+from eventsourcing.application.process import Process
+from eventsourcing.application.system import System
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import clear_event_handlers, assert_event_handlers_empty

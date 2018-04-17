@@ -1,8 +1,8 @@
 from collections import OrderedDict, defaultdict
 
 import six
-from six import with_metaclass
 
+from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.domain.model.command import Command
 from eventsourcing.domain.model.decorators import retry
@@ -14,34 +14,6 @@ from eventsourcing.infrastructure.sqlalchemy.manager import TrackingRecordManage
 from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.utils.transcoding import json_dumps, json_loads
 from eventsourcing.utils.uuids import uuid_from_application_name
-
-
-class Pipeline(object):
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
-
-    def __or__(self, other):
-        return Pipeline(self, other)
-
-    def __iter__(self):
-        for term in (self.left, self.right):
-            if isinstance(term, Pipeline):
-                for item in term:
-                    yield item
-            else:
-                assert issubclass(term, Process), term
-                yield term
-
-
-class PipeableMetaclass(type):
-
-    def __or__(self, other):
-        return Pipeline(self, other)
-
-
-class Pipeable(with_metaclass(PipeableMetaclass)):
-    pass
 
 
 class Process(Pipeable, SimpleApplication):
@@ -230,24 +202,29 @@ class Process(Pipeable, SimpleApplication):
     def construct_event_records(self, aggregates, causal_dependencies):
         assert isinstance(aggregates, (list, tuple))
         record_manager = self.event_store.record_manager
+        assert isinstance(record_manager, RelationalRecordManager)
 
-        event_records = []
+        pending_events = []
         for aggregate in aggregates:
-            pending_events = aggregate.__batch_pending_events__()
-            sequenced_items = self.event_store.to_sequenced_item(pending_events)
-            assert isinstance(record_manager, RelationalRecordManager)
-            event_records += record_manager.to_records(sequenced_items)
+            pending_events += aggregate.__batch_pending_events__()
 
+        # Sort the events by timestamp.
+        pending_events.sort(key=lambda x: x.timestamp)
+
+        # Convert to event records.
+        sequenced_items = self.event_store.to_sequenced_item(pending_events)
+        event_records = record_manager.to_records(sequenced_items)
+
+        # Set notification log IDs, and causal dependencies.
         if len(event_records):
             current_max = record_manager.get_max_record_id() or 0
             for event_record in event_records:
                 current_max += 1
                 event_record.id = current_max
 
+            # Only need first event to carry the dependencies.
             if hasattr(record_manager.record_class, 'causal_dependencies'):
                 causal_dependencies = json_dumps(causal_dependencies)
-
-                # Only need first event to carry the dependencies.
                 event_records[0].causal_dependencies = causal_dependencies
 
         return event_records
@@ -259,8 +236,6 @@ class Process(Pipeable, SimpleApplication):
             'upstream_application_id': upstream_application_id,
             'pipeline_id': self.pipeline_id,
             'notification_id': notification['id'],
-            # 'originator_id': notification['originator_id'],
-            # 'originator_version': notification['originator_version']
         }
         return tracking_kwargs
 
@@ -299,87 +274,3 @@ class Prompt(object):
         self.process_name = process_name
         self.pipeline_id = pipeline_id
         self.end_position = end_position
-
-
-class System(object):
-    def __init__(self, *pipelines):
-        """
-        Initialises a "process network" system object.
-
-        :param pipelines: Pipelines of process classes.
-
-        Each pipeline of process classes shows directly which process
-        follows which other process in the system.
-
-        For example, the pipeline (A | B | C) shows that B follows A,
-        and C follows B.
-
-        The pipeline (A | A) shows that A follows A.
-
-        The pipeline (A | B | A) shows that B follows A, and A follows B.
-
-        The pipelines ((A | B | A), (A | C | A)) is equivalent to (A | B | A | C | A).
-        """
-        self.pipelines = pipelines
-        self.process_classes = set([c for l in self.pipelines for c in l])
-        self.processes_by_name = None
-        self.is_session_shared = True
-
-        # Determine which process follows which.
-        self.followings = OrderedDict()
-        for pipeline in self.pipelines:
-            previous = None
-            for process_class in pipeline:
-                assert issubclass(process_class, Process), process_class
-                if previous is not None:
-                    # Follower follows the followed.
-                    follower = process_class
-                    followed = previous
-                    try:
-                        follows = self.followings[follower]
-                    except KeyError:
-                        follows = []
-                        self.followings[follower] = follows
-
-                    if followed not in follows:
-                        follows.append(followed)
-
-                previous = process_class
-
-    # Todo: Extract function to new 'SinglethreadRunner' class or something (like the 'Multiprocess' class)?
-    def setup(self):
-        assert self.processes_by_name is None, "Already running"
-        self.processes_by_name = {}
-
-        # Construct the processes.
-        session = None
-        for process_class in self.process_classes:
-            process = process_class(session=session, setup_tables=bool(session is None))
-            self.processes_by_name[process.name] = process
-            if self.is_session_shared:
-                if session is None:
-                    session = process.session
-
-        # Configure which process follows which.
-        for follower_class, follows in self.followings.items():
-            follower = self.processes_by_name[follower_class.__name__.lower()]
-            for followed_class in follows:
-                followed = self.processes_by_name[followed_class.__name__.lower()]
-                follower.follow(followed.name, followed.notification_log)
-
-    def __getattr__(self, process_name):
-        assert self.processes_by_name is not None, "Not running"
-        return self.processes_by_name[process_name]
-
-    def close(self):
-        assert self.processes_by_name is not None, "Not running"
-        for process in self.processes_by_name.values():
-            process.close()
-        self.processes_by_name = None
-
-    def __enter__(self):
-        self.setup()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()

@@ -618,11 +618,11 @@ each other. Also the ``Orders`` and the ``Payments`` process will follow each ot
     reservations_pipeline = Orders | Reservations | Orders
     payments_pipeline = Orders | Payments | Orders
 
-An orders-reservations-payments system can be defined using these pipeline expressions.
+The orders-reservations-payments system can be defined using these pipeline expressions.
 
 .. code:: python
 
-    from eventsourcing.application.process import System
+    from eventsourcing.application.system import System
 
     system = System(
         commands_pipeline,
