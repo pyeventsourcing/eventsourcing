@@ -110,10 +110,12 @@ then so are any new event records, and the process will have fully completed an 
 progression.
 
 The atomicity of the recording and consumption determines the production as atomic:
-a continuous stream of events is processed in discrete, indivisible units. Hence,
-interruptions can only cause delays. It is assumed that whatever records have been
-committed by a process will not somehow be damaged by a sudden termination of the
-process.
+a continuous stream of events is processed in discrete, sequenced, indivisible units.
+Hence, interruptions can only cause delays.
+
+.. It is assumed that whatever records have been
+.. committed by a process will not somehow be damaged by a sudden termination of the
+.. process.
 
 
 System of processes
@@ -162,13 +164,15 @@ the processing of parallel pipelines downstream. Downstream processing of one pi
 can wait for an event to be processed in another.
 
 In the process applications, the causal dependencies are automatically inferred by detecting
-the originator ID and version of aggregates as they are retrieved. The old notification is
-referenced in the new notification. Downstream can then check all causal dependencies have
-been processed, using its tracking records. (As an optimisation, in case there are many
-dependencies in the same pipeline, only the newest dependency in each pipeline is included.
-By default in the library, only dependencies in different pipelines are included. If
-causal dependencies from all pipelines were included in each notification, each pipeline
-could be processed in parallel.)
+the originator ID and version of aggregates as they are retrieved. The old notifications are
+referenced in the first new notification. Downstream can then check all causal dependencies have
+been processed, using its tracking records.
+
+In case there are many dependencies in the same pipeline, only the newest dependency in each
+pipeline is included. By default in the library, only dependencies in different pipelines are
+included. If causal dependencies from all pipelines were included in each notification, each
+pipeline could be processed in parallel, to an extent limited by the dependencies between the
+notifications.
 
 
 Kahn process networks
