@@ -9,7 +9,7 @@ a pipeline.
 
 Reliability is the most important concern in this section. A process
 is considered to be reliable if its product is entirely unaffected
-(except in being delayed) by sudden a termination of the process
+(except in being delayed) by a sudden termination of the process
 happening at any time.
 
 The only trick is remembering that, in general, production is determined
@@ -403,9 +403,9 @@ Processes
 ---------
 
 A process application has a policy. The policy may respond to a domain
-event by executing a command on an aggregate.
+event by calling a command method on an aggregate.
 
-The ``Orders`` process responds to new commands by creating a new ``Order``. It responds
+The orders process responds to new commands by creating a new ``Order``. It responds
 to new reservations by setting an ``Order`` as reserved. And it responds to a new ``Payment``,
 by setting an ``Order`` as paid.
 
@@ -437,7 +437,7 @@ by setting an ``Order`` as paid.
                 assert not order.is_paid
                 order.set_is_paid(event.originator_id)
 
-The ``Reservations`` process application responds to an ``Order.Created`` event
+The reservations process application responds to an ``Order.Created`` event
 by creating a new ``Reservation`` aggregate.
 
 .. code:: python
@@ -449,7 +449,7 @@ by creating a new ``Reservation`` aggregate.
                 return Reservation.__create__(order_id=event.originator_id)
 
 
-The ``Payments`` process application responds to an ``Order.Reserved`` event
+The payments process application responds to an ``Order.Reserved`` event
 by creating a new ``Payment``.
 
 .. code:: python
@@ -584,31 +584,26 @@ System
 
 A system of process applications can be defined using one or many pipeline expressions.
 
-For example, the expression ``A | A`` has process application ``A`` following
-itself. The expression ``A | B | C`` would have ``C`` following ``B`` and ``B``
-following ``A``. This can perhaps be recognised as the "pipes and filters" pattern,
+The expression ``A | A`` would have a process application class called ``A`` following
+itself. The expression ``A | B | C`` would have ``A`` followed by ``B`` and ``B``
+followed by ``C``. This can perhaps be recognised as the "pipes and filters" pattern,
 where the process applications function effectively as the filters.
 
-In the example below, the ``Orders`` process and the ``Reservations`` process follow
-each other. Also the ``Orders`` and the ``Payments`` process follow each other.
+In this example, firstly the ``Orders`` process will follow the ``Commands`` process
+so that orders can be created. The ``Commands`` process will follow the ``Orders`` process,
+so that commands can be marked as done when processing is complete.
+
+.. code:: python
+
+    commands_pipeline = Commands | Orders | Commands
+
+Similarly, the ``Orders`` process and the ``Reservations`` process will follow
+each other. Also the ``Orders`` and the ``Payments`` process will follow each other.
 
 .. code:: python
 
     reservations_pipeline = Orders | Reservations | Orders
     payments_pipeline = Orders | Payments | Orders
-
-Although a process application class can appear many times in the pipeline
-expressions, there will only be one instance of each process when the system
-is running. Each application can follow one or many applications, and can be
-followed by one or many applications.
-
-The ``Orders`` process will follow the ``Commands`` process so that orders can
-be created, and the ``Commands`` process will follow the ``Orders`` process so
-that commands can be marked as done.
-
-.. code:: python
-
-    commands_pipeline = Commands | Orders | Commands
 
 An orders-reservations-payments system can be defined using these pipeline expressions.
 
@@ -630,11 +625,16 @@ This is equivalent to a system defined with the following single pipeline expres
         Commands | Orders | Reservations | Orders | Payments | Orders | Commands
     )
 
+Although a process application class can appear many times in the pipeline
+expressions, there will only be one instance of each process when the system
+is running. Each application can follow one or many applications, and can be
+followed by one or many applications.
+
 State is propagated between process applications through notification logs only. This can
-perhaps be recognised as the "bounded context" pattern. Each process application can directly
-access only the aggregates it has created. For example, an ``Order`` aggregate created by the
-``Orders`` process is available in neither the repository of ``Reservations`` nor the repository
-of ``Payments``. That is because if an application could directly use the aggregates of another
+perhaps be recognised as the "bounded context" pattern. Each application can access only
+the aggregates it has created. For example, an ``Order`` aggregate created by the ``Orders``
+process is available in neither the repository of ``Reservations`` nor the repository of
+``Payments``. That is because if an application could directly use the aggregates of another
 application, processing could produce different results at different times, and in consequence
 the processing wouldn't be reliable. If necessary, a process application could replicate the
 state of an aggregate within its own context in an application it is following, by projecting
@@ -658,13 +658,11 @@ Single threaded
 If the ``system`` object is used as a context manager, the process
 applications will run in a single thread in the current process.
 Events will be processed with synchronous handling of prompts,
-so that policies effectively call each other recursively. This avoids
-concurrency and is useful when developing and testing a system of process
-applications, because it runs quickly and the behaviour is easy to follow.
+so that policies effectively call each other recursively.
 
 In the code below, the ``system`` object is used as a context manager.
-When used in this way, the process applications share an in-memory SQLite
-database.
+When used in this way, by default the process applications will share an
+in-memory SQLite database.
 
 Given the system is running, when a "create new order" command is created, then
 the command is done, and an order has been both reservered and paid.
@@ -696,6 +694,10 @@ Everything happens synchronously, in a single thread, so that by the time
 the ``create_new_order()`` factory has returned, the system has already
 processed the order, which can be retrieved from the "orders" repository.
 
+Running the system with a single thread and an in-memory database is
+useful when developing and testing a system of process applications,
+because it runs very quickly and the behaviour is very easy to follow.
+
 .. The process applications above could run in different threads (not
 .. yet implemented).
 
@@ -703,9 +705,9 @@ processed the order, which can be retrieved from the "orders" repository.
 Multiprocessing
 ~~~~~~~~~~~~~~~
 
-The example below shows the system of process applications running in
-different processes, using the library's ``Multiprocess`` class, which
-uses Python's ``multiprocessing`` library.
+The example below shows the same system of process applications running in
+different operating system processes, using the library's ``Multiprocess`` class,
+which uses Python's ``multiprocessing`` library.
 
 Running the system with multiple operating system processes means the different processes
 are running concurrently, so that as the payment is made for one order, another order might
@@ -720,7 +722,7 @@ is also pulled when the process starts. Hence if upstream suffers a sudden termi
 before the prompt is pushed, or downstream suffers a sudden termination just after receiving
 the prompt, the processing will continue promptly and correctly after the process is restarted,
 even though the prompt was lost. Please note, prompts merely reduce latency of polling, and
-the system could function without them.
+the system could function without them (just with more latency).
 
 The process applications could all use the same single database, or they
 could each use their own separate database. If the process applications were
@@ -740,8 +742,7 @@ notification log (as discussed in the section about notifications).
 .. distributed database might correspond to the L3 cache. Please note, this idea
 .. isn't currently implemented in the library.)
 
-In this example, the process applications use a MySQL database. It is assumed
-this database already exists.
+In this example, the process applications use a MySQL database.
 
 .. code:: python
 
@@ -752,6 +753,12 @@ this database already exists.
         os.getenv('MYSQL_PASSWORD', ''),
         os.getenv('MYSQL_HOST', '127.0.0.1'),
     )
+
+The MySQL database needs to be created before running the next bit of code.
+
+.. code::
+
+    $ mysql -e "CREATE DATABASE eventsourcing;"
 
 Before starting the system's operating system processes, let's create a ``CreateNewOrder``
 command using the ``create_new_order()`` method on the ``Commands`` process (defined above).
@@ -769,16 +776,15 @@ command using the ``create_new_order()`` method on the ``Commands`` process (def
         # Check command is not done.
         assert not commands.repository[cmd_id].is_done
 
+Because the system isn't yet running, the command remains unprocessed.
+
 The database tables for storing events and tracking notification were created by the code
 above, because the ``Commands`` process was constructed with ``setup_tables=True``, which
 is by default ``False`` in the ``Process`` class.
 
-Because the system isn't yet running, the command remains unprocessed.
-
 
 Single pipeline
 ~~~~~~~~~~~~~~~
-
 
 .. Todo: Command logging process application, that is presented
 .. as being suitable for use in both a multi-threaded Web
@@ -837,19 +843,23 @@ The system can run with multiple instances of the system's pipeline expressions.
 system with many parallel pipeline instances means that each process application in the system
 can process many events at the same time.
 
-In the example below, there are three pipelines and four process applications, which
-gives twelve child operating system processes. All the operating system processes
-share the same database in this example. It would be possible to run the system with
-e.g. pipelines 0-7 on one machine, pipelines 8-15 on another machine, and so on.
+In the example below, there are three pipelines, which gives twelve child operating system
+processes. All the operating system processes share the same MySQL database.
 
 .. code:: python
 
     num_pipelines = 3
 
+Pipelines have integer IDs. In this example, the pipeline IDs are ``[0, 1, 2]``.
+
+.. code:: python
+
     pipeline_ids = range(num_pipelines)
 
+It would be possible to run the system with e.g. pipelines 0-7 on one machine, pipelines 8-15
+on another machine, and so on.
 
-Five orders are processed in each pipeline, giving fifteen in total.
+Below, five orders are processed in each of the three pipelines.
 
 .. code:: python
 
