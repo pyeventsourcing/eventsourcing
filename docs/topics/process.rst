@@ -717,17 +717,6 @@ Running the system with multiple operating system processes means the different 
 are running concurrently, so that as the payment is made for one order, another order might
 get reserved, whilst a third order is at the same time created.
 
-Each operating system processes runs a loop that begins by making a call to get prompts
-pushed from upstream. Prompts are pushed downstream after events are recorded. The prompts
-are responded to immediately by pulling and processing the new events. If the call to get
-new prompts times out, then any new events in upstream notification logs are pulled anyway,
-so that the notification log is effectively polled at a regular interval. The upstream log
-is also pulled when the process starts. Hence if upstream suffers a sudden termination just
-before the prompt is pushed, or downstream suffers a sudden termination just after receiving
-the prompt, the processing will continue promptly and correctly after the process is restarted,
-even though the prompt was lost. Please note, prompts merely reduce latency of polling, and
-the system could function without them (just with more latency).
-
 The process applications could all use the same single database, or they
 could each use their own separate database. If the process applications were
 using different databases, upstream notification logs would need to be presented
@@ -766,6 +755,7 @@ The MySQL database needs to be created before running the next bit of code.
 
 Before starting the system's operating system processes, let's create a ``CreateNewOrder``
 command using the ``create_new_order()`` method on the ``Commands`` process (defined above).
+Because the system isn't yet running, the command remains unprocessed.
 
 .. code:: python
 
@@ -779,8 +769,6 @@ command using the ``create_new_order()`` method on the ``Commands`` process (def
 
         # Check command is not done.
         assert not commands.repository[cmd_id].is_done
-
-Because the system isn't yet running, the command remains unprocessed.
 
 The database tables for storing events and tracking notification were created by the code
 above, because the ``Commands`` process was constructed with ``setup_tables=True``, which
@@ -811,12 +799,10 @@ system processes.
 
     from eventsourcing.application.multiprocess import Multiprocess
 
+    multiprocessing_system = Multiprocess(system)
 
 The operating system processes can be started by using the ``multiprocess``
 object as a context manager.
-
-The process applications read their upstream notification logs when they start,
-so the unprocessed command is picked up and processed immediately.
 
 .. code:: python
 
@@ -824,8 +810,24 @@ so the unprocessed command is picked up and processed immediately.
     def assert_command_is_done(repository, cmd_id):
         assert repository[cmd_id].is_done
 
-    with Commands() as commands, Multiprocess(system):
+    # Check the unprocessed command gets processed by the system.
+    with multiprocessing_system, Commands() as commands:
         assert_command_is_done(commands.repository, cmd_id)
+
+The process applications read their upstream notification logs when they start,
+so the unprocessed command is picked up and processed immediately.
+
+
+.. Each operating system processes runs a loop that begins by making a call to get prompts
+.. pushed from upstream. Prompts are pushed downstream after events are recorded. The prompts
+.. are responded to immediately by pulling and processing the new events. If the call to get
+.. new prompts times out, then any new events in upstream notification logs are pulled anyway,
+.. so that the notification log is effectively polled at a regular interval. The upstream log
+.. is also pulled when the process starts. Hence if upstream suffers a sudden termination just
+.. before the prompt is pushed, or downstream suffers a sudden termination just after receiving
+.. the prompt, the processing will continue promptly and correctly after the process is restarted,
+.. even though the prompt was lost. Please note, prompts merely reduce latency of polling, and
+.. the system could function without them (just with more latency).
 
 
 .. Because the orders are created with a second instance of the ``Orders`` process
@@ -844,10 +846,10 @@ Multiple pipelines
 ~~~~~~~~~~~~~~~~~~
 
 The system can run with multiple instances of the system's pipeline expressions. Running the
-system with many parallel pipeline instances means that each process application in the system
+system with parallel pipelines means that each process application in the system
 can process many events at the same time.
 
-In the example below, there are three pipelines, which gives twelve child operating system
+In the example below, there are three parallel pipelines, which gives twelve child operating system
 processes. All the operating system processes share the same MySQL database.
 
 .. code:: python
@@ -863,13 +865,20 @@ Pipelines have integer IDs. In this example, the pipeline IDs are ``[0, 1, 2]``.
 It would be possible to run the system with e.g. pipelines 0-7 on one machine, pipelines 8-15
 on another machine, and so on.
 
-Below, five orders are processed in each of the three pipelines.
+The ``pipeline_ids`` are given to the ``Multiprocess`` object.
+
+.. code:: python
+
+    multiprocessing_system = Multiprocess(system, pipeline_ids=pipeline_ids)
+
+
+Below, five orders are processed in each pipeline.
 
 .. code:: python
 
     num_orders_per_pipeline = 5
 
-    with Commands() as commands, Multiprocess(system, pipeline_ids=pipeline_ids):
+    with multiprocessing_system, Commands() as commands:
 
         # Create new orders.
         command_ids = []
