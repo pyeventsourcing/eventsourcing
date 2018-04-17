@@ -106,7 +106,7 @@ records).
 If some of the new records can't be written, then none are. If anything goes wrong
 before all the records have been written, the transaction will abort, and none of
 the records will be written. On the other hand, if a tracking record is written,
-then so are any new event records, and the process has fully completed an atomic
+then so are any new event records, and the process will have fully completed an atomic
 progression.
 
 The atomicity of the recording and consumption determines the production as atomic:
@@ -808,12 +808,13 @@ shortly after the various operating system processes have been started.
 
 .. code:: python
 
-    # Check the unprocessed command gets processed by the system.
-
+    # Check the unprocessed command gets processed eventually.
     @retry(AssertionError, max_attempts=10, wait=0.5)
     def assert_command_is_done(repository, cmd_id):
         assert repository[cmd_id].is_done
 
+    # Process the command.
+    commands =
     with multiprocessing_system, Commands() as commands:
         assert_command_is_done(commands.repository, cmd_id)
 
@@ -887,11 +888,15 @@ Below, five orders are processed in each pipeline.
         command_ids = []
         for _ in range(num_orders_per_pipeline):
             for pipeline_id in pipeline_ids:
+
+                # Change the pipeline for the command.
                 commands.change_pipeline(pipeline_id)
+
+                # Create a "create new order" command.
                 cmd_id = commands.create_new_order()
                 command_ids.append(cmd_id)
 
-        # Check all commands are done.
+        # Check all commands are eventually done.
         for i, command_id in enumerate(command_ids):
             assert_command_is_done(commands.repository, command_id)
 
