@@ -10,15 +10,16 @@ a pipeline.
 Reliability is the most important concern in this section. A process
 is considered to be reliable if its product is entirely unaffected
 (except in being delayed) by a sudden termination of the process
-happening at any time.
-
-The only trick is remembering that, in general, production is determined
-by consumption with recording. In particular, if the consumption and the
-recording are reliable, then the product of the process is bound to be reliable.
+happening at any time. The only trick is remembering that, in general,
+production is determined by consumption with recording. In particular,
+if the consumption and the recording are reliable, then the product of
+the process is bound to be reliable.
 
 This definition of the reliability of a process doesn't include availability.
 Infrastructure unreliability may cause processing delays. Disorderly
-environments shouldn't cause disorderly processing.
+environments shouldn't cause disorderly processing. The other important
+concerns discussed in this section are scalability and maintainability.
+
 
 .. (If we can reject the pervasive description of `distributed systems
 .. <https://en.wikipedia.org/wiki/Distributed_computing>`__ as a system of
@@ -31,8 +32,6 @@ environments shouldn't cause disorderly processing.
 .. once" delivery. We can avoid the restriction of making aggregate commands
 .. idempotent. We can also avoid storing all the received messages in order to
 .. de-duplicate and reorder.)
-
-The other important concerns discussed in this section are scalability and maintainability.
 
 .. To limit this discussion even further, any programming errors in the policies or
 .. aggregates of a process that may inadvertently define pathological behaviour are
