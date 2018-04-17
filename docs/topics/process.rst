@@ -717,12 +717,6 @@ Running the system with multiple operating system processes means the different 
 are running concurrently, so that as the payment is made for one order, another order might
 get reserved, whilst a third order is at the same time created.
 
-The process applications could all use the same single database, or they
-could each use their own separate database. If the process applications were
-using different databases, upstream notification logs would need to be presented
-in an API, so that downstream could read notifications from a remote
-notification log (as discussed in the section about notifications).
-
 .. (For those concerned about having too much data in the relational database, it
 .. would be possible to expand capacity by: replicating events from the relational
 .. database to a more scalable distributed database; changing the event store to
@@ -746,6 +740,13 @@ In this example, the process applications share a MySQL database.
         os.getenv('MYSQL_PASSWORD', ''),
         os.getenv('MYSQL_HOST', '127.0.0.1'),
     )
+
+The process applications could each use their own separate database. If the
+process applications were using different databases, upstream notification
+logs would need to be presented in an API, so that downstream could read
+notifications from a remote notification log, as discussed in the section
+about notifications (using separate databases is not currently supported
+by the ``Multiprocess`` class).
 
 The MySQL database needs to be created before running the next bit of code.
 
