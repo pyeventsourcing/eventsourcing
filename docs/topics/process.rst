@@ -520,11 +520,11 @@ Process policies are just functions, and are easy to test.
 In the orders policy test below, an existing order is marked as reserved because
 a reservation was created. The only complication comes from needing to prepare
 at least a fake repository and a domain event, given as required arguments when
-calling the policy. If the policy response depends on already existing aggregates,
-will need to be added to the fake repository. A Python dict can function effectively
-as a fake repository in such tests. It seems simplest to directly use the model
-domain event classes and aggregate classes in these tests, rather than coding test
-doubles.
+calling the policy in the test. If the policy response depends on already existing
+aggregates, they will need to be added to the fake repository. A Python dict can
+function effectively as a fake repository in such tests. It seems simplest to
+directly use the model domain event classes and aggregate classes in these tests,
+rather than coding `test doubles <https://martinfowler.com/bliki/TestDouble.html>`__.
 
 .. code:: python
 
@@ -570,12 +570,12 @@ In the payments policy test below, a new payment is created because an order was
     # Run the test.
     test_payments_policy()
 
-It isn't necessary to return changed aggregates for testing purposes. The test
+It isn't necessary to return changed aggregates from the policy. The test
 will already have a reference to the aggregate, since it will have constructed
-the aggregate before passing it to the policy, so the test will already be in a
-good position to check that already existing aggregates are changed by the policy
-as expected. The test gives a ``repository`` to the policy, which contains
-the ``order`` aggregate expected by the policy.
+the aggregate before passing it to the policy in the fake repository, so the test
+will already be in a good position to check that already existing aggregates are
+changed by the policy as expected. The test gives a ``repository`` to the policy,
+which contains the ``order`` aggregate expected by the policy.
 
 .. To explain a little bit, in normal use, when new events are retrieved
 .. from an upstream notification log, the ``policy()`` method is called by the
@@ -639,9 +639,9 @@ This is equivalent to a system defined with the following single pipeline expres
     )
 
 Although a process application class can appear many times in the pipeline
-expressions, there will only be one instance of each process when the system
-is running. Each application can follow one or many applications, and can be
-followed by one or many applications.
+expressions, there will only be one instance of each process when the pipeline
+system is instantiated. Each application can follow one or many applications,
+and can be followed by one or many applications.
 
 State is propagated between process applications through notification logs only. This can
 perhaps be recognised as the "bounded context" pattern. Each application can access only

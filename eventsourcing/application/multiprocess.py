@@ -42,7 +42,6 @@ class Multiprocess(object):
                 inbox_id = (pipeline_id, process_class.__name__.lower())
                 if inbox_id not in self.inboxes:
                     self.inboxes[inbox_id] = self.manager.Queue()
-                    # Todo: Limit the queue size, put items with timeout, and handle Queue.Full by retrying.
                 for upstream_class in upstream_classes:
                     outbox_id = (pipeline_id, upstream_class.__name__.lower())
                     if outbox_id not in self.outboxes:
@@ -193,9 +192,6 @@ class OperatingSystemProcess(multiprocessing.Process):
 
         try:
             self.loop_on_prompts()
-        # except Exception as e:
-        #     # Todo: Put this on an error queue?
-        #     raise e
         finally:
             unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
 
@@ -210,6 +206,7 @@ class OperatingSystemProcess(multiprocessing.Process):
             try:
                 # Todo: Make the poll interval gradually increase if there are only timeouts?
                 item = self.inbox.get(timeout=self.poll_interval)
+                self.inbox.task_done()
 
                 if item == 'QUIT':
                     self.process.close()
