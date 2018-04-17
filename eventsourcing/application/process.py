@@ -193,7 +193,7 @@ class Process(Pipeable, SimpleApplication):
 
     def write_records(self, aggregates, notification, upstream_application_name, causal_dependencies):
         # Construct tracking record.
-        tracking_record = self.construct_tracking_record(notification, upstream_application_name)
+        tracking_kwargs = self.construct_tracking_kwargs(notification, upstream_application_name)
 
         # Construct event records.
         event_records = self.construct_event_records(aggregates, causal_dependencies)
@@ -201,7 +201,7 @@ class Process(Pipeable, SimpleApplication):
         # Write event records with tracking record.
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, RelationalRecordManager)
-        record_manager.write_records(records=event_records, tracking_record=tracking_record)
+        record_manager.write_records(records=event_records, tracking_kwargs=tracking_kwargs)
         # Todo: Maybe optimise by skipping writing lots of solo tracking records
         # (ie writes that don't have any new events). Maybe just write one at the
         # end of a run, if necessary, or only once during a period of time when
@@ -252,17 +252,17 @@ class Process(Pipeable, SimpleApplication):
 
         return event_records
 
-    def construct_tracking_record(self, notification, upstream_application_name):
+    def construct_tracking_kwargs(self, notification, upstream_application_name):
         upstream_application_id = uuid_from_application_name(upstream_application_name)
-        kwargs = {
+        tracking_kwargs = {
             'application_id': self.application_id,
             'upstream_application_id': upstream_application_id,
             'pipeline_id': self.pipeline_id,
             'notification_id': notification['id'],
-            'originator_id': notification['originator_id'],
-            'originator_version': notification['originator_version']
+            # 'originator_id': notification['originator_id'],
+            # 'originator_version': notification['originator_version']
         }
-        return self.tracking_record_manager.record_class(**kwargs)
+        return tracking_kwargs
 
     def close(self):
         unsubscribe(predicate=self.is_upstream_prompt, handler=self.run)

@@ -55,12 +55,12 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
         return compiled
 
-    def _write_records(self, records, tracking_record=None):
+    def _write_records(self, records, tracking_kwargs=None):
         try:
             with self.session.bind.begin() as connection:
-                if tracking_record:
+                if tracking_kwargs:
                     # Add tracking record to session.
-                    params = {c: getattr(tracking_record, c) for c in self.tracking_record_field_names}
+                    params = {c: tracking_kwargs[c] for c in self.tracking_record_field_names}
                     connection.execute(self.insert_tracking_record, **params)
 
                 for record in records:

@@ -735,7 +735,7 @@ notification log (as discussed in the section about notifications).
 .. distributed database might correspond to the L3 cache. Please note, this idea
 .. isn't currently implemented in the library.)
 
-In this example, the process applications use a MySQL database.
+In this example, the process applications share a MySQL database.
 
 .. code:: python
 
@@ -802,15 +802,17 @@ system processes.
     multiprocessing_system = Multiprocess(system)
 
 The operating system processes can be started by using the ``multiprocess``
-object as a context manager.
+object as a context manager. The unprocessed commands will be processed
+shortly after the various operating system processes have been started.
 
 .. code:: python
+
+    # Check the unprocessed command gets processed by the system.
 
     @retry(AssertionError, max_attempts=10, wait=0.5)
     def assert_command_is_done(repository, cmd_id):
         assert repository[cmd_id].is_done
 
-    # Check the unprocessed command gets processed by the system.
     with multiprocessing_system, Commands() as commands:
         assert_command_is_done(commands.repository, cmd_id)
 
@@ -849,8 +851,8 @@ The system can run with multiple instances of the system's pipeline expressions.
 system with parallel pipelines means that each process application in the system
 can process many events at the same time.
 
-In the example below, there are three parallel pipelines, which gives twelve child operating system
-processes. All the operating system processes share the same MySQL database.
+In the example below, there are three parallel pipeline instances, which gives twelve child
+operating system processes. All the operating system processes share the same MySQL database.
 
 .. code:: python
 

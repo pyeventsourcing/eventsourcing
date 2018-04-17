@@ -180,18 +180,18 @@ class NotificationTrackingRecord(Base):
     # Notification ID.
     notification_id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
-    # Aggregate ID.
-    originator_id = Column(UUIDType(), nullable=False)
+    # # Aggregate ID.
+    # originator_id = Column(UUIDType(), nullable=False)
+    #
+    # # Aggregate version.
+    # originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
 
-    # Aggregate version.
-    originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
-
-    __table_args__ = (
-        Index(
-            'notification_tracking_event_index',
-            'application_id',
-            'originator_id',
-            'originator_version',
-            unique=True
-        ),
-    )
+    # __table_args__ = (
+    #     # Index(
+    #     #     'notification_tracking_event_index',
+    #     #     'application_id',
+    #     #     'originator_id',
+    #     #     'originator_version',
+    #     #     unique=True
+    #     # ),
+    # )
