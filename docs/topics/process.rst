@@ -501,9 +501,9 @@ responds to ``Order.Paid`` events by setting the command as done.
             cmd.__save__()
             return cmd.id
 
-The ``@retry`` decorator here protects against contention on the ``Commands`` notification log.
+The ``@retry`` decorator here protects against any contention writing to the ``Commands`` notification log.
 
-Please note, the ``__save__()`` method of aggregates should never be called in a process policy,
+Please note, the ``__save__()`` method of aggregates shouldn't be called in a process policy,
 because pending events from both new and changed aggregates will be automatically collected by
 the process application after its ``policy()`` method has returned. To be reliable, a process
 application needs to commit all the event records atomically with a tracking record, and calling
