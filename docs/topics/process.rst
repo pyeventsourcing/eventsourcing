@@ -669,9 +669,6 @@ In the code below, the ``system`` object is used as a context manager.
 When used in this way, by default the process applications will share an
 in-memory SQLite database.
 
-Given the system is running, when a "create new order" command is created, then
-the command is done, and an order has been both reservered and paid.
-
 .. code:: python
 
     with system:
@@ -694,10 +691,12 @@ the command is done, and an order has been both reservered and paid.
         # Check the payment exists.
         payment = system.payments.repository[order.payment_id]
 
+Basically, given the system is running, when a "create new order" command is
+created, then the command is done, and an order has been both reservered and paid.
 
 Everything happens synchronously, in a single thread, so that by the time
-the ``create_new_order()`` factory has returned, the system has already
-processed the order, which can be retrieved from the "orders" repository.
+``create_new_order()`` has returned, the system has already processed the
+command, which can be retrieved from the "commands" repository.
 
 Running the system with a single thread and an in-memory database is
 useful when developing and testing a system of process applications,
