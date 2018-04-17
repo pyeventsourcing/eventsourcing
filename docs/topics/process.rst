@@ -237,11 +237,17 @@ with both multiprocessing and multiple pipelines.
 Commands
 --------
 
-Commands have been discussed so far as methods on aggregate roots. Here, system
+Commands have been discussed so far as methods on aggregate objects. Here, system
 commands are introduced, as event sourced aggregates.
 
 In the code below, the system command class ``CreateNewOrder`` is defined using the
-library ``Command`` aggregate. It has an event sourced ``order_id`` attribute.
+library ``Command`` class, which extends the ``AggregateRoot`` class with a method
+``done()`` and a property ``is_done``. Hence all commands can be created, and set
+as done.
+
+The ``CreateNewOrder`` class extends the library's ``Command`` class with an event
+sourced ``order_id`` attribute, which will be used to associate the commands objets
+with the orders created by the system in response.
 
 .. code:: python
 
@@ -254,8 +260,8 @@ library ``Command`` aggregate. It has an event sourced ``order_id`` attribute.
         def order_id(self):
             pass
 
-Commands are event sourced aggregates. A ``Command`` can be created, and set as done.
-A ``CreateNewOrder`` command can be assigned an order ID, which is initially ``None``.
+
+A ``CreateNewOrder`` command can be assigned an order ID. Its ``order_id`` is initially ``None``.
 
 The behaviour of a system command aggregate can be fully tested with simple test cases,
 without involving any other components.
