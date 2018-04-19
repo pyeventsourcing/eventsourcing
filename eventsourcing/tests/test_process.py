@@ -1,10 +1,11 @@
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.application.process import CommandProcess, Process, RepositoryWrapper
+from eventsourcing.application.process import Process, RepositoryWrapper
+from eventsourcing.application.command import CommandProcess
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.command import Command
-from eventsourcing.domain.model.events import clear_event_handlers, assert_event_handlers_empty
+from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.exceptions import CausalDependencyFailed
 from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import json_loads
