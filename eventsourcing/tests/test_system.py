@@ -283,7 +283,7 @@ class Reservations(Process):
     def policy(self, repository, event):
         if isinstance(event, Order.Created):
             # Create a reservation.
-            # sleep(0.5)
+            # time.sleep(0.5)
             return Reservation.create(order_id=event.originator_id)
 
 
@@ -291,7 +291,7 @@ class Payments(Process):
     def policy(self, repository, event):
         if isinstance(event, Order.Reserved):
             # Make a payment.
-            # sleep(0.5)
+            # time.sleep(0.5)
             return Payment.make(order_id=event.originator_id)
 
 

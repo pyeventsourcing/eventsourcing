@@ -4,7 +4,7 @@ import unittest
 
 from eventsourcing.application.actors import Actors
 from eventsourcing.application.system import System
-from eventsourcing.tests.test_system import Order, Orders, Payments, Reservations, create_new_order, set_db_uri
+from eventsourcing.tests.test_system import Orders, Payments, Reservations, create_new_order, set_db_uri
 
 
 class TestActors(unittest.TestCase):
@@ -17,7 +17,6 @@ class TestActors(unittest.TestCase):
             (Orders, Reservations, Orders, Payments, Orders),
         )
 
-
     def tearDown(self):
         try:
             del (os.environ['DB_URI'])
@@ -25,31 +24,18 @@ class TestActors(unittest.TestCase):
             pass
 
     def test_simpleSystemBase(self):
-        # self.check_actors('simpleSystemBase', 1, 10)
-        # self.check_actors('simpleSystemBase', 10, 1)
-        self.check_actors('simpleSystemBase', 2, 2)
+        self.check_actors('simpleSystemBase')
 
-    def test_multiprocQueueBase(self):
-        # This works.
-        self.check_actors('multiprocQueueBase', 2, 2)
-        # self.check_actors('multiprocQueueBase', 3, 1)
-        # self.check_actors('multiprocQueueBase', 3, 3)
-        # self.check_actors('multiprocQueueBase', 1, 15)
+    def _test_multiprocTCPBase(self):
+        self.check_actors('multiprocTCPBase')
 
-        # This is really slow.
-        # self.check_actors('multiprocQueueBase', 2, 2)
-        # self.check_actors('multiprocQueueBase', 2, 5)
-
-
-    def test_multiprocTCPBase(self):
-        self.check_actors('multiprocTCPBase', 2, 4)
-        # self.check_actors('multiprocTCPBase', 1, 3)
-        # self.check_actors('multiprocTCPBase', 3, 5)
+    def _test_multiprocQueueBase(self):
+        self.check_actors('multiprocQueueBase')
 
     def _test_multiprocUDPBase(self):
         self.check_actors('multiprocUDPBase', 1, 1)
 
-    def check_actors(self, actor_system_base, num_pipelines, num_orders_per_pipeline):
+    def check_actors(self, actor_system_base, num_pipelines=3, num_orders_per_pipeline=5):
 
         pipeline_ids = list(range(num_pipelines))
 
@@ -58,11 +44,10 @@ class TestActors(unittest.TestCase):
         # Todo: Use wakeupAfter() to poll for new notifications (see Timer Messages).
         # Todo: Fix multiple pipelines with multiproc bases.
 
-
         order_ids = []
 
         with Orders(setup_tables=True) as app, actors:
-        # with actors:
+            # with actors:
 
             # Create some new orders.
             for _ in range(num_orders_per_pipeline):
@@ -105,4 +90,3 @@ class TestActors(unittest.TestCase):
             print("Min order processing time: {:.3f}s".format(min(durations)))
             print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
             print("Max order processing time: {:.3f}s".format(max(durations)))
-

@@ -105,7 +105,7 @@ class PipelineActor(Actor):
                 pass
             elif isinstance(msg, ChildActorExited):
                 logger.info('pipeline child exited: {}'.format(msg.childAddress))
-                # logger.info('pipeline child exited')
+                pass
             else:
                 # logger.warning("unknown msg to pipeline actor: {}".format(msg))
                 pass
@@ -137,12 +137,12 @@ class PipelineActor(Actor):
         for process_class in process_classes:
             process_name = process_class.__name__.lower()
             upstream_application_names = [c.__name__.lower() for c in self.system_followings[process_class]]
-            downstream_actors = []
+            downstream_actors = {}
             for downstream_class in self.followers[process_name]:
                 downstream_name = downstream_class.__name__.lower()
                 # logger.warning("sending prompt to process application {}".format(downstream_name))
                 process_actor = self.process_actors[downstream_name]
-                downstream_actors.append(process_actor)
+                downstream_actors[downstream_name] = process_actor
 
             msg = InitProcess(process_class, pipeline_id, upstream_application_names, downstream_actors,
                               self.myAddress)
@@ -152,7 +152,6 @@ class PipelineActor(Actor):
 
         for downstream_class in self.followers[msg.process_name]:
             downstream_name = downstream_class.__name__.lower()
-            # logger.warning("sending prompt to process application {}".format(downstream_name))
             process_actor = self.process_actors[downstream_name]
             self.send(process_actor, msg)
 
@@ -177,6 +176,8 @@ class ProcessApplicationMasterActor(Actor):
             elif isinstance(msg, WorkerFinishedRun):
                 logger.info("process application master received worker finished run: {}".format(msg))
                 self.handle_worker_finished_run(msg)
+            else:
+                logger.warning("unknown msg to master: {}".format(msg))
         except Exception as e:
             logger.error("error in {}: {} {}".format(self, type(e), e))
             raise
@@ -189,6 +190,7 @@ class ProcessApplicationMasterActor(Actor):
             self.send_last_prompts_to_worker()
         else:
             logger.info("worker is running, prompt was held")
+            pass
 
     def handle_worker_finished_run(self, msg):
         logger.info("worker finished running ")
@@ -214,6 +216,7 @@ class ProcessApplicationWorkerActor(Actor):
                 logger.info("process application worker received init: {}".format(msg))
                 self.pipeline_actor = msg.pipeline_actor
                 self.downstream_actors = msg.downstream_actors
+                self.pipeline_id = msg.pipeline_id
                 self.init_process(msg)
             elif isinstance(msg, LastPrompts):
                 logger.info("{} process application worker received last prompts: {}".format(self.process.name, msg))
@@ -222,7 +225,7 @@ class ProcessApplicationWorkerActor(Actor):
                 logger.info("{} process application worker received exit request: {}".format(self.process.name, msg))
                 self.process.close()
             else:
-                # logger.warning("unknown msg to {}: {}".format(self.process.name, msg))
+                logger.warning("unknown msg to slave {}: {}".format(self.process.name, msg))
                 pass
         except Exception as e:
             logger.error("error in {}: {}".format(self, e))
@@ -232,8 +235,8 @@ class ProcessApplicationWorkerActor(Actor):
     def init_process(self, msg):
         self.process = msg.process_application_class(
             pipeline_id=msg.pipeline_id,
-            notification_log_section_size=50,
-            pool_size=5,
+            notification_log_section_size=5,
+            pool_size=3,
             persist_event_type=NoneEvent,  # Disable persistence subscriber.
         )
         # Cancel publish_prompts().
@@ -266,9 +269,10 @@ class ProcessApplicationWorkerActor(Actor):
     def publish_prompt(self, end_position=None):
         prompt = Prompt(self.process.name, self.process.pipeline_id, end_position=end_position)
         # logger.info("publishing prompt from {} process application".format(self.process.name))
-        for downstream_actor in self.downstream_actors:
+        for downstream_name, downstream_actor in self.downstream_actors.items():
             self.send(downstream_actor, prompt)
-        # logger.info("published prompt from {} process application".format(self.process.name))
+            logger.info("published prompt from {} to {} in pipeline {}".format(self.process.name, downstream_name,
+                                                                                             self.pipeline_id))
 
 
 class InitPipeline(object):
