@@ -2,44 +2,83 @@ import os
 import time
 import unittest
 
+import logging
+from time import sleep
+
+from thespian.actors import ActorSystem
+
 from eventsourcing.application.actors import Actors
 from eventsourcing.application.system import System
 from eventsourcing.tests.test_system import Orders, Payments, Reservations, create_new_order, set_db_uri
 
 
+logger = logging.getLogger('')
+# logger.setLevel(logging.INFO)
+# ch = logging.StreamHandler()
+# ch.setLevel(logging.INFO)
+# logger.addHandler(ch)
+
+
+logcfg = {
+    'version': 1,
+    'formatters': {
+        'normal': {
+            'format': '%(levelname)-8s %(message)s'
+        }
+    },
+    'handlers': {
+        # 'h': {
+        #     'class': 'logging.FileHandler',
+        #     'filename': 'hello.log',
+        #     'formatter': 'normal',
+        #     'level': logging.INFO
+        # }
+    },
+    'loggers': {
+        # '': {'handlers': ['h'], 'level': logging.DEBUG}
+    }
+}
+
+
 class TestActors(unittest.TestCase):
 
     def setUp(self):
-        # Set up the database.
+        # Shutdown base actor system, if running.
+        ActorSystem().shutdown()
+        # Set environment.
         set_db_uri()
-
-        self.system = System(
-            (Orders, Reservations, Orders, Payments, Orders),
-        )
+        # Define system.
+        self.system = System(Orders | Reservations | Orders | Payments | Orders)
 
     def tearDown(self):
+        # Unset environment.
         try:
             del (os.environ['DB_URI'])
         except KeyError:
             pass
+        # Shutdown base actor system.
+        self.actor_system.shutdown()
 
-    def test_simpleSystemBase(self):
-        self.check_actors('simpleSystemBase')
+    def test_simple_system_base(self):
+        self.start_actor_system()
+        self.check_actors(2, 10)
 
-    def _test_multiprocTCPBase(self):
-        self.check_actors('multiprocTCPBase')
+    def test_multiproc_tcp_base(self):
+        self.start_multiproc_tcp_base_system()
+        self.check_actors(1, 15)
 
-    def _test_multiprocQueueBase(self):
-        self.check_actors('multiprocQueueBase')
+    def test_multiproc_queue_base(self):
+        self.start_multiproc_queue_base_system()
+        self.check_actors()
 
     def _test_multiprocUDPBase(self):
         self.check_actors('multiprocUDPBase', 1, 1)
 
-    def check_actors(self, actor_system_base, num_pipelines=3, num_orders_per_pipeline=5):
+    def check_actors(self, num_pipelines=3, num_orders_per_pipeline=5):
 
         pipeline_ids = list(range(num_pipelines))
 
-        actors = Actors(self.system, pipeline_ids=pipeline_ids, actor_system_base=actor_system_base)
+        actors = Actors(self.system, pipeline_ids=pipeline_ids)
 
         # Todo: Use wakeupAfter() to poll for new notifications (see Timer Messages).
         # Todo: Fix multiple pipelines with multiproc bases.
@@ -90,3 +129,17 @@ class TestActors(unittest.TestCase):
             print("Min order processing time: {:.3f}s".format(min(durations)))
             print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
             print("Max order processing time: {:.3f}s".format(max(durations)))
+
+    def start_multiproc_tcp_base_system(self):
+        self.start_actor_system(system_base='multiprocTCPBase')
+
+    def start_multiproc_queue_base_system(self):
+        self.start_actor_system(system_base='multiprocQueueBase')
+
+    def start_actor_system(self, system_base=None):
+        self.actor_system = ActorSystem(
+            systemBase=system_base,
+            logDefs=logcfg,
+            # transientUnique=bool(system_base)
+        )
+

@@ -1,6 +1,6 @@
-import logging
-
 import time
+
+import logging
 from thespian.actors import *
 
 from eventsourcing.application.process import Prompt
@@ -9,46 +9,18 @@ from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordMana
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.uuids import uuid_from_application_name
 
-
-
-logger = logging.getLogger('')
-logger.setLevel(logging.INFO)
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-logger.addHandler(ch)
-
-
-logcfg = {
-    'version': 1,
-    'formatters': {
-        'normal': {
-            'format': '%(levelname)-8s %(message)s'
-        }
-    },
-    'handlers': {
-        # 'h': {
-        #     'class': 'logging.FileHandler',
-        #     'filename': 'hello.log',
-        #     'formatter': 'normal',
-        #     'level': logging.INFO
-        # }
-    },
-    'loggers': {
-        # '': {'handlers': ['h'], 'level': logging.DEBUG}
-    }
-}
+logger = logging.getLogger()
 
 
 class Actors(object):
-    def __init__(self, system, pipeline_ids, actor_system_base):
+    def __init__(self, system, pipeline_ids):
         self.system = system
         self.pipeline_ids = pipeline_ids
         self.pipeline_actors = {}
-        self.actor_system_base = actor_system_base
 
     @property
     def actor_system(self):
-        return ActorSystem(self.actor_system_base, logDefs=logcfg)
+        return ActorSystem()
 
     def start(self):
         # Subscribe to broadcast prompts published by a process
@@ -75,8 +47,6 @@ class Actors(object):
         unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
         for pipeline_actor in self.pipeline_actors.values():
             self.actor_system.tell(pipeline_actor, ActorExitRequest(recursive=True))
-        self.actor_system.shutdown()
-        time.sleep(0.1)
 
     def __enter__(self):
         self.start()
@@ -176,6 +146,10 @@ class ProcessApplicationMasterActor(Actor):
             elif isinstance(msg, WorkerFinishedRun):
                 logger.info("process application master received worker finished run: {}".format(msg))
                 self.handle_worker_finished_run(msg)
+            elif isinstance(msg, ActorExitRequest):
+                pass
+            elif isinstance(msg, ChildActorExited):
+                pass
             else:
                 logger.warning("unknown msg to master: {}".format(msg))
         except Exception as e:
@@ -222,6 +196,9 @@ class ProcessApplicationWorkerActor(Actor):
                 logger.info("{} process application worker received last prompts: {}".format(self.process.name, msg))
                 self.handle_last_prompts(msg)
             elif isinstance(msg, ActorExitRequest):
+                logger.info("{} process application worker received exit request: {}".format(self.process.name, msg))
+                self.process.close()
+            elif isinstance(msg, ChildActorExited):
                 logger.info("{} process application worker received exit request: {}".format(self.process.name, msg))
                 self.process.close()
             else:
