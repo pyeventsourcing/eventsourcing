@@ -1,6 +1,6 @@
+import logging
 import time
 
-import logging
 from thespian.actors import *
 
 from eventsourcing.application.process import Prompt
@@ -179,7 +179,6 @@ class ProcessApplicationMasterActor(Actor):
         self.last_prompts = {}
 
 
-
 class ProcessApplicationWorkerActor(Actor):
     def __init__(self):
         self.process = None
@@ -249,7 +248,7 @@ class ProcessApplicationWorkerActor(Actor):
         for downstream_name, downstream_actor in self.downstream_actors.items():
             self.send(downstream_actor, prompt)
             logger.info("published prompt from {} to {} in pipeline {}".format(self.process.name, downstream_name,
-                                                                                             self.pipeline_id))
+                                                                               self.pipeline_id))
 
 
 class InitPipeline(object):
