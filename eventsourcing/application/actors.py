@@ -130,12 +130,23 @@ class PipelineActor(Actor):
 
         process_classes = self.system_followings.keys()
         for process_class in process_classes:
-            process_actor = self.createActor(ProcessApplicationActor)
+            process_actor = self.createActor(ProcessApplicationMasterActor)
             process_name = process_class.__name__.lower()
             self.process_actors[process_name] = process_actor
+
+        for process_class in process_classes:
+            process_name = process_class.__name__.lower()
             upstream_application_names = [c.__name__.lower() for c in self.system_followings[process_class]]
-            msg = InitProcess(process_class, pipeline_id, upstream_application_names, self.myAddress)
-            self.send(process_actor, msg)
+            downstream_actors = []
+            for downstream_class in self.followers[process_name]:
+                downstream_name = downstream_class.__name__.lower()
+                # logger.warning("sending prompt to process application {}".format(downstream_name))
+                process_actor = self.process_actors[downstream_name]
+                downstream_actors.append(process_actor)
+
+            msg = InitProcess(process_class, pipeline_id, upstream_application_names, downstream_actors,
+                              self.myAddress)
+            self.send(self.process_actors[process_name], msg)
 
     def send_prompt(self, msg):
 
@@ -150,21 +161,65 @@ class NoneEvent(object):
     pass
 
 
-class ProcessApplicationActor(Actor):
+class ProcessApplicationMasterActor(Actor):
+
+    def receiveMessage(self, msg, sender):
+        try:
+            if isinstance(msg, InitProcess):
+                self.is_worker_running = False
+                self.last_prompts = {}
+                self.process_application_class = msg.process_application_class
+                self.worker_actor = self.createActor(ProcessApplicationWorkerActor)
+                self.send(self.worker_actor, msg)
+            elif isinstance(msg, Prompt):
+                logger.info("process application master received prompt: {}".format(msg))
+                self.handle_prompt(msg)
+            elif isinstance(msg, WorkerFinishedRun):
+                logger.info("process application master received worker finished run: {}".format(msg))
+                self.handle_worker_finished_run(msg)
+        except Exception as e:
+            logger.error("error in {}: {} {}".format(self, type(e), e))
+            raise
+            pass
+
+    def handle_prompt(self, prompt):
+        self.last_prompts[prompt.process_name] = prompt
+        if not self.is_worker_running:
+            logger.info("worker not running, sending last prompts to worker")
+            self.send_last_prompts_to_worker()
+        else:
+            logger.info("worker is running, prompt was held")
+
+    def handle_worker_finished_run(self, msg):
+        logger.info("worker finished running ")
+        self.is_worker_running = False
+        if self.last_prompts:
+            logger.info("more last prompts so running worker again")
+            self.send_last_prompts_to_worker()
+
+    def send_last_prompts_to_worker(self):
+        self.is_worker_running = True
+        self.send(self.worker_actor, LastPrompts(self.last_prompts, self.myAddress))
+        self.last_prompts = {}
+
+
+
+class ProcessApplicationWorkerActor(Actor):
     def __init__(self):
         self.process = None
 
     def receiveMessage(self, msg, sender):
         try:
             if isinstance(msg, InitProcess):
-                logger.info("process application received init: {}".format(msg))
+                logger.info("process application worker received init: {}".format(msg))
                 self.pipeline_actor = msg.pipeline_actor
-                self.init_process(msg.process_application_class, msg.pipeline_id, msg.upstream_application_names)
-            elif isinstance(msg, Prompt):
-                logger.info("{} process application received prompt: {}".format(self.process.name, msg))
-                self.handle_prompt(msg)
+                self.downstream_actors = msg.downstream_actors
+                self.init_process(msg)
+            elif isinstance(msg, LastPrompts):
+                logger.info("{} process application worker received last prompts: {}".format(self.process.name, msg))
+                self.handle_last_prompts(msg)
             elif isinstance(msg, ActorExitRequest):
-                logger.info("process application {} received exit request: {}".format(self.process.name, msg))
+                logger.info("{} process application worker received exit request: {}".format(self.process.name, msg))
                 self.process.close()
             else:
                 # logger.warning("unknown msg to {}: {}".format(self.process.name, msg))
@@ -174,16 +229,18 @@ class ProcessApplicationActor(Actor):
             raise
             pass
 
-    def init_process(self, process_application_class, pipeline_id, upstream_application_names):
-        self.process = process_application_class(
-            pipeline_id=pipeline_id,
+    def init_process(self, msg):
+        self.process = msg.process_application_class(
+            pipeline_id=msg.pipeline_id,
             notification_log_section_size=50,
             pool_size=5,
             persist_event_type=NoneEvent,  # Disable persistence subscriber.
         )
         # Cancel publish_prompts().
         self.process.publish_prompt = lambda *args: self.publish_prompt(*args)
-        for upstream_application_name in upstream_application_names:
+
+        # Construct and follow upstream notification logs.
+        for upstream_application_name in msg.upstream_application_names:
             record_manager = self.process.event_store.record_manager
             assert isinstance(record_manager, SQLAlchemyRecordManager)
             upstream_application_id = uuid_from_application_name(upstream_application_name)
@@ -194,20 +251,23 @@ class ProcessApplicationActor(Actor):
                     contiguous_record_ids=record_manager.contiguous_record_ids,
                     sequenced_item_class=record_manager.sequenced_item_class,
                     application_id=upstream_application_id,
-                    pipeline_id=pipeline_id
+                    pipeline_id=msg.pipeline_id
                 ),
                 section_size=self.process.notification_log_section_size
             )
             self.process.follow(upstream_application_name, notification_log)
 
-    def handle_prompt(self, prompt):
-        # logger.info("handling prompt in {} process application".format(self.process.name))
-        self.process.run(prompt)
+    def handle_last_prompts(self, msg):
+        logger.info("handling prompt in {} process application".format(self.process.name))
+        for prompt in msg.last_prompts.values():
+            self.process.run(prompt)
+        self.send(msg.master, WorkerFinishedRun())
 
     def publish_prompt(self, end_position=None):
         prompt = Prompt(self.process.name, self.process.pipeline_id, end_position=end_position)
         # logger.info("publishing prompt from {} process application".format(self.process.name))
-        self.send(self.pipeline_actor, prompt)
+        for downstream_actor in self.downstream_actors:
+            self.send(downstream_actor, prompt)
         # logger.info("published prompt from {} process application".format(self.process.name))
 
 
@@ -218,8 +278,20 @@ class InitPipeline(object):
 
 
 class InitProcess(object):
-    def __init__(self, process_application_class, pipeline_id, upstream_application_names, pipeline_actor):
+    def __init__(self, process_application_class, pipeline_id, upstream_application_names, downstream_actors,
+                 pipeline_actor):
         self.process_application_class = process_application_class
         self.pipeline_id = pipeline_id
         self.upstream_application_names = upstream_application_names
+        self.downstream_actors = downstream_actors
         self.pipeline_actor = pipeline_actor
+
+
+class LastPrompts(object):
+    def __init__(self, last_prompts, master):
+        self.last_prompts = last_prompts
+        self.master = master
+
+
+class WorkerFinishedRun(object):
+    pass

@@ -27,11 +27,11 @@ class TestActors(unittest.TestCase):
     def test_simpleSystemBase(self):
         # self.check_actors('simpleSystemBase', 1, 10)
         # self.check_actors('simpleSystemBase', 10, 1)
-        self.check_actors('simpleSystemBase', 10, 10)
+        self.check_actors('simpleSystemBase', 2, 2)
 
     def test_multiprocQueueBase(self):
         # This works.
-        self.check_actors('multiprocQueueBase', 2, 4)
+        self.check_actors('multiprocQueueBase', 2, 2)
         # self.check_actors('multiprocQueueBase', 3, 1)
         # self.check_actors('multiprocQueueBase', 3, 3)
         # self.check_actors('multiprocQueueBase', 1, 15)
@@ -42,9 +42,9 @@ class TestActors(unittest.TestCase):
 
 
     def test_multiprocTCPBase(self):
-        # self.check_actors('multiprocTCPBase', 1, 1)
+        self.check_actors('multiprocTCPBase', 2, 4)
         # self.check_actors('multiprocTCPBase', 1, 3)
-        self.check_actors('multiprocTCPBase', 3, 5)
+        # self.check_actors('multiprocTCPBase', 3, 5)
 
     def _test_multiprocUDPBase(self):
         self.check_actors('multiprocUDPBase', 1, 1)
