@@ -3,6 +3,8 @@ import time
 from unittest import TestCase
 from uuid import uuid4
 
+import logging
+
 from eventsourcing.application.multiprocess import Multiprocess
 from eventsourcing.application.process import Process
 from eventsourcing.application.system import System
@@ -261,6 +263,7 @@ def create_new_order():
     order.__save__()
     return order.id
 
+logger = logging.getLogger()
 
 class Orders(Process):
     persist_event_type = Order.Created
@@ -271,12 +274,14 @@ class Orders(Process):
             order = repository[event.order_id]
             assert not order.is_reserved
             order.set_is_reserved(event.originator_id)
+            # logger.warning('set Order as reservered')
 
         elif isinstance(event, Payment.Created):
             # Set the order as paid.
             order = repository[event.order_id]
             assert not order.is_paid
             order.set_is_paid(event.originator_id)
+            # logger.warning('set Order as paid')
 
 
 class Reservations(Process):
@@ -284,6 +289,7 @@ class Reservations(Process):
         if isinstance(event, Order.Created):
             # Create a reservation.
             # time.sleep(0.5)
+            # logger.warning('created Reservation for order')
             return Reservation.create(order_id=event.originator_id)
 
 
@@ -292,6 +298,7 @@ class Payments(Process):
         if isinstance(event, Order.Reserved):
             # Make a payment.
             # time.sleep(0.5)
+            # logger.warning('created Payment for order')
             return Payment.make(order_id=event.originator_id)
 
 
