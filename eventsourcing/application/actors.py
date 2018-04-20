@@ -12,6 +12,9 @@ from eventsourcing.utils.uuids import uuid_from_application_name
 
 logger = logging.getLogger()
 
+# Todo: Send timer message to run slave every so often (in master or slave?).
+
+
 DEFAULT_ACTORS_LOGCFG = {
     'version': 1,
     'formatters': {
@@ -52,8 +55,6 @@ def start_multiproc_queue_base_system():
     start_actor_system(system_base='multiprocQueueBase')
 
 
-
-
 class Actors(object):
     def __init__(self, system, pipeline_ids, system_actor_name='system', shutdown_on_exit=False):
         assert isinstance(system, System)
@@ -81,7 +82,7 @@ class Actors(object):
         subscribe(handler=self.forward_prompt, predicate=self.is_prompt)
 
         # Initialise the system actor.
-        command = InitSystem(self.system.followings, self.pipeline_ids)
+        command = SystemInitRequest(self.system.followings, self.pipeline_ids)
         response = self.actor_system.ask(self.system_actor, command)
 
         # Keep the pipeline actor addresses, to send prompts directly.
@@ -131,18 +132,18 @@ class SystemActor(Actor):
         self.is_initialised = False
 
     def receiveMessage(self, msg, sender):
-        if isinstance(msg, InitSystem):
+        if isinstance(msg, SystemInitRequest):
             if not self.is_initialised:
                 self.init_pipelines(msg)
                 self.is_initialised = True
-            self.send(sender, SystemInited(self.pipeline_actors.copy()))
+            self.send(sender, SystemInitResponse(self.pipeline_actors.copy()))
 
     def init_pipelines(self, msg):
         self.system_followings = msg.system_followings
         for pipeline_id in msg.pipeline_ids:
             pipeline_actor = self.createActor(PipelineActor)
             self.pipeline_actors[pipeline_id] = pipeline_actor
-            self.send(pipeline_actor, InitPipeline(self.system_followings, pipeline_id))
+            self.send(pipeline_actor, PipelineInitRequest(self.system_followings, pipeline_id))
 
 
 class PipelineActor(Actor):
@@ -153,7 +154,7 @@ class PipelineActor(Actor):
         self.pipeline_id = None
 
     def receiveMessage(self, msg, sender):
-        if isinstance(msg, InitPipeline):
+        if isinstance(msg, PipelineInitRequest):
             # logger.info("pipeline received init: {}".format(msg))
             self.init_pipeline(msg)
         elif isinstance(msg, Prompt):
@@ -190,8 +191,8 @@ class PipelineActor(Actor):
                 process_actor = self.process_actors[downstream_name]
                 downstream_actors[downstream_name] = process_actor
 
-            msg = InitProcess(process_class, self.pipeline_id, upstream_application_names, downstream_actors,
-                              self.myAddress)
+            msg = ProcessInitRequest(process_class, self.pipeline_id, upstream_application_names, downstream_actors,
+                                     self.myAddress)
             self.send(self.process_actors[process_name], msg)
 
     def forward_prompt(self, msg):
@@ -208,47 +209,40 @@ class NoneEvent(object):
 class ProcessMaster(Actor):
     def __init__(self):
         super(ProcessMaster, self).__init__()
-        self.is_worker_running = False
+        self.is_slave_running = False
         self.last_prompts = {}
 
     def receiveMessage(self, msg, sender):
-        if isinstance(msg, InitProcess):
+        if isinstance(msg, ProcessInitRequest):
             self.init_process(msg)
         elif isinstance(msg, Prompt):
             # logger.warning("{} master received prompt: {}".format(self.process_application_class.__name__, msg))
             self.consume_prompt(prompt=msg)
-        elif isinstance(msg, WorkerFinishedRun):
-            # logger.info("process application master received worker finished run: {}".format(msg))
-            self.handle_worker_finished_run()
+        elif isinstance(msg, SlaveRunResponse):
+            # logger.info("process application master received slave finished run: {}".format(msg))
+            self.handle_slave_run_response()
 
     def init_process(self, msg):
         self.process_application_class = msg.process_application_class
-        self.worker_actor = self.createActor(ProcessSlave)
-        self.send(self.worker_actor, msg)
-        self.run_worker()
+        self.slave_actor = self.createActor(ProcessSlave)
+        self.send(self.slave_actor, msg)
+        self.run_slave()
 
     def consume_prompt(self, prompt):
         self.last_prompts[prompt.process_name] = prompt
-        if not self.is_worker_running:
-            # logger.info("worker not running, sending last prompts to worker")
-            self.run_worker()
-        # else:
-        #     logger.info("worker is running, prompt was held")
+        # Don't send to slave if it's running, or we get blocked.
+        self.run_slave()
 
-    def handle_worker_finished_run(self):
-        # logger.info("worker finished running ")
-        self.is_worker_running = False
+    def handle_slave_run_response(self):
+        self.is_slave_running = False
         if self.last_prompts:
-            # logger.info("more last prompts so running worker again")
-            self.run_worker()
-        # Todo: Send timer message to self to run worker every so often.
-        # else:
-            # self.run_worker()
+            self.run_slave()
 
-    def run_worker(self):
-        self.is_worker_running = True
-        self.send(self.worker_actor, RunWorker(self.last_prompts, self.myAddress))
-        self.last_prompts = {}
+    def run_slave(self):
+        if not self.is_slave_running:
+            self.send(self.slave_actor, SlaveRunRequest(self.last_prompts, self.myAddress))
+            self.is_slave_running = True
+            self.last_prompts = {}
 
 
 class ProcessSlave(Actor):
@@ -257,14 +251,14 @@ class ProcessSlave(Actor):
         self.process = None
 
     def receiveMessage(self, msg, sender):
-        if isinstance(msg, InitProcess):
-            # logger.info("process application worker received init: {}".format(msg))
+        if isinstance(msg, ProcessInitRequest):
+            # logger.info("process application slave received init: {}".format(msg))
             self.init_process(msg)
-        elif isinstance(msg, RunWorker):
-            # logger.info("{} process application worker received last prompts: {}".format(self.process.name, msg))
+        elif isinstance(msg, SlaveRunRequest):
+            # logger.info("{} process application slave received last prompts: {}".format(self.process.name, msg))
             self.run_process(msg)
         elif isinstance(msg, ActorExitRequest):
-            # logger.info("{} process application worker received exit request: {}".format(self.process.name, msg))
+            # logger.info("{} process application slave received exit request: {}".format(self.process.name, msg))
             self.process.close()
 
     def init_process(self, msg):
@@ -301,31 +295,22 @@ class ProcessSlave(Actor):
             self.process.follow(upstream_application_name, notification_log)
 
     def run_process(self, msg):
-        # logger.warning("---- running {} process application".format(self.process.name))
         notification_count = 0
+        # Just process one notification so prompts are dispatched promptly, sent
+        # messages only dispatched from actor after receive_message() returns.
+        advance_by = 1
         if msg.last_prompts:
             for prompt in msg.last_prompts.values():
-                notification_count += self.process.run(prompt, advance_by=3)
+                notification_count += self.process.run(prompt, advance_by=advance_by)
         else:
-            notification_count += self.process.run(advance_by=3)
-        # while self.process.run():
-        # #     while self.process.run():
-        # #         while self.process.run():
-        # #             logger.warning("---- continuing running {} process application".format(self.process.name))
-        # #             time.sleep(0.1)
-        # #         logger.warning("---- continuing running {} process application".format(self.process.name))
-        # #         time.sleep(0.5)
-        #     logger.warning("---- continuing running {} process application".format(self.process.name))
-            # time.sleep(0.1)
-        #
-        # logger.warning("---- finished running {} process application".format(self.process.name))
+            notification_count += self.process.run(advance_by=advance_by)
 
         if notification_count:
-            # Run again.
-            self.send(self.myAddress, RunWorker(last_prompts={}, master=msg.master))
+            # Run again, until nothing was done.
+            self.send(self.myAddress, SlaveRunRequest(last_prompts={}, master=msg.master))
         else:
-            # Report to master.
-            self.send(msg.master, WorkerFinishedRun())
+            # Report back to master.
+            self.send(msg.master, SlaveRunResponse())
 
     def publish_prompt(self, end_position=None):
         prompt = Prompt(self.process.name, self.process.pipeline_id, end_position=end_position)
@@ -336,24 +321,24 @@ class ProcessSlave(Actor):
             #                                                                    self.pipeline_id))
 
 
-class InitSystem(object):
+class SystemInitRequest(object):
     def __init__(self, system_followings, pipeline_ids):
         self.system_followings = system_followings
         self.pipeline_ids = pipeline_ids
 
 
-class SystemInited(object):
+class SystemInitResponse(object):
     def __init__(self, pipeline_actors):
         self.pipeline_actors = pipeline_actors
 
 
-class InitPipeline(object):
+class PipelineInitRequest(object):
     def __init__(self, system_followings, pipeline_id):
         self.system_followings = system_followings
         self.pipeline_id = pipeline_id
 
 
-class InitProcess(object):
+class ProcessInitRequest(object):
     def __init__(self, process_application_class, pipeline_id, upstream_application_names, downstream_actors,
                  pipeline_actor):
         self.process_application_class = process_application_class
@@ -363,11 +348,11 @@ class InitProcess(object):
         self.pipeline_actor = pipeline_actor
 
 
-class RunWorker(object):
+class SlaveRunRequest(object):
     def __init__(self, last_prompts, master):
         self.last_prompts = last_prompts
         self.master = master
 
 
-class WorkerFinishedRun(object):
+class SlaveRunResponse(object):
     pass

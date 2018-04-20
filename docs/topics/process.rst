@@ -997,25 +997,31 @@ a pipelined system of process applications as actors.
         for i, command_id in enumerate(command_ids):
             assert_command_is_done(commands.repository, command_id)
 
+The system actors can be started by calling the ``start()`` method of ``actors``.
 
-A system base other than the default "simple system base" can be started
-by using the functions ``start_multiproc_tcp_base_system()`` or
-``start_multiproc_queue_base_system()``. The actors will then be started
-in separate operating system processes. In this case, the system actors
-can be stopped by calling the ``close()`` method on ``actors``. The
-base actor system can be stopped by calling ``shutdown()`` on the ``actors``
-object.
+An Thespian "system base" other than the default "simple system base" can be
+started by using the functions ``start_multiproc_tcp_base_system()`` or
+``start_multiproc_queue_base_system()``. In these cases, the system actors
+will started in separate operating system processes. Otherwise they will
+all run by sending messages recursively. The system actors can be stopped by
+calling the ``close()`` method on ``actors``. The base actor system can be
+stopped by calling ``shutdown()`` on the ``actors`` object, which will also
+stop the system actors.
 
-If ``actors`` is used as a context manager, the ``close()`` method
-will be called when the context manager exits, but the ``shutdown()`` method
-will not be called, by default. If ``actors`` is constructed with
-``shutdown_on_exit=True``, which is ``False`` by default, then ``shutdown()``
-will also be called when the context manager exits.
+If ``actors`` is used as a context manager, the ``start()`` method will be
+called when the context manager enters. The ``close()`` method will be called
+when the context manager exits, but by default the ``shutdown()`` method
+will not be called. If ``actors`` is constructed with ``shutdown_on_exit=True``,
+which is ``False`` by default, then ``shutdown()`` will also be called when the
+context manager exits.
 
 These methods can be used separately. Which means a script can be called to
-initialise the system actors. Another script can be called to send system
-commands. Another script can be used to shutdown the system actors. And
-another can be used to shutdown the base system. That may help operations.
+initialise the base system. Another script can start the system actors. Another
+script can be called to send system commands, so that the system actors actually
+do some work. Another script can be used to shutdown the system actors. And another
+can be used to shutdown the base system. That may help operations.
+
+Please refer to the Thespian documentation for more information.
 
 .. .. code:: python
 ..
