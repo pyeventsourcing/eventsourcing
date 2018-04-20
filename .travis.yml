@@ -13,7 +13,7 @@ python:
   - 3.6
   - 3.6-dev
 #  - 3.7-dev
-  - pypy
+#  - pypy  # Cassandra suddenly failing to find hosts on Travis, 21 April 2018. Not sure why.
   - pypy3
 
 before_install:
