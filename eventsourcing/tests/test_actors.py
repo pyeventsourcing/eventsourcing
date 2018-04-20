@@ -96,7 +96,7 @@ class TestActors(unittest.TestCase):
                     order_id = create_new_order()
                     order_ids.append(order_id)
 
-                time.sleep(1)
+                # time.sleep(1)
 
             # Wait for orders to be reserved and paid.
             retries = 100 + 100 * num_orders_per_pipeline * len(pipeline_ids)

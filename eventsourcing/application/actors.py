@@ -73,8 +73,6 @@ class SystemActor(Actor):
         if isinstance(msg, InitSystem):
             self.init_pipelines(msg)
             self.send(sender, SystemInited(self.pipeline_actors.copy()))
-        elif isinstance(msg, Prompt):
-            self.forward_prompt(msg)
 
     def init_pipelines(self, msg):
         self.system_followings = msg.system_followings
@@ -82,11 +80,6 @@ class SystemActor(Actor):
             pipeline_actor = self.createActor(PipelineActor)
             self.pipeline_actors[pipeline_id] = pipeline_actor
             self.send(pipeline_actor, InitPipeline(self.system_followings, pipeline_id))
-
-    def forward_prompt(self, prompt):
-        pipeline_actor = self.pipeline_actors.get(prompt.pipeline_id)
-        if pipeline_actor:
-            self.send(pipeline_actor, prompt)
 
 
 class PipelineActor(Actor):
@@ -97,17 +90,12 @@ class PipelineActor(Actor):
         self.pipeline_id = None
 
     def receiveMessage(self, msg, sender):
-        try:
-            if isinstance(msg, InitPipeline):
-                # logger.info("pipeline received init: {}".format(msg))
-                self.init_pipeline(msg)
-            elif isinstance(msg, Prompt):
-                # logger.info("pipeline received prompt: {}".format(msg))
-                self.forward_prompt(msg)
-        except Exception as e:
-            logger.error("error in {}: {}".format(self, e))
-            raise
-            pass
+        if isinstance(msg, InitPipeline):
+            # logger.info("pipeline received init: {}".format(msg))
+            self.init_pipeline(msg)
+        elif isinstance(msg, Prompt):
+            # logger.info("pipeline received prompt: {}".format(msg))
+            self.forward_prompt(msg)
 
     def init_pipeline(self, msg):
         self.pipeline_id = msg.pipeline_id
@@ -161,18 +149,14 @@ class ProcessMaster(Actor):
         self.last_prompts = {}
 
     def receiveMessage(self, msg, sender):
-        try:
-            if isinstance(msg, InitProcess):
-                self.init_process(msg)
-            elif isinstance(msg, Prompt):
-                # logger.warning("{} master received prompt: {}".format(self.process_application_class.__name__, msg))
-                self.consume_prompt(prompt=msg)
-            elif isinstance(msg, WorkerFinishedRun):
-                # logger.info("process application master received worker finished run: {}".format(msg))
-                self.handle_worker_finished_run()
-        except Exception as e:
-            logger.error("error in {}: {} {}".format(self, type(e), e))
-            raise
+        if isinstance(msg, InitProcess):
+            self.init_process(msg)
+        elif isinstance(msg, Prompt):
+            # logger.warning("{} master received prompt: {}".format(self.process_application_class.__name__, msg))
+            self.consume_prompt(prompt=msg)
+        elif isinstance(msg, WorkerFinishedRun):
+            # logger.info("process application master received worker finished run: {}".format(msg))
+            self.handle_worker_finished_run()
 
     def init_process(self, msg):
         self.process_application_class = msg.process_application_class
