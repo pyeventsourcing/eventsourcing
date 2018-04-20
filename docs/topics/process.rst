@@ -969,7 +969,7 @@ Actor model
 
 `beta`
 
-An Actor model library, in particular as `Thespian Actor Library
+An Actor model library, in particular the `Thespian Actor Library
 <https://github.com/kquick/Thespian>`__, can be used to run
 a pipelined system of process applications as actors.
 
