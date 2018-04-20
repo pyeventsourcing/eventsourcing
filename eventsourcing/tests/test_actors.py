@@ -3,7 +3,6 @@ import time
 import unittest
 
 import logging
-from time import sleep
 
 from thespian.actors import ActorSystem
 
@@ -12,10 +11,10 @@ from eventsourcing.application.system import System
 from eventsourcing.tests.test_system import Orders, Payments, Reservations, create_new_order, set_db_uri
 
 
-logger = logging.getLogger('')
-# logger.setLevel(logging.INFO)
+# logger = logging.getLogger('')
+# logger.setLevel(logging.WARNING)
 # ch = logging.StreamHandler()
-# ch.setLevel(logging.INFO)
+# ch.setLevel(logging.WARNING)
 # logger.addHandler(ch)
 
 
@@ -44,6 +43,7 @@ class TestActors(unittest.TestCase):
 
     def setUp(self):
         # Shutdown base actor system, if running.
+        self.actor_system = None
         ActorSystem().shutdown()
         # Set environment.
         set_db_uri()
@@ -57,22 +57,20 @@ class TestActors(unittest.TestCase):
         except KeyError:
             pass
         # Shutdown base actor system.
-        self.actor_system.shutdown()
+        if self.actor_system:
+            self.actor_system.shutdown()
 
     def test_simple_system_base(self):
         self.start_actor_system()
-        self.check_actors(2, 10)
+        self.check_actors()
 
     def test_multiproc_tcp_base(self):
         self.start_multiproc_tcp_base_system()
-        self.check_actors(1, 15)
-
-    def test_multiproc_queue_base(self):
-        self.start_multiproc_queue_base_system()
         self.check_actors()
 
-    def _test_multiprocUDPBase(self):
-        self.check_actors('multiprocUDPBase', 1, 1)
+    def _test_multiproc_queue_base(self):
+        self.start_multiproc_queue_base_system()
+        self.check_actors()
 
     def check_actors(self, num_pipelines=3, num_orders_per_pipeline=5):
 
@@ -98,7 +96,7 @@ class TestActors(unittest.TestCase):
                     order_id = create_new_order()
                     order_ids.append(order_id)
 
-                    time.sleep(0.05)
+                time.sleep(1)
 
             # Wait for orders to be reserved and paid.
             retries = 100 + 100 * num_orders_per_pipeline * len(pipeline_ids)
@@ -142,4 +140,3 @@ class TestActors(unittest.TestCase):
             logDefs=logcfg,
             # transientUnique=bool(system_base)
         )
-

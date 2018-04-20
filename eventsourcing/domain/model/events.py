@@ -273,7 +273,7 @@ def unsubscribe(handler, predicate=None):
 
 
 def publish(event):
-    for predicate, handlers in _event_handlers.items():
+    for predicate, handlers in _event_handlers.copy().items():
         for handler in handlers:
             if predicate is None or predicate(event):
                 handler(event)
