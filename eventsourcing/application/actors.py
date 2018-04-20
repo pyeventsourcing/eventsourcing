@@ -194,25 +194,15 @@ class ProcessSlave(Actor):
         self.process = None
 
     def receiveMessage(self, msg, sender):
-        try:
-            if isinstance(msg, InitProcess):
-                # logger.info("process application worker received init: {}".format(msg))
-                self.init_process(msg)
-            elif isinstance(msg, RunWorker):
-                # logger.info("{} process application worker received last prompts: {}".format(self.process.name, msg))
-                self.run_process(msg, sender)
-            elif isinstance(msg, ActorExitRequest):
-                # logger.info("{} process application worker received exit request: {}".format(self.process.name, msg))
-                self.process.close()
-            # elif isinstance(msg, ChildActorExited):
-            #     logger.info("{} process application worker received exit request: {}".format(self.process.name, msg))
-            #     pass
-            # else:
-            #     logger.warning("unknown msg to slave {}: {}".format(self.process.name, msg))
-            #     pass
-        except Exception as e:
-            # logger.error("error in {}: {}".format(self, e))
-            raise
+        if isinstance(msg, InitProcess):
+            # logger.info("process application worker received init: {}".format(msg))
+            self.init_process(msg)
+        elif isinstance(msg, RunWorker):
+            # logger.info("{} process application worker received last prompts: {}".format(self.process.name, msg))
+            self.run_process(msg, sender)
+        elif isinstance(msg, ActorExitRequest):
+            # logger.info("{} process application worker received exit request: {}".format(self.process.name, msg))
+            self.process.close()
 
     def init_process(self, msg):
         self.pipeline_actor = msg.pipeline_actor
