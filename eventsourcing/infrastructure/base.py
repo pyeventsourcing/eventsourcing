@@ -109,6 +109,12 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
     def raise_index_error(self, position):
         raise IndexError("Sequence index out of range: {}".format(position))
 
+    def raise_record_integrity_error(self, e):
+        raise RecordConflictError(e)
+
+    def raise_operational_error(self, e):
+        raise OperationalError(e)
+
 
 class RelationalRecordManager(AbstractSequencedItemRecordManager):
     tracking_record_class = None
@@ -240,12 +246,6 @@ class RelationalRecordManager(AbstractSequencedItemRecordManager):
 
         :rtype: str
         """
-
-    def raise_record_integrity_error(self, e):
-        raise RecordConflictError(e)
-
-    def raise_operational_error(self, e):
-        raise OperationalError(e)
 
 
 class AbstractTrackingRecordManager(six.with_metaclass(ABCMeta)):
