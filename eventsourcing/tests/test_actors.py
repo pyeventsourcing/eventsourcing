@@ -6,77 +6,38 @@ import logging
 
 from thespian.actors import ActorSystem
 
-from eventsourcing.application.actors import Actors
+from eventsourcing.application.actors import Actors, start_actor_system, start_multiproc_tcp_base_system, \
+    start_multiproc_queue_base_system
 from eventsourcing.application.system import System
 from eventsourcing.tests.test_system import Orders, Payments, Reservations, create_new_order, set_db_uri
 
 
-# logger = logging.getLogger('')
-# logger.setLevel(logging.WARNING)
-# ch = logging.StreamHandler()
-# ch.setLevel(logging.WARNING)
-# logger.addHandler(ch)
-
-
-logcfg = {
-    'version': 1,
-    'formatters': {
-        'normal': {
-            'format': '%(levelname)-8s %(message)s'
-        }
-    },
-    'handlers': {
-        # 'h': {
-        #     'class': 'logging.FileHandler',
-        #     'filename': 'hello.log',
-        #     'formatter': 'normal',
-        #     'level': logging.INFO
-        # }
-    },
-    'loggers': {
-        # '': {'handlers': ['h'], 'level': logging.DEBUG}
-    }
-}
+logger = logging.getLogger('')
+logger.setLevel(logging.ERROR)
+ch = logging.StreamHandler()
+ch.setLevel(logging.ERROR)
+logger.addHandler(ch)
 
 
 class TestActors(unittest.TestCase):
 
-    def setUp(self):
-        # Shutdown base actor system, if running.
-        self.actor_system = None
-        ActorSystem().shutdown()
-        # Set environment.
-        set_db_uri()
-        # Define system.
-        self.system = System(Orders | Reservations | Orders | Payments | Orders)
-
-    def tearDown(self):
-        # Unset environment.
-        try:
-            del (os.environ['DB_URI'])
-        except KeyError:
-            pass
-        # Shutdown base actor system.
-        if self.actor_system:
-            self.actor_system.shutdown()
-
     def test_simple_system_base(self):
-        self.start_actor_system()
+        start_actor_system()
         self.check_actors()
 
     def test_multiproc_tcp_base(self):
-        self.start_multiproc_tcp_base_system()
+        start_multiproc_tcp_base_system()
         self.check_actors()
 
     def _test_multiproc_queue_base(self):
-        self.start_multiproc_queue_base_system()
+        start_multiproc_queue_base_system()
         self.check_actors()
 
-    def check_actors(self, num_pipelines=3, num_orders_per_pipeline=5):
+    def check_actors(self, num_pipelines=4, num_orders_per_pipeline=15):
 
         pipeline_ids = list(range(num_pipelines))
 
-        actors = Actors(self.system, pipeline_ids=pipeline_ids)
+        actors = Actors(self.system, pipeline_ids=pipeline_ids, shutdown_on_exit=True)
 
         # Todo: Use wakeupAfter() to poll for new notifications (see Timer Messages).
         # Todo: Fix multiple pipelines with multiproc bases.
@@ -96,7 +57,7 @@ class TestActors(unittest.TestCase):
                     order_id = create_new_order()
                     order_ids.append(order_id)
 
-                # time.sleep(1)
+                time.sleep(1)
 
             # Wait for orders to be reserved and paid.
             retries = 100 + 100 * num_orders_per_pipeline * len(pipeline_ids)
@@ -128,15 +89,20 @@ class TestActors(unittest.TestCase):
             print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
             print("Max order processing time: {:.3f}s".format(max(durations)))
 
-    def start_multiproc_tcp_base_system(self):
-        self.start_actor_system(system_base='multiprocTCPBase')
+    def setUp(self):
+        # Shutdown base actor system, if running.
+        # ActorSystem().shutdown()
+        # Set environment.
+        set_db_uri()
+        # Define system.
+        self.system = System(Orders | Reservations | Orders | Payments | Orders)
 
-    def start_multiproc_queue_base_system(self):
-        self.start_actor_system(system_base='multiprocQueueBase')
+    def tearDown(self):
+        # Unset environment.
+        try:
+            del (os.environ['DB_URI'])
+        except KeyError:
+            pass
+        # Shutdown base actor system.
+        ActorSystem().shutdown()
 
-    def start_actor_system(self, system_base=None):
-        self.actor_system = ActorSystem(
-            systemBase=system_base,
-            logDefs=logcfg,
-            # transientUnique=bool(system_base)
-        )

@@ -49,7 +49,7 @@ class Process(Pipeable, SimpleApplication):
         self.readers[upstream_application_name] = reader
 
     @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
-    def run(self, prompt=None):
+    def run(self, prompt=None, advance_by=None):
 
         if prompt is None:
             readers_items = self.readers.items()
@@ -65,7 +65,7 @@ class Process(Pipeable, SimpleApplication):
                 self.set_reader_position_from_tracking_records(reader, upstream_application_name)
                 self.is_reader_position_ok[upstream_application_name] = True
 
-            for notification in reader.read():
+            for notification in reader.read(advance_by=advance_by):
                 # Todo: Put this on a queue and then get the next one.
                 notification_count += 1
 

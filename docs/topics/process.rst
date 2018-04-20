@@ -817,7 +817,7 @@ shortly after the various operating system processes have been started.
 .. code:: python
 
     # Check the unprocessed command gets processed eventually.
-    @retry(AssertionError, max_attempts=10, wait=0.5)
+    @retry((AssertionError, KeyError), max_attempts=100, wait=0.5)
     def assert_command_is_done(repository, cmd_id):
         assert repository[cmd_id].is_done
 
@@ -967,44 +967,92 @@ automatically across the cluster. Actor model seems like a good foundation for s
 Actor model
 ~~~~~~~~~~~
 
-`forward looking statements`
+`beta`
 
-An Actor model library, such as `Thespian Actor Library
-<https://github.com/kquick/Thespian>`__, could be used to run
+An Actor model library, in particular as `Thespian Actor Library
+<https://github.com/kquick/Thespian>`__, can be used to run
 a pipelined system of process applications as actors.
 
-A system actor could start an actor for each pipeline-stage
-when its address is requested, or otherwise make sure there is
-one running actor for each process application-pipeline.
+.. code:: python
 
-Actor processes could be automatically distributed across a cluster. The
-cluster could auto-scale according to CPU usage (or perhaps network usage).
-New nodes could run a container that begins by registering with the actor
-system, (unless there isn't one, when it begins an election to become leader?)
-and the actor system could run actors on it, reducing the load on other nodes.
+    from eventsourcing.application.actors import Actors
 
-Prompts from one process application-pipeline could be sent to another
-as actor messages, rather than with a publish-subscribe service. The address
-could be requested from the system, and the prompt sent directly.
+    actors = Actors(system, pipeline_ids=pipeline_ids, shutdown_on_exit=True)
 
-To aid development and testing, actors could run without any
-parallelism, for example with the "simpleSystemBase" actor
-system in Thespian.
+    with Commands() as commands, actors:
 
-Scaling the system could be automated with the help of actors. A system actor
-(started how? leader election? Kubernetes configuration?) could increase or
-decrease the number of system pipelines, according to the rate at which events
-are being added to the system command process, compared to the known (or measured)
-rate at which commands can be processed by the system. If there are too many actors
-dying from lack of work, then to reduce latency of starting an actor for each event
-(extreme case), the number of pipelines could be reduced, so that there are enough
-events to keep actors alive. If there are fewer pipelines than nodes, then some nodes
-will have nothing to do, and can be easily removed from the cluster. A machine that
-continues to run an actor could be more forcefully removed by killing the remaining
-actors and restarting them elsewhere. Maybe heartbeats could be used to detect
-when an actor has been killed and needs restarting? Maybe it's possible to stop
-anything new from being started on a machine, so that it can eventually be removed
-without force.
+        # Create new orders.
+        command_ids = []
+        for _ in range(num_orders_per_pipeline):
+            for pipeline_id in pipeline_ids:
+
+                # Change the pipeline for the command.
+                commands.change_pipeline(pipeline_id)
+
+                # Create a "create new order" command.
+                cmd_id = commands.create_new_order()
+                command_ids.append(cmd_id)
+
+        # Check all commands are eventually done.
+        for i, command_id in enumerate(command_ids):
+            assert_command_is_done(commands.repository, command_id)
+
+
+A system base other than the default "simple system base" can be started
+by using the functions ``start_multiproc_tcp_base_system()`` or
+``start_multiproc_queue_base_system()``. The actors will then be started
+in separate operating system processes. In this case, the system actors
+can be stopped by calling the ``close()`` method on ``actors``. The
+base actor system can be stopped by calling ``shutdown()`` on the ``actors``
+object.
+
+If ``actors`` is used as a context manager, the ``close()`` method
+will be called when the context manager exits, but the ``shutdown()`` method
+will not be called, by default. If ``actors`` is constructed with
+``shutdown_on_exit=True``, which is ``False`` by default, then ``shutdown()``
+will also be called when the context manager exits.
+
+These methods can be used separately. Which means a script can be called to
+initialise the system actors. Another script can be called to send system
+commands. Another script can be used to shutdown the system actors. And
+another can be used to shutdown the base system. That may help operations.
+
+.. .. code:: python
+..
+..     actors.shutdown()
+..
+.. A system actor could start an actor for each pipeline-stage
+.. when its address is requested, or otherwise make sure there is
+.. one running actor for each process application-pipeline.
+..
+.. Actor processes could be automatically distributed across a cluster. The
+.. cluster could auto-scale according to CPU usage (or perhaps network usage).
+.. New nodes could run a container that begins by registering with the actor
+.. system, (unless there isn't one, when it begins an election to become leader?)
+.. and the actor system could run actors on it, reducing the load on other nodes.
+..
+.. Prompts from one process application-pipeline could be sent to another
+.. as actor messages, rather than with a publish-subscribe service. The address
+.. could be requested from the system, and the prompt sent directly.
+..
+.. To aid development and testing, actors could run without any
+.. parallelism, for example with the "simpleSystemBase" actor
+.. system in Thespian.
+..
+.. Scaling the system could be automated with the help of actors. A system actor
+.. (started how? leader election? Kubernetes configuration?) could increase or
+.. decrease the number of system pipelines, according to the rate at which events
+.. are being added to the system command process, compared to the known (or measured)
+.. rate at which commands can be processed by the system. If there are too many actors
+.. dying from lack of work, then to reduce latency of starting an actor for each event
+.. (extreme case), the number of pipelines could be reduced, so that there are enough
+.. events to keep actors alive. If there are fewer pipelines than nodes, then some nodes
+.. will have nothing to do, and can be easily removed from the cluster. A machine that
+.. continues to run an actor could be more forcefully removed by killing the remaining
+.. actors and restarting them elsewhere. Maybe heartbeats could be used to detect
+.. when an actor has been killed and needs restarting? Maybe it's possible to stop
+.. anything new from being started on a machine, so that it can eventually be removed
+.. without force.
 
 
 .. However, it seems that actors aren't a very reliable way of propagating application
@@ -1074,30 +1122,24 @@ without force.
 .. of any disruption to the sequence, high-accuracy in propagating a sequence of events can be
 .. obtained, in the final resort if not the first, by pulling events from a notification log.
 
-Although propagating application state by sending events as messages with actors doesn't
-seem to offer a reliable way of projecting the state of an event-sourced application, actors
-do seem like a great way of orchestrating a system of event-sourced process applications. The "based
-on physics" thing seems to fit well with infrastructure, which is inherently imperfect.
-We just don't need by default to instantiate unbounded nondeterminism for every concern
-in the system. But since actors can fail and be restarted automatically, and since a process
-application needs to be run by something. it seems that an actor and process process
-applications-pipelines go well together. The process appliation-actor idea seems like a
-much better idea that the aggregate-actor idea. Perhaps aggregates could also usefully be actors,
-but an adapter would need to be coded to process messages as commands, to return pending events as
-messages, and so on, to represent themselves as message, and so on. It can help to have many
-threads running consecutively through an aggregate, especially readers. The consistency of the
-aggregate state is protected with optimistic concurrency control. Wrapping an aggregate as
-an actor won't speed things up, unless the actor is persistent, which uses resources. Aggregates
-could be cached inside the process application-pipeline, especially if it is know that they will
-probably be reused.
+.. Although propagating application state by sending events as messages with actors doesn't
+.. seem to offer a reliable way of projecting the state of an event-sourced application, actors
+.. do seem like a great way of orchestrating a system of event-sourced process applications. The "based
+.. on physics" thing seems to fit well with infrastructure, which is inherently imperfect.
+.. We just don't need by default to instantiate unbounded nondeterminism for every concern
+.. in the system. But since actors can fail and be restarted automatically, and since a process
+.. application needs to be run by something. it seems that an actor and process process
+.. applications-pipelines go well together. The process appliation-actor idea seems like a
+.. much better idea that the aggregate-actor idea. Perhaps aggregates could also usefully be actors,
+.. but an adapter would need to be coded to process messages as commands, to return pending events as
+.. messages, and so on, to represent themselves as message, and so on. It can help to have many
+.. threads running consecutively through an aggregate, especially readers. The consistency of the
+.. aggregate state is protected with optimistic concurrency control. Wrapping an aggregate as
+.. an actor won't speed things up, unless the actor is persistent, which uses resources. Aggregates
+.. could be cached inside the process application-pipeline, especially if it is know that they will
+.. probably be reused.
 
 .. Todo: Method to fastforward an aggregate, by querying for and applying new events?
-
-(Running a system of process applications with actors is not yet implemented in the library.)
-
-
-.. Todo: Actor model deployment of system.
-
 
 
 

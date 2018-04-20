@@ -12,36 +12,86 @@ from eventsourcing.utils.uuids import uuid_from_application_name
 
 logger = logging.getLogger()
 
+DEFAULT_ACTORS_LOGCFG = {
+    'version': 1,
+    'formatters': {
+        'normal': {
+            'format': '%(levelname)-8s %(message)s'
+        }
+    },
+    'handlers': {
+        # 'h': {
+        #     'class': 'logging.FileHandler',
+        #     'filename': 'hello.log',
+        #     'formatter': 'normal',
+        #     'level': logging.INFO
+        # }
+    },
+    'loggers': {
+        # '': {'handlers': ['h'], 'level': logging.DEBUG}
+    }
+}
+
+
+def start_actor_system(system_base=None, logcfg=DEFAULT_ACTORS_LOGCFG):
+    ActorSystem(
+        systemBase=system_base,
+        logDefs=logcfg,
+    )
+
+
+def shutdown_actor_system():
+    ActorSystem().shutdown()
+
+
+def start_multiproc_tcp_base_system():
+    start_actor_system(system_base='multiprocTCPBase')
+
+
+def start_multiproc_queue_base_system():
+    start_actor_system(system_base='multiprocQueueBase')
+
+
+
 
 class Actors(object):
-    def __init__(self, system, pipeline_ids, system_actor_name='system'):
+    def __init__(self, system, pipeline_ids, system_actor_name='system', shutdown_on_exit=False):
         assert isinstance(system, System)
         self.system = system
-        self.pipeline_ids = pipeline_ids
+        self.pipeline_ids = list(pipeline_ids)
         self.pipeline_actors = {}
         self.system_actor_name = system_actor_name
+        # Create the system actor.
+        self.system_actor = self.actor_system.createActor(
+            actorClass=SystemActor,
+            globalName=self.system_actor_name
+        )
+        self.shutdown_on_exit = shutdown_on_exit
 
     @property
     def actor_system(self):
         return ActorSystem()
 
     def start(self):
+        """
+        Starts all the actors to run a system of process applications.
+        """
         # Subscribe to broadcast prompts published by a process
         # application in the parent operating system process.
         subscribe(handler=self.forward_prompt, predicate=self.is_prompt)
-
-        # Create the system actor.
-        self.system_actor = self.actor_system.createActor(
-            actorClass=SystemActor,
-            globalName=self.system_actor_name
-        )
 
         # Initialise the system actor.
         command = InitSystem(self.system.followings, self.pipeline_ids)
         response = self.actor_system.ask(self.system_actor, command)
 
         # Keep the pipeline actor addresses, to send prompts directly.
+        if isinstance(response, PoisonMessage):
+            raise Exception("Got a poison message after init ask: {}".format(response))
         self.pipeline_actors = response.pipeline_actors
+        if list(self.pipeline_actors.keys()) != self.pipeline_ids:
+            raise ValueError("Given pipeline IDs mismatch initialised system {} {}".format(
+                list(self.pipeline_actors.keys()), self.pipeline_ids
+            ))
         # Todo: Somehow know when to get a new address from the system actor.
         # Todo: Command and response messages to system actor to get new pipeline address.
 
@@ -50,10 +100,20 @@ class Actors(object):
         return isinstance(event, Prompt)
 
     def forward_prompt(self, prompt):
-        self.actor_system.tell(self.pipeline_actors[prompt.pipeline_id], prompt)
+        if prompt.pipeline_id in self.pipeline_actors:
+            pipeline_actor = self.pipeline_actors[prompt.pipeline_id]
+            self.actor_system.tell(pipeline_actor, prompt)
+        else:
+            msg = "Pipeline {} is not running.".format(prompt.pipeline_id)
+            raise ValueError(msg)
 
     def close(self):
+        """Stops all the actors running a system of process applications."""
         unsubscribe(handler=self.forward_prompt, predicate=self.is_prompt)
+        if self.shutdown_on_exit:
+            self.shutdown()
+
+    def shutdown(self):
         self.actor_system.tell(self.system_actor, ActorExitRequest(recursive=True))
 
     def __enter__(self):
@@ -68,10 +128,13 @@ class SystemActor(Actor):
     def __init__(self):
         super(SystemActor, self).__init__()
         self.pipeline_actors = {}
+        self.is_initialised = False
 
     def receiveMessage(self, msg, sender):
         if isinstance(msg, InitSystem):
-            self.init_pipelines(msg)
+            if not self.is_initialised:
+                self.init_pipelines(msg)
+                self.is_initialised = True
             self.send(sender, SystemInited(self.pipeline_actors.copy()))
 
     def init_pipelines(self, msg):
@@ -184,7 +247,7 @@ class ProcessMaster(Actor):
 
     def run_worker(self):
         self.is_worker_running = True
-        self.send(self.worker_actor, RunWorker(self.last_prompts))
+        self.send(self.worker_actor, RunWorker(self.last_prompts, self.myAddress))
         self.last_prompts = {}
 
 
@@ -199,7 +262,7 @@ class ProcessSlave(Actor):
             self.init_process(msg)
         elif isinstance(msg, RunWorker):
             # logger.info("{} process application worker received last prompts: {}".format(self.process.name, msg))
-            self.run_process(msg, sender)
+            self.run_process(msg)
         elif isinstance(msg, ActorExitRequest):
             # logger.info("{} process application worker received exit request: {}".format(self.process.name, msg))
             self.process.close()
@@ -237,13 +300,14 @@ class ProcessSlave(Actor):
             )
             self.process.follow(upstream_application_name, notification_log)
 
-    def run_process(self, msg, master):
+    def run_process(self, msg):
         # logger.warning("---- running {} process application".format(self.process.name))
+        notification_count = 0
         if msg.last_prompts:
             for prompt in msg.last_prompts.values():
-                self.process.run(prompt)
+                notification_count += self.process.run(prompt, advance_by=3)
         else:
-            self.process.run()
+            notification_count += self.process.run(advance_by=3)
         # while self.process.run():
         # #     while self.process.run():
         # #         while self.process.run():
@@ -256,8 +320,12 @@ class ProcessSlave(Actor):
         #
         # logger.warning("---- finished running {} process application".format(self.process.name))
 
-        # Report to master.
-        self.send(master, WorkerFinishedRun())
+        if notification_count:
+            # Run again.
+            self.send(self.myAddress, RunWorker(last_prompts={}, master=msg.master))
+        else:
+            # Report to master.
+            self.send(msg.master, WorkerFinishedRun())
 
     def publish_prompt(self, end_position=None):
         prompt = Prompt(self.process.name, self.process.pipeline_id, end_position=end_position)
@@ -296,8 +364,9 @@ class InitProcess(object):
 
 
 class RunWorker(object):
-    def __init__(self, last_prompts):
+    def __init__(self, last_prompts, master):
         self.last_prompts = last_prompts
+        self.master = master
 
 
 class WorkerFinishedRun(object):
