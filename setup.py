@@ -42,6 +42,7 @@ testing_requires = [
     'redis<=2.10.99999',
     'celery<=4.1.99999',
     'pymysql<=0.8.99999',
+    'thespian<=3.9.99999',
 ] + cassandra_requires + sqlalchemy_requires + django_requires
 
 docs_requires = ['Sphinx', 'sphinx_rtd_theme', 'sphinx-autobuild'] + testing_requires

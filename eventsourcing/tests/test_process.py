@@ -1,11 +1,12 @@
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.application.process import CommandProcess, Process, RepositoryWrapper
+from eventsourcing.application.process import Process, RepositoryWrapper
+from eventsourcing.application.command import CommandProcess
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.command import Command
-from eventsourcing.domain.model.events import clear_event_handlers, assert_event_handlers_empty
-from eventsourcing.exceptions import CausalDependencyFailed
+from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
+from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import json_loads
 
@@ -130,6 +131,39 @@ class TestProcess(TestCase):
         core2.close()
         downstream1.close()
         downstream2.close()
+
+    def test_handle_prompt_failed(self):
+        process = Process(
+            'test',
+            policy=example_policy,
+            persist_event_type=ExampleAggregate.Event,
+            setup_tables=True,
+        )
+
+        def raise_exception(_):
+            raise Exception()
+
+        def raise_prompt_failed(_):
+            raise PromptFailed()
+
+        subscribe(raise_exception)
+        try:
+            with self.assertRaises(PromptFailed):
+                process.publish_prompt()
+        finally:
+            unsubscribe(raise_exception)
+
+        subscribe(raise_prompt_failed)
+        try:
+            with self.assertRaises(PromptFailed):
+                process.publish_prompt()
+        finally:
+            unsubscribe(raise_prompt_failed)
+
+        try:
+            process.publish_prompt()
+        finally:
+            process.close()
 
     def tearDown(self):
         assert_event_handlers_empty()

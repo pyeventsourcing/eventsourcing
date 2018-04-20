@@ -28,22 +28,19 @@ class System(object):
         # Determine which process follows which.
         self.followings = OrderedDict()
         for pipeline in self.pipelines:
-            previous = None
+            previous_class = None
             for process_class in pipeline:
-                if previous is not None:
-                    # Follower follows the followed.
-                    follower = process_class
-                    followed = previous
-                    try:
-                        follows = self.followings[follower]
-                    except KeyError:
-                        follows = []
-                        self.followings[follower] = follows
+                # Follower follows the followed.
+                try:
+                    follows = self.followings[process_class]
+                except KeyError:
+                    follows = []
+                    self.followings[process_class] = follows
 
-                    if followed not in follows:
-                        follows.append(followed)
+                if previous_class is not None and previous_class not in follows:
+                    follows.append(previous_class)
 
-                previous = process_class
+                previous_class = process_class
 
     # Todo: Extract function to new 'SinglethreadRunner' class or something (like the 'Multiprocess' class)?
     def setup(self):

@@ -10,7 +10,7 @@ from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
     Logged
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.exceptions import RecordConflictError
+from eventsourcing.exceptions import RecordConflictError, OperationalError
 from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
@@ -316,6 +316,18 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
             self.record_manager.delete_record(record)
         records = list(self.record_manager.get_records(sequence_id1))
         self.assertFalse(len(records))
+
+        with self.assertRaises(RecordConflictError):
+            self.record_manager.raise_sequenced_item_conflict()
+
+        with self.assertRaises(IndexError):
+            self.record_manager.raise_index_error(0)
+
+        with self.assertRaises(RecordConflictError):
+            self.record_manager.raise_record_integrity_error(Exception())
+
+        with self.assertRaises(OperationalError):
+            self.record_manager.raise_operational_error(Exception())
 
 
 class WithRecordManagers(AbstractDatastoreTestCase):
