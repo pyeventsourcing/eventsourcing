@@ -3,6 +3,8 @@ import time
 from unittest import TestCase
 from uuid import uuid4
 
+import logging
+
 from eventsourcing.application.multiprocess import Multiprocess
 from eventsourcing.application.process import Process
 from eventsourcing.application.system import System
@@ -11,6 +13,15 @@ from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import clear_event_handlers, assert_event_handlers_empty
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.tests.test_process import ExampleAggregate
+
+
+def set_db_uri():
+    host = os.getenv('MYSQL_HOST', '127.0.0.1')
+    user = os.getenv('MYSQL_USER', 'root')
+    password = os.getenv('MYSQL_PASSWORD', '')
+    db_uri = 'mysql+pymysql://{}:{}@{}/eventsourcing'.format(user, password, host)
+    # raise Exception(db_uri)
+    os.environ['DB_URI'] = db_uri
 
 
 class TestSystem(TestCase):
@@ -33,7 +44,7 @@ class TestSystem(TestCase):
     def test_multiprocessing_singleapp_system(self):
         system = System(Examples | Examples)
 
-        self.set_db_uri()
+        set_db_uri()
 
         with Examples() as app, Multiprocess(system):
             aggregate = ExampleAggregate.__create__()
@@ -51,7 +62,7 @@ class TestSystem(TestCase):
 
     def test_multiprocessing_multiapp_system(self):
 
-        self.set_db_uri()
+        set_db_uri()
 
         with Orders(setup_tables=True) as app:
             # Create a new order.
@@ -85,7 +96,7 @@ class TestSystem(TestCase):
 
     def test_multipipeline_multiprocessing_multiapp(self):
 
-        self.set_db_uri()
+        set_db_uri()
 
         # Set up the database.
         with Orders(setup_tables=True):
@@ -105,14 +116,14 @@ class TestSystem(TestCase):
         order_ids = []
 
         # Start multiprocessing system.
-        with multiprocess, Orders() as app:
+        with multiprocess, Orders() as orders:
 
             # Create some new orders.
             for _ in range(num_orders_per_pipeline):
 
                 for pipeline_id in pipeline_ids:
 
-                    app.change_pipeline(pipeline_id)
+                    orders.change_pipeline(pipeline_id)
 
                     order_id = create_new_order()
                     order_ids.append(order_id)
@@ -123,20 +134,20 @@ class TestSystem(TestCase):
             retries = 10 + 10 * num_orders_per_pipeline * len(pipeline_ids)
             for i, order_id in enumerate(order_ids):
 
-                while not app.repository[order_id].is_reserved:
+                while not orders.repository[order_id].is_reserved:
                     time.sleep(0.1)
                     retries -= 1
                     assert retries, "Failed set order.is_reserved {} ({})".format(order_id, i)
 
-                while retries and not app.repository[order_id].is_paid:
+                while retries and not orders.repository[order_id].is_paid:
                     time.sleep(0.1)
                     retries -= 1
                     assert retries, "Failed set order.is_paid ({})".format(i)
 
             # Calculate timings from event timestamps.
-            orders = [app.repository[oid] for oid in order_ids]
-            first_timestamp = min([o.__created_on__ for o in orders])
-            last_timestamp = max([o.__last_modified__ for o in orders])
+            order_aggregates = [orders.repository[oid] for oid in order_ids]
+            first_timestamp = min([o.__created_on__ for o in order_aggregates])
+            last_timestamp = max([o.__last_modified__ for o in order_aggregates])
             duration = last_timestamp - first_timestamp
             rate = len(order_ids) / float(duration)
             period = 1 / rate
@@ -144,18 +155,10 @@ class TestSystem(TestCase):
                   "orders/s, {:.3f}s each".format(len(order_ids), duration, rate, period))
 
             # Print min, average, max duration.
-            durations = [o.__last_modified__ - o.__created_on__ for o in orders]
+            durations = [o.__last_modified__ - o.__created_on__ for o in order_aggregates]
             print("Min order processing time: {:.3f}s".format(min(durations)))
             print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
             print("Max order processing time: {:.3f}s".format(max(durations)))
-
-    def set_db_uri(self):
-        host = os.getenv('MYSQL_HOST', '127.0.0.1')
-        user = os.getenv('MYSQL_USER', 'root')
-        password = os.getenv('MYSQL_PASSWORD', '')
-        db_uri = 'mysql+pymysql://{}:{}@{}/eventsourcing'.format(user, password, host)
-        # raise Exception(db_uri)
-        os.environ['DB_URI'] = db_uri
 
     def test_payments_policy(self):
         # Prepare fake repository with a real Order aggregate.
@@ -260,6 +263,7 @@ def create_new_order():
     order.__save__()
     return order.id
 
+logger = logging.getLogger()
 
 class Orders(Process):
     persist_event_type = Order.Created
@@ -270,19 +274,22 @@ class Orders(Process):
             order = repository[event.order_id]
             assert not order.is_reserved
             order.set_is_reserved(event.originator_id)
+            # logger.warning('set Order as reservered')
 
         elif isinstance(event, Payment.Created):
             # Set the order as paid.
             order = repository[event.order_id]
             assert not order.is_paid
             order.set_is_paid(event.originator_id)
+            # logger.warning('set Order as paid')
 
 
 class Reservations(Process):
     def policy(self, repository, event):
         if isinstance(event, Order.Created):
             # Create a reservation.
-            # sleep(0.5)
+            # time.sleep(0.5)
+            # logger.warning('created Reservation for order')
             return Reservation.create(order_id=event.originator_id)
 
 
@@ -290,7 +297,8 @@ class Payments(Process):
     def policy(self, repository, event):
         if isinstance(event, Order.Reserved):
             # Make a payment.
-            # sleep(0.5)
+            # time.sleep(0.5)
+            # logger.warning('created Payment for order')
             return Payment.make(order_id=event.originator_id)
 
 
