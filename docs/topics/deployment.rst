@@ -277,6 +277,8 @@ object that is scoped to the request.
 
     # Construct Flask application.
     application = Flask(__name__)
+    application.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
+    application.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Construct Flask-SQLAlchemy object.
     db = SQLAlchemy(application)

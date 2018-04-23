@@ -3,7 +3,7 @@ Installation
 ============
 
 Use pip to install the library from the
-`Python Package Index <https://pypi.python.org/pypi/eventsourcing>`__.
+`Python Package Index <https://pypi.org/project/eventsourcing/>`__.
 
 ::
 

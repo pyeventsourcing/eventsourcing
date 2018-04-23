@@ -1,13 +1,14 @@
+import os
 import six
 from cassandra import InvalidRequest
 from cassandra.cqlengine.functions import Token
 from cassandra.cqlengine.query import BatchQuery, LWTException
 
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.base import AbstractRecordManager
+from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
 
 
-class CassandraRecordManager(AbstractRecordManager):
+class CassandraRecordManager(AbstractSequencedItemRecordManager):
     def append(self, sequenced_item_or_items):
         if isinstance(sequenced_item_or_items, list):
             if len(sequenced_item_or_items):
@@ -27,10 +28,10 @@ class CassandraRecordManager(AbstractRecordManager):
             except LWTException:
                 self.raise_sequenced_item_conflict()
 
-    def get_item(self, sequence_id, eq):
+    def get_item(self, sequence_id, position):
         kwargs = {
             self.field_names.sequence_id: sequence_id,
-            '{}__eq'.format(self.field_names.position): eq
+            '{}__eq'.format(self.field_names.position): position
         }
         query = self.filter(**kwargs)
         items = six.moves.map(self.from_record, query)
@@ -38,10 +39,10 @@ class CassandraRecordManager(AbstractRecordManager):
         try:
             return items[0]
         except IndexError:
-            self.raise_index_error(eq)
+            self.raise_index_error(position)
 
-    def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                  query_ascending=True, results_ascending=True):
+    def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
+                    query_ascending=True, results_ascending=True):
 
         assert limit is None or limit >= 1, limit
         assert not (gte and gt)
@@ -70,42 +71,27 @@ class CassandraRecordManager(AbstractRecordManager):
         if limit is not None:
             query = query.limit(limit)
 
-        items = six.moves.map(self.from_record, query)
-
-        items = list(items)
+        items = list(query)
 
         if results_ascending != query_ascending:
             items.reverse()
 
         return items
 
-    def all_items(self, *args, **kwargs):
-        for record in self.all_records(*args, **kwargs):
-            sequenced_item = self.from_record(record)
-            yield sequenced_item
-
-    def all_records(self, start=None, stop=None, *args, **kwargs):
-        position_field_name = self.field_names.position
-        for sequence_id in self.all_sequence_ids():
-            kwargs = {self.field_names.sequence_id: sequence_id}
-            record_query = self.filter(**kwargs).limit(100).order_by(position_field_name)
-            record_page = list(record_query)
-            while record_page:
-                for record in record_page:
-                    yield record
-                last_record = record_page[-1]
-                kwargs = {'{}__gt'.format(position_field_name): getattr(last_record, position_field_name)}
-                record_page = list(record_query.filter(**kwargs))
+    def get_notifications(self, start=None, stop=None, *args, **kwargs):
+        raise NotImplementedError()
 
     def all_sequence_ids(self):
-        query = self.record_class.objects.all().limit(1)
+        sequence_id_page_size = int(os.getenv('SEQUENCE_ID_PAGE_SIZE') or '1')
+        assert sequence_id_page_size > 0, sequence_id_page_size
+        query = self.record_class.objects.all().limit(sequence_id_page_size)
 
-        # Todo: If there were a resume token, it could be used like this:
+        page = list(query)
+        # # Resume if possible.
         # if resume is None:
         #     page = list(query)
         # else:
         #     page = list(query.filter(pk__token__gt=Token(resume)))
-        page = list(query)
 
         while page:
             for record in page:

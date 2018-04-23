@@ -183,7 +183,7 @@ class TestNotificationLogReader(NotificationLogTestCase):
         advance_by = 3
         reader.seek(saved_position)
         self.assertEqual(reader.position, saved_position)
-        reader.read(advance_by=advance_by)
+        reader.read_list(advance_by=advance_by)
         self.assertEqual(reader.position, saved_position + advance_by)
 
         # Read items between particular positions.
@@ -294,7 +294,7 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
 
             # Get all the items.
             notification_log_reader = NotificationLogReader(notification_log=notification_log)
-            items_from_start = list(notification_log_reader.get_items())
+            items_from_start = notification_log_reader.read_list()
 
             # Check we got all the items.
             self.assertEqual(len(items_from_start), num_notifications)

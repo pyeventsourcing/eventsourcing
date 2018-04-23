@@ -3,8 +3,8 @@ from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.exceptions import ConcurrencyError, SequencedItemConflict
-from eventsourcing.infrastructure.base import AbstractRecordManager
+from eventsourcing.exceptions import ConcurrencyError, RecordConflictError
+from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
 
@@ -28,7 +28,7 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
         """
 
     @abstractmethod
-    def get_domain_event(self, originator_id, eq):
+    def get_domain_event(self, originator_id, position):
         """
         Returns a single domain event.
         """
@@ -45,6 +45,8 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
         Returns all domain events in the event store.
         """
 
+
+# Todo: Unify iterators in EventStore and in NotificationLog, by pushing behaviour down to record manager?
 
 class EventStore(AbstractEventStore):
     """
@@ -63,7 +65,7 @@ class EventStore(AbstractEventStore):
         :param record_manager: record manager
         :param sequenced_item_mapper: sequenced item mapper
         """
-        assert isinstance(record_manager, AbstractRecordManager), record_manager
+        assert isinstance(record_manager, AbstractSequencedItemRecordManager), record_manager
         assert isinstance(sequenced_item_mapper, AbstractSequencedItemMapper), sequenced_item_mapper
         self.record_manager = record_manager
         self.sequenced_item_mapper = sequenced_item_mapper
@@ -75,26 +77,27 @@ class EventStore(AbstractEventStore):
         :param domain_event_or_events: domain event, or list of domain events
         """
 
-        # Convert the domain event(s) to sequenced item(s).
-        if isinstance(domain_event_or_events, (list, tuple)):
-            sequenced_item_or_items = [self.to_sequenced_item(e) for e in domain_event_or_events]
-        else:
-            sequenced_item_or_items = self.to_sequenced_item(domain_event_or_events)
+        # Convert to sequenced item.
+        sequenced_item_or_items = self.to_sequenced_item(domain_event_or_events)
 
         # Append to the sequenced item(s) to the sequence.
         try:
             self.record_manager.append(sequenced_item_or_items)
-        except SequencedItemConflict as e:
+        except RecordConflictError as e:
             raise ConcurrencyError(e)
 
-    def to_sequenced_item(self, domain_event):
+    def to_sequenced_item(self, domain_event_or_events):
         """
         Maps domain event to sequenced item namedtuple.
 
-        :param domain_event: application-level object
-        :return: namedtuple: sequence item namedtuple
+        :param domain_event_or_events: application-level object (or list)
+        :return: namedtuple: sequence item namedtuple (or list)
         """
-        return self.sequenced_item_mapper.to_sequenced_item(domain_event)
+        # Convert the domain event(s) to sequenced item(s).
+        if isinstance(domain_event_or_events, (list, tuple)):
+            return [self.to_sequenced_item(e) for e in domain_event_or_events]
+        else:
+            return self.sequenced_item_mapper.to_sequenced_item(domain_event_or_events)
 
     def get_domain_events(self, originator_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
                           page_size=None):
@@ -140,18 +143,18 @@ class EventStore(AbstractEventStore):
         domain_events = list(domain_events)
         return domain_events
 
-    def get_domain_event(self, originator_id, eq):
+    def get_domain_event(self, originator_id, position):
         """
         Gets a domain event from the sequence identified by `originator_id`
         at position `eq`.
 
         :param originator_id: ID of a sequence of events
-        :param eq: get item at this position
+        :param position: get item at this position
         :return: domain event
         """
         sequenced_item = self.record_manager.get_item(
             sequence_id=originator_id,
-            eq=eq,
+            position=position,
         )
         domain_event = self.sequenced_item_mapper.from_sequenced_item(sequenced_item)
         return domain_event
@@ -175,9 +178,8 @@ class EventStore(AbstractEventStore):
 
     def all_domain_events(self):
         """
-        Gets all domain events in the event store.
-
-        :return: map object, yielding a sequence of domain events
+        Yields all domain events in the event store.
         """
-        all_items = self.record_manager.all_items()
-        return map(self.sequenced_item_mapper.from_sequenced_item, all_items)
+        for originator_id in self.record_manager.all_sequence_ids():
+            for domain_event in self.get_domain_events(originator_id=originator_id, page_size=100):
+                yield domain_event

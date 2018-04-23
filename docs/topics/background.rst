@@ -35,7 +35,15 @@ Inspiration:
 -  Various professional projects that called for this approach, for
    which I didn't want to rewrite the same things each time
 
+
 See also:
+
+-  `An introduction to event storming
+   <https://techbeacon.com/introduction-event-storming-easy-way-achieve-domain-driven-design>`__
+   by a Steven Lowe
+
+- `An Introduction to Domain Driven Design <http://www.methodsandtools.com/archive/archive.php?id=97>`__
+   by Dan Haywood
 
 -  `Object-relational impedance mismatch
    <https://en.wikipedia.org/wiki/Object-relational\_impedance\_mismatch>`__
@@ -47,6 +55,16 @@ See also:
 -  `Event Sourcing and Stream Processing at Scale
    <https://www.youtube.com/watch?v=avi-TZI9t2I>`__ by Martin Kleppmann
 
--  `An introduction to event storming
-   <https://techbeacon.com/introduction-event-storming-easy-way-achieve-domain-driven-design>`__
-   by a Steven Lowe, principal consultant developer at ThoughtWorks
+-  `Data Intensive Applications with Martin Kleppmann
+   <https://softwareengineeringdaily.com/2017/05/02/data-intensive-applications-with-martin-kleppmann/>`__
+
+-  `The Path Towards Simplyfying Consistency In Distributed Systems
+   <https://www.deconstructconf.com/2017/caitie-mccaffrey-the-path-towards-simplifying-consistency-in-distributed-systems>`__
+   by Caitie McCaffrey
+
+-  `Kahn Process Networks <https://en.wikipedia.org/wiki/Kahn_process_networks>`__ page on Wikipedia
+
+Citations:
+
+- `An Evaluation on Using Coarse grained Events in an Event Sourcing Context and its Effects
+  Compared to Fine-grained Events <http://www.nada.kth.se/~ann/exjobb/brian_ye.pdf>`__ by Brian Ye

@@ -120,7 +120,7 @@ application-level encryption.
     from eventsourcing.exceptions import ConcurrencyError
 
     # Construct simple application (used here as a context manager).
-    with SimpleApplication() as app:
+    with SimpleApplication(persist_event_type=World.Event) as app:
 
         # Call library factory method.
         world = World.__create__(ruler='gods')
