@@ -3,7 +3,7 @@ import time
 
 from thespian.actors import *
 
-from eventsourcing.application.process import Prompt
+from eventsourcing.application.process import Prompt, Process
 from eventsourcing.application.system import System
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
@@ -62,7 +62,7 @@ class Actors(object):
         self.pipeline_ids = list(pipeline_ids)
         self.pipeline_actors = {}
         self.system_actor_name = system_actor_name
-        # Create the system actor.
+        # Create the system actor (singleton).
         self.system_actor = self.actor_system.createActor(
             actorClass=SystemActor,
             globalName=self.system_actor_name
@@ -271,9 +271,11 @@ class ProcessSlave(Actor):
             pipeline_id=self.pipeline_id,
             notification_log_section_size=5,
             pool_size=3,
-            persist_event_type=NoneEvent,  # Disable persistence subscriber.
         )
-        # Cancel publish_prompt().
+        assert isinstance(self.process, Process)
+        # Close the persistence policy.
+        self.process.persistence_policy.close()
+        # Replace publish_prompt().
         self.process.publish_prompt = lambda *args: self.publish_prompt(*args)
 
         # Construct and follow upstream notification logs.

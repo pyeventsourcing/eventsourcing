@@ -33,7 +33,7 @@ class TestActors(unittest.TestCase):
         start_multiproc_queue_base_system()
         self.check_actors()
 
-    def check_actors(self, num_pipelines=4, num_orders_per_pipeline=15):
+    def check_actors(self, num_pipelines=2, num_orders_per_pipeline=5):
 
         pipeline_ids = list(range(num_pipelines))
 
@@ -57,7 +57,7 @@ class TestActors(unittest.TestCase):
                     order_id = create_new_order()
                     order_ids.append(order_id)
 
-                time.sleep(1)
+                # time.sleep(1)
 
             # Wait for orders to be reserved and paid.
             retries = 100 + 100 * num_orders_per_pipeline * len(pipeline_ids)
