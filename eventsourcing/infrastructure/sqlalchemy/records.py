@@ -130,14 +130,20 @@ class SnapshotRecord(Base):
 class StoredEventRecord(Base):
     __tablename__ = 'stored_events'
 
-    # Record ID.
-    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, index=True, unique=True)
+    # Application ID.
+    application_id = Column(UUIDType(), primary_key=True)
 
     # Originator ID (e.g. an entity or aggregate ID).
-    originator_id = Column(UUIDType(), nullable=False)
+    originator_id = Column(UUIDType(), primary_key=True)
 
     # Originator version of item in sequence.
-    originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
+    originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+
+    # Partition ID.
+    pipeline_id = Column(Integer(), nullable=False)
+
+    # Record ID.
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
 
     # Type of the event (class name).
     event_type = Column(Text(), nullable=False)
@@ -145,6 +151,47 @@ class StoredEventRecord(Base):
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
 
+    # Causal dependencies.
+    causal_dependencies = Column(Text())
+
     __table_args__ = (
-        Index('stored_events_sequence_id_position_index', 'originator_id', 'originator_version', unique=True),
+        Index(
+            'stored_events_notification_index',
+            'application_id',
+            'pipeline_id',
+            'id',
+            unique=True
+        ),
     )
+
+
+class NotificationTrackingRecord(Base):
+    __tablename__ = 'notification_tracking'
+
+    # Application ID.
+    application_id = Column(UUIDType(), primary_key=True)
+
+    # Upstream application ID.
+    upstream_application_id = Column(UUIDType(), primary_key=True)
+
+    # Partition ID.
+    pipeline_id = Column(Integer(), primary_key=True)
+
+    # Notification ID.
+    notification_id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+
+    # # Aggregate ID.
+    # originator_id = Column(UUIDType(), nullable=False)
+    #
+    # # Aggregate version.
+    # originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
+
+    # __table_args__ = (
+    #     # Index(
+    #     #     'notification_tracking_event_index',
+    #     #     'application_id',
+    #     #     'originator_id',
+    #     #     'originator_version',
+    #     #     unique=True
+    #     # ),
+    # )

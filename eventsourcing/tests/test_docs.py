@@ -6,6 +6,7 @@ from tempfile import NamedTemporaryFile
 from unittest.case import TestCase
 
 import eventsourcing
+from eventsourcing.domain.model.events import assert_event_handlers_empty
 
 base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
@@ -16,6 +17,11 @@ class TestDocs(TestCase):
         if _event_handlers:
             print("Warning: event handlers still subscribed: {}".format(_event_handlers))
         _event_handlers.clear()
+
+        try:
+            del(os.environ['DB_URI'])
+        except KeyError:
+            pass
 
     def test_readme(self):
         self._out = ''
@@ -51,6 +57,8 @@ class TestDocs(TestCase):
                 # if name.endswith('snapshotting.rst'):
                 # if name.endswith('notifications.rst'):
                 # if name.endswith('projections.rst'):
+                # if name.endswith('deployment.rst'):
+                # if name.endswith('process.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)
@@ -65,6 +73,7 @@ class TestDocs(TestCase):
             # print("Testing code snippets in file: {}".format(path))
             try:
                 self.check_code_snippets_in_file(path)
+                assert_event_handlers_empty()
             except self.failureException as e:
                 failures.append(e)
                 failed.append(path)
@@ -147,14 +156,9 @@ class TestDocs(TestCase):
 
         print("{} lines of code in {}".format(num_code_lines, doc_path))
 
-        # print(lines)
-        # print('\n'.join(lines) + '\n')
         # Write the code into a temp file.
         tempfile = NamedTemporaryFile('w+')
         temp_path = tempfile.name
-
-        # for line in lines:
-        #     tempfile.write(line + '\n')
         tempfile.writelines("\n".join(lines) + '\n')
         tempfile.flush()
 
@@ -166,6 +170,9 @@ class TestDocs(TestCase):
         out = out.replace(temp_path, doc_path)
         err = err.replace(temp_path, doc_path)
         exit_status = p.wait()
+
+        print(out)
+        print(err)
 
         # Check for errors running the code.
         if exit_status:

@@ -457,7 +457,8 @@ and used to store events using SQLAlchemy.
         sequenced_item_class=StoredEvent,
         record_class=StoredEventRecord,
         session=datastore.session,
-        contiguous_record_ids=True
+        contiguous_record_ids=True,
+        application_id=uuid4()
     )
 
 Sequenced items (or "stored events" in this example) can be appended to the database
@@ -500,18 +501,49 @@ infrastructure classes for SQLAlchemy have been tested with MySQL, PostgreSQL, a
 MySQL
 ~~~~~
 
-For MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
-can be used.
+.. For MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
+.. can be used.
+
+For MySQL, the Python package `mysql-connector-python-rf <https://pypi.python.org/pypi/mysql-connector-python-rf>`__
+can be used (licenced GPL v2). Please note, I had problems running this driver with Python 2.7 (unicode error
+when it raises exceptions).
+
+.. code::
+
+    $ pip install pymysql-connector-python-rf
+
+The ``uri`` for MySQL used with this driver would look something like this.
+
+.. code::
+
+    mysql+pymysql://username:password@localhost/eventsourcing
+
+
+Alternatively for MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
+can be used (also licenced GPL v2). I didn't have problems using this driver with Python 2.7.
 
 .. code::
 
     $ pip install mysqlclient
 
-The ``uri`` for MySQL would look something like this.
+The ``uri`` for MySQL used with this driver would look something like this.
 
 .. code::
 
-    mysql://username:password@localhost/eventsourcing
+    mysql+mysqldb://username:password@localhost/eventsourcing
+
+
+Another alternative is `PyMySQL <https://pypi.python.org/pypi/PyMySQL>`__. It has a BSD licence.
+
+.. code::
+
+    $ pip install PyMySQL
+
+The ``uri`` for MySQL used with this driver would look something like this.
+
+.. code::
+
+    mysql+pymysql://username:password@localhost/eventsourcing
 
 
 PostgreSQL
@@ -524,11 +556,11 @@ can be used.
 
     $ pip install psycopg2
 
-The ``uri`` for PostgreSQL would look something like this.
+The ``uri`` for PostgreSQL used with this driver would look something like this.
 
 .. code::
 
-    postgresql://username:password@localhost:5432/eventsourcing
+    postgresql+psycopg2://username:password@localhost:5432/eventsourcing
 
 
 SQLite
@@ -631,7 +663,7 @@ before each test by calling it in the ``setUp()`` method of a test case.
 
     from django.core.management import call_command
 
-    call_command('migrate')
+    call_command('migrate', verbosity=0, interactive=False)
 
 
 So long as a table exists for its record class, the ``DjangoRecordManager``
@@ -697,7 +729,7 @@ inherently unreliable situation that could probably be mitigated
 satisfactorily by followers if they need to project the application
 events accurately, but only with increased complexity.
 
-Each relational record manager has an raw SQL query with an
+Each relational record manager has a raw SQL query with an
 "insert select from" statement. If possible, the raw query is compiled
 when the record manager object is constructed. When a record is
 inserted, the new field values are bound to the raw query and executed
@@ -712,31 +744,10 @@ for databases indexes supports this purpose well. The transaction
 isolation level must be at least "read committed", which is true by
 default for MySQL and PostgreSQL.
 
-It is expected that the performance of the "insert select from" statement will
-not be dominated by the "select max from" clause, but rather by the work needed
-to update the table indexes during the insert, which would also be required when
-executing a more conventional "insert values" statement. Hence it is
-anticipated that the maximum rate of inserting records will not be reduced greatly
-by enabling this feature. Initial performance testing seems to confirm
-this expectation.
-
 Any resulting contention in the record ID will raise an exception so that the
-query can be retried. An attempt is made to disambiguate this integrity error
-from those caused by the constraint on the position field of a sequenced item.
-If the database error can be identified as a record ID conflict, then the library
-exception class ``RecordIDConflict`` will be raised. Otherwise the library
-exception class ``SequencedItemConflict`` will be raised. ``RecordIDConflict``
-inherits from ``SequencedItemConflict``. A ``RecordIDConflict`` can be retried
-with good hope that a retry will be successful. A ``SequencedItemConflict``
-that is not a ``RecordIDConflict`` means an application command needs to be retried.
-If a ``SequencedItemConflict`` is raised due to a record ID conflict, then
-retrying the application command is a reasonable response. The ``RecordIDConflict``
-exception exists as an optimisation, to allow the query to be retried without
-the cost of re-executing the command. Hence, failures to distinguish integrity
-errors caused by record ID conflicts from other integrity errors (which in the
-current implementation depends on the name of the index in the record class
-conforming to expectations and being included in the database exception) are
-not catastrophic.
+query can be retried. The library exception class ``RecordConflictError`` will
+be raised.
+
 
 Cassandra
 ---------
@@ -818,19 +829,19 @@ Sequenced item conflicts
 
 It is a common feature of the record manager classes that it isn't possible successfully
 to append two items at the same position in the same sequence. If such an attempt is made, a
-``SequencedItemConflict`` will be raised.
+``RecordConflictError`` will be raised.
 
 .. code:: python
 
-    from eventsourcing.exceptions import SequencedItemConflict
+    from eventsourcing.exceptions import RecordConflictError
 
     # Fail to append an item at the same position in the same sequence as a previous item.
     try:
         record_manager.append(stored_event1)
-    except SequencedItemConflict:
+    except RecordConflictError:
         pass
     else:
-        raise Exception("SequencedItemConflict not raised")
+        raise Exception("RecordConflictError not raised")
 
 
 This feature is implemented using optimistic concurrency control features of the underlying database. With
@@ -971,7 +982,7 @@ single thread wouldn't attempt to append an event that it had already successful
 
 
 This feature depends on the behaviour of the record manager's ``append()`` method: the event store will
-raise a ``ConcurrencyError`` if a ``SequencedItemConflict`` is raised by its record manager.
+raise a ``ConcurrencyError`` if a ``RecordConflictError`` is raised by its record manager.
 
 If a command fails due to a concurrency error, the command can be retried with the lastest state. The ``@retry``
 decorator can help code retries on commands.
@@ -1016,7 +1027,11 @@ can be used to construct an event store that uses the SQLAlchemy classes.
 
     from eventsourcing.infrastructure.sqlalchemy import factory
 
-    event_store = factory.construct_sqlalchemy_eventstore(session=datastore.session)
+    event_store = factory.construct_sqlalchemy_eventstore(
+        session=datastore.session,
+        application_id=uuid4(),
+        contiguous_record_ids=True,
+    )
 
 
 By default, the event store is constructed with the ``StoredEvent`` sequenced item named tuple,

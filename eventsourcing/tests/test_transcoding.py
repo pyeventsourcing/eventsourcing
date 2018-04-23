@@ -6,7 +6,7 @@ from uuid import NAMESPACE_URL
 from decimal import Decimal
 
 from eventsourcing.domain.model.events import QualnameABC
-from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
+from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder, json_loads
 from eventsourcing.utils.times import utc_timezone
 
 
@@ -43,9 +43,12 @@ class TestObjectJSONEncoder(TestCase):
         self.assertEqual(encoder.encode(value), expect)
 
         value = Object(NAMESPACE_URL)
+        self.assertEqual(value.__class__.__module__, 'eventsourcing.tests.test_transcoding',
+                         "Module does not have full path, Python 2.7 issue with unittest"
+                         " (need to run test from root dir")
         expect = ('{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04fd430c8"}}, '
                   '"topic": "eventsourcing.tests.test_transcoding#Object"}}')
-        self.assertEqual(encoder.encode(value), expect)
+        self.check_encoded_value(encoder, value, expect)
 
         value = deque()
         expect = '{"__deque__": []}'
@@ -55,6 +58,15 @@ class TestObjectJSONEncoder(TestCase):
         # - a type isn't supported at the moment, hence this test works
         with self.assertRaises(TypeError):
             encoder.encode(object)
+
+    def check_encoded_value(self, encoder, value, expect):
+        actual = encoder.encode(value)
+        try:
+            self.assertEqual(expect, actual, (type(expect), type(actual), expect, actual))
+        except:
+            print()
+            print(actual)
+            print(expect)
 
 
 class TestObjectJSONDecoder(TestCase):
@@ -94,6 +106,16 @@ class TestObjectJSONDecoder(TestCase):
                  '"topic": "eventsourcing.tests.test_transcoding#Object"}}')
         expect = Object(NAMESPACE_URL)
         self.assertEqual(decoder.decode(value), expect)
+
+        # Check raises ValueError when JSON string is invalid.
+        with self.assertRaises(ValueError):
+            decoder.decode('{')
+
+    def test_json_loads(self):
+        # Check raises ValueError when JSON string is invalid.
+        with self.assertRaises(ValueError):
+            json_loads('{')
+
 
 
 class Object(QualnameABC):

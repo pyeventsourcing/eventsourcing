@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 import six
 from django.db import IntegrityError, connection, transaction
 
@@ -7,32 +5,10 @@ from eventsourcing.infrastructure.base import RelationalRecordManager
 
 
 class DjangoRecordManager(RelationalRecordManager):
-    def __init__(self, convert_position_float_to_decimal=False, *args, **kwargs):
-        # Somehow when the Decimal converter is registered with sqlite3,
-        # decimal values that are stored successfully with 6 places are
-        # returned as bytes rounded to 5 places, before being converted
-        # to a Decimal. Somehow the bytes passed to the converter has
-        # less than the float received without a converter being registered.
-        # So to get 6 places, suspend the converter, and convert to Decimal
-        # by using the accurate float value as a str to make a Decimal. Don't
-        # know why sqlite3 rounds the float when passing bytes to the converter.
-        # Django registers converter in django.db.backends.sqlite3.base line 42
-        # in Django v2.0.0. The sqlite3 library behaves in the same way when Django
-        # is not involved, so there's nothing that Django is doing to break sqlite3.
-        # And the reason SQLAlchemy works is because it doesn't register converters,
-        # but rather manages the conversion to Decimal itself.
-        # If the converter is cancelled, Decimal position values
-        # are returned by Django as floats with original
-        # accuracy so we just need to convert them to Decimal
-        # values. The retrieved position values are not
-        # used at all, and in all cases appear to be written in
-        # the database with original precision, this issue only
-        # affects one of the library's test cases, which should
-        # perhaps be changed to avoid checking retrieved positions.
-        self.convert_position_float_to_decimal = convert_position_float_to_decimal
+    def __init__(self, *args, **kwargs):
         super(DjangoRecordManager, self).__init__(*args, **kwargs)
 
-    def _write_records(self, records):
+    def _write_records(self, records, tracking_kwargs=None):
         try:
             with transaction.atomic(self.record_class.objects.db):
                 if self.contiguous_record_ids:
@@ -58,9 +34,9 @@ class DjangoRecordManager(RelationalRecordManager):
                         record.save()
 
         except IntegrityError as e:
-            self.raise_after_integrity_error(e)
+            self.raise_record_integrity_error(e)
 
-    def _prepare_insert(self, tmpl):
+    def _prepare_insert(self, tmpl, record_class, field_names, placeholder_for_id=False):
         """
         With transaction isolation level of "read committed" this should
         generate records with a contiguous sequence of integer IDs, using
@@ -68,18 +44,18 @@ class DjangoRecordManager(RelationalRecordManager):
         insert-select-from form, and optimistic concurrency control.
         """
         statement = tmpl.format(
-            tablename=self.record_table_name,
-            columns=", ".join(self.field_names),
-            placeholders=", ".join(['%s' for _ in self.field_names]),
+            tablename=self.get_record_table_name(record_class),
+            columns=", ".join(field_names),
+            placeholders=", ".join(['%s' for _ in field_names]),
         )
         return statement
 
-    @property
-    def record_table_name(self):
-        return self.record_class._meta.db_table
+    def get_record_table_name(self, record_class):
+        """Returns table name from SQLAlchemy record class."""
+        return record_class._meta.db_table
 
-    def get_item(self, sequence_id, eq):
-        records = self.record_class.objects.filter(sequence_id=sequence_id, position=eq).all()
+    def get_item(self, sequence_id, position):
+        records = self.record_class.objects.filter(sequence_id=sequence_id, position=position).all()
         return self.from_record(records[0])
 
     def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
@@ -122,28 +98,7 @@ class DjangoRecordManager(RelationalRecordManager):
 
         return records
 
-    def all_items(self, *args, **kwargs):
-        """
-        Returns all items across all sequences.
-        """
-        return six.moves.map(self.from_record, self.all_records(*args, **kwargs))
-
-    def get_field_kwargs(self, record):
-        # Need to convert floats to decimals if Django's sqlite3
-        # Decimal converter has been cancelled. Which it is in
-        # the test for this class, so that the positions
-        # can be checked accurately.
-        kwargs = super(DjangoRecordManager, self).get_field_kwargs(record)
-        if self.convert_position_float_to_decimal:
-            position_field_name = self.field_names.position
-            position_value = kwargs[position_field_name]
-            if isinstance(position_value, float):
-                # Somehow this gets used on my laptop, but not on Travis...
-                kwargs[position_field_name] = Decimal(str(position_value))
-
-        return kwargs
-
-    def all_records(self, start=None, stop=None, *args, **kwargs):
+    def get_notifications(self, start=None, stop=None, *args, **kwargs):
         """
         Returns all records in the table.
         """
@@ -169,3 +124,9 @@ class DjangoRecordManager(RelationalRecordManager):
             return self.record_class.objects.latest('id').id
         except self.record_class.DoesNotExist:
             return None
+
+    def all_sequence_ids(self):
+        sequence_id_fieldname = self.field_names.sequence_id
+        values_queryset = self.record_class.objects.values(sequence_id_fieldname).distinct()
+        for values in values_queryset:
+            yield values[sequence_id_fieldname]

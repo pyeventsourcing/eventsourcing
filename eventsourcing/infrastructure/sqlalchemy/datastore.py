@@ -2,6 +2,7 @@ import os
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from eventsourcing.infrastructure.datastore import Datastore, DatastoreSettings
 from eventsourcing.infrastructure.sqlalchemy.records import Base
@@ -13,8 +14,10 @@ DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///:memory:'
 
 
 class SQLAlchemySettings(DatastoreSettings):
-    def __init__(self, uri=None):
+    def __init__(self, uri=None, pool_size=5):
         self.uri = uri or os.getenv('DB_URI', DEFAULT_SQLALCHEMY_DB_URI)
+        self.pool_size = pool_size
+        # self.pool_size = pool_size if not self.uri.startswith('sqlite') else 1
 
 
 class SQLAlchemyDatastore(Datastore):
@@ -40,10 +43,26 @@ class SQLAlchemyDatastore(Datastore):
     def setup_connection(self):
         assert isinstance(self.settings, SQLAlchemySettings), self.settings
         if self._engine is None:
+            if self.is_sqlite():
+                kwargs = {
+                    'connect_args': {'check_same_thread': False},
+                }
+            elif self.settings.pool_size == 1:
+                kwargs = {
+                    'poolclass': StaticPool
+                }
+            else:
+                kwargs = {
+                    'pool_size': self.settings.pool_size,
+                }
             self._engine = create_engine(
                 self.settings.uri,
                 strategy=self._connection_strategy,
+                **kwargs
             )
+
+    def is_sqlite(self):
+        return self.settings.uri.startswith('sqlite')
 
     def setup_tables(self, tables=None):
         if self._tables is not None:
@@ -69,4 +88,8 @@ class SQLAlchemyDatastore(Datastore):
             self._session.close()
             self._session = None
         if self._engine:
+            # Call dispose(), unless sqlite (to avoid error 'stored_events'
+            # table does not exist in projections.rst doc).
+            if not self.is_sqlite():
+                self._engine.dispose()
             self._engine = None

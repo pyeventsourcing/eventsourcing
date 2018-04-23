@@ -8,7 +8,9 @@ import six
 
 from eventsourcing.domain.model.array import BigArray
 from eventsourcing.infrastructure.base import RelationalRecordManager
-from eventsourcing.utils.transcoding import ObjectJSONDecoder, json_dumps, ObjectJSONEncoder
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder, json_dumps
+
+DEFAULT_SECTION_SIZE = 20
 
 
 class Section(object):
@@ -46,8 +48,8 @@ class LocalNotificationLog(AbstractNotificationLog):
     Presents a sequence of sections from a sequence of notifications.
     """
 
-    def __init__(self, section_size):
-        self.section_size = section_size
+    def __init__(self, section_size=None):
+        self.section_size = section_size or DEFAULT_SECTION_SIZE
         # self.last_start = None
 
     def __getitem__(self, section_id):
@@ -132,15 +134,20 @@ class RecordManagerNotificationLog(LocalNotificationLog):
 
     def get_items(self, start, stop, next_position=None):
         notifications = []
-        for record in self.record_manager.all_records(start, stop):
+        for record in self.record_manager.get_notifications(start, stop):
             notification = {'id': record.id}
             for field_name in self.record_manager.field_names:
                 notification[field_name] = getattr(record, field_name)
+            if hasattr(record, 'causal_dependencies'):
+                notification['causal_dependencies'] = record.causal_dependencies
             notifications.append(notification)
         return notifications
 
     def get_next_position(self):
-        return self.record_manager.get_max_record_id() or 1
+        return self.get_end_position() or 1
+
+    def get_end_position(self):
+        return self.record_manager.get_max_record_id() or 0
 
 
 class BigArrayNotificationLog(LocalNotificationLog):
@@ -205,19 +212,19 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
         if isinstance(item, slice):
             assert item.start >= 0, item.start
             self.seek(item.start)
-            return self.get_items(item.stop)
+            return self.read_items(item.stop)
         else:
             assert isinstance(item, int), type(item)
             assert item >= 0, item
             self.seek(item)
-            return self.read(advance_by=1)[0]
+            return self.read_list(advance_by=1)[0]
 
     def __iter__(self):
-        return self.get_items()
+        return self.read_items()
 
     def __next__(self):
         try:
-            return self.read(advance_by=1)[0]
+            return self.read_list(advance_by=1)[0]
         except IndexError:
             raise StopIteration
 
@@ -232,7 +239,10 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
             raise ValueError("Position less than zero: {}".format(position))
         self.position = position
 
-    def get_items(self, stop_index=None, advance_by=None):
+    def read(self, advance_by=None):
+        return self.read_items(advance_by=advance_by)
+
+    def read_items(self, stop_index=None, advance_by=None):
         self.section_count = 0
 
         start_item_num = self.position + 1
@@ -292,8 +302,8 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
             else:
                 break
 
-    def read(self, advance_by=None):
-        return list(self.get_items(advance_by=advance_by))
+    def read_list(self, advance_by=None):
+        return list(self.read_items(advance_by=advance_by))
 
 
 class NotificationLogView(object):

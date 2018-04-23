@@ -5,6 +5,13 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager imp
     WithSQLAlchemyRecordManagers
 
 
+
+
+
+
+#
+## Old stuff...
+
 # This tests using all the domain events in the application to project
 # something other than an entity. It's not really customization.
 

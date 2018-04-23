@@ -115,14 +115,17 @@ Before continuing with code examples below, we need to setup an event store.
 
 .. code:: python
 
-    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
-    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
-    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+    from uuid import uuid4
+
+    from eventsourcing.application.policies import PersistencePolicy
+    from eventsourcing.domain.model.entity import DomainEntity
     from eventsourcing.infrastructure.eventstore import EventStore
     from eventsourcing.infrastructure.repositories.array import BigArrayRepository
-    from eventsourcing.application.policies import PersistencePolicy
     from eventsourcing.infrastructure.sequenceditem import StoredEvent
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+    from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+    from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+    from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
 
     # Setup the database.
     datastore = SQLAlchemyDatastore(
@@ -138,6 +141,7 @@ Before continuing with code examples below, we need to setup an event store.
         record_class=StoredEventRecord,
         sequenced_item_class=StoredEvent,
         contiguous_record_ids=True,
+        application_id=uuid4(),
     )
 
     # Setup a sequenced item mapper.
@@ -154,6 +158,7 @@ Before continuing with code examples below, we need to setup an event store.
     # Set up a persistence policy.
     persistence_policy = PersistencePolicy(
         event_store=event_store,
+        event_type=DomainEntity.Event
     )
 
 Please note, the ``SQLAlchemyRecordManager`` is has its
@@ -343,22 +348,22 @@ relational record manager with an ``IntegerSequencedRecord`` that has an ID,
 such as the ``StoredEventRecord`` record class, and with a True value for its
 ``contiguous_record_ids`` constructor argument. The ``record_manager``
 above was constructed in this way. The records can be then be obtained
-using the ``all_records()`` method of the record manager. The record IDs
+using the ``get_notifications()`` method of the record manager. The record IDs
 will form a contiguous sequence, suitable for the ``RecordManagerNotificationLog``.
 
 .. code:: python
 
     from eventsourcing.domain.model.entity import VersionedEntity
 
-    all_records = record_manager.all_records()
+    notifications = record_manager.get_notifications()
 
-    assert len(all_records) == 0, all_records
+    assert len(notifications) == 0, notifications
 
     first_entity = VersionedEntity.__create__()
 
-    all_records = record_manager.all_records(start=0, stop=5)
+    notifications = record_manager.get_notifications(start=0, stop=5)
 
-    assert len(all_records) == 1, all_records
+    assert len(notifications) == 1, notifications
 
 The local notification log class ``RecordManagerNotificationLog``
 (see below) can adapt record managers, presenting the
@@ -630,6 +635,14 @@ notification items of ``None``. But where there are gaps, there
 can be race conditions, where the gaps are filled. Only a contiguous
 sequence, which has no gaps, can exclude gaps being filled later.
 
+Please note: there is an unimplemented enhancement which
+would allow this data structure to be modified in a single transaction,
+because the new non-leaf nodes can be determined from the position of
+the new leaf node, however currently a less optimal approach is used
+which attempts to add all non-leaf nodes and carries on in case of
+conflicts.
+
+.. Todo: Implement the big array enhancement: determine non-lead nodes and write all records in single transaction.
 
 Notification logs
 -----------------
@@ -755,6 +768,77 @@ uses this ``RecordManagerNotificationLog`` class.
 .. Todo: Move that function into the library, where? Perhaps subclass
 .. NotificationLogReader with EventNotificationLogReader?
 
+Notification records
+~~~~~~~~~~~~~~~~~~~~
+
+An application could write separate notification records and event records.
+Having separate notification records allows notifications to be arbitrarily
+and therefore evenly distributed across a variable set of notification logs.
+
+The number of logs could governed automatically by a scaling process so the
+cadence of each notification log is actively controlled to a constant level.
+
+Todo: Merge these paragraphs, remove repetition (params below were moved from projections doc).
+
+When an application has one notification log, any causal ordering between
+events will preserved in the log: you won't be informed that something
+changed without previously being informed that it was created. But if there
+are many notification logs, then it would be possible to record casual
+ordering between events: the notifications recorded for the last events
+that were applied to the aggregates used when triggering new events can
+be included in the notifications for the new events. This avoids downstream
+needing to: serialise everything in order to recover order e.g. by merge
+sorting all logs by timestamp; partitioning the application state; or to
+ignore causal ordering. For efficiency, prior events that were notified in
+the same log wouldn't need to be included. So it would make sense for all the
+events of a particular aggregate to be notified in the same log, but if necessary
+they could be distributed across different notification logs without downstream
+processing needing to incoherent or bottle-necked. To scale data, it might become
+necessary to fix an aggregate to a notification log, so that many databases can be
+used with each having the notification records and the event records together (and
+any upstream notification tracking records) so that atomic transactions for
+these records are still workable.
+
+If all events in a process are placed in the same notification log sequence, since
+a notification log will need to be processed in series, the throughput is more or
+less limited by the rate at which a sequence can be processed by a single thread.
+To scale throughput, the application event notifications could be distributed into many
+different notification logs, and a separate operating system process (or thread)
+could run concurrently for each log. A set of notification logs could be processed
+by a single thread, that perhaps takes one notification in turn from each log,
+but with parallel processing, total throughput could be proportional to the number
+of notification logs used to propagate the domain events of an application.
+
+Causal ordering can be maintained across the logs, so long as each event
+notification references the notifications for the last event in all the aggregates
+that were required to trigger the new events. If a notification references a
+notification in another log, then the processing can wait until that other
+notification has been processed. Hence notifications do not need to include
+notifications in the same log, as they will be processed first. On the other hand,
+if all notifications include such references to other notifications, then a notification
+log could be processed in parallel: since it is unlikely that each notification
+in a log depends on its immediate predecessor, wherever a sub-sequence of notifications all
+depend on notifications that have already been processed, those notifications could
+perhaps be processed concurrently.
+
+There will be a trade-off between evenly distributing events across the various
+logs and minimising the number of causal ordering that go across logs. A simple
+and probably effective rule would be to place all the events of one aggregate
+in the same log. But it may also help to partition the aggregates of an application
+by e.g. user, and place the events of all aggregates created by a user in the same
+notification log, since they are perhaps most likely to be causally related. This
+mechanism would allow the number of logs to be increased and decreased, with aggregate
+event notifications switching from one log to another and still be processed coherently.
+
+
+Todo: Define notification records in SQLAlchemy: application_id, pipeline_id, record_id, originator_id,
+originator_version with unique index on (application_id, log_id, record_id) and unique index on
+(originator_id, originator_version). Give notification record class to record manager.
+Change manager to write a notification record for each event. Maybe change aggregate
+__save__() method to accept other records, which could be used to save a tracking record.
+Use with an event record class that also has (application_id) column.
+
+
 BigArrayNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -799,27 +883,38 @@ just strings ('item0' etc). If the big array is being used to sequence the
 events of an application, it is possible to assign just the item's sequence
 ID and position, and let followers get the actual event using those references.
 
+Todo: Fix problem with not being able to write all of big array with one
+SQL expression, since it involves constructing the non-leaf records. Perhaps
+could be more precise about predicting which non-leaf records need to be inserted
+so that we don't walk down from the top each time discovering whether or not
+a record exists. It's totally predictable, but the code is cautious. But it would
+be possible to identify all the new records and add them. Still not really possible
+to use "insert select max", but if each log has it's own process, then IDs can
+be issued from a generator, initialised from a query, and reused if an insert fails
+so the sequence is contiguous.
 
-Aggregate notification log
-~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Perhaps a more sophisticated approach would be to have many notification logs,
-with one application log and many aggregate logs. The application log could be
-used only to notify of the existence of the aggregate logs. However the order
-of the application events after recombining many aggregate logs into a single
-sequence would be undefined (can't say jumbled because such events were never placed
-in a single application sequence). If the notifications had timestamps, the
-aggregate logs could be merged by timestamp.
+.. Aggregate notification log
+.. ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-It might also be useful to partition sets of aggregates, and have a partition log
-that orders events from all the aggregates in the partition.
+.. Perhaps a more sophisticated approach would be to have many notification logs,
+.. with one application log and many aggregate logs. The application log could be
+.. used only to notify of the existence of the aggregate logs. However the order
+.. of the application events after recombining many aggregate logs into a single
+.. sequence would be undefined (can't say jumbled because such events were never placed
+.. in a single application sequence). If the notifications had timestamps, the
+.. aggregate logs could be merged by timestamp.
 
-Todo: In general, discovering the aggregate IDs is important. Perhaps make a
-method on record manager class that returns all the sequence IDs?
+.. It might also be useful to partition sets of aggregates, and have a partition log
+.. that orders events from all the aggregates in the partition.
 
-Todo: Write local notification log class that can follow the events of an aggregate.
+.. Todo: In general, discovering the aggregate IDs is important. Perhaps make a
+.. method on record manager class that returns all the sequence IDs?
 
-Todo: Add support for partitioning the aggregates of an application e.g. by user account.
+.. Todo: Write local notification log class that can follow the events of an aggregate.
+
+.. Todo: Add support for partitioning the aggregates of an application e.g. by user account.
+
 
 Remote notification logs
 ------------------------
@@ -1051,7 +1146,7 @@ Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-lik
     reader.seek(0)
 
     # Read all existing notifications.
-    all_notifications = reader.read()
+    all_notifications = reader.read_list()
     assert len(all_notifications) == 9
 
     # Resolve the notifications to domain events.
@@ -1073,14 +1168,14 @@ Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-lik
     VersionedEntity.__create__()
 
     # Read all subsequent notifications (should be two).
-    subsequent_notifications = reader.read()
+    subsequent_notifications = reader.read_list()
     assert len(subsequent_notifications) == 2
 
     # Check the position has advanced.
     assert reader.position == 11
 
     # Read all subsequent notifications (should be none).
-    subsequent_notifications = reader.read()
+    subsequent_notifications = reader.read_list()
     len(subsequent_notifications) == 0
 
     # Publish three more events.
@@ -1089,7 +1184,7 @@ Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-lik
     last_entity = VersionedEntity.__create__()
 
     # Read all subsequent notifications (should be three).
-    subsequent_notifications = reader.read()
+    subsequent_notifications = reader.read_list()
     assert len(subsequent_notifications) == 3
 
     # Check the position has advanced.
@@ -1104,7 +1199,7 @@ Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-lik
     assert last_domain_event.originator_id == last_entity.id
 
     # Read all subsequent notifications (should be none).
-    subsequent_notifications = reader.read()
+    subsequent_notifications = reader.read_list()
     assert subsequent_notifications == []
 
     # Check the position has advanced.

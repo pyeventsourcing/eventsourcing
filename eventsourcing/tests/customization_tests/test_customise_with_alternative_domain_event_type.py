@@ -2,7 +2,7 @@ from uuid import UUID
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import TimeuuidedEntity
-from eventsourcing.domain.model.events import EventWithTimeuuid
+from eventsourcing.domain.model.events import EventWithTimeuuid, DomainEvent
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.cassandra.records import TimeuuidSequencedRecord
 from eventsourcing.infrastructure.cassandra.manager import CassandraRecordManager
@@ -61,7 +61,10 @@ class ExampleApplicationWithTimeuuidSequencedItems(object):
         self.repository = EventSourcedRepository(
             event_store=self.event_store,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(
+            event_store=self.event_store,
+            event_type=DomainEvent,
+        )
 
     def start_entity(self):
         return ExampleEntity.start()

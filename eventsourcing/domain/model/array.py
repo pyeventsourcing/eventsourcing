@@ -127,7 +127,7 @@ class Array(object):
         try:
             item_assigned = self.repo.event_store.get_domain_event(
                 originator_id=self.id,
-                eq=index,
+                position=index,
             )
         except IndexError as e:
             raise ArrayIndexError(e)

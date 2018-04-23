@@ -3,7 +3,7 @@ from threading import Thread
 
 import six
 
-from eventsourcing.infrastructure.base import AbstractRecordManager
+from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
 
 
 class AbstractSequencedItemIterator(six.with_metaclass(ABCMeta)):
@@ -11,7 +11,7 @@ class AbstractSequencedItemIterator(six.with_metaclass(ABCMeta)):
 
     def __init__(self, record_manager, sequence_id, page_size=None, gt=None, gte=None, lt=None, lte=None,
                  limit=None, is_ascending=True):
-        assert isinstance(record_manager, AbstractRecordManager), type(record_manager)
+        assert isinstance(record_manager, AbstractSequencedItemRecordManager), type(record_manager)
         assert isinstance(page_size, (six.integer_types, type(None)))
         assert isinstance(limit, (six.integer_types, type(None)))
         self.record_manager = record_manager
@@ -213,7 +213,7 @@ class GetEntityEventsThread(Thread):
     def __init__(self, record_manager, sequence_id, gt=None, gte=None, lt=None, lte=None, page_size=None,
                  is_ascending=True, *args, **kwargs):
         super(GetEntityEventsThread, self).__init__(*args, **kwargs)
-        assert isinstance(record_manager, AbstractRecordManager), type(record_manager)
+        assert isinstance(record_manager, AbstractSequencedItemRecordManager), type(record_manager)
         self.record_manager = record_manager
         self.stored_entity_id = sequence_id
         self.gt = gt

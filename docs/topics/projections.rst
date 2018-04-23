@@ -2,13 +2,61 @@
 Projections
 ===========
 
-This section describes projecting domain events.
+A projection is a function of application state. If the state of an application is
+event sourced, projections can operate by processing the events of an application.
+There are lots of different kinds of projection.
 
-Projections can be updated synchronously by direct event subscription, or
-asynchronously by following notification logs. Notifications can be pulled,
-and pulling can be driven by subscribing to events.
 
 .. contents:: :local:
+
+Overview
+--------
+
+Projected state can be updated by direct event subscription, or by following notification
+logs that propagate the events of an application. Notification logs are described in the
+previous section.
+
+Notifications in a notification log can be pulled. Pulling notifications can
+be prompted periodically, prompts could also be pushed onto a message bus. Notifications
+could by pushed onto the message bus, but if order is lost, the projection will need to
+refer to the notification log.
+
+Projections can track the notifications that have been processed: the position
+in an upstream notification log can be recorded. The position can be recorded
+as a value in the projected application state, if the nature of the projection
+lends itself to be used also to track  notifications. Alternatively, the position
+in the notification log can be recorded with a separate tracking record.
+
+Projections can update more or less anything. To be reliable, the projection must
+write in the same atomic database transaction all the records that result from
+processing a notification. Otherwise it is possible to track the position
+and fail to update the projection, or vice versa.
+
+Since projections can update more or less anything, they can also call
+command methods on event sourced aggregates. The important thing is for
+any new domain events that are triggered by the aggregates to be recorded
+in the same database transaction as the tracking records. For reliability,
+if these new domain events are also placed in a notification log, then the
+tracking record and the domain event records and the notification records
+can be written in the same database transaction. A projection that operates by
+calling methods on aggregates and recording events with notifications, can be
+called an "application process".
+
+.. Different application processes can work together as a coherent and reliable
+.. system, for example an orders-reservations-payments system. An application
+.. process DSL can be could describe such a system of application processes,
+.. as function definitions that call each other, with decorators on these
+.. functions to associate each with a policy.
+..
+.. Optimistic concurrency control of uniqueness constraints on the tracking and
+.. event records would allow safe redundant processing of each application process.
+..
+.. Horizontal scaling can be introduced if upstream notifications are distributed
+.. across many notification logs, then a projection can be deployed with many
+.. concurrent operating system processes. Any causal ordering between notifications
+.. in different logs can be maintained if each operating system process waits until
+.. all upstream notification dependencies have been processed, which it can do by
+.. polling for the existence of the corresponding tracking records (not yet implemented).
 
 
 Subscribing to events
@@ -60,11 +108,11 @@ fails to update when an event is received, then the event will be lost forever t
 the projection, and the projection will be forever inconsistent.
 
 Of course, it is possible to follow a fixed sequence of events, for example
-using notification logs.
+by tracking notification logs.
 
 
-Reading notification logs
--------------------------
+Tracking notification logs
+--------------------------
 
 If the events of an application are presented as a sequence of
 notifications, then the events can be projected using a notification
@@ -72,17 +120,44 @@ reader to pull unseen items.
 
 Getting new items can be triggered by pushing prompts to e.g. an AMQP
 messaging system, and having the remote components handle the prompts
-by pulling the new notifications. To minimise load on the messaging
+by pulling the new notifications.
+
+To minimise load on the messaging
 infrastructure, it may be sufficient simply to send an empty message,
-and thereby prompt receivers into pulling new notifications. This may
+thereby prompting receivers to pull new notifications. This may
 reduce latency or avoid excessive polling for updates, but the benefit
 would be obtained at the cost of additional complexity. Prompts
 that include the position of the notification in its sequence would
 allow a follower to know when it is being prompted about notifications
 it already pulled, and could then skip the pulling operation.
 
-Examples
---------
+If an application has partitioned notification logs, they could be consumed
+concurrently.
+
+If a projection creates a sequence that it appends to at least once for each
+notification, the position in the notification log can be tracked as part of
+the projection's sequence. Tracking the position is important when resuming
+to process the notifications. An example of using the projection's sequence
+to track the notifications is replication (see example below). However, with
+this technique, something must be written to the projection's sequence for
+each notification received. That can be tolerated by writing "null" records
+that extend the sequence without spoiling the projections, for example in
+the event sourced index example below, random keys are inserted
+instead of email addresses to extend the sequence.
+
+An alternative which avoids writing unnecessarily to a projection's sequence
+is to separate the concerns, and write a tracking record for each notification
+that is consumed, and then optionally any records created for the projection
+in response to the notification.
+
+A tracking record can simply have the position of a notification in a log. If
+the notifications are interpreted as commands, then a command log could function
+effectively to track the notifications, so long as one command is written for
+each notification (which might then involve "null" commands). For reliability,
+the tracking records need to be written in the same atomic database
+transaction as the projection records.
+
+The library's ``Process`` class uses tracking records.
 
 Application state replication
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -91,11 +166,7 @@ Using event record notifications, the state of an application can be
 replicated perfectly. If an application can present its event records
 as a notification log, then a "replicator" can read the notification
 log and write copies of the original records into a replica's record
-manager. (If the original application could be partitioned, with each
-partition having its own notification log, then the partitions could
-be replicated concurrently, which would allow scaling by application
-partition. Partitioning an application isn't currently supported in
-the library.)
+manager.
 
 In the example below, the ``SimpleApplication`` class is used, which
 has a ``RecordManagerNotificationLog`` as its ``notification_log``.
@@ -134,11 +205,10 @@ which gives "exactly once" processing.
 
 
     # Construct original application.
-    original = SimpleApplication()
+    original = SimpleApplication(persist_event_type=AggregateRoot.Event)
 
     # Construct replica application.
     replica = SimpleApplication()
-    replica.persistence_policy.close()
 
     # Construct replicator.
     replicator = RecordReplicator(
@@ -233,6 +303,7 @@ which gives "exactly once" processing.
 
     # Clean up.
     original.close()
+    replica.close()
 
 For simplicity in the example, the notification log reader uses a local
 notification log in the same process as the events originated. Perhaps
@@ -256,10 +327,6 @@ needing to serialise their access to the replica with locks: if the two jobs
 happen to collide, one will succeed and the other will encounter a concurrency
 error exception that can be ignored.
 
-Although the current implementation of the notification log reader pulls sections of
-notifications in series, the sections could be pulled in parallel, which
-may help when copying a very large sequence of notifications to a new replica.
-
 The replica could itself be followed, by using its notification log. Although
 replicating replicas indefinitely is perhaps pointless, it suggests how
 notification logs can be potentially be chained with processing being done
@@ -276,22 +343,209 @@ from each commands could be many or none, which shows that a sequence of
 events can be projected equally reliably into a different sequence with a different
 length.
 
+
 Index of email addresses
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Todo: Projection into an index. Application with big array command sequence and
-aggregates that represent index locations. A one-way function that goes from
-real index keys to aggregate IDs. And something that runs a command before
-putting it in the log, so that failures to command aggregates are tried on
-the next pull. Ignore errors about creating an aggregate that already exists,
-and also about discarding an aggregate that doesn't exist. Or use transactions,
-if possible, so that the command and the index aggregates are updated together.
-Set position of reader as max ID in command log.
+This example is similar to the replication example above, in that notifications are
+tracked with the records of the projected state. In consequence, an index entry is
+added for each notification received, which means progress can be made along the
+notification log even when the notification doesn't imply a real entry in the index.
+
+.. code:: python
+
+    import uuid
+
+    from eventsourcing.application.simple import SimpleApplication
+    from eventsourcing.exceptions import ConcurrencyError
+    from eventsourcing.domain.model.aggregate import AggregateRoot
+    from eventsourcing.interface.notificationlog import NotificationLogReader, RecordManagerNotificationLog
+
+    # Define domain model.
+    class User(AggregateRoot):
+        def __init__(self, *arg, **kwargs):
+            super(User, self).__init__(*arg, **kwargs)
+            self.email_addresses = {}
+
+        class Event(AggregateRoot.Event):
+            pass
+
+        class Created(Event, AggregateRoot.Created):
+            pass
+
+        def add_email_address(self, email_address):
+            self.__trigger_event__(User.EmailAddressAdded, email_address=email_address)
+
+        class EmailAddressAdded(Event):
+            def mutate(self, aggregate):
+                email_address = User.EmailAddress(self.email_address)
+                aggregate.email_addresses[self.email_address] = email_address
+
+        def verify_email_address(self, email_address):
+            self.__trigger_event__(User.EmailAddressVerified, email_address=email_address)
+
+        class EmailAddressVerified(Event):
+            def mutate(self, aggregate):
+                aggregate.email_addresses[self.email_address].is_verified = True
+
+        class EmailAddress(object):
+            def __init__(self, email_address):
+                self.email_address = email_address
+                self.is_confirmed = False
+
+    class IndexItem(AggregateRoot):
+        def __init__(self, index_value=None, *args, **kwargs):
+            super(IndexItem, self).__init__(*args, **kwargs)
+            self.index_value = index_value
+
+        class Event(AggregateRoot.Event):
+            pass
+
+        class Created(Event, AggregateRoot.Created):
+            pass
 
 
-Todo: Projection into a timeline view.
-Todo: Projection for data analytics.
-Todo: Merging notification logs ("consumer groups")?
+    def uuid_from_url(url):
+        return uuid.uuid5(uuid.NAMESPACE_URL, url.encode('utf8') if bytes == str else url)
+
+
+    # Define indexer.
+    class Indexer(object):
+        class Event(AggregateRoot.Event):
+            pass
+        class Created(AggregateRoot.Created):
+            pass
+        def __init__(self, notification_log, record_manager):
+            self.reader = NotificationLogReader(notification_log)
+            self.manager = record_manager
+            # Position reader at max record ID.
+            # - this can be generalised to get the max ID from many
+            #   e.g. big arrays so that many notification logs can
+            #   be followed, consuming a group of notification logs
+            #   would benefit from using transactions to set records
+            #   in a big array per notification log atomically with
+            #   inserting the result of combining the notification log
+            #   because processing more than one stream would produce
+            #   a stream that has a different sequence of record IDs
+            #   which couldn't be used directly to position any of the
+            #   notification log readers
+            # - if producing one stream from many can be as reliable as
+            #   replicating a stream, then the unreliability will be
+            #   caused by interoperating with systems that just do push,
+            #   but the push notifications could be handled by adding
+            #   to an application partition sequence, so e.g. all bank
+            #   payment responses wouldn't need to go in the same sequence
+            #   and therefore be replicated with mostly noops in all application
+            #   partitions, or perhaps they could initially go in the same
+            #   sequence, and transactions could used to project that into
+            #   many different sequences, in order words splitting the stream
+            #   (splitting is different from replicating many time). When splitting
+            #   the stream, the splits's record ID couldn't be used to position to splitter
+            #   in the consumed notification log, so there would need to be a command
+            #   log that tracks the consumed sequence whose record IDs can be used to position
+            #   the splitter in the notification log, with the commands
+            #   defining how the splits are extended, and everything committed in a transaction
+            #   so the splits are atomic with the command log
+            # Todo: Bring out different projectors: splitter (one-many), combiner (many-one), repeater (one-one).
+            self.reader.seek(self.manager.get_max_record_id() or 0)
+
+        def pull(self):
+            # Project events into commands for the index.
+            for notification in self.reader.read():
+
+                # Construct index items.
+                # Todo: Be more careful, write record with an ID explicitly,
+                # (walk the event down the stack explicity, and then set the ID)
+                # so concurrent processing is safe. Providing the ID also avoids
+                # the cost of computing the next record ID.
+                # Alternatively, construct, execute, then record index commands in a big array.
+                # Could record commands in same transaction as result of commands if commands are not idempotent.
+                # Could use compaction to remove all blank items, but never remove the last record.
+                if notification['event_type'].endswith('User.EmailAddressVerified'):
+                    event = original.event_store.sequenced_item_mapper.from_topic_and_data(
+                        notification['event_type'],
+                        notification['state'],
+                    )
+                    index_key = uuid_from_url(event.email_address)
+                    index_value = event.originator_id
+                else:
+                    index_key = uuid.uuid4()
+                    index_value = ''
+
+                # Todo: And if we can't create new index item, get existing and append value.
+                index_item = IndexItem.__create__(originator_id=index_key, index_value=index_value)
+                index_item.__save__()
+
+
+    # Construct original application.
+    original = SimpleApplication(persist_event_type=User.Event)
+
+    # Construct index application.
+    index = SimpleApplication(persist_event_type=IndexItem.Event)
+
+    # Setup event driven indexing.
+    indexer = Indexer(
+        notification_log=original.notification_log,
+        record_manager=index.event_store.record_manager
+    )
+
+    @subscribe_to(User.Event)
+    def prompt_indexer(_):
+        indexer.pull()
+
+    user1 = User.__create__()
+    user1.__save__()
+    assert user1.id in original.repository
+    assert user1.id not in index.repository
+
+    user1.add_email_address('me@example.com')
+    user1.__save__()
+
+    index_key = uuid_from_url('me@example.com')
+    assert index_key not in index.repository
+
+    user1.verify_email_address('me@example.com')
+    user1.__save__()
+    assert index_key in index.repository
+    assert index.repository[index_key].index_value == user1.id
+
+    assert uuid_from_url(u'mycat@example.com') not in index.repository
+
+    user1.add_email_address(u'mycat@example.com')
+    user1.verify_email_address(u'mycat@example.com')
+    user1.__save__()
+
+    assert uuid_from_url(u'mycat@example.com') in index.repository
+
+    assert user1.id in original.repository
+    assert user1.id not in index.repository
+
+
+
+----
+
+Todo: Projection into a timeline view?
+
+Todo: Projection into snapshots (policy determines when to snapshot)?
+
+Todo: Projection for data analytics?
+
+Todo: Concurrent processing of notification logs, respecting causal relations.
+
+Todo: Order reservation payments, system with many processes and many notification logs.
+
+Todo: Single process with single log.
+
+Todo: Single process with many logs.
+
+Todo: Many processes with one log each.
+
+Todo: Many processes with many logs each (static config).
+
+Todo: Many processes with many logs each (dynamic config).
+
+Todo: Single process with state machine semantics (whatever they are)?
+
 
 .. Todo: Something about pumping events to a message bus, following
 .. the application sequence.

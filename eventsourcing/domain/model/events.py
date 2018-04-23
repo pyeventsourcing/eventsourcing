@@ -273,7 +273,7 @@ def unsubscribe(handler, predicate=None):
 
 
 def publish(event):
-    for predicate, handlers in _event_handlers.items():
+    for predicate, handlers in _event_handlers.copy().items():
         for handler in handlers:
             if predicate is None or predicate(event):
                 handler(event)
@@ -287,3 +287,7 @@ def assert_event_handlers_empty():
     if len(_event_handlers):
         msg = "Event handlers are still subscribed: %s" % _event_handlers
         raise EventHandlersNotEmptyError(msg)
+
+
+def clear_event_handlers():
+    _event_handlers.clear()

@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.cassandra.records import StoredEventRecord
@@ -32,7 +33,10 @@ class ExampleApplicationWithAlternativeSequencedItemType(object):
         self.repository = ExampleRepository(
             event_store=self.event_store,
         )
-        self.persistence_policy = PersistencePolicy(self.event_store)
+        self.persistence_policy = PersistencePolicy(
+            event_store=self.event_store,
+            event_type=DomainEvent
+        )
 
     def __enter__(self):
         return self
@@ -68,7 +72,7 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
             self.assertEqual(entity1.b, 'b')
 
             # Check there is a stored event.
-            all_records = list(app.event_store.record_manager.all_records())
+            all_records = list(app.event_store.record_manager.get_records(entity1.id))
             assert len(all_records) == 1, len(all_records)
             stored_event = all_records[0]
             assert isinstance(stored_event, StoredEventRecord), stored_event

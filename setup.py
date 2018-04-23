@@ -41,6 +41,8 @@ testing_requires = [
     'uwsgi<=2.0.99999',
     'redis<=2.10.99999',
     'celery<=4.1.99999',
+    'pymysql<=0.8.99999',
+    'thespian<=3.9.99999',
 ] + cassandra_requires + sqlalchemy_requires + django_requires
 
 docs_requires = ['Sphinx', 'sphinx_rtd_theme', 'sphinx-autobuild'] + testing_requires
@@ -75,7 +77,12 @@ setup(
         'cassandra': cassandra_requires,
         'sqlalchemy': sqlalchemy_requires,
         'django': django_requires,
+        'test': testing_requires,
+        'tests': testing_requires,
         'testing': testing_requires,
+        'dev': testing_requires,
+        'develop': testing_requires,
+        'development': testing_requires,
         'docs': docs_requires,
     },
     zip_safe=False,
@@ -90,11 +97,10 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: Implementation :: PyPy',
+        'Programming Language :: Python :: Implementation :: PyPy3',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
 )

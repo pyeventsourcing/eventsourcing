@@ -35,12 +35,7 @@ class AggregateRoot(TimestampedVersionedEntity):
         """
         Publishes pending events for others in application.
         """
-        batch_of_events = []
-        try:
-            while True:
-                batch_of_events.append(self.__pending_events__.popleft())
-        except IndexError:
-            pass
+        batch_of_events = self.__batch_pending_events__()
         if batch_of_events:
             self.__publish_to_subscribers__(batch_of_events)
             # Don't catch exception and put the events back on the queue.
@@ -56,6 +51,15 @@ class AggregateRoot(TimestampedVersionedEntity):
             # from many commands, but in case of a failed save after several
             # commands have been executed, it is important to know which
             # commands to retry.
+
+    def __batch_pending_events__(self):
+        batch_of_events = []
+        try:
+            while True:
+                batch_of_events.append(self.__pending_events__.popleft())
+        except IndexError:
+            pass
+        return batch_of_events
 
     def __publish__(self, event):
         """

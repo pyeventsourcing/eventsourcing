@@ -22,13 +22,13 @@ class DjangoTestCase(TransactionTestCase):
 
     def setUp(self):
         super(DjangoTestCase, self).setUp()
-        call_command('migrate')
+        call_command('migrate', verbosity=0, interactive=False)
 
 
-# @skipIf(six.PY2, 'Django 2.0 does not support Python 2.7')  # using 1.11
 class TestDjangoRecordManagerWithIntegerSequences(DjangoTestCase, IntegerSequencedRecordTestCase):
     def construct_record_manager(self):
         return self.construct_entity_record_manager()
+
 
 class TestDjangoRecordManagerWithoutContiguousRecordIDs(DjangoTestCase, IntegerSequencedRecordTestCase):
     contiguous_record_ids = False
@@ -37,8 +37,6 @@ class TestDjangoRecordManagerWithoutContiguousRecordIDs(DjangoTestCase, IntegerS
 
 
 class TestDjangoRecordManagerWithTimestampSequences(DjangoTestCase, TimestampSequencedItemTestCase):
-    cancel_sqlite3_decimal_converter = True
-
     def construct_record_manager(self):
         return self.construct_timestamp_sequenced_record_manager()
 
