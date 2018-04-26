@@ -202,10 +202,6 @@ class PipelineActor(Actor):
             self.send(process_actor, msg)
 
 
-class NoneEvent(object):
-    pass
-
-
 class ProcessMaster(Actor):
     def __init__(self):
         super(ProcessMaster, self).__init__()
