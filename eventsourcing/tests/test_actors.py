@@ -7,7 +7,7 @@ import logging
 from thespian.actors import ActorSystem
 
 from eventsourcing.application.actors import Actors, start_actor_system, start_multiproc_tcp_base_system, \
-    start_multiproc_queue_base_system
+    start_multiproc_queue_base_system, start_multiproc_udp_base_system
 from eventsourcing.application.system import System
 from eventsourcing.tests.test_system import Orders, Payments, Reservations, create_new_order, set_db_uri
 
@@ -29,6 +29,10 @@ class TestActors(unittest.TestCase):
         start_multiproc_tcp_base_system()
         self.check_actors()
 
+    def _test_multiproc_udp_base(self):
+        start_multiproc_udp_base_system()
+        self.check_actors(1, 1)
+
     def _test_multiproc_queue_base(self):
         start_multiproc_queue_base_system()
         self.check_actors()
@@ -37,7 +41,7 @@ class TestActors(unittest.TestCase):
 
         pipeline_ids = list(range(num_pipelines))
 
-        actors = Actors(self.system, pipeline_ids=pipeline_ids, shutdown_on_exit=True)
+        actors = Actors(self.system, pipeline_ids=pipeline_ids, shutdown_on_close=True)
 
         # Todo: Use wakeupAfter() to poll for new notifications (see Timer Messages).
         # Todo: Fix multiple pipelines with multiproc bases.
