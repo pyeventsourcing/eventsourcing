@@ -1,16 +1,10 @@
 import os
 
-from eventsourcing.application.policies import PersistencePolicy, SnapshottingPolicy
-from eventsourcing.domain.model.entity import DomainEntity
-from eventsourcing.domain.model.snapshot import Snapshot
+from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
-from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
-from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
-from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
-from eventsourcing.infrastructure.sqlalchemy.records import SnapshotRecord
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_random_bytes
@@ -34,7 +28,7 @@ class SimpleApplication(object):
         self.setup_datastore(session, uri, pool_size)
 
         # Setup the event store.
-        self.sequenced_item_class = sequenced_item_class
+        self.sequenced_item_class = sequenced_item_class or StoredEvent
         self.stored_event_record_class = stored_event_record_class
         self.contiguous_record_ids = contiguous_record_ids
         self.application_id = uuid_from_application_name(self.name)
@@ -72,6 +66,7 @@ class SimpleApplication(object):
         self.cipher = AESCipher(cipher_key) if cipher_key else None
 
     def setup_datastore(self, session, uri, pool_size=5):
+        from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
         self.datastore = SQLAlchemyDatastore(
             settings=SQLAlchemySettings(uri=uri, pool_size=pool_size),
             session=session,
@@ -82,15 +77,38 @@ class SimpleApplication(object):
         self.event_store = self.construct_event_store(self.application_id, self.pipeline_id)
 
     def construct_event_store(self, application_id, pipeline_id):
-        return construct_sqlalchemy_eventstore(
+        sequenced_item_mapper = self.construct_sequenced_item_mapper()
+        record_manager = self.construct_record_manager(application_id, pipeline_id)
+        event_store = EventStore(
+            record_manager=record_manager,
+            sequenced_item_mapper=sequenced_item_mapper,
+        )
+        return event_store
+
+    def construct_sequenced_item_mapper(self):
+        sequenced_item_mapper = SequencedItemMapper(
             sequenced_item_class=self.sequenced_item_class,
-            session=self.datastore.session,
             cipher=self.cipher,
-            record_class=self.stored_event_record_class,
-            contiguous_record_ids=self.contiguous_record_ids,
+            # sequence_id_attr_name=sequence_id_attr_name,
+            # position_attr_name=position_attr_name,
+            # json_encoder_class=json_encoder_class,
+            # json_decoder_class=json_decoder_class,
+        )
+        return sequenced_item_mapper
+
+    def construct_record_manager(self, application_id, pipeline_id):
+        from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
+        from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
+        factory = SQLAlchemyInfrastructureFactory(
+            session=self.datastore.session,
+            integer_sequenced_record_class=self.stored_event_record_class or StoredEventRecord,
+            sequenced_item_class=(self.sequenced_item_class),
+            contiguous_record_ids=(self.contiguous_record_ids),
             application_id=application_id,
             pipeline_id=pipeline_id,
         )
+        record_manager = factory.construct_integer_sequenced_record_manager()
+        return record_manager
 
     def setup_repository(self, **kwargs):
         event_store = self.event_store
@@ -133,53 +151,3 @@ class SimpleApplication(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-
-
-class SnapshottingApplication(SimpleApplication):
-    def __init__(self, period=10, snapshot_record_class=None, **kwargs):
-        self.period = period
-        self.snapshot_record_class = snapshot_record_class
-        super(SnapshottingApplication, self).__init__(**kwargs)
-
-    def setup_event_store(self):
-        super(SnapshottingApplication, self).setup_event_store()
-        # Setup snapshot store, using datastore session, and SnapshotRecord class.
-        # Todo: Refactor this into a new create_sqlalchemy_snapshotstore() function.
-        self.snapshot_store = EventStore(
-            SQLAlchemyRecordManager(
-                session=self.datastore.session,
-                record_class=self.snapshot_record_class or SnapshotRecord
-            ),
-            SequencedItemMapper(
-                sequence_id_attr_name='originator_id',
-                position_attr_name='originator_version'
-            )
-        )
-
-    def setup_repository(self, **kwargs):
-        # Setup repository with a snapshot strategy.
-        self.snapshot_strategy = EventSourcedSnapshotStrategy(
-            event_store=self.snapshot_store
-        )
-        super(SnapshottingApplication, self).setup_repository(
-            snapshot_strategy=self.snapshot_strategy, **kwargs
-        )
-
-    def setup_persistence_policy(self, persist_event_type):
-        persist_event_type = persist_event_type or DomainEntity.Event
-        super(SnapshottingApplication, self).setup_persistence_policy(persist_event_type)
-        self.snapshotting_policy = SnapshottingPolicy(self.repository, self.period)
-        self.snapshot_persistence_policy = PersistencePolicy(
-            event_store=self.snapshot_store,
-            event_type=Snapshot
-        )
-
-    def setup_table(self):
-        super(SnapshottingApplication, self).setup_table()
-        # Also setup snapshot table.
-        self.datastore.setup_table(self.snapshot_store.record_manager.record_class)
-
-    def close(self):
-        super(SnapshottingApplication, self).close()
-        self.snapshotting_policy.close()
-        self.snapshot_persistence_policy.close()

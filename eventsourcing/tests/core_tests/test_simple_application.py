@@ -1,6 +1,7 @@
 from unittest import TestCase
 
-from eventsourcing.application.simple import SimpleApplication, SnapshottingApplication
+from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.domain.model.events import assert_event_handlers_empty, DomainEvent
 from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.tests.core_tests.test_aggregate_root import ExampleAggregateRoot
