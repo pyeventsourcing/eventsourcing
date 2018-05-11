@@ -1,11 +1,13 @@
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
+
+import six
 
 
 class DatastoreSettings(object):
     """Base class for settings for database connection used by a stored event repository."""
 
 
-class Datastore(ABC):
+class Datastore(six.with_metaclass(ABCMeta)):
     def __init__(self, settings):
         # assert isinstance(settings, DatastoreSettings), settings
         self.settings = settings

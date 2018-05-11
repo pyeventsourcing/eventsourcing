@@ -1,5 +1,7 @@
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from copy import deepcopy
+
+import six
 
 from eventsourcing.domain.model.events import publish
 from eventsourcing.domain.model.snapshot import AbstractSnapshop, Snapshot
@@ -8,7 +10,7 @@ from eventsourcing.infrastructure.sequenceditemmapper import reconstruct_object
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
-class AbstractSnapshotStrategy(ABC):
+class AbstractSnapshotStrategy(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def get_snapshot(self, entity_id, lt=None, lte=None):
         """

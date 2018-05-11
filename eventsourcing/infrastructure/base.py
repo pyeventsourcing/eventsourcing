@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABC
+from abc import ABCMeta, abstractmethod
 
 import six
 
@@ -6,7 +6,7 @@ from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 
 
-class AbstractSequencedItemRecordManager(ABC):
+class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
     def __init__(self, record_class, sequenced_item_class=SequencedItem, contiguous_record_ids=False,
                  application_id=None, pipeline_id=-1):
         self.record_class = record_class
@@ -248,7 +248,7 @@ class RelationalRecordManager(AbstractSequencedItemRecordManager):
         """
 
 
-class AbstractTrackingRecordManager(ABC):
+class AbstractTrackingRecordManager(six.with_metaclass(ABCMeta)):
 
     @property
     @abstractmethod
