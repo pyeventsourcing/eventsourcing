@@ -1,3 +1,5 @@
+from abc import ABCMeta
+
 from six import with_metaclass
 
 
@@ -19,7 +21,7 @@ class PipelineExpression(object):
                 yield term
 
 
-class PipeableMetaclass(type):
+class PipeableMetaclass(ABCMeta):
     def __or__(self, other):
         return PipelineExpression(self, other)
 

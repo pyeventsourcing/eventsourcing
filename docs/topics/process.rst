@@ -424,11 +424,11 @@ by setting an ``Order`` as paid.
 
 .. code:: python
 
-    from eventsourcing.application.process import Process
+    from eventsourcing.application.process import ProcessApplicationWithSQLAlchemy
     from eventsourcing.utils.topic import resolve_topic
 
 
-    class Orders(Process):
+    class Orders(ProcessApplicationWithSQLAlchemy):
         persist_event_type=Order.Event
 
         @staticmethod
@@ -455,7 +455,7 @@ by creating a new ``Reservation`` aggregate.
 
 .. code:: python
 
-    class Reservations(Process):
+    class Reservations(ProcessApplicationWithSQLAlchemy):
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Created):
@@ -467,7 +467,7 @@ by creating a new ``Payment``.
 
 .. code:: python
 
-    class Payments(Process):
+    class Payments(ProcessApplicationWithSQLAlchemy):
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Reserved):
@@ -479,12 +479,12 @@ responds to ``Order.Paid`` events by setting the command as done.
 
 .. code:: python
 
-    from eventsourcing.application.command import CommandProcess
+    from eventsourcing.application.command import CommandProcessWithSQLAlchemy
     from eventsourcing.domain.model.decorators import retry
     from eventsourcing.exceptions import OperationalError, RecordConflictError
 
 
-    class Commands(CommandProcess):
+    class Commands(CommandProcessWithSQLAlchemy):
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Created):

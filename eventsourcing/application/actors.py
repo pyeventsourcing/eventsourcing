@@ -1,9 +1,8 @@
 import logging
-import time
 
 from thespian.actors import *
 
-from eventsourcing.application.process import Prompt, Process
+from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.system import System
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
@@ -211,6 +210,7 @@ class ProcessMaster(Actor):
         super(ProcessMaster, self).__init__()
         self.is_slave_running = False
         self.last_prompts = {}
+        self.slave_actor = None
 
     def receiveMessage(self, msg, sender):
         if isinstance(msg, ProcessInitRequest):
@@ -239,7 +239,7 @@ class ProcessMaster(Actor):
             self.run_slave()
 
     def run_slave(self):
-        if not self.is_slave_running:
+        if self.slave_actor and not self.is_slave_running:
             self.send(self.slave_actor, SlaveRunRequest(self.last_prompts, self.myAddress))
             self.is_slave_running = True
             self.last_prompts = {}
@@ -272,7 +272,7 @@ class ProcessSlave(Actor):
             notification_log_section_size=5,
             pool_size=3,
         )
-        assert isinstance(self.process, Process)
+        assert isinstance(self.process, ProcessApplication)
         # Close the persistence policy.
         self.process.persistence_policy.close()
         # Replace publish_prompt().

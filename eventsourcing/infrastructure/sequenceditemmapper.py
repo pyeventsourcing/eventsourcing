@@ -1,15 +1,13 @@
 from __future__ import unicode_literals
 
-from abc import ABCMeta, abstractmethod
-
-import six
+from abc import ABC, abstractmethod
 
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 from eventsourcing.utils.topic import get_topic, resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder, json_dumps, json_loads
 
 
-class AbstractSequencedItemMapper(six.with_metaclass(ABCMeta)):
+class AbstractSequencedItemMapper(ABC):
     @abstractmethod
     def to_sequenced_item(self, domain_event):
         """

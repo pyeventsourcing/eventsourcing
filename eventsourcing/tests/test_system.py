@@ -1,16 +1,16 @@
+import logging
 import os
 import time
 from unittest import TestCase
 from uuid import uuid4
 
-import logging
-
 from eventsourcing.application.multiprocess import Multiprocess
-from eventsourcing.application.process import Process
+from eventsourcing.application.process import ProcessApplication
+from eventsourcing.application.simple import SimpleApplicationWithSQLAlchemy
 from eventsourcing.application.system import System
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.domain.model.events import clear_event_handlers, assert_event_handlers_empty
+from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.tests.test_process import ExampleAggregate
 
@@ -263,9 +263,15 @@ def create_new_order():
     order.__save__()
     return order.id
 
+
 logger = logging.getLogger()
 
-class Orders(Process):
+
+class ProcessWithSQLAlchemy(ProcessApplication, SimpleApplicationWithSQLAlchemy):
+    pass
+
+
+class Orders(ProcessWithSQLAlchemy):
     persist_event_type = Order.Created
 
     def policy(self, repository, event):
@@ -284,7 +290,7 @@ class Orders(Process):
             logger.info('set Order as paid')
 
 
-class Reservations(Process):
+class Reservations(ProcessWithSQLAlchemy):
     def policy(self, repository, event):
         if isinstance(event, Order.Created):
             # Create a reservation.
@@ -293,7 +299,7 @@ class Reservations(Process):
             return Reservation.create(order_id=event.originator_id)
 
 
-class Payments(Process):
+class Payments(ProcessWithSQLAlchemy):
     def policy(self, repository, event):
         if isinstance(event, Order.Reserved):
             # Make a payment.
@@ -302,7 +308,7 @@ class Payments(Process):
             return Payment.make(order_id=event.originator_id)
 
 
-class Examples(Process):
+class Examples(ProcessWithSQLAlchemy):
     persist_event_type = ExampleAggregate.Created
 
     def policy(self, repository, event):

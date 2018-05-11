@@ -9,11 +9,12 @@ class InfrastructureFactory(object):
     integer_sequenced_noid_record_class = None
     timestamp_sequenced_record_class = None
     snapshot_record_class = None
+    tracking_record_manager_class = None
 
     def __init__(self, record_manager_class=None, sequenced_item_class=None,
                  integer_sequenced_record_class=None, timestamp_sequenced_record_class=None,
-                 snapshot_record_class=None, contiguous_record_ids=False, session=None,
-                 application_id=None, pipeline_id=-1):
+                 snapshot_record_class=None, contiguous_record_ids=False, application_id=None,
+                 pipeline_id=-1):
 
         self.record_manager_class = record_manager_class or self.record_manager_class
 
@@ -29,14 +30,10 @@ class InfrastructureFactory(object):
         self.contiguous_record_ids = contiguous_record_ids
         self.application_id = application_id
         self.pipeline_id = pipeline_id
-        self.session = session
 
     def construct_integer_sequenced_record_manager(self, record_class=None):
-        record_class = record_class or self.integer_sequenced_record_class
-        assert self.integer_sequenced_record_class
         return self.construct_record_manager(
-            record_class=record_class,
-            sequenced_item_class=self.sequenced_item_class
+            record_class=record_class or self.integer_sequenced_record_class,
         )
 
     def construct_timestamp_sequenced_record_manager(self, record_class=None):
@@ -44,21 +41,26 @@ class InfrastructureFactory(object):
         assert self.integer_sequenced_record_class
         return self.construct_record_manager(
             record_class=record_class,
-            sequenced_item_class=self.sequenced_item_class
         )
 
-    def construct_snapshot_record_manager(self):
+    def construct_snapshot_record_manager(self, sequenced_item_class=None):
         return self.construct_record_manager(
             record_class=self.snapshot_record_class,
-            sequenced_item_class=self.sequenced_item_class
+            sequenced_item_class=sequenced_item_class,
         )
 
-    def construct_record_manager(self, sequenced_item_class, record_class, **kwargs):
+    def construct_record_manager(self, record_class, sequenced_item_class=None, **kwargs):
         return self.record_manager_class(
-            sequenced_item_class=sequenced_item_class,
+            sequenced_item_class=sequenced_item_class or self.sequenced_item_class,
             record_class=record_class,
             contiguous_record_ids=self.contiguous_record_ids,
             application_id=self.application_id,
             pipeline_id=self.pipeline_id,
             **kwargs
         )
+
+    def construct_tracking_record_manager(self, *args, **kwargs):
+        return self.tracking_record_manager_class(*args, **kwargs)
+
+    def construct_datastore(self):
+        return None

@@ -24,6 +24,8 @@ class DjangoTestCase(TransactionTestCase):
         super(DjangoTestCase, self).setUp()
         call_command('migrate', verbosity=0, interactive=False)
 
+    def construct_datastore(self):
+        pass
 
 class TestDjangoRecordManagerWithIntegerSequences(DjangoTestCase, IntegerSequencedRecordTestCase):
     def construct_record_manager(self):

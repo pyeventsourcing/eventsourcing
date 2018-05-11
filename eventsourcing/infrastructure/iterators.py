@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from threading import Thread
 
 import six
@@ -6,7 +6,7 @@ import six
 from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
 
 
-class AbstractSequencedItemIterator(six.with_metaclass(ABCMeta)):
+class AbstractSequencedItemIterator(ABC):
     DEFAULT_PAGE_SIZE = 1000
 
     def __init__(self, record_manager, sequence_id, page_size=None, gt=None, gte=None, lt=None, lte=None,

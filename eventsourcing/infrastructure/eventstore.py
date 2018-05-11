@@ -1,5 +1,5 @@
 # coding=utf-8
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 
 import six
 
@@ -9,11 +9,12 @@ from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
 
 
-class AbstractEventStore(six.with_metaclass(ABCMeta)):
+class AbstractEventStore(ABC):
     """
     Abstract base class for event stores. Defines the methods
     expected of an event store by other classes in the library.
     """
+
     @abstractmethod
     def append(self, domain_event_or_events):
         """

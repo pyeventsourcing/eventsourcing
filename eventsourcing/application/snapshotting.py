@@ -1,12 +1,11 @@
-from eventsourcing.application.policies import SnapshottingPolicy, PersistencePolicy
+from eventsourcing.application.policies import PersistencePolicy, SnapshottingPolicy
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.domain.model.entity import DomainEntity
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
-from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
-from eventsourcing.infrastructure.sqlalchemy.records import SnapshotRecord
 
 
 class SnapshottingApplication(SimpleApplication):
@@ -17,18 +16,19 @@ class SnapshottingApplication(SimpleApplication):
 
     def setup_event_store(self):
         super(SnapshottingApplication, self).setup_event_store()
-        # Setup snapshot store, using datastore session, and SnapshotRecord class.
-        # Todo: Refactor this into a new create_sqlalchemy_snapshotstore() function.
+        # Setup event store for snapshots.
+        record_manager1 = self.infrastructure_factory.construct_snapshot_record_manager(SequencedItem)
         self.snapshot_store = EventStore(
-            SQLAlchemyRecordManager(
-                session=self.datastore.session,
-                record_class=self.snapshot_record_class or SnapshotRecord
-            ),
-            SequencedItemMapper(
+            record_manager=record_manager1,
+            sequenced_item_mapper=SequencedItemMapper(
                 sequence_id_attr_name='originator_id',
                 position_attr_name='originator_version'
             )
         )
+
+    def setup_table(self):
+        super(SnapshottingApplication, self).setup_table()
+        self.datastore.setup_table(self.snapshot_store.record_manager.record_class)
 
     def setup_repository(self, **kwargs):
         # Setup repository with a snapshot strategy.
@@ -47,11 +47,6 @@ class SnapshottingApplication(SimpleApplication):
             event_store=self.snapshot_store,
             event_type=Snapshot
         )
-
-    def setup_table(self):
-        super(SnapshottingApplication, self).setup_table()
-        # Also setup snapshot table.
-        self.datastore.setup_table(self.snapshot_store.record_manager.record_class)
 
     def close(self):
         super(SnapshottingApplication, self).close()
