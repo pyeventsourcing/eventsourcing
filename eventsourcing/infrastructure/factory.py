@@ -43,10 +43,9 @@ class InfrastructureFactory(object):
             record_class=record_class,
         )
 
-    def construct_snapshot_record_manager(self, sequenced_item_class=None):
+    def construct_snapshot_record_manager(self):
         return self.construct_record_manager(
             record_class=self.snapshot_record_class,
-            sequenced_item_class=sequenced_item_class,
         )
 
     def construct_record_manager(self, record_class, sequenced_item_class=None, **kwargs):

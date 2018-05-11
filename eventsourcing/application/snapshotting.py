@@ -1,14 +1,12 @@
 from eventsourcing.application.policies import PersistencePolicy, SnapshottingPolicy
-from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.application.simple import SimpleApplicationWithSQLAlchemy
 from eventsourcing.domain.model.entity import DomainEntity
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.sequenceditem import SequencedItem
-from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
 
-class SnapshottingApplication(SimpleApplication):
+class SnapshottingApplication(SimpleApplicationWithSQLAlchemy):
     def __init__(self, period=10, snapshot_record_class=None, **kwargs):
         self.period = period
         self.snapshot_record_class = snapshot_record_class
@@ -17,12 +15,11 @@ class SnapshottingApplication(SimpleApplication):
     def setup_event_store(self):
         super(SnapshottingApplication, self).setup_event_store()
         # Setup event store for snapshots.
-        record_manager1 = self.infrastructure_factory.construct_snapshot_record_manager(SequencedItem)
+        record_manager = self.infrastructure_factory.construct_snapshot_record_manager()
         self.snapshot_store = EventStore(
-            record_manager=record_manager1,
-            sequenced_item_mapper=SequencedItemMapper(
-                sequence_id_attr_name='originator_id',
-                position_attr_name='originator_version'
+            record_manager=record_manager,
+            sequenced_item_mapper=self.sequenced_item_mapper_class(
+                sequenced_item_class=self.sequenced_item_class
             )
         )
 

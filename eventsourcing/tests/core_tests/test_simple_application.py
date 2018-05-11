@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.application.simple import SimpleApplicationWithSQLAlchemy
 from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.domain.model.events import assert_event_handlers_empty, DomainEvent
 from eventsourcing.interface.notificationlog import NotificationLogReader
@@ -35,7 +35,7 @@ class TestSimpleApplication(TestCase):
             app.drop_table()
 
     def get_application(self):
-        return SimpleApplication(
+        return SimpleApplicationWithSQLAlchemy(
             cipher_key=encode_random_bytes(16),
             persist_event_type=DomainEvent,
 

@@ -10,10 +10,8 @@ from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.exceptions import ConcurrencyError, OriginatorIDError, OriginatorVersionError, \
     ProgrammingError, RepositoryKeyError
 from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
-    WithCassandraRecordManagers
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    WithSQLAlchemyRecordManagers
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import WithCassandraRecordManagers
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import WithSQLAlchemyRecordManagers
 from eventsourcing.utils.times import datetime_from_timestamp
 from eventsourcing.utils.topic import get_topic
 

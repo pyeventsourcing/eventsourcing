@@ -16,16 +16,20 @@ class AbstractSimpleApplication(object):
     persist_event_type = None
     sequenced_item_class = StoredEvent
     stored_event_record_class = None
+    snapshot_record_class = None
     infrastructure_factory_class = None
+    sequenced_item_mapper_class = SequencedItemMapper
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
-                 cipher_key=None, sequenced_item_class=None, infrastructure_factory_class=None,
-                 stored_event_record_class=None, setup_table=True, contiguous_record_ids=True,
+                 cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
+                 infrastructure_factory_class=None, stored_event_record_class=None,
+                 snapshot_record_class=None, setup_table=True, contiguous_record_ids=True,
                  pipeline_id=-1, notification_log_section_size=None):
 
         self.name = name or type(self).__name__.lower()
         self.notification_log_section_size = notification_log_section_size
         self.sequenced_item_class = sequenced_item_class or type(self).sequenced_item_class
+        self.sequenced_item_mapper_class = sequenced_item_mapper_class or type(self).sequenced_item_mapper_class
 
         self.infrastructure_factory_class = infrastructure_factory_class or type(self).infrastructure_factory_class
         assert self.infrastructure_factory_class is not None, (
@@ -37,6 +41,8 @@ class AbstractSimpleApplication(object):
         assert self.stored_event_record_class is not None, (
             "Stored event record class not set on {}".format(type(self))
         )
+
+        self.snapshot_record_class = snapshot_record_class or type(self).snapshot_record_class
 
         self.contiguous_record_ids = contiguous_record_ids
         self.application_id = uuid_from_application_name(self.name)
@@ -64,7 +70,6 @@ class AbstractSimpleApplication(object):
 
     def construct_infrastructure_factory(self, *args, **kwargs):
         """
-
         :rtype: InfrastructureFactory
         """
         return self.infrastructure_factory_class(
@@ -73,6 +78,7 @@ class AbstractSimpleApplication(object):
             contiguous_record_ids=self.contiguous_record_ids,
             application_id=self.application_id,
             pipeline_id=self.pipeline_id,
+            snapshot_record_class=self.snapshot_record_class,
             *args, **kwargs
         )
 
@@ -147,9 +153,12 @@ class SimpleApplicationWithSQLAlchemy(AbstractSimpleApplication):
         self.pool_size = pool_size
         self.session = session
         from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
-        from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
-        super(SimpleApplicationWithSQLAlchemy, self).__init__(infrastructure_factory_class=SQLAlchemyInfrastructureFactory,
-                                                              stored_event_record_class=StoredEventRecord, *args, **kwargs)
+        from eventsourcing.infrastructure.sqlalchemy.records import EntitySnapshotRecord, StoredEventRecord
+        super(SimpleApplicationWithSQLAlchemy, self).__init__(
+            infrastructure_factory_class=SQLAlchemyInfrastructureFactory,
+            stored_event_record_class=StoredEventRecord,
+            snapshot_record_class=EntitySnapshotRecord,
+            *args, **kwargs)
 
     def setup_infrastructure(self, *args, **kwargs):
         super(SimpleApplicationWithSQLAlchemy, self).setup_infrastructure(session=self.session, uri=self.uri,
