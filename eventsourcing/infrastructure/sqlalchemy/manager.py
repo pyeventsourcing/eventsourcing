@@ -228,6 +228,9 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def get_record_table_name(self, record_class):
         return record_class.__table__.name
 
+    def clone(self, **kwargs):
+        return super(SQLAlchemyRecordManager, self).clone(session=self.session, **kwargs)
+
 
 class TrackingRecordManager(AbstractTrackingRecordManager):
     record_class = NotificationTrackingRecord

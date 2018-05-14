@@ -247,6 +247,16 @@ class RelationalRecordManager(AbstractSequencedItemRecordManager):
         :rtype: str
         """
 
+    def clone(self, application_id, pipeline_id, **kwargs):
+        return type(self)(
+            record_class=self.record_class,
+            contiguous_record_ids=self.contiguous_record_ids,
+            sequenced_item_class=self.sequenced_item_class,
+            application_id=application_id,
+            pipeline_id=pipeline_id,
+            **kwargs
+        )
+
 
 class AbstractTrackingRecordManager(six.with_metaclass(ABCMeta)):
 
