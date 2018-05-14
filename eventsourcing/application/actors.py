@@ -284,11 +284,7 @@ class ProcessSlave(Actor):
             assert isinstance(record_manager, SQLAlchemyRecordManager)
             upstream_application_id = uuid_from_application_name(upstream_application_name)
             notification_log = RecordManagerNotificationLog(
-                record_manager=type(record_manager)(
-                    session=record_manager.session,
-                    record_class=record_manager.record_class,
-                    contiguous_record_ids=record_manager.contiguous_record_ids,
-                    sequenced_item_class=record_manager.sequenced_item_class,
+                record_manager=record_manager.clone(
                     application_id=upstream_application_id,
                     pipeline_id=self.pipeline_id
                 ),
