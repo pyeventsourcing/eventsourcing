@@ -64,7 +64,13 @@ class AESCipher(object):
 
         # Split out the nonce, tag, and encrypted data.
         nonce = combined[:12]
+        if len(nonce) != 12:
+            raise DataIntegrityError("Cipher text is damaged: invalid nonce length")
+
         tag = combined[12:28]
+        if len(tag) != 16:
+            raise DataIntegrityError("Cipher text is damaged: invalid tag length")
+
         encrypted = combined[28:]
 
         # Construct AES cipher, with old nonce.
