@@ -201,7 +201,7 @@ which gives "exactly once" processing.
         def pull(self):
             for notification in self.reader.read():
                 record = self.manager.record_class(**notification)
-                self.manager._write_records([record])
+                self.manager.write_records([record])
 
 
     # Construct original application.

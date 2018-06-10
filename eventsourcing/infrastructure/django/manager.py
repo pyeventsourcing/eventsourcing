@@ -8,7 +8,7 @@ class DjangoRecordManager(RelationalRecordManager):
     def __init__(self, *args, **kwargs):
         super(DjangoRecordManager, self).__init__(*args, **kwargs)
 
-    def _write_records(self, records, tracking_kwargs=None):
+    def write_records(self, records, tracking_kwargs=None):
         try:
             with transaction.atomic(self.record_class.objects.db):
                 if self.contiguous_record_ids:

@@ -55,7 +55,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
         return compiled
 
-    def _write_records(self, records, tracking_kwargs=None):
+    def write_records(self, records, tracking_kwargs=None):
         try:
             with self.session.bind.begin() as connection:
                 if tracking_kwargs:

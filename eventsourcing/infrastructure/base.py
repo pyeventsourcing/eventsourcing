@@ -150,17 +150,7 @@ class RelationalRecordManager(AbstractSequencedItemRecordManager):
 
     def write_records(self, records, tracking_kwargs=None):
         """
-        Calls _write_records() implemented by concrete classes.
-
-        :param tracking_kwargs:
-        """
-        self._write_records(records, tracking_kwargs=tracking_kwargs)
-
-    # Todo: Remove this now that we have no retry decorator on above.
-    @abstractmethod
-    def _write_records(self, records, tracking_kwargs=None):
-        """
-        Actually creates records in the database.
+        Creates records in the database.
         :param tracking_kwargs:
         """
 
