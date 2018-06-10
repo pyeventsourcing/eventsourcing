@@ -184,7 +184,7 @@ which gives "exactly once" processing.
 
 .. code:: python
 
-    from eventsourcing.application.simple import SimpleApplication
+    from eventsourcing.application.sqlalchemy import SimpleApplication
     from eventsourcing.exceptions import ConcurrencyError
     from eventsourcing.domain.model.aggregate import AggregateRoot
     from eventsourcing.interface.notificationlog import NotificationLogReader, RecordManagerNotificationLog
@@ -356,7 +356,7 @@ notification log even when the notification doesn't imply a real entry in the in
 
     import uuid
 
-    from eventsourcing.application.simple import SimpleApplication
+    from eventsourcing.application.sqlalchemy import SimpleApplication
     from eventsourcing.exceptions import ConcurrencyError
     from eventsourcing.domain.model.aggregate import AggregateRoot
     from eventsourcing.interface.notificationlog import NotificationLogReader, RecordManagerNotificationLog

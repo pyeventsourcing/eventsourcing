@@ -96,7 +96,7 @@ and the ``cipher_key`` value can be set as environment variable
 
 .. code:: python
 
-    from eventsourcing.application.simple import SimpleApplication
+    from eventsourcing.application.sqlalchemy import SimpleApplication
     from eventsourcing.domain.model.aggregate import AggregateRoot
 
     app = SimpleApplication(

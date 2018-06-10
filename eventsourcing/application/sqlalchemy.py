@@ -17,8 +17,10 @@ class SimpleApplicationWithSQLAlchemy(AbstractSimpleApplication):
             *args, **kwargs)
 
     def setup_infrastructure(self, *args, **kwargs):
-        super(SimpleApplicationWithSQLAlchemy, self).setup_infrastructure(session=self.session, uri=self.uri,
-                                                                          pool_size=self.pool_size, *args, **kwargs)
+        super(SimpleApplicationWithSQLAlchemy, self).setup_infrastructure(
+            session=self.session, uri=self.uri, pool_size=self.pool_size,
+            *args, **kwargs
+        )
         if self.datastore and self.session is None:
             self.session = self.datastore.session
 

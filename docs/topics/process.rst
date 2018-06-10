@@ -424,7 +424,7 @@ by setting an ``Order`` as paid.
 
 .. code:: python
 
-    from eventsourcing.application.process import ProcessApplicationWithSQLAlchemy
+    from eventsourcing.application.sqlalchemy import ProcessApplicationWithSQLAlchemy
     from eventsourcing.utils.topic import resolve_topic
 
 
@@ -479,7 +479,7 @@ responds to ``Order.Paid`` events by setting the command as done.
 
 .. code:: python
 
-    from eventsourcing.application.command import CommandProcessWithSQLAlchemy
+    from eventsourcing.application.sqlalchemy import CommandProcessWithSQLAlchemy
     from eventsourcing.domain.model.decorators import retry
     from eventsourcing.exceptions import OperationalError, RecordConflictError
 
