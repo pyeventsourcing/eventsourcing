@@ -1,8 +1,8 @@
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.application.command import CommandProcessWithSQLAlchemy
-from eventsourcing.application.process import ProcessApplicationWithSQLAlchemy, RepositoryWrapper
+from eventsourcing.application.sqlalchemy import CommandProcessWithSQLAlchemy, ProcessApplicationWithSQLAlchemy
+from eventsourcing.application.process import RepositoryWrapper
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.command import Command
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe

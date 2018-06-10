@@ -1,5 +1,5 @@
 from eventsourcing.application.policies import PersistencePolicy, SnapshottingPolicy
-from eventsourcing.application.simple import SimpleApplicationWithSQLAlchemy
+from eventsourcing.application.sqlalchemy import SimpleApplicationWithSQLAlchemy
 from eventsourcing.domain.model.entity import DomainEntity
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore

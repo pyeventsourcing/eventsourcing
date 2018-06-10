@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from eventsourcing.application.simple import SimpleApplicationWithSQLAlchemy
+from eventsourcing.application.sqlalchemy import SimpleApplicationWithSQLAlchemy
 from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.domain.model.events import assert_event_handlers_empty, DomainEvent
 from eventsourcing.interface.notificationlog import NotificationLogReader

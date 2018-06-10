@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from eventsourcing.application.multiprocess import Multiprocess
 from eventsourcing.application.process import ProcessApplication
-from eventsourcing.application.simple import SimpleApplicationWithSQLAlchemy
+from eventsourcing.application.sqlalchemy import SimpleApplicationWithSQLAlchemy
 from eventsourcing.application.system import System
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import retry

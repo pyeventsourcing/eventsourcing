@@ -114,7 +114,7 @@ os.environ['DB_URI'] = 'sqlite:///:memory:'
 Run the code.
 
 ```python
-from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.application.sqlalchemy import SimpleApplication
 from eventsourcing.exceptions import ConcurrencyError
 
 # Construct simple application (used here as a context manager).
