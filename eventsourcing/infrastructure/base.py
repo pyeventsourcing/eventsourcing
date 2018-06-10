@@ -116,7 +116,12 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
         raise OperationalError(e)
 
 
-class RelationalRecordManager(AbstractSequencedItemRecordManager):
+class ACIDRecordManager(AbstractSequencedItemRecordManager):
+    """
+    ACID record managers can write tracking records and event records
+    in an atomic transaction, needed for atomic processing in process
+    applications.
+    """
     tracking_record_class = None
 
     tracking_record_field_names = [
@@ -128,6 +133,12 @@ class RelationalRecordManager(AbstractSequencedItemRecordManager):
         # 'originator_version',
     ]
 
+    @abstractmethod
+    def get_max_record_id(self):
+        """Return maximum notification ID in pipeline."""
+
+
+class RelationalRecordManager(ACIDRecordManager):
     def __init__(self, *args, **kwargs):
         super(RelationalRecordManager, self).__init__(*args, **kwargs)
         self._insert_select_max = None
@@ -224,10 +235,6 @@ class RelationalRecordManager(AbstractSequencedItemRecordManager):
         "INSERT INTO {tablename} ({columns}) "
         "VALUES ({placeholders});"
     )
-
-    @abstractmethod
-    def get_max_record_id(self):
-        """Return maximum ID of existing records."""
 
     @abstractmethod
     def get_record_table_name(self, record_class):

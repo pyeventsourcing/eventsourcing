@@ -7,7 +7,7 @@ import requests
 import six
 
 from eventsourcing.domain.model.array import BigArray
-from eventsourcing.infrastructure.base import RelationalRecordManager
+from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder, json_dumps
 
 DEFAULT_SECTION_SIZE = 20
@@ -125,10 +125,9 @@ class LocalNotificationLog(AbstractNotificationLog):
 
 
 class RecordManagerNotificationLog(LocalNotificationLog):
-
     def __init__(self, record_manager, section_size):
         super(RecordManagerNotificationLog, self).__init__(section_size)
-        assert isinstance(record_manager, RelationalRecordManager), record_manager
+        assert isinstance(record_manager, ACIDRecordManager), record_manager
         assert record_manager.contiguous_record_ids
         self.record_manager = record_manager
 
