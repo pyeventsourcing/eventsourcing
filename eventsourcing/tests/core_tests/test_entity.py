@@ -2,6 +2,8 @@ from uuid import uuid4
 
 import datetime
 
+import time
+
 from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.entity import AttributeChanged, VersionedEntity
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
@@ -39,8 +41,15 @@ class TestExampleEntity(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
         self.assertTrue(example1.id)
         self.assertEqual(example1.__version__, 0)
         self.assertTrue(example1.__created_on__)
+        self.assertLess(example1.__created_on__, time.time())
+        self.assertGreater(example1.__created_on__, time.time() - 1)
         self.assertTrue(example1.__last_modified__)
         self.assertEqual(example1.__created_on__, example1.__last_modified__)
+
+        # Test the datetime_from_timestamp() converts ok.
+        tt = time.time()
+        dt = datetime.datetime.utcnow()
+        self.assertEqual(datetime_from_timestamp(tt).hour, dt.hour)
 
         # Check can get datetime from timestamps, and it corresponds to UTC.
         dt = datetime_from_timestamp(example1.__created_on__)
