@@ -8,7 +8,7 @@ from six import with_metaclass
 
 from eventsourcing.domain.model.events import AttributeChanged, Created, Discarded, DomainEvent, \
     EventWithOriginatorID, \
-    EventWithOriginatorVersion, EventWithTimestamp, GENESIS_HASH, QualnameABC, publish
+    EventWithOriginatorVersion, EventWithTimestamp, GENESIS_HASH, QualnameABC, publish, EventWithHash
 from eventsourcing.exceptions import EntityIsDiscarded, HeadHashError, OriginatorIDError, \
     OriginatorVersionError
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
@@ -19,14 +19,9 @@ class DomainEntity(QualnameABC):
     """
     Base class for domain entities.
     """
-    __with_data_integrity__ = True
-    __genesis_hash__ = GENESIS_HASH
-
     def __init__(self, id):
         self._id = id
         self.__is_discarded__ = False
-        if self.__with_data_integrity__:
-            self.__head__ = type(self).__genesis_hash__
 
     @property
     def id(self):
@@ -40,24 +35,9 @@ class DomainEntity(QualnameABC):
         """
         Supertype for events of domain entities.
         """
-        __with_data_integrity__ = True
-
-        def __init__(self, **kwargs):
-            super(DomainEntity.Event, self).__init__(**kwargs)
-
         def __mutate__(self, obj):
-            # Check the object.
-            self.__check_obj__(obj)
-
             # Call super method.
-            obj = super(DomainEntity.Event, self).__mutate__(obj)
-
-            # Update __head__.
-            if getattr(type(obj), '__with_data_integrity__', True):
-                assert self.__with_data_integrity__
-                obj.__head__ = self.__event_hash__
-
-            return obj
+            return super(DomainEntity.Event, self).__mutate__(obj)
 
         def __check_obj__(self, obj):
             """
@@ -72,19 +52,11 @@ class DomainEntity(QualnameABC):
                     "'{}' not equal to event originator ID '{}'"
                     "".format(obj.id, self.originator_id)
                 )
-            # Check __head__ matches previous hash.
-            if getattr(type(obj), '__with_data_integrity__', True):
-                assert self.__with_data_integrity__
-                if obj.__head__ != self.__dict__.get('__previous_hash__'):
-                    raise HeadHashError(obj.id, obj.__head__, type(self))
 
     @classmethod
     def __create__(cls, originator_id=None, event_class=None, **kwargs):
         if originator_id is None:
             originator_id = uuid4()
-        if getattr(cls, '__with_data_integrity__', True):
-            genesis_hash = getattr(cls, '__genesis_hash__', GENESIS_HASH)
-            kwargs['__previous_hash__'] = genesis_hash
         event = (event_class or cls.Created)(
             originator_id=originator_id,
             originator_topic=get_topic(cls),
@@ -112,12 +84,7 @@ class DomainEntity(QualnameABC):
         def __mutate__(self, entity_class=None):
             if entity_class is None:
                 entity_class = resolve_topic(self.originator_topic)
-            with_data_integrity = getattr(entity_class, '__with_data_integrity__', True)
-            if with_data_integrity:
-                self.__check_hash__()
             obj = entity_class(**self.__entity_kwargs__)
-            if with_data_integrity:
-                obj.__head__ = self.__event_hash__
             return obj
 
         @property
@@ -125,9 +92,7 @@ class DomainEntity(QualnameABC):
             kwargs = self.__dict__.copy()
             kwargs['id'] = kwargs.pop('originator_id')
             kwargs.pop('originator_topic', None)
-            kwargs.pop('__event_hash__', None)
             kwargs.pop('__event_topic__', None)
-            kwargs.pop('__previous_hash__', None)
             return kwargs
 
     def __change_attribute__(self, name, value):
@@ -175,8 +140,6 @@ class DomainEntity(QualnameABC):
         Constructs, applies, and publishes a domain event.
         """
         self.__assert_not_discarded__()
-        if type(self).__with_data_integrity__:
-            kwargs['__previous_hash__'] = self.__head__
         event = event_class(
             originator_id=self._id,
             **kwargs
@@ -209,6 +172,67 @@ class DomainEntity(QualnameABC):
         return not self.__eq__(other)
 
 
+class EntityWithHashchain(DomainEntity):
+    __genesis_hash__ = GENESIS_HASH
+
+    def __init__(self, *args, **kwargs):
+        super(EntityWithHashchain, self).__init__(*args, **kwargs)
+        self.__head__ = type(self).__genesis_hash__
+
+    class Event(EventWithHash, DomainEntity.Event):
+        """
+        Supertype for events of domain entities.
+        """
+        def __mutate__(self, obj):
+            # Set entity head from event hash.
+            obj.__head__ = self.__event_hash__
+
+            # Call super method.
+            return super(EntityWithHashchain.Event, self).__mutate__(obj)
+
+        def __check_obj__(self, obj):
+            """
+            Extends superclass method by checking the __previous_hash__
+            of this event matches the __head__ hash of the entity obj.
+            """
+            # Call super method.
+            super(EntityWithHashchain.Event, self).__check_obj__(obj)
+
+            # Check __head__ matches previous hash.
+            if obj.__head__ != self.__dict__.get('__previous_hash__'):
+                raise HeadHashError(obj.id, obj.__head__, type(self))
+
+    class Created(Event, DomainEntity.Created):
+        @property
+        def __entity_kwargs__(self):
+            # Call super method.
+            kwargs = super(EntityWithHashchain.Created, self).__entity_kwargs__
+
+            # Drop the event hashes.
+            kwargs.pop('__event_hash__', None)
+            kwargs.pop('__previous_hash__', None)
+
+            return kwargs
+
+        def __mutate__(self, entity_class=None):
+            # Call super method.
+            obj = super(EntityWithHashchain.Event, self).__mutate__(entity_class)
+
+            # Set entity head from event hash.
+            obj.__head__ = self.__event_hash__
+
+            return obj
+
+    @classmethod
+    def __create__(cls, *args, **kwargs):
+        kwargs['__previous_hash__'] = getattr(cls, '__genesis_hash__', GENESIS_HASH)
+        return super(EntityWithHashchain, cls).__create__(*args, **kwargs)
+
+    def __trigger_event__(self, event_class, **kwargs):
+        kwargs['__previous_hash__'] = self.__head__
+        super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
+
+
 class VersionedEntity(DomainEntity):
     def __init__(self, __version__=None, **kwargs):
         super(VersionedEntity, self).__init__(**kwargs)
@@ -239,7 +263,7 @@ class VersionedEntity(DomainEntity):
 
         def __check_obj__(self, obj):
             """
-            Extended superclass method by checking the event's
+            Extends superclass method by checking the event's
             originator version follows (1 +) this entity's version.
             """
             super(VersionedEntity.Event, self).__check_obj__(obj)

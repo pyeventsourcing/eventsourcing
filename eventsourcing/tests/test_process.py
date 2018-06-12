@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from eventsourcing.application.sqlalchemy import CommandProcessWithSQLAlchemy, ProcessApplicationWithSQLAlchemy
 from eventsourcing.application.process import RepositoryWrapper
-from eventsourcing.domain.model.aggregate import AggregateRoot
+from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.command import Command
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
@@ -222,15 +222,15 @@ class TestCommands(TestCase):
 
 # Example aggregate (used in the test).
 
-class ExampleAggregate(AggregateRoot):
+class ExampleAggregate(BaseAggregateRoot):
     def __init__(self, **kwargs):
         super(ExampleAggregate, self).__init__(**kwargs)
         self.is_moved_on = False
 
-    class Event(AggregateRoot.Event):
+    class Event(BaseAggregateRoot.Event):
         pass
 
-    class Created(Event, AggregateRoot.Created):
+    class Created(Event, BaseAggregateRoot.Created):
         pass
 
     def move_on(self):
@@ -257,16 +257,16 @@ def example_policy(process, repository, event):
             return ExampleAggregate.__create__()
 
 
-class LogMessage(AggregateRoot):
+class LogMessage(BaseAggregateRoot):
 
     def __init__(self, message='', **kwargs):
         super(LogMessage, self).__init__(**kwargs)
         self.message = message
 
-    class Event(AggregateRoot.Event):
+    class Event(BaseAggregateRoot.Event):
         pass
 
-    class Created(Event, AggregateRoot.Created):
+    class Created(Event, BaseAggregateRoot.Created):
         pass
 
 

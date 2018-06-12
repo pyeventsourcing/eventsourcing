@@ -8,7 +8,7 @@ from eventsourcing.application.multiprocess import Multiprocess
 from eventsourcing.application.process import ProcessApplication
 from eventsourcing.application.sqlalchemy import SimpleApplicationWithSQLAlchemy
 from eventsourcing.application.system import System
-from eventsourcing.domain.model.aggregate import AggregateRoot
+from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
 from eventsourcing.exceptions import OperationalError, RecordConflictError
@@ -200,15 +200,15 @@ class TestSystem(TestCase):
 
 # Second example - orders, reservations, payments.
 
-class Order(AggregateRoot):
+class Order(BaseAggregateRoot):
     def __init__(self, **kwargs):
         super(Order, self).__init__(**kwargs)
         self.is_reserved = False
         self.is_paid = False
 
-    class Event(AggregateRoot.Event): pass
+    class Event(BaseAggregateRoot.Event): pass
 
-    class Created(Event, AggregateRoot.Created): pass
+    class Created(Event, BaseAggregateRoot.Created): pass
 
     class Reserved(Event):
         def mutate(self, order):
@@ -229,28 +229,28 @@ class Order(AggregateRoot):
         self.__trigger_event__(self.Paid, payment_id=payment_id)
 
 
-class Reservation(AggregateRoot):
+class Reservation(BaseAggregateRoot):
     def __init__(self, order_id, **kwargs):
         super(Reservation, self).__init__(**kwargs)
         self.order_id = order_id
 
-    class Event(AggregateRoot.Event): pass
+    class Event(BaseAggregateRoot.Event): pass
 
-    class Created(Event, AggregateRoot.Created): pass
+    class Created(Event, BaseAggregateRoot.Created): pass
 
     @classmethod
     def create(cls, order_id):
         return cls.__create__(order_id=order_id)
 
 
-class Payment(AggregateRoot):
+class Payment(BaseAggregateRoot):
     def __init__(self, order_id, **kwargs):
         super(Payment, self).__init__(**kwargs)
         self.order_id = order_id
 
-    class Event(AggregateRoot.Event): pass
+    class Event(BaseAggregateRoot.Event): pass
 
-    class Created(Event, AggregateRoot.Created): pass
+    class Created(Event, BaseAggregateRoot.Created): pass
 
     @classmethod
     def make(self, order_id):

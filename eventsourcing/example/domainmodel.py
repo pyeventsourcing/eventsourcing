@@ -1,15 +1,16 @@
 from eventsourcing.domain.model.decorators import attribute
-from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
+from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, \
+    EntityWithHashchain
 
 
-class Example(TimestampedVersionedEntity):
+class Example(EntityWithHashchain, TimestampedVersionedEntity):
     """
     An example event sourced domain model entity.
     """
-    class Event(TimestampedVersionedEntity.Event):
+    class Event(EntityWithHashchain.Event, TimestampedVersionedEntity.Event):
         """Supertype for events of example entities."""
 
-    class Created(Event, TimestampedVersionedEntity.Created):
+    class Created(Event, EntityWithHashchain.Created, TimestampedVersionedEntity.Created):
         """Published when an Example is created."""
 
     class AttributeChanged(Event, TimestampedVersionedEntity.AttributeChanged):

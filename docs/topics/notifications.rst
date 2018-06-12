@@ -989,7 +989,6 @@ The example below uses the record notification log, constructed above.
 
     item = section_dict['items'][0]
     assert item['id'] == 1
-    assert '__event_hash__' in item['state']
     assert item['event_type'] == 'eventsourcing.domain.model.entity#VersionedEntity.Created'
 
     assert section_dict['items'][1]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'

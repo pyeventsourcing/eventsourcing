@@ -5,7 +5,7 @@ import datetime
 import time
 
 from eventsourcing.domain.model.decorators import attribute
-from eventsourcing.domain.model.entity import AttributeChanged, VersionedEntity
+from eventsourcing.domain.model.entity import AttributeChanged, VersionedEntity, TimestampedVersionedEntity
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
@@ -239,40 +239,39 @@ class TestExampleEntity(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
 
         event4 = Subclass(originator_id=1, originator_version=0, timestamp=1)
 
+        self.assertNotEqual(hash(event1), hash(event4))  # Same thing
         self.assertNotEqual(event1, event4)
         self.assertNotEqual(hash(event1), hash(event4))  # Same thing
 
     def test_without_dataintegrity(self):
 
         # Different type with same values.
-        class SubclassEvent(Example.Event):
+        class SubclassEvent(TimestampedVersionedEntity.Event):
             __with_data_integrity__ = False
 
         event = SubclassEvent(originator_id=1, originator_version=0, timestamp=1)
         self.assertFalse(hasattr(event, '__previous_hash__'))
-        self.assertIsNone(event.__event_hash__)
+        self.assertFalse(hasattr(event, '__event_hash__'))
 
         # Check the Python hash still works.
         self.assertIsInstance(hash(event), int)
 
-        class SubclassCreated(Example.Created):
+        class SubclassCreated(TimestampedVersionedEntity.Created):
             __with_data_integrity__ = False
 
         event = SubclassCreated(originator_id=1, originator_topic='', timestamp=1)
         self.assertFalse(hasattr(event, '__previous_hash__'))
-        self.assertIsNone(event.__event_hash__)
 
         entity = SubclassEntity.__create__()
         self.assertFalse(hasattr(entity, '__head__'))
 
 
-class SubclassEntity(Example):
-    __with_data_integrity__ = False
+class SubclassEntity(TimestampedVersionedEntity):
 
-    class Event(Example.Event):
-        __with_data_integrity__ = False
+    class Event(TimestampedVersionedEntity.Event):
+        pass
 
-    class Created(Event, Example.Created):
+    class Created(Event, TimestampedVersionedEntity.Created):
         pass
 
 

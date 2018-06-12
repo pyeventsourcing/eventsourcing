@@ -6,11 +6,10 @@ Base classes for aggregates in a domain driven design.
 """
 from collections import deque
 
-from eventsourcing.domain.model.entity import TimestampedVersionedEntity
-from eventsourcing.exceptions import ConcurrencyError
+from eventsourcing.domain.model.entity import TimestampedVersionedEntity, EntityWithHashchain
 
 
-class AggregateRoot(TimestampedVersionedEntity):
+class BaseAggregateRoot(TimestampedVersionedEntity):
     """
     Root entity for an aggregate in a domain driven design.
     """
@@ -28,7 +27,7 @@ class AggregateRoot(TimestampedVersionedEntity):
         """Published when an AggregateRoot is discarded."""
 
     def __init__(self, **kwargs):
-        super(AggregateRoot, self).__init__(**kwargs)
+        super(BaseAggregateRoot, self).__init__(**kwargs)
         self.__pending_events__ = deque()
 
     def __save__(self):
@@ -68,5 +67,35 @@ class AggregateRoot(TimestampedVersionedEntity):
         self.__pending_events__.append(event)
 
     def __discard__(self):
-        super(AggregateRoot, self).__discard__()
+        super(BaseAggregateRoot, self).__discard__()
         self.__save__()
+
+
+class AggregateRootWithHashchainedEvents(EntityWithHashchain, BaseAggregateRoot):
+
+    class Event(EntityWithHashchain.Event, BaseAggregateRoot.Event):
+        """Supertype for aggregate events."""
+
+    class Created(Event, EntityWithHashchain.Created, BaseAggregateRoot.Created):
+        """Published when an AggregateRoot is created."""
+
+    class AttributeChanged(Event, BaseAggregateRoot.AttributeChanged):
+        """Published when an AggregateRoot is changed."""
+
+    class Discarded(Event, BaseAggregateRoot.Discarded):
+        """Published when an AggregateRoot is discarded."""
+
+
+class AggregateRoot(AggregateRootWithHashchainedEvents):
+
+    class Event(AggregateRootWithHashchainedEvents.Event):
+        """Supertype for aggregate events."""
+
+    class Created(Event, AggregateRootWithHashchainedEvents.Created):
+        """Published when an AggregateRoot is created."""
+
+    class AttributeChanged(Event, AggregateRootWithHashchainedEvents.AttributeChanged):
+        """Published when an AggregateRoot is changed."""
+
+    class Discarded(Event, AggregateRootWithHashchainedEvents.Discarded):
+        """Published when an AggregateRoot is discarded."""

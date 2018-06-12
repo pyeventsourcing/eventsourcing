@@ -55,7 +55,7 @@ class TestAbstractDomainEvent(unittest.TestCase):
         # Check not equal to same event type with different values.
         self.assertNotEqual(event2, Event(name='another value'))
 
-        self.assertNotEqual(event2, SubclassEvent(name='value'))
+        self.assertNotEqual(event2, SubclassEvent(name=event2.name))
 
 
 class TestEventWithOriginatorID(unittest.TestCase):
