@@ -66,10 +66,6 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
         """
         self.__pending_events__.append(event)
 
-    def __discard__(self):
-        super(BaseAggregateRoot, self).__discard__()
-        self.__save__()
-
 
 class AggregateRootWithHashchainedEvents(EntityWithHashchain, BaseAggregateRoot):
 

@@ -168,6 +168,7 @@ application's repository.
 
     # Check the aggregate can be discarded.
     copy.__discard__()
+    copy.__save__()
     assert copy.id not in app.repository
 
     # Check optimistic concurrency control is working ok.
@@ -317,6 +318,7 @@ aggregate will no longer be available in the repository.
 
     # Discard the aggregate.
     aggregate.__discard__()
+    aggregate.__save__()
 
     # Check discarded aggregate no longer exists in repository.
     assert aggregate.id not in app.repository

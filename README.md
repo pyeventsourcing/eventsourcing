@@ -160,6 +160,7 @@ with SimpleApplication(persist_event_type=World.Event) as app:
 
     # Delete aggregate.
     world.__discard__()
+    world.__save__()
 
     # Discarded aggregate not found.
     assert world.id not in app.repository
