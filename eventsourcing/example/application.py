@@ -11,7 +11,7 @@ from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
-from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 
 # Please note, the code is this module is basically old-fashioned, and will
@@ -29,6 +29,7 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
     Supports three different event stores: for log events,
     for entity events, and for snapshot events.
     """
+
     def __init__(self, entity_record_manager=None,
                  log_record_manager=None,
                  snapshot_record_manager=None,
@@ -167,9 +168,9 @@ class ExampleApplication(ApplicationWithPersistencePolicies):
 def construct_example_application(**kwargs):
     """Application object factory."""
     return ExampleApplication(**kwargs)
+
+
 # "Global" variable for single instance of application.
-
-
 _application = None
 
 
