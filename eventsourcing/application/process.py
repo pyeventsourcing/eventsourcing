@@ -3,7 +3,7 @@ from collections import OrderedDict, defaultdict
 import six
 
 from eventsourcing.application.pipeline import Pipeable
-from eventsourcing.application.simple import AbstractSimpleApplication
+from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, PromptFailed, RecordConflictError
@@ -14,15 +14,19 @@ from eventsourcing.utils.transcoding import json_dumps, json_loads
 from eventsourcing.utils.uuids import uuid_from_application_name
 
 
-class ProcessApplication(Pipeable, AbstractSimpleApplication):
+class ProcessApplication(Pipeable, SimpleApplication):
+    tracking_record_manager_class = None
 
-    def __init__(self, name=None, policy=None, setup_tables=False, setup_table=False, **kwargs):
+    def __init__(self, name=None, policy=None, setup_tables=False, setup_table=False,
+                 tracking_record_manager_class=None, **kwargs):
         setup_table = setup_tables = setup_table or setup_tables
         super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
         # self._cached_entities = {}
         self.policy_func = policy
         self.readers = OrderedDict()
         self.is_reader_position_ok = defaultdict(bool)
+
+        self.tracking_record_manager_class = tracking_record_manager_class or self.tracking_record_manager_class
 
         # Setup tracking records.
         self.tracking_record_manager = self.infrastructure_factory.construct_tracking_record_manager()
@@ -38,6 +42,11 @@ class ProcessApplication(Pipeable, AbstractSimpleApplication):
         subscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
         subscribe(predicate=self.is_upstream_prompt, handler=self.run)
         # Todo: Maybe make a prompts policy object?
+
+    def construct_infrastructure_factory(self, *args, **kwargs):
+        return super(ProcessApplication, self).construct_infrastructure_factory(
+            tracking_record_manager_class=self.tracking_record_manager_class, *args, **kwargs
+        )
 
     def follow(self, upstream_application_name, notification_log):
         # Create a reader.

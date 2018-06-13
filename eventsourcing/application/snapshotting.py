@@ -1,12 +1,12 @@
 from eventsourcing.application.policies import PersistencePolicy, SnapshottingPolicy
-from eventsourcing.application.sqlalchemy import SimpleApplicationWithSQLAlchemy
+from eventsourcing.application.sqlalchemy import ApplicationWithSQLAlchemy
 from eventsourcing.domain.model.entity import DomainEntity
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
 
-class SnapshottingApplication(SimpleApplicationWithSQLAlchemy):
+class SnapshottingApplication(ApplicationWithSQLAlchemy):
     def __init__(self, period=10, snapshot_record_class=None, **kwargs):
         self.period = period
         self.snapshot_record_class = snapshot_record_class

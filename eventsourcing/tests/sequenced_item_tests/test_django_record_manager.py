@@ -27,6 +27,7 @@ class DjangoTestCase(TransactionTestCase):
     def construct_datastore(self):
         pass
 
+
 class TestDjangoRecordManagerWithIntegerSequences(DjangoTestCase, IntegerSequencedRecordTestCase):
     def construct_record_manager(self):
         return self.construct_entity_record_manager()

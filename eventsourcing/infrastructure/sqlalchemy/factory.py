@@ -15,7 +15,6 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
     snapshot_record_class = SnapshotRecord
     tracking_record_manager_class = TrackingRecordManager
 
-
     def __init__(self, session, uri=None, pool_size=5, *args, **kwargs):
         super(SQLAlchemyInfrastructureFactory, self).__init__(*args, **kwargs)
         self.session = session
@@ -23,20 +22,23 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
         self.pool_size = pool_size
 
     def construct_record_manager(self, **kwargs):
-        return super(SQLAlchemyInfrastructureFactory, self).construct_record_manager(
-            session=self.session, **kwargs
-        )
+        s = super(SQLAlchemyInfrastructureFactory, self)
+        return s.construct_record_manager(session=self.session, **kwargs)
 
     def construct_datastore(self):
         datastore = SQLAlchemyDatastore(
-            settings=SQLAlchemySettings(uri=self.uri, pool_size=self.pool_size),
+            settings=SQLAlchemySettings(
+                uri=self.uri,
+                pool_size=self.pool_size
+            ),
             session=self.session,
         )
         self.session = datastore.session
         return datastore
 
     def construct_tracking_record_manager(self):
-        return super(SQLAlchemyInfrastructureFactory, self).construct_tracking_record_manager(self.session)
+        s = super(SQLAlchemyInfrastructureFactory, self)
+        return s.construct_tracking_record_manager(self.session)
 
 
 def construct_sqlalchemy_eventstore(session,

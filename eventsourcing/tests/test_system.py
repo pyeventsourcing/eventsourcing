@@ -5,8 +5,7 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.application.multiprocess import Multiprocess
-from eventsourcing.application.process import ProcessApplication
-from eventsourcing.application.sqlalchemy import SimpleApplicationWithSQLAlchemy
+from eventsourcing.application.sqlalchemy import ProcessApplication
 from eventsourcing.application.system import System
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.decorators import retry
@@ -267,11 +266,7 @@ def create_new_order():
 logger = logging.getLogger()
 
 
-class ProcessWithSQLAlchemy(ProcessApplication, SimpleApplicationWithSQLAlchemy):
-    pass
-
-
-class Orders(ProcessWithSQLAlchemy):
+class Orders(ProcessApplication):
     persist_event_type = Order.Created
 
     def policy(self, repository, event):
@@ -290,7 +285,7 @@ class Orders(ProcessWithSQLAlchemy):
             logger.info('set Order as paid')
 
 
-class Reservations(ProcessWithSQLAlchemy):
+class Reservations(ProcessApplication):
     def policy(self, repository, event):
         if isinstance(event, Order.Created):
             # Create a reservation.
@@ -299,7 +294,7 @@ class Reservations(ProcessWithSQLAlchemy):
             return Reservation.create(order_id=event.originator_id)
 
 
-class Payments(ProcessWithSQLAlchemy):
+class Payments(ProcessApplication):
     def policy(self, repository, event):
         if isinstance(event, Order.Reserved):
             # Make a payment.
@@ -308,7 +303,7 @@ class Payments(ProcessWithSQLAlchemy):
             return Payment.make(order_id=event.originator_id)
 
 
-class Examples(ProcessWithSQLAlchemy):
+class Examples(ProcessApplication):
     persist_event_type = ExampleAggregate.Created
 
     def policy(self, repository, event):

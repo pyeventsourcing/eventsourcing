@@ -12,37 +12,46 @@ from eventsourcing.utils.random import decode_random_bytes
 from eventsourcing.utils.uuids import uuid_from_application_name
 
 
-class AbstractSimpleApplication(object):
+class SimpleApplication(object):
     persist_event_type = None
-    sequenced_item_class = StoredEvent
+    sequenced_item_class = None
+    sequenced_item_mapper_class = None
+    infrastructure_factory_class = None
+    record_manager_class = None
     stored_event_record_class = None
     snapshot_record_class = None
-    infrastructure_factory_class = None
-    sequenced_item_mapper_class = SequencedItemMapper
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
                  cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
-                 infrastructure_factory_class=None, stored_event_record_class=None,
-                 snapshot_record_class=None, setup_table=True, contiguous_record_ids=True,
-                 pipeline_id=-1, notification_log_section_size=None):
+                 infrastructure_factory_class=None, record_manager_class=None,
+                 stored_event_record_class=None, snapshot_record_class=None,
+                 setup_table=True, contiguous_record_ids=True, pipeline_id=-1,
+                 notification_log_section_size=None):
 
         self.name = name or type(self).__name__.lower()
+
         self.notification_log_section_size = notification_log_section_size
-        self.sequenced_item_class = sequenced_item_class or type(self).sequenced_item_class
-        self.sequenced_item_mapper_class = sequenced_item_mapper_class or type(self).sequenced_item_mapper_class
 
-        self.infrastructure_factory_class = infrastructure_factory_class or type(self).infrastructure_factory_class
-        assert self.infrastructure_factory_class is not None, (
-            "Infrastructure factory class not set on {}".format(type(self))
-        )
-        assert issubclass(self.infrastructure_factory_class, InfrastructureFactory), self.infrastructure_factory_class
+        self.sequenced_item_class = sequenced_item_class \
+                                    or type(self).sequenced_item_class \
+                                    or StoredEvent
 
-        self.stored_event_record_class = stored_event_record_class or type(self).stored_event_record_class
-        assert self.stored_event_record_class is not None, (
-            "Stored event record class not set on {}".format(type(self))
-        )
+        self.sequenced_item_mapper_class = sequenced_item_mapper_class \
+                                           or type(self).sequenced_item_mapper_class \
+                                           or SequencedItemMapper
 
-        self.snapshot_record_class = snapshot_record_class or type(self).snapshot_record_class
+        self.infrastructure_factory_class = infrastructure_factory_class \
+                                            or type(self).infrastructure_factory_class \
+                                            or InfrastructureFactory
+
+        self.record_manager_class = record_manager_class \
+                                    or type(self).record_manager_class
+
+        self.stored_event_record_class = stored_event_record_class \
+                                         or type(self).stored_event_record_class
+
+        self.snapshot_record_class = snapshot_record_class \
+                                     or type(self).snapshot_record_class
 
         self.contiguous_record_ids = contiguous_record_ids
         self.application_id = uuid_from_application_name(self.name)
@@ -73,6 +82,7 @@ class AbstractSimpleApplication(object):
         :rtype: InfrastructureFactory
         """
         return self.infrastructure_factory_class(
+            record_manager_class=self.record_manager_class,
             integer_sequenced_record_class=self.stored_event_record_class,
             sequenced_item_class=self.sequenced_item_class,
             contiguous_record_ids=self.contiguous_record_ids,
@@ -106,9 +116,10 @@ class AbstractSimpleApplication(object):
 
     def setup_table(self):
         # Setup the database table using event store's record class.
-        self.datastore.setup_table(
-            self.event_store.record_manager.record_class
-        )
+        if self.datastore is not None:
+            self.datastore.setup_table(
+                self.event_store.record_manager.record_class
+            )
 
     def setup_notification_log(self):
         self.notification_log = RecordManagerNotificationLog(
@@ -128,9 +139,10 @@ class AbstractSimpleApplication(object):
 
     def drop_table(self):
         # Drop the database table using event store's record class.
-        self.datastore.drop_table(
-            self.event_store.record_manager.record_class
-        )
+        if self.datastore is not None:
+            self.datastore.drop_table(
+                self.event_store.record_manager.record_class
+            )
 
     def close(self):
         # Close the persistence policy.
@@ -138,7 +150,8 @@ class AbstractSimpleApplication(object):
             self.persistence_policy.close()
 
         # Close database connection.
-        self.datastore.close_connection()
+        if self.datastore is not None:
+            self.datastore.close_connection()
 
     def __enter__(self):
         return self

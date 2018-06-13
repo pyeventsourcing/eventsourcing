@@ -13,6 +13,7 @@ class InfrastructureFactory(object):
 
     def __init__(self, record_manager_class=None, sequenced_item_class=None,
                  integer_sequenced_record_class=None, timestamp_sequenced_record_class=None,
+                 tracking_record_manager_class=None,
                  snapshot_record_class=None, contiguous_record_ids=False, application_id=None,
                  pipeline_id=-1):
 
@@ -24,6 +25,8 @@ class InfrastructureFactory(object):
 
         self.timestamp_sequenced_record_class = timestamp_sequenced_record_class or \
                                                 self.timestamp_sequenced_record_class
+
+        self.tracking_record_manager_class = tracking_record_manager_class or self.tracking_record_manager_class
 
         self.snapshot_record_class = snapshot_record_class or self.snapshot_record_class
 

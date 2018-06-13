@@ -9,7 +9,6 @@ from eventsourcing.application.system import System
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed
-from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.uuids import uuid_from_application_name
 
