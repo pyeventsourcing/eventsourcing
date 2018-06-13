@@ -93,8 +93,8 @@ class Actors(object):
 
         assert list(response.pipeline_actors.keys()) == self.pipeline_ids, (
             "Configured pipeline IDs mismatch initialised system {} {}").format(
-                list(self.pipeline_actors.keys()), self.pipeline_ids
-            )
+            list(self.pipeline_actors.keys()), self.pipeline_ids
+        )
 
         self.pipeline_actors = response.pipeline_actors
 
