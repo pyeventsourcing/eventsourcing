@@ -50,12 +50,12 @@ def start_multiproc_tcp_base_system():
     start_actor_system(system_base='multiprocTCPBase')
 
 
-def start_multiproc_udp_base_system():
-    start_actor_system(system_base='multiprocUDPBase')
-
-
-def start_multiproc_queue_base_system():
-    start_actor_system(system_base='multiprocQueueBase')
+# def start_multiproc_udp_base_system():
+#     start_actor_system(system_base='multiprocUDPBase')
+#
+#
+# def start_multiproc_queue_base_system():
+#     start_actor_system(system_base='multiprocQueueBase')
 
 
 class Actors(object):
@@ -89,13 +89,15 @@ class Actors(object):
         response = self.actor_system.ask(self.system_actor, command)
 
         # Keep the pipeline actor addresses, to send prompts directly.
-        if isinstance(response, PoisonMessage):
-            raise Exception("Got a poison message after init ask: {}".format(response))
-        self.pipeline_actors = response.pipeline_actors
-        if list(self.pipeline_actors.keys()) != self.pipeline_ids:
-            raise ValueError("Given pipeline IDs mismatch initialised system {} {}".format(
+        assert isinstance(response, SystemInitResponse), type(response)
+
+        assert list(response.pipeline_actors.keys()) == self.pipeline_ids, (
+            "Configured pipeline IDs mismatch initialised system {} {}").format(
                 list(self.pipeline_actors.keys()), self.pipeline_ids
-            ))
+            )
+
+        self.pipeline_actors = response.pipeline_actors
+
         # Todo: Somehow know when to get a new address from the system actor.
         # Todo: Command and response messages to system actor to get new pipeline address.
 
@@ -107,9 +109,9 @@ class Actors(object):
         if prompt.pipeline_id in self.pipeline_actors:
             pipeline_actor = self.pipeline_actors[prompt.pipeline_id]
             self.actor_system.tell(pipeline_actor, prompt)
-        else:
-            msg = "Pipeline {} is not running.".format(prompt.pipeline_id)
-            raise ValueError(msg)
+        # else:
+        #     msg = "Pipeline {} is not running.".format(prompt.pipeline_id)
+        #     raise ValueError(msg)
 
     def close(self):
         """Stops all the actors running a system of process applications."""

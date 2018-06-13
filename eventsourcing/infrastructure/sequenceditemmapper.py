@@ -28,8 +28,9 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     Uses JSON to transcode domain events.
     """
 
-    def __init__(self, sequenced_item_class=SequencedItem, sequence_id_attr_name=None, position_attr_name=None,
-                 json_encoder_class=None, json_decoder_class=None, cipher=None, other_attr_names=()):
+    def __init__(self, sequenced_item_class=SequencedItem, sequence_id_attr_name=None,
+                 position_attr_name=None, json_encoder_class=None, json_decoder_class=None,
+                 cipher=None, other_attr_names=()):
         self.sequenced_item_class = sequenced_item_class
         self.json_encoder_class = json_encoder_class or ObjectJSONEncoder
         self.json_decoder_class = json_decoder_class or ObjectJSONDecoder
@@ -65,7 +66,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Serialise the remaining event attribute values.
         data = json_dumps(event_attrs, cls=self.json_encoder_class)
 
-        # Encrypt (optional).
+        # Encrypt data.
         if self.cipher:
             data = self.cipher.encrypt(data)
 
@@ -95,17 +96,17 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         return self.from_topic_and_data(topic, data)
 
     def from_topic_and_data(self, topic, data):
-        # Decrypt (optional).
-        if self.cipher:
-            data = self.cipher.decrypt(data)
-
-        # Deserialize.
-        event_attrs = json_loads(data, cls=self.json_decoder_class)
-
         # Resolve topic to event class.
         domain_event_class = resolve_topic(topic)
 
-        # Reconstruct the domain event object.
+        # Decrypt data.
+        if self.cipher:
+            data = self.cipher.decrypt(data)
+
+        # Deserialize data.
+        event_attrs = json_loads(data, cls=self.json_decoder_class)
+
+        # Reconstruct domain event object.
         return reconstruct_object(domain_event_class, event_attrs)
 
 

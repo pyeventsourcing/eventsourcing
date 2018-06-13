@@ -20,12 +20,15 @@ class SimpleApplication(object):
     record_manager_class = None
     stored_event_record_class = None
     snapshot_record_class = None
+    json_encoder_class = None
+    json_decoder_class = None
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
                  cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
                  infrastructure_factory_class=None, record_manager_class=None,
                  stored_event_record_class=None, snapshot_record_class=None,
                  setup_table=True, contiguous_record_ids=True, pipeline_id=-1,
+                 json_encoder_class=None, json_decoder_class=None,
                  notification_log_section_size=None):
 
         self.name = name or type(self).__name__.lower()
@@ -44,14 +47,15 @@ class SimpleApplication(object):
                                             or type(self).infrastructure_factory_class \
                                             or InfrastructureFactory
 
-        self.record_manager_class = record_manager_class \
-                                    or type(self).record_manager_class
+        self.record_manager_class = record_manager_class or type(self).record_manager_class
 
-        self.stored_event_record_class = stored_event_record_class \
-                                         or type(self).stored_event_record_class
+        self.stored_event_record_class = stored_event_record_class or type(self).stored_event_record_class
 
-        self.snapshot_record_class = snapshot_record_class \
-                                     or type(self).snapshot_record_class
+        self.snapshot_record_class = snapshot_record_class or type(self).snapshot_record_class
+
+        self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
+
+        self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
 
         self.contiguous_record_ids = contiguous_record_ids
         self.application_id = uuid_from_application_name(self.name)
@@ -94,13 +98,13 @@ class SimpleApplication(object):
 
     def setup_event_store(self):
         # Construct event store.
-        sequenced_item_mapper = SequencedItemMapper(
+        sequenced_item_mapper = self.sequenced_item_mapper_class(
             sequenced_item_class=self.sequenced_item_class,
             cipher=self.cipher,
             # sequence_id_attr_name=sequence_id_attr_name,
             # position_attr_name=position_attr_name,
-            # json_encoder_class=json_encoder_class,
-            # json_decoder_class=json_decoder_class,
+            json_encoder_class=self.json_encoder_class,
+            json_decoder_class=self.json_decoder_class,
         )
         record_manager = self.infrastructure_factory.construct_integer_sequenced_record_manager()
         self.event_store = EventStore(

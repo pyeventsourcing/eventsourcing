@@ -33,3 +33,13 @@ class TestAESCipher(TestCase):
         with self.assertRaises(DataIntegrityError):
             damaged = 'a' + ciphertext[:-1]
             cipher.decrypt(damaged)
+
+        # Check DataIntegrityError is raised (nonce too short).
+        with self.assertRaises(DataIntegrityError):
+            damaged = ciphertext[:12-1]
+            cipher.decrypt(damaged)
+
+        # Check DataIntegrityError is raised (tag too short).
+        with self.assertRaises(DataIntegrityError):
+            damaged = ciphertext[:28-1]
+            cipher.decrypt(damaged)

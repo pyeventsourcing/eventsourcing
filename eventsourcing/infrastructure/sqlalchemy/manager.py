@@ -1,7 +1,5 @@
-from functools import reduce
-
-from sqlalchemy import asc, bindparam, desc, or_, select, text
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy import asc, bindparam, desc, select, text
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import func
 
@@ -90,7 +88,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         except IntegrityError as e:
             self.raise_record_integrity_error(e)
 
-        except OperationalError as e:
+        except DBAPIError as e:
             self.raise_operational_error(e)
 
     def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,

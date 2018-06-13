@@ -79,7 +79,7 @@ class CassandraRecordManager(AbstractSequencedItemRecordManager):
         return items
 
     def get_notifications(self, start=None, stop=None, *args, **kwargs):
-        raise NotImplementedError()
+        """Not implemented."""
 
     def all_sequence_ids(self):
         sequence_id_page_size = int(os.getenv('SEQUENCE_ID_PAGE_SIZE') or '1')
