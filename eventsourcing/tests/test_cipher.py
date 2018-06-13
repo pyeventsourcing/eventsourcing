@@ -36,10 +36,10 @@ class TestAESCipher(TestCase):
 
         # Check DataIntegrityError is raised (nonce too short).
         with self.assertRaises(DataIntegrityError):
-            damaged = ciphertext[:12-1]
+            damaged = ciphertext[:0]
             cipher.decrypt(damaged)
 
         # Check DataIntegrityError is raised (tag too short).
         with self.assertRaises(DataIntegrityError):
-            damaged = ciphertext[:28-1]
+            damaged = ciphertext[:20]
             cipher.decrypt(damaged)
