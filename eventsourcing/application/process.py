@@ -9,28 +9,28 @@ from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, PromptFailed, RecordConflictError
 from eventsourcing.infrastructure.base import RelationalRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.infrastructure.sqlalchemy.manager import TrackingRecordManager
 from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.utils.transcoding import json_dumps, json_loads
 from eventsourcing.utils.uuids import uuid_from_application_name
 
 
-class Process(Pipeable, SimpleApplication):
-    tracking_record_manager_class = TrackingRecordManager
+class ProcessApplication(Pipeable, SimpleApplication):
+    tracking_record_manager_class = None
 
-    def __init__(self, name=None, policy=None, setup_tables=False, setup_table=False, session=None,
-                 persist_event_type=None, **kwargs):
+    def __init__(self, name=None, policy=None, setup_tables=False, setup_table=False,
+                 tracking_record_manager_class=None, **kwargs):
         setup_table = setup_tables = setup_table or setup_tables
-        super(Process, self).__init__(name=name, setup_table=setup_table, session=session,
-                                      persist_event_type=persist_event_type, **kwargs)
+        super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
         # self._cached_entities = {}
         self.policy_func = policy
         self.readers = OrderedDict()
         self.is_reader_position_ok = defaultdict(bool)
 
+        self.tracking_record_manager_class = tracking_record_manager_class or self.tracking_record_manager_class
+
         # Setup tracking records.
-        self.tracking_record_manager = self.tracking_record_manager_class(self.datastore.session)
-        if setup_tables and not session:
+        self.tracking_record_manager = self.infrastructure_factory.construct_tracking_record_manager()
+        if setup_tables:
             self.datastore.setup_table(
                 self.tracking_record_manager.record_class
             )
@@ -42,6 +42,11 @@ class Process(Pipeable, SimpleApplication):
         subscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
         subscribe(predicate=self.is_upstream_prompt, handler=self.run)
         # Todo: Maybe make a prompts policy object?
+
+    def construct_infrastructure_factory(self, *args, **kwargs):
+        return super(ProcessApplication, self).construct_infrastructure_factory(
+            tracking_record_manager_class=self.tracking_record_manager_class, *args, **kwargs
+        )
 
     def follow(self, upstream_application_name, notification_log):
         # Create a reader.
@@ -241,7 +246,7 @@ class Process(Pipeable, SimpleApplication):
     def close(self):
         unsubscribe(predicate=self.is_upstream_prompt, handler=self.run)
         unsubscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
-        super(Process, self).close()
+        super(ProcessApplication, self).close()
 
 
 class RepositoryWrapper(object):

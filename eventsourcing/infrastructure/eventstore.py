@@ -14,6 +14,7 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
     Abstract base class for event stores. Defines the methods
     expected of an event store by other classes in the library.
     """
+
     @abstractmethod
     def append(self, domain_event_or_events):
         """

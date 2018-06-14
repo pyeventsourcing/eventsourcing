@@ -1,9 +1,8 @@
 import logging
-import time
 
 from thespian.actors import *
 
-from eventsourcing.application.process import Prompt, Process
+from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.system import System
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
@@ -51,12 +50,16 @@ def start_multiproc_tcp_base_system():
     start_actor_system(system_base='multiprocTCPBase')
 
 
-def start_multiproc_queue_base_system():
-    start_actor_system(system_base='multiprocQueueBase')
+# def start_multiproc_udp_base_system():
+#     start_actor_system(system_base='multiprocUDPBase')
+#
+#
+# def start_multiproc_queue_base_system():
+#     start_actor_system(system_base='multiprocQueueBase')
 
 
 class Actors(object):
-    def __init__(self, system, pipeline_ids, system_actor_name='system', shutdown_on_exit=False):
+    def __init__(self, system, pipeline_ids, system_actor_name='system', shutdown_on_close=False):
         assert isinstance(system, System)
         self.system = system
         self.pipeline_ids = list(pipeline_ids)
@@ -67,7 +70,7 @@ class Actors(object):
             actorClass=SystemActor,
             globalName=self.system_actor_name
         )
-        self.shutdown_on_exit = shutdown_on_exit
+        self.shutdown_on_close = shutdown_on_close
 
     @property
     def actor_system(self):
@@ -86,13 +89,15 @@ class Actors(object):
         response = self.actor_system.ask(self.system_actor, command)
 
         # Keep the pipeline actor addresses, to send prompts directly.
-        if isinstance(response, PoisonMessage):
-            raise Exception("Got a poison message after init ask: {}".format(response))
+        assert isinstance(response, SystemInitResponse), type(response)
+
+        assert list(response.pipeline_actors.keys()) == self.pipeline_ids, (
+            "Configured pipeline IDs mismatch initialised system {} {}").format(
+            list(self.pipeline_actors.keys()), self.pipeline_ids
+        )
+
         self.pipeline_actors = response.pipeline_actors
-        if list(self.pipeline_actors.keys()) != self.pipeline_ids:
-            raise ValueError("Given pipeline IDs mismatch initialised system {} {}".format(
-                list(self.pipeline_actors.keys()), self.pipeline_ids
-            ))
+
         # Todo: Somehow know when to get a new address from the system actor.
         # Todo: Command and response messages to system actor to get new pipeline address.
 
@@ -104,14 +109,14 @@ class Actors(object):
         if prompt.pipeline_id in self.pipeline_actors:
             pipeline_actor = self.pipeline_actors[prompt.pipeline_id]
             self.actor_system.tell(pipeline_actor, prompt)
-        else:
-            msg = "Pipeline {} is not running.".format(prompt.pipeline_id)
-            raise ValueError(msg)
+        # else:
+        #     msg = "Pipeline {} is not running.".format(prompt.pipeline_id)
+        #     raise ValueError(msg)
 
     def close(self):
         """Stops all the actors running a system of process applications."""
         unsubscribe(handler=self.forward_prompt, predicate=self.is_prompt)
-        if self.shutdown_on_exit:
+        if self.shutdown_on_close:
             self.shutdown()
 
     def shutdown(self):
@@ -202,15 +207,12 @@ class PipelineActor(Actor):
             self.send(process_actor, msg)
 
 
-class NoneEvent(object):
-    pass
-
-
 class ProcessMaster(Actor):
     def __init__(self):
         super(ProcessMaster, self).__init__()
         self.is_slave_running = False
         self.last_prompts = {}
+        self.slave_actor = None
 
     def receiveMessage(self, msg, sender):
         if isinstance(msg, ProcessInitRequest):
@@ -239,7 +241,7 @@ class ProcessMaster(Actor):
             self.run_slave()
 
     def run_slave(self):
-        if not self.is_slave_running:
+        if self.slave_actor and not self.is_slave_running:
             self.send(self.slave_actor, SlaveRunRequest(self.last_prompts, self.myAddress))
             self.is_slave_running = True
             self.last_prompts = {}
@@ -272,7 +274,7 @@ class ProcessSlave(Actor):
             notification_log_section_size=5,
             pool_size=3,
         )
-        assert isinstance(self.process, Process)
+        assert isinstance(self.process, ProcessApplication)
         # Close the persistence policy.
         self.process.persistence_policy.close()
         # Replace publish_prompt().
@@ -284,11 +286,7 @@ class ProcessSlave(Actor):
             assert isinstance(record_manager, SQLAlchemyRecordManager)
             upstream_application_id = uuid_from_application_name(upstream_application_name)
             notification_log = RecordManagerNotificationLog(
-                record_manager=type(record_manager)(
-                    session=record_manager.session,
-                    record_class=record_manager.record_class,
-                    contiguous_record_ids=record_manager.contiguous_record_ids,
-                    sequenced_item_class=record_manager.sequenced_item_class,
+                record_manager=record_manager.clone(
                     application_id=upstream_application_id,
                     pipeline_id=self.pipeline_id
                 ),

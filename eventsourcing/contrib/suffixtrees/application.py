@@ -1,6 +1,6 @@
 import datetime
 
-from eventsourcing.application.base import ApplicationWithPersistencePolicies
+from eventsourcing.example.application import ApplicationWithPersistencePolicies
 from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import GeneralizedSuffixTree, \
     register_new_suffix_tree
 from eventsourcing.contrib.suffixtrees.domain.services.generalizedsuffixtree import find_substring_edge, \

@@ -1,5 +1,4 @@
 from unittest import TestCase
-from uuid import uuid4
 
 from eventsourcing.exceptions import DataIntegrityError
 
@@ -32,4 +31,14 @@ class TestAESCipher(TestCase):
         # Check DataIntegrityError is raised (MAC check fails).
         with self.assertRaises(DataIntegrityError):
             damaged = 'a' + ciphertext[:-1]
+            cipher.decrypt(damaged)
+
+        # Check DataIntegrityError is raised (nonce too short).
+        with self.assertRaises(DataIntegrityError):
+            damaged = ciphertext[:0]
+            cipher.decrypt(damaged)
+
+        # Check DataIntegrityError is raised (tag too short).
+        with self.assertRaises(DataIntegrityError):
+            damaged = ciphertext[:20]
             cipher.decrypt(damaged)

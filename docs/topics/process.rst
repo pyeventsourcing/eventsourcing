@@ -424,11 +424,11 @@ by setting an ``Order`` as paid.
 
 .. code:: python
 
-    from eventsourcing.application.process import Process
+    from eventsourcing.application.sqlalchemy import ProcessApplicationWithSQLAlchemy
     from eventsourcing.utils.topic import resolve_topic
 
 
-    class Orders(Process):
+    class Orders(ProcessApplicationWithSQLAlchemy):
         persist_event_type=Order.Event
 
         @staticmethod
@@ -455,7 +455,7 @@ by creating a new ``Reservation`` aggregate.
 
 .. code:: python
 
-    class Reservations(Process):
+    class Reservations(ProcessApplicationWithSQLAlchemy):
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Created):
@@ -467,7 +467,7 @@ by creating a new ``Payment``.
 
 .. code:: python
 
-    class Payments(Process):
+    class Payments(ProcessApplicationWithSQLAlchemy):
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Reserved):
@@ -479,12 +479,12 @@ responds to ``Order.Paid`` events by setting the command as done.
 
 .. code:: python
 
-    from eventsourcing.application.command import CommandProcess
+    from eventsourcing.application.sqlalchemy import CommandProcessWithSQLAlchemy
     from eventsourcing.domain.model.decorators import retry
     from eventsourcing.exceptions import OperationalError, RecordConflictError
 
 
-    class Commands(CommandProcess):
+    class Commands(CommandProcessWithSQLAlchemy):
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Created):
@@ -973,6 +973,9 @@ An Actor model library, in particular the `Thespian Actor Library
 <https://github.com/kquick/Thespian>`__, can be used to run
 a pipelined system of process applications as actors.
 
+The example below runs with Thespian's "simple system base".
+The actors will run by sending messages recursively.
+
 .. code:: python
 
     from eventsourcing.application.actors import Actors
@@ -998,29 +1001,32 @@ a pipelined system of process applications as actors.
             assert_command_is_done(commands.repository, command_id)
 
 An Thespian "system base" other than the default "simple system base" can be
-started by using the functions ``start_multiproc_tcp_base_system()`` or
-``start_multiproc_queue_base_system()``. In these cases, the system actors
-will started in separate operating system processes. Otherwise they will
-all run by sending messages recursively. The base system can be shutdown by
-calling ``shutdown()`` on the ``actors`` object.
+started by calling the functions ``start_multiproc_tcp_base_system()`` or
+``start_multiproc_queue_base_system()`` before starting the system actors.
 
-The system actors can be started by calling the ``start()`` method of ``actors``.
-The system actors can be stopped by calling the ``close()`` method on ``actors``.
+The base system can be shutdown by calling ``shutdown_actor_system()``, which
+will shutdown any actors that are running in that base system.
 
-If ``actors`` is used as a context manager, the ``start()`` method will be
-called when the context manager enters. The ``close()`` method will be called
-when the context manager exits, but by default the ``shutdown()`` method
-will not be called. If ``actors`` is constructed with ``shutdown_on_exit=True``,
-which is ``False`` by default, then ``shutdown()`` will also be called when the
-context manager exits.
+With the "multiproc" base systems, the process application system actors will
+be started in separate operating system processes. After they have been started,
+they will continue to run until they are shutdown. The system actors can be started
+by calling ``actors.start()``. The actors can be shutdown with ``actors.shutdown()``.
 
-These methods can be used separately. A script can be called to initialise the base
-system. Another script can start the system actors. Another script can be called to
-send system commands, so that the system actors actually do some work. Another script
-can be used to shutdown the system actors. And another can be used to shutdown the
-base system. That may help operations. Please refer to the
-`Thespian documentation <http://thespianpy.com/doc>`__ for more information about
-`dynamic source loading <http://thespianpy.com/doc/in_depth.html>`__.
+If ``actors`` is used as a context manager, as above, the ``start()`` method is
+called when the context manager enters. The ``close()`` method is called
+when the context manager exits. By default the ``shutdown()`` method
+is not called by ``close()``. If ``Actors`` is constructed with ``shutdown_on_close=True``,
+which is ``False`` by default, then the actors will be shutdown by ``close()``, and so
+also when the context manager exits. Event so, shutting down the system actors will not
+shutdown a "mutliproc" base system.
+
+.. These methods can be used separately. A script can be called to initialise the base
+.. system. Another script can start the system actors. Another script can be called to
+.. send system commands, so that the system actors actually do some work. Another script
+.. can be used to shutdown the system actors. And another can be used to shutdown the
+.. base system. That may help operations. Please refer to the
+.. `Thespian documentation <http://thespianpy.com/doc>`__ for more information about
+.. `dynamic source loading <http://thespianpy.com/doc/in_depth.html>`__.
 
 .. .. code:: python
 ..

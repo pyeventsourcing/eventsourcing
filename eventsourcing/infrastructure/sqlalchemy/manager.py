@@ -1,7 +1,5 @@
-from functools import reduce
-
-from sqlalchemy import asc, bindparam, desc, or_, select, text
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy import asc, bindparam, desc, select, text
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import func
 
@@ -55,7 +53,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
         return compiled
 
-    def _write_records(self, records, tracking_kwargs=None):
+    def write_records(self, records, tracking_kwargs=None):
         try:
             with self.session.bind.begin() as connection:
                 if tracking_kwargs:
@@ -90,7 +88,7 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         except IntegrityError as e:
             self.raise_record_integrity_error(e)
 
-        except OperationalError as e:
+        except DBAPIError as e:
             self.raise_operational_error(e)
 
     def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
@@ -227,6 +225,9 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
     def get_record_table_name(self, record_class):
         return record_class.__table__.name
+
+    def clone(self, **kwargs):
+        return super(SQLAlchemyRecordManager, self).clone(session=self.session, **kwargs)
 
 
 class TrackingRecordManager(AbstractTrackingRecordManager):

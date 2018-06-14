@@ -3,25 +3,11 @@ import time
 from unittest import TestCase
 from uuid import uuid4
 
-import logging
-
 from eventsourcing.application.multiprocess import Multiprocess
-from eventsourcing.application.process import Process
 from eventsourcing.application.system import System
-from eventsourcing.domain.model.aggregate import AggregateRoot
-from eventsourcing.domain.model.decorators import retry
-from eventsourcing.domain.model.events import clear_event_handlers, assert_event_handlers_empty
-from eventsourcing.exceptions import OperationalError, RecordConflictError
+from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
 from eventsourcing.tests.test_process import ExampleAggregate
-
-
-def set_db_uri():
-    host = os.getenv('MYSQL_HOST', '127.0.0.1')
-    user = os.getenv('MYSQL_USER', 'root')
-    password = os.getenv('MYSQL_PASSWORD', '')
-    db_uri = 'mysql+pymysql://{}:{}@{}/eventsourcing'.format(user, password, host)
-    # raise Exception(db_uri)
-    os.environ['DB_URI'] = db_uri
+from eventsourcing.tests.test_system_fixtures import set_db_uri, Order, Reservation, Payment, create_new_order, Orders, Reservations, Payments, Examples
 
 
 class TestSystem(TestCase):
@@ -200,111 +186,4 @@ class TestSystem(TestCase):
 
 # Second example - orders, reservations, payments.
 
-class Order(AggregateRoot):
-    def __init__(self, **kwargs):
-        super(Order, self).__init__(**kwargs)
-        self.is_reserved = False
-        self.is_paid = False
 
-    class Event(AggregateRoot.Event): pass
-
-    class Created(Event, AggregateRoot.Created): pass
-
-    class Reserved(Event):
-        def mutate(self, order):
-            assert not order.is_reserved, "Order {} already reserved.".format(order.id)
-            order.is_reserved = True
-            order.reservation_id = self.reservation_id
-
-    class Paid(Event):
-        def mutate(self, order):
-            assert not order.is_paid, "Order {} already paid.".format(order.id)
-            order.is_paid = True
-            order.payment_id = self.payment_id
-
-    def set_is_reserved(self, reservation_id):
-        self.__trigger_event__(Order.Reserved, reservation_id=reservation_id)
-
-    def set_is_paid(self, payment_id):
-        self.__trigger_event__(self.Paid, payment_id=payment_id)
-
-
-class Reservation(AggregateRoot):
-    def __init__(self, order_id, **kwargs):
-        super(Reservation, self).__init__(**kwargs)
-        self.order_id = order_id
-
-    class Event(AggregateRoot.Event): pass
-
-    class Created(Event, AggregateRoot.Created): pass
-
-    @classmethod
-    def create(cls, order_id):
-        return cls.__create__(order_id=order_id)
-
-
-class Payment(AggregateRoot):
-    def __init__(self, order_id, **kwargs):
-        super(Payment, self).__init__(**kwargs)
-        self.order_id = order_id
-
-    class Event(AggregateRoot.Event): pass
-
-    class Created(Event, AggregateRoot.Created): pass
-
-    @classmethod
-    def make(self, order_id):
-        return self.__create__(order_id=order_id)
-
-
-@retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
-def create_new_order():
-    order = Order.__create__()
-    order.__save__()
-    return order.id
-
-logger = logging.getLogger()
-
-class Orders(Process):
-    persist_event_type = Order.Created
-
-    def policy(self, repository, event):
-        if isinstance(event, Reservation.Created):
-            # Set the order as reserved.
-            order = repository[event.order_id]
-            assert not order.is_reserved
-            order.set_is_reserved(event.originator_id)
-            logger.info('set Order as reserved')
-
-        elif isinstance(event, Payment.Created):
-            # Set the order as paid.
-            order = repository[event.order_id]
-            assert not order.is_paid
-            order.set_is_paid(event.originator_id)
-            logger.info('set Order as paid')
-
-
-class Reservations(Process):
-    def policy(self, repository, event):
-        if isinstance(event, Order.Created):
-            # Create a reservation.
-            # time.sleep(0.5)
-            logger.info('created Reservation for order')
-            return Reservation.create(order_id=event.originator_id)
-
-
-class Payments(Process):
-    def policy(self, repository, event):
-        if isinstance(event, Order.Reserved):
-            # Make a payment.
-            # time.sleep(0.5)
-            logger.info('created Payment for order')
-            return Payment.make(order_id=event.originator_id)
-
-
-class Examples(Process):
-    persist_event_type = ExampleAggregate.Created
-
-    def policy(self, repository, event):
-        if isinstance(event, ExampleAggregate.Created):
-            repository[event.originator_id].move_on()

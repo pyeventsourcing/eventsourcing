@@ -51,7 +51,7 @@ called, and ``get_application()`` will raise an exeception if
 
 .. code:: python
 
-    from eventsourcing.application.simple import SimpleApplication
+    from eventsourcing.application.sqlalchemy import SimpleApplication
 
 
     def construct_application(**kwargs):

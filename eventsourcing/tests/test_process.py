@@ -1,9 +1,9 @@
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.application.process import Process, RepositoryWrapper
-from eventsourcing.application.command import CommandProcess
-from eventsourcing.domain.model.aggregate import AggregateRoot
+from eventsourcing.application.sqlalchemy import CommandProcess, ProcessApplication
+from eventsourcing.application.process import RepositoryWrapper
+from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.command import Command
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
@@ -15,8 +15,8 @@ class TestProcess(TestCase):
 
     def test_process_with_example_policy(self):
         # Construct example process.
-        process = Process(
-            'test',
+        process = ProcessApplication(
+            name='test',
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
             setup_tables=True,
@@ -51,15 +51,15 @@ class TestProcess(TestCase):
         pipeline_id2 = 1
 
         # Create two events, one has causal dependency on the other.
-        core1 = Process(
-            'core',
+        core1 = ProcessApplication(
+            name='core',
             persist_event_type=ExampleAggregate.Created,
             setup_tables=True,
             pipeline_id=pipeline_id1,
         )
 
-        core2 = Process(
-            'core',
+        core2 = ProcessApplication(
+            name='core',
             pipeline_id=pipeline_id2,
             policy=example_policy,
             session=core1.session
@@ -93,14 +93,14 @@ class TestProcess(TestCase):
         }, json_loads(records[1].causal_dependencies))
 
         # Setup downstream process.
-        downstream1 = Process(
+        downstream1 = ProcessApplication(
             'downstream',
             pipeline_id=pipeline_id1,
             session=core1.session,
             policy=event_logging_policy,
         )
         downstream1.follow('core', core1.notification_log)
-        downstream2 = Process(
+        downstream2 = ProcessApplication(
             'downstream',
             pipeline_id=pipeline_id2,
             session=core1.session,
@@ -133,8 +133,8 @@ class TestProcess(TestCase):
         downstream2.close()
 
     def test_handle_prompt_failed(self):
-        process = Process(
-            'test',
+        process = ProcessApplication(
+            name='test',
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
             setup_tables=True,
@@ -190,7 +190,7 @@ class TestCommands(TestCase):
         commands = CommandProcess(
             setup_tables=True
         )
-        core = Process(
+        core = ProcessApplication(
             'core',
             policy=example_policy,
             session=commands.session
@@ -222,15 +222,15 @@ class TestCommands(TestCase):
 
 # Example aggregate (used in the test).
 
-class ExampleAggregate(AggregateRoot):
+class ExampleAggregate(BaseAggregateRoot):
     def __init__(self, **kwargs):
         super(ExampleAggregate, self).__init__(**kwargs)
         self.is_moved_on = False
 
-    class Event(AggregateRoot.Event):
+    class Event(BaseAggregateRoot.Event):
         pass
 
-    class Created(Event, AggregateRoot.Created):
+    class Created(Event, BaseAggregateRoot.Created):
         pass
 
     def move_on(self):
@@ -257,16 +257,16 @@ def example_policy(process, repository, event):
             return ExampleAggregate.__create__()
 
 
-class LogMessage(AggregateRoot):
+class LogMessage(BaseAggregateRoot):
 
     def __init__(self, message='', **kwargs):
         super(LogMessage, self).__init__(**kwargs)
         self.message = message
 
-    class Event(AggregateRoot.Event):
+    class Event(BaseAggregateRoot.Event):
         pass
 
-    class Created(Event, AggregateRoot.Created):
+    class Created(Event, BaseAggregateRoot.Created):
         pass
 
 

@@ -19,7 +19,6 @@ class WithExampleApplication(WithRecordManagers):
             entity_record_manager=self.entity_record_manager,
             log_record_manager=self.log_record_manager,
             snapshot_record_manager=self.snapshot_record_manager,
-            always_encrypt=bool(cipher),
             cipher=cipher,
         )
         return app

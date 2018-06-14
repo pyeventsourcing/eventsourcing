@@ -134,6 +134,7 @@ class TestExampleAggregateRoot(WithSQLAlchemyRecordManagers):
 
         # Discard the aggregate, calls save().
         aggregate.__discard__()
+        aggregate.__save__()
 
         # Check the next hash has changed.
         self.assertNotEqual(aggregate.__head__, last_next_hash)

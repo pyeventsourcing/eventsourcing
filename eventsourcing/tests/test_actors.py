@@ -1,16 +1,12 @@
+import logging
 import os
 import time
 import unittest
 
-import logging
-
-from thespian.actors import ActorSystem
-
-from eventsourcing.application.actors import Actors, start_actor_system, start_multiproc_tcp_base_system, \
-    start_multiproc_queue_base_system
+from eventsourcing.application.actors import Actors, shutdown_actor_system, start_actor_system, \
+    start_multiproc_tcp_base_system
 from eventsourcing.application.system import System
-from eventsourcing.tests.test_system import Orders, Payments, Reservations, create_new_order, set_db_uri
-
+from eventsourcing.tests.test_system_fixtures import set_db_uri, create_new_order, Orders, Reservations, Payments
 
 logger = logging.getLogger('')
 logger.setLevel(logging.ERROR)
@@ -29,15 +25,19 @@ class TestActors(unittest.TestCase):
         start_multiproc_tcp_base_system()
         self.check_actors()
 
-    def _test_multiproc_queue_base(self):
-        start_multiproc_queue_base_system()
-        self.check_actors()
+    # def _test_multiproc_udp_base(self):
+    #     start_multiproc_udp_base_system()
+    #     self.check_actors(1, 1)
+    #
+    # def _test_multiproc_queue_base(self):
+    #     start_multiproc_queue_base_system()
+    #     self.check_actors()
 
     def check_actors(self, num_pipelines=2, num_orders_per_pipeline=5):
 
         pipeline_ids = list(range(num_pipelines))
 
-        actors = Actors(self.system, pipeline_ids=pipeline_ids, shutdown_on_exit=True)
+        actors = Actors(self.system, pipeline_ids=pipeline_ids, shutdown_on_close=True)
 
         # Todo: Use wakeupAfter() to poll for new notifications (see Timer Messages).
         # Todo: Fix multiple pipelines with multiproc bases.
@@ -45,19 +45,15 @@ class TestActors(unittest.TestCase):
         order_ids = []
 
         with Orders(setup_tables=True) as app, actors:
-            # with actors:
 
             # Create some new orders.
             for _ in range(num_orders_per_pipeline):
 
                 for pipeline_id in pipeline_ids:
-
                     app.change_pipeline(pipeline_id)
 
                     order_id = create_new_order()
                     order_ids.append(order_id)
-
-                # time.sleep(1)
 
             # Wait for orders to be reserved and paid.
             retries = 100 + 100 * num_orders_per_pipeline * len(pipeline_ids)
@@ -103,6 +99,6 @@ class TestActors(unittest.TestCase):
             del (os.environ['DB_URI'])
         except KeyError:
             pass
-        # Shutdown base actor system.
-        ActorSystem().shutdown()
 
+        # Shutdown base actor system.
+        shutdown_actor_system()

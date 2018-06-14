@@ -127,6 +127,22 @@ class SnapshotRecord(Base):
     data = Column(Text())
 
 
+class EntitySnapshotRecord(Base):
+    __tablename__ = 'entity_snapshots'
+
+    # Originator ID (e.g. an entity or aggregate ID).
+    originator_id = Column(UUIDType(), primary_key=True)
+
+    # Originator version of item in sequence.
+    originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+
+    # Topic of the item (e.g. path to domain entity class).
+    event_type = Column(Text(), nullable=False)
+
+    # State of the item (serialized dict, possibly encrypted).
+    state = Column(Text())
+
+
 class StoredEventRecord(Base):
     __tablename__ = 'stored_events'
 
@@ -179,19 +195,3 @@ class NotificationTrackingRecord(Base):
 
     # Notification ID.
     notification_id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
-
-    # # Aggregate ID.
-    # originator_id = Column(UUIDType(), nullable=False)
-    #
-    # # Aggregate version.
-    # originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
-
-    # __table_args__ = (
-    #     # Index(
-    #     #     'notification_tracking_event_index',
-    #     #     'application_id',
-    #     #     'originator_id',
-    #     #     'originator_version',
-    #     #     unique=True
-    #     # ),
-    # )

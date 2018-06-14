@@ -184,7 +184,7 @@ which gives "exactly once" processing.
 
 .. code:: python
 
-    from eventsourcing.application.simple import SimpleApplication
+    from eventsourcing.application.sqlalchemy import SimpleApplication
     from eventsourcing.exceptions import ConcurrencyError
     from eventsourcing.domain.model.aggregate import AggregateRoot
     from eventsourcing.interface.notificationlog import NotificationLogReader, RecordManagerNotificationLog
@@ -201,7 +201,7 @@ which gives "exactly once" processing.
         def pull(self):
             for notification in self.reader.read():
                 record = self.manager.record_class(**notification)
-                self.manager._write_records([record])
+                self.manager.write_records([record])
 
 
     # Construct original application.
@@ -356,7 +356,7 @@ notification log even when the notification doesn't imply a real entry in the in
 
     import uuid
 
-    from eventsourcing.application.simple import SimpleApplication
+    from eventsourcing.application.sqlalchemy import SimpleApplication
     from eventsourcing.exceptions import ConcurrencyError
     from eventsourcing.domain.model.aggregate import AggregateRoot
     from eventsourcing.interface.notificationlog import NotificationLogReader, RecordManagerNotificationLog

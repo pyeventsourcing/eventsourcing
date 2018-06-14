@@ -7,7 +7,7 @@ import six
 from six import with_metaclass
 
 from eventsourcing.exceptions import EventHashError
-from eventsourcing.utils.hashing import hash_for_data_integrity
+from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
@@ -58,35 +58,22 @@ class DomainEvent(QualnameABC):
     Implements methods to make instances read-only, comparable
     for equality, have recognisable representations, and hashable.
     """
-    __with_data_integrity__ = False
     __json_encoder_class__ = ObjectJSONEncoder
 
     def __init__(self, **kwargs):
         """
         Initialises event attribute values directly from constructor kwargs.
         """
-        if self.__with_data_integrity__:
-            kwargs['__event_topic__'] = get_topic(type(self))
-            # Seal the event with a hash of the other values.
-            assert '__event_hash__' not in kwargs
-            event_hash = self.__hash_for_data_integrity__(kwargs)
-            kwargs['__event_hash__'] = event_hash
-
         self.__dict__.update(kwargs)
 
-    @classmethod
-    def __hash_for_data_integrity__(cls, obj):
-        return hash_for_data_integrity(cls.__json_encoder_class__, obj)
-
-    @property
-    def __event_hash__(self):
-        return self.__dict__.get('__event_hash__')
-
-    def __check_hash__(self):
-        state = self.__dict__.copy()
-        event_hash = state.pop('__event_hash__')
-        if event_hash != self.__hash_for_data_integrity__(state):
-            raise EventHashError()
+    def __repr__(self):
+        """
+        Returns string representing the type and attribute values of the event.
+        """
+        sorted_items = tuple(sorted(self.__dict__.items()))
+        args_strings = ("{0}={1!r}".format(*item) for item in sorted_items)
+        args_string = ', '.join(args_strings)
+        return "{}({})".format(self.__class__.__qualname__, args_string)
 
     def __mutate__(self, obj):
         """
@@ -98,12 +85,6 @@ class DomainEvent(QualnameABC):
         :param obj: object to be mutated
         :return: mutated object
         """
-        # Check the event and the object.
-        if self.__with_data_integrity__:
-            # Todo: Refactor: "replace assert with test" (ie, an if statement).
-            assert self.__dict__['__event_topic__'] == get_topic(type(self))
-            self.__check_hash__()
-
         # Call mutate() method.
         self.mutate(obj)
 
@@ -148,24 +129,75 @@ class DomainEvent(QualnameABC):
     def __hash__(self):
         """
         Computes a Python integer hash for an event,
-        using its event hash string if available.
+        using its event hash string.
 
         Supports equality and inequality comparisons.
         """
-        return hash((
-            self.__event_hash__ or self.__hash_for_data_integrity__(
-                self.__dict__
-            ), self.__class__
-        ))
+        state = self.__dict__.copy()
+        state['__event_topic__'] = get_topic(type(self))
+        return hash(self.__hash_object__(state))
 
-    def __repr__(self):
+    @classmethod
+    def __hash_object__(cls, obj):
+        return hash_object(cls.__json_encoder_class__, obj)
+
+
+class EventWithHash(DomainEvent):
+    """
+    Base class for domain events.
+
+    Implements methods to make instances read-only, comparable
+    for equality, have recognisable representations, and hashable.
+    """
+
+    def __init__(self, **kwargs):
         """
-        Returns string representing the type and attribute values of the event.
+        Initialises event attribute values directly from constructor kwargs.
         """
-        sorted_items = tuple(sorted(self.__dict__.items()))
-        args_strings = ("{0}={1!r}".format(*item) for item in sorted_items)
-        args_string = ', '.join(args_strings)
-        return "{}({})".format(self.__class__.__qualname__, args_string)
+        super(EventWithHash, self).__init__(**kwargs)
+
+        # Seal the event with a hash of the other values.
+        # __event_topic__ is needed to obtain a different hash
+        # for different types of events with otherwise equal
+        # attributes.
+        self.__dict__['__event_topic__'] = get_topic(type(self))
+        self.__dict__['__event_hash__'] = self.__hash_object__(self.__dict__)
+
+    @property
+    def __event_hash__(self):
+        return self.__dict__.get('__event_hash__')
+
+    def __check_hash__(self):
+        state = self.__dict__.copy()
+        event_hash = state.pop('__event_hash__')
+        if event_hash != self.__hash_object__(state):
+            raise EventHashError()
+
+    def __hash__(self):
+        """
+        Computes a Python integer hash for an event,
+        using its event hash string.
+
+        Supports equality and inequality comparisons.
+        """
+        return hash(self.__event_hash__)
+
+    def __mutate__(self, obj):
+        """
+        Update obj with values from self.
+
+        Can be extended, but subclasses must call super
+        method, and return an object.
+
+        :param obj: object to be mutated
+        :return: mutated object
+        """
+
+        # Check the hash.
+        self.__check_hash__()
+
+        # Call mutate() method.
+        return super(EventWithHash, self).__mutate__(obj)
 
 
 class EventWithOriginatorID(DomainEvent):

@@ -9,7 +9,6 @@ from eventsourcing.application.system import System
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed
-from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.uuids import uuid_from_application_name
 
@@ -154,14 +153,9 @@ class OperatingSystemProcess(multiprocessing.Process):
                 # an API from which we can pull. It's not unreasonable to have a fixed
                 # number of application processes connecting to the same database.
                 record_manager = self.process.event_store.record_manager
-                assert isinstance(record_manager, SQLAlchemyRecordManager)
                 upstream_application_id = uuid_from_application_name(upstream_name)
                 notification_log = RecordManagerNotificationLog(
-                    record_manager=type(record_manager)(
-                        session=record_manager.session,
-                        record_class=record_manager.record_class,
-                        contiguous_record_ids=record_manager.contiguous_record_ids,
-                        sequenced_item_class=record_manager.sequenced_item_class,
+                    record_manager=record_manager.clone(
                         application_id=upstream_application_id,
                         pipeline_id=self.pipeline_id
                     ),

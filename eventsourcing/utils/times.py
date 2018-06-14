@@ -67,9 +67,10 @@ def decimaltimestamp(t=None):
 
 def datetime_from_timestamp(t):
     """
-    Returns a datetime from a decimal UNIX timestamp.
+    Returns naive UTC datetime from decimal UNIX
+    timestamps such as time.time().
 
     :param t: timestamp, either Decimal or float
     :return: datetime.datetime object
     """
-    return datetime.datetime.fromtimestamp(float(t))
+    return datetime.datetime.utcfromtimestamp(float(t))

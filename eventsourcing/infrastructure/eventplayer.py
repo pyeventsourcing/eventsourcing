@@ -33,6 +33,8 @@ class EventPlayer(AbstractEventPlayer):
 
     @staticmethod
     def mutate(initial, event):
+        if initial is not None:
+            event.__check_obj__(initial)
         return event.__mutate__(initial)
 
 # def clone_object(initial_state):

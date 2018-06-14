@@ -384,7 +384,6 @@ can be chained together by constructing each subsequent event to have its
         value=1,
         originator_version=1,
         originator_id=entity_id,
-        __previous_hash__=created.__event_hash__,
     )
 
     attribute_b_changed = VersionedEntity.AttributeChanged(
@@ -392,13 +391,11 @@ can be chained together by constructing each subsequent event to have its
         value=2,
         originator_version=2,
         originator_id=entity_id,
-        __previous_hash__=attribute_a_changed.__event_hash__,
     )
 
     entity_discarded = VersionedEntity.Discarded(
         originator_version=3,
         originator_id=entity_id,
-        __previous_hash__=attribute_b_changed.__event_hash__,
     )
 
 
@@ -544,57 +541,9 @@ is set to 'Mr Boots'. A subscriber receives the event.
     assert last_event.value == 'Mr Boots'
     assert last_event.originator_version == 1
 
-    # Check the event hash is the current entity head.
-    assert last_event.__event_hash__ == entity.__head__
-
     # Clean up.
     unsubscribe(handler=receive_event, predicate=is_domain_event)
     del received_events[:]  # received_events.clear()
-
-
-Data integrity
---------------
-
-Domain events that are triggered in this way are hash-chained together by default.
-
-The state of each event, including the hash of the last event, is hashed using
-SHA-256. Before an event is applied to an entity, it is validated in itself (the
-event hash represents the state of the event) and as a part of the chain
-(the previous event hash is included in the next event state). If the sequence
-of events is accidentally damaged in any way, then a ``DataIntegrityError`` will
-almost certainly be raised from the domain layer when the sequence is replayed.
-
-The hash of the last event applied to an entity is available as an attribute called
-``__head__``.
-
-.. code:: python
-
-    # Entity's head hash is determined exclusively
-    # by the entire sequence of events and SHA-256.
-    assert entity.__head__ == 'ae7688000c38b2bd504b3eb3cd8e015144dd9a3c4992951c87cef9cce047f86c'
-
-    # Entity's head hash is simply the event hash
-    # of the last event that mutated the entity.
-    assert entity.__head__ == last_event.__event_hash__
-
-
-A different sequence of events will almost certainly result a different
-head hash. So the entire history of an entity can be verified by checking the
-head hash. This feature could be used to protect against tampering.
-
-The hashes can be salted by setting environment variable ``SALT_FOR_DATA_INTEGRITY``,
-perhaps with random bytes encoded as Base64.
-
-.. code:: python
-
-    from eventsourcing.utils.random import encode_random_bytes
-
-    # Keep this safe.
-    salt = encode_random_bytes(num_bytes=32)
-
-    # Configure environment (before importing library).
-    import os
-    os.environ['SALT_FOR_DATA_INTEGRITY'] = salt
 
 
 Discarding entities
@@ -913,6 +862,49 @@ Events are pending, and will not be published until the ``__save__()`` method is
 
     # No longer any pending events.
     assert len(world.__pending_events__) == 0
+
+Data integrity
+--------------
+
+Domain events triggered by the library's ``AggregateRoot`` class are both hashed and
+also hash-chained together.
+
+The state of each event, including the hash of the previous event, is hashed using
+SHA-256. The state of each event can be validated as a part of the chain. If the
+sequence of events is accidentally damaged in any way, then a ``DataIntegrityError``
+will almost certainly be raised from the domain layer when the sequence is replayed.
+
+The hash of the last event applied to an aggregate root is available as an attribute called
+``__head__`` of the aggregate root.
+
+.. code:: python
+
+    # Entity's head hash is determined exclusively
+    # by the entire sequence of events and SHA-256.
+    assert world.__head__ == received_events[0][-1].__event_hash__
+
+
+A different sequence of events will almost certainly result a different
+head hash. So the entire history of an entity can be verified by checking the
+head hash against an independent record.
+
+The hashes can be salted by setting environment variable ``SALT_FOR_DATA_INTEGRITY``,
+perhaps with random bytes encoded as Base64.
+
+.. code:: python
+
+    from eventsourcing.utils.random import encode_random_bytes
+
+    # Keep this safe.
+    salt = encode_random_bytes(num_bytes=32)
+
+    # Configure environment (before importing library).
+    import os
+    os.environ['SALT_FOR_DATA_INTEGRITY'] = salt
+
+
+The "genesis hash" used as the previous hash of the first event in a sequence can be
+set using environment variable ``GENESIS_HASH``.
 
     # Clean up.
     unsubscribe(handler=receive_event)

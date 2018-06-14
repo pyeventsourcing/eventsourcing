@@ -1,30 +1,34 @@
-from abc import ABCMeta, abstractproperty
+from abc import ABCMeta, abstractmethod
 
 import six
 
-from eventsourcing.domain.model.events import EventWithOriginatorVersion, EventWithTimestamp, EventWithOriginatorID
+from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp
 
 
 class AbstractSnapshop(six.with_metaclass(ABCMeta)):
-    @abstractproperty
+    @property
+    @abstractmethod
     def topic(self):
         """
         Path to the class of the snapshotted entity.
         """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def state(self):
         """
         State of the snapshotted entity.
         """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def originator_id(self):
         """
         ID of the snapshotted entity.
         """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def originator_version(self):
         """
         Version of the last event applied to the entity.

@@ -44,7 +44,7 @@ primary key column).
 
 .. code:: python
 
-    from eventsourcing.application.simple import SnapshottingApplication
+    from eventsourcing.application.snapshotting import SnapshottingApplication
 
 
 Run the code

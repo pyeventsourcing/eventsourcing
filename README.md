@@ -114,7 +114,7 @@ os.environ['DB_URI'] = 'sqlite:///:memory:'
 Run the code.
 
 ```python
-from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.application.sqlalchemy import SimpleApplication
 from eventsourcing.exceptions import ConcurrencyError
 
 # Construct simple application (used here as a context manager).
@@ -160,6 +160,7 @@ with SimpleApplication(persist_event_type=World.Event) as app:
 
     # Delete aggregate.
     world.__discard__()
+    world.__save__()
 
     # Discarded aggregate not found.
     assert world.id not in app.repository

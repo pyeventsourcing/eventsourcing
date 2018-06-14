@@ -116,7 +116,7 @@ application-level encryption.
 
 .. code:: python
 
-    from eventsourcing.application.simple import SimpleApplication
+    from eventsourcing.application.sqlalchemy import SimpleApplication
     from eventsourcing.exceptions import ConcurrencyError
 
     # Construct simple application (used here as a context manager).
@@ -159,6 +159,7 @@ application-level encryption.
 
         # Discard aggregate.
         world.__discard__()
+        world.__save__()
 
         # Discarded aggregate is not found.
         assert world.id not in app.repository
