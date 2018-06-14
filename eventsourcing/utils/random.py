@@ -9,8 +9,7 @@ def encode_random_bytes(num_bytes):
 
 
 def random_bytes(num_bytes):
-    urandom = os.urandom(num_bytes)
-    return urandom
+    return os.urandom(num_bytes)
 
 
 def decode_random_bytes(s):

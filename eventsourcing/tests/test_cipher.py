@@ -1,5 +1,4 @@
 from unittest import TestCase
-from uuid import uuid4
 
 from eventsourcing.exceptions import DataIntegrityError
 
