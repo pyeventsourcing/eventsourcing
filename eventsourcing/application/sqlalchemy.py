@@ -1,12 +1,10 @@
-from eventsourcing.application.command import CommandProcess
-from eventsourcing.application.process import ProcessApplication
-from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.application import command, process, simple, snapshotting
 
 from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
 from eventsourcing.infrastructure.sqlalchemy.records import EntitySnapshotRecord, StoredEventRecord
 
 
-class ApplicationWithSQLAlchemy(SimpleApplication):
+class SimpleApplication(simple.SimpleApplication):
     infrastructure_factory_class = SQLAlchemyInfrastructureFactory
     stored_event_record_class = StoredEventRecord
     snapshot_record_class = EntitySnapshotRecord
@@ -15,10 +13,10 @@ class ApplicationWithSQLAlchemy(SimpleApplication):
         self.uri = uri
         self.pool_size = pool_size
         self.session = session
-        super(ApplicationWithSQLAlchemy, self).__init__(**kwargs)
+        super(SimpleApplication, self).__init__(**kwargs)
 
     def setup_infrastructure(self, *args, **kwargs):
-        super(ApplicationWithSQLAlchemy, self).setup_infrastructure(
+        super(SimpleApplication, self).setup_infrastructure(
             session=self.session, uri=self.uri, pool_size=self.pool_size,
             *args, **kwargs
         )
@@ -26,23 +24,17 @@ class ApplicationWithSQLAlchemy(SimpleApplication):
             self.session = self.datastore.session
 
 
-class ProcessApplicationWithSQLAlchemy(ApplicationWithSQLAlchemy, ProcessApplication):
+class ApplicationWithSnapshotting(snapshotting.ApplicationWithSnapshotting, SimpleApplication):
     pass
 
 
-class CommandProcessWithSQLAlchemy(ApplicationWithSQLAlchemy, CommandProcess):
+class ProcessApplication(process.ProcessApplication, SimpleApplication):
     pass
 
 
-class SimpleApplication(ApplicationWithSQLAlchemy):
-    """
-    Shorter name for ApplicationWithSQLAlchemy.
-    """
+class ProcessApplicationWithSnapshotting(process.ProcessApplicationWithSnapshotting, SimpleApplication):
+    pass
 
 
-class ProcessApplication(ProcessApplicationWithSQLAlchemy):
-    """Shorter name for ProcessApplicationWithSQLAlchemy."""
-
-
-class CommandProcess(CommandProcessWithSQLAlchemy):
-    """Shorter name for CommandProcessWithSQLAlchemy."""
+class CommandProcess(SimpleApplication, command.CommandProcess):
+    pass

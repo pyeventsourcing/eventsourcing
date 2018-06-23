@@ -4,6 +4,7 @@ import six
 
 from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.application.snapshotting import ApplicationWithSnapshotting
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, PromptFailed, RecordConflictError
@@ -274,3 +275,7 @@ class Prompt(object):
         self.process_name = process_name
         self.pipeline_id = pipeline_id
         self.end_position = end_position
+
+
+class ProcessApplicationWithSnapshotting(ApplicationWithSnapshotting, ProcessApplication):
+    pass

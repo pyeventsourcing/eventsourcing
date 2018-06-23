@@ -150,7 +150,7 @@ class SimpleApplication(object):
 
     def close(self):
         # Close the persistence policy.
-        if self.persistence_policy:
+        if self.persistence_policy is not None:
             self.persistence_policy.close()
 
         # Close database connection.

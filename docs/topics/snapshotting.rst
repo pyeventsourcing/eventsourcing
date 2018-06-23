@@ -33,7 +33,7 @@ from the library.
 Application
 ===========
 
-The library class :class:`~eventsourcing.application.simple.SnapshottingApplication`,
+The library class :class:`~eventsourcing.application.simple.ApplicationWithSnapshotting`,
 extends :class:`~eventsourcing.application.simple.SimpleApplication` by setting up
 infrastructure for snapshotting, such as a snapshot store, a dedicated table for
 snapshots, and a policy to take snapshots every so many events. It is recommended not
@@ -44,7 +44,7 @@ primary key column).
 
 .. code:: python
 
-    from eventsourcing.application.snapshotting import SnapshottingApplication
+    from eventsourcing.application.sqlalchemy import ApplicationWithSnapshotting
 
 
 Run the code
@@ -55,7 +55,7 @@ events.
 
 .. code:: python
 
-    with SnapshottingApplication(period=2) as app:
+    with ApplicationWithSnapshotting(period=2, persist_event_type=Example.Event) as app:
 
         # Create an entity.
         entity = create_new_example(foo='bar1')
@@ -69,6 +69,7 @@ events.
 
         # Check the snapshot.
         snapshot = app.snapshot_strategy.get_snapshot(entity.id)
+        assert snapshot is not None
         assert snapshot.state['_foo'] == 'bar2'
 
         # Check can recover entity using snapshot.
