@@ -1,16 +1,14 @@
-from eventsourcing.application.policies import PersistencePolicy, SnapshottingPolicy
+from eventsourcing.application.policies import SnapshottingPolicy
 from eventsourcing.application.simple import SimpleApplication
-from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
 
 class ApplicationWithSnapshotting(SimpleApplication):
-    def __init__(self, period=10, snapshot_record_class=None, **kwargs):
-        self.period = period
+    def __init__(self, snapshot_period=2, snapshot_record_class=None, **kwargs):
+        self.snapshot_period = snapshot_period
         self.snapshot_record_class = snapshot_record_class
         self.snapshotting_policy = None
-        self.snapshot_persistence_policy = None
         super(ApplicationWithSnapshotting, self).__init__(**kwargs)
 
     def setup_event_store(self):
@@ -23,31 +21,31 @@ class ApplicationWithSnapshotting(SimpleApplication):
             )
         )
 
-    def setup_table(self):
-        super(ApplicationWithSnapshotting, self).setup_table()
-        if self.datastore is not None:
-            self.datastore.setup_table(self.snapshot_store.record_manager.record_class)
-
     def setup_repository(self, **kwargs):
         # Setup repository with a snapshot strategy.
         self.snapshot_strategy = EventSourcedSnapshotStrategy(
-            event_store=self.snapshot_store
+            snapshot_store=self.snapshot_store
         )
         super(ApplicationWithSnapshotting, self).setup_repository(
             snapshot_strategy=self.snapshot_strategy, **kwargs
         )
 
-    def setup_persistence_policy(self, *args, **kwargs):
-        super(ApplicationWithSnapshotting, self).setup_persistence_policy(*args, **kwargs)
-        self.snapshotting_policy = SnapshottingPolicy(self.repository, self.period)
-        self.snapshot_persistence_policy = PersistencePolicy(
-            event_store=self.snapshot_store,
-            event_type=Snapshot
+    def setup_persistence_policy(self):
+        super(ApplicationWithSnapshotting, self).setup_persistence_policy()
+        self.snapshotting_policy = SnapshottingPolicy(
+            repository=self.repository,
+            snapshot_store=self.snapshot_store,
+            persist_event_type=self.persist_event_type,
+            period=self.snapshot_period
         )
+
+    def setup_table(self):
+        super(ApplicationWithSnapshotting, self).setup_table()
+        if self.datastore is not None:
+            self.datastore.setup_table(self.snapshot_store.record_manager.record_class)
 
     def close(self):
         super(ApplicationWithSnapshotting, self).close()
         if self.snapshotting_policy is not None:
             self.snapshotting_policy.close()
-        if self.snapshot_persistence_policy is not None:
-            self.snapshot_persistence_policy.close()
+            self.snapshotting_policy = None

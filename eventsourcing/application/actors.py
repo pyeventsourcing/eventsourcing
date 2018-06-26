@@ -312,8 +312,8 @@ class ProcessSlave(Actor):
             # Report back to master.
             self.send(msg.master, SlaveRunResponse())
 
-    def publish_prompt(self, end_position=None):
-        prompt = Prompt(self.process.name, self.process.pipeline_id, end_position=end_position)
+    def publish_prompt(self):
+        prompt = Prompt(self.process.name, self.process.pipeline_id)
         # logger.info("publishing prompt from {} process application".format(self.process.name))
         for downstream_name, downstream_actor in self.downstream_actors.items():
             self.send(downstream_actor, prompt)

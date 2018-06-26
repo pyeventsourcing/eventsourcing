@@ -424,7 +424,7 @@ by setting an ``Order`` as paid.
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import ProcessApplication
+    from eventsourcing.application.sqlalchemy import ProcessApplicationWithSnapshotting as ProcessApplication
     from eventsourcing.utils.topic import resolve_topic
 
 
@@ -480,6 +480,7 @@ responds to ``Order.Paid`` events by setting the command as done.
 .. code:: python
 
     from eventsourcing.application.sqlalchemy import CommandProcess
+    #from eventsourcing.application.django import CommandProcess
     from eventsourcing.domain.model.decorators import retry
     from eventsourcing.exceptions import OperationalError, RecordConflictError
 
@@ -766,7 +767,9 @@ Before starting the system's operating system processes, let's create a ``Create
 command using the ``create_new_order()`` method on the ``Commands`` process (defined above).
 Because the system isn't yet running, the command remains unprocessed.
 
+
 .. code:: python
+
 
     with Commands(setup_tables=True) as commands:
 
@@ -781,7 +784,7 @@ Because the system isn't yet running, the command remains unprocessed.
 
 The database tables for storing events and tracking notification were created by the code
 above, because the ``Commands`` process was constructed with ``setup_tables=True``, which
-is by default ``False`` in the ``Process`` class.
+is by default ``False`` in the application classes.
 
 
 Single pipeline
@@ -808,7 +811,7 @@ system processes.
 
     from eventsourcing.application.multiprocess import Multiprocess
 
-    multiprocessing_system = Multiprocess(system)
+    multiprocessing_system = Multiprocess(system, setup_tables=True)
 
 The operating system processes can be started by using the ``multiprocess``
 object as a context manager. The unprocessed commands will be processed
@@ -860,12 +863,15 @@ The system can run with multiple instances of the system's pipeline expressions.
 system with parallel pipelines means that each process application in the system
 can process many events at the same time.
 
-In the example below, there are three parallel pipeline instances, which gives twelve child
-operating system processes. All the operating system processes share the same MySQL database.
+In the example below, there will be three parallel pipelines for the
+system's four process applications, give twelve child operating system
+processes altogether. Five orders will be processed in each pipeline,
+so fifteen orders will processed by the system altogether.
 
 .. code:: python
 
     num_pipelines = 3
+    num_orders_per_pipeline = 5
 
 Pipelines have integer IDs. In this example, the pipeline IDs are ``[0, 1, 2]``.
 
@@ -882,12 +888,12 @@ The ``pipeline_ids`` are given to the ``Multiprocess`` object.
 
     multiprocessing_system = Multiprocess(system, pipeline_ids=pipeline_ids)
 
-
-Below, five orders are processed in each pipeline.
+With the multiprocessing system running each of the process applications
+as a separate operating system process, and the commands process running
+in the current process, commands are created in each pipeline of the commands
+process, which causes orders to be processed by the system.
 
 .. code:: python
-
-    num_orders_per_pipeline = 5
 
     with multiprocessing_system, Commands() as commands:
 

@@ -18,7 +18,7 @@ DEFAULT_POLL_INTERVAL = 5
 class Multiprocess(object):
 
     def __init__(self, system, pipeline_ids=(-1,), poll_interval=None, notification_log_section_size=5,
-                 pool_size=1):
+                 pool_size=1, setup_tables=False):
         self.pool_size = pool_size
         self.system = system
         self.pipeline_ids = pipeline_ids
@@ -26,6 +26,7 @@ class Multiprocess(object):
         assert isinstance(system, System)
         self.os_processes = None
         self.notification_log_section_size = notification_log_section_size
+        self.setup_tables = setup_tables or system.setup_tables
 
     def start(self):
         assert self.os_processes is None, "Already started"
@@ -63,13 +64,16 @@ class Multiprocess(object):
                     pipeline_id=pipeline_id,
                     notification_log_section_size=self.notification_log_section_size,
                     pool_size=self.pool_size,
+                    setup_tables=self.setup_tables,
                     inbox=self.inboxes[(pipeline_id, process_class.__name__.lower())],
                     outbox=self.outboxes[(pipeline_id, process_class.__name__.lower())],
                 )
                 os_process.daemon = True
                 os_process.start()
                 self.os_processes.append(os_process)
-                sleep(0.1)
+                if self.setup_tables:
+                    # Avoid conflicts when creating tables.
+                    sleep(1)
 
     def broadcast_prompt(self, prompt):
         outbox_id = (prompt.pipeline_id, prompt.process_name)
@@ -116,7 +120,7 @@ class OperatingSystemProcess(multiprocessing.Process):
 
     def __init__(self, application_process_class, upstream_names, pipeline_id=-1,
                  poll_interval=DEFAULT_POLL_INTERVAL, notification_log_section_size=None,
-                 pool_size=5, inbox=None, outbox=None, *args, **kwargs):
+                 pool_size=5, setup_tables=False, inbox=None, outbox=None, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
         self.upstream_names = upstream_names
@@ -127,6 +131,7 @@ class OperatingSystemProcess(multiprocessing.Process):
         self.pool_size = pool_size
         self.inbox = inbox
         self.outbox = outbox
+        self.setup_tables = setup_tables
 
     def run(self):
         # Construct process application object.
@@ -134,6 +139,7 @@ class OperatingSystemProcess(multiprocessing.Process):
             pipeline_id=self.pipeline_id,
             notification_log_section_size=self.notification_log_section_size,
             pool_size=self.pool_size,
+            setup_tables=self.setup_tables,
         )
 
         # Follow upstream notification logs.

@@ -152,7 +152,7 @@ class ExampleApplication(ApplicationWithPersistencePolicies):
         self.snapshot_strategy = None
         if self.snapshot_event_store:
             self.snapshot_strategy = EventSourcedSnapshotStrategy(
-                event_store=self.snapshot_event_store,
+                snapshot_store=self.snapshot_event_store,
             )
         assert self.entity_event_store is not None
         self.example_repository = ExampleRepository(

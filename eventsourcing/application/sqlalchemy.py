@@ -8,6 +8,7 @@ class SimpleApplication(simple.SimpleApplication):
     infrastructure_factory_class = SQLAlchemyInfrastructureFactory
     stored_event_record_class = StoredEventRecord
     snapshot_record_class = EntitySnapshotRecord
+    is_constructed_with_session = True
 
     def __init__(self, uri=None, pool_size=5, session=None, **kwargs):
         self.uri = uri
@@ -36,5 +37,5 @@ class ProcessApplicationWithSnapshotting(process.ProcessApplicationWithSnapshott
     pass
 
 
-class CommandProcess(SimpleApplication, command.CommandProcess):
+class CommandProcess(command.CommandProcess, SimpleApplication):
     pass

@@ -55,7 +55,7 @@ events.
 
 .. code:: python
 
-    with ApplicationWithSnapshotting(period=2, persist_event_type=Example.Event) as app:
+    with ApplicationWithSnapshotting(snapshot_period=2, persist_event_type=Example.Event) as app:
 
         # Create an entity.
         entity = create_new_example(foo='bar1')

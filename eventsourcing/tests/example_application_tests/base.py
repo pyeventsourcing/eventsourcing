@@ -78,14 +78,14 @@ class ExampleApplicationTestCase(WithExampleApplication):
             self.assertEqual(snapshot1.originator_id, entity1.id)
             self.assertEqual(snapshot1.originator_version, entity1.__version__)
 
-            # Take another snapshot of the entity (should be the same event).
-            sleep(0.0001)
-            snapshot2 = app.example_repository.take_snapshot(entity1.id)
-            self.assertEqual(snapshot1, snapshot2)
-
             # Check the snapshot exists.
             snapshot2 = app.snapshot_strategy.get_snapshot(entity1.id)
             self.assertIsInstance(snapshot2, Snapshot)
+            self.assertEqual(snapshot1, snapshot2)
+
+            # Take another snapshot of the entity (should be the same event).
+            sleep(0.0001)
+            snapshot2 = app.example_repository.take_snapshot(entity1.id)
             self.assertEqual(snapshot1, snapshot2)
 
             # Change attribute values.

@@ -1,5 +1,4 @@
-from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.domain.model.snapshot import Snapshot
+from eventsourcing.domain.model.events import EventWithOriginatorVersion, subscribe, unsubscribe
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 
@@ -29,9 +28,12 @@ class PersistencePolicy(object):
 
 
 class SnapshottingPolicy(object):
-    def __init__(self, repository, period=2):
+    def __init__(self, repository, snapshot_store, persist_event_type=EventWithOriginatorVersion, period=2):
         self.repository = repository
+        assert isinstance(snapshot_store, AbstractEventStore)
+        self.snapshot_store = snapshot_store
         self.period = period
+        self.persist_event_type = persist_event_type
         subscribe(predicate=self.condition, handler=self.take_snapshot)
 
     def close(self):
@@ -46,8 +48,9 @@ class SnapshottingPolicy(object):
             else:
                 return False
         else:
-            if not isinstance(event, Snapshot):
-                return (event.originator_version + 1) % self.period == 0
+            if self.persist_event_type:
+                if isinstance(event, self.persist_event_type):
+                    return (event.originator_version + 1) % self.period == 0
 
     def take_snapshot(self, event):
         if isinstance(event, (list, tuple)):
