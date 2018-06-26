@@ -680,6 +680,8 @@ in-memory SQLite database.
 
 .. code:: python
 
+    system.setup_tables = True
+
     with system:
         # Create new order command.
         cmd_id = system.commands.create_new_order()
