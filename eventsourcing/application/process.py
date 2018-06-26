@@ -296,13 +296,10 @@ class Prompt(object):
 
 
 class ProcessApplicationWithSnapshotting(ApplicationWithSnapshotting, ProcessApplication):
+
     def record_new_events(self, *args, **kwargs):
         new_events = super(ProcessApplicationWithSnapshotting, self).record_new_events(*args, **kwargs)
         for event in new_events:
             if self.snapshotting_policy.condition(event):
                 self.snapshotting_policy.take_snapshot(event)
         return new_events
-
-    def setup_persistence_policy(self):
-        super(ProcessApplicationWithSnapshotting, self).setup_persistence_policy()
-        self.snapshotting_policy.close()
