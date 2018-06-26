@@ -2,8 +2,6 @@ from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 
 import six
-
-from eventsourcing.domain.model.events import publish
 from eventsourcing.domain.model.snapshot import AbstractSnapshop, Snapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import reconstruct_object
@@ -32,9 +30,9 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
     """Snapshot strategy that uses an event sourced snapshot.
     """
 
-    def __init__(self, event_store):
-        assert isinstance(event_store, EventStore)
-        self.event_store = event_store
+    def __init__(self, snapshot_store):
+        assert isinstance(snapshot_store, EventStore)
+        self.snapshot_store = snapshot_store
 
     def get_snapshot(self, entity_id, lt=None, lte=None):
         """
@@ -42,17 +40,20 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
 
         :rtype: Snapshot
         """
-        snapshots = self.event_store.get_domain_events(entity_id, lt=lt, lte=lte, limit=1, is_ascending=False)
+        snapshots = self.snapshot_store.get_domain_events(entity_id, lt=lt, lte=lte, limit=1, is_ascending=False)
         if len(snapshots) == 1:
             return snapshots[0]
 
+    # Todo: Rename as create_snapshot?
     def take_snapshot(self, entity_id, entity, last_event_version):
         """
-        Takes a snapshot by instantiating and publishing a Snapshot domain event.
+        Creates a Snapshot from the given state, and appends it
+        to the snapshot store.
 
         :rtype: Snapshot
         """
-        # Create the snapshot event.
+
+        # Create the snapshot.
         snapshot = Snapshot(
             originator_id=entity_id,
             originator_version=last_event_version,
@@ -60,10 +61,9 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
             state=None if entity is None else deepcopy(entity.__dict__)
         )
 
-        # Publish the snapshot event.
-        publish(snapshot)
+        self.snapshot_store.append(snapshot)
 
-        # Return the snapshot event.
+        # Return the snapshot.
         return snapshot
 
 

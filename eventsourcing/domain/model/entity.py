@@ -245,6 +245,14 @@ class VersionedEntity(DomainEntity):
     def __trigger_event__(self, event_class, **kwargs):
         """
         Triggers domain event with entity's next version number.
+
+        The event carries the version number that the originator
+        will have when the originator is mutated with this event.
+        (The event's originator version isn't the version of the
+        originator that triggered the event. The Created event has
+        version 0, and so a newly created instance is at version 0.
+        The second event has originator version 1, and so will the
+        originator when the second event has been applied.)
         """
         return super(VersionedEntity, self).__trigger_event__(
             event_class=event_class,

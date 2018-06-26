@@ -98,7 +98,7 @@ class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
         # Replay the domain events, starting with the initial state.
         return self.replay_events(initial_state, domain_events)
 
-    # Todo: This doesn't belong here. Perhaps Snapshotter that inherits from EventPlayer.
+    # Todo: Does this method belong on this class?
     def take_snapshot(self, entity_id, lt=None, lte=None):
         """
         Takes a snapshot of the entity as it existed after the most recent
@@ -106,30 +106,35 @@ class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
         """
         snapshot = None
         if self._snapshot_strategy:
-            # Get the last event (optionally until a particular position).
-            last_event = self.event_store.get_most_recent_event(entity_id, lt=lt, lte=lte)
+            # Get the latest event (optionally until a particular position).
+            latest_event = self.event_store.get_most_recent_event(entity_id, lt=lt, lte=lte)
 
             # If there is something to snapshot, then look for a snapshot
-            # taken before or at the entity version of the last event. Please
+            # taken before or at the entity version of the latest event. Please
             # note, the snapshot might have a smaller version number than
-            # the last event if events occurred since the last snapshot was taken.
-            if last_event is not None:
-                last_snapshot = self._snapshot_strategy.get_snapshot(
+            # the latest event if events occurred since the latest snapshot was taken.
+            if latest_event is not None:
+                latest_snapshot = self._snapshot_strategy.get_snapshot(
                     entity_id, lt=lt, lte=lte
                 )
-                last_version = last_event.originator_version
-                if last_snapshot and last_snapshot.originator_version == last_version:
+                latest_version = latest_event.originator_version
+
+                if latest_snapshot and latest_snapshot.originator_version == latest_version:
                     # If up-to-date snapshot exists, there's nothing to do.
-                    snapshot = last_snapshot
+                    snapshot = latest_snapshot
                 else:
-                    # Otherwise recover entity and take snapshot.
-                    if last_snapshot:
-                        initial_state = entity_from_snapshot(last_snapshot)
-                        gt = last_snapshot.originator_version
+                    # Otherwise recover entity state from latest snapshot.
+                    if latest_snapshot:
+                        initial_state = entity_from_snapshot(latest_snapshot)
+                        gt = latest_snapshot.originator_version
                     else:
                         initial_state = None
                         gt = None
-                    entity = self.replay_entity(entity_id, gt=gt, lte=last_version, initial_state=initial_state)
-                    snapshot = self._snapshot_strategy.take_snapshot(entity_id, entity, last_version)
+
+                    # Fast-forward entity state to latest version.
+                    entity = self.replay_entity(entity_id, gt=gt, lte=latest_version, initial_state=initial_state)
+
+                    # Take snapshot from entity.
+                    snapshot = self._snapshot_strategy.take_snapshot(entity_id, entity, latest_version)
 
         return snapshot

@@ -53,9 +53,11 @@ class TestPersistencePolicy(unittest.TestCase):
 class TestSnapshottingPolicy(unittest.TestCase):
     def setUp(self):
         self.repository = mock.Mock(spec=AbstractEntityRepository)
+        self.snapshot_store = mock.Mock(spec=AbstractEventStore)
         self.policy = SnapshottingPolicy(
             repository=self.repository,
-            period=1,
+            snapshot_store=self.snapshot_store,
+            period=2,
         )
 
     def tearDown(self):
@@ -76,7 +78,14 @@ class TestSnapshottingPolicy(unittest.TestCase):
             originator_id=entity_id,
             originator_version=1,
         )
-        publish([domain_event1, domain_event2])
 
-        # Check the append method has been called once with the domain event.
+        # Check take_snapshot is called once for each event.
+        publish(domain_event1)
+        self.assertEqual(0, self.repository.take_snapshot.call_count)
+        publish(domain_event2)
         self.assertEqual(1, self.repository.take_snapshot.call_count)
+
+        # Check take_snapshot is called once for each list.
+        publish([domain_event1, domain_event2])
+        self.assertEqual(2, self.repository.take_snapshot.call_count)
+

@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 
 class System(object):
-    def __init__(self, *pipelines):
+    def __init__(self, *pipelines, **kwargs):
         """
         Initialises a "process network" system object.
 
@@ -21,7 +21,11 @@ class System(object):
         The pipelines ((A | B | A), (A | C | A)) is equivalent to (A | B | A | C | A).
         """
         self.pipelines = pipelines
-        self.process_classes = set([c for l in self.pipelines for c in l])
+        self.process_classes = []
+        for pipeline in self.pipelines:
+            for process_class in pipeline:
+                if process_class not in self.process_classes:
+                    self.process_classes.append(process_class)
         self.processes_by_name = None
         self.is_session_shared = True
 
@@ -42,6 +46,8 @@ class System(object):
 
                 previous_class = process_class
 
+        self.setup_tables = kwargs.get('setup_tables', False)
+
     # Todo: Extract function to new 'SinglethreadRunner' class or something (like the 'Multiprocess' class)?
     def setup(self):
         assert self.processes_by_name is None, "Already running"
@@ -50,9 +56,13 @@ class System(object):
         # Construct the processes.
         session = None
         for process_class in self.process_classes:
-            process = process_class(session=session, setup_tables=bool(session is None))
+            kwargs = {}
+            kwargs['setup_tables'] = self.setup_tables
+            if process_class.is_constructed_with_session:
+                kwargs['session'] = session
+            process = process_class(**kwargs)
             self.processes_by_name[process.name] = process
-            if self.is_session_shared:
+            if process_class.is_constructed_with_session and self.is_session_shared:
                 if session is None:
                     session = process.session
 

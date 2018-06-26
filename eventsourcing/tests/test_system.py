@@ -15,7 +15,8 @@ class TestSystem(TestCase):
     def test_singlethreaded_multiapp_system(self):
         system = System(
             Orders | Reservations | Orders,
-            Orders | Payments | Orders
+            Orders | Payments | Orders,
+            setup_tables=True
         )
 
         with system:
@@ -28,7 +29,7 @@ class TestSystem(TestCase):
             assert repository[order_id].is_paid
 
     def test_multiprocessing_singleapp_system(self):
-        system = System(Examples | Examples)
+        system = System(Examples | Examples, setup_tables=True)
 
         set_db_uri()
 
@@ -59,7 +60,7 @@ class TestSystem(TestCase):
 
         system = System(
             Orders | Reservations | Orders,
-            Orders | Payments | Orders
+            Orders | Payments | Orders,
         )
 
         multiprocess = Multiprocess(system)
@@ -84,12 +85,9 @@ class TestSystem(TestCase):
 
         set_db_uri()
 
-        # Set up the database.
-        with Orders(setup_tables=True):
-            pass
-
         system = System(
             (Orders, Reservations, Orders, Payments, Orders),
+            setup_tables=True
         )
 
         num_pipelines = 3

@@ -22,6 +22,7 @@ class SimpleApplication(object):
     snapshot_record_class = None
     json_encoder_class = None
     json_decoder_class = None
+    is_constructed_with_session = False
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
                  cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
@@ -57,29 +58,30 @@ class SimpleApplication(object):
 
         self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
 
+        self.persist_event_type = persist_event_type or type(self).persist_event_type
+
         self.contiguous_record_ids = contiguous_record_ids
         self.application_id = uuid_from_application_name(self.name)
         self.pipeline_id = pipeline_id
         self.setup_cipher(cipher_key)
-        self.setup_infrastructure(setup_table)
+        self.setup_infrastructure()
+        if setup_table:
+            self.setup_table()
         self.setup_notification_log()
 
-        # Setup a persistence policy.
         self.persistence_policy = persistence_policy
         if self.persistence_policy is None:
-            self.setup_persistence_policy(persist_event_type or type(self).persist_event_type)
+            self.setup_persistence_policy()
 
     def setup_cipher(self, cipher_key):
         cipher_key = decode_random_bytes(cipher_key or os.getenv('CIPHER_KEY', ''))
         self.cipher = AESCipher(cipher_key) if cipher_key else None
 
-    def setup_infrastructure(self, setup_table, *args, **kwargs):
+    def setup_infrastructure(self, *args, **kwargs):
         self.infrastructure_factory = self.construct_infrastructure_factory(*args, **kwargs)
         self.datastore = self.infrastructure_factory.construct_datastore()
         self.setup_event_store()
         self.setup_repository()
-        if setup_table:
-            self.setup_table()
 
     def construct_infrastructure_factory(self, *args, **kwargs):
         """
@@ -131,10 +133,10 @@ class SimpleApplication(object):
             section_size=self.notification_log_section_size
         )
 
-    def setup_persistence_policy(self, persist_event_type):
+    def setup_persistence_policy(self):
         self.persistence_policy = PersistencePolicy(
             event_store=self.event_store,
-            event_type=persist_event_type
+            event_type=self.persist_event_type
         )
 
     def change_pipeline(self, pipeline_id):
@@ -150,7 +152,7 @@ class SimpleApplication(object):
 
     def close(self):
         # Close the persistence policy.
-        if self.persistence_policy:
+        if self.persistence_policy is not None:
             self.persistence_policy.close()
 
         # Close database connection.

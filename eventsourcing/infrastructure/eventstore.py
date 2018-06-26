@@ -157,8 +157,7 @@ class EventStore(AbstractEventStore):
             sequence_id=originator_id,
             position=position,
         )
-        domain_event = self.sequenced_item_mapper.from_sequenced_item(sequenced_item)
-        return domain_event
+        return self.sequenced_item_mapper.from_sequenced_item(sequenced_item)
 
     def get_most_recent_event(self, originator_id, lt=None, lte=None):
         """
