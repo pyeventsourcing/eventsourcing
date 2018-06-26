@@ -23,7 +23,11 @@ def build_and_test(cwd):
     subprocess.check_call([sys.executable, 'setup.py', 'sdist'], cwd=cwd)
     is_uploaded_testpypi = False
 
-    for (tmpcwd, python_executable) in [(tmpcwd27, 'python2.7'), (tmpcwd34, 'python3.6')]:
+    targets = [
+        # (tmpcwd27, 'python2.7'),
+        (tmpcwd34, 'python3.6'),
+    ]
+    for (tmpcwd, python_executable) in targets:
 
         # Rebuild virtualenvs.
         rebuild_virtualenv(cwd, tmpcwd, python_executable)
