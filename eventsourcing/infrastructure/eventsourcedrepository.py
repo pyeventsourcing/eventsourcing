@@ -56,11 +56,11 @@ class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
             initial_state = entity_from_snapshot(snapshot)
             gt = snapshot.originator_version
 
-        # Replay domain events.
-        return self.replay_entity(entity_id, gt=gt, lte=at, initial_state=initial_state)
+        # Obtain and return current state.
+        return self.get_and_project_events(entity_id, gt=gt, lte=at, initial_state=initial_state)
 
-    def replay_entity(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, initial_state=None,
-                      query_descending=False):
+    def get_and_project_events(self, entity_id, gt=None, gte=None, lt=None, lte=None, limit=None, initial_state=None,
+                               query_descending=False):
         """
         Reconstitutes requested domain entity from domain events found in event store.
         """
@@ -95,8 +95,8 @@ class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
         if not is_ascending:
             domain_events = list(reversed(list(domain_events)))
 
-        # Replay the domain events, starting with the initial state.
-        return self.replay_events(initial_state, domain_events)
+        # Project the domain events onto the initial state.
+        return self.project_events(initial_state, domain_events)
 
     # Todo: Does this method belong on this class?
     def take_snapshot(self, entity_id, lt=None, lte=None):
@@ -132,7 +132,12 @@ class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
                         gt = None
 
                     # Fast-forward entity state to latest version.
-                    entity = self.replay_entity(entity_id, gt=gt, lte=latest_version, initial_state=initial_state)
+                    entity = self.get_and_project_events(
+                        entity_id=entity_id,
+                        gt=gt,
+                        lte=latest_version,
+                        initial_state=initial_state,
+                    )
 
                     # Take snapshot from entity.
                     snapshot = self._snapshot_strategy.take_snapshot(entity_id, entity, latest_version)
