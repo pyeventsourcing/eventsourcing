@@ -59,6 +59,7 @@ class DomainEvent(QualnameABC):
     for equality, have recognisable representations, and hashable.
     """
     __json_encoder_class__ = ObjectJSONEncoder
+    __notifiable__ = True
 
     def __init__(self, **kwargs):
         """

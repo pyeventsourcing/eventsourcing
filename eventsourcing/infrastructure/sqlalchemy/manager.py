@@ -75,11 +75,17 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
                     if hasattr(self.record_class, 'id'):
                         if record.id is None and self.contiguous_record_ids:
+                            # Do an "insert select max" from existing.
                             statement = self.insert_select_max
+                        elif record.id == '':
+                            # Don't want to put this in the notification log.
+                            params['id'] = None
+                            if hasattr(self.record_class, 'pipeline_id'):
+                                params['pipeline_id'] = None
                         else:
-                            # Are record ID unique in table? Not if there are different applications.
+                            # ID can't be auto-incrementing if table has an application_id.
                             if hasattr(self.record_class, 'application_id'):
-                                # Record ID is not auto-incrementing.
+                                # We need a value and don't have one.
                                 assert record.id, "record ID not set when required"
                             params['id'] = record.id
 
