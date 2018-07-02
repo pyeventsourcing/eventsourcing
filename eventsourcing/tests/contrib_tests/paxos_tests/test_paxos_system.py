@@ -13,6 +13,7 @@ from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.tests.test_system_fixtures import set_db_uri
 
+# Todo: Depends on str(msg.proposal_id) in receive_accepted().
 
 class ProposalID(object):
     def __init__(self, number, uid):
