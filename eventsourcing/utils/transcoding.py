@@ -56,7 +56,7 @@ class ObjectJSONEncoder(JSONEncoder):
                 }
             }
         elif isinstance(obj, set):
-            return {'__set__': list(obj)}
+            return {'__set__': sorted(list(obj))}
         elif isinstance(obj, deque):
             assert list(obj) == []
             return {'__deque__': []}
