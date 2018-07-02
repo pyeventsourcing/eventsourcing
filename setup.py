@@ -34,6 +34,10 @@ django_requires = [  # Note, Django 2 doesn't support Python 2.7
     'django>=1.11,<=2.0.99999' if str != bytes else 'django>=1.11,<=1.11.99999',
 ]
 
+paxos_requires = [
+    'git+git://github.com/johnbywater/python-composable-paxos.git'
+]
+
 testing_requires = [
     'mock<=2.0.99999',
     'flask<=0.12.99999',
@@ -77,6 +81,7 @@ setup(
         'cassandra': cassandra_requires,
         'sqlalchemy': sqlalchemy_requires,
         'django': django_requires,
+        'paxos': paxos_requires,
         'test': testing_requires,
         'tests': testing_requires,
         'testing': testing_requires,

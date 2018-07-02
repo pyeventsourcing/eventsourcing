@@ -168,15 +168,20 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
     def get_record(self, sequence_id, position):
         try:
-            filter_args = {self.field_names.sequence_id: sequence_id}
+            filter_args = {
+                self.field_names.sequence_id: sequence_id
+            }
+
             query = self.filter_by(**filter_args)
+            if hasattr(self.record_class, 'application_id'):
+                query = query.filter(self.record_class.application_id == self.application_id)
+
             position_field = getattr(self.record_class, self.field_names.position)
+
             query = query.filter(position_field == position)
             return query.one()
         except (NoResultFound, MultipleResultsFound):
             raise IndexError
-        finally:
-            self.session.close()
 
     def filter_by(self, **kwargs):
         return self.orm_query().filter_by(**kwargs)
