@@ -188,8 +188,9 @@ class Paxos(AggregateRoot):
             network_uid=network_uid
         )
 
-    def propose_value(self, value):
+    def propose_value(self, value, assume_leader=False):
         paxos = self.paxos
+        paxos.leader = assume_leader
         msg = paxos.propose_value(value)
         if msg is None:
             msg = paxos.prepare()
@@ -261,18 +262,26 @@ class TestPaxosSystem(unittest.TestCase):
                 quorum_size=system.quorum_size,
                 network_uid='paxosprocess0'
             )
-            paxos.propose_value(11111)
+            # paxos.propose_value(11111)
+            paxos.propose_value(11111, assume_leader=False)
             paxos.__save__()
 
-        # paxos_process1 = PaxosProcess(name='paxosprocess0', persist_event_type=Paxos.Event, setup_tables=True)
-        # with paxos_process1:
-        #     paxos = paxos_process1.repository[paxos.id]
-        #     paxos.propose_value(22222)
-        #     paxos.__save__()
+        paxos_process1 = PaxosProcess(name='paxosprocess1', persist_event_type=Paxos.Event, setup_tables=True)
+        with paxos_process1:
+            # paxos = paxos_process1.repository[paxos.id]
+            paxos = Paxos.start(
+                originator_id=paxos.id,
+                quorum_size=system.quorum_size,
+                network_uid='paxosprocess1'
+            )
+
+            paxos.propose_value(22222, assume_leader=True)
+            paxos.__save__()
 
         with system:
             # Prompt again (it's single threaded).
             system.paxosprocess0.publish_prompt()
+            system.paxosprocess1.publish_prompt()
 
             # Check the consensus has been registered with each application in the system.
             assert paxos.id in system.paxosprocess0.repository
