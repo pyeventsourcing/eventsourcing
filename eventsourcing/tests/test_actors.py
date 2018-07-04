@@ -44,7 +44,7 @@ class TestActors(unittest.TestCase):
 
         order_ids = []
 
-        with Orders(setup_tables=True) as app, actors:
+        with Orders(setup_table=True) as app, actors:
 
             # Create some new orders.
             for _ in range(num_orders_per_pipeline):

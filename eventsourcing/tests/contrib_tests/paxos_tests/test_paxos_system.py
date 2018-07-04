@@ -2,8 +2,11 @@ import unittest
 from time import sleep
 
 import datetime
+
+import os
 from eventsourcing.application.multiprocess import Multiprocess
 from eventsourcing.contrib.paxos.application import PaxosProcess, PaxosSystem
+from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
 from eventsourcing.tests.test_system_fixtures import set_db_uri
 
 
@@ -64,3 +67,10 @@ class TestPaxosSystem(unittest.TestCase):
                 if paxosprocess0.repository[paxos3.id].resolution:
                     break
             self.assertEqual(paxosprocess0.repository[paxos3.id].resolution.value, 33333)
+
+    def tearDown(self):
+        assert_event_handlers_empty()
+        try:
+            del (os.environ['DB_URI'])
+        except KeyError:
+            pass

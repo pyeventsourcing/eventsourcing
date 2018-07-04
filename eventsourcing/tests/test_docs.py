@@ -7,6 +7,9 @@ from unittest.case import TestCase
 
 import eventsourcing
 from eventsourcing.domain.model.events import assert_event_handlers_empty
+from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord, NotificationTrackingRecord, \
+    SnapshotRecord
 
 base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
@@ -17,6 +20,17 @@ class TestDocs(TestCase):
         if _event_handlers:
             print("Warning: event handlers still subscribed: {}".format(_event_handlers))
         _event_handlers.clear()
+
+        if os.environ.get('DB_URI'):
+            database = SQLAlchemyDatastore(SQLAlchemySettings())
+            # Need to drop the stored events, because the __main__#Order topics
+            # mess up the multiprocessing tests (because the Orders application
+            # has the same ID so events from one test cause another to fail).
+            database.drop_table(StoredEventRecord)
+            # Might as well drop these as well, to keep things level with the above.
+            database.drop_table(NotificationTrackingRecord)
+            database.drop_table(SnapshotRecord)
+
 
         try:
             del(os.environ['DB_URI'])

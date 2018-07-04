@@ -19,7 +19,7 @@ class TestProcess(TestCase):
             name='test',
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
-            setup_tables=True,
+            setup_table=True,
         )
 
         # Make the process follow itself.
@@ -54,7 +54,7 @@ class TestProcess(TestCase):
         core1 = ProcessApplication(
             name='core',
             persist_event_type=ExampleAggregate.Created,
-            setup_tables=True,
+            setup_table=True,
             pipeline_id=pipeline_id1,
         )
 
@@ -137,7 +137,7 @@ class TestProcess(TestCase):
             name='test',
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
-            setup_tables=True,
+            setup_table=True,
         )
 
         def raise_exception(_):
@@ -188,7 +188,7 @@ class TestCommands(TestCase):
 
     def test_command_process(self):
         commands = CommandProcess(
-            setup_tables=True
+            setup_table=True
         )
         core = ProcessApplication(
             'core',
