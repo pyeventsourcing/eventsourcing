@@ -31,7 +31,6 @@ class TestDocs(TestCase):
             database.drop_table(NotificationTrackingRecord)
             database.drop_table(SnapshotRecord)
 
-
         try:
             del(os.environ['DB_URI'])
         except KeyError:
