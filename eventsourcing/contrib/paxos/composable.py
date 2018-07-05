@@ -48,8 +48,6 @@ SOFTWARE.
 
 # Replaced ProposalID class, because json package turns namedtuples into a list.
 
-from eventsourcing.domain.model.events import QualnameABC
-
 
 class ProposalID(object):
     def __init__(self, number, uid):
@@ -173,7 +171,7 @@ class InvalidMessageError(Exception):
     '''
 
 
-class MessageHandler(QualnameABC):
+class MessageHandler(object):
 
     def receive(self, msg):
         '''
@@ -334,20 +332,21 @@ class Acceptor(MessageHandler):
             return Nack(self.network_uid, msg.from_uid, msg.proposal_id, self.promised_id)
 
 
+class ProposalStatus(object):
+    # __slots__ = ['accept_count', 'retain_count', 'acceptors', 'value']
+
+    def __init__(self, value):
+        self.accept_count = 0
+        self.retain_count = 0
+        self.acceptors = set()
+        self.value = value
+
+
 class Learner(MessageHandler):
     '''
     This class listens to Accepted messages, determines when the final value is
     selected, and tracks which peers have accepted the final value.
     '''
-
-    class ProposalStatus(QualnameABC):
-        __slots__ = ['accept_count', 'retain_count', 'acceptors', 'value']
-
-        def __init__(self, value):
-            self.accept_count = 0
-            self.retain_count = 0
-            self.acceptors = set()
-            self.value = value
 
     def __init__(self, network_uid, quorum_size):
         self.network_uid = network_uid
@@ -389,7 +388,7 @@ class Learner(MessageHandler):
         # String proposal_key, need string keys for JSON.
         proposal_key = str(msg.proposal_id)
         if not proposal_key in self.proposals:
-            self.proposals[proposal_key] = Learner.ProposalStatus(msg.proposal_value)
+            self.proposals[proposal_key] = ProposalStatus(msg.proposal_value)
 
         ps = self.proposals[proposal_key]
 

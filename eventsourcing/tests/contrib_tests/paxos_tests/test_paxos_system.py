@@ -1,23 +1,15 @@
+import datetime
+import os
 import unittest
 from time import sleep
 
-import datetime
-
-import os
 from eventsourcing.application.multiprocess import Multiprocess
 from eventsourcing.contrib.paxos.application import PaxosProcess, PaxosSystem
-from eventsourcing.contrib.paxos.composable import Learner
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.tests.test_system_fixtures import set_db_uri
-from eventsourcing.utils.topic import get_topic
 
 
 class TestPaxosSystem(unittest.TestCase):
-
-    def test_proposal_status(self):
-        topic = get_topic(Learner.ProposalStatus)
-        expected = 'eventsourcing.contrib.paxos.composable#Learner.ProposalStatus'
-        self.assertEqual(topic, expected)
 
     def test_single_threaded(self):
         system = PaxosSystem(setup_tables=True, processes=3)
@@ -42,7 +34,7 @@ class TestPaxosSystem(unittest.TestCase):
         set_db_uri()
         system = PaxosSystem(setup_tables=True, processes=3)
 
-        with Multiprocess(system, pipeline_ids=[1,2,3]), PaxosProcess(name='paxosprocess0', pipeline_id=1) as \
+        with Multiprocess(system, pipeline_ids=[1, 2, 3]), PaxosProcess(name='paxosprocess0', pipeline_id=1) as \
             paxosprocess0:
             sleep(3)
             print("Running {}".format(datetime.datetime.now()))
