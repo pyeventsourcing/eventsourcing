@@ -27,7 +27,7 @@ class SQLAlchemyDatastore(Datastore):
                  session=None, **kwargs):
         super(SQLAlchemyDatastore, self).__init__(**kwargs)
         self._session = session
-        self._engine = None if session is None else session.bind
+        self._engine = session.bind if session else None
         self._base = base
         self._tables = tables
         self._connection_strategy = connection_strategy
