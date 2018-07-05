@@ -135,7 +135,6 @@ class PaxosAggregate(AggregateRoot):
         )
 
     def setattrs_from_paxos(self, paxos):
-        # Todo: Change this to only publish one event per call. Need to define a new event....
         changes = {}
         for attr in self.paxos_attrs:
             paxos_value = getattr(paxos, attr)
@@ -192,10 +191,8 @@ class PaxosSystem(System):
     def __init__(self, processes=3, **kwargs):
         classes = [type('PaxosProcess{}'.format(i), (PaxosProcess,), {}) for i in range(processes)]
         if processes > 1:
-            pipelines = [c[0] | c[1] | c[0] for c in itertools.combinations(classes, 2)]
+            pipelines = [[c[0], c[1], c[0]] for c in itertools.combinations(classes, 2)]
         else:
             pipelines = [classes]
-        # for i in range(len(classes)):
-        #     pipelines += [classes[i] | classes[i]]
         self.quorum_size = (processes + 2) // 2
         super(PaxosSystem, self).__init__(*pipelines, **kwargs)
