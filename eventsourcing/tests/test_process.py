@@ -1,11 +1,12 @@
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.application.sqlalchemy import CommandProcess, ProcessApplication
+from eventsourcing.application.sqlalchemy import CommandProcess, ProcessApplication, ProcessApplicationWithSnapshotting
 from eventsourcing.application.process import RepositoryWrapper
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.command import Command
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
+from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import json_loads
@@ -15,35 +16,66 @@ class TestProcess(TestCase):
 
     def test_process_with_example_policy(self):
         # Construct example process.
-        process = ProcessApplication(
+        with ProcessApplication(
             name='test',
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
             setup_table=True,
-        )
+        ) as  process:
 
-        # Make the process follow itself.
-        process.follow('test', process.notification_log)
+            # Make the process follow itself.
+            process.follow('test', process.notification_log)
 
-        # Create an aggregate.
-        aggregate2 = ExampleAggregate.__create__()
-        aggregate2.__save__()
+            # Create an aggregate.
+            aggregate = ExampleAggregate.__create__()
+            aggregate.__save__()
 
-        # Check the aggregate has been automatically "moved on".
-        self.assertTrue(process.repository[aggregate2.id].is_moved_on)
+            # Check the aggregate has been automatically "moved on".
+            self.assertTrue(process.repository[aggregate.id].is_moved_on)
 
-        # Check the __contains__ method of the repo wrapper.
-        self.assertTrue(aggregate2.id in RepositoryWrapper(process.repository))
-        self.assertFalse(uuid4() in RepositoryWrapper(process.repository))
+            # Check the __contains__ method of the repo wrapper.
+            self.assertTrue(aggregate.id in RepositoryWrapper(process.repository))
+            self.assertFalse(uuid4() in RepositoryWrapper(process.repository))
 
-        # Check the repository wrapper tracks causal dependencies.
-        repository = RepositoryWrapper(process.repository)
-        aggregate2 = repository[aggregate2.id]
-        causal_dependencies = repository.causal_dependencies
-        self.assertEqual(len(causal_dependencies), 1)
-        self.assertEqual((aggregate2.id, 1), causal_dependencies[0])
+            # Check the repository wrapper tracks causal dependencies.
+            repository = RepositoryWrapper(process.repository)
+            aggregate = repository[aggregate.id]
+            causal_dependencies = repository.causal_dependencies
+            self.assertEqual(len(causal_dependencies), 1)
+            self.assertEqual((aggregate.id, 1), causal_dependencies[0])
 
-        process.close()
+    def test_process_application_with_snapshotting(self):
+        # Construct example process.
+        with ProcessApplicationWithSnapshotting(
+            name='test',
+            policy=example_policy,
+            persist_event_type=ExampleAggregate.Event,
+            setup_table=True,
+            snapshot_period=2,
+        ) as process:
+
+            # Make the process follow itself.
+            process.follow('test', process.notification_log)
+
+            # Create an aggregate.
+            aggregate = ExampleAggregate.__create__()
+
+            # Check there isn't a snapshot.
+            self.assertIsNone(process.snapshot_strategy.get_snapshot(aggregate.id))
+
+            # Should "move on" by the process following itself.
+            aggregate.__save__()
+            aggregate = process.repository[aggregate.id]
+            self.assertEqual(1, aggregate.__version__)
+
+            # Check there is a snapshot.
+            snapshot = process.snapshot_strategy.get_snapshot(aggregate.id)
+            self.assertIsInstance(snapshot, Snapshot)
+            self.assertEqual(snapshot.originator_version, 1)
+
+            snapshot_v0 = process.snapshot_strategy.get_snapshot(aggregate.id, lt=snapshot.originator_version)
+            self.assertIsNone(snapshot_v0, Snapshot)
+
 
     def test_causal_dependencies(self):
         # Try to process an event that has unresolved causal dependencies.
