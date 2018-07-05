@@ -57,70 +57,6 @@ class PaxosAggregate(AggregateRoot):
 
         return instance
 
-    # @attribute
-    # def proposal_id(self):
-    #     pass
-    #
-    # @attribute
-    # def highest_proposal_id(self):
-    #     pass
-    #
-    # @attribute
-    # def promises_received(self):
-    #     pass
-    #
-    # @attribute
-    # def nacks_received(self):
-    #     pass
-    #
-    # @attribute
-    # def highest_accepted_id(self):
-    #     pass
-    #
-    # @attribute
-    # def leader(self):
-    #     pass
-    #
-    # @attribute
-    # def proposed_value(self):
-    #     pass
-    #
-    # @attribute
-    # def proposed_value(self):
-    #     pass
-    #
-    # @attribute
-    # def proposals(self):
-    #     pass
-    #
-    # @attribute
-    # def acceptors(self):
-    #     pass
-    #
-    # @attribute
-    # def final_value(self):
-    #     pass
-    #
-    # @attribute
-    # def final_acceptors(self):
-    #     pass
-    #
-    # @attribute
-    # def final_proposal_id(self):
-    #     pass
-    #
-    # @attribute
-    # def promised_id(self):
-    #     pass
-    #
-    # @attribute
-    # def accepted_id(self):
-    #     pass
-    #
-    # @attribute
-    # def accepted_value(self):
-    #     pass
-    #
     @attribute
     def resolution(self):
         pass
@@ -131,11 +67,18 @@ class PaxosAggregate(AggregateRoot):
     class Started(Event, AggregateRoot.Created):
         pass
 
-    # class AttributeChanged(Event, AggregateRoot.AttributeChanged):
-    #     pass
-    #
     class AttributesChanged(Event):
         __notifiable__ = False
+
+        def __init__(self, changes=None, **kwargs):
+            super(PaxosAggregate.AttributesChanged, self).__init__(
+                changes=changes, **kwargs
+            )
+
+        @property
+        def changes(self):
+            return self.__dict__['changes']
+
         def mutate(self, obj):
             for attr, value in self.changes.items():
                 setattr(obj, attr, value)
