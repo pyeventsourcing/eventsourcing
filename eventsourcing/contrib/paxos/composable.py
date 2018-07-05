@@ -28,8 +28,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import collections
-
 # ProposalID
 #
 # In order for the Paxos algorithm to function, all proposal ids must be
@@ -49,6 +47,9 @@ import collections
 # ProposalID = collections.namedtuple('ProposalID', ['number', 'uid'])
 
 # Replaced ProposalID class, because json package turns namedtuples into a list.
+
+from eventsourcing.domain.model.events import QualnameABC
+
 
 class ProposalID(object):
     def __init__(self, number, uid):
@@ -84,7 +85,6 @@ class ProposalID(object):
 
     def __hash__(self):
         return hash((self.number, self.uid))
-
 
 
 class PaxosMessage(object):
@@ -173,7 +173,7 @@ class InvalidMessageError(Exception):
     '''
 
 
-class MessageHandler(object):
+class MessageHandler(QualnameABC):
 
     def receive(self, msg):
         '''
@@ -340,7 +340,7 @@ class Learner(MessageHandler):
     selected, and tracks which peers have accepted the final value.
     '''
 
-    class ProposalStatus(object):
+    class ProposalStatus(QualnameABC):
         __slots__ = ['accept_count', 'retain_count', 'acceptors', 'value']
 
         def __init__(self, value):

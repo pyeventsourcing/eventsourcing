@@ -17,7 +17,9 @@ GENESIS_HASH = os.getenv('GENESIS_HASH', '')
 
 class QualnameABCMeta(ABCMeta):
     """
-    Supplies __qualname__ to object classes with this metaclass.
+    Supplies __qualname__ to object classes in Python 2.7.
+
+    Needed to get topics from nested classes in Python 2.7.
     """
     __outer_classes = {}
 
