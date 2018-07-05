@@ -333,7 +333,7 @@ class Acceptor(MessageHandler):
 
 
 class ProposalStatus(object):
-    # __slots__ = ['accept_count', 'retain_count', 'acceptors', 'value']
+    __slots__ = ['accept_count', 'retain_count', 'acceptors', 'value']
 
     def __init__(self, value):
         self.accept_count = 0
