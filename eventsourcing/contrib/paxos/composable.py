@@ -378,16 +378,20 @@ class Learner(MessageHandler):
         self.acceptors[msg.from_uid] = msg.proposal_id
 
         if last_pn is not None:
-            ps = self.proposals[str(last_pn)]
+            # String proposal_key, need string keys for JSON.
+            proposal_key = str(last_pn)
+            ps = self.proposals[proposal_key]
             ps.retain_count -= 1
             ps.acceptors.remove(msg.from_uid)
             if ps.retain_count == 0:
-                del self.proposals[str(last_pn)]
+                del self.proposals[proposal_key]
 
-        if not str(msg.proposal_id) in self.proposals:
-            self.proposals[str(msg.proposal_id)] = Learner.ProposalStatus(msg.proposal_value)
+        # String proposal_key, need string keys for JSON.
+        proposal_key = str(msg.proposal_id)
+        if not proposal_key in self.proposals:
+            self.proposals[proposal_key] = Learner.ProposalStatus(msg.proposal_value)
 
-        ps = self.proposals[str(msg.proposal_id)]
+        ps = self.proposals[proposal_key]
 
         assert msg.proposal_value == ps.value, 'Value mismatch for single proposal!'
 
