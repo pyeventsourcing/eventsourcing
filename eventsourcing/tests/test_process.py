@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from eventsourcing.application.sqlalchemy import CommandProcess, ProcessApplication, ProcessApplicationWithSnapshotting
 from eventsourcing.application.process import RepositoryWrapper
-from eventsourcing.domain.model.aggregate import BaseAggregateRoot
+from eventsourcing.domain.model.aggregate import BaseAggregateRoot, AggregateRoot
 from eventsourcing.domain.model.command import Command
 from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
 from eventsourcing.domain.model.snapshot import Snapshot
@@ -34,8 +34,8 @@ class TestProcess(TestCase):
             self.assertTrue(process.repository[aggregate.id].is_moved_on)
 
             # Check the __contains__ method of the repo wrapper.
-            self.assertTrue(aggregate.id in RepositoryWrapper(process.repository))
-            self.assertFalse(uuid4() in RepositoryWrapper(process.repository))
+            self.assertIn(aggregate.id, RepositoryWrapper(process.repository))
+            self.assertNotIn(uuid4(), RepositoryWrapper(process.repository))
 
             # Check the repository wrapper tracks causal dependencies.
             repository = RepositoryWrapper(process.repository)
@@ -43,6 +43,9 @@ class TestProcess(TestCase):
             causal_dependencies = repository.causal_dependencies
             self.assertEqual(len(causal_dependencies), 1)
             self.assertEqual((aggregate.id, 1), causal_dependencies[0])
+
+            # Check events from more than one aggregate are stored.
+            self.assertIn(aggregate.second_id, process.repository)
 
     def test_process_application_with_snapshotting(self):
         # Construct example process.
@@ -75,7 +78,6 @@ class TestProcess(TestCase):
 
             snapshot_v0 = process.snapshot_strategy.get_snapshot(aggregate.id, lt=snapshot.originator_version)
             self.assertIsNone(snapshot_v0, Snapshot)
-
 
     def test_causal_dependencies(self):
         # Try to process an event that has unresolved causal dependencies.
@@ -258,6 +260,7 @@ class ExampleAggregate(BaseAggregateRoot):
     def __init__(self, **kwargs):
         super(ExampleAggregate, self).__init__(**kwargs)
         self.is_moved_on = False
+        self.second_id = None
 
     class Event(BaseAggregateRoot.Event):
         pass
@@ -265,13 +268,14 @@ class ExampleAggregate(BaseAggregateRoot):
     class Created(Event, BaseAggregateRoot.Created):
         pass
 
-    def move_on(self):
-        self.__trigger_event__(ExampleAggregate.MovedOn)
+    def move_on(self, second_id):
+        self.__trigger_event__(ExampleAggregate.MovedOn, second_id=second_id)
 
     class MovedOn(Event):
         def mutate(self, aggregate):
             assert isinstance(aggregate, ExampleAggregate)
             aggregate.is_moved_on = True
+            aggregate.second_id = self.second_id
 
 
 def example_policy(process, repository, event):
@@ -281,7 +285,13 @@ def example_policy(process, repository, event):
         aggregate = repository[event.originator_id]
 
         assert isinstance(aggregate, ExampleAggregate)
-        aggregate.move_on()
+
+        # Also create a second entity, allows test to check that
+        # events from more than one entity are stored.
+        second_id = uuid4()
+        other_entity = AggregateRoot.__create__(originator_id=second_id)
+        aggregate.move_on(second_id=second_id)
+        return other_entity
 
     elif isinstance(event, Command.Created):
         command_class = resolve_topic(event.originator_topic)
