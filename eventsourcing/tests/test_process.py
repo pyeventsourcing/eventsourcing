@@ -293,10 +293,14 @@ class ExampleAggregate(BaseAggregateRoot):
     class Created(Event, BaseAggregateRoot.Created):
         pass
 
-    def move_on(self, second_id):
+    def move_on(self, second_id=None):
         self.__trigger_event__(ExampleAggregate.MovedOn, second_id=second_id)
 
     class MovedOn(Event):
+        @property
+        def second_id(self):
+            return self.__dict__['second_id']
+
         def mutate(self, aggregate):
             assert isinstance(aggregate, ExampleAggregate)
             aggregate.is_moved_on = True
