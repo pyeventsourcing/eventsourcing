@@ -229,6 +229,7 @@ class EntityWithHashchain(DomainEntity):
         return super(EntityWithHashchain, cls).__create__(*args, **kwargs)
 
     def __trigger_event__(self, event_class, **kwargs):
+        assert isinstance(event_class, type), type(event_class)
         kwargs['__previous_hash__'] = self.__head__
         super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
 
@@ -277,7 +278,7 @@ class VersionedEntity(DomainEntity):
             super(VersionedEntity.Event, self).__check_obj__(obj)
             if self.originator_version != obj.__version__ + 1:
                 raise OriginatorVersionError(
-                    ("Event originated from entity at version {}, "
+                    ("Event takes entity to version {}, "
                      "but entity is currently at version {}. "
                      "Event type: '{}', entity type: '{}', entity ID: '{}'"
                      "".format(self.originator_version, obj.__version__,
@@ -302,6 +303,12 @@ class VersionedEntity(DomainEntity):
 
     class Discarded(Event, DomainEntity.Discarded):
         """Published when a VersionedEntity is discarded."""
+
+    # def __change_attribute__(self, name, value):
+    #     if self.__version__:
+    #         super(VersionedEntity, self).__change_attribute__(name, value)
+    #     else:
+    #         setattr(self, name, value)
 
 
 class TimestampedEntity(DomainEntity):

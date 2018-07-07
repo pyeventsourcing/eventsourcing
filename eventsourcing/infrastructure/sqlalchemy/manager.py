@@ -75,11 +75,17 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
                     if hasattr(self.record_class, 'id'):
                         if record.id is None and self.contiguous_record_ids:
+                            # Do an "insert select max" from existing.
                             statement = self.insert_select_max
+                        elif record.id == '':
+                            # Don't want to put this in the notification log.
+                            params['id'] = None
+                            if hasattr(self.record_class, 'pipeline_id'):
+                                params['pipeline_id'] = None
                         else:
-                            # Are record ID unique in table? Not if there are different applications.
+                            # ID can't be auto-incrementing if table has an application_id.
                             if hasattr(self.record_class, 'application_id'):
-                                # Record ID is not auto-incrementing.
+                                # We need a value and don't have one.
                                 assert record.id, "record ID not set when required"
                             params['id'] = record.id
 
@@ -168,15 +174,20 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
     def get_record(self, sequence_id, position):
         try:
-            filter_args = {self.field_names.sequence_id: sequence_id}
+            filter_args = {
+                self.field_names.sequence_id: sequence_id
+            }
+
             query = self.filter_by(**filter_args)
+            if hasattr(self.record_class, 'application_id'):
+                query = query.filter(self.record_class.application_id == self.application_id)
+
             position_field = getattr(self.record_class, self.field_names.position)
+
             query = query.filter(position_field == position)
             return query.one()
         except (NoResultFound, MultipleResultsFound):
             raise IndexError
-        finally:
-            self.session.close()
 
     def filter_by(self, **kwargs):
         return self.orm_query().filter_by(**kwargs)

@@ -7,6 +7,8 @@ from unittest.case import TestCase
 
 import eventsourcing
 from eventsourcing.domain.model.events import assert_event_handlers_empty
+from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.sqlalchemy.records import Base
 
 base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
@@ -18,10 +20,20 @@ class TestDocs(TestCase):
             print("Warning: event handlers still subscribed: {}".format(_event_handlers))
         _event_handlers.clear()
 
-        try:
-            del(os.environ['DB_URI'])
-        except KeyError:
-            pass
+        # Need to drop the stored events, because the __main__#Order topics
+        # mess up the multiprocessing tests (because the Orders application
+        # has the same ID so events from one test cause another to fail).
+        os.environ['DB_URI'] = 'mysql+pymysql://{}:{}@{}/eventsourcing'.format(
+            os.getenv('MYSQL_USER', 'root'),
+            os.getenv('MYSQL_PASSWORD', ''),
+            os.getenv('MYSQL_HOST', '127.0.0.1'),
+        )
+        database = SQLAlchemyDatastore(settings=SQLAlchemySettings())
+        database.setup_connection()
+        # Might as well drop everything....
+        Base.metadata.drop_all(database._engine)
+
+        del (os.environ['DB_URI'])
 
     def test_readme(self):
         self._out = ''
@@ -48,17 +60,17 @@ class TestDocs(TestCase):
                 if name in skipped:
                     continue
                 if name.endswith('.rst'):
-                # if name.endswith('aggregates_in_ddd.rst'):
-                # if name.endswith('example_application.rst'):
-                # if name.endswith('everything.rst'):
-                # if name.endswith('domainmodel.rst'):
-                # if name.endswith('infrastructure.rst'):
-                # if name.endswith('application.rst'):
-                # if name.endswith('snapshotting.rst'):
-                # if name.endswith('notifications.rst'):
-                # if name.endswith('projections.rst'):
-                # if name.endswith('deployment.rst'):
-                # if name.endswith('process.rst'):
+                    # if name.endswith('aggregates_in_ddd.rst'):
+                    # if name.endswith('example_application.rst'):
+                    # if name.endswith('everything.rst'):
+                    # if name.endswith('domainmodel.rst'):
+                    # if name.endswith('infrastructure.rst'):
+                    # if name.endswith('application.rst'):
+                    # if name.endswith('snapshotting.rst'):
+                    # if name.endswith('notifications.rst'):
+                    # if name.endswith('projections.rst'):
+                    # if name.endswith('deployment.rst'):
+                    # if name.endswith('process.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)

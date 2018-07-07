@@ -41,16 +41,17 @@ class SnapshottingPolicy(object):
 
     def condition(self, event):
         # Periodically by default.
-        if isinstance(event, (list, tuple)):
-            for e in event:
-                if self.condition(e):
-                    return True
+        if self.period:
+            if isinstance(event, (list, tuple)):
+                for e in event:
+                    if self.condition(e):
+                        return True
+                else:
+                    return False
             else:
-                return False
-        else:
-            if self.persist_event_type:
-                if isinstance(event, self.persist_event_type):
-                    return (event.originator_version + 1) % self.period == 0
+                if self.persist_event_type:
+                    if isinstance(event, self.persist_event_type):
+                        return (event.originator_version + 1) % self.period == 0
 
     def take_snapshot(self, event):
         if isinstance(event, (list, tuple)):
