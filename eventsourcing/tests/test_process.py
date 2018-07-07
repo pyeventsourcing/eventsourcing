@@ -5,7 +5,8 @@ from eventsourcing.application.sqlalchemy import CommandProcess, ProcessApplicat
 from eventsourcing.application.process import RepositoryWrapper
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot, AggregateRoot
 from eventsourcing.domain.model.command import Command
-from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
+from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe, \
+    EventHandlersNotEmptyError, clear_event_handlers
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.utils.topic import resolve_topic
@@ -87,7 +88,8 @@ class TestProcess(TestCase):
         # Create two events, one has causal dependency on the other.
         core1 = ProcessApplication(
             name='core',
-            persist_event_type=ExampleAggregate.Created,
+            # persist_event_type=ExampleAggregate.Created,
+            persist_event_type=BaseAggregateRoot.Event,
             setup_table=True,
             pipeline_id=pipeline_id1,
         )
@@ -99,12 +101,12 @@ class TestProcess(TestCase):
             session=core1.session
         )
 
-        # First event in partition 1.
+        # First event in pipeline 1.
         aggregate = ExampleAggregate.__create__()
         aggregate.__save__()
 
-        # Second event in partition 2.
-        # - it's important this is done in a policy so the causal dependency is identified
+        # Second event in pipeline 2.
+        # - it's important this is done in a policy so the causal dependencies are identified
         core2.follow('core', core1.notification_log)
         core2.run()
 
@@ -112,19 +114,38 @@ class TestProcess(TestCase):
         self.assertTrue(aggregate.id in core1.repository)
 
         # Check the aggregate has been "moved on".
-        self.assertTrue(core1.repository[aggregate.id].is_moved_on)
+        aggregate = core1.repository[aggregate.id]
+        self.assertTrue(aggregate.is_moved_on)
+        self.assertTrue(aggregate.second_id)
+        self.assertIn(aggregate.second_id, core1.repository)
 
-        # Check the events have different partition IDs.
-        records = core1.event_store.record_manager.get_records(aggregate.id)
-        self.assertEqual(2, len(records))
-        self.assertEqual(pipeline_id1, records[0].pipeline_id)
+        # Check the events have different pipeline IDs.
+        aggregate_records = core1.event_store.record_manager.get_records(aggregate.id)
+        second_entity_records = core1.event_store.record_manager.get_records(aggregate.second_id)
+
+        self.assertEqual(2, len(aggregate_records))
+        self.assertEqual(1, len(second_entity_records))
+
+        self.assertEqual(pipeline_id1, aggregate_records[0].pipeline_id)
+        self.assertEqual(pipeline_id2, aggregate_records[1].pipeline_id)
+        self.assertEqual(pipeline_id2, second_entity_records[0].pipeline_id)
 
         # Check the causal dependencies have been constructed.
-        self.assertEqual(None, records[0].causal_dependencies)
-        self.assertTrue({
+        # - the first 'Created' event doesn't have an causal dependencies
+        self.assertEqual(None, aggregate_records[0].causal_dependencies)
+
+        # - the second 'Created' event depends on the Created event in another pipeline.
+        expect = [{
             'notification_id': 1,
             'pipeline_id': pipeline_id1
-        }, json_loads(records[1].causal_dependencies))
+        }]
+        actual = json_loads(second_entity_records[0].causal_dependencies)
+
+        self.assertEqual(expect, actual)
+
+        # - the 'AttributeChanged' event depends on the second Created,
+        # which is in the same pipeline, so expect no causal dependencies.
+        self.assertEqual(None, aggregate_records[1].causal_dependencies)
 
         # Setup downstream process.
         downstream1 = ProcessApplication(
@@ -159,7 +180,7 @@ class TestProcess(TestCase):
         downstream2.run()
 
         self.assertEqual(1, len(downstream1.event_store.record_manager.get_notifications()))
-        self.assertEqual(1, len(downstream2.event_store.record_manager.get_notifications()))
+        self.assertEqual(2, len(downstream2.event_store.record_manager.get_notifications()))
 
         core1.close()
         core2.close()
@@ -200,7 +221,11 @@ class TestProcess(TestCase):
             process.close()
 
     def tearDown(self):
-        assert_event_handlers_empty()
+        try:
+            assert_event_handlers_empty()
+        except EventHandlersNotEmptyError:
+            clear_event_handlers()
+            raise
 
 
 class TestCommands(TestCase):
