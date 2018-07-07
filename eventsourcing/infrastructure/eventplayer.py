@@ -25,7 +25,7 @@ class EventPlayer(AbstractEventPlayer):
     def event_store(self):
         return self._event_store
 
-    def replay_events(self, initial_state, domain_events):
+    def project_events(self, initial_state, domain_events):
         """
         Evolves initial state using the sequence of domain events and a mutator function.
         """
