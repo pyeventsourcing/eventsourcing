@@ -51,7 +51,7 @@ class TestSystem(TestCase):
 
         set_db_uri()
 
-        with Orders(setup_table=True) as app:
+        with Orders(setup_tables=True) as app:
             # Create a new order.
             order_id = create_new_order()
 
@@ -100,7 +100,7 @@ class TestSystem(TestCase):
         order_ids = []
 
         # Start multiprocessing system.
-        with multiprocess, Orders(setup_table=True) as orders:
+        with multiprocess, Orders() as orders:
 
             # Create some new orders.
             for _ in range(num_orders_per_pipeline):

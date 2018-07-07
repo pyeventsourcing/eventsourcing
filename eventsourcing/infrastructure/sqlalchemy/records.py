@@ -130,9 +130,6 @@ class SnapshotRecord(Base):
 class EntitySnapshotRecord(Base):
     __tablename__ = 'entity_snapshots'
 
-    # Application ID.
-    application_id = Column(UUIDType(), primary_key=True)
-
     # Originator ID (e.g. an entity or aggregate ID).
     originator_id = Column(UUIDType(), primary_key=True)
 
@@ -159,10 +156,10 @@ class StoredEventRecord(Base):
     originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
     # Partition ID.
-    pipeline_id = Column(Integer(), nullable=True)
+    pipeline_id = Column(Integer(), nullable=False)
 
     # Record ID.
-    id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=True)
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=False)
 
     # Type of the event (class name).
     event_type = Column(Text(), nullable=False)
@@ -179,7 +176,7 @@ class StoredEventRecord(Base):
             'application_id',
             'pipeline_id',
             'id',
-            unique=True,
+            unique=True
         ),
     )
 

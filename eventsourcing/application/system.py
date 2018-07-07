@@ -57,7 +57,7 @@ class System(object):
         session = None
         for process_class in self.process_classes:
             kwargs = {}
-            kwargs['setup_table'] = self.setup_tables
+            kwargs['setup_tables'] = self.setup_tables
             if process_class.is_constructed_with_session:
                 kwargs['session'] = session
             process = process_class(**kwargs)

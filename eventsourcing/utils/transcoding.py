@@ -18,12 +18,6 @@ class ObjectJSONEncoder(JSONEncoder):
     def __init__(self, sort_keys=True, *args, **kwargs):
         super(ObjectJSONEncoder, self).__init__(sort_keys=sort_keys, *args, **kwargs)
 
-    def iterencode(self, o, _one_shot=False):
-        try:
-            return super(ObjectJSONEncoder, self).iterencode(o, _one_shot=_one_shot)
-        except:
-            raise
-
     def default(self, obj):
         if isinstance(obj, UUID):
             return {'UUID': obj.hex}
@@ -46,17 +40,6 @@ class ObjectJSONEncoder(JSONEncoder):
                     'state': state,
                 }
             }
-        elif hasattr(obj, '__class__') and hasattr(obj, '__slots__'):
-            topic = get_topic(obj.__class__)
-            state = {k:getattr(obj, k) for k in obj.__slots__}
-            return {
-                '__class__': {
-                    'topic': topic,
-                    'state': state,
-                }
-            }
-        elif isinstance(obj, set):
-            return {'__set__': sorted(list(obj))}
         elif isinstance(obj, deque):
             assert list(obj) == []
             return {'__deque__': []}
@@ -85,8 +68,6 @@ class ObjectJSONDecoder(JSONDecoder):
             return cls._decode_object(d)
         elif '__deque__' in d:
             return deque([])
-        elif '__set__' in d:
-            return set(d['__set__'])
         return d
 
     @classmethod
@@ -117,11 +98,7 @@ class ObjectJSONDecoder(JSONDecoder):
         state = d['__class__']['state']
         obj_class = resolve_topic(topic)
         obj = object.__new__(obj_class)
-        if hasattr(obj, '__dict__'):
-            obj.__dict__.update(state)
-        else:
-            for k,v in state.items():
-                setattr(obj, k, v)
+        obj.__dict__.update(state)
         return obj
 
 
