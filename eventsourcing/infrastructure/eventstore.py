@@ -153,7 +153,6 @@ class EventStore(AbstractEventStore):
         :param position: get item at this position
         :return: domain event
         """
-
         sequenced_item = self.record_manager.get_item(
             sequence_id=originator_id,
             position=position,

@@ -4,7 +4,6 @@ from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.application.snapshotting import ApplicationWithSnapshotting
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.domain.model.entity import DomainEntity
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, PromptFailed, RecordConflictError
 from eventsourcing.infrastructure.base import RelationalRecordManager
@@ -16,11 +15,10 @@ from eventsourcing.utils.uuids import uuid_from_application_name
 
 class ProcessApplication(Pipeable, SimpleApplication):
     tracking_record_manager_class = None
-    always_track_notifications = False
 
-    def __init__(self, name=None, policy=None, setup_table=False, tracking_record_manager_class=None,
-                 always_track_notifications=False, **kwargs):
-        self.always_track_notifications = always_track_notifications or self.always_track_notifications
+    def __init__(self, name=None, policy=None, setup_tables=False, setup_table=False,
+                 tracking_record_manager_class=None, **kwargs):
+        setup_table = setup_tables = setup_table or setup_tables
         self.tracking_record_manager_class = tracking_record_manager_class or self.tracking_record_manager_class
         self.policy_func = policy
         self.readers = OrderedDict()
@@ -153,7 +151,7 @@ class ProcessApplication(Pipeable, SimpleApplication):
             pipeline_id, notification_id = self.event_store.record_manager.get_pipeline_and_notification_id(
                 entity_id, entity_version
             )
-            if pipeline_id is not None and pipeline_id != self.pipeline_id:
+            if pipeline_id != self.pipeline_id:
                 highest[pipeline_id] = max(notification_id, highest[pipeline_id])
 
         causal_dependencies = []
@@ -169,32 +167,28 @@ class ProcessApplication(Pipeable, SimpleApplication):
     def policy(self, repository, event):
         return self.policy_func(self, repository, event) if self.policy_func is not None else None
 
-    def record_new_events(self, aggregates, notification=None, upstream_application_name=None,
-                          causal_dependencies=None):
+    def record_new_events(self, aggregates, notification, upstream_application_name, causal_dependencies):
         # Construct tracking record.
         tracking_kwargs = self.construct_tracking_kwargs(notification, upstream_application_name)
 
         # Collect pending events.
         new_events, num_changed_aggregates = self.collect_pending_events(aggregates)
 
-        # Writing tracking record when there are new events.
-        if len(new_events) or self.always_track_notifications:
+        # Sort pending events across all aggregates.
+        if num_changed_aggregates > 1:
+            self.sort_pending_events(new_events)
 
-            # Sort pending events across all aggregates.
-            if num_changed_aggregates > 1:
-                self.sort_pending_events(new_events)
+        # Construct event records.
+        event_records = self.construct_event_records(new_events, causal_dependencies)
 
-            # Construct event records.
-            event_records = self.construct_event_records(new_events, causal_dependencies)
-
-            # Write event records with tracking record.
-            record_manager = self.event_store.record_manager
-            assert isinstance(record_manager, RelationalRecordManager)
-            record_manager.write_records(records=event_records, tracking_kwargs=tracking_kwargs)
-        # else:
-            # Todo: Maybe write one tracking record at the end of a run, if necessary, or
-            # only during a period of time when nothing happens?
-
+        # Write event records with tracking record.
+        record_manager = self.event_store.record_manager
+        assert isinstance(record_manager, RelationalRecordManager)
+        record_manager.write_records(records=event_records, tracking_kwargs=tracking_kwargs)
+        # Todo: Maybe optimise by skipping writing lots of solo tracking records
+        # (ie writes that don't have any new events). Maybe just write one at the
+        # end of a run, if necessary, or only once during a period of time when
+        # nothing happens?
 
         return new_events
 
@@ -229,7 +223,7 @@ class ProcessApplication(Pipeable, SimpleApplication):
         except Exception as e:
             raise PromptFailed("{}: {}".format(type(e), str(e)))
 
-    def construct_event_records(self, pending_events, causal_dependencies=None):
+    def construct_event_records(self, pending_events, causal_dependencies):
         # Convert to event records.
         sequenced_items = self.event_store.to_sequenced_item(pending_events)
         event_records = self.event_store.record_manager.to_records(sequenced_items)
@@ -237,12 +231,9 @@ class ProcessApplication(Pipeable, SimpleApplication):
         # Set notification log IDs, and causal dependencies.
         if len(event_records):
             current_max = self.event_store.record_manager.get_max_record_id() or 0
-            for domain_event, event_record in zip(pending_events, event_records):
-                if type(domain_event).__notifiable__:
-                    current_max += 1
-                    event_record.id = current_max
-                else:
-                    event_record.id = ''
+            for event_record in event_records:
+                current_max += 1
+                event_record.id = current_max
 
             # Only need first event to carry the dependencies.
             if hasattr(self.event_store.record_manager.record_class, 'causal_dependencies'):
@@ -252,8 +243,6 @@ class ProcessApplication(Pipeable, SimpleApplication):
         return event_records
 
     def collect_pending_events(self, aggregates):
-        if isinstance(aggregates, DomainEntity):
-            aggregates = [aggregates]
         assert isinstance(aggregates, (list, tuple))
         pending_events = []
         num_changed_aggregates = 0
@@ -265,8 +254,6 @@ class ProcessApplication(Pipeable, SimpleApplication):
         return pending_events, num_changed_aggregates
 
     def construct_tracking_kwargs(self, notification, upstream_application_name):
-        if notification is None:
-            return {}
         upstream_application_id = uuid_from_application_name(upstream_application_name)
         tracking_kwargs = {
             'application_id': self.application_id,

@@ -1,7 +1,6 @@
 import os
 
 from sqlalchemy import create_engine
-from sqlalchemy.exc import InternalError
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -27,7 +26,7 @@ class SQLAlchemyDatastore(Datastore):
                  session=None, **kwargs):
         super(SQLAlchemyDatastore, self).__init__(**kwargs)
         self._session = session
-        self._engine = session.bind if session else None
+        self._engine = None if session is None else session.bind
         self._base = base
         self._tables = tables
         self._connection_strategy = connection_strategy
@@ -74,15 +73,7 @@ class SQLAlchemyDatastore(Datastore):
     def setup_table(self, table):
         if self._engine is None:
             raise Exception("Engine not set when required: {}".format(self))
-        try:
-            table.__table__.create(self._engine, checkfirst=True)
-        except InternalError as e:
-            if "Table '{}' already exists".format(table.__tablename__) in str(e):
-                # This is a race condition from checkfirst=True. Can happen
-                # if two threads call this method at the same time.
-                pass
-            else:
-                raise
+        table.__table__.create(self._engine, checkfirst=True)
 
     def drop_tables(self):
         if self._tables is not None:

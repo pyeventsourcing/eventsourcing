@@ -18,7 +18,7 @@ DEFAULT_POLL_INTERVAL = 5
 class Multiprocess(object):
 
     def __init__(self, system, pipeline_ids=(-1,), poll_interval=None, notification_log_section_size=5,
-                 pool_size=1, setup_tables=False, sleep_for_setup_tables=0):
+                 pool_size=1, setup_tables=False):
         self.pool_size = pool_size
         self.system = system
         self.pipeline_ids = pipeline_ids
@@ -27,7 +27,6 @@ class Multiprocess(object):
         self.os_processes = None
         self.notification_log_section_size = notification_log_section_size
         self.setup_tables = setup_tables or system.setup_tables
-        self.sleep_for_setup_tables = sleep_for_setup_tables
 
     def start(self):
         assert self.os_processes is None, "Already started"
@@ -74,7 +73,7 @@ class Multiprocess(object):
                 self.os_processes.append(os_process)
                 if self.setup_tables:
                     # Avoid conflicts when creating tables.
-                    sleep(self.sleep_for_setup_tables)
+                    sleep(1)
 
     def broadcast_prompt(self, prompt):
         outbox_id = (prompt.pipeline_id, prompt.process_name)
@@ -140,7 +139,7 @@ class OperatingSystemProcess(multiprocessing.Process):
             pipeline_id=self.pipeline_id,
             notification_log_section_size=self.notification_log_section_size,
             pool_size=self.pool_size,
-            setup_table=self.setup_tables,
+            setup_tables=self.setup_tables,
         )
 
         # Follow upstream notification logs.
