@@ -7,7 +7,6 @@ from eventsourcing.application.system import System
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
-from eventsourcing.utils.uuids import uuid_from_application_name
 
 logger = logging.getLogger()
 
@@ -284,10 +283,9 @@ class ProcessSlave(Actor):
         for upstream_application_name in self.upstream_application_names:
             record_manager = self.process.event_store.record_manager
             assert isinstance(record_manager, SQLAlchemyRecordManager)
-            upstream_application_id = uuid_from_application_name(upstream_application_name)
             notification_log = RecordManagerNotificationLog(
                 record_manager=record_manager.clone(
-                    application_id=upstream_application_id,
+                    application_name=upstream_application_name,
                     pipeline_id=self.pipeline_id
                 ),
                 section_size=self.process.notification_log_section_size

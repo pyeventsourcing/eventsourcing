@@ -6,7 +6,6 @@ from sqlalchemy.sql import func
 from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.base import AbstractTrackingRecordManager, RelationalRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import NotificationTrackingRecord
-from eventsourcing.utils.uuids import uuid_from_application_name
 
 
 class SQLAlchemyRecordManager(RelationalRecordManager):
@@ -24,8 +23,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         insert-select-from form, and optimistic concurrency control.
         """
         field_names = list(field_names)
-        if hasattr(record_class, 'application_id') and 'application_id' not in field_names:
-            field_names.append('application_id')
+        if hasattr(record_class, 'application_name') and 'application_name' not in field_names:
+            field_names.append('application_name')
         if hasattr(record_class, 'pipeline_id') and 'pipeline_id' not in field_names:
             field_names.append('pipeline_id')
         if hasattr(record_class, 'causal_dependencies') and 'causal_dependencies' not in field_names:
@@ -64,8 +63,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                 for record in records:
 
                     params = {c: getattr(record, c) for c in self.field_names}
-                    if hasattr(self.record_class, 'application_id'):
-                        params['application_id'] = self.application_id
+                    if hasattr(self.record_class, 'application_name'):
+                        params['application_name'] = self.application_name
                     if hasattr(self.record_class, 'pipeline_id'):
                         params['pipeline_id'] = self.pipeline_id
                     if hasattr(record, 'causal_dependencies'):
@@ -83,8 +82,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                             if hasattr(self.record_class, 'pipeline_id'):
                                 params['pipeline_id'] = None
                         else:
-                            # ID can't be auto-incrementing if table has an application_id.
-                            if hasattr(self.record_class, 'application_id'):
+                            # ID can't be auto-incrementing if table has an application_name.
+                            if hasattr(self.record_class, 'application_name'):
                                 # We need a value and don't have one.
                                 assert record.id, "record ID not set when required"
                             params['id'] = record.id
@@ -105,9 +104,9 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             filter_kwargs = {
                 self.field_names.sequence_id: sequence_id
             }
-            # Optionally, filter by application_id.
-            if hasattr(self.record_class, 'application_id'):
-                filter_kwargs['application_id'] = self.application_id
+            # Optionally, filter by application_name.
+            if hasattr(self.record_class, 'application_name'):
+                filter_kwargs['application_name'] = self.application_name
             query = self.filter_by(**filter_kwargs)
 
             # Filter and order by position.
@@ -147,8 +146,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def get_notifications(self, start=None, stop=None, *args, **kwargs):
         try:
             query = self.orm_query()
-            if hasattr(self.record_class, 'application_id'):
-                query = query.filter(self.record_class.application_id == self.application_id)
+            if hasattr(self.record_class, 'application_name'):
+                query = query.filter(self.record_class.application_name == self.application_name)
             if hasattr(self.record_class, 'pipeline_id'):
                 query = query.filter(self.record_class.pipeline_id == self.pipeline_id)
             if hasattr(self.record_class, 'id'):
@@ -179,8 +178,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             }
 
             query = self.filter_by(**filter_args)
-            if hasattr(self.record_class, 'application_id'):
-                query = query.filter(self.record_class.application_id == self.application_id)
+            if hasattr(self.record_class, 'application_name'):
+                query = query.filter(self.record_class.application_name == self.application_name)
 
             position_field = getattr(self.record_class, self.field_names.position)
 
@@ -198,8 +197,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
     def get_max_record_id(self):
         try:
             query = self.session.query(func.max(self.record_class.id))
-            if hasattr(self.record_class, 'application_id'):
-                query = query.filter(self.record_class.application_id == self.application_id)
+            if hasattr(self.record_class, 'application_name'):
+                query = query.filter(self.record_class.application_name == self.application_name)
             if hasattr(self.record_class, 'pipeline_id'):
                 query = query.filter(self.record_class.pipeline_id == self.pipeline_id)
 
@@ -212,8 +211,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         sequence_id_col = getattr(c, self.field_names.sequence_id)
         expr = select([sequence_id_col], distinct=True)
 
-        if hasattr(self.record_class, 'application_id'):
-            expr = expr.where(c.application_id == self.application_id)
+        if hasattr(self.record_class, 'application_name'):
+            expr = expr.where(c.application_name == self.application_name)
 
         try:
             for row in self.session.query(expr):
@@ -248,19 +247,16 @@ class TrackingRecordManager(AbstractTrackingRecordManager):
         self.session = session
 
     def get_max_record_id(self, application_name, upstream_application_name, pipeline_id):
-        application_id = uuid_from_application_name(application_name)
-        upstream_application_id = uuid_from_application_name(upstream_application_name)
         query = self.session.query(func.max(self.record_class.notification_id))
-        query = query.filter(self.record_class.application_id == application_id)
-        query = query.filter(self.record_class.upstream_application_id == upstream_application_id)
+        query = query.filter(self.record_class.application_name == application_name)
+        query = query.filter(self.record_class.upstream_application_name == upstream_application_name)
         query = query.filter(self.record_class.pipeline_id == pipeline_id)
         return query.scalar()
 
-    def has_tracking_record(self, application_id, upstream_application_name, pipeline_id, notification_id):
-        upstream_application_id = uuid_from_application_name(upstream_application_name)
+    def has_tracking_record(self, application_name, upstream_application_name, pipeline_id, notification_id):
         query = self.session.query(self.record_class)
-        query = query.filter(self.record_class.application_id == application_id)
-        query = query.filter(self.record_class.upstream_application_id == upstream_application_id)
+        query = query.filter(self.record_class.application_name == application_name)
+        query = query.filter(self.record_class.upstream_application_name == upstream_application_name)
         query = query.filter(self.record_class.pipeline_id == pipeline_id)
         query = query.filter(self.record_class.notification_id == notification_id)
         try:

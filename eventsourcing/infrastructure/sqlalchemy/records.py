@@ -1,4 +1,4 @@
-from sqlalchemy import DECIMAL
+from sqlalchemy import DECIMAL, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.schema import Column, Index
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, Text
@@ -131,7 +131,7 @@ class EntitySnapshotRecord(Base):
     __tablename__ = 'entity_snapshots'
 
     # Application ID.
-    application_id = Column(UUIDType(), primary_key=True)
+    application_name = Column(String(length=32), primary_key=True)
 
     # Originator ID (e.g. an entity or aggregate ID).
     originator_id = Column(UUIDType(), primary_key=True)
@@ -150,7 +150,7 @@ class StoredEventRecord(Base):
     __tablename__ = 'stored_events'
 
     # Application ID.
-    application_id = Column(UUIDType(), primary_key=True)
+    application_name = Column(String(length=32), primary_key=True)
 
     # Originator ID (e.g. an entity or aggregate ID).
     originator_id = Column(UUIDType(), primary_key=True)
@@ -176,7 +176,7 @@ class StoredEventRecord(Base):
     __table_args__ = (
         Index(
             'stored_events_notification_index',
-            'application_id',
+            'application_name',
             'pipeline_id',
             'id',
             unique=True,
@@ -188,10 +188,10 @@ class NotificationTrackingRecord(Base):
     __tablename__ = 'notification_tracking'
 
     # Application ID.
-    application_id = Column(UUIDType(), primary_key=True)
+    application_name = Column(String(length=32), primary_key=True)
 
     # Upstream application ID.
-    upstream_application_id = Column(UUIDType(), primary_key=True)
+    upstream_application_name = Column(String(length=32), primary_key=True)
 
     # Partition ID.
     pipeline_id = Column(Integer(), primary_key=True)

@@ -11,7 +11,6 @@ from eventsourcing.infrastructure.base import RelationalRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.utils.transcoding import json_dumps, json_loads
-from eventsourcing.utils.uuids import uuid_from_application_name
 
 
 class ProcessApplication(Pipeable, SimpleApplication):
@@ -96,7 +95,7 @@ class ProcessApplication(Pipeable, SimpleApplication):
                     notification_id = causal_dependency['notification_id']
 
                     if not self.tracking_record_manager.has_tracking_record(
-                        application_id=self.application_id,
+                        application_name=self.name,
                         upstream_application_name=upstream_application_name,
                         pipeline_id=pipeline_id,
                         notification_id=notification_id
@@ -104,7 +103,7 @@ class ProcessApplication(Pipeable, SimpleApplication):
                         self.is_reader_position_ok[upstream_application_name] = False
 
                         raise CausalDependencyFailed({
-                            'application_id': self.application_id,
+                            'application_name': self.name,
                             'upstream_application_name': upstream_application_name,
                             'pipeline_id': pipeline_id,
                             'notification_id': notification_id
@@ -267,10 +266,9 @@ class ProcessApplication(Pipeable, SimpleApplication):
     def construct_tracking_kwargs(self, notification, upstream_application_name):
         if notification is None:
             return {}
-        upstream_application_id = uuid_from_application_name(upstream_application_name)
         tracking_kwargs = {
-            'application_id': self.application_id,
-            'upstream_application_id': upstream_application_id,
+            'application_name': self.name,
+            'upstream_application_name': upstream_application_name,
             'pipeline_id': self.pipeline_id,
             'notification_id': notification['id'],
         }
