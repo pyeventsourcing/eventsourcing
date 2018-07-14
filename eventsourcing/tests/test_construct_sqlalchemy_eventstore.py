@@ -17,7 +17,7 @@ class TestFactory(TestCase):
         event_store = construct_sqlalchemy_eventstore(
             session=datastore.session,
             contiguous_record_ids=True,
-            application_id=uuid4(),
+            application_name=uuid4().hex,
         )
         datastore.setup_table(event_store.record_manager.record_class)
 
@@ -38,7 +38,7 @@ class TestFactory(TestCase):
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0], domain_event)
 
-        # Test the while clause of all_sequence_ids() is filtering on application_id.
+        # Test the while clause of all_sequence_ids() is filtering on application_name.
         self.assertEqual(event_store.record_manager.record_class, StoredEventRecord)
         sequence_ids = event_store.record_manager.list_sequence_ids()
         self.assertEqual([aggregate_id], sequence_ids)
@@ -47,7 +47,7 @@ class TestFactory(TestCase):
         event_store = construct_sqlalchemy_eventstore(
             session=datastore.session,
             contiguous_record_ids=True,
-            application_id=uuid4(),
+            application_name=uuid4().hex,
         )
         sequence_ids = event_store.record_manager.list_sequence_ids()
         self.assertEqual([], sequence_ids)

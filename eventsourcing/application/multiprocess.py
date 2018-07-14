@@ -10,7 +10,6 @@ from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
-from eventsourcing.utils.uuids import uuid_from_application_name
 
 DEFAULT_POLL_INTERVAL = 5
 
@@ -159,10 +158,9 @@ class OperatingSystemProcess(multiprocessing.Process):
                 # an API from which we can pull. It's not unreasonable to have a fixed
                 # number of application processes connecting to the same database.
                 record_manager = self.process.event_store.record_manager
-                upstream_application_id = uuid_from_application_name(upstream_name)
                 notification_log = RecordManagerNotificationLog(
                     record_manager=record_manager.clone(
-                        application_id=upstream_application_id,
+                        application_name=upstream_name,
                         pipeline_id=self.pipeline_id
                     ),
                     section_size=self.process.notification_log_section_size

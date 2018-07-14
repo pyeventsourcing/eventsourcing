@@ -9,7 +9,6 @@ from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_random_bytes
-from eventsourcing.utils.uuids import uuid_from_application_name
 
 
 class SimpleApplication(object):
@@ -61,7 +60,6 @@ class SimpleApplication(object):
         self.persist_event_type = persist_event_type or type(self).persist_event_type
 
         self.contiguous_record_ids = contiguous_record_ids
-        self.application_id = uuid_from_application_name(self.name)
         self.pipeline_id = pipeline_id
         self.setup_cipher(cipher_key)
         self.setup_infrastructure()
@@ -92,7 +90,7 @@ class SimpleApplication(object):
             integer_sequenced_record_class=self.stored_event_record_class,
             sequenced_item_class=self.sequenced_item_class,
             contiguous_record_ids=self.contiguous_record_ids,
-            application_id=self.application_id,
+            application_name=self.name,
             pipeline_id=self.pipeline_id,
             snapshot_record_class=self.snapshot_record_class,
             *args, **kwargs

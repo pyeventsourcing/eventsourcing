@@ -8,17 +8,17 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedI
 
 class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
     def __init__(self, record_class, sequenced_item_class=SequencedItem, contiguous_record_ids=False,
-                 application_id=None, pipeline_id=-1):
+                 application_name=None, pipeline_id=-1):
         self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
         self.contiguous_record_ids = contiguous_record_ids and hasattr(self.record_class, 'id')
-        if hasattr(self.record_class, 'application_id'):
-            assert application_id, "'application_id' not set when required"
+        if hasattr(self.record_class, 'application_name'):
+            assert application_name, "'application_name' not set when required"
             assert contiguous_record_ids, "'contiguous_record_ids' not set when required"
-        self.application_id = application_id
+        self.application_name = application_name
         if hasattr(self.record_class, 'pipeline_id'):
-            assert hasattr(self.record_class, 'application_id'), "'application_id' column not defined"
+            assert hasattr(self.record_class, 'application_name'), "'application_name' column not defined"
         self.pipeline_id = pipeline_id
 
     @abstractmethod
@@ -67,8 +67,8 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
         Constructs and returns an ORM object, from given sequenced item object.
         """
         kwargs = self.get_field_kwargs(sequenced_item)
-        if hasattr(self.record_class, 'application_id'):
-            kwargs['application_id'] = self.application_id
+        if hasattr(self.record_class, 'application_name'):
+            kwargs['application_name'] = self.application_name
         return self.record_class(**kwargs)
 
     def from_record(self, record):
@@ -125,8 +125,8 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
     tracking_record_class = None
 
     tracking_record_field_names = [
-        'application_id',
-        'upstream_application_id',
+        'application_name',
+        'upstream_application_name',
         'pipeline_id',
         'notification_id',
         # 'originator_id',
@@ -172,10 +172,10 @@ class RelationalRecordManager(ACIDRecordManager):
         by selecting max ID from indexed table records.
         """
         if self._insert_select_max is None:
-            if hasattr(self.record_class, 'application_id'):
-                # Todo: Maybe make it support application_id with pipeline_id?
+            if hasattr(self.record_class, 'application_name'):
+                # Todo: Maybe make it support application_name with pipeline_id?
                 assert hasattr(self.record_class, 'pipeline_id')
-                tmpl = self._insert_select_max_where_application_id_tmpl
+                tmpl = self._insert_select_max_where_application_name_tmpl
             else:
                 tmpl = self._insert_select_max_tmpl
             self._insert_select_max = self._prepare_insert(
@@ -197,10 +197,10 @@ class RelationalRecordManager(ACIDRecordManager):
         "FROM {tablename};"
     )
 
-    _insert_select_max_where_application_id_tmpl = (
+    _insert_select_max_where_application_name_tmpl = (
         "INSERT INTO {tablename} (id, {columns}) "
         "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
-        "FROM {tablename} WHERE application_id=:application_id AND pipeline_id=:pipeline_id;"
+        "FROM {tablename} WHERE application_name=:application_name AND pipeline_id=:pipeline_id;"
     )
 
     @property
@@ -244,12 +244,12 @@ class RelationalRecordManager(ACIDRecordManager):
         :rtype: str
         """
 
-    def clone(self, application_id, pipeline_id, **kwargs):
+    def clone(self, application_name, pipeline_id, **kwargs):
         return type(self)(
             record_class=self.record_class,
             contiguous_record_ids=self.contiguous_record_ids,
             sequenced_item_class=self.sequenced_item_class,
-            application_id=application_id,
+            application_name=application_name,
             pipeline_id=pipeline_id,
             **kwargs
         )

@@ -458,7 +458,7 @@ and used to store events using SQLAlchemy.
         record_class=StoredEventRecord,
         session=datastore.session,
         contiguous_record_ids=True,
-        application_id=uuid4()
+        application_name=uuid4().hex
     )
 
 Sequenced items (or "stored events" in this example) can be appended to the database
@@ -1029,7 +1029,7 @@ can be used to construct an event store that uses the SQLAlchemy classes.
 
     event_store = factory.construct_sqlalchemy_eventstore(
         session=datastore.session,
-        application_id=uuid4(),
+        application_name=uuid4().hex,
         contiguous_record_ids=True,
     )
 
