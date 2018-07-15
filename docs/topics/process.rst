@@ -773,7 +773,7 @@ Because the system isn't yet running, the command remains unprocessed.
 .. code:: python
 
 
-    with Commands(setup_tables=True) as commands:
+    with Commands(setup_table=True) as commands:
 
         # Create a new command.
         cmd_id = commands.create_new_order()

@@ -10,7 +10,6 @@ from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
-from eventsourcing.utils.uuids import uuid_from_application_name
 
 DEFAULT_POLL_INTERVAL = 5
 
@@ -18,7 +17,7 @@ DEFAULT_POLL_INTERVAL = 5
 class Multiprocess(object):
 
     def __init__(self, system, pipeline_ids=(-1,), poll_interval=None, notification_log_section_size=5,
-                 pool_size=1, setup_tables=False):
+                 pool_size=1, setup_tables=False, sleep_for_setup_tables=0):
         self.pool_size = pool_size
         self.system = system
         self.pipeline_ids = pipeline_ids
@@ -27,6 +26,7 @@ class Multiprocess(object):
         self.os_processes = None
         self.notification_log_section_size = notification_log_section_size
         self.setup_tables = setup_tables or system.setup_tables
+        self.sleep_for_setup_tables = sleep_for_setup_tables
 
     def start(self):
         assert self.os_processes is None, "Already started"
@@ -73,7 +73,7 @@ class Multiprocess(object):
                 self.os_processes.append(os_process)
                 if self.setup_tables:
                     # Avoid conflicts when creating tables.
-                    sleep(1)
+                    sleep(self.sleep_for_setup_tables)
 
     def broadcast_prompt(self, prompt):
         outbox_id = (prompt.pipeline_id, prompt.process_name)
@@ -139,7 +139,7 @@ class OperatingSystemProcess(multiprocessing.Process):
             pipeline_id=self.pipeline_id,
             notification_log_section_size=self.notification_log_section_size,
             pool_size=self.pool_size,
-            setup_tables=self.setup_tables,
+            setup_table=self.setup_tables,
         )
 
         # Follow upstream notification logs.
@@ -159,10 +159,9 @@ class OperatingSystemProcess(multiprocessing.Process):
                 # an API from which we can pull. It's not unreasonable to have a fixed
                 # number of application processes connecting to the same database.
                 record_manager = self.process.event_store.record_manager
-                upstream_application_id = uuid_from_application_name(upstream_name)
                 notification_log = RecordManagerNotificationLog(
                     record_manager=record_manager.clone(
-                        application_id=upstream_application_id,
+                        application_name=upstream_name,
                         pipeline_id=self.pipeline_id
                     ),
                     section_size=self.process.notification_log_section_size

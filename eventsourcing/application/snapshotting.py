@@ -5,8 +5,11 @@ from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrate
 
 
 class ApplicationWithSnapshotting(SimpleApplication):
-    def __init__(self, snapshot_period=2, snapshot_record_class=None, **kwargs):
-        self.snapshot_period = snapshot_period
+    # Todo: Change this to default to None?
+    snapshot_period = 2
+
+    def __init__(self, snapshot_period=None, snapshot_record_class=None, **kwargs):
+        self.snapshot_period = snapshot_period or self.snapshot_period
         self.snapshot_record_class = snapshot_record_class
         self.snapshotting_policy = None
         super(ApplicationWithSnapshotting, self).__init__(**kwargs)

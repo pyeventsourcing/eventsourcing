@@ -17,7 +17,9 @@ GENESIS_HASH = os.getenv('GENESIS_HASH', '')
 
 class QualnameABCMeta(ABCMeta):
     """
-    Supplies __qualname__ to object classes with this metaclass.
+    Supplies __qualname__ to object classes in Python 2.7.
+
+    Needed to get topics from nested classes in Python 2.7.
     """
     __outer_classes = {}
 
@@ -59,6 +61,7 @@ class DomainEvent(QualnameABC):
     for equality, have recognisable representations, and hashable.
     """
     __json_encoder_class__ = ObjectJSONEncoder
+    __notifiable__ = True
 
     def __init__(self, **kwargs):
         """
