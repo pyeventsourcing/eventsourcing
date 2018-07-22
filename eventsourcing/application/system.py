@@ -2,32 +2,32 @@ from collections import OrderedDict
 
 
 class System(object):
-    def __init__(self, *pipelines, **kwargs):
+    def __init__(self, *pipeline_exprs, **kwargs):
         """
         Initialises a "process network" system object.
 
-        :param pipelines: Pipelines of process classes.
+        :param pipeline_exprs: Pipeline expressions involving process application classes.
 
-        Each pipeline of process classes shows directly which process
+        Each pipeline expression of process classes shows directly which process
         follows which other process in the system.
 
-        For example, the pipeline (A | B | C) shows that B follows A,
+        For example, the pipeline expression (A | B | C) shows that B follows A,
         and C follows B.
 
-        The pipeline (A | A) shows that A follows A.
+        The pipeline expression (A | A) shows that A follows A.
 
-        The pipeline (A | B | A) shows that B follows A, and A follows B.
+        The pipeline expression (A | B | A) shows that B follows A, and A follows B.
 
-        The pipelines ((A | B | A), (A | C | A)) is equivalent to (A | B | A | C | A).
+        The pipeline expressions ((A | B | A), (A | C | A)) are equivalent to (A | B | A | C | A).
         """
-        self.pipelines = pipelines
+        self.pipelines_exprs = pipeline_exprs
         self.setup_tables = kwargs.get('setup_tables', False)
         self.process_class = kwargs.get('process_class', None)
         self.session = kwargs.get('session', None)
 
         self.process_classes = OrderedDict()
-        for pipeline in self.pipelines:
-            for process_class in pipeline:
+        for pipeline_expr in self.pipelines_exprs:
+            for process_class in pipeline_expr:
                 if process_class.__name__ not in self.process_classes:
                     self.process_classes[process_class.__name__] = process_class
 
@@ -37,9 +37,9 @@ class System(object):
         # Determine which process follows which.
         # A following is a list of process classes followed by a process class.
         self.followings = OrderedDict()
-        for pipeline in self.pipelines:
+        for pipeline_expr in self.pipelines_exprs:
             previous_class = None
-            for process_class in pipeline:
+            for process_class in pipeline_expr:
                 try:
                     follows = self.followings[process_class.__name__]
                 except KeyError:
