@@ -96,10 +96,10 @@ and the ``cipher_key`` value can be set as environment variable
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import Application
+    from eventsourcing.application.sqlalchemy import WithSQLAlchemy
     from eventsourcing.domain.model.aggregate import AggregateRoot
 
-    application = Application(
+    application = WithSQLAlchemy(
         uri='sqlite:///:memory:',
         cipher_key=cipher_key,
         persist_event_type=AggregateRoot.Event,
@@ -112,7 +112,7 @@ For example, a session object provided by a framework extension such as
 `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__ could be passed
 to the application object.
 
-Once constructed, the ``Application`` will have an event store, provided
+Once constructed, the application object will have an event store, provided
 by the library's ``EventStore`` class, for which it uses the library's
 infrastructure classes for SQLAlchemy.
 
@@ -160,7 +160,7 @@ application's repository.
     # Check the aggregate can be discarded.
     copy.__discard__()
     copy.__save__()
-    assert copy.id not in app.repository
+    assert copy.id not in application.repository
 
     # Check optimistic concurrency control is working ok.
     from eventsourcing.exceptions import ConcurrencyError
@@ -215,11 +215,10 @@ that can create new ``CustomAggregate`` entities.
 
 .. code:: python
 
-    from eventsourcing.application.simple import Application
     from eventsourcing.application.sqlalchemy import WithSQLAlchemy
 
 
-    class MyApplication(WithSQLAlchemy, Application):
+    class MyApplication(WithSQLAlchemy):
         def __init__(self, **kwargs):
             super(MyApplication, self).__init__(
                 persist_event_type=CustomAggregate.Event, **kwargs)
@@ -260,7 +259,7 @@ The custom application object can be constructed.
 .. code:: python
 
     # Construct application object.
-    app = MyApplication(uri='sqlite:///:memory:')
+    application = MyApplication(uri='sqlite:///:memory:')
 
 
 The application service aggregate factor method ``create_aggregate()``

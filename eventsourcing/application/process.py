@@ -130,8 +130,9 @@ class ProcessApplication(Pipeable, Application):
         reader.seek(max_record_id or 0)
 
     def call_policy(self, event):
+        policy = self.policy_func or self.policy
         repository = RepositoryWrapper(self.repository)
-        new_aggregates = self.policy(repository, event)
+        new_aggregates = policy(repository, event)
         repo_aggregates = list(repository.retrieved_aggregates.values())
         all_aggregates = repo_aggregates[:]
         if new_aggregates is not None:
@@ -157,8 +158,9 @@ class ProcessApplication(Pipeable, Application):
         # Todo: Support processing notification from a single pipeline in parallel, according to dependencies.
         return all_aggregates, causal_dependencies
 
-    def policy(self, repository, event):
-        return self.policy_func(self, repository, event) if self.policy_func is not None else None
+    @staticmethod
+    def policy(repository, event):
+        """Empty method, can be overridden in subclasses to implement concrete policy."""
 
     def record_new_events(self, aggregates, notification=None, upstream_application_name=None,
                           causal_dependencies=None):

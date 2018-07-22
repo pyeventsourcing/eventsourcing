@@ -51,11 +51,11 @@ called, and ``get_application()`` will raise an exeception if
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import SimpleApplication
+    from eventsourcing.application.sqlalchemy import WithSQLAlchemy
 
 
     def construct_application(**kwargs):
-        return SimpleApplication(**kwargs)
+        return WithSQLAlchemy(**kwargs)
 
 
     _application = None

@@ -108,7 +108,8 @@ class Orders(ProcessApplication):
 
 
 class Reservations(ProcessApplication):
-    def policy(self, repository, event):
+    @staticmethod
+    def policy(repository, event):
         if isinstance(event, Order.Created):
             # Create a reservation.
             # time.sleep(0.5)
@@ -129,6 +130,7 @@ class Payments(ProcessApplication):
 class Examples(ProcessApplication):
     persist_event_type = ExampleAggregate.Created
 
-    def policy(self, repository, event):
+    @staticmethod
+    def policy(repository, event):
         if isinstance(event, ExampleAggregate.Created):
             repository[event.originator_id].move_on()

@@ -677,7 +677,8 @@ can be used to store events using the Django ORM.
     django_record_manager = DjangoRecordManager(
         record_class=StoredEventRecord,
         sequenced_item_class=StoredEvent,
-        contiguous_record_ids=True
+        contiguous_record_ids=True,
+        application_name='demo',
     )
 
     results = django_record_manager.list_items(aggregate1)

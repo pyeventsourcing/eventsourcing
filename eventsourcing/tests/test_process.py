@@ -313,7 +313,7 @@ class ExampleAggregate(BaseAggregateRoot):
             aggregate.second_id = self.second_id
 
 
-def example_policy(process, repository, event):
+def example_policy(repository, event):
     # Whenever an aggregate is created, then "move it on".
     if isinstance(event, ExampleAggregate.Created):
         # Get aggregate and move it on.
@@ -347,7 +347,7 @@ class LogMessage(BaseAggregateRoot):
         pass
 
 
-def event_logging_policy(process, repository, event):
+def event_logging_policy(_, event):
     return LogMessage.__create__(uuid4(), message=str(event))
 
 

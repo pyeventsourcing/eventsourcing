@@ -4,6 +4,7 @@ services:
   - cassandra
   - redis-server
   - mysql
+  - postgres
 
 python:
   - 2.7
@@ -19,6 +20,9 @@ python:
 before_install:
   - mysql -e 'CREATE DATABASE eventsourcing;'
 
+before_script:
+  - psql -c 'create database eventsourcing;' -U postgres
+
 install:
 - pip install -U pip wheel
 - CASS_DRIVER_NO_CYTHON=1 pip install -e .[testing]
@@ -29,6 +33,8 @@ install:
 env:
   global:
     - CASSANDRA_HOSTS=127.0.0.1
+    - MYSQL_USER=travis
+    - POSTGRES_USER=postgres
 
 script:
 - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then

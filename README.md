@@ -114,11 +114,11 @@ os.environ['DB_URI'] = 'sqlite:///:memory:'
 Run the code.
 
 ```python
-from eventsourcing.application.sqlalchemy import Application
+from eventsourcing.application.sqlalchemy import WithSQLAlchemy
 from eventsourcing.exceptions import ConcurrencyError
 
-# Construct simple application, and use as context manager.
-with Application(persist_event_type=World.Event) as app:
+# Construct application and use as context manager.
+with WithSQLAlchemy(persist_event_type=World.Event) as app:
 
     # Create new aggregate.
     world = World.__create__()
