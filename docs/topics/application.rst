@@ -96,10 +96,10 @@ and the ``cipher_key`` value can be set as environment variable
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import SimpleApplication
+    from eventsourcing.application.sqlalchemy import WithSQLAlchemy
     from eventsourcing.domain.model.aggregate import AggregateRoot
 
-    app = SimpleApplication(
+    application = WithSQLAlchemy(
         uri='sqlite:///:memory:',
         cipher_key=cipher_key,
         persist_event_type=AggregateRoot.Event,
@@ -112,29 +112,20 @@ For example, a session object provided by a framework extension such as
 `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__ could be passed
 to the application object.
 
-Once constructed, the ``SimpleApplication`` will have an event store, provided
+Once constructed, the application object will have an event store, provided
 by the library's ``EventStore`` class, for which it uses the library's
 infrastructure classes for SQLAlchemy.
 
 .. code:: python
 
-    app.event_store
+    application.event_store
 
-The ``SimpleApplication`` uses the library function
-``construct_sqlalchemy_eventstore()`` to construct its event store,
-for integer-sequenced items with SQLAlchemy.
-
-To use different infrastructure for storing events, subclass the
-``SimpleApplication`` class and override the method ``setup_event_store()``.
-You can read about the available alternatives in the
-:doc:`infrastructure layer </topics/infrastructure>` documentation.
-
-The ``SimpleApplication`` also has a persistence policy, provided by the
+The ``application`` also has a persistence policy, provided by the
 library's ``PersistencePolicy`` class.
 
 .. code:: python
 
-    app.persistence_policy
+    application.persistence_policy
 
 The persistence policy appends domain events of type `persist_event_type`
 to its event store whenever they are published.
@@ -144,7 +135,7 @@ the library's ``EventSourcedRepository`` class.
 
 .. code:: python
 
-    app.repository
+    application.repository
 
 Both the repository and persistence policy use the event store.
 
@@ -163,13 +154,13 @@ application's repository.
     obj.__save__()
 
     # Check the repository has the latest values.
-    copy = app.repository[obj.id]
+    copy = application.repository[obj.id]
     assert copy.a == 1
 
     # Check the aggregate can be discarded.
     copy.__discard__()
     copy.__save__()
-    assert copy.id not in app.repository
+    assert copy.id not in application.repository
 
     # Check optimistic concurrency control is working ok.
     from eventsourcing.exceptions import ConcurrencyError
@@ -198,7 +189,7 @@ which can be used to follow the application events as a single sequence.
 
     # Follow application event notifications.
     from eventsourcing.interface.notificationlog import NotificationLogReader
-    reader = NotificationLogReader(app.notification_log)
+    reader = NotificationLogReader(application.notification_log)
     notification_ids = [n['id'] for n in reader.read()]
     assert notification_ids == [1, 2, 3], notification_ids
 
@@ -216,15 +207,18 @@ which can be used to follow the application events as a single sequence.
 Custom application
 ==================
 
-The ``SimpleApplication`` class can be extended.
+The ``Application`` class can be extended.
 
 The example below shows a custom application class ``MyApplication`` that
-extends ``SimpleApplication`` with application service ``create_aggregate()``
+extends ``Application`` with application service ``create_aggregate()``
 that can create new ``CustomAggregate`` entities.
 
 .. code:: python
 
-    class MyApplication(SimpleApplication):
+    from eventsourcing.application.sqlalchemy import WithSQLAlchemy
+
+
+    class MyApplication(WithSQLAlchemy):
         def __init__(self, **kwargs):
             super(MyApplication, self).__init__(
                 persist_event_type=CustomAggregate.Event, **kwargs)
@@ -265,7 +259,7 @@ The custom application object can be constructed.
 .. code:: python
 
     # Construct application object.
-    app = MyApplication(uri='sqlite:///:memory:')
+    application = MyApplication(uri='sqlite:///:memory:')
 
 
 The application service aggregate factor method ``create_aggregate()``
@@ -274,7 +268,7 @@ can be called.
 .. code:: python
 
     # Create aggregate using application service, and save it.
-    aggregate = app.create_aggregate(a=1)
+    aggregate = application.create_aggregate(a=1)
     aggregate.__save__()
 
 
@@ -284,10 +278,10 @@ dictionary-like interface.
 .. code:: python
 
     # Aggregate is in the repository.
-    assert aggregate.id in app.repository
+    assert aggregate.id in application.repository
 
     # Get aggregate using dictionary-like interface.
-    aggregate = app.repository[aggregate.id]
+    aggregate = application.repository[aggregate.id]
 
     assert aggregate.a == 1
 
@@ -305,7 +299,7 @@ the repository once pending events have been published.
     aggregate.__save__()
 
     # Retrieve again from repository.
-    aggregate = app.repository[aggregate.id]
+    aggregate = application.repository[aggregate.id]
 
     # Check attribute has new value.
     assert aggregate.a == 3
@@ -321,7 +315,7 @@ aggregate will no longer be available in the repository.
     aggregate.__save__()
 
     # Check discarded aggregate no longer exists in repository.
-    assert aggregate.id not in app.repository
+    assert aggregate.id not in application.repository
 
 
 Attempts to retrieve an aggregate that does not
@@ -331,7 +325,7 @@ exist will cause a ``KeyError`` to be raised.
 
     # Fail to get aggregate from dictionary-like interface.
     try:
-        app.repository[aggregate.id]
+        application.repository[aggregate.id]
     except KeyError:
         pass
     else:
@@ -346,7 +340,7 @@ by using the application's event store method ``get_domain_events()``.
 
 .. code:: python
 
-    events = app.event_store.get_domain_events(originator_id=aggregate.id)
+    events = application.event_store.get_domain_events(originator_id=aggregate.id)
     assert len(events) == 4
 
     assert events[0].originator_id == aggregate.id
@@ -375,7 +369,7 @@ by using the method ``get_items()`` of the event store's record manager.
 
 .. code:: python
 
-    items = app.event_store.record_manager.list_items(aggregate.id)
+    items = application.event_store.record_manager.list_items(aggregate.id)
     assert len(items) == 4
 
     assert items[0].originator_id == aggregate.id
@@ -407,7 +401,7 @@ to obtain records. After all, it's just an SQLAlchemy ORM object.
 
 .. code:: python
 
-    app.event_store.record_manager.record_class
+    application.event_store.record_manager.record_class
 
 The ``orm_query()`` method of the SQLAlchemy record manager
 is a convenient way to get a query object from the session
@@ -415,7 +409,7 @@ for the record class.
 
 .. code:: python
 
-    event_records = app.event_store.record_manager.orm_query().all()
+    event_records = application.event_store.record_manager.orm_query().all()
 
     assert len(event_records) == 4
 
@@ -430,7 +424,7 @@ such as when this documentation is tested as part of the library's test suite).
 .. code:: python
 
     # Clean up.
-    app.close()
+    application.close()
 
 
 

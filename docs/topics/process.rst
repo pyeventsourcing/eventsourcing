@@ -424,11 +424,12 @@ by setting an ``Order`` as paid.
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import ProcessApplicationWithSnapshotting as ProcessApplication
+    from eventsourcing.application.process import ProcessApplication
+    from eventsourcing.application.sqlalchemy import WithSQLAlchemy
     from eventsourcing.utils.topic import resolve_topic
 
 
-    class Orders(ProcessApplication):
+    class Orders(WithSQLAlchemy, ProcessApplication):
         persist_event_type=Order.Event
 
         @staticmethod
@@ -455,7 +456,7 @@ by creating a new ``Reservation`` aggregate.
 
 .. code:: python
 
-    class Reservations(ProcessApplication):
+    class Reservations(WithSQLAlchemy, ProcessApplication):
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Created):
@@ -467,7 +468,7 @@ by creating a new ``Payment``.
 
 .. code:: python
 
-    class Payments(ProcessApplication):
+    class Payments(WithSQLAlchemy, ProcessApplication):
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Reserved):
@@ -479,13 +480,12 @@ responds to ``Order.Paid`` events by setting the command as done.
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import CommandProcess
-    #from eventsourcing.application.django import CommandProcess
+    from eventsourcing.application.command import CommandProcess
     from eventsourcing.domain.model.decorators import retry
     from eventsourcing.exceptions import OperationalError, RecordConflictError
 
 
-    class Commands(CommandProcess):
+    class Commands(WithSQLAlchemy, CommandProcess):
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Created):
@@ -684,23 +684,23 @@ in-memory SQLite database.
 
     with system:
         # Create new order command.
-        cmd_id = system.commands.create_new_order()
+        cmd_id = system.processes['commands'].create_new_order()
 
         # Check the command has an order ID and is done.
-        cmd = system.commands.repository[cmd_id]
+        cmd = system.processes['commands'].repository[cmd_id]
         assert cmd.order_id
         assert cmd.is_done
 
         # Check the order is reserved and paid.
-        order = system.orders.repository[cmd.order_id]
+        order = system.processes['orders'].repository[cmd.order_id]
         assert order.is_reserved
         assert order.is_paid
 
         # Check the reservation exists.
-        reservation = system.reservations.repository[order.reservation_id]
+        reservation = system.processes['reservations'].repository[order.reservation_id]
 
         # Check the payment exists.
-        payment = system.payments.repository[order.payment_id]
+        payment = system.processes['payments'].repository[order.payment_id]
 
 Basically, given the system is running, when a "create new order" command is
 created, then the command is done, and an order has been both reservered and paid.

@@ -2,8 +2,8 @@ from unittest import TestCase
 
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
 
-from eventsourcing.application.django import ApplicationWithDjango
-from eventsourcing.application.sqlalchemy import SimpleApplication, ApplicationWithSnapshotting
+from eventsourcing.application.django import WithDjango
+from eventsourcing.application.sqlalchemy import WithSQLAlchemy, ApplicationWithSnapshotting
 from eventsourcing.domain.model.events import assert_event_handlers_empty, DomainEvent
 from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.tests.core_tests.test_aggregate_root import ExampleAggregateRoot
@@ -12,7 +12,7 @@ from eventsourcing.utils.random import encode_random_bytes
 
 class TestSimpleApplication(TestCase):
 
-    application_class = SimpleApplication
+    application_class = WithSQLAlchemy
 
     def test(self):
         with self.get_application() as app:
@@ -51,7 +51,7 @@ class TestSimpleApplication(TestCase):
 
 
 class TestSimpleApplicationWithDjango(DjangoTestCase, TestSimpleApplication):
-    application_class = ApplicationWithDjango
+    application_class = WithDjango
 
 
 class TestSnapshottingApplication(TestSimpleApplication):

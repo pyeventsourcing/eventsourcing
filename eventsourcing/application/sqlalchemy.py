@@ -4,7 +4,7 @@ from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastruc
 from eventsourcing.infrastructure.sqlalchemy.records import EntitySnapshotRecord, StoredEventRecord
 
 
-class SimpleApplication(simple.SimpleApplication):
+class WithSQLAlchemy(simple.Application):
     infrastructure_factory_class = SQLAlchemyInfrastructureFactory
     stored_event_record_class = StoredEventRecord
     snapshot_record_class = EntitySnapshotRecord
@@ -14,10 +14,10 @@ class SimpleApplication(simple.SimpleApplication):
         self.uri = uri
         self.pool_size = pool_size
         self.session = session
-        super(SimpleApplication, self).__init__(**kwargs)
+        super(WithSQLAlchemy, self).__init__(**kwargs)
 
     def setup_infrastructure(self, *args, **kwargs):
-        super(SimpleApplication, self).setup_infrastructure(
+        super(WithSQLAlchemy, self).setup_infrastructure(
             session=self.session, uri=self.uri, pool_size=self.pool_size,
             *args, **kwargs
         )
@@ -25,17 +25,18 @@ class SimpleApplication(simple.SimpleApplication):
             self.session = self.datastore.session
 
 
-class ApplicationWithSnapshotting(snapshotting.ApplicationWithSnapshotting, SimpleApplication):
+class ApplicationWithSnapshotting(snapshotting.ApplicationWithSnapshotting, WithSQLAlchemy):
     pass
 
 
-class ProcessApplication(process.ProcessApplication, SimpleApplication):
+class ProcessApplication(process.ProcessApplication, WithSQLAlchemy):
     pass
 
 
-class ProcessApplicationWithSnapshotting(process.ProcessApplicationWithSnapshotting, SimpleApplication):
+class ProcessApplicationWithSnapshotting(process.ProcessApplicationWithSnapshotting,
+                                         WithSQLAlchemy):
     pass
 
 
-class CommandProcess(command.CommandProcess, SimpleApplication):
+class CommandProcess(command.CommandProcess, WithSQLAlchemy):
     pass

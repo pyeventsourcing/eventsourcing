@@ -7,8 +7,8 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedI
 
 
 class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
-    def __init__(self, record_class, sequenced_item_class=SequencedItem, contiguous_record_ids=False,
-                 application_name=None, pipeline_id=-1):
+    def __init__(self, record_class, sequenced_item_class=SequencedItem,
+                 contiguous_record_ids=False, application_name=None, pipeline_id=-1):
         self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
@@ -21,16 +21,32 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
             assert hasattr(self.record_class, 'application_name'), "'application_name' column not defined"
         self.pipeline_id = pipeline_id
 
+    def clone(self, application_name, pipeline_id, **kwargs):
+        return type(self)(
+            record_class=self.record_class,
+            contiguous_record_ids=self.contiguous_record_ids,
+            sequenced_item_class=self.sequenced_item_class,
+            application_name=application_name,
+            pipeline_id=pipeline_id,
+            **kwargs
+        )
+
     @abstractmethod
     def append(self, sequenced_item_or_items):
         """
         Writes sequenced item into the datastore.
         """
 
-    @abstractmethod
     def get_item(self, sequence_id, position):
         """
         Gets sequenced item from the datastore.
+        """
+        return self.from_record(self.get_record(sequence_id, position))
+
+    @abstractmethod
+    def get_record(self, sequence_id, position):
+        """
+        Gets record at position in sequence.
         """
 
     def list_items(self, *args, **kwargs):
@@ -69,7 +85,10 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
         kwargs = self.get_field_kwargs(sequenced_item)
         if hasattr(self.record_class, 'application_name'):
             kwargs['application_name'] = self.application_name
-        return self.record_class(**kwargs)
+        try:
+            return self.record_class(**kwargs)
+        except TypeError as e:
+            raise
 
     def from_record(self, record):
         """
@@ -137,6 +156,16 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
     def get_max_record_id(self):
         """Return maximum notification ID in pipeline."""
 
+    @abstractmethod
+    def get_max_tracking_record_id(self, upstream_application_name):
+        """Return maximum tracking record ID for notification from upstream application in pipeline."""
+
+    @abstractmethod
+    def has_tracking_record(self, upstream_application_name, pipeline_id, notification_id):
+        """
+        True if tracking record exists for notification from upstream in pipeline.
+        """
+
 
 class RelationalRecordManager(ACIDRecordManager):
     def __init__(self, *args, **kwargs):
@@ -174,8 +203,8 @@ class RelationalRecordManager(ACIDRecordManager):
         if self._insert_select_max is None:
             if hasattr(self.record_class, 'application_name'):
                 # Todo: Maybe make it support application_name with pipeline_id?
-                assert hasattr(self.record_class, 'pipeline_id')
-                tmpl = self._insert_select_max_where_application_name_tmpl
+                assert hasattr(self.record_class, 'pipeline_id'), self.record_class
+                tmpl = self._insert_select_max_tmpl + self._where_application_name_tmpl
             else:
                 tmpl = self._insert_select_max_tmpl
             self._insert_select_max = self._prepare_insert(
@@ -194,14 +223,10 @@ class RelationalRecordManager(ACIDRecordManager):
     _insert_select_max_tmpl = (
         "INSERT INTO {tablename} (id, {columns}) "
         "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
-        "FROM {tablename};"
+        "FROM {tablename}"
     )
 
-    _insert_select_max_where_application_name_tmpl = (
-        "INSERT INTO {tablename} (id, {columns}) "
-        "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
-        "FROM {tablename} WHERE application_name=:application_name AND pipeline_id=:pipeline_id;"
-    )
+    _where_application_name_tmpl = None
 
     @property
     def insert_values(self):
@@ -244,15 +269,14 @@ class RelationalRecordManager(ACIDRecordManager):
         :rtype: str
         """
 
-    def clone(self, application_name, pipeline_id, **kwargs):
-        return type(self)(
-            record_class=self.record_class,
-            contiguous_record_ids=self.contiguous_record_ids,
-            sequenced_item_class=self.sequenced_item_class,
-            application_name=application_name,
-            pipeline_id=pipeline_id,
-            **kwargs
-        )
+    def get_pipeline_and_notification_id(self, sequence_id, position):
+        """
+        Returns pipeline ID and notification ID for
+        event at given position in given sequence.
+        """
+        # Todo: Optimise query by selecting only two columns: pipeline_id and id (notification ID).
+        record = self.get_record(sequence_id, position)
+        return record.pipeline_id, record.id
 
 
 class AbstractTrackingRecordManager(six.with_metaclass(ABCMeta)):

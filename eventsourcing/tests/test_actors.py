@@ -2,9 +2,11 @@ import logging
 import os
 import time
 import unittest
+from time import sleep
 
 from eventsourcing.application.actors import Actors, shutdown_actor_system, start_actor_system, \
     start_multiproc_tcp_base_system
+from eventsourcing.application.sqlalchemy import WithSQLAlchemy
 from eventsourcing.application.system import System
 from eventsourcing.tests.test_system_fixtures import set_db_uri, create_new_order, Orders, Reservations, Payments
 
@@ -17,34 +19,40 @@ logger.addHandler(ch)
 
 class TestActors(unittest.TestCase):
 
-    def test_simple_system_base(self):
-        start_actor_system()
-        self.check_actors()
+    process_class = WithSQLAlchemy
+
+    def setUp(self):
+        # Set environment.
+        set_db_uri()
+        # Define system.
+        self.system = System(Orders | Reservations | Orders | Payments | Orders,
+                             process_class=self.process_class)
 
     def test_multiproc_tcp_base(self):
         start_multiproc_tcp_base_system()
         self.check_actors()
 
-    # def _test_multiproc_udp_base(self):
-    #     start_multiproc_udp_base_system()
-    #     self.check_actors(1, 1)
-    #
-    # def _test_multiproc_queue_base(self):
-    #     start_multiproc_queue_base_system()
-    #     self.check_actors()
+    def test_simple_system_base(self):
+        start_actor_system()
+        self.check_actors()
+
+    def close_connections_before_forking(self):
+        # Used for closing Django connection before multiprocessing module forks the OS process.
+        pass
 
     def check_actors(self, num_pipelines=2, num_orders_per_pipeline=5):
 
         pipeline_ids = list(range(num_pipelines))
 
+        self.close_connections_before_forking()
+
         actors = Actors(self.system, pipeline_ids=pipeline_ids, shutdown_on_close=True)
 
         # Todo: Use wakeupAfter() to poll for new notifications (see Timer Messages).
-        # Todo: Fix multiple pipelines with multiproc bases.
 
         order_ids = []
 
-        with Orders(setup_table=True) as app, actors:
+        with self.system.construct_app(Orders, setup_table=True) as app, actors:
 
             # Create some new orders.
             for _ in range(num_orders_per_pipeline):
@@ -84,14 +92,6 @@ class TestActors(unittest.TestCase):
             print("Min order processing time: {:.3f}s".format(min(durations)))
             print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
             print("Max order processing time: {:.3f}s".format(max(durations)))
-
-    def setUp(self):
-        # Shutdown base actor system, if running.
-        # ActorSystem().shutdown()
-        # Set environment.
-        set_db_uri()
-        # Define system.
-        self.system = System(Orders | Reservations | Orders | Payments | Orders)
 
     def tearDown(self):
         # Unset environment.

@@ -21,67 +21,77 @@ class System(object):
         The pipelines ((A | B | A), (A | C | A)) is equivalent to (A | B | A | C | A).
         """
         self.pipelines = pipelines
-        self.process_classes = []
+        self.setup_tables = kwargs.get('setup_tables', False)
+        self.process_class = kwargs.get('process_class', None)
+        self.session = kwargs.get('session', None)
+
+        self.process_classes = OrderedDict()
         for pipeline in self.pipelines:
             for process_class in pipeline:
-                if process_class not in self.process_classes:
-                    self.process_classes.append(process_class)
-        self.processes_by_name = None
+                if process_class.__name__ not in self.process_classes:
+                    self.process_classes[process_class.__name__] = process_class
+
+        self.processes = None
         self.is_session_shared = True
 
         # Determine which process follows which.
+        # A following is a list of process classes followed by a process class.
         self.followings = OrderedDict()
         for pipeline in self.pipelines:
             previous_class = None
             for process_class in pipeline:
-                # Follower follows the followed.
                 try:
-                    follows = self.followings[process_class]
+                    follows = self.followings[process_class.__name__]
                 except KeyError:
                     follows = []
-                    self.followings[process_class] = follows
+                    self.followings[process_class.__name__] = follows
 
                 if previous_class is not None and previous_class not in follows:
-                    follows.append(previous_class)
+                    follows.append(previous_class.__name__)
 
                 previous_class = process_class
 
-        self.setup_tables = kwargs.get('setup_tables', False)
-
     # Todo: Extract function to new 'SinglethreadRunner' class or something (like the 'Multiprocess' class)?
     def setup(self):
-        assert self.processes_by_name is None, "Already running"
-        self.processes_by_name = {}
+        assert self.processes is None, "Already running"
+        self.processes = {}
 
         # Construct the processes.
-        session = None
-        for process_class in self.process_classes:
-            kwargs = {}
-            kwargs['setup_table'] = self.setup_tables
-            if process_class.is_constructed_with_session:
-                kwargs['session'] = session
-            process = process_class(**kwargs)
-            self.processes_by_name[process.name] = process
-            if process_class.is_constructed_with_session and self.is_session_shared:
-                if session is None:
-                    session = process.session
+        for process_class in self.process_classes.values():
+
+            process = self.construct_app(process_class)
+            self.processes[process.name] = process
 
         # Configure which process follows which.
-        for follower_class, follows in self.followings.items():
-            follower = self.processes_by_name[follower_class.__name__.lower()]
-            for followed_class in follows:
-                followed = self.processes_by_name[followed_class.__name__.lower()]
+        for follower_class_name, follows in self.followings.items():
+            follower = self.processes[follower_class_name.lower()]
+            for followed_class_name in follows:
+                followed = self.processes[followed_class_name.lower()]
                 follower.follow(followed.name, followed.notification_log)
 
-    def __getattr__(self, process_name):
-        assert self.processes_by_name is not None, "Not running"
-        return self.processes_by_name[process_name]
+    def construct_app(self, process_class, **kwargs):
+        kwargs = dict(kwargs)
+        if 'setup_table' not in kwargs:
+            kwargs['setup_table'] = self.setup_tables
+        if 'session' not in kwargs and process_class.is_constructed_with_session:
+            kwargs['session'] = self.session
+
+        if self.process_class:
+            process_class = process_class.mixin(self.process_class)
+
+        process = process_class(**kwargs)
+
+        if process_class.is_constructed_with_session and self.is_session_shared:
+            if self.session is None:
+                self.session = process.session
+
+        return process
 
     def close(self):
-        assert self.processes_by_name is not None, "Not running"
-        for process in self.processes_by_name.values():
+        assert self.processes is not None, "Not running"
+        for process in self.processes.values():
             process.close()
-        self.processes_by_name = None
+        self.processes = None
 
     def __enter__(self):
         self.setup()
@@ -89,3 +99,8 @@ class System(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+    def drop_tables(self):
+        for process_class in self.process_classes.values():
+            with self.construct_app(process_class, setup_table=False) as process:
+                process.drop_table()

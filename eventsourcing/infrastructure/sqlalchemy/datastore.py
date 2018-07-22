@@ -18,6 +18,7 @@ class SQLAlchemySettings(DatastoreSettings):
     def __init__(self, uri=None, pool_size=5):
         self.uri = uri or os.getenv('DB_URI', DEFAULT_SQLALCHEMY_DB_URI)
         self.pool_size = pool_size
+        # Todo: Use DB_CONNECTION_POOL_SIZE if set in environment.
         # self.pool_size = pool_size if not self.uri.startswith('sqlite') else 1
 
 
