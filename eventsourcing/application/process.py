@@ -1,7 +1,7 @@
 from collections import OrderedDict, defaultdict
 
 from eventsourcing.application.pipeline import Pipeable
-from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.application.simple import Application
 from eventsourcing.application.snapshotting import ApplicationWithSnapshotting
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.entity import DomainEntity
@@ -13,14 +13,11 @@ from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.utils.transcoding import json_dumps, json_loads
 
 
-class ProcessApplication(Pipeable, SimpleApplication):
-    tracking_record_manager_class = None
-    always_track_notifications = False
+class ProcessApplication(Pipeable, Application):
+    always_track_notifications = True
 
-    def __init__(self, name=None, policy=None, setup_table=False, tracking_record_manager_class=None,
-                 always_track_notifications=False, **kwargs):
+    def __init__(self, name=None, policy=None, setup_table=False, always_track_notifications=False, **kwargs):
         self.always_track_notifications = always_track_notifications or self.always_track_notifications
-        self.tracking_record_manager_class = tracking_record_manager_class or self.tracking_record_manager_class
         self.policy_func = policy
         self.readers = OrderedDict()
         self.is_reader_position_ok = defaultdict(bool)
@@ -35,15 +32,6 @@ class ProcessApplication(Pipeable, SimpleApplication):
         subscribe(predicate=self.is_upstream_prompt, handler=self.run)
         # Todo: Maybe make a prompts policy object?
 
-    def construct_infrastructure_factory(self, *args, **kwargs):
-        return super(ProcessApplication, self).construct_infrastructure_factory(
-            tracking_record_manager_class=self.tracking_record_manager_class, *args, **kwargs
-        )
-
-    def setup_infrastructure(self, *args, **kwargs):
-        super(ProcessApplication, self).setup_infrastructure(*args, **kwargs)
-        self.tracking_record_manager = self.infrastructure_factory.construct_tracking_record_manager()
-
     def follow(self, upstream_application_name, notification_log):
         # Create a reader.
         reader = NotificationLogReader(notification_log)
@@ -53,7 +41,14 @@ class ProcessApplication(Pipeable, SimpleApplication):
         super(ProcessApplication, self).setup_table()
         if self.datastore is not None:
             self.datastore.setup_table(
-                self.tracking_record_manager.record_class
+                self.event_store.record_manager.tracking_record_class
+            )
+
+    def drop_table(self):
+        super(ProcessApplication, self).drop_table()
+        if self.datastore is not None:
+            self.datastore.drop_table(
+                self.event_store.record_manager.tracking_record_class
             )
 
     @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
@@ -78,30 +73,31 @@ class ProcessApplication(Pipeable, SimpleApplication):
                 notification_count += 1
 
                 # Todo: Get this from a queue and do it in a different thread?
-                # Domain event from notification.
+                # Get domain event from notification.
                 event = self.event_store.sequenced_item_mapper.from_topic_and_data(
                     topic=notification['event_type'],
                     data=notification['state']
                 )
 
-                # Wait for causal dependencies to be satisfied.
-                upstream_causal_dependencies = notification.get('causal_dependencies')
-                if upstream_causal_dependencies is not None:
-                    upstream_causal_dependencies = json_loads(upstream_causal_dependencies)
-                if upstream_causal_dependencies is None:
-                    upstream_causal_dependencies = []
-                for causal_dependency in upstream_causal_dependencies:
+                # Decode causal dependencies of the domain event.
+                causal_dependencies = notification.get('causal_dependencies') or '[]'
+                causal_dependencies = json_loads(causal_dependencies) or []
+
+                # Check causal dependencies are satisfied.
+                for causal_dependency in causal_dependencies:
                     pipeline_id = causal_dependency['pipeline_id']
                     notification_id = causal_dependency['notification_id']
 
-                    if not self.tracking_record_manager.has_tracking_record(
-                        application_name=self.name,
+                    has_tracking_record = self.event_store.record_manager.has_tracking_record(
                         upstream_application_name=upstream_application_name,
                         pipeline_id=pipeline_id,
                         notification_id=notification_id
-                    ):
+                    )
+                    if not has_tracking_record:
+                        # Invalidate reader position.
                         self.is_reader_position_ok[upstream_application_name] = False
 
+                        # Raise exception.
                         raise CausalDependencyFailed({
                             'application_name': self.name,
                             'upstream_application_name': upstream_application_name,
@@ -130,11 +126,7 @@ class ProcessApplication(Pipeable, SimpleApplication):
         return notification_count
 
     def set_reader_position_from_tracking_records(self, reader, upstream_application_name):
-        max_record_id = self.tracking_record_manager.get_max_record_id(
-            application_name=self.name,
-            upstream_application_name=upstream_application_name,
-            pipeline_id=self.pipeline_id,
-        )
+        max_record_id = self.event_store.record_manager.get_max_tracking_record_id(upstream_application_name)
         reader.seek(max_record_id or 0)
 
     def call_policy(self, event):
@@ -193,7 +185,6 @@ class ProcessApplication(Pipeable, SimpleApplication):
         # else:
             # Todo: Maybe write one tracking record at the end of a run, if necessary, or
             # only during a period of time when nothing happens?
-
 
         return new_events
 
@@ -278,6 +269,12 @@ class ProcessApplication(Pipeable, SimpleApplication):
         unsubscribe(predicate=self.is_upstream_prompt, handler=self.run)
         unsubscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
         super(ProcessApplication, self).close()
+
+    @classmethod
+    def reset_connection_after_forking(cls):
+        """
+        Resets database connection after forking.
+        """
 
 
 class RepositoryWrapper(object):

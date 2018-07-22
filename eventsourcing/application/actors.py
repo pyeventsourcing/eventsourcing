@@ -5,7 +5,6 @@ from thespian.actors import *
 from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.system import System
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 
 logger = logging.getLogger()
@@ -84,8 +83,13 @@ class Actors(object):
         subscribe(handler=self.forward_prompt, predicate=self.is_prompt)
 
         # Initialise the system actor.
-        command = SystemInitRequest(self.system.followings, self.pipeline_ids)
-        response = self.actor_system.ask(self.system_actor, command)
+        msg = SystemInitRequest(
+            self.system.process_classes,
+            self.system.process_class,
+            self.system.followings,
+            self.pipeline_ids
+        )
+        response = self.actor_system.ask(self.system_actor, msg)
 
         # Keep the pipeline actor addresses, to send prompts directly.
         assert isinstance(response, SystemInitResponse), type(response)
@@ -119,7 +123,8 @@ class Actors(object):
             self.shutdown()
 
     def shutdown(self):
-        self.actor_system.tell(self.system_actor, ActorExitRequest(recursive=True))
+        msg = ActorExitRequest(recursive=True)
+        self.actor_system.tell(self.system_actor, msg)
 
     def __enter__(self):
         self.start()
@@ -140,14 +145,23 @@ class SystemActor(Actor):
             if not self.is_initialised:
                 self.init_pipelines(msg)
                 self.is_initialised = True
-            self.send(sender, SystemInitResponse(self.pipeline_actors.copy()))
+            msg = SystemInitResponse(self.pipeline_actors.copy())
+            self.send(sender, msg)
 
     def init_pipelines(self, msg):
+        self.process_classes = msg.process_classes
+        self.process_class = msg.process_class
         self.system_followings = msg.system_followings
         for pipeline_id in msg.pipeline_ids:
             pipeline_actor = self.createActor(PipelineActor)
             self.pipeline_actors[pipeline_id] = pipeline_actor
-            self.send(pipeline_actor, PipelineInitRequest(self.system_followings, pipeline_id))
+            msg = PipelineInitRequest(
+                self.process_classes,
+                self.process_class,
+                self.system_followings,
+                pipeline_id
+            )
+            self.send(pipeline_actor, msg)
 
 
 class PipelineActor(Actor):
@@ -167,41 +181,49 @@ class PipelineActor(Actor):
 
     def init_pipeline(self, msg):
         self.pipeline_id = msg.pipeline_id
+        self.process_classes = msg.process_classes
+        self.process_class = msg.process_class
         self.system_followings = msg.system_followings
 
         self.followers = {}
-        for process_class, upstream_classes in self.system_followings.items():
-            for upstream_class in upstream_classes:
-                process_name = upstream_class.__name__.lower()
+        for process_class_name, upstream_class_names in self.system_followings.items():
+            for upstream_class_name in upstream_class_names:
+                process_name = upstream_class_name.lower()
                 if process_name not in self.followers:
                     self.followers[process_name] = []
-                downstream_classes = self.followers[process_name]
-                if process_class not in downstream_classes:
-                    downstream_classes.append(process_class)
+                downstream_class_names = self.followers[process_name]
+                if process_class_name not in downstream_class_names:
+                    downstream_class_names.append(process_class_name)
 
-        process_classes = self.system_followings.keys()
-        for process_class in process_classes:
+        process_class_names = self.system_followings.keys()
+        for process_class_name in process_class_names:
             process_actor = self.createActor(ProcessMaster)
-            process_name = process_class.__name__.lower()
+            process_name = process_class_name.lower()
             self.process_actors[process_name] = process_actor
 
-        for process_class in process_classes:
-            process_name = process_class.__name__.lower()
-            upstream_application_names = [c.__name__.lower() for c in self.system_followings[process_class]]
+        for process_class_name in process_class_names:
+            process_name = process_class_name.lower()
+            upstream_application_names = [c.lower() for c in self.system_followings[process_class_name]]
             downstream_actors = {}
-            for downstream_class in self.followers[process_name]:
-                downstream_name = downstream_class.__name__.lower()
+            for downstream_class_name in self.followers[process_name]:
+                downstream_name = downstream_class_name.lower()
                 # logger.warning("sending prompt to process application {}".format(downstream_name))
                 process_actor = self.process_actors[downstream_name]
                 downstream_actors[downstream_name] = process_actor
-
-            msg = ProcessInitRequest(process_class, self.pipeline_id, upstream_application_names, downstream_actors,
-                                     self.myAddress)
+            process_class = self.process_classes[process_class_name]
+            msg = ProcessInitRequest(
+                process_class,
+                self.process_class,
+                self.pipeline_id,
+                upstream_application_names,
+                downstream_actors,
+                self.myAddress
+            )
             self.send(self.process_actors[process_name], msg)
 
     def forward_prompt(self, msg):
-        for downstream_class in self.followers[msg.process_name]:
-            downstream_name = downstream_class.__name__.lower()
+        for downstream_class_name in self.followers[msg.process_name]:
+            downstream_name = downstream_class_name.lower()
             process_actor = self.process_actors[downstream_name]
             self.send(process_actor, msg)
 
@@ -225,13 +247,13 @@ class ProcessMaster(Actor):
 
     def init_process(self, msg):
         self.process_application_class = msg.process_application_class
+        self.process_class = msg.process_class
         self.slave_actor = self.createActor(ProcessSlave)
         self.send(self.slave_actor, msg)
         self.run_slave()
 
     def consume_prompt(self, prompt):
         self.last_prompts[prompt.process_name] = prompt
-        # Don't send to slave if it's running, or we get blocked.
         self.run_slave()
 
     def handle_slave_run_response(self):
@@ -240,6 +262,9 @@ class ProcessMaster(Actor):
             self.run_slave()
 
     def run_slave(self):
+        # Don't send to slave if we think it's running, or we'll
+        # probably get blocked while sending the message and have
+        # to wait until the slave runs its loop (thespian design).
         if self.slave_actor and not self.is_slave_running:
             self.send(self.slave_actor, SlaveRunRequest(self.last_prompts, self.myAddress))
             self.is_slave_running = True
@@ -268,21 +293,25 @@ class ProcessSlave(Actor):
         self.pipeline_id = msg.pipeline_id
         self.upstream_application_names = msg.upstream_application_names
 
-        self.process = msg.process_application_class(
+        process_class = msg.process_application_class
+        if msg.process_class:
+            process_class = process_class.mixin(msg.process_class)
+
+            process_class.reset_connection_after_forking()
+        self.process = process_class(
             pipeline_id=self.pipeline_id,
             notification_log_section_size=5,
-            pool_size=3,
         )
         assert isinstance(self.process, ProcessApplication)
         # Close the persistence policy.
         self.process.persistence_policy.close()
-        # Replace publish_prompt().
+        # Replace publish_prompt() with method that sends message to actor.
         self.process.publish_prompt = lambda *args: self.publish_prompt(*args)
 
         # Construct and follow upstream notification logs.
         for upstream_application_name in self.upstream_application_names:
             record_manager = self.process.event_store.record_manager
-            assert isinstance(record_manager, SQLAlchemyRecordManager)
+            # assert isinstance(record_manager, ACIDRecordManager), type(record_manager)
             notification_log = RecordManagerNotificationLog(
                 record_manager=record_manager.clone(
                     application_name=upstream_application_name,
@@ -320,7 +349,9 @@ class ProcessSlave(Actor):
 
 
 class SystemInitRequest(object):
-    def __init__(self, system_followings, pipeline_ids):
+    def __init__(self, process_classes, process_class, system_followings, pipeline_ids):
+        self.process_classes = process_classes
+        self.process_class = process_class
         self.system_followings = system_followings
         self.pipeline_ids = pipeline_ids
 
@@ -331,15 +362,20 @@ class SystemInitResponse(object):
 
 
 class PipelineInitRequest(object):
-    def __init__(self, system_followings, pipeline_id):
+    def __init__(self, process_classes, process_class, system_followings, pipeline_id):
+        self.process_classes = process_classes
+        self.process_class = process_class
         self.system_followings = system_followings
         self.pipeline_id = pipeline_id
 
 
 class ProcessInitRequest(object):
-    def __init__(self, process_application_class, pipeline_id, upstream_application_names, downstream_actors,
+    def __init__(self, process_application_class, process_class, pipeline_id,
+                 upstream_application_names,
+                 downstream_actors,
                  pipeline_actor):
         self.process_application_class = process_application_class
+        self.process_class = process_class
         self.pipeline_id = pipeline_id
         self.upstream_application_names = upstream_application_names
         self.downstream_actors = downstream_actors

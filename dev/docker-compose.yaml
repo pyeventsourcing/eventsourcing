@@ -15,12 +15,16 @@ services:
         links:
             - service_cassandra
             - service_mysql
+            - service_postgres
             - service_redis
         environment:
             CASSANDRA_HOSTS: service_cassandra
             MYSQL_HOST: service_mysql
             MYSQL_USER: eventsourcing
             MYSQL_PASSWORD: eventsourcing
+            POSTGRES_HOST: service_postgres
+            POSTGRES_USER: eventsourcing
+            POSTGRES_PASSWORD: eventsourcing
             REDIS_HOST: service_redis
 
     service_cassandra:
@@ -33,6 +37,13 @@ services:
           MYSQL_USER: eventsourcing
           MYSQL_PASSWORD: eventsourcing
           MYSQL_DATABASE: eventsourcing
+
+    service_postgres:
+        image: "postgres:latest"
+        environment:
+          POSTGRES_USER: eventsourcing
+          POSTGRES_PASSWORD: eventsourcing
+          POSTGRES_DB: eventsourcing
 
     service_redis:
         image: "redis:latest"

@@ -1,10 +1,10 @@
 from eventsourcing.application.policies import SnapshottingPolicy
-from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.application.simple import Application
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
 
-class ApplicationWithSnapshotting(SimpleApplication):
+class ApplicationWithSnapshotting(Application):
     # Todo: Change this to default to None?
     snapshot_period = 2
 
@@ -46,6 +46,11 @@ class ApplicationWithSnapshotting(SimpleApplication):
         super(ApplicationWithSnapshotting, self).setup_table()
         if self.datastore is not None:
             self.datastore.setup_table(self.snapshot_store.record_manager.record_class)
+
+    def drop_table(self):
+        super(ApplicationWithSnapshotting, self).drop_table()
+        if self.datastore is not None:
+            self.datastore.drop_table(self.snapshot_store.record_manager.record_class)
 
     def close(self):
         super(ApplicationWithSnapshotting, self).close()

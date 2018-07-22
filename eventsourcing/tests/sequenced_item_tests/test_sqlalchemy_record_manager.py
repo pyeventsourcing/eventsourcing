@@ -4,7 +4,8 @@ from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedRecord
     WithRecordManagers
 
 
-class WithSQLAlchemyRecordManagers(SQLAlchemyDatastoreTestCase, WithRecordManagers):
+class WithSQLAlchemyRecordManagers(SQLAlchemyDatastoreTestCase,
+                                   WithRecordManagers):
     pass
 
 

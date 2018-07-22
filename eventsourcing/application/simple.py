@@ -1,4 +1,7 @@
 import os
+from abc import ABCMeta
+
+from six import with_metaclass
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
@@ -11,7 +14,7 @@ from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_random_bytes
 
 
-class SimpleApplication(object):
+class Application(with_metaclass(ABCMeta)):
     persist_event_type = None
     sequenced_item_class = None
     sequenced_item_mapper_class = None
@@ -125,6 +128,13 @@ class SimpleApplication(object):
                 self.event_store.record_manager.record_class
             )
 
+    def drop_table(self):
+        # Drop the database table using event store's record class.
+        if self.datastore is not None:
+            self.datastore.drop_table(
+                self.event_store.record_manager.record_class
+            )
+
     def setup_notification_log(self):
         self.notification_log = RecordManagerNotificationLog(
             self.event_store.record_manager,
@@ -141,13 +151,6 @@ class SimpleApplication(object):
         self.pipeline_id = pipeline_id
         self.event_store.record_manager.pipeline_id = pipeline_id
 
-    def drop_table(self):
-        # Drop the database table using event store's record class.
-        if self.datastore is not None:
-            self.datastore.drop_table(
-                self.event_store.record_manager.record_class
-            )
-
     def close(self):
         # Close the persistence policy.
         if self.persistence_policy is not None:
@@ -162,3 +165,8 @@ class SimpleApplication(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+    @classmethod
+    def mixin(cls, other):
+        assert not issubclass(cls, other)
+        return type(cls.__name__, (other, cls), {})

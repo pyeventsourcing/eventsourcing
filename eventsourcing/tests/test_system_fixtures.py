@@ -1,7 +1,7 @@
 import logging
 import os
 
-from eventsourcing.application.sqlalchemy import ProcessApplication
+from eventsourcing.application.process import ProcessApplication
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import OperationalError, RecordConflictError
@@ -90,7 +90,8 @@ logger = logging.getLogger()
 class Orders(ProcessApplication):
     persist_event_type = Order.Created
 
-    def policy(self, repository, event):
+    @staticmethod
+    def policy(repository, event):
         if isinstance(event, Reservation.Created):
             # Set the order as reserved.
             order = repository[event.order_id]
@@ -116,7 +117,8 @@ class Reservations(ProcessApplication):
 
 
 class Payments(ProcessApplication):
-    def policy(self, repository, event):
+    @staticmethod
+    def policy(repository, event):
         if isinstance(event, Order.Reserved):
             # Make a payment.
             # time.sleep(0.5)

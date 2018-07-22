@@ -3,7 +3,7 @@ from copy import deepcopy
 from uuid import uuid4
 
 import six
-from eventsourcing.application.sqlalchemy import ProcessApplicationWithSnapshotting
+from eventsourcing.application.process import ProcessApplicationWithSnapshotting, ProcessApplication
 from eventsourcing.application.system import System
 from eventsourcing.contrib.paxos.composable import PaxosInstance, Resolution, PaxosMessage
 from eventsourcing.domain.model.aggregate import AggregateRoot
@@ -40,6 +40,14 @@ class PaxosAggregate(AggregateRoot):
         'final_acceptors',
         'final_proposal_id',
     ]
+
+    def __str__(self):
+        return ("PaxosAggregate("
+                "network_uid='{network_uid}', "
+                "proposal_id='{proposal_id}', "
+                "promised_id='{promised_id}', "
+                "promises_received='{promises_received}'"
+                ")").format(**self.__dict__)
 
     @property
     def paxos(self):
@@ -149,6 +157,7 @@ class PaxosAggregate(AggregateRoot):
             )
 
 
+# class PaxosProcess(ProcessApplication):
 class PaxosProcess(ProcessApplicationWithSnapshotting):
     always_track_notifications = True
     snapshot_period = None
@@ -174,25 +183,38 @@ class PaxosProcess(ProcessApplicationWithSnapshotting):
             if event.originator_id not in repository:
                 return PaxosAggregate.start(
                     originator_id=event.originator_id,
-                    quorum_size=event.quorum_size,
+                    quorum_size=event.quorum_size,  # This maybe should be known already?
                     network_uid=self.name
                 )
         elif isinstance(event, PaxosAggregate.MessageAnnounced):
             msg = event.msg
             assert isinstance(msg, PaxosMessage)
             paxos = repository[event.originator_id]
+            assert paxos.network_uid == self.name, (
+                "Wrong paxos aggregate: required {} got {}".format(
+                    self.name, paxos.network_uid
+                )
+            )
+
             assert isinstance(paxos, PaxosAggregate)
             if not paxos.resolution:
                 paxos.receive_message(msg)
-                self.repository.take_snapshot(paxos.id)
+
+    # Todo: Refactor, improve persistence policy to do this?
+    def record_new_events(self, *args, **kwargs):
+        new_events = super(PaxosProcess, self).record_new_events(*args, **kwargs)
+        for new_event in new_events:
+            if issubclass(new_event, PaxosAggregate.MessageAnnounced):
+                self.repository.take_snapshot(new_event.aggregate_id)
+        return new_events
 
 
 class PaxosSystem(System):
-    def __init__(self, processes=3, **kwargs):
-        classes = [type('PaxosProcess{}'.format(i), (PaxosProcess,), {}) for i in range(processes)]
-        if processes > 1:
+    def __init__(self, num_participants=3, **kwargs):
+        classes = [type('PaxosProcess{}'.format(i), (PaxosProcess,), {}) for i in range(num_participants)]
+        if num_participants > 1:
             pipelines = [[c[0], c[1], c[0]] for c in itertools.combinations(classes, 2)]
         else:
             pipelines = [classes]
-        self.quorum_size = (processes + 2) // 2
+        self.quorum_size = (num_participants + 2) // 2
         super(PaxosSystem, self).__init__(*pipelines, **kwargs)

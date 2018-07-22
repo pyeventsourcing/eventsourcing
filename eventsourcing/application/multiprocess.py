@@ -17,8 +17,7 @@ DEFAULT_POLL_INTERVAL = 5
 class Multiprocess(object):
 
     def __init__(self, system, pipeline_ids=(-1,), poll_interval=None, notification_log_section_size=5,
-                 pool_size=1, setup_tables=False, sleep_for_setup_tables=0):
-        self.pool_size = pool_size
+                 setup_tables=False, sleep_for_setup_tables=0):
         self.system = system
         self.pipeline_ids = pipeline_ids
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
@@ -39,12 +38,12 @@ class Multiprocess(object):
 
         # Setup queues.
         for pipeline_id in self.pipeline_ids:
-            for process_class, upstream_classes in self.system.followings.items():
-                inbox_id = (pipeline_id, process_class.__name__.lower())
+            for process_class_name, upstream_class_names in self.system.followings.items():
+                inbox_id = (pipeline_id, process_class_name.lower())
                 if inbox_id not in self.inboxes:
                     self.inboxes[inbox_id] = self.manager.Queue()
-                for upstream_class in upstream_classes:
-                    outbox_id = (pipeline_id, upstream_class.__name__.lower())
+                for upstream_class_name in upstream_class_names:
+                    outbox_id = (pipeline_id, upstream_class_name.lower())
                     if outbox_id not in self.outboxes:
                         self.outboxes[outbox_id] = Outbox()
                     if inbox_id not in self.outboxes[outbox_id].downstream_inboxes:
@@ -56,17 +55,18 @@ class Multiprocess(object):
 
         # Start operating system process.
         for pipeline_id in self.pipeline_ids:
-            for process_class, upstream_classes in self.system.followings.items():
+            for process_class_name, upstream_class_names in self.system.followings.items():
+                process_class = self.system.process_classes[process_class_name]
                 os_process = OperatingSystemProcess(
                     application_process_class=process_class,
-                    upstream_names=[cls.__name__.lower() for cls in upstream_classes],
+                    process_class=self.system.process_class,
+                    upstream_names=[cls_name.lower() for cls_name in upstream_class_names],
                     poll_interval=self.poll_interval,
                     pipeline_id=pipeline_id,
                     notification_log_section_size=self.notification_log_section_size,
-                    pool_size=self.pool_size,
                     setup_tables=self.setup_tables,
-                    inbox=self.inboxes[(pipeline_id, process_class.__name__.lower())],
-                    outbox=self.outboxes[(pipeline_id, process_class.__name__.lower())],
+                    inbox=self.inboxes[(pipeline_id, process_class_name.lower())],
+                    outbox=self.outboxes[(pipeline_id, process_class_name.lower())],
                 )
                 os_process.daemon = True
                 os_process.start()
@@ -118,27 +118,30 @@ class Outbox(object):
 
 class OperatingSystemProcess(multiprocessing.Process):
 
-    def __init__(self, application_process_class, upstream_names, pipeline_id=-1,
+    def __init__(self, application_process_class, process_class, upstream_names, pipeline_id=-1,
                  poll_interval=DEFAULT_POLL_INTERVAL, notification_log_section_size=None,
-                 pool_size=5, setup_tables=False, inbox=None, outbox=None, *args, **kwargs):
+                 setup_tables=False, inbox=None, outbox=None, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
+        self.process_class = process_class
         self.upstream_names = upstream_names
         self.daemon = True
         self.pipeline_id = pipeline_id
         self.poll_interval = poll_interval
         self.notification_log_section_size = notification_log_section_size
-        self.pool_size = pool_size
         self.inbox = inbox
         self.outbox = outbox
         self.setup_tables = setup_tables
 
     def run(self):
         # Construct process application object.
-        self.process = self.application_process_class(
+        process_class = self.application_process_class
+        if self.process_class:
+            process_class = process_class.mixin(self.process_class)
+
+        self.process = process_class(
             pipeline_id=self.pipeline_id,
             notification_log_section_size=self.notification_log_section_size,
-            pool_size=self.pool_size,
             setup_table=self.setup_tables,
         )
 
