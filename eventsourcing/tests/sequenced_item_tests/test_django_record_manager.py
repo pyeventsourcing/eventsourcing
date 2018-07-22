@@ -12,6 +12,7 @@ from time import sleep
 from django.core.management import call_command
 from django.test import TransactionTestCase
 
+from eventsourcing.infrastructure.django.utils import close_django_connection
 from eventsourcing.infrastructure.django.apps import DjangoConfig
 from eventsourcing.infrastructure.django.factory import DjangoInfrastructureFactory
 from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedRecordTestCase, \
@@ -38,9 +39,7 @@ class DjangoTestCase(TransactionTestCase):
 
     def close_connections_before_forking(self):
         # If connection is already made close it.
-        from django.db import connection
-        if connection.connection is not None:
-            connection.close()
+        close_django_connection()
 
 
 class TestDjangoRecordManagerWithIntegerSequences(DjangoTestCase, IntegerSequencedRecordTestCase):

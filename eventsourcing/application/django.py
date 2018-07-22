@@ -1,9 +1,8 @@
-from django.db import connection
-
-from eventsourcing.application import command, process, simple, snapshotting
+from eventsourcing.application import process, simple, snapshotting
 
 from eventsourcing.infrastructure.django.manager import DjangoRecordManager
 from eventsourcing.infrastructure.django.models import StoredEventRecord, EntitySnapshotRecord
+from eventsourcing.infrastructure.django.utils import close_django_connection, setup_django
 
 
 class WithDjango(simple.Application):
@@ -13,9 +12,8 @@ class WithDjango(simple.Application):
 
     @classmethod
     def reset_connection_after_forking(cls):
-        connection.close()
-        import django
-        django.setup()
+        close_django_connection()
+        setup_django()
 
 
 Application = WithDjango
