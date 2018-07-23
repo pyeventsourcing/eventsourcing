@@ -96,10 +96,10 @@ and the ``cipher_key`` value can be set as environment variable
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import WithSQLAlchemy
+    from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
     from eventsourcing.domain.model.aggregate import AggregateRoot
 
-    application = WithSQLAlchemy(
+    application = SQLAlchemyApplication(
         uri='sqlite:///:memory:',
         cipher_key=cipher_key,
         persist_event_type=AggregateRoot.Event,
@@ -215,10 +215,10 @@ that can create new ``CustomAggregate`` entities.
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import WithSQLAlchemy
+    from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 
 
-    class MyApplication(WithSQLAlchemy):
+    class MyApplication(SQLAlchemyApplication):
         def __init__(self, **kwargs):
             super(MyApplication, self).__init__(
                 persist_event_type=CustomAggregate.Event, **kwargs)

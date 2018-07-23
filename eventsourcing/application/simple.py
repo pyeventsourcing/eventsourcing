@@ -1,5 +1,5 @@
 import os
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 
 from six import with_metaclass
 
@@ -18,18 +18,18 @@ class Application(with_metaclass(ABCMeta)):
     persist_event_type = None
     sequenced_item_class = None
     sequenced_item_mapper_class = None
-    infrastructure_factory_class = None
+
     record_manager_class = None
     stored_event_record_class = None
     snapshot_record_class = None
+
     json_encoder_class = None
     json_decoder_class = None
     is_constructed_with_session = False
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
                  cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
-                 infrastructure_factory_class=None, record_manager_class=None,
-                 stored_event_record_class=None, snapshot_record_class=None,
+                 record_manager_class=None, stored_event_record_class=None, snapshot_record_class=None,
                  setup_table=True, contiguous_record_ids=True, pipeline_id=-1,
                  json_encoder_class=None, json_decoder_class=None,
                  notification_log_section_size=None):
@@ -45,10 +45,6 @@ class Application(with_metaclass(ABCMeta)):
         self.sequenced_item_mapper_class = sequenced_item_mapper_class \
                                            or type(self).sequenced_item_mapper_class \
                                            or SequencedItemMapper
-
-        self.infrastructure_factory_class = infrastructure_factory_class \
-                                            or type(self).infrastructure_factory_class \
-                                            or InfrastructureFactory
 
         self.record_manager_class = record_manager_class or type(self).record_manager_class
 
@@ -74,6 +70,10 @@ class Application(with_metaclass(ABCMeta)):
         if self.persistence_policy is None:
             self.setup_persistence_policy()
 
+    @abstractmethod
+    def infrastructure_factory_class(self):
+        pass
+
     def setup_cipher(self, cipher_key):
         cipher_key = decode_random_bytes(cipher_key or os.getenv('CIPHER_KEY', ''))
         self.cipher = AESCipher(cipher_key) if cipher_key else None
@@ -88,7 +88,9 @@ class Application(with_metaclass(ABCMeta)):
         """
         :rtype: InfrastructureFactory
         """
-        return self.infrastructure_factory_class(
+        factory_class = self.infrastructure_factory_class
+        assert issubclass(factory_class, InfrastructureFactory)
+        return factory_class(
             record_manager_class=self.record_manager_class,
             integer_sequenced_record_class=self.stored_event_record_class,
             sequenced_item_class=self.sequenced_item_class,
@@ -167,6 +169,14 @@ class Application(with_metaclass(ABCMeta)):
         self.close()
 
     @classmethod
-    def mixin(cls, other):
-        assert not issubclass(cls, other)
-        return type(cls.__name__, (other, cls), {})
+    def bind_infrastructure(cls, infrastructure_class):
+        if issubclass(cls, Infrastructure):
+            raise ValueError("{} is already an infrastructure class".format(cls))
+        if not issubclass(infrastructure_class, Infrastructure):
+            raise ValueError("{} is not an infrastructure class".format(infrastructure_class))
+        return type(cls.__name__, (infrastructure_class, cls), {})
+
+
+class Infrastructure(object):
+    infrastructure_factory_class = InfrastructureFactory
+

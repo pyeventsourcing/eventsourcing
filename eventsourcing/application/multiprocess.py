@@ -59,7 +59,7 @@ class Multiprocess(object):
                 process_class = self.system.process_classes[process_class_name]
                 os_process = OperatingSystemProcess(
                     application_process_class=process_class,
-                    process_class=self.system.process_class,
+                    infrastructure_class=self.system.infrastructure_class,
                     upstream_names=[cls_name.lower() for cls_name in upstream_class_names],
                     poll_interval=self.poll_interval,
                     pipeline_id=pipeline_id,
@@ -118,12 +118,12 @@ class Outbox(object):
 
 class OperatingSystemProcess(multiprocessing.Process):
 
-    def __init__(self, application_process_class, process_class, upstream_names, pipeline_id=-1,
+    def __init__(self, application_process_class, infrastructure_class, upstream_names, pipeline_id=-1,
                  poll_interval=DEFAULT_POLL_INTERVAL, notification_log_section_size=None,
                  setup_tables=False, inbox=None, outbox=None, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
-        self.process_class = process_class
+        self.infrastructure_class = infrastructure_class
         self.upstream_names = upstream_names
         self.daemon = True
         self.pipeline_id = pipeline_id
@@ -136,8 +136,8 @@ class OperatingSystemProcess(multiprocessing.Process):
     def run(self):
         # Construct process application object.
         process_class = self.application_process_class
-        if self.process_class:
-            process_class = process_class.mixin(self.process_class)
+        if self.infrastructure_class:
+            process_class = process_class.bind_infrastructure(self.infrastructure_class)
 
         self.process = process_class(
             pipeline_id=self.pipeline_id,

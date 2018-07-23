@@ -3,7 +3,7 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem
 
 
 class InfrastructureFactory(object):
-    record_manager_class = AbstractSequencedItemRecordManager
+    record_manager_class = None
     sequenced_item_class = SequencedItem
     integer_sequenced_record_class = None
     integer_sequenced_noid_record_class = None

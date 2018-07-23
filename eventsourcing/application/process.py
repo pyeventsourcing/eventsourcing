@@ -2,9 +2,8 @@ from collections import OrderedDict, defaultdict
 
 from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.simple import Application
-from eventsourcing.application.snapshotting import ApplicationWithSnapshotting
+from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.domain.model.entity import DomainEntity
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, PromptFailed, RecordConflictError
 from eventsourcing.infrastructure.base import RelationalRecordManager
@@ -28,28 +27,29 @@ class ProcessApplication(Pipeable, Application):
         #
         # 1. Publish prompts whenever domain events are published (important: after persisted).
         # 2. Run this process whenever upstream prompted followers to pull for new notification.
-        subscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
         subscribe(predicate=self.is_upstream_prompt, handler=self.run)
+        subscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
         # Todo: Maybe make a prompts policy object?
 
-    def follow(self, upstream_application_name, notification_log):
-        # Create a reader.
-        reader = NotificationLogReader(notification_log)
-        self.readers[upstream_application_name] = reader
+    def close(self):
+        unsubscribe(predicate=self.is_upstream_prompt, handler=self.run)
+        unsubscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
+        super(ProcessApplication, self).close()
 
-    def setup_table(self):
-        super(ProcessApplication, self).setup_table()
-        if self.datastore is not None:
-            self.datastore.setup_table(
-                self.event_store.record_manager.tracking_record_class
-            )
+    def is_upstream_prompt(self, prompt):
+        return isinstance(prompt, Prompt) and prompt.process_name in self.readers.keys()
 
-    def drop_table(self):
-        super(ProcessApplication, self).drop_table()
-        if self.datastore is not None:
-            self.datastore.drop_table(
-                self.event_store.record_manager.tracking_record_class
-            )
+    def publish_prompt_from_event(self, _):
+        self.publish_prompt()
+
+    def publish_prompt(self):
+        prompt = Prompt(self.name, self.pipeline_id)
+        try:
+            publish(prompt)
+        except PromptFailed:
+            raise
+        except Exception as e:
+            raise PromptFailed("{}: {}".format(type(e), str(e)))
 
     @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
     def run(self, prompt=None, advance_by=None):
@@ -168,14 +168,10 @@ class ProcessApplication(Pipeable, Application):
         tracking_kwargs = self.construct_tracking_kwargs(notification, upstream_application_name)
 
         # Collect pending events.
-        new_events, num_changed_aggregates = self.collect_pending_events(aggregates)
+        new_events = self.collect_pending_events(aggregates)
 
         # Writing tracking record when there are new events.
         if len(new_events) or self.always_track_notifications:
-
-            # Sort pending events across all aggregates.
-            if num_changed_aggregates > 1:
-                self.sort_pending_events(new_events)
 
             # Construct event records.
             event_records = self.construct_event_records(new_events, causal_dependencies)
@@ -190,36 +186,50 @@ class ProcessApplication(Pipeable, Application):
 
         return new_events
 
-    def sort_pending_events(self, pending_events):
-        # Sort the events by timestamp.
-        #  - this approximation is a supposed to correlate with the correct
-        #    causal ordering of all new events across all aggregates. It
-        #    should work if all events are timestamped, all their timestamps
-        #    are from the same clock, and none have the same value. If this
-        #    doesn't work properly, it is possible when several aggregates
-        #    publish that depend on each other that concatenating pending events
-        #    taken from each in turn will be incorrect and could potentially
-        #    cause processing errors in a downstream process application that
-        #    somehow depends on the correct ordering of events.
-        try:
+    def construct_tracking_kwargs(self, notification, upstream_application_name):
+        if notification is None:
+            return {}
+        tracking_kwargs = {
+            'application_name': self.name,
+            'upstream_application_name': upstream_application_name,
+            'pipeline_id': self.pipeline_id,
+            'notification_id': notification['id'],
+        }
+        return tracking_kwargs
+
+    def collect_pending_events(self, aggregates):
+        pending_events = []
+        num_changed_aggregates = 0
+        # This doesn't necessarily obtain events in causal order...
+        for aggregate in aggregates:
+            batch = aggregate.__batch_pending_events__()
+            if len(batch):
+                num_changed_aggregates += 1
+            pending_events += batch
+
+        # ...so sort pending events across all aggregates.
+        if num_changed_aggregates > 1:
+            # Sort the events by timestamp.
+            #  - this method is intended to establish the correct
+            #    causal ordering of all these new events across all aggregates. It
+            #    should work if all events are timestamped, all their timestamps
+            #    are from the same clock, and none have the same value. If this
+            #    doesn't work properly, for some reason, it would be possible when
+            #    several aggregates publish events that depend on each other that
+            #    concatenating pending events taken from each in turn will be incorrect
+            #    and could potentially cause processing errors in a downstream process
+            #    application that depends on the correct causal ordering of events. In
+            #    the worst case, the events will still be placed correctly in the
+            #    aggregate sequence, but if timestamps are skewed and so do not correctly
+            #    order the events, the events may be out of order in their notification log.
+            #    It is expected in normal usage that these events are created in the same
+            #    operating system thread, with timestamps from the same operating system clock,
+            #    and so the timestamps will provide the correct order. However, if somehow
+            #    different events are timestamped from different clocks, then problems may occur
+            #    if those clocks give timestamps that skew the correct causal order.
             pending_events.sort(key=lambda x: x.timestamp)
-        except AttributeError:
-            pass
 
-    def is_upstream_prompt(self, prompt):
-        return isinstance(prompt, Prompt) and prompt.process_name in self.readers.keys()
-
-    def publish_prompt_from_event(self, _):
-        self.publish_prompt()
-
-    def publish_prompt(self):
-        prompt = Prompt(self.name, self.pipeline_id)
-        try:
-            publish(prompt)
-        except PromptFailed:
-            raise
-        except Exception as e:
-            raise PromptFailed("{}: {}".format(type(e), str(e)))
+        return pending_events
 
     def construct_event_records(self, pending_events, causal_dependencies=None):
         # Convert to event records.
@@ -243,34 +253,24 @@ class ProcessApplication(Pipeable, Application):
 
         return event_records
 
-    def collect_pending_events(self, aggregates):
-        if isinstance(aggregates, DomainEntity):
-            aggregates = [aggregates]
-        assert isinstance(aggregates, (list, tuple))
-        pending_events = []
-        num_changed_aggregates = 0
-        for aggregate in aggregates:
-            batch = aggregate.__batch_pending_events__()
-            if len(batch):
-                num_changed_aggregates += 1
-            pending_events += batch
-        return pending_events, num_changed_aggregates
+    def follow(self, upstream_application_name, notification_log):
+        # Create a reader.
+        reader = NotificationLogReader(notification_log)
+        self.readers[upstream_application_name] = reader
 
-    def construct_tracking_kwargs(self, notification, upstream_application_name):
-        if notification is None:
-            return {}
-        tracking_kwargs = {
-            'application_name': self.name,
-            'upstream_application_name': upstream_application_name,
-            'pipeline_id': self.pipeline_id,
-            'notification_id': notification['id'],
-        }
-        return tracking_kwargs
+    def setup_table(self):
+        super(ProcessApplication, self).setup_table()
+        if self.datastore is not None:
+            self.datastore.setup_table(
+                self.event_store.record_manager.tracking_record_class
+            )
 
-    def close(self):
-        unsubscribe(predicate=self.is_upstream_prompt, handler=self.run)
-        unsubscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
-        super(ProcessApplication, self).close()
+    def drop_table(self):
+        super(ProcessApplication, self).drop_table()
+        if self.datastore is not None:
+            self.datastore.drop_table(
+                self.event_store.record_manager.tracking_record_class
+            )
 
     @classmethod
     def reset_connection_after_forking(cls):
@@ -305,7 +305,7 @@ class Prompt(object):
         self.pipeline_id = pipeline_id
 
 
-class ProcessApplicationWithSnapshotting(ApplicationWithSnapshotting, ProcessApplication):
+class ProcessApplicationWithSnapshotting(SnapshottingApplication, ProcessApplication):
     def record_new_events(self, *args, **kwargs):
         new_events = super(ProcessApplicationWithSnapshotting, self).record_new_events(*args, **kwargs)
         for event in new_events:

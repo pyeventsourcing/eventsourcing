@@ -85,7 +85,7 @@ class Actors(object):
         # Initialise the system actor.
         msg = SystemInitRequest(
             self.system.process_classes,
-            self.system.process_class,
+            self.system.infrastructure_class,
             self.system.followings,
             self.pipeline_ids
         )
@@ -150,14 +150,14 @@ class SystemActor(Actor):
 
     def init_pipelines(self, msg):
         self.process_classes = msg.process_classes
-        self.process_class = msg.process_class
+        self.infrastructure_class = msg.infrastructure_class
         self.system_followings = msg.system_followings
         for pipeline_id in msg.pipeline_ids:
             pipeline_actor = self.createActor(PipelineActor)
             self.pipeline_actors[pipeline_id] = pipeline_actor
             msg = PipelineInitRequest(
                 self.process_classes,
-                self.process_class,
+                self.infrastructure_class,
                 self.system_followings,
                 pipeline_id
             )
@@ -182,7 +182,7 @@ class PipelineActor(Actor):
     def init_pipeline(self, msg):
         self.pipeline_id = msg.pipeline_id
         self.process_classes = msg.process_classes
-        self.process_class = msg.process_class
+        self.infrastructure_class = msg.infrastructure_class
         self.system_followings = msg.system_followings
 
         self.followers = {}
@@ -213,7 +213,7 @@ class PipelineActor(Actor):
             process_class = self.process_classes[process_class_name]
             msg = ProcessInitRequest(
                 process_class,
-                self.process_class,
+                self.infrastructure_class,
                 self.pipeline_id,
                 upstream_application_names,
                 downstream_actors,
@@ -247,7 +247,7 @@ class ProcessMaster(Actor):
 
     def init_process(self, msg):
         self.process_application_class = msg.process_application_class
-        self.process_class = msg.process_class
+        self.infrastructure_class = msg.infrastructure_class
         self.slave_actor = self.createActor(ProcessSlave)
         self.send(self.slave_actor, msg)
         self.run_slave()
@@ -294,8 +294,8 @@ class ProcessSlave(Actor):
         self.upstream_application_names = msg.upstream_application_names
 
         process_class = msg.process_application_class
-        if msg.process_class:
-            process_class = process_class.mixin(msg.process_class)
+        if msg.infrastructure_class:
+            process_class = process_class.bind_infrastructure(msg.infrastructure_class)
 
             process_class.reset_connection_after_forking()
         self.process = process_class(
@@ -349,9 +349,9 @@ class ProcessSlave(Actor):
 
 
 class SystemInitRequest(object):
-    def __init__(self, process_classes, process_class, system_followings, pipeline_ids):
+    def __init__(self, process_classes, infrastructure_class, system_followings, pipeline_ids):
         self.process_classes = process_classes
-        self.process_class = process_class
+        self.infrastructure_class = infrastructure_class
         self.system_followings = system_followings
         self.pipeline_ids = pipeline_ids
 
@@ -362,20 +362,20 @@ class SystemInitResponse(object):
 
 
 class PipelineInitRequest(object):
-    def __init__(self, process_classes, process_class, system_followings, pipeline_id):
+    def __init__(self, process_classes, infrastructure_class, system_followings, pipeline_id):
         self.process_classes = process_classes
-        self.process_class = process_class
+        self.infrastructure_class = infrastructure_class
         self.system_followings = system_followings
         self.pipeline_id = pipeline_id
 
 
 class ProcessInitRequest(object):
-    def __init__(self, process_application_class, process_class, pipeline_id,
+    def __init__(self, process_application_class, infrastructure_class, pipeline_id,
                  upstream_application_names,
                  downstream_actors,
                  pipeline_actor):
         self.process_application_class = process_application_class
-        self.process_class = process_class
+        self.infrastructure_class = infrastructure_class
         self.pipeline_id = pipeline_id
         self.upstream_application_names = upstream_application_names
         self.downstream_actors = downstream_actors

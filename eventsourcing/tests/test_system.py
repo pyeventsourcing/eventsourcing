@@ -4,7 +4,7 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.application.multiprocess import Multiprocess
-from eventsourcing.application.sqlalchemy import ProcessApplication
+from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.application.system import System
 from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
 from eventsourcing.tests.test_process import ExampleAggregate
@@ -14,13 +14,13 @@ from eventsourcing.tests.test_system_fixtures import Examples, Order, Orders, Pa
 
 class TestSystem(TestCase):
 
-    process_class = ProcessApplication
+    infrastructure_class = SQLAlchemyApplication
 
     def test_singlethreaded_multiapp_system(self):
         system = System(Orders | Reservations | Orders,
                         Orders | Payments | Orders,
                         setup_tables=True,
-                        process_class=self.process_class
+                        infrastructure_class=self.infrastructure_class
                         )
 
         with system:
@@ -36,7 +36,7 @@ class TestSystem(TestCase):
 
         system = System(Examples | Examples,
                         setup_tables=True,
-                        process_class=self.process_class)
+                        infrastructure_class=self.infrastructure_class)
 
         self.set_db_uri()
 
@@ -62,7 +62,7 @@ class TestSystem(TestCase):
             Orders | Reservations | Orders,
             Orders | Payments | Orders,
             setup_tables=True,
-            process_class=self.process_class
+            infrastructure_class=self.infrastructure_class
         )
 
         self.set_db_uri()
@@ -99,7 +99,7 @@ class TestSystem(TestCase):
         system = System(
             (Orders, Reservations, Orders, Payments, Orders),
             setup_tables=True,
-            process_class=self.process_class
+            infrastructure_class=self.infrastructure_class
         )
 
         num_pipelines = 2

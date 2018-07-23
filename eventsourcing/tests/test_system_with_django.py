@@ -1,10 +1,11 @@
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
-from eventsourcing.application.django import ProcessApplication
+
+from eventsourcing.application.django import DjangoApplication
 from eventsourcing.tests.test_system import TestSystem
 
 
 class TestSystemWithDjango(DjangoTestCase, TestSystem):
-    process_class = ProcessApplication
+    infrastructure_class = DjangoApplication
 
     def test_multiprocessing_multiapp_system(self):
         super(TestSystemWithDjango, self).test_multiprocessing_multiapp_system()
@@ -15,4 +16,4 @@ class TestSystemWithDjango(DjangoTestCase, TestSystem):
 
 
 # Avoid running imported test case.
-del(TestSystem)
+del (TestSystem)

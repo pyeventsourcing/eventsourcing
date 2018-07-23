@@ -5,7 +5,7 @@ from time import sleep
 from uuid import uuid4
 
 from eventsourcing.application.multiprocess import Multiprocess
-from eventsourcing.application.sqlalchemy import WithSQLAlchemy
+from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.contrib.paxos.application import PaxosSystem, PaxosProcess, PaxosAggregate
 from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
 from eventsourcing.tests.test_system_fixtures import set_db_uri
@@ -14,10 +14,10 @@ PaxosAggregate.is_verbose = False
 
 class TestPaxosSystem(unittest.TestCase):
 
-    process_class = WithSQLAlchemy
+    infrastructure_class = SQLAlchemyApplication
 
     def test_single_threaded(self):
-        system = PaxosSystem(setup_tables=True, num_participants=3, process_class=self.process_class)
+        system = PaxosSystem(setup_tables=True, num_participants=3, infrastructure_class=self.infrastructure_class)
 
         key1, key2, key3 = uuid4(), uuid4(), uuid4()
         value1, value2, value3 = 11111, 22222, 33333
@@ -62,7 +62,7 @@ class TestPaxosSystem(unittest.TestCase):
     def test_multiprocessing(self):
         set_db_uri()
 
-        system = PaxosSystem(setup_tables=True, num_participants=3, process_class=self.process_class)
+        system = PaxosSystem(setup_tables=True, num_participants=3, infrastructure_class=self.infrastructure_class)
 
         key1, key2, key3 = uuid4(), uuid4(), uuid4()
         value1, value2, value3 = 11111, 22222, 33333

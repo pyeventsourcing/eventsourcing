@@ -2,11 +2,10 @@ import logging
 import os
 import time
 import unittest
-from time import sleep
 
 from eventsourcing.application.actors import Actors, shutdown_actor_system, start_actor_system, \
     start_multiproc_tcp_base_system
-from eventsourcing.application.sqlalchemy import WithSQLAlchemy
+from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.application.system import System
 from eventsourcing.tests.test_system_fixtures import set_db_uri, create_new_order, Orders, Reservations, Payments
 
@@ -19,14 +18,14 @@ logger.addHandler(ch)
 
 class TestActors(unittest.TestCase):
 
-    process_class = WithSQLAlchemy
+    infrastructure_class = SQLAlchemyApplication
 
     def setUp(self):
         # Set environment.
         set_db_uri()
         # Define system.
         self.system = System(Orders | Reservations | Orders | Payments | Orders,
-                             process_class=self.process_class)
+                             infrastructure_class=self.infrastructure_class)
 
     def test_multiproc_tcp_base(self):
         start_multiproc_tcp_base_system()

@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from eventsourcing.application.command import CommandProcess
 from eventsourcing.application.process import ProcessApplication, ProcessApplicationWithSnapshotting, RepositoryWrapper
-from eventsourcing.application.sqlalchemy import WithSQLAlchemy
+from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.domain.model.aggregate import AggregateRoot, BaseAggregateRoot
 from eventsourcing.domain.model.command import Command
 from eventsourcing.domain.model.events import EventHandlersNotEmptyError, assert_event_handlers_empty, \
@@ -15,11 +15,11 @@ from eventsourcing.utils.transcoding import json_loads
 
 
 class TestProcess(TestCase):
-    process_class = WithSQLAlchemy
+    process_class = SQLAlchemyApplication
 
     def test_process_with_example_policy(self):
         # Construct example process.
-        process_class = ProcessApplication.mixin(self.process_class)
+        process_class = ProcessApplication.bind_infrastructure(self.process_class)
         with process_class(
             name='test',
             policy=example_policy,
@@ -52,7 +52,7 @@ class TestProcess(TestCase):
 
     def test_process_application_with_snapshotting(self):
         # Construct example process.
-        with ProcessApplicationWithSnapshotting.mixin(self.process_class)(
+        with ProcessApplicationWithSnapshotting.bind_infrastructure(self.process_class)(
             name='test',
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
@@ -87,7 +87,7 @@ class TestProcess(TestCase):
         pipeline_id2 = 1
 
         # Create two events, one has causal dependency on the other.
-        process_class = ProcessApplication.mixin(self.process_class)
+        process_class = ProcessApplication.bind_infrastructure(self.process_class)
         core1 = process_class(
             name='core',
             # persist_event_type=ExampleAggregate.Created,
@@ -193,7 +193,7 @@ class TestProcess(TestCase):
         downstream2.close()
 
     def test_handle_prompt_failed(self):
-        process = ProcessApplication.mixin(self.process_class)(
+        process = ProcessApplication.bind_infrastructure(self.process_class)(
             name='test',
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
@@ -234,7 +234,7 @@ class TestProcess(TestCase):
 
 
 class TestCommands(TestCase):
-    process_class = WithSQLAlchemy
+    process_class = SQLAlchemyApplication
 
     def test_command_aggregate(self):
         # Create a command.
@@ -252,10 +252,10 @@ class TestCommands(TestCase):
         self.assertIsInstance(pending_events[1], Command.Done)
 
     def test_command_process(self):
-        commands = CommandProcess.mixin(self.process_class)(
+        commands = CommandProcess.bind_infrastructure(self.process_class)(
             setup_table=True
         )
-        core = ProcessApplication.mixin(self.process_class)(
+        core = ProcessApplication.bind_infrastructure(self.process_class)(
             'core',
             policy=example_policy,
             session=commands.session
