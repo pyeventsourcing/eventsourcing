@@ -302,19 +302,19 @@ take more time to encrypt plaintext, but produce more secure ciphertext.
 Generating and storing a secure key requires functionality beyond the scope of this library.
 However, the utils package does contain a function ``encode_random_bytes()`` that may help
 to generate a unicode key string, representing random bytes encoded with Base64. A companion
-function ``decode_random_bytes()`` decodes the unicode key string into a sequence of bytes.
+function ``decode_bytes()`` decodes the unicode key string into a sequence of bytes.
 
 
 .. code:: python
 
     from eventsourcing.utils.cipher.aes import AESCipher
-    from eventsourcing.utils.random import encode_random_bytes, decode_random_bytes
+    from eventsourcing.utils.random import encode_random_bytes, decode_bytes
 
     # Unicode string representing 256 random bits encoded with Base64.
     cipher_key = encode_random_bytes(num_bytes=32)
 
     # Construct AES-256 cipher.
-    cipher = AESCipher(cipher_key=decode_random_bytes(cipher_key))
+    cipher = AESCipher(cipher_key=decode_bytes(cipher_key))
 
     # Encrypt some plaintext (using nonce arguments).
     ciphertext = cipher.encrypt('plaintext')

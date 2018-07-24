@@ -1,7 +1,5 @@
 from collections import OrderedDict
 
-from eventsourcing.application.simple import Infrastructure
-
 
 class System(object):
     def __init__(self, *pipeline_exprs, **kwargs):
@@ -25,26 +23,12 @@ class System(object):
         self.pipelines_exprs = pipeline_exprs
         self.setup_tables = kwargs.get('setup_tables', False)
         self.infrastructure_class = kwargs.get('infrastructure_class', None)
-        if self.infrastructure_class:
-            assert issubclass(self.infrastructure_class, Infrastructure)
 
         self.session = kwargs.get('session', None)
 
         self.process_classes = OrderedDict()
         for pipeline_expr in self.pipelines_exprs:
             for process_class in pipeline_expr:
-                if not self.infrastructure_class:
-                    assert issubclass(process_class, Infrastructure), (
-                        "{} is not a subclass of Infrastructure: "
-                        "Because infrastructure_class is None, all process "
-                        "classes must inherit a concrete infrastructure class, "
-                        "such as DjangoApplication or SQLAlchemyApplication. "
-                        "Using infrastructure_class is recommended to keep "
-                        "your process classes independent of infrastructure.".format(
-                            process_class
-                        )
-                    )
-
                 if process_class.__name__ not in self.process_classes:
                     self.process_classes[process_class.__name__] = process_class
 
@@ -94,7 +78,7 @@ class System(object):
             kwargs['session'] = self.session
 
         if self.infrastructure_class:
-            process_class = process_class.bind_infrastructure(self.infrastructure_class)
+            process_class = process_class.make_subclass(self.infrastructure_class)
 
         process = process_class(**kwargs)
 

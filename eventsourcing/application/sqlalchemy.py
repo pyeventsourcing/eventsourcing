@@ -1,9 +1,9 @@
-from eventsourcing.application.simple import Application, Infrastructure
+from eventsourcing.application.simple import Application
 from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
 from eventsourcing.infrastructure.sqlalchemy.records import EntitySnapshotRecord, StoredEventRecord
 
 
-class SQLAlchemyApplication(Infrastructure, Application):
+class SQLAlchemyApplication(Application):
     infrastructure_factory_class = SQLAlchemyInfrastructureFactory
     stored_event_record_class = StoredEventRecord
     snapshot_record_class = EntitySnapshotRecord

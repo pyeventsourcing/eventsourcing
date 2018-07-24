@@ -295,7 +295,7 @@ class ProcessSlave(Actor):
 
         process_class = msg.process_application_class
         if msg.infrastructure_class:
-            process_class = process_class.bind_infrastructure(msg.infrastructure_class)
+            process_class = process_class.make_subclass(msg.infrastructure_class)
 
             process_class.reset_connection_after_forking()
         self.process = process_class(

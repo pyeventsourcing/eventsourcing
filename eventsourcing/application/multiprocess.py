@@ -137,7 +137,7 @@ class OperatingSystemProcess(multiprocessing.Process):
         # Construct process application object.
         process_class = self.application_process_class
         if self.infrastructure_class:
-            process_class = process_class.bind_infrastructure(self.infrastructure_class)
+            process_class = process_class.make_subclass(self.infrastructure_class)
 
         self.process = process_class(
             pipeline_id=self.pipeline_id,

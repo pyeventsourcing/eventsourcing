@@ -1,5 +1,5 @@
 import os
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 
 from six import with_metaclass
 
@@ -11,21 +11,28 @@ from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.cipher.aes import AESCipher
-from eventsourcing.utils.random import decode_random_bytes
+from eventsourcing.utils.random import decode_bytes
 
 
 class Application(with_metaclass(ABCMeta)):
-    persist_event_type = None
-    sequenced_item_class = None
-    sequenced_item_mapper_class = None
+    """
+    Sets up infrastructure for use
+    with an event sourced domain model.
+    """
+
+    infrastructure_factory_class = InfrastructureFactory
+    is_constructed_with_session = False
 
     record_manager_class = None
     stored_event_record_class = None
     snapshot_record_class = None
 
+    sequenced_item_class = None
+    sequenced_item_mapper_class = None
     json_encoder_class = None
     json_decoder_class = None
-    is_constructed_with_session = False
+
+    persist_event_type = None
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
                  cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
@@ -70,19 +77,30 @@ class Application(with_metaclass(ABCMeta)):
         if self.persistence_policy is None:
             self.setup_persistence_policy()
 
-    @abstractmethod
-    def infrastructure_factory_class(self):
-        pass
+    @property
+    def datastore(self):
+        return self._datastore
+
+    @property
+    def event_store(self):
+        return self._event_store
+
+    @property
+    def repository(self):
+        return self._repository
 
     def setup_cipher(self, cipher_key):
-        cipher_key = decode_random_bytes(cipher_key or os.getenv('CIPHER_KEY', ''))
+        cipher_key = decode_bytes(cipher_key or os.getenv('CIPHER_KEY', ''))
         self.cipher = AESCipher(cipher_key) if cipher_key else None
 
     def setup_infrastructure(self, *args, **kwargs):
         self.infrastructure_factory = self.construct_infrastructure_factory(*args, **kwargs)
-        self.datastore = self.infrastructure_factory.construct_datastore()
+        self.setup_datastore()
         self.setup_event_store()
         self.setup_repository()
+
+    def setup_datastore(self):
+        self._datastore = self.infrastructure_factory.construct_datastore()
 
     def construct_infrastructure_factory(self, *args, **kwargs):
         """
@@ -112,13 +130,13 @@ class Application(with_metaclass(ABCMeta)):
             json_decoder_class=self.json_decoder_class,
         )
         record_manager = self.infrastructure_factory.construct_integer_sequenced_record_manager()
-        self.event_store = EventStore(
+        self._event_store = EventStore(
             record_manager=record_manager,
             sequenced_item_mapper=sequenced_item_mapper,
         )
 
     def setup_repository(self, **kwargs):
-        self.repository = EventSourcedRepository(
+        self._repository = EventSourcedRepository(
             event_store=self.event_store,
             **kwargs
         )
@@ -169,14 +187,5 @@ class Application(with_metaclass(ABCMeta)):
         self.close()
 
     @classmethod
-    def bind_infrastructure(cls, infrastructure_class):
-        if issubclass(cls, Infrastructure):
-            raise ValueError("{} is already an infrastructure class".format(cls))
-        if not issubclass(infrastructure_class, Infrastructure):
-            raise ValueError("{} is not an infrastructure class".format(infrastructure_class))
-        return type(cls.__name__, (infrastructure_class, cls), {})
-
-
-class Infrastructure(object):
-    infrastructure_factory_class = InfrastructureFactory
-
+    def make_subclass(cls, *bases):
+        return type(cls.__name__, bases + (cls,), {})

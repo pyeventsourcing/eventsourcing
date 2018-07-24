@@ -56,4 +56,4 @@ class TestDjangoApplication(DjangoTestCase, TestSimpleApplication):
 
 
 class TestSnapshottingApplication(TestSimpleApplication):
-    application_class = SnapshottingApplication.bind_infrastructure(SQLAlchemyApplication)
+    application_class = SnapshottingApplication.make_subclass(SQLAlchemyApplication)
