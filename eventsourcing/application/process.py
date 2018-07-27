@@ -6,7 +6,7 @@ from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, PromptFailed, RecordConflictError
-from eventsourcing.infrastructure.base import RelationalRecordManager
+from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.utils.transcoding import json_dumps, json_loads
@@ -192,7 +192,7 @@ class ProcessApplication(Pipeable, Application):
 
         # Write event records with tracking record.
         record_manager = self.event_store.record_manager
-        assert isinstance(record_manager, RelationalRecordManager)
+        assert isinstance(record_manager, ACIDRecordManager)
         record_manager.write_records(records=event_records,
                                      tracking_kwargs=process_event.tracking_kwargs)
 

@@ -153,6 +153,12 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
     ]
 
     @abstractmethod
+    def write_records(self, records, tracking_kwargs=None):
+        """
+        Writes tracking, event and notification records for a process event.
+        """
+
+    @abstractmethod
     def get_max_record_id(self):
         """Return maximum notification ID in pipeline."""
 
@@ -168,6 +174,15 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
 
 
 class RelationalRecordManager(ACIDRecordManager):
+    """
+    This is has code common to (extracted from) the SQLAlchemy and Django record managers.
+
+    This makes the subclasses harder to read and probably more brittle. So it might be better
+    to inline this with the subclasses, so that each looks more like normal Django or SQLAlchemy
+    code. Also, the record manager test cases don't cover the notification log and tracking record
+    functionality needed by ProcessApplication, and should so that other record managers can more
+    easily be developed.
+    """
     def __init__(self, *args, **kwargs):
         super(RelationalRecordManager, self).__init__(*args, **kwargs)
         self._insert_select_max = None
@@ -188,12 +203,6 @@ class RelationalRecordManager(ACIDRecordManager):
             records = [self.to_record(sequenced_item_or_items)]
         return records
 
-    def write_records(self, records, tracking_kwargs=None):
-        """
-        Creates records in the database.
-        :param tracking_kwargs:
-        """
-
     @property
     def insert_select_max(self):
         """
@@ -202,7 +211,7 @@ class RelationalRecordManager(ACIDRecordManager):
         """
         if self._insert_select_max is None:
             if hasattr(self.record_class, 'application_name'):
-                # Todo: Maybe make it support application_name with pipeline_id?
+                # Todo: Maybe make it support application_name without pipeline_id?
                 assert hasattr(self.record_class, 'pipeline_id'), self.record_class
                 tmpl = self._insert_select_max_tmpl + self._where_application_name_tmpl
             else:
