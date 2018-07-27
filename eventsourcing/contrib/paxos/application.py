@@ -3,7 +3,7 @@ from copy import deepcopy
 from uuid import UUID
 
 import six
-from eventsourcing.application.process import ProcessApplicationWithSnapshotting
+from eventsourcing.application.process import ProcessApplicationWithSnapshotting, ProcessEvent
 from eventsourcing.application.system import System
 from eventsourcing.contrib.paxos.composable import PaxosInstance, Resolution, PaxosMessage
 from eventsourcing.domain.model.aggregate import AggregateRoot
@@ -212,9 +212,10 @@ class PaxosProcess(ProcessApplicationWithSnapshotting):
         msg = paxos_aggregate.propose_value(value, assume_leader=assume_leader)
         while msg:
             msg = paxos_aggregate.receive_message(msg)
-        self.record_new_events([paxos_aggregate])
-        self.publish_prompt()
+        new_events = paxos_aggregate.__batch_pending_events__()
+        self.record_process_event(ProcessEvent(new_events))
         self.repository.take_snapshot(paxos_aggregate.id)
+        self.publish_prompt()
         return paxos_aggregate
 
     def policy(self, repository, event):
@@ -243,15 +244,11 @@ class PaxosProcess(ProcessApplicationWithSnapshotting):
             if not paxos.resolution:
                 paxos.receive_message(msg)
 
-    def record_new_events(self, aggregates, *args, **kwargs):
-        new_events = super(PaxosProcess, self).record_new_events(aggregates, *args, **kwargs)
-
+    def take_snapshots(self, new_events):
         # Just take a snapshot at the latest version.
-        for aggregate in list(aggregates):
-            if isinstance(aggregate, PaxosAggregate):
-                self.repository.take_snapshot(aggregate.id)
-
-        return new_events
+        originator_ids = set([e.originator_id for e in new_events])
+        for originator_id in originator_ids:
+            self.repository.take_snapshot(originator_id)
 
 
 class PaxosSystem(System):

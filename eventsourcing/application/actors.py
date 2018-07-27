@@ -57,6 +57,9 @@ def start_multiproc_tcp_base_system():
 
 
 class Actors(object):
+    """
+    Uses actors to run a system of process applications.
+    """
     def __init__(self, system, pipeline_ids, system_actor_name='system', shutdown_on_close=False):
         assert isinstance(system, System)
         self.system = system
@@ -285,7 +288,7 @@ class ProcessSlave(Actor):
             self.run_process(msg)
         elif isinstance(msg, ActorExitRequest):
             # logger.info("{} process application slave received exit request: {}".format(self.process.name, msg))
-            self.process.close()
+            self.close()
 
     def init_process(self, msg):
         self.pipeline_actor = msg.pipeline_actor
@@ -293,20 +296,43 @@ class ProcessSlave(Actor):
         self.pipeline_id = msg.pipeline_id
         self.upstream_application_names = msg.upstream_application_names
 
+        # Construct the process application class.
         process_class = msg.process_application_class
         if msg.infrastructure_class:
             process_class = process_class.make_subclass(msg.infrastructure_class)
 
-            process_class.reset_connection_after_forking()
+        # Reset the database connection (for Django).
+        process_class.reset_connection_after_forking()
+
+        # Construct the process application.
         self.process = process_class(
             pipeline_id=self.pipeline_id,
             notification_log_section_size=5,
         )
         assert isinstance(self.process, ProcessApplication)
-        # Close the persistence policy.
+
+        # Subscribe the slave actor's send_prompt() method.
+        #  - the process application will call publish_prompt()
+        #    and the actor will receive the prompt and send it
+        #    as a message.
+        subscribe(
+            predicate=self.is_my_prompt,
+            handler=self.send_prompt
+        )
+
+        # Close the process application persistence policy.
+        #  - slave actor process application doesn't publish
+        #    events, so we don't need this
         self.process.persistence_policy.close()
-        # Replace publish_prompt() with method that sends message to actor.
-        self.process.publish_prompt = lambda *args: self.publish_prompt(*args)
+
+        # Unsubscribe process application's publish_prompt().
+        #  - slave actor process application doesn't publish
+        #    events, so we don't need this
+        unsubscribe(
+            predicate=self.process.persistence_policy.is_event,
+            handler=self.process.publish_prompt
+        )
+
 
         # Construct and follow upstream notification logs.
         for upstream_application_name in self.upstream_application_names:
@@ -339,13 +365,24 @@ class ProcessSlave(Actor):
             # Report back to master.
             self.send(msg.master, SlaveRunResponse())
 
-    def publish_prompt(self):
-        prompt = Prompt(self.process.name, self.process.pipeline_id)
-        # logger.info("publishing prompt from {} process application".format(self.process.name))
+    def close(self):
+        unsubscribe(
+            predicate=self.is_my_prompt,
+            handler=self.send_prompt
+        )
+
+        self.process.close()
+
+    def is_my_prompt(self, prompt):
+        return (
+            isinstance(prompt, Prompt)
+            and prompt.process_name == self.process.name
+            and prompt.pipeline_id == self.pipeline_id
+        )
+
+    def send_prompt(self, prompt):
         for downstream_name, downstream_actor in self.downstream_actors.items():
             self.send(downstream_actor, prompt)
-            # logger.warning("published prompt from {} to {} in pipeline {}".format(self.process.name, downstream_name,
-            #                                                                    self.pipeline_id))
 
 
 class SystemInitRequest(object):

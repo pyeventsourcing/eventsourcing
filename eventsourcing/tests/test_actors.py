@@ -7,6 +7,7 @@ from eventsourcing.application.actors import Actors, shutdown_actor_system, star
     start_multiproc_tcp_base_system
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.application.system import System
+from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
 from eventsourcing.tests.test_system_fixtures import set_db_uri, create_new_order, Orders, Reservations, Payments
 
 logger = logging.getLogger('')
@@ -27,19 +28,19 @@ class TestActors(unittest.TestCase):
         self.system = System(Orders | Reservations | Orders | Payments | Orders,
                              infrastructure_class=self.infrastructure_class)
 
-    def test_multiproc_tcp_base(self):
-        start_multiproc_tcp_base_system()
-        self.check_actors()
-
     def test_simple_system_base(self):
         start_actor_system()
+        self.check_actors()
+
+    def test_multiproc_tcp_base(self):
+        start_multiproc_tcp_base_system()
         self.check_actors()
 
     def close_connections_before_forking(self):
         # Used for closing Django connection before multiprocessing module forks the OS process.
         pass
 
-    def check_actors(self, num_pipelines=2, num_orders_per_pipeline=5):
+    def check_actors(self, num_pipelines=3, num_orders_per_pipeline=5):
 
         pipeline_ids = list(range(num_pipelines))
 
@@ -63,7 +64,7 @@ class TestActors(unittest.TestCase):
                     order_ids.append(order_id)
 
             # Wait for orders to be reserved and paid.
-            retries = 100 + 100 * num_orders_per_pipeline * len(pipeline_ids)
+            retries = 10 + 10 * num_orders_per_pipeline * len(pipeline_ids)
             for i, order_id in enumerate(order_ids):
 
                 while not app.repository[order_id].is_reserved:
@@ -99,5 +100,13 @@ class TestActors(unittest.TestCase):
         except KeyError:
             pass
 
-        # Shutdown base actor system.
-        shutdown_actor_system()
+        try:
+            # Shutdown base actor system.
+            shutdown_actor_system()
+        finally:
+            # Clear event handlers.
+            try:
+                assert_event_handlers_empty()
+            finally:
+                clear_event_handlers()
+

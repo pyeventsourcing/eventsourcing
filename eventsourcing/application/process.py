@@ -12,6 +12,13 @@ from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.utils.transcoding import json_dumps, json_loads
 
 
+class ProcessEvent(object):
+    def __init__(self, new_events, tracking_kwargs=None, causal_dependencies=None):
+        self.new_events = new_events
+        self.tracking_kwargs = tracking_kwargs
+        self.causal_dependencies = causal_dependencies
+
+
 class ProcessApplication(Pipeable, Application):
     always_track_notifications = True
 
@@ -28,21 +35,26 @@ class ProcessApplication(Pipeable, Application):
         # 1. Publish prompts whenever domain events are published (important: after persisted).
         # 2. Run this process whenever upstream prompted followers to pull for new notification.
         subscribe(predicate=self.is_upstream_prompt, handler=self.run)
-        subscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
+        subscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt)
         # Todo: Maybe make a prompts policy object?
 
     def close(self):
         unsubscribe(predicate=self.is_upstream_prompt, handler=self.run)
-        unsubscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt_from_event)
+        unsubscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt)
         super(ProcessApplication, self).close()
 
     def is_upstream_prompt(self, prompt):
         return isinstance(prompt, Prompt) and prompt.process_name in self.readers.keys()
 
-    def publish_prompt_from_event(self, _):
-        self.publish_prompt()
+    def publish_prompt(self, event=None):
+        """
+        Publishes prompt for a given event.
 
-    def publish_prompt(self):
+        Used to prompt downstream process application when an event
+        is published by this application's model, which can happen
+        when application command methods, rather than the process policy,
+        are called.
+        """
         prompt = Prompt(self.name, self.pipeline_id)
         try:
             publish(prompt)
@@ -62,17 +74,16 @@ class ProcessApplication(Pipeable, Application):
             readers_items = [(prompt.process_name, reader)]
 
         notification_count = 0
-        for upstream_application_name, reader in readers_items:
+        for upstream_name, reader in readers_items:
 
-            if not self.is_reader_position_ok[upstream_application_name]:
-                self.set_reader_position_from_tracking_records(reader, upstream_application_name)
-                self.is_reader_position_ok[upstream_application_name] = True
+            if not self.is_reader_position_ok[upstream_name]:
+                self.set_reader_position_from_tracking_records(reader, upstream_name)
+                self.is_reader_position_ok[upstream_name] = True
 
+            # Todo: Change to use queue, so next notification is more likely already loaded?
             for notification in reader.read(advance_by=advance_by):
-                # Todo: Put this on a queue and then get the next one.
                 notification_count += 1
 
-                # Todo: Get this from a queue and do it in a different thread?
                 # Get domain event from notification.
                 event = self.event_store.sequenced_item_mapper.from_topic_and_data(
                     topic=notification['event_type'],
@@ -89,41 +100,53 @@ class ProcessApplication(Pipeable, Application):
                     notification_id = causal_dependency['notification_id']
 
                     has_tracking_record = self.event_store.record_manager.has_tracking_record(
-                        upstream_application_name=upstream_application_name,
+                        upstream_application_name=upstream_name,
                         pipeline_id=pipeline_id,
                         notification_id=notification_id
                     )
                     if not has_tracking_record:
                         # Invalidate reader position.
-                        self.is_reader_position_ok[upstream_application_name] = False
+                        self.is_reader_position_ok[upstream_name] = False
 
                         # Raise exception.
                         raise CausalDependencyFailed({
                             'application_name': self.name,
-                            'upstream_application_name': upstream_application_name,
+                            'upstream_name': upstream_name,
                             'pipeline_id': pipeline_id,
                             'notification_id': notification_id
                         })
 
-                # Call policy with the event.
+                # Call policy with the upstream event.
                 all_aggregates, causal_dependencies = self.call_policy(event)
 
-                # Record new events.
+                # Collect pending events.
+                new_events = self.collect_pending_events(all_aggregates)
+
+                # Record process event.
                 try:
-                    new_events = self.record_new_events(
-                        all_aggregates, notification, upstream_application_name, causal_dependencies
-                    )
+                    if new_events or self.always_track_notifications:
+                        tracking_kwargs = self.construct_tracking_kwargs(notification, upstream_name)
+                        process_event = ProcessEvent(new_events, tracking_kwargs, causal_dependencies)
+                        self.record_process_event(process_event)
+
+                    # Todo: Maybe write one tracking record at the end of a run, if
+                    # necessary, or only during a period of time when nothing happens?
                 except Exception as e:
-                    self.is_reader_position_ok[upstream_application_name] = False
+                    self.is_reader_position_ok[upstream_name] = False
                     # self._cached_entities = {}
                     raise e
                 else:
                     # Publish a prompt if there are new notifications.
                     # Todo: Optionally send events as prompts, saves pulling event if it arrives in order.
-                    if len(new_events):
+                    self.take_snapshots(new_events)
+
+                    if new_events:
                         self.publish_prompt()
 
         return notification_count
+
+    def take_snapshots(self, new_events):
+        pass
 
     def set_reader_position_from_tracking_records(self, reader, upstream_application_name):
         max_record_id = self.event_store.record_manager.get_max_tracking_record_id(upstream_application_name)
@@ -162,40 +185,25 @@ class ProcessApplication(Pipeable, Application):
     def policy(repository, event):
         """Empty method, can be overridden in subclasses to implement concrete policy."""
 
-    def record_new_events(self, aggregates, notification=None, upstream_application_name=None,
-                          causal_dependencies=None):
-        # Construct tracking record.
-        tracking_kwargs = self.construct_tracking_kwargs(notification, upstream_application_name)
+    def record_process_event(self, process_event):
+        # Construct event records.
+        event_records = self.construct_event_records(process_event.new_events,
+                                                     process_event.causal_dependencies)
 
-        # Collect pending events.
-        new_events = self.collect_pending_events(aggregates)
-
-        # Writing tracking record when there are new events.
-        if len(new_events) or self.always_track_notifications:
-
-            # Construct event records.
-            event_records = self.construct_event_records(new_events, causal_dependencies)
-
-            # Write event records with tracking record.
-            record_manager = self.event_store.record_manager
-            assert isinstance(record_manager, RelationalRecordManager)
-            record_manager.write_records(records=event_records, tracking_kwargs=tracking_kwargs)
-        # else:
-            # Todo: Maybe write one tracking record at the end of a run, if necessary, or
-            # only during a period of time when nothing happens?
-
-        return new_events
+        # Write event records with tracking record.
+        record_manager = self.event_store.record_manager
+        assert isinstance(record_manager, RelationalRecordManager)
+        record_manager.write_records(records=event_records,
+                                     tracking_kwargs=process_event.tracking_kwargs)
 
     def construct_tracking_kwargs(self, notification, upstream_application_name):
-        if notification is None:
-            return {}
-        tracking_kwargs = {
-            'application_name': self.name,
-            'upstream_application_name': upstream_application_name,
-            'pipeline_id': self.pipeline_id,
-            'notification_id': notification['id'],
-        }
-        return tracking_kwargs
+        if notification:
+            return {
+                'application_name': self.name,
+                'upstream_application_name': upstream_application_name,
+                'pipeline_id': self.pipeline_id,
+                'notification_id': notification['id'],
+            }
 
     def collect_pending_events(self, aggregates):
         pending_events = []
@@ -304,11 +312,24 @@ class Prompt(object):
         self.process_name = process_name
         self.pipeline_id = pipeline_id
 
+    def __eq__(self, other):
+        return (
+            other
+            and isinstance(other, type(self))
+            and self.process_name == other.process_name
+            and self.pipeline_id == other.pipeline_id
+        )
+
+    def __repr__(self):
+        return "{}({}={}, {}={})".format(
+            type(self).__name__,
+            'process_name', self.process_name,
+            'pipeline_id', self.pipeline_id
+        )
+
 
 class ProcessApplicationWithSnapshotting(SnapshottingApplication, ProcessApplication):
-    def record_new_events(self, *args, **kwargs):
-        new_events = super(ProcessApplicationWithSnapshotting, self).record_new_events(*args, **kwargs)
+    def take_snapshots(self, new_events):
         for event in new_events:
             if self.snapshotting_policy.condition(event):
                 self.snapshotting_policy.take_snapshot(event)
-        return new_events
