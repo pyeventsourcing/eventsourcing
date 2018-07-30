@@ -246,6 +246,7 @@ class ProcessApplication(Pipeable, Application):
 
         # Set notification log IDs, and causal dependencies.
         if len(event_records):
+            # Todo: Maybe keep track of what this probably is, to avoid query. Like log reader, invalidate on error.
             current_max = self.event_store.record_manager.get_max_record_id() or 0
             for domain_event, event_record in zip(pending_events, event_records):
                 if type(domain_event).__notifiable__:
