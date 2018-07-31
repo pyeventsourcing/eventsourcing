@@ -28,19 +28,13 @@ class ProcessApplication(Pipeable, Application):
         self.readers = OrderedDict()
         self.is_reader_position_ok = defaultdict(bool)
         super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
-        # self._cached_entities = {}
 
-        ## Prompts policy.
-        #
-        # 1. Publish prompts whenever domain events are published (important: after persisted).
-        # 2. Run this process whenever upstream prompted followers to pull for new notification.
-        subscribe(predicate=self.is_upstream_prompt, handler=self.run)
-        subscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt)
-        # Todo: Maybe make a prompts policy object?
+        subscribe(self.run, self.is_upstream_prompt)
+        subscribe(self.publish_prompt, self.persistence_policy.is_event)
 
     def close(self):
-        unsubscribe(predicate=self.is_upstream_prompt, handler=self.run)
-        unsubscribe(predicate=self.persistence_policy.is_event, handler=self.publish_prompt)
+        subscribe(self.run, self.is_upstream_prompt)
+        subscribe(self.publish_prompt, self.persistence_policy.is_event)
         super(ProcessApplication, self).close()
 
     def is_upstream_prompt(self, prompt):

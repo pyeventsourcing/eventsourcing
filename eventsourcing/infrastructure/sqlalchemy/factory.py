@@ -14,7 +14,7 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
     timestamp_sequenced_record_class = TimestampSequencedNoIDRecord
     snapshot_record_class = SnapshotRecord
 
-    def __init__(self, session, uri=None, pool_size=5, *args, **kwargs):
+    def __init__(self, session, uri=None, pool_size=None, *args, **kwargs):
         super(SQLAlchemyInfrastructureFactory, self).__init__(*args, **kwargs)
         self.session = session
         self.uri = uri
