@@ -11,7 +11,7 @@ from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoIDRecord
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    WithSQLAlchemyRecordManagers
+    SQLAlchemyRecordManagerTestCase
 from eventsourcing.utils.topic import get_topic
 
 
@@ -54,7 +54,7 @@ class TestAggregateRootEvent(TestCase):
             event1.__check_hash__()
 
 
-class TestExampleAggregateRoot(WithSQLAlchemyRecordManagers):
+class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
     def setUp(self):
         super(TestExampleAggregateRoot, self).setUp()
         self.app = ExampleDDDApplication(self.datastore)

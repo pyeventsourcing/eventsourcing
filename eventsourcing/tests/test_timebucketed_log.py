@@ -1,5 +1,4 @@
 import datetime
-import time
 from time import sleep
 from uuid import uuid4
 
@@ -8,20 +7,18 @@ from eventsourcing.domain.model.timebucketedlog import Timebucketedlog, bucket_d
 from eventsourcing.infrastructure.repositories.timebucketedlog_repo import TimebucketedlogRepo
 from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader
 from eventsourcing.tests.base import notquick
-from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
+from eventsourcing.tests.sequenced_item_tests.base import WithEventPersistence
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    WithSQLAlchemyRecordManagers
+    SQLAlchemyRecordManagerTestCase
 from eventsourcing.utils.times import decimaltimestamp
 
 
-class TimebucketedlogTestCase(WithPersistencePolicies):
-    def setUp(self):
-        super(TimebucketedlogTestCase, self).setUp()
-        self.log_repo = TimebucketedlogRepo(self.entity_event_store)
+class TimebucketedlogTestCase(WithEventPersistence):
 
     def test_entity_lifecycle(self):
+        self.log_repo = TimebucketedlogRepo(self.entity_event_store)
         log_name = uuid4()
         log = self.log_repo.get_or_create(log_name=log_name, bucket_size='year')
         log = self.log_repo[log_name]
@@ -363,5 +360,9 @@ class TestLogWithCassandra(WithCassandraRecordManagers, TimebucketedlogTestCase)
     pass
 
 
-class TestLogWithSQLAlchemy(WithSQLAlchemyRecordManagers, TimebucketedlogTestCase):
+class TestLogWithSQLAlchemy(SQLAlchemyRecordManagerTestCase, TimebucketedlogTestCase):
     pass
+
+
+del(TimebucketedlogTestCase)
+del(WithEventPersistence)

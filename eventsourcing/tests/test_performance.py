@@ -13,18 +13,18 @@ from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoID
     TimestampSequencedNoIDRecord, TimestampSequencedWithIDRecord
 from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader, get_timebucketedlog_reader
 from eventsourcing.tests.base import notquick
-from eventsourcing.tests.example_application_tests.base import WithExampleApplication
+from eventsourcing.tests.example_application_tests import base
 from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import \
     WithEncryption
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    WithSQLAlchemyRecordManagers
+    SQLAlchemyRecordManagerTestCase
 
 
 @notquick
-class PerformanceTestCase(WithExampleApplication):
+class PerformanceTestCase(base.WithExampleApplication):
     drop_tables = True
 
     def test_entity_performance(self):
@@ -261,7 +261,7 @@ class TestCassandraPerformanceWithEncryption(WithEncryption, TestCassandraPerfor
 
 
 @notquick
-class TestSQLAlchemyPerformance(WithSQLAlchemyRecordManagers, PerformanceTestCase):
+class TestSQLAlchemyPerformance(SQLAlchemyRecordManagerTestCase, PerformanceTestCase):
     def construct_entity_record_manager(self):
         return self.factory.construct_integer_sequenced_record_manager(
             record_class=IntegerSequencedWithIDRecord
@@ -290,3 +290,7 @@ class TestSQLAlchemyPerformanceNoID(TestSQLAlchemyPerformance):
 @notquick
 class TestSQLAlchemyPerformanceWithEncryption(WithEncryption, TestSQLAlchemyPerformance):
     pass
+
+
+# Avoid running abstract test case.
+del (PerformanceTestCase)

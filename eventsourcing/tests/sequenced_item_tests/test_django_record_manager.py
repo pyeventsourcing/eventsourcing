@@ -15,8 +15,7 @@ from django.test import TransactionTestCase
 from eventsourcing.infrastructure.django.utils import close_django_connection
 from eventsourcing.infrastructure.django.apps import DjangoConfig
 from eventsourcing.infrastructure.django.factory import DjangoInfrastructureFactory
-from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedRecordTestCase, \
-    TimestampSequencedItemTestCase
+from eventsourcing.tests.sequenced_item_tests import base
 
 
 class DjangoTestCase(TransactionTestCase):
@@ -42,19 +41,19 @@ class DjangoTestCase(TransactionTestCase):
         close_django_connection()
 
 
-class TestDjangoRecordManagerWithIntegerSequences(DjangoTestCase, IntegerSequencedRecordTestCase):
+class TestDjangoRecordManagerWithIntegerSequences(DjangoTestCase, base.IntegerSequencedRecordTestCase):
     def construct_record_manager(self):
         return self.construct_entity_record_manager()
 
 
-class TestDjangoRecordManagerWithoutContiguousRecordIDs(DjangoTestCase, IntegerSequencedRecordTestCase):
+class TestDjangoRecordManagerWithoutContiguousRecordIDs(DjangoTestCase, base.IntegerSequencedRecordTestCase):
     contiguous_record_ids = False
 
     def construct_record_manager(self):
         return self.construct_entity_record_manager()
 
 
-class TestDjangoRecordManagerWithTimestampSequences(DjangoTestCase, TimestampSequencedItemTestCase):
+class TestDjangoRecordManagerWithTimestampSequences(DjangoTestCase, base.TimestampSequencedItemTestCase):
     def construct_record_manager(self):
         return self.construct_timestamp_sequenced_record_manager()
 

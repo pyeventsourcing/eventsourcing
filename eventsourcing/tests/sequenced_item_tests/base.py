@@ -1,5 +1,6 @@
 import json
 import uuid
+from abc import abstractmethod
 from time import sleep
 from uuid import uuid4
 
@@ -22,6 +23,9 @@ from eventsourcing.utils.topic import get_topic
 
 
 class RecordManagerTestCase(AbstractDatastoreTestCase):
+    """
+    Abstract test case for record managers.
+    """
 
     def __init__(self, *args, **kwargs):
         super(RecordManagerTestCase, self).__init__(*args, **kwargs)
@@ -37,42 +41,12 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
                 self.datastore.drop_tables()
                 self.datastore.setup_tables()
 
-    def construct_entity_record_manager(self):
-        return self.factory.construct_integer_sequenced_record_manager()
-
-    def construct_snapshot_record_manager(self):
-        return self.factory.construct_snapshot_record_manager()
-
-    def construct_timestamp_sequenced_record_manager(self):
-        return self.factory.construct_timestamp_sequenced_record_manager()
-
     def tearDown(self):
         self._record_manager = None
         if self.datastore is not None:
             self.datastore.drop_tables()
             self.datastore.close_connection()
         super(RecordManagerTestCase, self).tearDown()
-
-    @property
-    def record_manager(self):
-        """
-        :rtype: AbstractSequencedItemRecordManager
-        """
-        if self._record_manager is None:
-            self._record_manager = self.construct_record_manager()
-        return self._record_manager
-
-    def construct_record_manager(self):
-        raise NotImplementedError()
-
-    def construct_positions(self):
-        raise NotImplementedError()
-
-    def EXAMPLE_EVENT_TOPIC1(self):
-        raise NotImplementedError()
-
-    def EXAMPLE_EVENT_TOPIC2(self):
-        raise NotImplementedError()
 
     def test(self):
         sequence_id1 = uuid.uuid1()
@@ -329,8 +303,46 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         with self.assertRaises(OperationalError):
             self.record_manager.raise_operational_error(Exception())
 
+    @property
+    def record_manager(self):
+        """
+        :rtype: AbstractSequencedItemRecordManager
+        """
+        if self._record_manager is None:
+            self._record_manager = self.construct_record_manager()
+        return self._record_manager
+
+    @abstractmethod
+    def construct_record_manager(self):
+        raise NotImplementedError()
+
+    def construct_entity_record_manager(self):
+        return self.factory.construct_integer_sequenced_record_manager()
+
+    def construct_snapshot_record_manager(self):
+        return self.factory.construct_snapshot_record_manager()
+
+    def construct_timestamp_sequenced_record_manager(self):
+        return self.factory.construct_timestamp_sequenced_record_manager()
+
+    @abstractmethod
+    def construct_positions(self):
+        return None, None, None
+
+    @abstractmethod
+    def EXAMPLE_EVENT_TOPIC1(self):
+        pass
+
+    @abstractmethod
+    def EXAMPLE_EVENT_TOPIC2(self):
+        pass
+
+
 
 class WithRecordManagers(AbstractDatastoreTestCase):
+    """
+    Base class for test cases that need a record manager.
+    """
     drop_tables = False
 
     def __init__(self, *args, **kwargs):
@@ -404,6 +416,10 @@ class TimestampedEventExample2(EventWithTimestamp, EventWithOriginatorID):
 
 
 class IntegerSequencedRecordTestCase(RecordManagerTestCase):
+    """
+    Abstract test case for integer sequenced record managers.
+    """
+
     EXAMPLE_EVENT_TOPIC1 = get_topic(VersionedEventExample1)
     EXAMPLE_EVENT_TOPIC2 = get_topic(VersionedEventExample2)
 
@@ -415,6 +431,9 @@ class IntegerSequencedRecordTestCase(RecordManagerTestCase):
 
 
 class TimestampSequencedItemTestCase(RecordManagerTestCase):
+    """
+    Abstract test case for timestamp sequenced record managers.
+    """
     EXAMPLE_EVENT_TOPIC1 = get_topic(TimestampedEventExample1)
     EXAMPLE_EVENT_TOPIC2 = get_topic(TimestampedEventExample2)
 
@@ -428,49 +447,11 @@ class TimestampSequencedItemTestCase(RecordManagerTestCase):
         return self.factory.construct_timestamp_sequenced_record_manager()
 
 
-class SequencedItemIteratorTestCase(WithRecordManagers):
+class AbstractSequencedItemIteratorTestCase(WithRecordManagers):
+    """
+    Abstract test case for sequenced item iterators.
+    """
     ENTITY_ID1 = uuid4()
-
-    @property
-    def entity_id(self):
-        return self.ENTITY_ID1
-
-    @property
-    def num_events(self):
-        return 12
-
-    @property
-    def iterator_cls(self):
-        """
-        Returns iterator class.
-        """
-        raise NotImplementedError()
-
-    def construct_iterator(self, is_ascending, page_size, gt=None, lte=None, limit=None):
-        return self.iterator_cls(
-            record_manager=self.entity_record_manager,
-            sequence_id=self.entity_id,
-            page_size=page_size,
-            gt=gt,
-            lte=lte,
-            limit=limit,
-            is_ascending=is_ascending,
-        )
-
-    def setup_sequenced_items(self):
-        self.sequenced_items = []
-        self.number_of_sequenced_items = 12
-        for i in six.moves.range(self.number_of_sequenced_items):
-            sequenced_item = SequencedItem(
-                sequence_id=self.entity_id,
-                position=i,
-                topic='eventsourcing.example.domain_model#Example.Created',
-                data='{"i":%s,"entity_id":"%s","timestamp":%s}' % (
-                    i, self.entity_id, decimaltimestamp()
-                ),
-            )
-            self.sequenced_items.append(sequenced_item)
-            self.entity_record_manager.append(sequenced_item)
 
     def test(self):
         self.setup_sequenced_items()
@@ -539,6 +520,21 @@ class SequencedItemIteratorTestCase(WithRecordManagers):
             limit=12,
         )
 
+    def setup_sequenced_items(self):
+        self.sequenced_items = []
+        self.number_of_sequenced_items = 12
+        for i in six.moves.range(self.number_of_sequenced_items):
+            sequenced_item = SequencedItem(
+                sequence_id=self.entity_id,
+                position=i,
+                topic='eventsourcing.example.domain_model#Example.Created',
+                data='{"i":%s,"entity_id":"%s","timestamp":%s}' % (
+                    i, self.entity_id, decimaltimestamp()
+                ),
+            )
+            self.sequenced_items.append(sequenced_item)
+            self.entity_record_manager.append(sequenced_item)
+
     def assert_iterator_yields_events(self, is_ascending, expect_at_start, expect_at_end, expect_item_count=1,
                                       expect_page_count=0, expect_query_count=0, page_size=1, limit=None):
         iterator = self.construct_iterator(is_ascending, page_size, limit=limit)
@@ -550,26 +546,49 @@ class SequencedItemIteratorTestCase(WithRecordManagers):
         self.assertEqual(expect_at_start, retrieved_events[0].data)
         self.assertEqual(expect_at_end, retrieved_events[-1].data)
 
-
-class SimpleSequencedItemteratorTestCase(SequencedItemIteratorTestCase):
     @property
-    def iterator_cls(self):
-        return SequencedItemIterator
+    def entity_id(self):
+        return self.ENTITY_ID1
 
-
-class ThreadedSequencedItemIteratorTestCase(SequencedItemIteratorTestCase):
     @property
+    def num_events(self):
+        return 12
+
+    def construct_iterator(self, is_ascending, page_size, gt=None, lte=None, limit=None):
+        return self.iterator_cls(
+            record_manager=self.entity_record_manager,
+            sequence_id=self.entity_id,
+            page_size=page_size,
+            gt=gt,
+            lte=lte,
+            limit=limit,
+            is_ascending=is_ascending,
+        )
+
+    @property
+    @abstractmethod
     def iterator_cls(self):
-        return ThreadedSequencedItemIterator
+        """
+        Returns iterator class.
+        """
+        raise NotImplementedError()
 
 
-class WithPersistencePolicies(WithRecordManagers):
+class SequencedItemIteratorTestCase(AbstractSequencedItemIteratorTestCase):
+    iterator_cls = SequencedItemIterator
+
+
+class ThreadedSequencedItemIteratorTestCase(AbstractSequencedItemIteratorTestCase):
+    iterator_cls = ThreadedSequencedItemIterator
+
+
+class WithEventPersistence(WithRecordManagers):
     """
     Base class for test cases that need persistence policies.
     """
 
     def setUp(self):
-        super(WithPersistencePolicies, self).setUp()
+        super(WithEventPersistence, self).setUp()
         # Setup the persistence subscriber.
         self.entity_event_store = EventStore(
             record_manager=self.entity_record_manager,
@@ -625,4 +644,4 @@ class WithPersistencePolicies(WithRecordManagers):
             self.timestamp_sequenced_event_policy.close()
         if self.entity_event_store:
             self.integer_sequenced_event_policy.close()
-        super(WithPersistencePolicies, self).tearDown()
+        super(WithEventPersistence, self).tearDown()
