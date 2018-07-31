@@ -20,10 +20,8 @@ class ProcessEvent(object):
 
 
 class ProcessApplication(Pipeable, Application):
-    always_track_notifications = True
 
-    def __init__(self, name=None, policy=None, setup_table=False, always_track_notifications=False, **kwargs):
-        self.always_track_notifications = always_track_notifications or self.always_track_notifications
+    def __init__(self, name=None, policy=None, setup_table=False, **kwargs):
         self.policy_func = policy
         self.readers = OrderedDict()
         self.is_reader_position_ok = defaultdict(bool)
@@ -33,8 +31,8 @@ class ProcessApplication(Pipeable, Application):
         subscribe(self.publish_prompt, self.persistence_policy.is_event)
 
     def close(self):
-        subscribe(self.run, self.is_upstream_prompt)
-        subscribe(self.publish_prompt, self.persistence_policy.is_event)
+        unsubscribe(self.run, self.is_upstream_prompt)
+        unsubscribe(self.publish_prompt, self.persistence_policy.is_event)
         super(ProcessApplication, self).close()
 
     def is_upstream_prompt(self, prompt):
@@ -118,10 +116,13 @@ class ProcessApplication(Pipeable, Application):
 
                 # Record process event.
                 try:
-                    if new_events or self.always_track_notifications:
-                        tracking_kwargs = self.construct_tracking_kwargs(notification, upstream_name)
-                        process_event = ProcessEvent(new_events, tracking_kwargs, causal_dependencies)
-                        self.record_process_event(process_event)
+                    tracking_kwargs = self.construct_tracking_kwargs(
+                        notification, upstream_name
+                    )
+                    process_event = ProcessEvent(
+                        new_events, tracking_kwargs, causal_dependencies
+                    )
+                    self.record_process_event(process_event)
 
                     # Todo: Maybe write one tracking record at the end of a run, if
                     # necessary, or only during a period of time when nothing happens?

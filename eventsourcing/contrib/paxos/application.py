@@ -195,7 +195,6 @@ class PaxosAggregate(AggregateRoot):
 
 
 class PaxosProcess(ProcessApplicationWithSnapshotting):
-    always_track_notifications = True
     persist_event_type = PaxosAggregate.Event
     snapshot_period = None
 
