@@ -85,8 +85,6 @@ class PaxosAggregate(AggregateRoot):
         """
         Published when attributes of paxos_instance are changed.
         """
-        __notifiable__ = False
-
         def __init__(self, changes=None, **kwargs):
             super(PaxosAggregate.AttributesChanged, self).__init__(
                 changes=changes, **kwargs

@@ -64,36 +64,47 @@ class SQLAlchemyRecordManager(SQLRecordManager):
                     params = {c: tracking_kwargs[c] for c in self.tracking_record_field_names}
                     connection.execute(self.insert_tracking_record, **params)
 
-                for record in records:
-
-                    params = {c: getattr(record, c) for c in self.field_names}
-                    if hasattr(self.record_class, 'application_name'):
-                        params['application_name'] = self.application_name
-                    if hasattr(self.record_class, 'pipeline_id'):
-                        params['pipeline_id'] = self.pipeline_id
-                    if hasattr(record, 'causal_dependencies'):
-                        params['causal_dependencies'] = record.causal_dependencies
-
+                if records:
+                    # Insert event and notification records.
                     statement = self.insert_values
-
                     if hasattr(self.record_class, 'id'):
-                        if record.id is None and self.contiguous_record_ids:
-                            # Do an "insert select max" from existing.
-                            statement = self.insert_select_max
-                        elif record.id == '':
-                            # Don't want to put this in the notification log.
-                            params['id'] = None
-                            if hasattr(self.record_class, 'pipeline_id'):
-                                params['pipeline_id'] = None
-                        else:
-                            # ID can't be auto-incrementing if table
-                            # has an application_name.
-                            if hasattr(self.record_class, 'application_name'):
-                                # We need a value and don't have one.
-                                assert record.id, "record ID not set when required"
-                            params['id'] = record.id
+                        all_ids = set((r.id for r in records))
+                        if None in all_ids:
+                            if len(all_ids) > 1:
+                                # Either all or zero records must have IDs.
+                                raise ProgrammingError("Only some records have IDs")
 
-                    connection.execute(statement, **params)
+                            elif self.contiguous_record_ids:
+                                # Do an "insert select max" from existing.
+                                statement = self.insert_select_max
+
+                            elif hasattr(self.record_class, 'application_name'):
+                                # Can't allow auto-incrementing ID if table has field
+                                # application_name. We need values and don't have them.
+                                raise ProgrammingError("record ID not set when required")
+
+                    all_params = []
+                    for record in records:
+                        # For stored item itself (e.g. event).
+                        params = {
+                            name: getattr(record, name) for name in self.field_names
+                        }
+
+                        # For application partition (bounded context).
+                        if hasattr(self.record_class, 'application_name'):
+                            params['application_name'] = self.application_name
+
+                        # For notification log.
+                        if hasattr(self.record_class, 'pipeline_id'):
+                            params['pipeline_id'] = self.pipeline_id
+                        if hasattr(self.record_class, 'id'):
+                            params['id'] = record.id
+                        if hasattr(record, 'causal_dependencies'):
+                            params['causal_dependencies'] = record.causal_dependencies
+
+                        all_params.append(params)
+
+                    connection.execute(statement, all_params)
 
         except IntegrityError as e:
             self.raise_record_integrity_error(e)
