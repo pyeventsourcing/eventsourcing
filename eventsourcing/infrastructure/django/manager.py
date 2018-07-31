@@ -1,10 +1,10 @@
 from django.db import IntegrityError, connection, transaction, ProgrammingError
 
-from eventsourcing.infrastructure.base import RelationalRecordManager
+from eventsourcing.infrastructure.base import SQLRecordManager
 from eventsourcing.infrastructure.django.models import NotificationTrackingRecord
 
 
-class DjangoRecordManager(RelationalRecordManager):
+class DjangoRecordManager(SQLRecordManager):
     tracking_record_class = NotificationTrackingRecord
 
     _where_application_name_tmpl = (

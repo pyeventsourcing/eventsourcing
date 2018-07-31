@@ -4,11 +4,11 @@ from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import func
 
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.base import AbstractTrackingRecordManager, RelationalRecordManager
+from eventsourcing.infrastructure.base import SQLRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import NotificationTrackingRecord
 
 
-class SQLAlchemyRecordManager(RelationalRecordManager):
+class SQLAlchemyRecordManager(SQLRecordManager):
     tracking_record_class = NotificationTrackingRecord
 
     _where_application_name_tmpl = (

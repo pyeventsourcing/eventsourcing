@@ -49,13 +49,10 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
         Gets record at position in sequence.
         """
 
-    def list_items(self, *args, **kwargs):
-        return list(self.get_items(*args, **kwargs))
-
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
         """
-        Returns sequenced items.
+        Returns sequenced item generator.
         """
         records = self.get_records(
             sequence_id=sequence_id,
@@ -71,6 +68,12 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
         for item in six.moves.map(self.from_record, records):
             yield item
 
+    def list_items(self, *args, **kwargs):
+        """
+        Returns list of sequenced items.
+        """
+        return list(self.get_items(*args, **kwargs))
+
     @abstractmethod
     def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                     query_ascending=True, results_ascending=True):
@@ -80,15 +83,16 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
 
     def to_record(self, sequenced_item):
         """
-        Constructs and returns an ORM object, from given sequenced item object.
+        Constructs a record object from given sequenced item object.
         """
         kwargs = self.get_field_kwargs(sequenced_item)
+        # Supply application_name, if needed.
+        # Supply pipeline_id, if needed.
         if hasattr(self.record_class, 'application_name'):
             kwargs['application_name'] = self.application_name
-        try:
-            return self.record_class(**kwargs)
-        except TypeError as e:
-            raise
+        if hasattr(self.record_class, 'pipeline_id'):
+            kwargs['pipeline_id'] = self.pipeline_id
+        return self.record_class(**kwargs)
 
     def from_record(self, record):
         """
@@ -148,8 +152,6 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
         'upstream_application_name',
         'pipeline_id',
         'notification_id',
-        # 'originator_id',
-        # 'originator_version',
     ]
 
     @abstractmethod
@@ -172,8 +174,17 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
         True if tracking record exists for notification from upstream in pipeline.
         """
 
+    def get_pipeline_and_notification_id(self, sequence_id, position):
+        """
+        Returns pipeline ID and notification ID for
+        event at given position in given sequence.
+        """
+        # Todo: Optimise query by selecting only two columns, pipeline_id and id (notification ID)?
+        record = self.get_record(sequence_id, position)
+        return record.pipeline_id, record.id
 
-class RelationalRecordManager(ACIDRecordManager):
+
+class SQLRecordManager(ACIDRecordManager):
     """
     This is has code common to (extracted from) the SQLAlchemy and Django record managers.
 
@@ -184,7 +195,7 @@ class RelationalRecordManager(ACIDRecordManager):
     easily be developed.
     """
     def __init__(self, *args, **kwargs):
-        super(RelationalRecordManager, self).__init__(*args, **kwargs)
+        super(SQLRecordManager, self).__init__(*args, **kwargs)
         self._insert_select_max = None
         self._insert_values = None
         self._insert_tracking_record = None
@@ -277,24 +288,3 @@ class RelationalRecordManager(ACIDRecordManager):
 
         :rtype: str
         """
-
-    def get_pipeline_and_notification_id(self, sequence_id, position):
-        """
-        Returns pipeline ID and notification ID for
-        event at given position in given sequence.
-        """
-        # Todo: Optimise query by selecting only two columns: pipeline_id and id (notification ID).
-        record = self.get_record(sequence_id, position)
-        return record.pipeline_id, record.id
-
-
-class AbstractTrackingRecordManager(six.with_metaclass(ABCMeta)):
-
-    @property
-    @abstractmethod
-    def record_class(self):
-        """Returns tracking record class."""
-
-    @abstractmethod
-    def get_max_record_id(self, application_name, upstream_application_name, pipeline_id):
-        """Returns maximum record ID for given application name."""

@@ -12,6 +12,7 @@ from eventsourcing.tests.test_system_fixtures import set_db_uri
 
 PaxosAggregate.is_verbose = False
 
+
 class TestPaxosSystem(unittest.TestCase):
 
     infrastructure_class = SQLAlchemyApplication
