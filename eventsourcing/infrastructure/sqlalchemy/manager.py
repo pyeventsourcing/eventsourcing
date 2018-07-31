@@ -85,16 +85,16 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
                     all_params = []
                     for record in records:
-                        # For stored item itself (e.g. event).
+                        # Params for stored item itself (e.g. event).
                         params = {
                             name: getattr(record, name) for name in self.field_names
                         }
 
-                        # For application partition (bounded context).
+                        # Params for application partition (bounded context).
                         if hasattr(self.record_class, 'application_name'):
                             params['application_name'] = self.application_name
 
-                        # For notification log.
+                        # Params for notification log.
                         if hasattr(self.record_class, 'pipeline_id'):
                             params['pipeline_id'] = self.pipeline_id
                         if hasattr(self.record_class, 'id'):

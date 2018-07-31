@@ -87,9 +87,9 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
         """
         kwargs = self.get_field_kwargs(sequenced_item)
         # Supply application_name, if needed.
-        # Supply pipeline_id, if needed.
         if hasattr(self.record_class, 'application_name'):
             kwargs['application_name'] = self.application_name
+        # Supply pipeline_id, if needed.
         if hasattr(self.record_class, 'pipeline_id'):
             kwargs['pipeline_id'] = self.pipeline_id
         return self.record_class(**kwargs)
