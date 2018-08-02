@@ -43,7 +43,7 @@ class PaxosAggregate(AggregateRoot):
         self.proposals = {}
         self.acceptors = {}
         self.final_value = None
-        super(AggregateRoot, self).__init__(*args, **kwargs)
+        super(PaxosAggregate, self).__init__(*args, **kwargs)
 
     @property
     def paxos_instance(self):
