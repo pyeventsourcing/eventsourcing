@@ -242,12 +242,6 @@ class PaxosProcess(ProcessApplication):
             if not paxos.resolution:
                 paxos.receive_message(msg)
 
-    def take_snapshots(self, new_events):
-        # Just take a snapshot at the latest version.
-        originator_ids = set([e.originator_id for e in new_events])
-        for originator_id in originator_ids:
-            self.repository.take_snapshot(originator_id)
-
 
 class PaxosSystem(System):
     def __init__(self, num_participants=3, **kwargs):
