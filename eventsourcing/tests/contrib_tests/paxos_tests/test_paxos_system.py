@@ -78,30 +78,34 @@ class TestPaxosSystem(unittest.TestCase):
 
         self.close_connections_before_forking()
 
-        # pipeline_ids = [1]
         pipeline_ids = [1, 2, 3]
         with Multiprocess(system=system, pipeline_ids=pipeline_ids), paxos_process:
+            assert isinstance(paxos_process, PaxosProcess)
+
             sleep(1)
             started1 = datetime.datetime.now()
-            assert isinstance(paxos_process, PaxosProcess)
             paxos_process.propose_value(key1, value1)
-            self.assert_final_value(paxos_process, key1, value1)
-            duration1 = (datetime.datetime.now() - started1).total_seconds()
-            print("Resolved paxos 1 with multiprocessing in %ss" % duration1)
 
             paxos_process.change_pipeline(2)
             started2 = datetime.datetime.now()
             paxos_process.propose_value(key2, value2)
-            self.assert_final_value(paxos_process, key2, value2)
-            duration2 = (datetime.datetime.now() - started2).total_seconds()
-            print("Resolved paxos 2 with multiprocessing in %ss" % duration2)
 
             paxos_process.change_pipeline(3)
             started3 = datetime.datetime.now()
             paxos_process.propose_value(key3, value3)
+
+            self.assert_final_value(paxos_process, key1, value1)
+            duration1 = (datetime.datetime.now() - started1).total_seconds()
+            print("Resolved paxos 1 with multiprocessing in %ss" % duration1)
+
+            self.assert_final_value(paxos_process, key2, value2)
+            duration2 = (datetime.datetime.now() - started2).total_seconds()
+            print("Resolved paxos 2 with multiprocessing in %ss" % duration2)
+
             self.assert_final_value(paxos_process, key3, value3)
             duration3 = (datetime.datetime.now() - started3).total_seconds()
             print("Resolved paxos 3 with multiprocessing in %ss" % duration3)
+
 
     @retry((KeyError, AssertionError), max_attempts=200, wait=0.05, stall=0.1)
     def assert_final_value(self, process, id, value):
