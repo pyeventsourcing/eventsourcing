@@ -3,7 +3,7 @@ from copy import deepcopy
 from uuid import UUID
 
 import six
-from eventsourcing.application.process import ProcessApplicationWithSnapshotting, ProcessEvent
+from eventsourcing.application.process import ProcessApplication, ProcessEvent
 from eventsourcing.application.system import System
 from eventsourcing.contrib.paxos.composable import PaxosInstance, Resolution, PaxosMessage
 from eventsourcing.domain.model.aggregate import AggregateRoot
@@ -192,7 +192,7 @@ class PaxosAggregate(AggregateRoot):
                 ")").format(**self.__dict__)
 
 
-class PaxosProcess(ProcessApplicationWithSnapshotting):
+class PaxosProcess(ProcessApplication):
     persist_event_type = PaxosAggregate.Event
     snapshot_period = None
 
