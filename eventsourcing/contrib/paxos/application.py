@@ -42,6 +42,7 @@ class PaxosAggregate(AggregateRoot):
         self.leader = False
         self.proposals = {}
         self.acceptors = {}
+        self.final_value = None
         super(AggregateRoot, self).__init__(*args, **kwargs)
 
     @property
@@ -194,16 +195,16 @@ class PaxosAggregate(AggregateRoot):
 
 class PaxosProcess(ProcessApplication):
     persist_event_type = PaxosAggregate.Event
-    snapshot_period = None
+    quorum_size = None
 
-    def propose_value(self, key, value, quorum_size, assume_leader=False):
+    def propose_value(self, key, value, assume_leader=False):
         """
         Starts new Paxos aggregate and proposes a value for a key.
         """
         assert isinstance(key, UUID)
         paxos_aggregate = PaxosAggregate.start(
             originator_id=key,
-            quorum_size=quorum_size,
+            quorum_size=self.quorum_size,
             network_uid=self.name
         )
         msg = paxos_aggregate.propose_value(value, assume_leader=assume_leader)
@@ -220,7 +221,7 @@ class PaxosProcess(ProcessApplication):
             if event.originator_id not in repository:
                 return PaxosAggregate.start(
                     originator_id=event.originator_id,
-                    quorum_size=event.quorum_size,  # This maybe should be known already?
+                    quorum_size=event.quorum_size,
                     network_uid=self.name
                 )
         elif isinstance(event, PaxosAggregate.MessageAnnounced):
@@ -250,10 +251,17 @@ class PaxosProcess(ProcessApplication):
 
 class PaxosSystem(System):
     def __init__(self, num_participants=3, **kwargs):
-        classes = [type('PaxosProcess{}'.format(i), (PaxosProcess,), {}) for i in range(num_participants)]
+        self.num_participants = num_participants
+        self.quorum_size = (num_participants + 2) // 2
+        classes = [
+            type(
+                'PaxosProcess{}'.format(i),
+                (PaxosProcess,),
+                {'quorum_size': self.quorum_size}
+            ) for i in range(num_participants)
+        ]
         if num_participants > 1:
             pipelines = [[c[0], c[1], c[0]] for c in itertools.combinations(classes, 2)]
         else:
             pipelines = [classes]
-        self.quorum_size = (num_participants + 2) // 2
         super(PaxosSystem, self).__init__(*pipelines, **kwargs)
