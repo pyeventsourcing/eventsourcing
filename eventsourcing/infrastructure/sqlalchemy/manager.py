@@ -57,56 +57,75 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         return compiled
 
     def write_records(self, records, tracking_kwargs=None):
+        all_params = []
+        statement = None
+        if records:
+            # Prepare to insert event and notification records.
+            statement = self.insert_values
+            if hasattr(self.record_class, 'id'):
+                all_ids = set((r.id for r in records))
+                if None in all_ids:
+                    if len(all_ids) > 1:
+                        # Either all or zero records must have IDs.
+                        raise ProgrammingError("Only some records have IDs")
+
+                    elif self.contiguous_record_ids:
+                        # Do an "insert select max" from existing.
+                        statement = self.insert_select_max
+
+                    elif hasattr(self.record_class, 'application_name'):
+                        # Can't allow auto-incrementing ID if table has field
+                        # application_name. We need values and don't have them.
+                        raise ProgrammingError("record ID not set when required")
+
+            for record in records:
+                # Params for stored item itself (e.g. event).
+                params = {
+                    name: getattr(record, name) for name in self.field_names
+                }
+
+                # Params for application partition (bounded context).
+                if hasattr(self.record_class, 'application_name'):
+                    params['application_name'] = self.application_name
+
+                # Params for notification log.
+                if hasattr(self.record_class, 'pipeline_id'):
+                    params['pipeline_id'] = self.pipeline_id
+                if hasattr(self.record_class, 'id'):
+                    if record.id == ' ':
+                        params['id'] = None
+                        params['pipeline_id'] = None  # clumsy, a bit
+                    else:
+                        params['id'] = record.id
+                if hasattr(record, 'causal_dependencies'):
+                    params['causal_dependencies'] = record.causal_dependencies
+
+                all_params.append(params)
+
+        elif not tracking_kwargs:
+            # Don't bother if there is nothing to write.
+            return
+
+        # if tracking_kwargs:
+        #     tracking_msg = str(id(self)) + (
+        #         " {pipeline_id}:{notification_id} {application_name} <- {upstream_application_name}"
+        #     ).format(**tracking_kwargs)
+        # else:
+        #     tracking_msg = ''
         try:
+
             with self.session.bind.begin() as connection:
                 if tracking_kwargs:
                     # Insert tracking record.
-                    params = {c: tracking_kwargs[c] for c in self.tracking_record_field_names}
-                    connection.execute(self.insert_tracking_record, **params)
+                    connection.execute(self.insert_tracking_record, **tracking_kwargs)
+                    # print("Inserted tracking:  {}".format(tracking_msg))
 
-                if records:
-                    # Insert event and notification records.
-                    statement = self.insert_values
-                    if hasattr(self.record_class, 'id'):
-                        all_ids = set((r.id for r in records))
-                        if None in all_ids:
-                            if len(all_ids) > 1:
-                                # Either all or zero records must have IDs.
-                                raise ProgrammingError("Only some records have IDs")
-
-                            elif self.contiguous_record_ids:
-                                # Do an "insert select max" from existing.
-                                statement = self.insert_select_max
-
-                            elif hasattr(self.record_class, 'application_name'):
-                                # Can't allow auto-incrementing ID if table has field
-                                # application_name. We need values and don't have them.
-                                raise ProgrammingError("record ID not set when required")
-
-                    all_params = []
-                    for record in records:
-                        # Params for stored item itself (e.g. event).
-                        params = {
-                            name: getattr(record, name) for name in self.field_names
-                        }
-
-                        # Params for application partition (bounded context).
-                        if hasattr(self.record_class, 'application_name'):
-                            params['application_name'] = self.application_name
-
-                        # Params for notification log.
-                        if hasattr(self.record_class, 'pipeline_id'):
-                            params['pipeline_id'] = self.pipeline_id
-                        if hasattr(self.record_class, 'id'):
-                            params['id'] = record.id
-                        if hasattr(record, 'causal_dependencies'):
-                            params['causal_dependencies'] = record.causal_dependencies
-
-                        all_params.append(params)
-
+                if all_params:
                     connection.execute(statement, all_params)
 
         except IntegrityError as e:
+            # if 'notification_tracking' in str(e):
+            #     print("Failed tracking:    {}: {}".format(tracking_msg, e))
             self.raise_record_integrity_error(e)
 
         except DBAPIError as e:
@@ -196,7 +215,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
             query = query.filter(position_field == position)
             return query.one()
         except (NoResultFound, MultipleResultsFound):
-            raise IndexError
+            raise IndexError(self.application_name, sequence_id, position)
 
     def filter_by(self, **kwargs):
         return self.orm_query().filter_by(**kwargs)
