@@ -106,8 +106,7 @@ class TestPaxosSystem(unittest.TestCase):
             duration3 = (datetime.datetime.now() - started3).total_seconds()
             print("Resolved paxos 3 with multiprocessing in %ss" % duration3)
 
-
-    @retry((KeyError, AssertionError), max_attempts=200, wait=0.05, stall=0.1)
+    @retry((KeyError, AssertionError), max_attempts=20, wait=0.05, stall=0.1)
     def assert_final_value(self, process, id, value):
         self.assertEqual(process.repository[id].final_value, value)
 

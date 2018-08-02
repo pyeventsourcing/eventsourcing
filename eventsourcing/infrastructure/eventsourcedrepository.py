@@ -15,23 +15,21 @@ class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
         """
         Returns entity with given ID.
         """
-        # # Get entity from the cache.
-        # if self._use_cache:
-        #     try:
-        #         return self._cache[entity_id]
-        #     except KeyError:
-        #         pass
-
-        # Reconstitute the entity.
-        entity = self.get_entity(entity_id)
+        if self._use_cache:
+            try:
+                # Get entity from the cache.
+                entity = self._cache[entity_id]
+            except KeyError:
+                # Reconstitute the entity.
+                entity = self.get_entity(entity_id)
+                # Put entity in the cache.
+                self._cache[entity_id] = entity
+        else:
+            entity = self.get_entity(entity_id)
 
         # Never created or already discarded?
         if entity is None:
             raise RepositoryKeyError(entity_id)
-
-        # # Put entity in the cache.
-        # if self._use_cache:
-        #     self._cache[entity_id] = entity
 
         # Return entity.
         return entity

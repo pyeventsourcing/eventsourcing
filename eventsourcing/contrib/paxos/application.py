@@ -195,6 +195,7 @@ class PaxosAggregate(AggregateRoot):
 
 class PaxosProcess(ProcessApplication):
     persist_event_type = PaxosAggregate.Event
+    use_cache = True
     quorum_size = None
 
     def propose_value(self, key, value, assume_leader=False):

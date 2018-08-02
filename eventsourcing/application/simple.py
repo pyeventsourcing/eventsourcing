@@ -33,6 +33,7 @@ class Application(with_metaclass(ABCMeta)):
     json_decoder_class = None
 
     persist_event_type = None
+    use_cache = False
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
                  cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
@@ -138,6 +139,7 @@ class Application(with_metaclass(ABCMeta)):
     def setup_repository(self, **kwargs):
         self._repository = EventSourcedRepository(
             event_store=self.event_store,
+            use_cache=self.use_cache,
             **kwargs
         )
 
