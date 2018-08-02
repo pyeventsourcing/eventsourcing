@@ -55,6 +55,11 @@ class ProcessApplication(Pipeable, Application):
         except Exception as e:
             raise PromptFailed("{}: {}".format(type(e), str(e)))
 
+    def follow(self, upstream_application_name, notification_log):
+        # Create a reader.
+        reader = NotificationLogReader(notification_log)
+        self.readers[upstream_application_name] = reader
+
     @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
     def run(self, prompt=None, advance_by=None):
 
@@ -253,11 +258,6 @@ class ProcessApplication(Pipeable, Application):
                 event_records[0].causal_dependencies = causal_dependencies
 
         return event_records
-
-    def follow(self, upstream_application_name, notification_log):
-        # Create a reader.
-        reader = NotificationLogReader(notification_log)
-        self.readers[upstream_application_name] = reader
 
     def setup_table(self):
         super(ProcessApplication, self).setup_table()
