@@ -307,7 +307,6 @@ class ProcessSlave(Actor):
         # Construct the process application.
         self.process = process_class(
             pipeline_id=self.pipeline_id,
-            notification_log_section_size=5,
         )
         assert isinstance(self.process, ProcessApplication)
 

@@ -1,4 +1,4 @@
-from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager, DEFAULT_PIPELINE_ID
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 
 

@@ -34,6 +34,7 @@ class Application(with_metaclass(ABCMeta)):
     json_decoder_class = None
 
     persist_event_type = None
+    notification_log_section_size = None
     use_cache = False
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,

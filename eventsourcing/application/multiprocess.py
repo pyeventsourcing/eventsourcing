@@ -18,13 +18,12 @@ DEFAULT_POLL_INTERVAL = 5
 class Multiprocess(object):
 
     def __init__(self, system, pipeline_ids=(DEFAULT_PIPELINE_ID,), poll_interval=None,
-                 notification_log_section_size=5, setup_tables=False, sleep_for_setup_tables=0):
+                 setup_tables=False, sleep_for_setup_tables=0):
         self.system = system
         self.pipeline_ids = pipeline_ids
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
         self.os_processes = None
-        self.notification_log_section_size = notification_log_section_size
         self.setup_tables = setup_tables or system.setup_tables
         self.sleep_for_setup_tables = sleep_for_setup_tables
 
@@ -64,7 +63,6 @@ class Multiprocess(object):
                     upstream_names=[cls_name.lower() for cls_name in upstream_class_names],
                     poll_interval=self.poll_interval,
                     pipeline_id=pipeline_id,
-                    notification_log_section_size=self.notification_log_section_size,
                     setup_tables=self.setup_tables,
                     inbox=self.inboxes[(pipeline_id, process_class_name.lower())],
                     outbox=self.outboxes[(pipeline_id, process_class_name.lower())],
@@ -121,8 +119,7 @@ class OperatingSystemProcess(multiprocessing.Process):
 
     def __init__(self, application_process_class, infrastructure_class, upstream_names,
                  pipeline_id=DEFAULT_PIPELINE_ID, poll_interval=DEFAULT_POLL_INTERVAL,
-                 notification_log_section_size=None, setup_tables=False,
-                 inbox=None, outbox=None, *args, **kwargs):
+                 setup_tables=False, inbox=None, outbox=None, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
         self.infrastructure_class = infrastructure_class
@@ -130,7 +127,6 @@ class OperatingSystemProcess(multiprocessing.Process):
         self.daemon = True
         self.pipeline_id = pipeline_id
         self.poll_interval = poll_interval
-        self.notification_log_section_size = notification_log_section_size
         self.inbox = inbox
         self.outbox = outbox
         self.setup_tables = setup_tables
@@ -143,7 +139,6 @@ class OperatingSystemProcess(multiprocessing.Process):
 
         self.process = process_class(
             pipeline_id=self.pipeline_id,
-            notification_log_section_size=self.notification_log_section_size,
             setup_table=self.setup_tables,
         )
 

@@ -7,8 +7,7 @@ from eventsourcing.application.process import ProcessApplication, ProcessEvent
 from eventsourcing.application.system import System
 from eventsourcing.contrib.paxos.composable import PaxosInstance, Resolution, PaxosMessage
 from eventsourcing.domain.model.aggregate import AggregateRoot
-from eventsourcing.domain.model.decorators import attribute
-from eventsourcing.exceptions import RepositoryKeyError, ProgrammingError
+from eventsourcing.exceptions import RepositoryKeyError
 
 
 class PaxosAggregate(AggregateRoot):
@@ -34,7 +33,7 @@ class PaxosAggregate(AggregateRoot):
     ]
     is_verbose = False
 
-    def __init__(self, quorum_size, network_uid, *args, **kwargs):
+    def __init__(self, quorum_size, network_uid, **kwargs):
         assert isinstance(quorum_size, six.integer_types)
         self.quorum_size = quorum_size
         self.network_uid = network_uid
@@ -45,7 +44,7 @@ class PaxosAggregate(AggregateRoot):
         self.acceptors = {}
         self.final_value = None
         self.final_proposal_id = None
-        super(PaxosAggregate, self).__init__(*args, **kwargs)
+        super(PaxosAggregate, self).__init__(**kwargs)
 
     @property
     def paxos_instance(self):
@@ -193,6 +192,7 @@ class PaxosProcess(ProcessApplication):
     persist_event_type = PaxosAggregate.Event
     use_cache = True
     quorum_size = None
+    notification_log_section_size = 10
 
     def propose_value(self, key, value, assume_leader=False):
         """
@@ -211,7 +211,7 @@ class PaxosProcess(ProcessApplication):
         self.record_process_event(ProcessEvent(new_events))
         self.repository.take_snapshot(paxos_aggregate.id)
         self.publish_prompt()
-        return paxos_aggregate
+        return paxos_aggregate  # in case it's new
 
     def policy(self, repository, event):
         if isinstance(event, PaxosAggregate.MessageAnnounced):
@@ -244,8 +244,6 @@ class PaxosProcess(ProcessApplication):
                 paxos.receive_message(msg)
 
             return paxos
-        # else:
-        #     raise ProgrammingError(type(event))
 
 
 class PaxosSystem(System):
