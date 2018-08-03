@@ -8,7 +8,7 @@ from eventsourcing.application.system import System
 from eventsourcing.contrib.paxos.composable import PaxosInstance, Resolution, PaxosMessage
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import attribute
-from eventsourcing.exceptions import RepositoryKeyError
+from eventsourcing.exceptions import RepositoryKeyError, ProgrammingError
 
 
 class PaxosAggregate(AggregateRoot):
@@ -44,6 +44,7 @@ class PaxosAggregate(AggregateRoot):
         self.proposals = {}
         self.acceptors = {}
         self.final_value = None
+        self.final_proposal_id = None
         super(PaxosAggregate, self).__init__(*args, **kwargs)
 
     @property
@@ -65,14 +66,6 @@ class PaxosAggregate(AggregateRoot):
         # Return the instance.
         return instance
 
-    @attribute
-    def resolution(self):
-        """
-        The resolution from the Paxos protocol.
-
-        Value is None if no value has been resolved.
-        """
-
     class Event(AggregateRoot.Event):
         """
         Base event class for PaxosAggregate.
@@ -82,11 +75,15 @@ class PaxosAggregate(AggregateRoot):
         """
         Published when a PaxosAggregate is started.
         """
+        __notifiable__ = False
+
 
     class AttributesChanged(Event):
         """
         Published when attributes of paxos_instance are changed.
         """
+        __notifiable__ = False
+
         def __init__(self, changes=None, **kwargs):
             super(PaxosAggregate.AttributesChanged, self).__init__(
                 changes=changes, **kwargs
@@ -141,9 +138,7 @@ class PaxosAggregate(AggregateRoot):
         paxos = self.paxos_instance
         while msg:
             if isinstance(msg, Resolution):
-                if self.resolution is None:
-                    self.print_if_verbose("{} resolved value {}".format(self.network_uid, msg.value))
-                    self.resolution = msg
+                self.print_if_verbose("{} resolved value {}".format(self.network_uid, msg.value))
                 break
             else:
                 self.print_if_verbose("{} <- {} <- {}".format(self.network_uid, msg.__class__.__name__, msg.from_uid))
@@ -245,10 +240,12 @@ class PaxosProcess(ProcessApplication):
             # obtained. Followers will process our previous
             # announcements and resolve to the same final value
             # before processing anything we could announce after.
-            if not paxos.resolution:
+            if not paxos.final_proposal_id:
                 paxos.receive_message(msg)
 
             return paxos
+        # else:
+        #     raise ProgrammingError(type(event))
 
 
 class PaxosSystem(System):

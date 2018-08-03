@@ -51,6 +51,9 @@ class DjangoRecordManager(SQLRecordManager):
 
                             # Execute insert statement.
                             cursor.execute(self.insert_select_max, params)
+                            # Todo: Use insert_values when records have IDs (like SQLAlchemy manager).
+                            # Todo: Support 'event-not-notifiable' by setting pipeline ID and notification ID to None.
+
                     else:
                         # This can only work for simple models, without application_name
                         # and pipeline_id, because it relies on the auto-incrementing ID.

@@ -89,14 +89,18 @@ class SQLAlchemyRecordManager(SQLRecordManager):
                     params['application_name'] = self.application_name
 
                 # Params for notification log.
-                if hasattr(self.record_class, 'pipeline_id'):
-                    params['pipeline_id'] = self.pipeline_id
                 if hasattr(self.record_class, 'id'):
-                    if record.id == ' ':
+                    if record.id == 'event-not-notifiable':
                         params['id'] = None
-                        params['pipeline_id'] = None  # clumsy, a bit
                     else:
                         params['id'] = record.id
+
+                if hasattr(self.record_class, 'pipeline_id'):
+                    if record.id == 'event-not-notifiable':
+                        params['pipeline_id'] = None
+                    else:
+                        params['pipeline_id'] = self.pipeline_id
+
                 if hasattr(record, 'causal_dependencies'):
                     params['causal_dependencies'] = record.causal_dependencies
 

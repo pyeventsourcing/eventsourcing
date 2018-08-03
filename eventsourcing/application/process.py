@@ -185,26 +185,6 @@ class ProcessApplication(Pipeable, Application):
     def policy(repository, event):
         """Empty method, can be overridden in subclasses to implement concrete policy."""
 
-    def record_process_event(self, process_event):
-        # Construct event records.
-        event_records = self.construct_event_records(process_event.new_events,
-                                                     process_event.causal_dependencies)
-
-        # Write event records with tracking record.
-        record_manager = self.event_store.record_manager
-        assert isinstance(record_manager, ACIDRecordManager)
-        record_manager.write_records(records=event_records,
-                                     tracking_kwargs=process_event.tracking_kwargs)
-
-    def construct_tracking_kwargs(self, notification, upstream_application_name):
-        if notification:
-            return {
-                'application_name': self.name,
-                'upstream_application_name': upstream_application_name,
-                'pipeline_id': self.pipeline_id,
-                'notification_id': notification['id'],
-            }
-
     def collect_pending_events(self, aggregates):
         pending_events = []
         num_changed_aggregates = 0
@@ -239,6 +219,26 @@ class ProcessApplication(Pipeable, Application):
 
         return pending_events
 
+    def construct_tracking_kwargs(self, notification, upstream_application_name):
+        if notification:
+            return {
+                'application_name': self.name,
+                'upstream_application_name': upstream_application_name,
+                'pipeline_id': self.pipeline_id,
+                'notification_id': notification['id'],
+            }
+
+    def record_process_event(self, process_event):
+        # Construct event records.
+        event_records = self.construct_event_records(process_event.new_events,
+                                                     process_event.causal_dependencies)
+
+        # Write event records with tracking record.
+        record_manager = self.event_store.record_manager
+        assert isinstance(record_manager, ACIDRecordManager)
+        record_manager.write_records(records=event_records,
+                                     tracking_kwargs=process_event.tracking_kwargs)
+
     def construct_event_records(self, pending_events, causal_dependencies=None):
         # Convert to event records.
         sequenced_items = self.event_store.to_sequenced_item(pending_events)
@@ -249,8 +249,11 @@ class ProcessApplication(Pipeable, Application):
             # Todo: Maybe keep track of what this probably is, to avoid query. Like log reader, invalidate on error.
             current_max = self.event_store.record_manager.get_max_record_id() or 0
             for domain_event, event_record in zip(pending_events, event_records):
-                current_max += 1
-                event_record.id = current_max
+                if type(domain_event).__notifiable__:
+                    current_max += 1
+                    event_record.id = current_max
+                else:
+                    event_record.id = 'event-not-notifiable'
 
             # Only need first event to carry the dependencies.
             if hasattr(self.event_store.record_manager.record_class, 'causal_dependencies'):
