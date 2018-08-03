@@ -8,6 +8,7 @@ from eventsourcing.application.system import System
 from eventsourcing.contrib.paxos.composable import PaxosInstance, Resolution, PaxosMessage
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import attribute
+from eventsourcing.exceptions import RepositoryKeyError
 
 
 class PaxosAggregate(AggregateRoot):
@@ -218,17 +219,21 @@ class PaxosProcess(ProcessApplication):
         return paxos_aggregate
 
     def policy(self, repository, event):
-        if isinstance(event, PaxosAggregate.Started):
-            if event.originator_id not in repository:
-                return PaxosAggregate.start(
-                    originator_id=event.originator_id,
-                    quorum_size=event.quorum_size,
-                    network_uid=self.name
-                )
-        elif isinstance(event, PaxosAggregate.MessageAnnounced):
+        if isinstance(event, PaxosAggregate.MessageAnnounced):
             msg = event.msg
             assert isinstance(msg, PaxosMessage)
-            paxos = repository[event.originator_id]
+            # Get or create aggregate.
+            try:
+                paxos = repository[event.originator_id]
+            except RepositoryKeyError:
+                paxos = PaxosAggregate.start(
+                    originator_id=event.originator_id,
+                    quorum_size=self.quorum_size,
+                    network_uid=self.name
+                )
+                # Needs to go in the cache now, otherwise
+                # we get "Duplicate" errors (for some reason).
+                self.repository._cache[paxos.id] = paxos
             assert isinstance(paxos, PaxosAggregate), type(paxos)
             # Absolutely make sure the participant aggregates aren't getting confused.
             assert paxos.network_uid == self.name, (
@@ -242,6 +247,8 @@ class PaxosProcess(ProcessApplication):
             # before processing anything we could announce after.
             if not paxos.resolution:
                 paxos.receive_message(msg)
+
+            return paxos
 
 
 class PaxosSystem(System):
