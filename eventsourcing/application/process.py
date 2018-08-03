@@ -25,6 +25,7 @@ class ProcessApplication(Pipeable, Application):
         self.policy_func = policy
         self.readers = OrderedDict()
         self.is_reader_position_ok = defaultdict(bool)
+        self._notification_generators = {}
         super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
 
         subscribe(self.run, self.is_upstream_prompt)
@@ -63,22 +64,30 @@ class ProcessApplication(Pipeable, Application):
     @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
     def run(self, prompt=None, advance_by=None):
 
-        if prompt is None:
-            readers_items = self.readers.items()
-        else:
+        if prompt:
             assert isinstance(prompt, Prompt)
-            reader = self.readers[prompt.process_name]
-            readers_items = [(prompt.process_name, reader)]
+            upstream_names = [prompt.process_name]
+        else:
+            upstream_names = self.readers.keys()
 
         notification_count = 0
-        for upstream_name, reader in readers_items:
+        for upstream_name in upstream_names:
 
             if not self.is_reader_position_ok[upstream_name]:
-                self.set_reader_position_from_tracking_records(reader, upstream_name)
+                self.del_notification_generator(upstream_name)
+                self.set_reader_position_from_tracking_records(upstream_name)
                 self.is_reader_position_ok[upstream_name] = True
 
-            # Todo: Change to use queue, so next notification is more likely already loaded?
-            for notification in reader.read(advance_by=advance_by):
+            reader = self.readers[upstream_name]
+            while True:
+                # Get notification generator.
+                generator = self.get_notification_generator(upstream_name, advance_by)
+                try:
+                    notification = next(generator)
+                except StopIteration:
+                    self.del_notification_generator(upstream_name)
+                    break
+
                 notification_count += 1
 
                 # Get domain event from notification.
@@ -145,11 +154,31 @@ class ProcessApplication(Pipeable, Application):
 
         return notification_count
 
+    def get_notification_generator(self, upstream_name, advance_by):
+        # Dict avoids re-entrant calls to run() starting their own generator,
+        # so that notifications are only received once. Helps with single-threaded
+        # system which otherwise has lots of tracking record conflicts as duplicate
+        # notifications are processed.
+        try:
+            generator = self._notification_generators[upstream_name]
+        except KeyError:
+            reader = self.readers[upstream_name]
+            generator = reader.read(advance_by=advance_by)
+            self._notification_generators[upstream_name] = generator
+        return generator
+
+    def del_notification_generator(self, upstream_name):
+        try:
+            del self._notification_generators[upstream_name]
+        except KeyError:
+            pass
+
     def take_snapshots(self, new_events):
         pass
 
-    def set_reader_position_from_tracking_records(self, reader, upstream_application_name):
-        max_record_id = self.event_store.record_manager.get_max_tracking_record_id(upstream_application_name)
+    def set_reader_position_from_tracking_records(self, upstream_name):
+        max_record_id = self.event_store.record_manager.get_max_tracking_record_id(upstream_name)
+        reader = self.readers[upstream_name]
         reader.seek(max_record_id or 0)
 
     def call_policy(self, event):
