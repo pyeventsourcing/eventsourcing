@@ -28,8 +28,6 @@ class PaxosAggregate(AggregateRoot):
         'proposals',
         'acceptors',
         'final_value',
-        'final_acceptors',
-        'final_proposal_id',
     ]
     is_verbose = False
 
@@ -43,7 +41,6 @@ class PaxosAggregate(AggregateRoot):
         self.proposals = {}
         self.acceptors = {}
         self.final_value = None
-        self.final_proposal_id = None
         super(PaxosAggregate, self).__init__(**kwargs)
 
     @property
@@ -121,6 +118,8 @@ class PaxosAggregate(AggregateRoot):
         """
         Proposes a value to the network.
         """
+        if value is None:
+            raise ValueError("Not allowed to propose None")
         paxos = self.paxos_instance
         paxos.leader = assume_leader
         msg = paxos.propose_value(value)
@@ -134,6 +133,8 @@ class PaxosAggregate(AggregateRoot):
         """
         Responds to messages from other participants.
         """
+        if isinstance(msg, Resolution):
+            return
         paxos = self.paxos_instance
         while msg:
             if isinstance(msg, Resolution):
@@ -142,9 +143,10 @@ class PaxosAggregate(AggregateRoot):
             else:
                 self.print_if_verbose("{} <- {} <- {}".format(self.network_uid, msg.__class__.__name__, msg.from_uid))
                 msg = paxos.receive(msg)
+                # Todo: Make it optional not to announce resolution (without which it's hard to see final value).
+                # if msg and not isinstance(msg, Resolution):
                 if msg:
-                    if not isinstance(msg, Resolution):
-                        self.announce(msg)
+                    self.announce(msg)
 
         self.setattrs_from_paxos(paxos)
 
@@ -192,7 +194,7 @@ class PaxosProcess(ProcessApplication):
     persist_event_type = PaxosAggregate.Event
     use_cache = True
     quorum_size = None
-    notification_log_section_size = 10
+    notification_log_section_size = 5
 
     def propose_value(self, key, value, assume_leader=False):
         """
@@ -226,8 +228,8 @@ class PaxosProcess(ProcessApplication):
                     quorum_size=self.quorum_size,
                     network_uid=self.name
                 )
-                # Needs to go in the cache now, otherwise
-                # we get "Duplicate" errors (for some reason).
+                # Needs to go in the cache now, otherwise we get
+                # "Duplicate" errors (for some unknown reason).
                 self.repository._cache[paxos.id] = paxos
             assert isinstance(paxos, PaxosAggregate), type(paxos)
             # Absolutely make sure the participant aggregates aren't getting confused.
@@ -240,7 +242,7 @@ class PaxosProcess(ProcessApplication):
             # obtained. Followers will process our previous
             # announcements and resolve to the same final value
             # before processing anything we could announce after.
-            if not paxos.final_proposal_id:
+            if paxos.final_value is None:
                 paxos.receive_message(msg)
 
             return paxos
