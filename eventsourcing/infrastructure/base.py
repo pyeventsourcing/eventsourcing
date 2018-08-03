@@ -5,10 +5,13 @@ import six
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 
+DEFAULT_PIPELINE_ID = 0
+
 
 class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
     def __init__(self, record_class, sequenced_item_class=SequencedItem,
-                 contiguous_record_ids=False, application_name=None, pipeline_id=-1):
+                 contiguous_record_ids=False, application_name=None,
+                 pipeline_id=DEFAULT_PIPELINE_ID):
         self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)

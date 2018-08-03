@@ -101,6 +101,8 @@ class SQLAlchemyRecordManager(SQLRecordManager):
                     else:
                         params['pipeline_id'] = self.pipeline_id
 
+                # print("Recording event with pipeline ID {}".format(params['pipeline_id']))
+
                 if hasattr(record, 'causal_dependencies'):
                     params['causal_dependencies'] = record.causal_dependencies
 

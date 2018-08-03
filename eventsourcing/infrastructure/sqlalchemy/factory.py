@@ -1,3 +1,4 @@
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
@@ -46,7 +47,7 @@ def construct_sqlalchemy_eventstore(session,
                                     record_class=None,
                                     contiguous_record_ids=False,
                                     application_name=None,
-                                    pipeline_id=-1,
+                                    pipeline_id=DEFAULT_PIPELINE_ID,
                                     ):
     sequenced_item_class = sequenced_item_class or StoredEvent
     sequenced_item_mapper = SequencedItemMapper(

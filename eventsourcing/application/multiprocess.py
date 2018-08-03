@@ -9,6 +9,7 @@ from eventsourcing.application.system import System
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 
 DEFAULT_POLL_INTERVAL = 5
@@ -16,8 +17,8 @@ DEFAULT_POLL_INTERVAL = 5
 
 class Multiprocess(object):
 
-    def __init__(self, system, pipeline_ids=(-1,), poll_interval=None, notification_log_section_size=5,
-                 setup_tables=False, sleep_for_setup_tables=0):
+    def __init__(self, system, pipeline_ids=(DEFAULT_PIPELINE_ID,), poll_interval=None,
+                 notification_log_section_size=5, setup_tables=False, sleep_for_setup_tables=0):
         self.system = system
         self.pipeline_ids = pipeline_ids
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
@@ -118,9 +119,10 @@ class Outbox(object):
 
 class OperatingSystemProcess(multiprocessing.Process):
 
-    def __init__(self, application_process_class, infrastructure_class, upstream_names, pipeline_id=-1,
-                 poll_interval=DEFAULT_POLL_INTERVAL, notification_log_section_size=None,
-                 setup_tables=False, inbox=None, outbox=None, *args, **kwargs):
+    def __init__(self, application_process_class, infrastructure_class, upstream_names,
+                 pipeline_id=DEFAULT_PIPELINE_ID, poll_interval=DEFAULT_POLL_INTERVAL,
+                 notification_log_section_size=None, setup_tables=False,
+                 inbox=None, outbox=None, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
         self.infrastructure_class = infrastructure_class

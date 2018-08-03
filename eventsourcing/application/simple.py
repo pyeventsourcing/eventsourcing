@@ -4,6 +4,7 @@ from abc import ABCMeta
 from six import with_metaclass
 
 from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.factory import InfrastructureFactory
@@ -37,10 +38,10 @@ class Application(with_metaclass(ABCMeta)):
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
                  cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
-                 record_manager_class=None, stored_event_record_class=None, snapshot_record_class=None,
-                 setup_table=True, contiguous_record_ids=True, pipeline_id=-1,
-                 json_encoder_class=None, json_decoder_class=None,
-                 notification_log_section_size=None):
+                 record_manager_class=None, stored_event_record_class=None,
+                 snapshot_record_class=None, setup_table=True, contiguous_record_ids=True,
+                 pipeline_id=DEFAULT_PIPELINE_ID, json_encoder_class=None,
+                 json_decoder_class=None, notification_log_section_size=None):
 
         self.name = name or type(self).__name__.lower()
 
