@@ -163,7 +163,7 @@ class ProcessApplication(Pipeable, Application):
                     # Todo: Optionally send events as prompts, saves pulling event if it arrives in order.
                     self.take_snapshots(new_events)
 
-                    if new_events:
+                    if any([event.__notifiable__ for event in new_events]):
                         self.publish_prompt()
 
         return notification_count
