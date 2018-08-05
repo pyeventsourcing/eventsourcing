@@ -142,21 +142,22 @@ class ProcessApplication(Pipeable, Application):
 
                     # Todo: Maybe write one tracking record at the end of a run, if
                     # necessary, or only during a period of time when nothing happens?
-                except Exception as e:
+                except Exception as exc:
                     # Need to invalidate reader position, so it is refreshed.
                     self.is_reader_position_ok[upstream_name] = False
 
-                    # Need to purge relevant entities from the cache that
-                    # they have evolved their state past what has been
-                    # recorded, otherwise strange errors about version
-                    # mismatches or missing causal dependencies will arise.
-                    if self.repository._use_cache:
-                        for originator_id in set([e.originator_id for e in new_events]):
+                    # Need to purge from the cache relevant entities that
+                    # have evolved their state past what has been recorded,
+                    # otherwise strange errors (about version mismatches, or
+                    # when identifying causal dependencies) can arise.
+                    if self.repository._cache:
+                        originator_ids = set([new_event.originator_id for new_event in new_events])
+                        for originator_id in originator_ids:
                             try:
                                 del self.repository._cache[originator_id]
                             except KeyError:
                                 pass
-                    raise e
+                    raise exc
                 else:
                     # Publish a prompt if there are new notifications.
                     # Todo: Optionally send events as prompts, saves pulling event if it arrives in order.
