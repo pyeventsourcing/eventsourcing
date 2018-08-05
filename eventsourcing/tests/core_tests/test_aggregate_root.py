@@ -291,6 +291,7 @@ class ExampleDDDApplication(object):
                 position_attr_name='originator_version',
             )
         )
+        # Todo: Remove having two repositories, because they are identical.
         self.aggregate1_repository = AggregateRepository(
             event_store=event_store,
         )
