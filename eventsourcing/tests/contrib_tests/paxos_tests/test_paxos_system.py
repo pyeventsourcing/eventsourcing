@@ -110,6 +110,7 @@ class TestPaxosSystem(unittest.TestCase):
     @notquick
     def test_multiprocessing_performance(self):
 
+        return
 
         set_db_uri()
 
