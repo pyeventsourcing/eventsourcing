@@ -123,8 +123,7 @@ class TestPaxosSystem(unittest.TestCase):
 
         multiprocess = Multiprocess(system=system, pipeline_ids=pipeline_ids)
 
-        num_proposals = 1
-        started = datetime.datetime.now()
+        num_proposals = 50
 
         self.close_connections_before_forking()
 
@@ -141,19 +140,25 @@ class TestPaxosSystem(unittest.TestCase):
 
             with paxos_process:
 
+                started = datetime.datetime.now()
+
                 expectations = list(((uuid4(), i) for i in range(num_proposals)))
                 for key, value in expectations:
                     paxos_process.change_pipeline((value % len(pipeline_ids)))
                     print("Proposing key {} value {}".format(key, value))
                     paxos_process.propose_value(key, str(value))
-                    # sleep(0.01)
+                    sleep(0.0)
 
                 for key, value in expectations:
                     print("Asserting final value for key {} value {}".format(key, value))
                     self.assert_final_value(paxos_process, key, str(value))
 
-        duration = (datetime.datetime.now() - started).total_seconds() - 1
-        print("Resolved {} paxoses with multiprocessing in {}s".format(num_proposals, duration))
+                duration = (datetime.datetime.now() - started).total_seconds()
+                print(
+                    "Resolved {} paxoses with multiprocessing in {:.4f}s ({:.4f}s each)".format(
+                        num_proposals, duration, duration / num_proposals
+                    )
+                )
 
     @retry((KeyError, AssertionError), max_attempts=20, wait=0.05, stall=0)
     def assert_final_value(self, process, id, value):
