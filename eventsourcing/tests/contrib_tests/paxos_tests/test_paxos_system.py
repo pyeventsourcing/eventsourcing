@@ -9,6 +9,7 @@ from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.contrib.paxos.application import PaxosSystem, PaxosProcess
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
+from eventsourcing.tests.base import notquick
 from eventsourcing.tests.test_system_fixtures import set_db_uri
 
 
@@ -105,6 +106,48 @@ class TestPaxosSystem(unittest.TestCase):
             self.assert_final_value(paxos_process, key3, value3)
             duration3 = (datetime.datetime.now() - started3).total_seconds()
             print("Resolved paxos 3 with multiprocessing in %ss" % duration3)
+
+    @notquick
+    def test_multiprocessing_performance(self):
+        set_db_uri()
+
+        system = PaxosSystem(
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class
+        )
+
+        num_pipelines = 1
+        pipeline_ids = list(range(1, num_pipelines + 1))
+        paxos_process_class = system.process_classes['PaxosProcess0']
+
+        num_proposals = 100
+
+        started = datetime.datetime.now()
+
+        with Multiprocess(system=system, pipeline_ids=pipeline_ids):
+            sleep(1)
+
+            paxos_process = system.construct_app(
+                process_class=paxos_process_class,
+                pipeline_id=pipeline_ids[0]
+            )
+            assert isinstance(paxos_process, PaxosProcess)
+            paxos_process.repository._use_cache = False
+
+            with paxos_process:
+
+                expectations = list(((uuid4(), i + 1) for i in range(num_proposals)))
+                for key, value in expectations:
+                    paxos_process.propose_value(key, str(value))
+                    # sleep(0.01)
+                    paxos_process.change_pipeline(1 + (value % len(pipeline_ids)))
+
+                for key, value in expectations:
+                    print("Asserting final value for key {} value {}".format(key, value))
+                    self.assert_final_value(paxos_process, key, str(value))
+
+        duration = (datetime.datetime.now() - started).total_seconds() - 1
+        print("Resolved {} paxoses with multiprocessing in {}s".format(num_proposals, duration))
 
     @retry((KeyError, AssertionError), max_attempts=20, wait=0.05, stall=0)
     def assert_final_value(self, process, id, value):

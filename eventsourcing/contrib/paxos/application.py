@@ -196,7 +196,6 @@ class PaxosProcess(ProcessApplication):
     quorum_size = None
     notification_log_section_size = 5
     use_cache = True
-    set_notification_ids = True
     use_causal_dependencies = False
 
     @retry((RecordConflictError, OperationalError), max_attempts=10, wait=0)
