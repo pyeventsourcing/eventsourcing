@@ -120,7 +120,7 @@ class PaxosAggregate(AggregateRoot):
         Proposes a value to the network.
         """
         if value is None:
-            raise ValueError("Not allowed to propose None")
+            raise ValueError("Not allowed to propose value None")
         paxos = self.paxos_instance
         paxos.leader = assume_leader
         msg = paxos.propose_value(value)
@@ -193,9 +193,11 @@ class PaxosAggregate(AggregateRoot):
 
 class PaxosProcess(ProcessApplication):
     persist_event_type = PaxosAggregate.Event
-    use_cache = True
     quorum_size = None
     notification_log_section_size = 5
+    use_cache = True
+    set_notification_ids = True
+    use_causal_dependencies = False
 
     @retry((RecordConflictError, OperationalError), max_attempts=10, wait=0)
     def propose_value(self, key, value, assume_leader=False):

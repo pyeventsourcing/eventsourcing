@@ -20,6 +20,8 @@ class ProcessEvent(object):
 
 
 class ProcessApplication(Pipeable, Application):
+    set_notification_ids = True
+    use_causal_dependencies = True
 
     def __init__(self, name=None, policy=None, setup_table=False, **kwargs):
         self.policy_func = policy
@@ -203,20 +205,22 @@ class ProcessApplication(Pipeable, Application):
                 new_aggregates = [new_aggregates]
             all_aggregates += new_aggregates
 
-        highest = defaultdict(int)
-        for entity_id, entity_version in repository.causal_dependencies:
-            pipeline_id, notification_id = self.event_store.record_manager.get_pipeline_and_notification_id(
-                entity_id, entity_version
-            )
-            if pipeline_id is not None and pipeline_id != self.pipeline_id:
-                highest[pipeline_id] = max(notification_id, highest[pipeline_id])
-
         causal_dependencies = []
-        for pipeline_id, notification_id in highest.items():
-            causal_dependencies.append({
-                'pipeline_id': pipeline_id,
-                'notification_id': notification_id
-            })
+        if self.use_causal_dependencies:
+            highest = defaultdict(int)
+            for entity_id, entity_version in repository.causal_dependencies:
+                pipeline_id, notification_id = self.event_store.record_manager.get_pipeline_and_notification_id(
+                    entity_id, entity_version
+                )
+                if pipeline_id is not None and pipeline_id != self.pipeline_id:
+                    highest[pipeline_id] = max(notification_id, highest[pipeline_id])
+
+            causal_dependencies = []
+            for pipeline_id, notification_id in highest.items():
+                causal_dependencies.append({
+                    'pipeline_id': pipeline_id,
+                    'notification_id': notification_id
+                })
         # Todo: Optionally reference causal dependencies in current pipeline.
         # Todo: Support processing notification from a single pipeline in parallel, according to dependencies.
         return all_aggregates, causal_dependencies
@@ -287,17 +291,19 @@ class ProcessApplication(Pipeable, Application):
         # Set notification log IDs, and causal dependencies.
         if len(event_records):
             # Todo: Maybe keep track of what this probably is, to avoid query. Like log reader, invalidate on error.
-            current_max = self.event_store.record_manager.get_max_record_id() or 0
-            for domain_event, event_record in zip(pending_events, event_records):
-                if type(domain_event).__notifiable__:
-                    current_max += 1
-                    event_record.id = current_max
-                else:
-                    event_record.id = 'event-not-notifiable'
+            if self.set_notification_ids:
+                current_max = self.event_store.record_manager.get_max_record_id() or 0
+                for domain_event, event_record in zip(pending_events, event_records):
+                    if type(domain_event).__notifiable__:
+                        current_max += 1
+                        event_record.id = current_max
+                    else:
+                        event_record.id = 'event-not-notifiable'
 
-            # Only need first event to carry the dependencies.
-            if hasattr(self.event_store.record_manager.record_class, 'causal_dependencies'):
+            if self.use_causal_dependencies:
+                assert hasattr(self.event_store.record_manager.record_class, 'causal_dependencies')
                 causal_dependencies = json_dumps(causal_dependencies)
+                # Only need first event to carry the dependencies.
                 event_records[0].causal_dependencies = causal_dependencies
 
         return event_records
