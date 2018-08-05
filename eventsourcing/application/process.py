@@ -20,8 +20,8 @@ class ProcessEvent(object):
 
 
 class ProcessApplication(Pipeable, Application):
-    set_notification_ids = True
-    use_causal_dependencies = True
+    set_notification_ids = False
+    use_causal_dependencies = False
 
     def __init__(self, name=None, policy=None, setup_table=False, **kwargs):
         self.policy_func = policy

@@ -95,6 +95,7 @@ class TestProcess(TestCase):
             setup_table=True,
             pipeline_id=pipeline_id1,
         )
+        core1.use_causal_dependencies = True
 
         # Needed for SQLAlchemy only.
         kwargs = {'session': core1.session} if hasattr(core1, 'session') else {}
@@ -105,6 +106,7 @@ class TestProcess(TestCase):
             policy=example_policy,
             **kwargs
         )
+        core2.use_causal_dependencies = True
 
         # First event in pipeline 1.
         aggregate = ExampleAggregate.__create__()

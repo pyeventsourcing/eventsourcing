@@ -145,8 +145,8 @@ class PaxosAggregate(AggregateRoot):
                 self.print_if_verbose("{} <- {} <- {}".format(self.network_uid, msg.__class__.__name__, msg.from_uid))
                 msg = paxos.receive(msg)
                 # Todo: Make it optional not to announce resolution (without which it's hard to see final value).
-                # if msg and not isinstance(msg, Resolution):
-                if msg:
+                do_announce_resolution = True
+                if msg and (do_announce_resolution or not isinstance(msg, Resolution)):
                     self.announce(msg)
 
         self.setattrs_from_paxos(paxos)
@@ -196,7 +196,7 @@ class PaxosProcess(ProcessApplication):
     quorum_size = None
     notification_log_section_size = 5
     use_cache = True
-    use_causal_dependencies = False
+    set_notification_ids = True
 
     @retry((RecordConflictError, OperationalError), max_attempts=10, wait=0)
     def propose_value(self, key, value, assume_leader=False):
