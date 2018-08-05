@@ -37,6 +37,9 @@ class Application(with_metaclass(ABCMeta)):
     notification_log_section_size = None
     use_cache = False
 
+    event_store_class = EventStore
+    repository_class = EventSourcedRepository
+
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
                  cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
                  record_manager_class=None, stored_event_record_class=None,
@@ -133,13 +136,13 @@ class Application(with_metaclass(ABCMeta)):
             json_decoder_class=self.json_decoder_class,
         )
         record_manager = self.infrastructure_factory.construct_integer_sequenced_record_manager()
-        self._event_store = EventStore(
+        self._event_store = self.event_store_class(
             record_manager=record_manager,
             sequenced_item_mapper=sequenced_item_mapper,
         )
 
     def setup_repository(self, **kwargs):
-        self._repository = EventSourcedRepository(
+        self._repository = self.repository_class(
             event_store=self.event_store,
             use_cache=self.use_cache,
             **kwargs
