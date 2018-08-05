@@ -117,7 +117,7 @@ class TestPaxosSystem(unittest.TestCase):
             infrastructure_class=self.infrastructure_class
         )
 
-        num_pipelines = 2
+        num_pipelines = 1
         pipeline_ids = range(num_pipelines)
         paxos_process_class = system.process_classes['PaxosProcess0']
 
