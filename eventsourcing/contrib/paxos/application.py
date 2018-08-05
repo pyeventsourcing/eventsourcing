@@ -7,7 +7,8 @@ from eventsourcing.application.process import ProcessApplication, ProcessEvent
 from eventsourcing.application.system import System
 from eventsourcing.contrib.paxos.composable import PaxosInstance, Resolution, PaxosMessage
 from eventsourcing.domain.model.aggregate import AggregateRoot
-from eventsourcing.exceptions import RepositoryKeyError
+from eventsourcing.domain.model.decorators import retry
+from eventsourcing.exceptions import RepositoryKeyError, RecordConflictError, OperationalError
 
 
 class PaxosAggregate(AggregateRoot):
@@ -196,9 +197,13 @@ class PaxosProcess(ProcessApplication):
     quorum_size = None
     notification_log_section_size = 5
 
+    @retry((RecordConflictError, OperationalError), max_attempts=10, wait=0)
     def propose_value(self, key, value, assume_leader=False):
         """
         Starts new Paxos aggregate and proposes a value for a key.
+
+        Decorated with retry in case of notification log conflict
+        or operational error.
         """
         assert isinstance(key, UUID)
         paxos_aggregate = PaxosAggregate.start(
