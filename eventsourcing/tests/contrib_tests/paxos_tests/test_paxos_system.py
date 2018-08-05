@@ -110,8 +110,6 @@ class TestPaxosSystem(unittest.TestCase):
     @notquick
     def test_multiprocessing_performance(self):
 
-        return
-
         set_db_uri()
 
         system = PaxosSystem(
@@ -119,15 +117,18 @@ class TestPaxosSystem(unittest.TestCase):
             infrastructure_class=self.infrastructure_class
         )
 
-        num_pipelines = 1
-        pipeline_ids = list(range(1, num_pipelines + 1))
+        num_pipelines = 2
+        pipeline_ids = range(num_pipelines)
         paxos_process_class = system.process_classes['PaxosProcess0']
 
-        num_proposals = 1
+        multiprocess = Multiprocess(system=system, pipeline_ids=pipeline_ids)
 
+        num_proposals = 1
         started = datetime.datetime.now()
 
-        with Multiprocess(system=system, pipeline_ids=pipeline_ids):
+        self.close_connections_before_forking()
+
+        with multiprocess:
             sleep(1)
 
             paxos_process = system.construct_app(
@@ -135,16 +136,17 @@ class TestPaxosSystem(unittest.TestCase):
                 pipeline_id=pipeline_ids[0]
             )
             assert isinstance(paxos_process, PaxosProcess)
+            paxos_process.use_cache = False
             paxos_process.repository._use_cache = False
 
             with paxos_process:
 
-                expectations = list(((uuid4(), i + 1) for i in range(num_proposals)))
+                expectations = list(((uuid4(), i) for i in range(num_proposals)))
                 for key, value in expectations:
+                    paxos_process.change_pipeline((value % len(pipeline_ids)))
                     print("Proposing key {} value {}".format(key, value))
                     paxos_process.propose_value(key, str(value))
                     # sleep(0.01)
-                    paxos_process.change_pipeline(1 + (value % len(pipeline_ids)))
 
                 for key, value in expectations:
                     print("Asserting final value for key {} value {}".format(key, value))
