@@ -151,7 +151,7 @@ class ProcessApplication(Pipeable, Application):
                     # otherwise strange errors (about version mismatches, or
                     # when identifying causal dependencies) can arise.
                     if self.repository._cache:
-                        originator_ids = set([new_event.originator_id for new_event in new_events])
+                        originator_ids = set([event.originator_id for event in new_events])
                         for originator_id in originator_ids:
                             try:
                                 del self.repository._cache[originator_id]
