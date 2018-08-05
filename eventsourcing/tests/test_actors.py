@@ -64,7 +64,7 @@ class TestActors(unittest.TestCase):
                     order_ids.append(order_id)
 
             # Wait for orders to be reserved and paid.
-            retries = 10 + 10 * num_orders_per_pipeline * len(pipeline_ids)
+            retries = 20 + 10 * num_orders_per_pipeline * len(pipeline_ids)
             for i, order_id in enumerate(order_ids):
 
                 while not app.repository[order_id].is_reserved:
