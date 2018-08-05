@@ -109,6 +109,8 @@ class TestPaxosSystem(unittest.TestCase):
 
     @notquick
     def test_multiprocessing_performance(self):
+
+
         set_db_uri()
 
         system = PaxosSystem(
@@ -120,7 +122,7 @@ class TestPaxosSystem(unittest.TestCase):
         pipeline_ids = list(range(1, num_pipelines + 1))
         paxos_process_class = system.process_classes['PaxosProcess0']
 
-        num_proposals = 100
+        num_proposals = 1
 
         started = datetime.datetime.now()
 
@@ -138,6 +140,7 @@ class TestPaxosSystem(unittest.TestCase):
 
                 expectations = list(((uuid4(), i + 1) for i in range(num_proposals)))
                 for key, value in expectations:
+                    print("Proposing key {} value {}".format(key, value))
                     paxos_process.propose_value(key, str(value))
                     # sleep(0.01)
                     paxos_process.change_pipeline(1 + (value % len(pipeline_ids)))
