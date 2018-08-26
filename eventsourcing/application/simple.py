@@ -1,6 +1,10 @@
 import os
+from abc import ABCMeta
+
+from six import with_metaclass
 
 from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.factory import InfrastructureFactory
@@ -8,28 +12,40 @@ from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.cipher.aes import AESCipher
-from eventsourcing.utils.random import decode_random_bytes
+from eventsourcing.utils.random import decode_bytes
 
 
-class SimpleApplication(object):
-    persist_event_type = None
-    sequenced_item_class = None
-    sequenced_item_mapper_class = None
-    infrastructure_factory_class = None
+class Application(with_metaclass(ABCMeta)):
+    """
+    Sets up infrastructure for use
+    with an event sourced domain model.
+    """
+
+    infrastructure_factory_class = InfrastructureFactory
+    is_constructed_with_session = False
+
     record_manager_class = None
     stored_event_record_class = None
     snapshot_record_class = None
+
+    sequenced_item_class = None
+    sequenced_item_mapper_class = None
     json_encoder_class = None
     json_decoder_class = None
-    is_constructed_with_session = False
+
+    persist_event_type = None
+    notification_log_section_size = None
+    use_cache = False
+
+    event_store_class = EventStore
+    repository_class = EventSourcedRepository
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
                  cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
-                 infrastructure_factory_class=None, record_manager_class=None,
-                 stored_event_record_class=None, snapshot_record_class=None,
-                 setup_table=True, contiguous_record_ids=True, pipeline_id=-1,
-                 json_encoder_class=None, json_decoder_class=None,
-                 notification_log_section_size=None):
+                 record_manager_class=None, stored_event_record_class=None,
+                 snapshot_record_class=None, setup_table=True, contiguous_record_ids=True,
+                 pipeline_id=DEFAULT_PIPELINE_ID, json_encoder_class=None,
+                 json_decoder_class=None, notification_log_section_size=None):
 
         self.name = name or type(self).__name__.lower()
 
@@ -42,10 +58,6 @@ class SimpleApplication(object):
         self.sequenced_item_mapper_class = sequenced_item_mapper_class \
                                            or type(self).sequenced_item_mapper_class \
                                            or SequencedItemMapper
-
-        self.infrastructure_factory_class = infrastructure_factory_class \
-                                            or type(self).infrastructure_factory_class \
-                                            or InfrastructureFactory
 
         self.record_manager_class = record_manager_class or type(self).record_manager_class
 
@@ -71,21 +83,38 @@ class SimpleApplication(object):
         if self.persistence_policy is None:
             self.setup_persistence_policy()
 
+    @property
+    def datastore(self):
+        return self._datastore
+
+    @property
+    def event_store(self):
+        return self._event_store
+
+    @property
+    def repository(self):
+        return self._repository
+
     def setup_cipher(self, cipher_key):
-        cipher_key = decode_random_bytes(cipher_key or os.getenv('CIPHER_KEY', ''))
+        cipher_key = decode_bytes(cipher_key or os.getenv('CIPHER_KEY', ''))
         self.cipher = AESCipher(cipher_key) if cipher_key else None
 
     def setup_infrastructure(self, *args, **kwargs):
         self.infrastructure_factory = self.construct_infrastructure_factory(*args, **kwargs)
-        self.datastore = self.infrastructure_factory.construct_datastore()
+        self.setup_datastore()
         self.setup_event_store()
         self.setup_repository()
+
+    def setup_datastore(self):
+        self._datastore = self.infrastructure_factory.construct_datastore()
 
     def construct_infrastructure_factory(self, *args, **kwargs):
         """
         :rtype: InfrastructureFactory
         """
-        return self.infrastructure_factory_class(
+        factory_class = self.infrastructure_factory_class
+        assert issubclass(factory_class, InfrastructureFactory)
+        return factory_class(
             record_manager_class=self.record_manager_class,
             integer_sequenced_record_class=self.stored_event_record_class,
             sequenced_item_class=self.sequenced_item_class,
@@ -107,14 +136,15 @@ class SimpleApplication(object):
             json_decoder_class=self.json_decoder_class,
         )
         record_manager = self.infrastructure_factory.construct_integer_sequenced_record_manager()
-        self.event_store = EventStore(
+        self._event_store = self.event_store_class(
             record_manager=record_manager,
             sequenced_item_mapper=sequenced_item_mapper,
         )
 
     def setup_repository(self, **kwargs):
-        self.repository = EventSourcedRepository(
+        self._repository = self.repository_class(
             event_store=self.event_store,
+            use_cache=self.use_cache,
             **kwargs
         )
 
@@ -122,6 +152,13 @@ class SimpleApplication(object):
         # Setup the database table using event store's record class.
         if self.datastore is not None:
             self.datastore.setup_table(
+                self.event_store.record_manager.record_class
+            )
+
+    def drop_table(self):
+        # Drop the database table using event store's record class.
+        if self.datastore is not None:
+            self.datastore.drop_table(
                 self.event_store.record_manager.record_class
             )
 
@@ -141,13 +178,6 @@ class SimpleApplication(object):
         self.pipeline_id = pipeline_id
         self.event_store.record_manager.pipeline_id = pipeline_id
 
-    def drop_table(self):
-        # Drop the database table using event store's record class.
-        if self.datastore is not None:
-            self.datastore.drop_table(
-                self.event_store.record_manager.record_class
-            )
-
     def close(self):
         # Close the persistence policy.
         if self.persistence_policy is not None:
@@ -162,3 +192,7 @@ class SimpleApplication(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+    @classmethod
+    def make_subclass(cls, *bases):
+        return type(cls.__name__, bases + (cls,), {})

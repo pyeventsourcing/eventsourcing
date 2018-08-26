@@ -12,13 +12,12 @@ DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///:memory:'
 # DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///FILE_SYSTEM_PATH'
 # DEFAULT_SQLALCHEMY_DB_URI = 'mysql://username:password@localhost/eventsourcing'
 # DEFAULT_SQLALCHEMY_DB_URI = 'postgresql://username:password@localhost:5432/eventsourcing'
-
+DEFAULT_SQLALCHEMY_DB_POOL_SIZE = 5
 
 class SQLAlchemySettings(DatastoreSettings):
-    def __init__(self, uri=None, pool_size=5):
+    def __init__(self, uri=None, pool_size=None):
         self.uri = uri or os.getenv('DB_URI', DEFAULT_SQLALCHEMY_DB_URI)
-        self.pool_size = pool_size
-        # self.pool_size = pool_size if not self.uri.startswith('sqlite') else 1
+        self.pool_size = int(pool_size or os.getenv('DB_POOL_SIZE', DEFAULT_SQLALCHEMY_DB_POOL_SIZE))
 
 
 class SQLAlchemyDatastore(Datastore):

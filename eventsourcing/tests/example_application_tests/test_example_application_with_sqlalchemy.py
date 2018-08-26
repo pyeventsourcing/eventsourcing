@@ -1,7 +1,7 @@
-from eventsourcing.tests.example_application_tests.base import ExampleApplicationTestCase
+from eventsourcing.tests.example_application_tests import base
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    WithSQLAlchemyRecordManagers
+    SQLAlchemyRecordManagerTestCase
 
 
-class TestExampleApplicationWithSQLAlchemy(WithSQLAlchemyRecordManagers, ExampleApplicationTestCase):
+class TestExampleApplicationWithSQLAlchemy(SQLAlchemyRecordManagerTestCase, base.ExampleApplicationTestCase):
     pass

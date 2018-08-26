@@ -4,6 +4,7 @@ services:
   - cassandra
   - redis-server
   - mysql
+  - postgres
 
 python:
   - 2.7
@@ -14,10 +15,14 @@ python:
   - 3.6-dev
 #  - 3.7-dev
 #  - pypy  # Cassandra suddenly failing to find hosts on Travis, 21 April 2018. Not sure why.
-  - pypy3
+#  - pypy3  # Sadly psycopg doesn't work with pypy3 at the moment, 22 July 2018. Known unresolved issue.
+
 
 before_install:
   - mysql -e 'CREATE DATABASE eventsourcing;'
+
+before_script:
+  - psql -c 'create database eventsourcing;' -U postgres
 
 install:
 - pip install -U pip wheel
@@ -29,6 +34,8 @@ install:
 env:
   global:
     - CASSANDRA_HOSTS=127.0.0.1
+    - MYSQL_USER=travis
+    - POSTGRES_USER=postgres
 
 script:
 - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then

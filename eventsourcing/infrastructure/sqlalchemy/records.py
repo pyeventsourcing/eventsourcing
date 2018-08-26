@@ -158,10 +158,10 @@ class StoredEventRecord(Base):
     # Originator version of item in sequence.
     originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
-    # Partition ID.
+    # Pipeline ID.
     pipeline_id = Column(Integer(), nullable=True)
 
-    # Record ID.
+    # Notification ID.
     id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=True)
 
     # Type of the event (class name).
@@ -187,13 +187,13 @@ class StoredEventRecord(Base):
 class NotificationTrackingRecord(Base):
     __tablename__ = 'notification_tracking'
 
-    # Application ID.
+    # Application name.
     application_name = Column(String(length=32), primary_key=True)
 
-    # Upstream application ID.
+    # Upstream application name.
     upstream_application_name = Column(String(length=32), primary_key=True)
 
-    # Partition ID.
+    # Pipeline ID.
     pipeline_id = Column(Integer(), primary_key=True)
 
     # Notification ID.

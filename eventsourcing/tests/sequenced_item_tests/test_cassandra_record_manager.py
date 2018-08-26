@@ -1,28 +1,26 @@
 from eventsourcing.tests.datastore_tests.test_cassandra import CassandraDatastoreTestCase
-from eventsourcing.tests.sequenced_item_tests.base import IntegerSequencedRecordTestCase, \
-    SimpleSequencedItemteratorTestCase, ThreadedSequencedItemIteratorTestCase, TimestampSequencedItemTestCase, \
-    WithRecordManagers
+from eventsourcing.tests.sequenced_item_tests import base
 
 
 class TestCassandraRecordManagerWithIntegerSequences(CassandraDatastoreTestCase,
-                                                     IntegerSequencedRecordTestCase):
+                                                     base.IntegerSequencedRecordTestCase):
     pass
 
 
 class TestCassandraRecordManagerWithTimestampSequences(CassandraDatastoreTestCase,
-                                                       TimestampSequencedItemTestCase):
+                                                       base.TimestampSequencedItemTestCase):
     pass
 
 
-class WithCassandraRecordManagers(CassandraDatastoreTestCase, WithRecordManagers):
+class WithCassandraRecordManagers(CassandraDatastoreTestCase, base.WithRecordManagers):
     pass
 
 
-class TestSimpleSequencedItemIteratorWithCassandra(WithCassandraRecordManagers,
-                                                   SimpleSequencedItemteratorTestCase):
+class TestSequencedItemIteratorWithCassandra(WithCassandraRecordManagers,
+                                             base.SequencedItemIteratorTestCase):
     pass
 
 
 class TestThreadedSequencedItemIteratorWithCassandra(WithCassandraRecordManagers,
-                                                     ThreadedSequencedItemIteratorTestCase):
+                                                     base.ThreadedSequencedItemIteratorTestCase):
     pass
