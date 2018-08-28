@@ -985,7 +985,7 @@ single thread wouldn't attempt to append an event that it had already successful
 This feature depends on the behaviour of the record manager's ``append()`` method: the event store will
 raise a ``ConcurrencyError`` if a ``RecordConflictError`` is raised by its record manager.
 
-If a command fails due to a concurrency error, the command can be retried with the lastest state. The ``@retry``
+If a command fails due to a concurrency error, the command can be retried with the latest state. The ``@retry``
 decorator can help code retries on commands.
 
 
