@@ -19,7 +19,7 @@ class TestProcess(TestCase):
 
     def test_process_with_example_policy(self):
         # Construct example process.
-        process_class = ProcessApplication.make_subclass(self.process_class)
+        process_class = ProcessApplication.mixin(self.process_class)
         with process_class(
             name='test',
             policy=example_policy,
@@ -52,7 +52,7 @@ class TestProcess(TestCase):
 
     def test_process_application_with_snapshotting(self):
         # Construct example process.
-        with ProcessApplicationWithSnapshotting.make_subclass(self.process_class)(
+        with ProcessApplicationWithSnapshotting.mixin(self.process_class)(
             name='test',
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
@@ -87,7 +87,7 @@ class TestProcess(TestCase):
         pipeline_id2 = 1
 
         # Create two events, one has causal dependency on the other.
-        process_class = ProcessApplication.make_subclass(self.process_class)
+        process_class = ProcessApplication.mixin(self.process_class)
         core1 = process_class(
             name='core',
             # persist_event_type=ExampleAggregate.Created,
@@ -195,7 +195,7 @@ class TestProcess(TestCase):
         downstream2.close()
 
     def test_handle_prompt_failed(self):
-        process = ProcessApplication.make_subclass(self.process_class)(
+        process = ProcessApplication.mixin(self.process_class)(
             name='test',
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
@@ -254,10 +254,10 @@ class TestCommands(TestCase):
         self.assertIsInstance(pending_events[1], Command.Done)
 
     def test_command_process(self):
-        commands = CommandProcess.make_subclass(self.process_class)(
+        commands = CommandProcess.mixin(self.process_class)(
             setup_table=True
         )
-        core = ProcessApplication.make_subclass(self.process_class)(
+        core = ProcessApplication.mixin(self.process_class)(
             'core',
             policy=example_policy,
             session=commands.session

@@ -194,5 +194,5 @@ class Application(with_metaclass(ABCMeta)):
         self.close()
 
     @classmethod
-    def make_subclass(cls, *bases):
+    def mixin(cls, *bases):
         return type(cls.__name__, bases + (cls,), {})

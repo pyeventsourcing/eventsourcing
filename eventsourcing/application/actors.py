@@ -299,7 +299,7 @@ class ProcessSlave(Actor):
         # Construct the process application class.
         process_class = msg.process_application_class
         if msg.infrastructure_class:
-            process_class = process_class.make_subclass(msg.infrastructure_class)
+            process_class = process_class.mixin(msg.infrastructure_class)
 
         # Reset the database connection (for Django).
         process_class.reset_connection_after_forking()

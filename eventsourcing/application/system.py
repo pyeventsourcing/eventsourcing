@@ -78,7 +78,7 @@ class System(object):
             kwargs['session'] = self.session
 
         if self.infrastructure_class:
-            process_class = process_class.make_subclass(self.infrastructure_class)
+            process_class = process_class.mixin(self.infrastructure_class)
 
         process = process_class(**kwargs)
 

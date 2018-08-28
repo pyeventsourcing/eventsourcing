@@ -425,11 +425,10 @@ by setting an ``Order`` as paid.
 .. code:: python
 
     from eventsourcing.application.process import ProcessApplication
-    from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
     from eventsourcing.utils.topic import resolve_topic
 
 
-    class Orders(SQLAlchemyApplication, ProcessApplication):
+    class Orders(ProcessApplication):
         persist_event_type=Order.Event
 
         @staticmethod
@@ -456,7 +455,7 @@ by creating a new ``Reservation`` aggregate.
 
 .. code:: python
 
-    class Reservations(SQLAlchemyApplication, ProcessApplication):
+    class Reservations(ProcessApplication):
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Created):
@@ -468,7 +467,7 @@ by creating a new ``Payment``.
 
 .. code:: python
 
-    class Payments(SQLAlchemyApplication, ProcessApplication):
+    class Payments(ProcessApplication):
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Reserved):
@@ -485,7 +484,7 @@ responds to ``Order.Paid`` events by setting the command as done.
     from eventsourcing.exceptions import OperationalError, RecordConflictError
 
 
-    class Commands(SQLAlchemyApplication, CommandProcess):
+    class Commands(CommandProcess):
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Created):
@@ -529,6 +528,8 @@ rather than coding `test doubles <https://martinfowler.com/bliki/TestDouble.html
 
 .. code:: python
 
+    from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
+
     def test_orders_policy():
         # Prepare repository with a real Order aggregate.
         order = Order.__create__(command_id=None)
@@ -538,7 +539,7 @@ rather than coding `test doubles <https://martinfowler.com/bliki/TestDouble.html
         assert not order.is_reserved
 
         # Process reservation created.
-        with Orders() as orders:
+        with Orders.mixin(SQLAlchemyApplication)() as orders:
             event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
             orders.policy(repository=repository, event=event)
 
@@ -560,7 +561,7 @@ In the payments policy test below, a new payment is created because an order was
         repository = {order.id: order}
 
         # Check payment is created whenever order is reserved.
-        with Payments() as payments:
+        with Payments.mixin(SQLAlchemyApplication)() as payments:
             event = Order.Reserved(originator_id=order.id, originator_version=1)
             payment = payments.policy(repository=repository, event=event)
 
@@ -628,7 +629,8 @@ The orders-reservations-payments system can be defined using these pipeline expr
     system = System(
         commands_pipeline,
         reservations_pipeline,
-        payments_pipeline
+        payments_pipeline,
+        infrastructure_class=SQLAlchemyApplication
     )
 
 This is equivalent to a system defined with the following single pipeline expression.
@@ -636,7 +638,8 @@ This is equivalent to a system defined with the following single pipeline expres
 .. code:: python
 
     system = System(
-        Commands | Orders | Reservations | Orders | Payments | Orders | Commands
+        Commands | Orders | Reservations | Orders | Payments | Orders | Commands,
+        infrastructure_class=SQLAlchemyApplication
     )
 
 Although a process application class can appear many times in the pipeline
@@ -773,7 +776,7 @@ Because the system isn't yet running, the command remains unprocessed.
 .. code:: python
 
 
-    with Commands(setup_table=True) as commands:
+    with Commands.mixin(SQLAlchemyApplication)(setup_table=True) as commands:
 
         # Create a new command.
         cmd_id = commands.create_new_order()
@@ -827,7 +830,7 @@ shortly after the various operating system processes have been started.
         assert repository[cmd_id].is_done
 
     # Process the command.
-    with multiprocessing_system, Commands() as commands:
+    with multiprocessing_system, Commands.mixin(SQLAlchemyApplication)() as commands:
         assert_command_is_done(commands.repository, cmd_id)
 
 The process applications read their upstream notification logs when they start,
@@ -897,7 +900,7 @@ process, which causes orders to be processed by the system.
 
 .. code:: python
 
-    with multiprocessing_system, Commands() as commands:
+    with multiprocessing_system, Commands.mixin(SQLAlchemyApplication)() as commands:
 
         # Create new orders.
         command_ids = []
@@ -990,7 +993,7 @@ The actors will run by sending messages recursively.
 
     actors = Actors(system, pipeline_ids=pipeline_ids)
 
-    with actors, Commands() as commands:
+    with actors, Commands.mixin(SQLAlchemyApplication)() as commands:
 
         # Create new orders.
         command_ids = []
