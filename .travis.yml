@@ -4,16 +4,13 @@ services:
   - cassandra
   - redis-server
   - mysql
-  - postgres
+  - postgresql
 
 python:
   - 2.7
-#  - 3.4
   - 3.5
-  - 3.5-dev
   - 3.6
-  - 3.6-dev
-#  - 3.7-dev
+  - 3.7
 #  - pypy  # Cassandra suddenly failing to find hosts on Travis, 21 April 2018. Not sure why.
 #  - pypy3  # Sadly psycopg doesn't work with pypy3 at the moment, 22 July 2018. Known unresolved issue.
 
