@@ -79,13 +79,16 @@ class DjangoRecordManager(SQLRecordManager):
             field_names.append('pipeline_id')
         if hasattr(record_class, 'causal_dependencies') and 'causal_dependencies' not in field_names:
             field_names.append('causal_dependencies')
-        if hasattr(record_class, 'id') and placeholder_for_id and 'id' not in field_names:
-            field_names.append('id')
+        if placeholder_for_id:
+            if self.notification_id_name:
+                if self.notification_id_name not in field_names:
+                    field_names.append('id')
 
         statement = tmpl.format(
             tablename=self.get_record_table_name(record_class),
             columns=", ".join(field_names),
             placeholders=", ".join(['%s' for _ in field_names]),
+            notification_id=self.notification_id_name
         )
         return statement
 
@@ -150,12 +153,11 @@ class DjangoRecordManager(SQLRecordManager):
         Returns all records in the table.
         """
         filter_kwargs = {}
-        notification_id_field_name = 'id'
         # Todo: Also support sequencing by 'position' if items are sequenced by timestamp?
         if start is not None:
-            filter_kwargs['%s__gte' % notification_id_field_name] = start + 1
+            filter_kwargs['%s__gte' % self.notification_id_name] = start + 1
         if stop is not None:
-            filter_kwargs['%s__lt' % notification_id_field_name] = stop + 1
+            filter_kwargs['%s__lt' % self.notification_id_name] = stop + 1
         objects = self.record_class.objects.filter(**filter_kwargs)
 
         if hasattr(self.record_class, 'application_name'):
@@ -163,7 +165,7 @@ class DjangoRecordManager(SQLRecordManager):
         if hasattr(self.record_class, 'pipeline_id'):
             objects = objects.filter(pipeline_id=self.pipeline_id)
 
-        objects = objects.order_by('%s' % notification_id_field_name)
+        objects = objects.order_by('%s' % self.notification_id_name)
         return objects.all()
 
     def delete_record(self, record):
@@ -173,13 +175,15 @@ class DjangoRecordManager(SQLRecordManager):
         record.delete()
 
     def get_max_record_id(self):
+        assert self.notification_id_name
         try:
             objects = self.record_class.objects
             if hasattr(self.record_class, 'application_name'):
                 objects = objects.filter(application_name=self.application_name)
             if hasattr(self.record_class, 'pipeline_id'):
                 objects = objects.filter(pipeline_id=self.pipeline_id)
-            return objects.latest('id').id
+            latest = objects.latest(self.notification_id_name)
+            return getattr(latest, self.notification_id_name)
         except (self.record_class.DoesNotExist, ProgrammingError):
             return None
 

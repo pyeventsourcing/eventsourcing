@@ -87,7 +87,9 @@ class EntitySnapshotRecord(models.Model):
     state = models.TextField()
 
     class Meta:
-        unique_together = (("application_name", "originator_id", "originator_version"),)
+        unique_together = (
+            ("application_name", "originator_id", "originator_version"),
+        )
         db_table = 'entity_snapshots'
 
 
@@ -108,7 +110,7 @@ class StoredEventRecord(models.Model):
     pipeline_id = models.IntegerField()
 
     # Notification ID.
-    id = models.BigIntegerField()
+    notification_id = models.BigIntegerField()
 
     # Topic of the item (e.g. path to domain event class).
     event_type = models.TextField()
@@ -122,7 +124,7 @@ class StoredEventRecord(models.Model):
     class Meta:
         unique_together = (
             ("application_name", "originator_id", "originator_version"),
-            ("application_name", "pipeline_id", "id"),
+            ("application_name", "pipeline_id", "notification_id"),
         )
         db_table = 'stored_events'
 
@@ -144,5 +146,12 @@ class NotificationTrackingRecord(models.Model):
     notification_id = models.BigIntegerField()
 
     class Meta:
-        unique_together = (("application_name", "upstream_application_name", "pipeline_id", "notification_id"),)
+        unique_together = (
+            (
+                "application_name",
+                "upstream_application_name",
+                "pipeline_id",
+                "notification_id"
+            ),
+        )
         db_table = 'notification_tracking'

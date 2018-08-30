@@ -15,7 +15,14 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
         self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
-        self.contiguous_record_ids = contiguous_record_ids and hasattr(self.record_class, 'id')
+
+        self.notification_id_name = ''
+        if hasattr(self.record_class, 'id'):
+            self.notification_id_name = 'id'
+        elif hasattr(self.record_class, 'notification_id'):
+            self.notification_id_name = 'notification_id'
+
+        self.contiguous_record_ids = contiguous_record_ids and self.notification_id_name
         if hasattr(self.record_class, 'application_name'):
             assert application_name, "'application_name' not set when required"
             assert contiguous_record_ids, "'contiguous_record_ids' not set when required"
@@ -184,7 +191,8 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
         """
         # Todo: Optimise query by selecting only two columns, pipeline_id and id (notification ID)?
         record = self.get_record(sequence_id, position)
-        return record.pipeline_id, record.id
+        notification_id = getattr(record, self.notification_id_name)
+        return record.pipeline_id, notification_id
 
 
 class SQLRecordManager(ACIDRecordManager):
@@ -244,9 +252,9 @@ class SQLRecordManager(ACIDRecordManager):
         """
 
     _insert_select_max_tmpl = (
-        "INSERT INTO {tablename} (id, {columns}) "
-        "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
-        "FROM {tablename}"
+        "INSERT INTO {tablename} ({notification_id}, {columns}) "
+        "SELECT COALESCE(MAX({tablename}.{notification_id}), 0) + 1, {placeholders} "
+        "FROM ""{tablename}"
     )
 
     _where_application_name_tmpl = None

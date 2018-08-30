@@ -33,13 +33,16 @@ class SQLAlchemyRecordManager(SQLRecordManager):
             field_names.append('pipeline_id')
         if hasattr(record_class, 'causal_dependencies') and 'causal_dependencies' not in field_names:
             field_names.append('causal_dependencies')
-        if hasattr(record_class, 'id') and placeholder_for_id and 'id' not in field_names:
-            field_names.append('id')
+        if self.notification_id_name:
+            if placeholder_for_id:
+                if self.notification_id_name not in field_names:
+                    field_names.append(self.notification_id_name)
 
         statement = text(tmpl.format(
             tablename=self.get_record_table_name(record_class),
             columns=", ".join(field_names),
             placeholders=", ".join([":{}".format(f) for f in field_names]),
+            notification_id=self.notification_id_name
         ))
 
         # Define bind parameters with explicit types taken from record column types.
@@ -62,8 +65,8 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         if records:
             # Prepare to insert event and notification records.
             statement = self.insert_values
-            if hasattr(self.record_class, 'id'):
-                all_ids = set((r.id for r in records))
+            if self.notification_id_name:
+                all_ids = set((getattr(r, self.notification_id_name) for r in records))
                 if None in all_ids:
                     if len(all_ids) > 1:
                         # Either all or zero records must have IDs.
@@ -89,17 +92,18 @@ class SQLAlchemyRecordManager(SQLRecordManager):
                     params['application_name'] = self.application_name
 
                 # Params for notification log.
-                if hasattr(self.record_class, 'id'):
-                    if record.id == 'event-not-notifiable':
-                        params['id'] = None
+                if self.notification_id_name:
+                    notification_id = getattr(record, self.notification_id_name)
+                    if notification_id == 'event-not-notifiable':
+                        params[self.notification_id_name] = None
                     else:
-                        params['id'] = record.id
+                        params[self.notification_id_name] = notification_id
 
-                if hasattr(self.record_class, 'pipeline_id'):
-                    if record.id == 'event-not-notifiable':
-                        params['pipeline_id'] = None
-                    else:
-                        params['pipeline_id'] = self.pipeline_id
+                    if hasattr(self.record_class, 'pipeline_id'):
+                        if notification_id == 'event-not-notifiable':
+                            params['pipeline_id'] = None
+                        else:
+                            params['pipeline_id'] = self.pipeline_id
 
                 # print("Recording event with pipeline ID {}".format(params['pipeline_id']))
 
@@ -191,13 +195,14 @@ class SQLAlchemyRecordManager(SQLRecordManager):
                 query = query.filter(self.record_class.application_name == self.application_name)
             if hasattr(self.record_class, 'pipeline_id'):
                 query = query.filter(self.record_class.pipeline_id == self.pipeline_id)
-            if hasattr(self.record_class, 'id'):
-                query = query.order_by(asc('id'))
+            if self.notification_id_name:
+                query = query.order_by(asc(self.notification_id_name))
                 # NB '+1' because record IDs start from 1.
+                notification_id_col = getattr(self.record_class, self.notification_id_name)
                 if start is not None:
-                    query = query.filter(self.record_class.id >= start + 1)
+                    query = query.filter(notification_id_col >= start + 1)
                 if stop is not None:
-                    query = query.filter(self.record_class.id < stop + 1)
+                    query = query.filter(notification_id_col < stop + 1)
             # Todo: Should some tables with an ID not be ordered by ID?
             # Todo: Which order do other tables have?
             return query.all()
@@ -231,7 +236,8 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
     def get_max_record_id(self):
         try:
-            query = self.session.query(func.max(self.record_class.id))
+            notification_id_col = getattr(self.record_class, self.notification_id_name)
+            query = self.session.query(func.max(notification_id_col))
             if hasattr(self.record_class, 'application_name'):
                 query = query.filter(self.record_class.application_name == self.application_name)
             if hasattr(self.record_class, 'pipeline_id'):

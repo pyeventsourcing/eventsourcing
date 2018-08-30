@@ -160,7 +160,7 @@ class TestPaxosSystem(unittest.TestCase):
                     )
                 )
 
-    @retry((KeyError, AssertionError), max_attempts=20, wait=0.05, stall=0)
+    @retry((KeyError, AssertionError), max_attempts=30, wait=0.1, stall=0)
     def assert_final_value(self, process, id, value):
         process.repository._cache.clear()
         self.assertEqual(process.repository[id].final_value, value)
