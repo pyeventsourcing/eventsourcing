@@ -162,7 +162,7 @@ class StoredEventRecord(Base):
     pipeline_id = Column(Integer(), nullable=True)
 
     # Notification ID.
-    id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=True)
+    notification_id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=True)
 
     # Type of the event (class name).
     event_type = Column(Text(), nullable=False)
@@ -178,7 +178,7 @@ class StoredEventRecord(Base):
             'stored_events_notification_index',
             'application_name',
             'pipeline_id',
-            'id',
+            'notification_id',
             unique=True,
         ),
     )

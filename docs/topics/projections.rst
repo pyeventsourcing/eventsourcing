@@ -200,7 +200,11 @@ which gives "exactly once" processing.
 
         def pull(self):
             for notification in self.reader.read():
-                record = self.manager.record_class(**notification)
+                notification_id = notification.pop('id')
+                record = self.manager.record_class(
+                    notification_id=notification_id,
+                    **notification
+                )
                 self.manager.write_records([record])
 
 

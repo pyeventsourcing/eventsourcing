@@ -86,6 +86,7 @@ class DjangoRecordManager(SQLRecordManager):
             tablename=self.get_record_table_name(record_class),
             columns=", ".join(field_names),
             placeholders=", ".join(['%s' for _ in field_names]),
+            notification_id=self.notification_id_name
         )
         return statement
 
