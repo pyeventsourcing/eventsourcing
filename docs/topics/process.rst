@@ -356,7 +356,7 @@ library ``Command`` class. The ``Command`` class extends the ``AggregateRoot`` c
 with a method ``done()`` and a property ``is_done``.
 
 The ``CreateNewOrder`` class extends the library's ``Command`` class with an event
-sourced ``order_id`` attribute, which will be used to associate the commands objets
+sourced ``order_id`` attribute, which will be used to associate the command's objects
 with the orders created by the system in response.
 
 .. code:: python
@@ -706,7 +706,7 @@ in-memory SQLite database.
         payment = system.processes['payments'].repository[order.payment_id]
 
 Basically, given the system is running, when a "create new order" command is
-created, then the command is done, and an order has been both reservered and paid.
+created, then the command is done, and an order has been both reserved and paid.
 
 Everything happens synchronously, in a single thread, so that by the time
 ``create_new_order()`` has returned, the system has already processed the
