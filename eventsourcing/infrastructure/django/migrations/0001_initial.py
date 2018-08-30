@@ -72,7 +72,7 @@ class Migration(migrations.Migration):
                 ('originator_id', models.UUIDField()),
                 ('originator_version', models.BigIntegerField()),
                 ('pipeline_id', models.IntegerField()),
-                ('id', models.BigIntegerField()),
+                ('notification_id', models.BigIntegerField()),
                 ('event_type', models.TextField()),
                 ('state', models.TextField()),
                 ('causal_dependencies', models.TextField()),
@@ -104,7 +104,10 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterUniqueTogether(
             name='storedeventrecord',
-            unique_together={('application_name', 'originator_id', 'originator_version'), ('application_name', 'pipeline_id', 'id')},
+            unique_together={
+                ('application_name', 'originator_id', 'originator_version'),
+                ('application_name', 'pipeline_id', 'notification_id')
+            },
         ),
         migrations.AlterUniqueTogether(
             name='snapshotrecord',
@@ -112,7 +115,9 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterUniqueTogether(
             name='notificationtrackingrecord',
-            unique_together={('application_name', 'upstream_application_name', 'pipeline_id', 'notification_id')},
+            unique_together={
+                ('application_name', 'upstream_application_name', 'pipeline_id', 'notification_id')
+            },
         ),
         migrations.AlterUniqueTogether(
             name='integersequencedrecord',
