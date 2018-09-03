@@ -33,13 +33,13 @@ class TimebucketedlogTestCase(WithEventPersistence):
         message4 = 'This is message 4'
         message5 = 'This is message 5'
         message6 = 'This is message 6'
-        event1 = log.append_message(message1)
-        event2 = log.append_message(message2)
-        event3 = log.append_message(message3)
+        event1 = log.log_message(message1)
+        event2 = log.log_message(message2)
+        event3 = log.log_message(message3)
         halfway = decimaltimestamp()
-        event4 = log.append_message(message4)
-        event5 = log.append_message(message5)
-        event6 = log.append_message(message6)
+        event4 = log.log_message(message4)
+        event5 = log.log_message(message5)
+        event6 = log.log_message(message6)
 
         # Read messages from the log.
         reader = TimebucketedlogReader(log, event_store=self.log_event_store)
@@ -142,7 +142,7 @@ class TimebucketedlogTestCase(WithEventPersistence):
         number_of_messages = 300
         events = []
         for i in range(number_of_messages):
-            message_logged = log.append_message(str(i))
+            message_logged = log.log_message(str(i))
             events.append(message_logged)
             sleep(0.01)
         self.assertGreater(datetime.datetime.now() - start, datetime.timedelta(seconds=1))
@@ -279,7 +279,7 @@ class TimebucketedlogTestCase(WithEventPersistence):
         # Start new second sized log.
         log_id2 = uuid4()
         log = start_new_timebucketedlog(name=log_id2, bucket_size='second')
-        log.append_message('message')
+        log.log_message('message')
 
         # Get the messages.
         reader = TimebucketedlogReader(log, self.log_event_store)
@@ -288,7 +288,7 @@ class TimebucketedlogTestCase(WithEventPersistence):
         # Start new minute sized log.
         log_id3 = uuid4()
         log = start_new_timebucketedlog(name=log_id3, bucket_size='minute')
-        log.append_message('message')
+        log.log_message('message')
 
         # Get the messages.
         reader = TimebucketedlogReader(log, self.log_event_store)
@@ -297,7 +297,7 @@ class TimebucketedlogTestCase(WithEventPersistence):
         # Start new hour sized log.
         log_id4 = uuid4()
         log = start_new_timebucketedlog(name=log_id4, bucket_size='hour')
-        log.append_message('message')
+        log.log_message('message')
 
         # Get the messages.
         reader = TimebucketedlogReader(log, self.log_event_store)
@@ -306,7 +306,7 @@ class TimebucketedlogTestCase(WithEventPersistence):
         # Start new day sized log.
         log_id5 = uuid4()
         log = start_new_timebucketedlog(name=log_id5, bucket_size='day')
-        log.append_message('message')
+        log.log_message('message')
 
         # Get the messages.
         reader = TimebucketedlogReader(log, self.log_event_store)
@@ -315,7 +315,7 @@ class TimebucketedlogTestCase(WithEventPersistence):
         # Start new month sized log.
         log_id6 = uuid4()
         log = start_new_timebucketedlog(name=log_id6, bucket_size='month')
-        log.append_message('message')
+        log.log_message('message')
 
         # Get the messages.
         reader = TimebucketedlogReader(log, self.log_event_store)
@@ -324,7 +324,7 @@ class TimebucketedlogTestCase(WithEventPersistence):
         # Start new year sized log.
         log_id7 = uuid4()
         log = start_new_timebucketedlog(name=log_id7, bucket_size='year')
-        log.append_message('message')
+        log.log_message('message')
 
         # Get the messages.
         reader = TimebucketedlogReader(log, self.log_event_store)
@@ -333,7 +333,7 @@ class TimebucketedlogTestCase(WithEventPersistence):
         # Start new default sized log.
         log_id8 = uuid4()
         log = start_new_timebucketedlog(name=log_id8)
-        log.append_message('message')
+        log.log_message('message')
 
         # Get the messages.
         reader = TimebucketedlogReader(log, self.log_event_store)
