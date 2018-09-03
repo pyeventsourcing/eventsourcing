@@ -24,7 +24,7 @@ class PersistencePolicy(object):
         return isinstance(event, self.event_type)
 
     def store_event(self, event):
-        self.event_store.append(event)
+        self.event_store.store(event)
 
 # Todo: Separate PeriodicSnapshottingPolicy from base class? Make usage more configurable.
 class SnapshottingPolicy(object):

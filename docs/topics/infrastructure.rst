@@ -886,7 +886,7 @@ In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at p
 
 .. code:: python
 
-    event_store.append(
+    event_store.store(
         DomainEvent(
             originator_id=aggregate1,
             originator_version=1,
@@ -970,7 +970,7 @@ single thread wouldn't attempt to append an event that it had already successful
 
     # Fail to append an event at the same position in the same sequence as a previous event.
     try:
-        event_store.append(
+        event_store.store(
             DomainEvent(
                 originator_id=aggregate1,
                 originator_version=1,
@@ -1076,7 +1076,7 @@ record class ``TimestampSequencedRecord``.
     )
 
     # Store the event.
-    timestamped_event_store.append(event)
+    timestamped_event_store.store(event)
 
     # Check the event was stored.
     events = timestamped_event_store.get_domain_events(aggregate_id)
