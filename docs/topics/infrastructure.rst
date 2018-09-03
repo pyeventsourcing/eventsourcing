@@ -363,13 +363,13 @@ Record managers
 
 The event store uses a record manager to write sequenced items to database records.
 
-The library has an abstract base class ``AbstractActiveRecordManager`` with abstract methods ``append()`` and
-``get_items()``, which can be used on concrete implementations to read and write sequenced items in a
-database.
+The library has an abstract base class ``AbstractActiveRecordManager`` with abstract
+methods ``record()`` and ``get_items()``, which can be used on concrete implementations
+to read and write sequenced items in a database.
 
 A record manager is constructed with a ``sequenced_item_class`` and a matching
-``record_class``. The field names of a suitable record class will match the field names of the
-sequenced item named tuple.
+``record_class``. The field names of a suitable record class will match the field
+names of the sequenced item named tuple.
 
 
 SQLAlchemy
@@ -466,7 +466,7 @@ using the ``append()`` method of the record manager.
 
 .. code:: python
 
-    record_manager.append(stored_event1)
+    record_manager.record(stored_event1)
 
 
 (Please note, since the position is given by the sequenced item itself, the word "append" means here "to add something
@@ -684,7 +684,7 @@ can be used to store events using the Django ORM.
     results = django_record_manager.list_items(aggregate1)
     assert len(results) == 0
 
-    django_record_manager.append(stored_event1)
+    django_record_manager.record(stored_event1)
 
     results = django_record_manager.list_items(aggregate1)
     assert results[0] == stored_event1
@@ -816,7 +816,7 @@ and used to store events using Apache Cassandra.
     results = cassandra_record_manager.list_items(aggregate1)
     assert len(results) == 0
 
-    cassandra_record_manager.append(stored_event1)
+    cassandra_record_manager.record(stored_event1)
 
     results = cassandra_record_manager.list_items(aggregate1)
     assert results[0] == stored_event1
@@ -838,7 +838,7 @@ to append two items at the same position in the same sequence. If such an attemp
 
     # Fail to append an item at the same position in the same sequence as a previous item.
     try:
-        record_manager.append(stored_event1)
+        record_manager.record(stored_event1)
     except RecordConflictError:
         pass
     else:
@@ -878,9 +878,9 @@ record manager, both are discussed in detail in the sections above.
     )
 
 
-The event store's ``append()`` method can append a domain event to its sequence. The event store uses the
+The event store's ``store()`` method can store a domain event in its sequence. The event store uses the
 ``sequenced_item_mapper`` to obtain a sequenced item named tuple from a domain events, and it uses the
-``record_manager`` to write a sequenced item to a database.
+``record_manager`` to record a sequenced item in the database.
 
 In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at position ``1``.
 
@@ -895,9 +895,10 @@ In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at p
     )
 
 
-The event store's method ``get_domain_events()`` is used to retrieve events that have previously been appended.
-The event store uses the ``record_manager`` to read the sequenced items from a database, and it
-uses the ``sequenced_item_mapper`` to obtain domain events from the sequenced items.
+The event store's method ``get_domain_events()`` is used to get events that have previously
+been stored. The event store uses the ``record_manager`` to get the sequenced items from
+database records, and it uses the ``sequenced_item_mapper`` to obtain domain events from
+the sequenced items.
 
 
 .. code:: python

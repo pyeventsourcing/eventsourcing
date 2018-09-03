@@ -71,7 +71,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data1,
         )
-        self.record_manager.append(item1)
+        self.record_manager.record(item1)
 
         # Check record manager returns one sequence ID.
         self.assertEqual([sequence_id1], self.record_manager.list_sequence_ids())
@@ -84,7 +84,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC1,
             data=data2,
         )
-        self.record_manager.append(item2)
+        self.record_manager.record(item2)
 
         # Check record manager returns two sequence IDs.
         self.assertEqual(sorted([sequence_id1, sequence_id2]), sorted(self.record_manager.list_sequence_ids()))
@@ -119,7 +119,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         self.assertNotEqual(item1.data, item3.data)
         # - append conflicting item as single item
         with self.assertRaises(RecordConflictError):
-            self.record_manager.append(item3)
+            self.record_manager.record(item3)
 
         item4 = SequencedItem(
             sequence_id=item1.sequence_id,
@@ -135,19 +135,19 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         )
         # - append conflicting item in list with new items (none should be appended)
         with self.assertRaises(RecordConflictError):
-            self.record_manager.append([item3, item4, item5])
+            self.record_manager.record([item3, item4, item5])
 
         # Check there is still only one item.
         retrieved_items = self.record_manager.list_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 1)
 
         # Check adding an empty list does nothing.
-        self.record_manager.append([])
+        self.record_manager.record([])
         retrieved_items = self.record_manager.list_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 1)
 
         # Append a second and third item at the next positions.
-        self.record_manager.append([item4, item5])
+        self.record_manager.record([item4, item5])
 
         # Check there are three items.
         retrieved_items = self.record_manager.list_items(sequence_id1)
@@ -533,7 +533,7 @@ class AbstractSequencedItemIteratorTestCase(WithRecordManagers):
                 ),
             )
             self.sequenced_items.append(sequenced_item)
-            self.entity_record_manager.append(sequenced_item)
+            self.entity_record_manager.record(sequenced_item)
 
     def assert_iterator_yields_events(self, is_ascending, expect_at_start, expect_at_end, expect_item_count=1,
                                       expect_page_count=0, expect_query_count=0, page_size=1, limit=None):

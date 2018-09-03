@@ -42,7 +42,7 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
         )
 
     @abstractmethod
-    def append(self, sequenced_item_or_items):
+    def record(self, sequenced_item_or_items):
         """
         Writes sequenced item into the datastore.
         """
@@ -211,7 +211,7 @@ class SQLRecordManager(ACIDRecordManager):
         self._insert_values = None
         self._insert_tracking_record = None
 
-    def append(self, sequenced_item_or_items):
+    def record(self, sequenced_item_or_items):
         # Convert sequenced item(s) to database record(s).
         records = self.to_records(sequenced_item_or_items)
 

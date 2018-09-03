@@ -43,7 +43,7 @@ class NotificationLogTestCase(SQLAlchemyRecordManagerTestCase, WithEventPersiste
             get_topic(DomainEvent),
             item
         )
-        self.entity_record_manager.append(sequenced_item)
+        self.entity_record_manager.record(sequenced_item)
 
 
 class TestNotificationLog(NotificationLogTestCase):
