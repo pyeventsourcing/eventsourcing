@@ -49,14 +49,15 @@ class ProcessApplication(Pipeable, Application):
         is published by this application's model, which can happen
         when application command methods, rather than the process policy,
         are called.
+
+        Wraps conflict and operational exceptions in PromptFailed exception
+        to avoid retrying errors raised within a nested synchronous prompt.
         """
         prompt = Prompt(self.name, self.pipeline_id)
         try:
             publish(prompt)
-        except PromptFailed:
-            raise
-        except Exception as e:
-            raise PromptFailed("{}: {}".format(type(e), str(e)))
+        except (OperationalError, RecordConflictError) as e:
+            raise PromptFailed(e)
 
     def follow(self, upstream_application_name, notification_log):
         # Create a reader.

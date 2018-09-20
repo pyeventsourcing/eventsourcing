@@ -9,7 +9,7 @@ from eventsourcing.domain.model.command import Command
 from eventsourcing.domain.model.events import EventHandlersNotEmptyError, assert_event_handlers_empty, \
     clear_event_handlers, subscribe, unsubscribe
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
+from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed, OperationalError
 from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import json_loads
 
@@ -203,7 +203,7 @@ class TestProcess(TestCase):
         )
 
         def raise_exception(_):
-            raise Exception()
+            raise OperationalError()
 
         def raise_prompt_failed(_):
             raise PromptFailed()

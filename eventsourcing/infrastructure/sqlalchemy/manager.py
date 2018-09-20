@@ -105,8 +105,6 @@ class SQLAlchemyRecordManager(SQLRecordManager):
                         else:
                             params['pipeline_id'] = self.pipeline_id
 
-                # print("Recording event with pipeline ID {}".format(params['pipeline_id']))
-
                 if hasattr(record, 'causal_dependencies'):
                     params['causal_dependencies'] = record.causal_dependencies
 
@@ -116,26 +114,18 @@ class SQLAlchemyRecordManager(SQLRecordManager):
             # Don't bother if there is nothing to write.
             return
 
-        # if tracking_kwargs:
-        #     tracking_msg = str(id(self)) + (
-        #         " {pipeline_id}:{notification_id} {application_name} <- {upstream_application_name}"
-        #     ).format(**tracking_kwargs)
-        # else:
-        #     tracking_msg = ''
         try:
 
             with self.session.bind.begin() as connection:
                 if tracking_kwargs:
                     # Insert tracking record.
                     connection.execute(self.insert_tracking_record, **tracking_kwargs)
-                    # print("Inserted tracking:  {}".format(tracking_msg))
 
                 if all_params:
+                    # Bulk insert event records.
                     connection.execute(statement, all_params)
 
         except IntegrityError as e:
-            # if 'notification_tracking' in str(e):
-            #     print("Failed tracking:    {}: {}".format(tracking_msg, e))
             self.raise_record_integrity_error(e)
 
         except DBAPIError as e:
