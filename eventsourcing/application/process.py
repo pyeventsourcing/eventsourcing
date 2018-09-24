@@ -53,6 +53,7 @@ class ProcessApplication(Pipeable, Application):
         Wraps conflict and operational exceptions in PromptFailed exception
         to avoid retrying errors raised within a nested synchronous prompt.
         """
+
         prompt = Prompt(self.name, self.pipeline_id)
         try:
             publish(prompt)
