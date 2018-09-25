@@ -1,4 +1,5 @@
 from collections import OrderedDict, defaultdict
+from threading import Lock
 
 from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.simple import Application
@@ -28,6 +29,7 @@ class ProcessApplication(Pipeable, Application):
         self.readers = OrderedDict()
         self.is_reader_position_ok = defaultdict(bool)
         self._notification_generators = {}
+        self._policy_lock = Lock()
         super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
 
         subscribe(self.run, self.is_upstream_prompt)
@@ -86,89 +88,90 @@ class ProcessApplication(Pipeable, Application):
 
             reader = self.readers[upstream_name]
             while True:
-                # Get notification generator.
-                generator = self.get_notification_generator(upstream_name, advance_by)
-                try:
-                    notification = next(generator)
-                except StopIteration:
-                    self.del_notification_generator(upstream_name)
-                    break
+                with self._policy_lock:
+                    # Get notification generator.
+                    generator = self.get_notification_generator(upstream_name, advance_by)
+                    try:
+                        notification = next(generator)
+                    except StopIteration:
+                        self.del_notification_generator(upstream_name)
+                        break
 
-                notification_count += 1
+                    notification_count += 1
 
-                # Get domain event from notification.
-                event = self.event_store.sequenced_item_mapper.from_topic_and_data(
-                    topic=notification['event_type'],
-                    data=notification['state']
-                )
-
-                # Decode causal dependencies of the domain event.
-                causal_dependencies = notification.get('causal_dependencies') or '[]'
-                causal_dependencies = json_loads(causal_dependencies) or []
-
-                # Check causal dependencies are satisfied.
-                for causal_dependency in causal_dependencies:
-                    pipeline_id = causal_dependency['pipeline_id']
-                    notification_id = causal_dependency['notification_id']
-
-                    has_tracking_record = self.event_store.record_manager.has_tracking_record(
-                        upstream_application_name=upstream_name,
-                        pipeline_id=pipeline_id,
-                        notification_id=notification_id
+                    # Get domain event from notification.
+                    event = self.event_store.sequenced_item_mapper.from_topic_and_data(
+                        topic=notification['event_type'],
+                        data=notification['state']
                     )
-                    if not has_tracking_record:
-                        # Invalidate reader position.
+
+                    # Decode causal dependencies of the domain event.
+                    causal_dependencies = notification.get('causal_dependencies') or '[]'
+                    causal_dependencies = json_loads(causal_dependencies) or []
+
+                    # Check causal dependencies are satisfied.
+                    for causal_dependency in causal_dependencies:
+                        pipeline_id = causal_dependency['pipeline_id']
+                        notification_id = causal_dependency['notification_id']
+
+                        has_tracking_record = self.event_store.record_manager.has_tracking_record(
+                            upstream_application_name=upstream_name,
+                            pipeline_id=pipeline_id,
+                            notification_id=notification_id
+                        )
+                        if not has_tracking_record:
+                            # Invalidate reader position.
+                            self.is_reader_position_ok[upstream_name] = False
+
+                            # Raise exception.
+                            raise CausalDependencyFailed({
+                                'application_name': self.name,
+                                'upstream_name': upstream_name,
+                                'pipeline_id': pipeline_id,
+                                'notification_id': notification_id
+                            })
+
+                    # Call policy with the upstream event.
+                    all_aggregates, causal_dependencies = self.call_policy(event)
+
+                    # Collect pending events.
+                    new_events = self.collect_pending_events(all_aggregates)
+
+                    # Record process event.
+                    try:
+                        tracking_kwargs = self.construct_tracking_kwargs(
+                            notification, upstream_name
+                        )
+                        process_event = ProcessEvent(
+                            new_events, tracking_kwargs, causal_dependencies
+                        )
+                        self.record_process_event(process_event)
+
+                        # Todo: Maybe write one tracking record at the end of a run, if
+                        # necessary, or only during a period of time when nothing happens?
+                    except Exception as exc:
+                        # Need to invalidate reader position, so it is refreshed.
                         self.is_reader_position_ok[upstream_name] = False
 
-                        # Raise exception.
-                        raise CausalDependencyFailed({
-                            'application_name': self.name,
-                            'upstream_name': upstream_name,
-                            'pipeline_id': pipeline_id,
-                            'notification_id': notification_id
-                        })
+                        # Need to purge from the cache relevant entities that
+                        # have evolved their state past what has been recorded,
+                        # otherwise strange errors (about version mismatches, or
+                        # when identifying causal dependencies) can arise.
+                        if self.repository._cache:
+                            originator_ids = set([event.originator_id for event in new_events])
+                            for originator_id in originator_ids:
+                                try:
+                                    del self.repository._cache[originator_id]
+                                except KeyError:
+                                    pass
+                        raise exc
 
-                # Call policy with the upstream event.
-                all_aggregates, causal_dependencies = self.call_policy(event)
+                self.take_snapshots(new_events)
 
-                # Collect pending events.
-                new_events = self.collect_pending_events(all_aggregates)
-
-                # Record process event.
-                try:
-                    tracking_kwargs = self.construct_tracking_kwargs(
-                        notification, upstream_name
-                    )
-                    process_event = ProcessEvent(
-                        new_events, tracking_kwargs, causal_dependencies
-                    )
-                    self.record_process_event(process_event)
-
-                    # Todo: Maybe write one tracking record at the end of a run, if
-                    # necessary, or only during a period of time when nothing happens?
-                except Exception as exc:
-                    # Need to invalidate reader position, so it is refreshed.
-                    self.is_reader_position_ok[upstream_name] = False
-
-                    # Need to purge from the cache relevant entities that
-                    # have evolved their state past what has been recorded,
-                    # otherwise strange errors (about version mismatches, or
-                    # when identifying causal dependencies) can arise.
-                    if self.repository._cache:
-                        originator_ids = set([event.originator_id for event in new_events])
-                        for originator_id in originator_ids:
-                            try:
-                                del self.repository._cache[originator_id]
-                            except KeyError:
-                                pass
-                    raise exc
-                else:
-                    # Publish a prompt if there are new notifications.
-                    # Todo: Optionally send events as prompts, saves pulling event if it arrives in order.
-                    self.take_snapshots(new_events)
-
-                    if any([event.__notifiable__ for event in new_events]):
-                        self.publish_prompt()
+                # Publish a prompt if there are new notifications.
+                # Todo: Optionally send events as prompts, saves pulling event if it arrives in order.
+                if any([event.__notifiable__ for event in new_events]):
+                    self.publish_prompt()
 
         return notification_count
 
