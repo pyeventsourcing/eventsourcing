@@ -31,7 +31,7 @@ cassandra_requires = [
 ]
 
 django_requires = [  # Note, Django 2 doesn't support Python 2.7
-    'django>=1.11,<=2.0.99999' if str != bytes else 'django>=1.11,<=1.11.99999',
+    'django>=1.11,<=2.1.99999' if str != bytes else 'django>=1.11,<=1.11.99999',
 ]
 
 testing_requires = [
