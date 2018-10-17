@@ -1,12 +1,13 @@
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.application.sqlalchemy import CommandProcess, ProcessApplication, ProcessApplicationWithSnapshotting
-from eventsourcing.application.process import RepositoryWrapper
-from eventsourcing.domain.model.aggregate import BaseAggregateRoot, AggregateRoot
+from eventsourcing.application.command import CommandProcess
+from eventsourcing.application.process import ProcessApplication, ProcessApplicationWithSnapshotting, RepositoryWrapper
+from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
+from eventsourcing.domain.model.aggregate import AggregateRoot, BaseAggregateRoot
 from eventsourcing.domain.model.command import Command
-from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe, \
-    EventHandlersNotEmptyError, clear_event_handlers
+from eventsourcing.domain.model.events import EventHandlersNotEmptyError, assert_event_handlers_empty, \
+    clear_event_handlers, subscribe, unsubscribe
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.utils.topic import resolve_topic
@@ -14,16 +15,17 @@ from eventsourcing.utils.transcoding import json_loads
 
 
 class TestProcess(TestCase):
+    process_class = SQLAlchemyApplication
 
     def test_process_with_example_policy(self):
         # Construct example process.
-        with ProcessApplication(
+        process_class = ProcessApplication.mixin(self.process_class)
+        with process_class(
             name='test',
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
             setup_table=True,
-        ) as  process:
-
+        ) as process:
             # Make the process follow itself.
             process.follow('test', process.notification_log)
 
@@ -50,14 +52,13 @@ class TestProcess(TestCase):
 
     def test_process_application_with_snapshotting(self):
         # Construct example process.
-        with ProcessApplicationWithSnapshotting(
+        with ProcessApplicationWithSnapshotting.mixin(self.process_class)(
             name='test',
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
             setup_table=True,
             snapshot_period=2,
         ) as process:
-
             # Make the process follow itself.
             process.follow('test', process.notification_log)
 
@@ -86,20 +87,26 @@ class TestProcess(TestCase):
         pipeline_id2 = 1
 
         # Create two events, one has causal dependency on the other.
-        core1 = ProcessApplication(
+        process_class = ProcessApplication.mixin(self.process_class)
+        core1 = process_class(
             name='core',
             # persist_event_type=ExampleAggregate.Created,
             persist_event_type=BaseAggregateRoot.Event,
             setup_table=True,
             pipeline_id=pipeline_id1,
         )
+        core1.use_causal_dependencies = True
 
-        core2 = ProcessApplication(
+        # Needed for SQLAlchemy only.
+        kwargs = {'session': core1.session} if hasattr(core1, 'session') else {}
+
+        core2 = process_class(
             name='core',
             pipeline_id=pipeline_id2,
             policy=example_policy,
-            session=core1.session
+            **kwargs
         )
+        core2.use_causal_dependencies = True
 
         # First event in pipeline 1.
         aggregate = ExampleAggregate.__create__()
@@ -132,7 +139,7 @@ class TestProcess(TestCase):
 
         # Check the causal dependencies have been constructed.
         # - the first 'Created' event doesn't have an causal dependencies
-        self.assertEqual(None, aggregate_records[0].causal_dependencies)
+        self.assertFalse(aggregate_records[0].causal_dependencies)
 
         # - the second 'Created' event depends on the Created event in another pipeline.
         expect = [{
@@ -145,21 +152,21 @@ class TestProcess(TestCase):
 
         # - the 'AttributeChanged' event depends on the second Created,
         # which is in the same pipeline, so expect no causal dependencies.
-        self.assertEqual(None, aggregate_records[1].causal_dependencies)
+        self.assertFalse(aggregate_records[1].causal_dependencies)
 
         # Setup downstream process.
-        downstream1 = ProcessApplication(
+        downstream1 = process_class(
             'downstream',
             pipeline_id=pipeline_id1,
-            session=core1.session,
             policy=event_logging_policy,
+            **kwargs
         )
         downstream1.follow('core', core1.notification_log)
-        downstream2 = ProcessApplication(
+        downstream2 = process_class(
             'downstream',
             pipeline_id=pipeline_id2,
-            session=core1.session,
             policy=event_logging_policy,
+            **kwargs
         )
         downstream2.follow('core', core2.notification_log)
 
@@ -188,7 +195,7 @@ class TestProcess(TestCase):
         downstream2.close()
 
     def test_handle_prompt_failed(self):
-        process = ProcessApplication(
+        process = ProcessApplication.mixin(self.process_class)(
             name='test',
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
@@ -229,6 +236,7 @@ class TestProcess(TestCase):
 
 
 class TestCommands(TestCase):
+    process_class = SQLAlchemyApplication
 
     def test_command_aggregate(self):
         # Create a command.
@@ -246,10 +254,10 @@ class TestCommands(TestCase):
         self.assertIsInstance(pending_events[1], Command.Done)
 
     def test_command_process(self):
-        commands = CommandProcess(
+        commands = CommandProcess.mixin(self.process_class)(
             setup_table=True
         )
-        core = ProcessApplication(
+        core = ProcessApplication.mixin(self.process_class)(
             'core',
             policy=example_policy,
             session=commands.session
@@ -307,7 +315,7 @@ class ExampleAggregate(BaseAggregateRoot):
             aggregate.second_id = self.second_id
 
 
-def example_policy(process, repository, event):
+def example_policy(repository, event):
     # Whenever an aggregate is created, then "move it on".
     if isinstance(event, ExampleAggregate.Created):
         # Get aggregate and move it on.
@@ -341,7 +349,7 @@ class LogMessage(BaseAggregateRoot):
         pass
 
 
-def event_logging_policy(process, repository, event):
+def event_logging_policy(_, event):
     return LogMessage.__create__(uuid4(), message=str(event))
 
 

@@ -4,36 +4,46 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.application.multiprocess import Multiprocess
+from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.application.system import System
 from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
 from eventsourcing.tests.test_process import ExampleAggregate
-from eventsourcing.tests.test_system_fixtures import set_db_uri, Order, Reservation, Payment, create_new_order, Orders, Reservations, Payments, Examples
+from eventsourcing.tests.test_system_fixtures import Examples, Order, Orders, Payment, Payments, Reservation, \
+    Reservations, create_new_order, set_db_uri
 
 
 class TestSystem(TestCase):
 
+    infrastructure_class = SQLAlchemyApplication
+
     def test_singlethreaded_multiapp_system(self):
-        system = System(
-            Orders | Reservations | Orders,
-            Orders | Payments | Orders,
-            setup_tables=True
-        )
+        system = System(Orders | Reservations | Orders,
+                        Orders | Payments | Orders,
+                        setup_tables=True,
+                        infrastructure_class=self.infrastructure_class
+                        )
 
         with system:
             # Create new Order aggregate.
             order_id = create_new_order()
 
             # Check the order is reserved and paid.
-            repository = system.orders.repository
+            repository = system.processes['orders'].repository
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
     def test_multiprocessing_singleapp_system(self):
-        system = System(Examples | Examples, setup_tables=True)
 
-        set_db_uri()
+        system = System(Examples | Examples,
+                        setup_tables=True,
+                        infrastructure_class=self.infrastructure_class)
 
-        with Examples() as app, Multiprocess(system):
+        self.set_db_uri()
+
+        self.close_connections_before_forking()
+
+        with Multiprocess(system), system.construct_app(Examples) as app:
+
             aggregate = ExampleAggregate.__create__()
             aggregate.__save__()
 
@@ -48,28 +58,26 @@ class TestSystem(TestCase):
                 assert retries, "Failed to move"
 
     def test_multiprocessing_multiapp_system(self):
-
-        set_db_uri()
-
-        with Orders(setup_table=True) as app:
-            # Create a new order.
-            order_id = create_new_order()
-
-            # Check new order exists in the repository.
-            assert order_id in app.repository
-
         system = System(
             Orders | Reservations | Orders,
             Orders | Payments | Orders,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class
         )
 
-        multiprocess = Multiprocess(system)
+        self.set_db_uri()
 
-        # Start multiprocessing system.
-        with multiprocess:
+        with system.construct_app(Orders) as app:
+            # Create a new order.
+            order_id = create_new_order()
+            # Check new order exists in the repository.
+            assert order_id in app.repository
 
-            with Orders() as app:
+        self.close_connections_before_forking()
 
+        with Multiprocess(system):
+
+            with system.construct_app(Orders) as app:
                 retries = 50
                 while not app.repository[order_id].is_reserved:
                     time.sleep(0.1)
@@ -81,16 +89,20 @@ class TestSystem(TestCase):
                     retries -= 1
                     assert retries, "Failed set order.is_paid"
 
+    def set_db_uri(self):
+        set_db_uri()
+
     def test_multipipeline_multiprocessing_multiapp(self):
 
-        set_db_uri()
+        self.set_db_uri()
 
         system = System(
             (Orders, Reservations, Orders, Payments, Orders),
-            setup_tables=True
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class
         )
 
-        num_pipelines = 3
+        num_pipelines = 2
 
         pipeline_ids = range(num_pipelines)
 
@@ -99,8 +111,10 @@ class TestSystem(TestCase):
         num_orders_per_pipeline = 5
         order_ids = []
 
+        self.close_connections_before_forking()
+
         # Start multiprocessing system.
-        with multiprocess, Orders(setup_table=True) as orders:
+        with multiprocess, system.construct_app(Orders) as orders:
 
             # Create some new orders.
             for _ in range(num_orders_per_pipeline):
@@ -144,6 +158,10 @@ class TestSystem(TestCase):
             print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
             print("Max order processing time: {:.3f}s".format(max(durations)))
 
+    def close_connections_before_forking(self):
+        # Used for closing Django connection before multiprocessing module forks the OS process.
+        pass
+
     def test_payments_policy(self):
         # Prepare fake repository with a real Order aggregate.
         order = Order.__create__()
@@ -152,10 +170,9 @@ class TestSystem(TestCase):
         # Check policy makes payment whenever order is reserved.
         event = Order.Reserved(originator_id=order.id, originator_version=1)
 
-        with Payments() as process:
-            payment = process.policy(repository=fake_repository, event=event)
-            assert isinstance(payment, Payment), payment
-            assert payment.order_id == order.id
+        payment = Payments.policy(repository=fake_repository, event=event)
+        assert isinstance(payment, Payment), payment
+        assert payment.order_id == order.id
 
     def test_orders_policy(self):
         # Prepare fake repository with a real Order aggregate.
@@ -166,9 +183,8 @@ class TestSystem(TestCase):
         assert not order.is_reserved
 
         # Reservation created.
-        with Orders() as process:
-            event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
-            process.policy(repository=fake_repository, event=event)
+        event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
+        Orders.policy(repository=fake_repository, event=event)
 
         # Check order is reserved.
         assert order.is_reserved
@@ -180,8 +196,3 @@ class TestSystem(TestCase):
             del (os.environ['DB_URI'])
         except KeyError:
             pass
-
-
-# Second example - orders, reservations, payments.
-
-

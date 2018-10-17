@@ -5,6 +5,9 @@ from eventsourcing.tests.base import AbstractTestCase
 
 
 class AbstractDatastoreTestCase(AbstractTestCase):
+    """
+    Base class for test cases that use a datastore.
+    """
     infrastructure_factory_class = None
     contiguous_record_ids = False
 
@@ -45,6 +48,9 @@ class AbstractDatastoreTestCase(AbstractTestCase):
 
 
 class DatastoreTestCase(AbstractDatastoreTestCase):
+    """
+    Test case for datastore objects.
+    """
     def test(self):
 
         # # Check the stored event class doesn't function before the connection is setup.

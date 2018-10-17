@@ -184,7 +184,7 @@ which gives "exactly once" processing.
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import SimpleApplication
+    from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
     from eventsourcing.exceptions import ConcurrencyError
     from eventsourcing.domain.model.aggregate import AggregateRoot
     from eventsourcing.interface.notificationlog import NotificationLogReader, RecordManagerNotificationLog
@@ -200,15 +200,19 @@ which gives "exactly once" processing.
 
         def pull(self):
             for notification in self.reader.read():
-                record = self.manager.record_class(**notification)
+                notification_id = notification.pop('id')
+                record = self.manager.record_class(
+                    notification_id=notification_id,
+                    **notification
+                )
                 self.manager.write_records([record])
 
 
     # Construct original application.
-    original = SimpleApplication(persist_event_type=AggregateRoot.Event)
+    original = SQLAlchemyApplication(persist_event_type=AggregateRoot.Event)
 
     # Construct replica application.
-    replica = SimpleApplication()
+    replica = SQLAlchemyApplication()
 
     # Construct replicator.
     replicator = RecordReplicator(
@@ -356,11 +360,6 @@ notification log even when the notification doesn't imply a real entry in the in
 
     import uuid
 
-    from eventsourcing.application.sqlalchemy import SimpleApplication
-    from eventsourcing.exceptions import ConcurrencyError
-    from eventsourcing.domain.model.aggregate import AggregateRoot
-    from eventsourcing.interface.notificationlog import NotificationLogReader, RecordManagerNotificationLog
-
     # Define domain model.
     class User(AggregateRoot):
         def __init__(self, *arg, **kwargs):
@@ -478,10 +477,10 @@ notification log even when the notification doesn't imply a real entry in the in
 
 
     # Construct original application.
-    original = SimpleApplication(persist_event_type=User.Event)
+    original = SQLAlchemyApplication(persist_event_type=User.Event)
 
     # Construct index application.
-    index = SimpleApplication(persist_event_type=IndexItem.Event)
+    index = SQLAlchemyApplication(persist_event_type=IndexItem.Event)
 
     # Setup event driven indexing.
     indexer = Indexer(

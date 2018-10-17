@@ -116,11 +116,11 @@ application-level encryption.
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import SimpleApplication
+    from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
     from eventsourcing.exceptions import ConcurrencyError
 
     # Construct simple application (used here as a context manager).
-    with SimpleApplication(persist_event_type=World.Event) as app:
+    with SQLAlchemyApplication(persist_event_type=World.Event) as app:
 
         # Call library factory method.
         world = World.__create__(ruler='gods')

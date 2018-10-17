@@ -33,18 +33,19 @@ from the library.
 Application
 ===========
 
-The library class :class:`~eventsourcing.application.simple.ApplicationWithSnapshotting`,
-extends :class:`~eventsourcing.application.simple.SimpleApplication` by setting up
-infrastructure for snapshotting, such as a snapshot store, a dedicated table for
-snapshots, and a policy to take snapshots every so many events. It is recommended not
-to co-mingle saved snapshots with the entity event sequence. It can also make sense to
-use a completely separate table for snapshot records, especially if the table of domain
-events is also being used as application log (e.g. it has an auto-incrementing integer
-primary key column).
+The library class :class:`~eventsourcing.application.simple.SnapshottingApplication`,
+extends :class:`~eventsourcing.application.simple.Application` by setting up
+the application for snapshotting with a snapshot store, a dedicated table for
+snapshots, and a policy to take snapshots every so many events. A separate
+table is used for snapshot records.
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import ApplicationWithSnapshotting
+    from eventsourcing.application.snapshotting import SnapshottingApplication
+    from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
+
+    class MyApplication(SQLAlchemyApplication, SnapshottingApplication):
+        pass
 
 
 Run the code
@@ -55,7 +56,7 @@ events.
 
 .. code:: python
 
-    with ApplicationWithSnapshotting(snapshot_period=2, persist_event_type=Example.Event) as app:
+    with MyApplication(snapshot_period=2, persist_event_type=Example.Event) as app:
 
         # Create an entity.
         entity = create_new_example(foo='bar1')

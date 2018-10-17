@@ -52,7 +52,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
             originator_id=entity_id1,
             originator_topic=get_topic(Example)
         )
-        event_store.append(event1)
+        event_store.store(event1)
 
         # Check there is one event in the event store.
         entity_events = event_store.get_domain_events(originator_id=entity_id1)
@@ -70,7 +70,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
             originator_id=entity_id1,
             originator_version=1,
         )
-        event_store.append(event1)
+        event_store.store(event1)
 
         # Check there are two events in the event store.
         entity_events = event_store.get_domain_events(originator_id=entity_id1)
@@ -97,7 +97,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
             originator_id=entity_id1,
             originator_topic=get_topic(Example),
         )
-        event_store.append(event1)
+        event_store.store(event1)
 
         # Check there is an event.
         entity_event = event_store.get_most_recent_event(originator_id=entity_id1)
@@ -120,7 +120,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
             originator_topic=get_topic(Example)
 
         )
-        event_store.append(event1)
+        event_store.store(event1)
 
         # Store another domain event for the same entity.
         event1 = Example.AttributeChanged(
@@ -129,7 +129,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
             originator_version=1,
             __previous_hash__=event1.__event_hash__,
         )
-        event_store.append(event1)
+        event_store.store(event1)
 
         # Store a domain event for a different entity.
         entity_id2 = uuid4()
@@ -138,7 +138,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
             originator_id=entity_id2,
             a=1, b=2,
         )
-        event_store.append(event1)
+        event_store.store(event1)
 
         # Check there are three domain events in total.
         domain_events = event_store.all_domain_events()

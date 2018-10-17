@@ -319,8 +319,9 @@ class EventHandlersNotEmptyError(Exception):
 
 
 def assert_event_handlers_empty():
-    if len(_event_handlers):
-        msg = "Event handlers are still subscribed: %s" % _event_handlers
+    len_event_handlers = len(_event_handlers)
+    if len_event_handlers:
+        msg = "%d event handlers are still subscribed: %s" % (len_event_handlers, _event_handlers)
         raise EventHandlersNotEmptyError(msg)
 
 

@@ -6,16 +6,16 @@ from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.repositories.array import BigArrayRepository
 from eventsourcing.interface.notificationlog import BigArrayNotificationLog, NotificationLogReader, \
     NotificationLogView, RecordManagerNotificationLog, RemoteNotificationLog
-from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
+from eventsourcing.tests.sequenced_item_tests.base import WithEventPersistence
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    WithSQLAlchemyRecordManagers
+    SQLAlchemyRecordManagerTestCase
 from eventsourcing.utils.topic import get_topic
 
 
-class NotificationLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
+class NotificationLogTestCase(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
 
     def assert_section(self, repo, requested_id, expected_id, expected_len_items, expected_previous_id,
                        expected_next_id):
@@ -43,7 +43,7 @@ class NotificationLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolic
             get_topic(DomainEvent),
             item
         )
-        self.entity_record_manager.append(sequenced_item)
+        self.entity_record_manager.record(sequenced_item)
 
 
 class TestNotificationLog(NotificationLogTestCase):

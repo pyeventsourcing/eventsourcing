@@ -356,7 +356,7 @@ library ``Command`` class. The ``Command`` class extends the ``AggregateRoot`` c
 with a method ``done()`` and a property ``is_done``.
 
 The ``CreateNewOrder`` class extends the library's ``Command`` class with an event
-sourced ``order_id`` attribute, which will be used to associate the commands objets
+sourced ``order_id`` attribute, which will be used to associate the command's objects
 with the orders created by the system in response.
 
 .. code:: python
@@ -424,7 +424,7 @@ by setting an ``Order`` as paid.
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import ProcessApplicationWithSnapshotting as ProcessApplication
+    from eventsourcing.application.process import ProcessApplication
     from eventsourcing.utils.topic import resolve_topic
 
 
@@ -479,8 +479,7 @@ responds to ``Order.Paid`` events by setting the command as done.
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import CommandProcess
-    #from eventsourcing.application.django import CommandProcess
+    from eventsourcing.application.command import CommandProcess
     from eventsourcing.domain.model.decorators import retry
     from eventsourcing.exceptions import OperationalError, RecordConflictError
 
@@ -529,6 +528,8 @@ rather than coding `test doubles <https://martinfowler.com/bliki/TestDouble.html
 
 .. code:: python
 
+    from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
+
     def test_orders_policy():
         # Prepare repository with a real Order aggregate.
         order = Order.__create__(command_id=None)
@@ -538,7 +539,7 @@ rather than coding `test doubles <https://martinfowler.com/bliki/TestDouble.html
         assert not order.is_reserved
 
         # Process reservation created.
-        with Orders() as orders:
+        with Orders.mixin(SQLAlchemyApplication)() as orders:
             event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
             orders.policy(repository=repository, event=event)
 
@@ -560,7 +561,7 @@ In the payments policy test below, a new payment is created because an order was
         repository = {order.id: order}
 
         # Check payment is created whenever order is reserved.
-        with Payments() as payments:
+        with Payments.mixin(SQLAlchemyApplication)() as payments:
             event = Order.Reserved(originator_id=order.id, originator_version=1)
             payment = payments.policy(repository=repository, event=event)
 
@@ -628,7 +629,8 @@ The orders-reservations-payments system can be defined using these pipeline expr
     system = System(
         commands_pipeline,
         reservations_pipeline,
-        payments_pipeline
+        payments_pipeline,
+        infrastructure_class=SQLAlchemyApplication
     )
 
 This is equivalent to a system defined with the following single pipeline expression.
@@ -636,7 +638,8 @@ This is equivalent to a system defined with the following single pipeline expres
 .. code:: python
 
     system = System(
-        Commands | Orders | Reservations | Orders | Payments | Orders | Commands
+        Commands | Orders | Reservations | Orders | Payments | Orders | Commands,
+        infrastructure_class=SQLAlchemyApplication
     )
 
 Although a process application class can appear many times in the pipeline
@@ -684,26 +687,26 @@ in-memory SQLite database.
 
     with system:
         # Create new order command.
-        cmd_id = system.commands.create_new_order()
+        cmd_id = system.processes['commands'].create_new_order()
 
         # Check the command has an order ID and is done.
-        cmd = system.commands.repository[cmd_id]
+        cmd = system.processes['commands'].repository[cmd_id]
         assert cmd.order_id
         assert cmd.is_done
 
         # Check the order is reserved and paid.
-        order = system.orders.repository[cmd.order_id]
+        order = system.processes['orders'].repository[cmd.order_id]
         assert order.is_reserved
         assert order.is_paid
 
         # Check the reservation exists.
-        reservation = system.reservations.repository[order.reservation_id]
+        reservation = system.processes['reservations'].repository[order.reservation_id]
 
         # Check the payment exists.
-        payment = system.payments.repository[order.payment_id]
+        payment = system.processes['payments'].repository[order.payment_id]
 
 Basically, given the system is running, when a "create new order" command is
-created, then the command is done, and an order has been both reservered and paid.
+created, then the command is done, and an order has been both reserved and paid.
 
 Everything happens synchronously, in a single thread, so that by the time
 ``create_new_order()`` has returned, the system has already processed the
@@ -773,7 +776,7 @@ Because the system isn't yet running, the command remains unprocessed.
 .. code:: python
 
 
-    with Commands(setup_table=True) as commands:
+    with Commands.mixin(SQLAlchemyApplication)(setup_table=True) as commands:
 
         # Create a new command.
         cmd_id = commands.create_new_order()
@@ -827,7 +830,7 @@ shortly after the various operating system processes have been started.
         assert repository[cmd_id].is_done
 
     # Process the command.
-    with multiprocessing_system, Commands() as commands:
+    with multiprocessing_system, Commands.mixin(SQLAlchemyApplication)() as commands:
         assert_command_is_done(commands.repository, cmd_id)
 
 The process applications read their upstream notification logs when they start,
@@ -897,7 +900,7 @@ process, which causes orders to be processed by the system.
 
 .. code:: python
 
-    with multiprocessing_system, Commands() as commands:
+    with multiprocessing_system, Commands.mixin(SQLAlchemyApplication)() as commands:
 
         # Create new orders.
         command_ids = []
@@ -990,7 +993,7 @@ The actors will run by sending messages recursively.
 
     actors = Actors(system, pipeline_ids=pipeline_ids)
 
-    with actors, Commands() as commands:
+    with actors, Commands.mixin(SQLAlchemyApplication)() as commands:
 
         # Create new orders.
         command_ids = []

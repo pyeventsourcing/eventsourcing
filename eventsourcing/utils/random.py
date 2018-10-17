@@ -5,13 +5,19 @@ import os
 
 def encode_random_bytes(num_bytes):
     """Generates random bytes, encoded as Base64 unicode string."""
-    return b64encode(random_bytes(num_bytes)).decode('utf-8')
+    return encode_bytes(random_bytes(num_bytes))
 
 
 def random_bytes(num_bytes):
+    """Generates random bytes."""
     return os.urandom(num_bytes)
 
 
-def decode_random_bytes(s):
-    """Returns bytes, decoded from Base64 encoded unicode string."""
+def encode_bytes(bytes):
+    """Encodes bytes as Base64 unicode string."""
+    return b64encode(bytes).decode('utf-8')
+
+
+def decode_bytes(s):
+    """Decodes bytes from Base64 encoded unicode string."""
     return b64decode(s.encode('utf-8'))

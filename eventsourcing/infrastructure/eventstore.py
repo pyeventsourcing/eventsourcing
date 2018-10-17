@@ -16,7 +16,7 @@ class AbstractEventStore(six.with_metaclass(ABCMeta)):
     """
 
     @abstractmethod
-    def append(self, domain_event_or_events):
+    def store(self, domain_event_or_events):
         """
         Put domain event in event store for later retrieval.
         """
@@ -71,7 +71,7 @@ class EventStore(AbstractEventStore):
         self.record_manager = record_manager
         self.sequenced_item_mapper = sequenced_item_mapper
 
-    def append(self, domain_event_or_events):
+    def store(self, domain_event_or_events):
         """
         Appends given domain event, or list of domain events, to their sequence.
 
@@ -83,7 +83,7 @@ class EventStore(AbstractEventStore):
 
         # Append to the sequenced item(s) to the sequence.
         try:
-            self.record_manager.append(sequenced_item_or_items)
+            self.record_manager.record(sequenced_item_or_items)
         except RecordConflictError as e:
             raise ConcurrencyError(e)
 

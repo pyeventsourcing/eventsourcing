@@ -11,14 +11,14 @@ from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.exceptions import ConcurrencyError, OriginatorIDError, OriginatorVersionError, \
     ProgrammingError, RepositoryKeyError
-from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
+from eventsourcing.tests.sequenced_item_tests.base import WithEventPersistence
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import WithCassandraRecordManagers
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import WithSQLAlchemyRecordManagers
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import SQLAlchemyRecordManagerTestCase
 from eventsourcing.utils.times import datetime_from_timestamp
 from eventsourcing.utils.topic import get_topic
 
 
-class TestExampleEntity(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
+class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
         example1 = Example.__create__(a=1, b=2)

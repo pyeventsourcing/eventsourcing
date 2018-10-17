@@ -5,14 +5,24 @@ import six
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
 
+DEFAULT_PIPELINE_ID = 0
+
 
 class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
-    def __init__(self, record_class, sequenced_item_class=SequencedItem, contiguous_record_ids=False,
-                 application_name=None, pipeline_id=-1):
+    def __init__(self, record_class, sequenced_item_class=SequencedItem,
+                 contiguous_record_ids=False, application_name=None,
+                 pipeline_id=DEFAULT_PIPELINE_ID):
         self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
-        self.contiguous_record_ids = contiguous_record_ids and hasattr(self.record_class, 'id')
+
+        self.notification_id_name = ''
+        if hasattr(self.record_class, 'id'):
+            self.notification_id_name = 'id'
+        elif hasattr(self.record_class, 'notification_id'):
+            self.notification_id_name = 'notification_id'
+
+        self.contiguous_record_ids = contiguous_record_ids and self.notification_id_name
         if hasattr(self.record_class, 'application_name'):
             assert application_name, "'application_name' not set when required"
             assert contiguous_record_ids, "'contiguous_record_ids' not set when required"
@@ -21,25 +31,38 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
             assert hasattr(self.record_class, 'application_name'), "'application_name' column not defined"
         self.pipeline_id = pipeline_id
 
+    def clone(self, application_name, pipeline_id, **kwargs):
+        return type(self)(
+            record_class=self.record_class,
+            contiguous_record_ids=self.contiguous_record_ids,
+            sequenced_item_class=self.sequenced_item_class,
+            application_name=application_name,
+            pipeline_id=pipeline_id,
+            **kwargs
+        )
+
     @abstractmethod
-    def append(self, sequenced_item_or_items):
+    def record(self, sequenced_item_or_items):
         """
         Writes sequenced item into the datastore.
         """
 
-    @abstractmethod
     def get_item(self, sequence_id, position):
         """
         Gets sequenced item from the datastore.
         """
+        return self.from_record(self.get_record(sequence_id, position))
 
-    def list_items(self, *args, **kwargs):
-        return list(self.get_items(*args, **kwargs))
+    @abstractmethod
+    def get_record(self, sequence_id, position):
+        """
+        Gets record at position in sequence.
+        """
 
     def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                   query_ascending=True, results_ascending=True):
         """
-        Returns sequenced items.
+        Returns sequenced item generator.
         """
         records = self.get_records(
             sequence_id=sequence_id,
@@ -55,6 +78,12 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
         for item in six.moves.map(self.from_record, records):
             yield item
 
+    def list_items(self, *args, **kwargs):
+        """
+        Returns list of sequenced items.
+        """
+        return list(self.get_items(*args, **kwargs))
+
     @abstractmethod
     def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                     query_ascending=True, results_ascending=True):
@@ -64,11 +93,15 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
 
     def to_record(self, sequenced_item):
         """
-        Constructs and returns an ORM object, from given sequenced item object.
+        Constructs a record object from given sequenced item object.
         """
         kwargs = self.get_field_kwargs(sequenced_item)
+        # Supply application_name, if needed.
         if hasattr(self.record_class, 'application_name'):
             kwargs['application_name'] = self.application_name
+        # Supply pipeline_id, if needed.
+        if hasattr(self.record_class, 'pipeline_id'):
+            kwargs['pipeline_id'] = self.pipeline_id
         return self.record_class(**kwargs)
 
     def from_record(self, record):
@@ -129,23 +162,56 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
         'upstream_application_name',
         'pipeline_id',
         'notification_id',
-        # 'originator_id',
-        # 'originator_version',
     ]
+
+    @abstractmethod
+    def write_records(self, records, tracking_kwargs=None):
+        """
+        Writes tracking, event and notification records for a process event.
+        """
 
     @abstractmethod
     def get_max_record_id(self):
         """Return maximum notification ID in pipeline."""
 
+    @abstractmethod
+    def get_max_tracking_record_id(self, upstream_application_name):
+        """Return maximum tracking record ID for notification from upstream application in pipeline."""
 
-class RelationalRecordManager(ACIDRecordManager):
+    @abstractmethod
+    def has_tracking_record(self, upstream_application_name, pipeline_id, notification_id):
+        """
+        True if tracking record exists for notification from upstream in pipeline.
+        """
+
+    def get_pipeline_and_notification_id(self, sequence_id, position):
+        """
+        Returns pipeline ID and notification ID for
+        event at given position in given sequence.
+        """
+        # Todo: Optimise query by selecting only two columns, pipeline_id and id (notification ID)?
+        record = self.get_record(sequence_id, position)
+        notification_id = getattr(record, self.notification_id_name)
+        return record.pipeline_id, notification_id
+
+
+class SQLRecordManager(ACIDRecordManager):
+    """
+    This is has code common to (extracted from) the SQLAlchemy and Django record managers.
+
+    This makes the subclasses harder to read and probably more brittle. So it might be better
+    to inline this with the subclasses, so that each looks more like normal Django or SQLAlchemy
+    code. Also, the record manager test cases don't cover the notification log and tracking record
+    functionality needed by ProcessApplication, and should so that other record managers can more
+    easily be developed.
+    """
     def __init__(self, *args, **kwargs):
-        super(RelationalRecordManager, self).__init__(*args, **kwargs)
+        super(SQLRecordManager, self).__init__(*args, **kwargs)
         self._insert_select_max = None
         self._insert_values = None
         self._insert_tracking_record = None
 
-    def append(self, sequenced_item_or_items):
+    def record(self, sequenced_item_or_items):
         # Convert sequenced item(s) to database record(s).
         records = self.to_records(sequenced_item_or_items)
 
@@ -159,12 +225,6 @@ class RelationalRecordManager(ACIDRecordManager):
             records = [self.to_record(sequenced_item_or_items)]
         return records
 
-    def write_records(self, records, tracking_kwargs=None):
-        """
-        Creates records in the database.
-        :param tracking_kwargs:
-        """
-
     @property
     def insert_select_max(self):
         """
@@ -173,9 +233,9 @@ class RelationalRecordManager(ACIDRecordManager):
         """
         if self._insert_select_max is None:
             if hasattr(self.record_class, 'application_name'):
-                # Todo: Maybe make it support application_name with pipeline_id?
-                assert hasattr(self.record_class, 'pipeline_id')
-                tmpl = self._insert_select_max_where_application_name_tmpl
+                # Todo: Maybe make it support application_name without pipeline_id?
+                assert hasattr(self.record_class, 'pipeline_id'), self.record_class
+                tmpl = self._insert_select_max_tmpl + self._where_application_name_tmpl
             else:
                 tmpl = self._insert_select_max_tmpl
             self._insert_select_max = self._prepare_insert(
@@ -192,16 +252,12 @@ class RelationalRecordManager(ACIDRecordManager):
         """
 
     _insert_select_max_tmpl = (
-        "INSERT INTO {tablename} (id, {columns}) "
-        "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
-        "FROM {tablename};"
+        "INSERT INTO {tablename} ({notification_id}, {columns}) "
+        "SELECT COALESCE(MAX({tablename}.{notification_id}), 0) + 1, {placeholders} "
+        "FROM ""{tablename}"
     )
 
-    _insert_select_max_where_application_name_tmpl = (
-        "INSERT INTO {tablename} (id, {columns}) "
-        "SELECT COALESCE(MAX({tablename}.id), 0) + 1, {placeholders} "
-        "FROM {tablename} WHERE application_name=:application_name AND pipeline_id=:pipeline_id;"
-    )
+    _where_application_name_tmpl = None
 
     @property
     def insert_values(self):
@@ -243,25 +299,3 @@ class RelationalRecordManager(ACIDRecordManager):
 
         :rtype: str
         """
-
-    def clone(self, application_name, pipeline_id, **kwargs):
-        return type(self)(
-            record_class=self.record_class,
-            contiguous_record_ids=self.contiguous_record_ids,
-            sequenced_item_class=self.sequenced_item_class,
-            application_name=application_name,
-            pipeline_id=pipeline_id,
-            **kwargs
-        )
-
-
-class AbstractTrackingRecordManager(six.with_metaclass(ABCMeta)):
-
-    @property
-    @abstractmethod
-    def record_class(self):
-        """Returns tracking record class."""
-
-    @abstractmethod
-    def get_max_record_id(self, application_name, upstream_application_name, pipeline_id):
-        """Returns maximum record ID for given application name."""

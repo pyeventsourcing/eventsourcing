@@ -302,19 +302,19 @@ take more time to encrypt plaintext, but produce more secure ciphertext.
 Generating and storing a secure key requires functionality beyond the scope of this library.
 However, the utils package does contain a function ``encode_random_bytes()`` that may help
 to generate a unicode key string, representing random bytes encoded with Base64. A companion
-function ``decode_random_bytes()`` decodes the unicode key string into a sequence of bytes.
+function ``decode_bytes()`` decodes the unicode key string into a sequence of bytes.
 
 
 .. code:: python
 
     from eventsourcing.utils.cipher.aes import AESCipher
-    from eventsourcing.utils.random import encode_random_bytes, decode_random_bytes
+    from eventsourcing.utils.random import encode_random_bytes, decode_bytes
 
     # Unicode string representing 256 random bits encoded with Base64.
     cipher_key = encode_random_bytes(num_bytes=32)
 
     # Construct AES-256 cipher.
-    cipher = AESCipher(cipher_key=decode_random_bytes(cipher_key))
+    cipher = AESCipher(cipher_key=decode_bytes(cipher_key))
 
     # Encrypt some plaintext (using nonce arguments).
     ciphertext = cipher.encrypt('plaintext')
@@ -363,13 +363,13 @@ Record managers
 
 The event store uses a record manager to write sequenced items to database records.
 
-The library has an abstract base class ``AbstractActiveRecordManager`` with abstract methods ``append()`` and
-``get_items()``, which can be used on concrete implementations to read and write sequenced items in a
-database.
+The library has an abstract base class ``AbstractActiveRecordManager`` with abstract
+methods ``record()`` and ``get_items()``, which can be used on concrete implementations
+to read and write sequenced items in a database.
 
 A record manager is constructed with a ``sequenced_item_class`` and a matching
-``record_class``. The field names of a suitable record class will match the field names of the
-sequenced item named tuple.
+``record_class``. The field names of a suitable record class will match the field
+names of the sequenced item named tuple.
 
 
 SQLAlchemy
@@ -466,7 +466,7 @@ using the ``append()`` method of the record manager.
 
 .. code:: python
 
-    record_manager.append(stored_event1)
+    record_manager.record(stored_event1)
 
 
 (Please note, since the position is given by the sequenced item itself, the word "append" means here "to add something
@@ -677,13 +677,14 @@ can be used to store events using the Django ORM.
     django_record_manager = DjangoRecordManager(
         record_class=StoredEventRecord,
         sequenced_item_class=StoredEvent,
-        contiguous_record_ids=True
+        contiguous_record_ids=True,
+        application_name='demo',
     )
 
     results = django_record_manager.list_items(aggregate1)
     assert len(results) == 0
 
-    django_record_manager.append(stored_event1)
+    django_record_manager.record(stored_event1)
 
     results = django_record_manager.list_items(aggregate1)
     assert results[0] == stored_event1
@@ -815,7 +816,7 @@ and used to store events using Apache Cassandra.
     results = cassandra_record_manager.list_items(aggregate1)
     assert len(results) == 0
 
-    cassandra_record_manager.append(stored_event1)
+    cassandra_record_manager.record(stored_event1)
 
     results = cassandra_record_manager.list_items(aggregate1)
     assert results[0] == stored_event1
@@ -837,7 +838,7 @@ to append two items at the same position in the same sequence. If such an attemp
 
     # Fail to append an item at the same position in the same sequence as a previous item.
     try:
-        record_manager.append(stored_event1)
+        record_manager.record(stored_event1)
     except RecordConflictError:
         pass
     else:
@@ -877,15 +878,15 @@ record manager, both are discussed in detail in the sections above.
     )
 
 
-The event store's ``append()`` method can append a domain event to its sequence. The event store uses the
+The event store's ``store()`` method can store a domain event in its sequence. The event store uses the
 ``sequenced_item_mapper`` to obtain a sequenced item named tuple from a domain events, and it uses the
-``record_manager`` to write a sequenced item to a database.
+``record_manager`` to record a sequenced item in the database.
 
 In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at position ``1``.
 
 .. code:: python
 
-    event_store.append(
+    event_store.store(
         DomainEvent(
             originator_id=aggregate1,
             originator_version=1,
@@ -894,9 +895,10 @@ In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at p
     )
 
 
-The event store's method ``get_domain_events()`` is used to retrieve events that have previously been appended.
-The event store uses the ``record_manager`` to read the sequenced items from a database, and it
-uses the ``sequenced_item_mapper`` to obtain domain events from the sequenced items.
+The event store's method ``get_domain_events()`` is used to get events that have previously
+been stored. The event store uses the ``record_manager`` to get the sequenced items from
+database records, and it uses the ``sequenced_item_mapper`` to obtain domain events from
+the sequenced items.
 
 
 .. code:: python
@@ -968,7 +970,7 @@ single thread wouldn't attempt to append an event that it had already successful
 
     # Fail to append an event at the same position in the same sequence as a previous event.
     try:
-        event_store.append(
+        event_store.store(
             DomainEvent(
                 originator_id=aggregate1,
                 originator_version=1,
@@ -984,7 +986,7 @@ single thread wouldn't attempt to append an event that it had already successful
 This feature depends on the behaviour of the record manager's ``append()`` method: the event store will
 raise a ``ConcurrencyError`` if a ``RecordConflictError`` is raised by its record manager.
 
-If a command fails due to a concurrency error, the command can be retried with the lastest state. The ``@retry``
+If a command fails due to a concurrency error, the command can be retried with the latest state. The ``@retry``
 decorator can help code retries on commands.
 
 
@@ -1074,7 +1076,7 @@ record class ``TimestampSequencedRecord``.
     )
 
     # Store the event.
-    timestamped_event_store.append(event)
+    timestamped_event_store.store(event)
 
     # Check the event was stored.
     events = timestamped_event_store.get_domain_events(aggregate_id)

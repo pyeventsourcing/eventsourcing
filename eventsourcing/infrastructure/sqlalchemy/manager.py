@@ -4,12 +4,16 @@ from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import func
 
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.base import AbstractTrackingRecordManager, RelationalRecordManager
+from eventsourcing.infrastructure.base import SQLRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import NotificationTrackingRecord
 
 
-class SQLAlchemyRecordManager(RelationalRecordManager):
+class SQLAlchemyRecordManager(SQLRecordManager):
     tracking_record_class = NotificationTrackingRecord
+
+    _where_application_name_tmpl = (
+        " WHERE application_name=:application_name AND pipeline_id=:pipeline_id"
+    )
 
     def __init__(self, session, *args, **kwargs):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
@@ -29,13 +33,16 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             field_names.append('pipeline_id')
         if hasattr(record_class, 'causal_dependencies') and 'causal_dependencies' not in field_names:
             field_names.append('causal_dependencies')
-        if hasattr(record_class, 'id') and placeholder_for_id and 'id' not in field_names:
-            field_names.append('id')
+        if self.notification_id_name:
+            if placeholder_for_id:
+                if self.notification_id_name not in field_names:
+                    field_names.append(self.notification_id_name)
 
         statement = text(tmpl.format(
             tablename=self.get_record_table_name(record_class),
             columns=", ".join(field_names),
             placeholders=", ".join([":{}".format(f) for f in field_names]),
+            notification_id=self.notification_id_name
         ))
 
         # Define bind parameters with explicit types taken from record column types.
@@ -53,42 +60,70 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
         return compiled
 
     def write_records(self, records, tracking_kwargs=None):
+        all_params = []
+        statement = None
+        if records:
+            # Prepare to insert event and notification records.
+            statement = self.insert_values
+            if self.notification_id_name:
+                all_ids = set((getattr(r, self.notification_id_name) for r in records))
+                if None in all_ids:
+                    if len(all_ids) > 1:
+                        # Either all or zero records must have IDs.
+                        raise ProgrammingError("Only some records have IDs")
+
+                    elif self.contiguous_record_ids:
+                        # Do an "insert select max" from existing.
+                        statement = self.insert_select_max
+
+                    elif hasattr(self.record_class, 'application_name'):
+                        # Can't allow auto-incrementing ID if table has field
+                        # application_name. We need values and don't have them.
+                        raise ProgrammingError("record ID not set when required")
+
+            for record in records:
+                # Params for stored item itself (e.g. event).
+                params = {
+                    name: getattr(record, name) for name in self.field_names
+                }
+
+                # Params for application partition (bounded context).
+                if hasattr(self.record_class, 'application_name'):
+                    params['application_name'] = self.application_name
+
+                # Params for notification log.
+                if self.notification_id_name:
+                    notification_id = getattr(record, self.notification_id_name)
+                    if notification_id == 'event-not-notifiable':
+                        params[self.notification_id_name] = None
+                    else:
+                        params[self.notification_id_name] = notification_id
+
+                    if hasattr(self.record_class, 'pipeline_id'):
+                        if notification_id == 'event-not-notifiable':
+                            params['pipeline_id'] = None
+                        else:
+                            params['pipeline_id'] = self.pipeline_id
+
+                if hasattr(record, 'causal_dependencies'):
+                    params['causal_dependencies'] = record.causal_dependencies
+
+                all_params.append(params)
+
+        elif not tracking_kwargs:
+            # Don't bother if there is nothing to write.
+            return
+
         try:
+
             with self.session.bind.begin() as connection:
                 if tracking_kwargs:
-                    # Add tracking record to session.
-                    params = {c: tracking_kwargs[c] for c in self.tracking_record_field_names}
-                    connection.execute(self.insert_tracking_record, **params)
+                    # Insert tracking record.
+                    connection.execute(self.insert_tracking_record, **tracking_kwargs)
 
-                for record in records:
-
-                    params = {c: getattr(record, c) for c in self.field_names}
-                    if hasattr(self.record_class, 'application_name'):
-                        params['application_name'] = self.application_name
-                    if hasattr(self.record_class, 'pipeline_id'):
-                        params['pipeline_id'] = self.pipeline_id
-                    if hasattr(record, 'causal_dependencies'):
-                        params['causal_dependencies'] = record.causal_dependencies
-
-                    statement = self.insert_values
-
-                    if hasattr(self.record_class, 'id'):
-                        if record.id is None and self.contiguous_record_ids:
-                            # Do an "insert select max" from existing.
-                            statement = self.insert_select_max
-                        elif record.id == '':
-                            # Don't want to put this in the notification log.
-                            params['id'] = None
-                            if hasattr(self.record_class, 'pipeline_id'):
-                                params['pipeline_id'] = None
-                        else:
-                            # ID can't be auto-incrementing if table has an application_name.
-                            if hasattr(self.record_class, 'application_name'):
-                                # We need a value and don't have one.
-                                assert record.id, "record ID not set when required"
-                            params['id'] = record.id
-
-                    connection.execute(statement, **params)
+                if all_params:
+                    # Bulk insert event records.
+                    connection.execute(statement, all_params)
 
         except IntegrityError as e:
             self.raise_record_integrity_error(e)
@@ -150,26 +185,19 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
                 query = query.filter(self.record_class.application_name == self.application_name)
             if hasattr(self.record_class, 'pipeline_id'):
                 query = query.filter(self.record_class.pipeline_id == self.pipeline_id)
-            if hasattr(self.record_class, 'id'):
-                query = query.order_by(asc('id'))
+            if self.notification_id_name:
+                query = query.order_by(asc(self.notification_id_name))
                 # NB '+1' because record IDs start from 1.
+                notification_id_col = getattr(self.record_class, self.notification_id_name)
                 if start is not None:
-                    query = query.filter(self.record_class.id >= start + 1)
+                    query = query.filter(notification_id_col >= start + 1)
                 if stop is not None:
-                    query = query.filter(self.record_class.id < stop + 1)
+                    query = query.filter(notification_id_col < stop + 1)
             # Todo: Should some tables with an ID not be ordered by ID?
             # Todo: Which order do other tables have?
             return query.all()
         finally:
             self.session.close()
-
-    def get_item(self, sequence_id, position):
-        return self.from_record(self.get_record(sequence_id, position))
-
-    def get_pipeline_and_notification_id(self, sequence_id, position):
-        # Todo: Optimise query by selecting only two columns: pipeline_id and id (notification ID).
-        record = self.get_record(sequence_id, position)
-        return record.pipeline_id, record.id
 
     def get_record(self, sequence_id, position):
         try:
@@ -179,14 +207,16 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
             query = self.filter_by(**filter_args)
             if hasattr(self.record_class, 'application_name'):
-                query = query.filter(self.record_class.application_name == self.application_name)
+                query = query.filter(
+                    self.record_class.application_name == self.application_name
+                )
 
             position_field = getattr(self.record_class, self.field_names.position)
 
             query = query.filter(position_field == position)
             return query.one()
         except (NoResultFound, MultipleResultsFound):
-            raise IndexError
+            raise IndexError(self.application_name, sequence_id, position)
 
     def filter_by(self, **kwargs):
         return self.orm_query().filter_by(**kwargs)
@@ -196,7 +226,8 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
     def get_max_record_id(self):
         try:
-            query = self.session.query(func.max(self.record_class.id))
+            notification_id_col = getattr(self.record_class, self.notification_id_name)
+            query = self.session.query(func.max(notification_id_col))
             if hasattr(self.record_class, 'application_name'):
                 query = query.filter(self.record_class.application_name == self.application_name)
             if hasattr(self.record_class, 'pipeline_id'):
@@ -205,6 +236,26 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
             return query.scalar()
         finally:
             self.session.close()
+
+    def get_max_tracking_record_id(self, upstream_application_name):
+        query = self.session.query(func.max(self.tracking_record_class.notification_id))
+        query = query.filter(self.tracking_record_class.application_name == self.application_name)
+        query = query.filter(self.tracking_record_class.upstream_application_name == upstream_application_name)
+        query = query.filter(self.tracking_record_class.pipeline_id == self.pipeline_id)
+        return query.scalar()
+
+    def has_tracking_record(self, upstream_application_name, pipeline_id, notification_id):
+        query = self.session.query(self.tracking_record_class)
+        query = query.filter(self.tracking_record_class.application_name == self.application_name)
+        query = query.filter(self.tracking_record_class.upstream_application_name == upstream_application_name)
+        query = query.filter(self.tracking_record_class.pipeline_id == pipeline_id)
+        query = query.filter(self.tracking_record_class.notification_id == notification_id)
+        try:
+            query.one()
+        except (MultipleResultsFound, NoResultFound):
+            return False
+        else:
+            return True
 
     def all_sequence_ids(self):
         c = self.record_class.__table__.c
@@ -238,30 +289,3 @@ class SQLAlchemyRecordManager(RelationalRecordManager):
 
     def clone(self, **kwargs):
         return super(SQLAlchemyRecordManager, self).clone(session=self.session, **kwargs)
-
-
-class TrackingRecordManager(AbstractTrackingRecordManager):
-    record_class = NotificationTrackingRecord
-
-    def __init__(self, session):
-        self.session = session
-
-    def get_max_record_id(self, application_name, upstream_application_name, pipeline_id):
-        query = self.session.query(func.max(self.record_class.notification_id))
-        query = query.filter(self.record_class.application_name == application_name)
-        query = query.filter(self.record_class.upstream_application_name == upstream_application_name)
-        query = query.filter(self.record_class.pipeline_id == pipeline_id)
-        return query.scalar()
-
-    def has_tracking_record(self, application_name, upstream_application_name, pipeline_id, notification_id):
-        query = self.session.query(self.record_class)
-        query = query.filter(self.record_class.application_name == application_name)
-        query = query.filter(self.record_class.upstream_application_name == upstream_application_name)
-        query = query.filter(self.record_class.pipeline_id == pipeline_id)
-        query = query.filter(self.record_class.notification_id == notification_id)
-        try:
-            query.one()
-        except (MultipleResultsFound, NoResultFound):
-            return False
-        else:
-            return True
