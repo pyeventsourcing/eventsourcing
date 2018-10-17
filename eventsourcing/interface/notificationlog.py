@@ -145,9 +145,12 @@ class RecordManagerNotificationLog(LocalNotificationLog):
         return notifications
 
     def get_next_position(self):
-        return self.get_end_position() or 1
+        """Next unoccupied position in zero-based sequence.
 
-    def get_end_position(self):
+        Since the notification IDs are one-based, the next position is
+        the current max notification ID. If there are no records,
+        the max notification ID will be None, and the next position is zero.
+        """
         return self.record_manager.get_max_record_id() or 0
 
 

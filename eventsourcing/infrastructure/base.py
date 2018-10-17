@@ -115,6 +115,8 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
     def get_notifications(self, start=None, stop=None, *args, **kwargs):
         """
         Returns records sequenced by notification ID, from application, for pipeline, in given range.
+
+        Args 'start' and 'stop' are positions in a zero-based integer sequence.
         """
 
     @abstractmethod
