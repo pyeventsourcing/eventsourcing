@@ -119,7 +119,7 @@ class TestPaxosSystem(unittest.TestCase):
 
         num_pipelines = 1
         pipeline_ids = range(num_pipelines)
-        paxos_process_class = system.process_classes['PaxosProcess0']
+        paxos_process_class = system.process_classes['paxosprocess0']
 
         multiprocess = Multiprocess(system=system, pipeline_ids=pipeline_ids)
 

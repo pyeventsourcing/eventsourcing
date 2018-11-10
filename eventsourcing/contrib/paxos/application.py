@@ -196,7 +196,9 @@ class PaxosProcess(ProcessApplication):
     quorum_size = None
     notification_log_section_size = 5
     use_cache = True
-    set_notification_ids = True
+
+    # Todo: Reintroduce this, if it can be made to work with Popo infrastructure.
+    # set_notification_ids = True
 
     @retry((RecordConflictError, OperationalError), max_attempts=10, wait=0)
     def propose_value(self, key, value, assume_leader=False):
