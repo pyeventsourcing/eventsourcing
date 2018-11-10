@@ -338,7 +338,6 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         pass
 
 
-
 class WithRecordManagers(AbstractDatastoreTestCase):
     """
     Base class for test cases that need a record manager.

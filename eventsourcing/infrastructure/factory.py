@@ -37,7 +37,7 @@ class InfrastructureFactory(object):
 
     def construct_timestamp_sequenced_record_manager(self, record_class=None):
         record_class = record_class or self.timestamp_sequenced_record_class
-        assert self.integer_sequenced_record_class
+        # assert self.integer_sequenced_record_class
         return self.construct_record_manager(
             record_class=record_class,
         )
