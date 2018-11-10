@@ -33,7 +33,8 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
     def __init__(self, entity_record_manager=None,
                  log_record_manager=None,
                  snapshot_record_manager=None,
-                 cipher=None):
+                 cipher=None,
+                 sequenced_item_mapper_class=SequencedItemMapper):
 
         self.entity_event_store = None
         if entity_record_manager:
@@ -42,6 +43,7 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
                 event_position_attr='originator_version',
                 record_manager=entity_record_manager,
                 cipher=cipher,
+                sequenced_item_mapper_class=sequenced_item_mapper_class,
             )
 
         self.log_event_store = None
@@ -51,6 +53,7 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
                 event_position_attr='timestamp',
                 record_manager=log_record_manager,
                 cipher=cipher,
+                sequenced_item_mapper_class=sequenced_item_mapper_class,
             )
 
         self.snapshot_event_store = None
@@ -60,11 +63,13 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
                 event_position_attr='originator_version',
                 record_manager=snapshot_record_manager,
                 cipher=cipher,
+                sequenced_item_mapper_class=sequenced_item_mapper_class,
             )
 
-    def construct_event_store(self, event_sequence_id_attr, event_position_attr, record_manager,
-                              cipher=None):
+    def construct_event_store(self, sequenced_item_mapper_class, event_sequence_id_attr, event_position_attr,
+                              record_manager, cipher=None):
         sequenced_item_mapper = self.construct_sequenced_item_mapper(
+            sequenced_item_mapper_class=sequenced_item_mapper_class,
             sequenced_item_class=record_manager.sequenced_item_class,
             event_sequence_id_attr=event_sequence_id_attr,
             event_position_attr=event_position_attr,
@@ -76,11 +81,15 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
         )
         return event_store
 
-    def construct_sequenced_item_mapper(self, sequenced_item_class, event_sequence_id_attr,
-                                        event_position_attr, cipher=None,
+    def construct_sequenced_item_mapper(self,
+                                        sequenced_item_mapper_class,
+                                        sequenced_item_class,
+                                        event_sequence_id_attr,
+                                        event_position_attr,
+                                        cipher=None,
                                         json_encoder_class=ObjectJSONEncoder,
                                         json_decoder_class=ObjectJSONDecoder):
-        return SequencedItemMapper(
+        return sequenced_item_mapper_class(
             sequenced_item_class=sequenced_item_class,
             sequence_id_attr_name=event_sequence_id_attr,
             position_attr_name=event_position_attr,

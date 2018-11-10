@@ -70,11 +70,13 @@ item's data is a JSON object in which ``foo`` is ``bar``.
 
     sequence1 = uuid4()
 
+    data = '{"foo":"bar","position":0,"sequence_id":{"UUID":"%s"}}' % sequence1.hex
+
     sequenced_item1 = SequencedItem(
         sequence_id=sequence1,
         position=0,
         topic='eventsourcing.domain.model.events#DomainEvent',
-        data='{"foo":"bar"}',
+        data=data,
     )
 
 
@@ -87,7 +89,8 @@ simply the values given when the object was constructed.
     assert sequenced_item1.sequence_id == sequence1
     assert sequenced_item1.position == 0
     assert sequenced_item1.topic == 'eventsourcing.domain.model.events#DomainEvent'
-    assert sequenced_item1.data == '{"foo":"bar"}'
+    assert sequenced_item1.data == data, sequenced_item1.data
+    sequenced_item1.data
 
 
 StoredEvent namedtuple
@@ -113,12 +116,12 @@ The ``state`` holds the state of the domain event, and is equivalent to ``data``
         originator_id=aggregate1,
         originator_version=0,
         event_type='eventsourcing.domain.model.events#DomainEvent',
-        state='{"foo":"bar"}',
+        state='{"foo":"bar","originator_version":0,"originator_id":{"UUID":"%s"}}' % aggregate1.hex,
     )
     assert stored_event1.originator_id == aggregate1
     assert stored_event1.originator_version == 0
     assert stored_event1.event_type == 'eventsourcing.domain.model.events#DomainEvent'
-    assert stored_event1.state == '{"foo":"bar"}'
+    assert stored_event1.state == '{"foo":"bar","originator_version":0,"originator_id":{"UUID":"%s"}}' % aggregate1.hex
 
 
 Sequenced item mapper
@@ -159,7 +162,8 @@ The method ``to_sequenced_item()`` can be used to convert application-level obje
 
 .. code:: python
 
-    assert sequenced_item_mapper.to_sequenced_item(domain_event).data == sequenced_item1.data
+    recovered_data = sequenced_item_mapper.to_sequenced_item(domain_event).data
+    assert recovered_data == sequenced_item1.data, (recovered_data, sequenced_item1.data)
 
 
 If the names of the first two fields of the sequenced item named tuple (e.g. ``sequence_id`` and ``position``) do not
@@ -262,21 +266,23 @@ The code below extends the JSON transcoding to support sets.
 
     customized_sequenced_item_mapper = SequencedItemMapper(
         json_encoder_class=CustomObjectJSONEncoder,
-        json_decoder_class=CustomObjectJSONDecoder
+        json_decoder_class=CustomObjectJSONDecoder,
+        sequenced_item_class=StoredEvent,
     )
 
     domain_event = customized_sequenced_item_mapper.from_sequenced_item(
-        SequencedItem(
-            sequence_id=sequence1,
-            position=0,
-            topic='eventsourcing.domain.model.events#DomainEvent',
-            data='{"foo":{"__set__":["bar","baz"]}}',
+        StoredEvent(
+            originator_id=sequence1,
+            originator_version=0,
+            event_type='eventsourcing.domain.model.events#DomainEvent',
+            state='{"foo":{"__set__":["bar","baz"]},"originator_version":0,"originator_id":{"UUID":"%s"}}' % sequence1
+            .hex,
         )
     )
     assert domain_event.foo == set(["bar", "baz"])
 
     sequenced_item = customized_sequenced_item_mapper.to_sequenced_item(domain_event)
-    assert sequenced_item.data.startswith('{"foo":{"__set__":["ba')
+    assert sequenced_item.state.startswith('{"foo":{"__set__":["ba')
 
 
 Application-level encryption

@@ -1,9 +1,12 @@
 from eventsourcing.infrastructure.popo.factory import PopoInfrastructureFactory
+from eventsourcing.infrastructure.popo.mapper import SequencedItemMapperForPopo
 from eventsourcing.tests.sequenced_item_tests import base
 
 
 class PopoTestCase(object):
     infrastructure_factory_class = PopoInfrastructureFactory
+    sequenced_item_mapper_class = SequencedItemMapperForPopo
+
     contiguous_record_ids = True
 
     def construct_datastore(self):
