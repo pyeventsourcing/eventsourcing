@@ -73,7 +73,7 @@ class TestPaxosSystem(unittest.TestCase):
         key1, key2, key3 = uuid4(), uuid4(), uuid4()
         value1, value2, value3 = 11111, 22222, 33333
 
-        paxos_process_class = system.process_classes['PaxosProcess0']
+        paxos_process_class = system.process_classes['paxosprocess0']
         paxos_process = system.construct_app(paxos_process_class, pipeline_id=2)
         paxos_process.repository._use_cache = False
 

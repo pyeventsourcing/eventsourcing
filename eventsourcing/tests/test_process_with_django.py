@@ -5,3 +5,6 @@ from eventsourcing.tests.test_process import TestProcess
 
 class TestProcessWithDjango(DjangoTestCase, TestProcess):
     process_class = DjangoApplication
+
+
+del(TestProcess)

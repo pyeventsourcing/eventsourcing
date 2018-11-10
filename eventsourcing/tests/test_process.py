@@ -33,7 +33,10 @@ class TestProcess(TestCase):
             aggregate = ExampleAggregate.__create__()
             aggregate.__save__()
 
-            # Check the aggregate has been automatically "moved on".
+            # Run the process.
+            process.run()
+
+            # Check the aggregate has been "moved on".
             self.assertTrue(process.repository[aggregate.id].is_moved_on)
 
             # Check the __contains__ method of the repo wrapper.
@@ -70,6 +73,8 @@ class TestProcess(TestCase):
 
             # Should "move on" by the process following itself.
             aggregate.__save__()
+            process.run()
+
             aggregate = process.repository[aggregate.id]
             self.assertEqual(1, aggregate.__version__)
 

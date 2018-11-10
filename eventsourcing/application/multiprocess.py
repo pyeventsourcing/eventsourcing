@@ -38,11 +38,11 @@ class Multiprocess(object):
 
         # Setup queues.
         for pipeline_id in self.pipeline_ids:
-            for process_class_name, upstream_class_names in self.system.followings.items():
-                inbox_id = (pipeline_id, process_class_name.lower())
+            for process_name, upstream_names in self.system.followings.items():
+                inbox_id = (pipeline_id, process_name.lower())
                 if inbox_id not in self.inboxes:
                     self.inboxes[inbox_id] = self.manager.Queue()
-                for upstream_class_name in upstream_class_names:
+                for upstream_class_name in upstream_names:
                     outbox_id = (pipeline_id, upstream_class_name.lower())
                     if outbox_id not in self.outboxes:
                         self.outboxes[outbox_id] = Outbox()
@@ -55,17 +55,17 @@ class Multiprocess(object):
 
         # Start operating system process.
         for pipeline_id in self.pipeline_ids:
-            for process_class_name, upstream_class_names in self.system.followings.items():
-                process_class = self.system.process_classes[process_class_name]
+            for process_name, upstream_names in self.system.followings.items():
+                process_class = self.system.process_classes[process_name]
                 os_process = OperatingSystemProcess(
                     application_process_class=process_class,
                     infrastructure_class=self.system.infrastructure_class,
-                    upstream_names=[cls_name.lower() for cls_name in upstream_class_names],
+                    upstream_names=upstream_names,
                     poll_interval=self.poll_interval,
                     pipeline_id=pipeline_id,
                     setup_tables=self.setup_tables,
-                    inbox=self.inboxes[(pipeline_id, process_class_name.lower())],
-                    outbox=self.outboxes[(pipeline_id, process_class_name.lower())],
+                    inbox=self.inboxes[(pipeline_id, process_name.lower())],
+                    outbox=self.outboxes[(pipeline_id, process_name.lower())],
                 )
                 os_process.daemon = True
                 os_process.start()
@@ -162,11 +162,12 @@ class OperatingSystemProcess(multiprocessing.Process):
                 notification_log = RecordManagerNotificationLog(
                     record_manager=record_manager.clone(
                         application_name=upstream_name,
+                        # Todo: Check if setting pipeline_id is necessary (it's the same?).
                         pipeline_id=self.pipeline_id
                     ),
                     section_size=self.process.notification_log_section_size
                 )
-                # Todo: Support upstream partition IDs different from self.pipeline_id.
+                # Todo: Support upstream partition IDs different from self.pipeline_id?
                 # Todo: Support combining partitions. Read from different partitions but write to the same partition,
                 # could be one os process that reads from many logs of the same upstream app, or many processes each
                 # reading one partition with contention writing to the same partition).

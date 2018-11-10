@@ -8,7 +8,8 @@ from sqlalchemy.pool import StaticPool
 from eventsourcing.infrastructure.datastore import Datastore, DatastoreSettings
 from eventsourcing.infrastructure.sqlalchemy.records import Base
 
-DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///:memory:'
+SQLITE_IN_MEMORY = 'sqlite:///:memory:'
+DEFAULT_SQLALCHEMY_DB_URI = SQLITE_IN_MEMORY
 # DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///FILE_SYSTEM_PATH'
 # DEFAULT_SQLALCHEMY_DB_URI = 'mysql://username:password@localhost/eventsourcing'
 # DEFAULT_SQLALCHEMY_DB_URI = 'postgresql://username:password@localhost:5432/eventsourcing'

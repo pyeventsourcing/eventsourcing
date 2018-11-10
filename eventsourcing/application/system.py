@@ -1,4 +1,9 @@
 from collections import OrderedDict
+from queue import Queue, Empty
+from threading import Lock
+
+from eventsourcing.application.process import Prompt
+from eventsourcing.domain.model.events import subscribe, unsubscribe
 
 
 class System(object):
@@ -29,8 +34,9 @@ class System(object):
         self.process_classes = OrderedDict()
         for pipeline_expr in self.pipelines_exprs:
             for process_class in pipeline_expr:
-                if process_class.__name__ not in self.process_classes:
-                    self.process_classes[process_class.__name__] = process_class
+                process_name = process_class.__name__.lower()
+                if process_name not in self.process_classes:
+                    self.process_classes[process_name] = process_class
 
         self.processes = None
         self.is_session_shared = True
@@ -38,19 +44,30 @@ class System(object):
         # Determine which process follows which.
         # A following is a list of process classes followed by a process class.
         self.followings = OrderedDict()
+        self.followers = OrderedDict()
         for pipeline_expr in self.pipelines_exprs:
-            previous_class = None
+            previous_name = None
             for process_class in pipeline_expr:
+                process_name = process_class.__name__.lower()
                 try:
-                    follows = self.followings[process_class.__name__]
+                    follows = self.followings[process_name]
                 except KeyError:
                     follows = []
-                    self.followings[process_class.__name__] = follows
+                    self.followings[process_name] = follows
 
-                if previous_class is not None and previous_class not in follows:
-                    follows.append(previous_class.__name__)
+                try:
+                    self.followers[process_name]
+                except KeyError:
+                    self.followers[process_name] = []
 
-                previous_class = process_class
+                if previous_name and previous_name not in follows:
+                    follows.append(previous_name)
+                    followers = self.followers[previous_name]
+                    followers.append(process_name)
+
+                previous_name = process_name
+        self.pending_prompts = Queue()
+        self.run_with_iteration_lock = Lock()
 
     # Todo: Extract function to new 'SinglethreadRunner' class or something (like the 'Multiprocess' class)?
     def setup(self):
@@ -63,11 +80,26 @@ class System(object):
             process = self.construct_app(process_class)
             self.processes[process.name] = process
 
+        # Do something to make sure followers' run() method is
+        # called when a process application publishes a prompt.
+        subscribe(
+            predicate=self.is_prompt,
+            handler=self.run_followers,
+        )
+
         # Configure which process follows which.
-        for follower_class_name, follows in self.followings.items():
-            follower = self.processes[follower_class_name.lower()]
-            for followed_class_name in follows:
-                followed = self.processes[followed_class_name.lower()]
+        for followed_name, followers in self.followers.items():
+            followed = self.processes[followed_name]
+            followed_log = followed.notification_log
+            for follower_name in followers:
+                follower = self.processes[follower_name]
+                follower.follow(followed_name, followed_log)
+
+        # Todo: See if can factor this out, it's confusing.
+        for follower_name, follows in self.followings.items():
+            follower = self.processes[follower_name]
+            for followed_name in follows:
+                followed = self.processes[followed_name]
                 follower.follow(followed.name, followed.notification_log)
 
     def construct_app(self, process_class, **kwargs):
@@ -92,7 +124,44 @@ class System(object):
         assert self.processes is not None, "Not running"
         for process in self.processes.values():
             process.close()
+        unsubscribe(
+            predicate=self.is_prompt,
+            handler=self.run_followers,
+        )
         self.processes = None
+
+    def is_prompt(self, event):
+        return isinstance(event, Prompt)
+
+    def run_followers(self, prompt):
+        assert isinstance(prompt, Prompt)
+        # self.run_followers_with_recursion(prompt)
+        self.run_followers_with_iteration(prompt)
+
+    def run_followers_with_recursion(self, prompt):
+        followers = self.followers[prompt.process_name]
+        for follower_name in followers:
+            follower = self.processes[follower_name]
+            follower.run(prompt)
+
+    def run_followers_with_iteration(self, prompt):
+        # Put the prompt on the queue.
+        self.pending_prompts.put(prompt)
+
+        if self.run_with_iteration_lock.acquire(timeout=0):
+            try:
+                while True:
+                    try:
+                        prompt = self.pending_prompts.get(timeout=0)
+                    except Empty:
+                        break
+                    else:
+                        followers = self.followers[prompt.process_name]
+                        for follower_name in followers:
+                            follower = self.processes[follower_name]
+                            follower.run(prompt)
+            finally:
+                self.run_with_iteration_lock.release()
 
     def __enter__(self):
         self.setup()

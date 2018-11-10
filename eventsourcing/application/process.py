@@ -32,12 +32,17 @@ class ProcessApplication(Pipeable, Application):
         self._policy_lock = Lock()
         super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
 
-        subscribe(self.run, self.is_upstream_prompt)
-        subscribe(self.publish_prompt, self.persistence_policy.is_event)
+        # Republish our events as prompts.
+        subscribe(
+            predicate=self.persistence_policy.is_event,
+            handler=self.publish_prompt,
+        )
 
     def close(self):
-        unsubscribe(self.run, self.is_upstream_prompt)
-        unsubscribe(self.publish_prompt, self.persistence_policy.is_event)
+        unsubscribe(
+            predicate=self.persistence_policy.is_event,
+            handler=self.publish_prompt,
+        )
         super(ProcessApplication, self).close()
 
     def is_upstream_prompt(self, prompt):
