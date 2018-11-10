@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from queue import Queue, Empty
+from six.moves.queue import Queue, Empty
 from threading import Lock
 
 from eventsourcing.application.process import Prompt
@@ -148,11 +148,11 @@ class System(object):
         # Put the prompt on the queue.
         self.pending_prompts.put(prompt)
 
-        if self.run_with_iteration_lock.acquire(timeout=0):
+        if self.run_with_iteration_lock.acquire(False):
             try:
                 while True:
                     try:
-                        prompt = self.pending_prompts.get(timeout=0)
+                        prompt = self.pending_prompts.get(False)
                     except Empty:
                         break
                     else:
