@@ -472,7 +472,7 @@ using the ``append()`` method of the record manager.
 
 .. code:: python
 
-    record_manager.record(stored_event1)
+    record_manager.record_sequenced_item(stored_event1)
 
 
 (Please note, since the position is given by the sequenced item itself, the word "append" means here "to add something
@@ -690,7 +690,7 @@ can be used to store events using the Django ORM.
     results = django_record_manager.list_items(aggregate1)
     assert len(results) == 0
 
-    django_record_manager.record(stored_event1)
+    django_record_manager.record_sequenced_item(stored_event1)
 
     results = django_record_manager.list_items(aggregate1)
     assert results[0] == stored_event1
@@ -822,7 +822,7 @@ and used to store events using Apache Cassandra.
     results = cassandra_record_manager.list_items(aggregate1)
     assert len(results) == 0
 
-    cassandra_record_manager.record(stored_event1)
+    cassandra_record_manager.record_sequenced_item(stored_event1)
 
     results = cassandra_record_manager.list_items(aggregate1)
     assert results[0] == stored_event1
@@ -844,7 +844,7 @@ to append two items at the same position in the same sequence. If such an attemp
 
     # Fail to append an item at the same position in the same sequence as a previous item.
     try:
-        record_manager.record(stored_event1)
+        record_manager.record_sequenced_item(stored_event1)
     except RecordConflictError:
         pass
     else:
