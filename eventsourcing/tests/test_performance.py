@@ -1,4 +1,7 @@
+from unittest import skip
+
 import time
+from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import PopoTestCase
 from math import floor
 from uuid import uuid4
 
@@ -253,6 +256,13 @@ class TestDjangoPerformance(DjangoTestCase, PerformanceTestCase):
 @notquick
 class TestDjangoPerformanceWithEncryption(WithEncryption, TestDjangoPerformance):
     pass
+
+
+@notquick
+class TestPopoPerformance(PopoTestCase, PerformanceTestCase):
+    @skip("Popo record manager only supports sequencing with integers")
+    def test_log_performance(self):
+        pass
 
 
 @notquick
