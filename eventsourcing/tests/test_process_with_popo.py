@@ -13,4 +13,5 @@ class TestProcessWithPopos(PopoTestCase, TestProcess):
     def test_causal_dependencies(self):
         super(TestProcessWithPopos, self).test_causal_dependencies()
 
-del(TestProcess)
+
+del TestProcess

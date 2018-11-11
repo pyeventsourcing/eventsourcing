@@ -76,18 +76,13 @@ class PopoRecordManager(ACIDRecordManager):
 
     def get_max_tracking_record_id(self, upstream_application_name):
         with self._rw_lock.gen_rlock():
-            tracking_records = self._get_tracking_records(upstream_application_name)
             try:
-                return max(tracking_records.keys())
-            except ValueError:
+                tracking_records = self._all_tracking_records[self.application_name][upstream_application_name]
+            except KeyError:
                 pass
-
-    def _get_tracking_records(self, upstream_application_name):
-        try:
-            tracking_records = self._all_tracking_records[upstream_application_name]
-        except KeyError:
-            tracking_records = {}
-        return tracking_records
+            else:
+                if tracking_records:
+                    return max(tracking_records)
 
     def get_record(self, sequence_id, position):
         with self._rw_lock.gen_rlock():
@@ -156,22 +151,43 @@ class PopoRecordManager(ACIDRecordManager):
     def has_tracking_record(self, upstream_application_name, pipeline_id, notification_id):
         raise NotImplementedError()
 
+    def record_sequenced_items(self, sequenced_item_or_items):
+        records = self.to_records(sequenced_item_or_items)
+        self.write_records(records=records)
+
     def write_records(self, records, tracking_kwargs=None):
-        self._record(records)
-
-
-    def record(self, sequenced_item_or_items):
         with self._rw_lock.gen_wlock():
-            self._record(sequenced_item_or_items)
+            self._insert_records(records)
+            if tracking_kwargs:
 
-    def _record(self, sequenced_item_or_items):
-        if isinstance(sequenced_item_or_items, list):
-            for sequenced_item in sequenced_item_or_items:
-                self._record_sequenced_item(sequenced_item)
+                # Write a tracking record.
+                upstream_application_name = tracking_kwargs['upstream_application_name']
+                application_name = tracking_kwargs['application_name']
+                notification_id = tracking_kwargs['notification_id']
+                assert application_name == self.application_name, (application_name, self.application_name)
+                try:
+                    app_tracking_records = self._all_tracking_records[application_name]
+                except KeyError:
+                    app_tracking_records = {}
+                    self._all_tracking_records[self.application_name] = app_tracking_records
+                try:
+                    upstream_tracking_records = app_tracking_records[upstream_application_name]
+                except KeyError:
+                    upstream_tracking_records = set()
+                    app_tracking_records[upstream_application_name] = upstream_tracking_records
+
+                if notification_id in upstream_tracking_records:
+                    raise RecordConflictError((application_name, upstream_application_name, notification_id))
+                upstream_tracking_records.add(notification_id)
+
+    def _insert_records(self, records):
+        if isinstance(records, list):
+            for record in records:
+                self._insert_record(record)
         else:
-            self._record_sequenced_item(sequenced_item_or_items)
+            self._insert_record(records)
 
-    def _record_sequenced_item(self, sequenced_item):
+    def _insert_record(self, sequenced_item):
         position = getattr(sequenced_item, self.field_names.position)
         if not isinstance(position, int):
             raise NotImplementedError("Popo record manager only supports sequencing with integers, "
@@ -191,31 +207,32 @@ class PopoRecordManager(ACIDRecordManager):
                 sequence_records = {}
                 application_records[sequence_id] = sequence_records
 
-
         if position in sequence_records:
             raise RecordConflictError(position, len(sequence_records))
-        if sequence_records:
-            next_position = max(sequence_records.keys()) + 1
-        else:
-            next_position = 0
-        assert position == next_position, (position, next_position)
+
+        if self.notification_id_name:
+            # Just make sure we aren't making a gap in the sequence.
+            if sequence_records:
+                next_position = max(sequence_records.keys()) + 1
+            else:
+                next_position = 0
+            assert position == next_position, (position, next_position)
 
         sequence_records[position] = sequenced_item
 
         # Write a notification record.
-        try:
-            notification_records = self._all_notification_records[self.application_name]
-        except KeyError:
-            notification_records = {}
-            self._all_notification_records[self.application_name] = notification_records
+        if self.notification_id_name:
+            try:
+                notification_records = self._all_notification_records[self.application_name]
+            except KeyError:
+                notification_records = {}
+                self._all_notification_records[self.application_name] = notification_records
 
-        # self._all_tracking_records[upstream_application_name] = tracking_records
-
-        next_notification_id = (self._get_max_record_id() or 0) + 1
-        notification_records[next_notification_id] = {
-            'notification_id': next_notification_id,
-            'sequenced_item': sequenced_item,
-        }
+            next_notification_id = (self._get_max_record_id() or 0) + 1
+            notification_records[next_notification_id] = {
+                'notification_id': next_notification_id,
+                'sequenced_item': sequenced_item,
+            }
 
     def to_records(self, sequenced_items):
         return sequenced_items

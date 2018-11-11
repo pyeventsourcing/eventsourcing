@@ -9,7 +9,7 @@ from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
 
 
 class CassandraRecordManager(AbstractSequencedItemRecordManager):
-    def record(self, sequenced_item_or_items):
+    def record_sequenced_items(self, sequenced_item_or_items):
         if isinstance(sequenced_item_or_items, list):
             if len(sequenced_item_or_items):
                 b = BatchQuery()
