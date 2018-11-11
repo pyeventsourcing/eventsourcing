@@ -19,6 +19,7 @@ install_requires = singledispatch_requires + [
     'six<=1.11.99999',
     'pycryptodome<=3.6.99999',
     'requests<=2.19.99999',
+    'readerwriterlock<=1.0.99999',
 ]
 
 sqlalchemy_requires = [
