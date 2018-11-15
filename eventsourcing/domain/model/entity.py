@@ -184,11 +184,16 @@ class EntityWithHashchain(DomainEntity):
         Supertype for events of domain entities.
         """
         def __mutate__(self, obj):
-            # Set entity head from event hash.
-            obj.__head__ = self.__event_hash__
 
             # Call super method.
-            return super(EntityWithHashchain.Event, self).__mutate__(obj)
+            obj = super(EntityWithHashchain.Event, self).__mutate__(obj)
+
+            # Set entity head from event hash.
+            #  - unless just discarded...
+            if obj is not None:
+                obj.__head__ = self.__event_hash__
+
+            return obj
 
         def __check_obj__(self, obj):
             """
@@ -216,12 +221,15 @@ class EntityWithHashchain(DomainEntity):
 
         def __mutate__(self, entity_class=None):
             # Call super method.
-            obj = super(EntityWithHashchain.Event, self).__mutate__(entity_class)
+            return super(EntityWithHashchain.Created, self).__mutate__(entity_class)
 
+    class Discarded(Event, DomainEntity.Discarded):
+        def __mutate__(self, obj):
             # Set entity head from event hash.
             obj.__head__ = self.__event_hash__
 
-            return obj
+            # Call super method.
+            return super(EntityWithHashchain.Discarded, self).__mutate__(obj)
 
     @classmethod
     def __create__(cls, *args, **kwargs):
