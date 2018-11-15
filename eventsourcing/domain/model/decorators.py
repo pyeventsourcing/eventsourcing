@@ -161,7 +161,8 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0):
 
         @wraps(func)
         def wrapper(*args, **kwargs):
-            sleep(stall)
+            if stall:
+                sleep(stall)
             attempts = 0
             while True:
                 try:

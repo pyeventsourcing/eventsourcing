@@ -160,6 +160,7 @@ class System(object):
                         for follower_name in followers:
                             follower = self.processes[follower_name]
                             follower.run(prompt)
+                        self.pending_prompts.task_done()
             finally:
                 self.run_with_iteration_lock.release()
 

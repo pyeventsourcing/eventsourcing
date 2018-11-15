@@ -16,8 +16,11 @@ class PopoRecordManager(ACIDRecordManager):
     def __init__(self, *args, **kwargs):
         super(PopoRecordManager, self).__init__(*args, **kwargs)
         self._all_sequence_records = {}
+        self._all_sequence_max = {}
         self._all_tracking_records = {}
+        self._all_tracking_max = {}
         self._all_notification_records = {}
+        self._all_notification_max = {}
         self._rw_lock = rwlock.RWLockFair()
 
     def all_sequence_ids(self):
@@ -41,11 +44,13 @@ class PopoRecordManager(ACIDRecordManager):
             return self._get_max_record_id()
 
     def _get_max_record_id(self):
-        notification_records = self._get_notification_records()
         try:
-            return max(notification_records.keys())
-        except ValueError:
+            max_notification_id = self._all_notification_max[self.application_name]
+        except KeyError:
             pass
+        else:
+            return max_notification_id
+
 
     def _get_notification_records(self):
         try:
@@ -119,7 +124,8 @@ class PopoRecordManager(ACIDRecordManager):
                 return []
 
             if end is None:
-                end = max(all_sequence_records.keys()) + 1
+                max_position = self._all_sequence_max[self.application_name][sequence_id]
+                end = max_position + 1
             if start is None:
                 start = min(all_sequence_records.keys())
 
@@ -157,9 +163,10 @@ class PopoRecordManager(ACIDRecordManager):
 
     def write_records(self, records, tracking_kwargs=None):
         with self._rw_lock.gen_wlock():
+            # Write event and notification records.
             self._insert_records(records)
-            if tracking_kwargs:
 
+            if tracking_kwargs:
                 # Write a tracking record.
                 upstream_application_name = tracking_kwargs['upstream_application_name']
                 application_name = tracking_kwargs['application_name']
@@ -200,6 +207,7 @@ class PopoRecordManager(ACIDRecordManager):
             sequence_records = {}
             application_records = {sequence_id: sequence_records}
             self._all_sequence_records[self.application_name] = application_records
+            self._all_sequence_max[self.application_name] = {}
         else:
             try:
                 sequence_records = application_records[sequence_id]
@@ -213,12 +221,14 @@ class PopoRecordManager(ACIDRecordManager):
         if self.notification_id_name:
             # Just make sure we aren't making a gap in the sequence.
             if sequence_records:
-                next_position = max(sequence_records.keys()) + 1
+                max_position = self._all_sequence_max[self.application_name][sequence_id]
+                next_position = max_position + 1
             else:
                 next_position = 0
             assert position == next_position, (position, next_position)
 
         sequence_records[position] = sequenced_item
+        self._all_sequence_max[self.application_name][sequence_id] = position
 
         # Write a notification record.
         if self.notification_id_name:
@@ -233,6 +243,7 @@ class PopoRecordManager(ACIDRecordManager):
                 'notification_id': next_notification_id,
                 'sequenced_item': sequenced_item,
             }
+            self._all_notification_max[self.application_name] = next_notification_id
 
     def to_records(self, sequenced_items):
         return sequenced_items
