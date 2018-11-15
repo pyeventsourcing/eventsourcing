@@ -60,7 +60,6 @@ class TestPaxosSystem(unittest.TestCase):
             self.assert_final_value(paxosprocess1, key3, value3)
             self.assert_final_value(paxosprocess2, key3, value3)
             print("Resolved paxos 3 with single thread in %ss" % ended3)
-            sleep(0.1)
 
     def test_multiprocessing(self):
         set_db_uri()
