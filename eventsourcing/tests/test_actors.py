@@ -3,7 +3,7 @@ import os
 import time
 import unittest
 
-from eventsourcing.application.actors import Actors, shutdown_actor_system, start_actor_system, \
+from eventsourcing.application.actors import ActorsRunner, shutdown_actor_system, start_actor_system, \
     start_multiproc_tcp_base_system
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.application.system import System
@@ -46,7 +46,7 @@ class TestActors(unittest.TestCase):
 
         self.close_connections_before_forking()
 
-        actors = Actors(self.system, pipeline_ids=pipeline_ids, shutdown_on_close=True)
+        actors = ActorsRunner(self.system, pipeline_ids=pipeline_ids, shutdown_on_close=True)
 
         # Todo: Use wakeupAfter() to poll for new notifications (see Timer Messages).
 

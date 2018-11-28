@@ -5,17 +5,15 @@ from time import sleep
 import six
 
 from eventsourcing.application.process import Prompt
-from eventsourcing.application.system import System
+from eventsourcing.application.system import System, SystemRunner, DEFAULT_POLL_INTERVAL, Outbox
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 
-DEFAULT_POLL_INTERVAL = 5
 
-
-class Multiprocess(object):
+class MultiprocessRunner(SystemRunner):
 
     def __init__(self, system, pipeline_ids=(DEFAULT_PIPELINE_ID,), poll_interval=None,
                  setup_tables=False, sleep_for_setup_tables=0):
@@ -97,22 +95,6 @@ class Multiprocess(object):
 
         self.os_processes = None
         self.manager = None
-
-    def __enter__(self):
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-
-class Outbox(object):
-    def __init__(self):
-        self.downstream_inboxes = {}
-
-    def put(self, msg):
-        for q in self.downstream_inboxes.values():
-            q.put(msg)
 
 
 class OperatingSystemProcess(multiprocessing.Process):

@@ -724,7 +724,7 @@ Multiprocessing
 ~~~~~~~~~~~~~~~
 
 The example below shows the same system of process applications running in
-different operating system processes, using the library's ``Multiprocess`` class,
+different operating system processes, using the library's ``MultiprocessRunner`` class,
 which uses Python's ``multiprocessing`` library.
 
 Running the system with multiple operating system processes means the different processes
@@ -760,7 +760,7 @@ process applications were using different databases, upstream notification
 logs would need to be presented in an API, so that downstream could read
 notifications from a remote notification log, as discussed in the section
 about notifications (using separate databases is not currently supported
-by the ``Multiprocess`` class).
+by the ``MultiprocessRunner`` class).
 
 The MySQL database needs to be created before running the next bit of code.
 
@@ -807,16 +807,16 @@ Single pipeline
 .. a response is created (how?), the request actor could be sent
 .. a message, so clients get a blocking call that doesn't involve polling.
 
-The code below uses the library's ``Multiprocess`` class to run the ``system``.
+The code below uses the library's ``MultiprocessRunner`` class to run the ``system``.
 It starts one operating system process for each process application
 in the system, which in this example will give four child operating
 system processes.
 
 .. code:: python
 
-    from eventsourcing.application.multiprocess import Multiprocess
+    from eventsourcing.application.multiprocess import MultiprocessRunner
 
-    multiprocessing_system = Multiprocess(system, setup_tables=True)
+    multiprocessing_system = MultiprocessRunner(system, setup_tables=True)
 
 The operating system processes can be started by using the ``multiprocess``
 object as a context manager. The unprocessed commands will be processed
@@ -887,11 +887,11 @@ Pipelines have integer IDs. In this example, the pipeline IDs are ``[0, 1, 2]``.
 It would be possible to run the system with e.g. pipelines 0-7 on one machine, pipelines 8-15
 on another machine, and so on.
 
-The ``pipeline_ids`` are given to the ``Multiprocess`` object.
+The ``pipeline_ids`` are given to the ``MultiprocessRunner`` object.
 
 .. code:: python
 
-    multiprocessing_system = Multiprocess(system, pipeline_ids=pipeline_ids)
+    multiprocessing_system = MultiprocessRunner(system, pipeline_ids=pipeline_ids)
 
 With the multiprocessing system running each of the process applications
 as a separate operating system process, and the commands process running
@@ -989,9 +989,9 @@ The actors will run by sending messages recursively.
 
 .. code:: python
 
-    from eventsourcing.application.actors import Actors
+    from eventsourcing.application.actors import ActorsRunner
 
-    actors = Actors(system, pipeline_ids=pipeline_ids)
+    actors = ActorsRunner(system, pipeline_ids=pipeline_ids)
 
     with actors, Commands.mixin(SQLAlchemyApplication)() as commands:
 
@@ -1026,7 +1026,7 @@ by calling ``actors.start()``. The actors can be shutdown with ``actors.shutdown
 If ``actors`` is used as a context manager, as above, the ``start()`` method is
 called when the context manager enters. The ``close()`` method is called
 when the context manager exits. By default the ``shutdown()`` method
-is not called by ``close()``. If ``Actors`` is constructed with ``shutdown_on_close=True``,
+is not called by ``close()``. If ``ActorsRunner`` is constructed with ``shutdown_on_close=True``,
 which is ``False`` by default, then the actors will be shutdown by ``close()``, and so
 also when the context manager exits. Event so, shutting down the system actors will not
 shutdown a "mutliproc" base system.

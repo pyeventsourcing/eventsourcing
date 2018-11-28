@@ -3,7 +3,7 @@ import logging
 from thespian.actors import *
 
 from eventsourcing.application.process import ProcessApplication, Prompt
-from eventsourcing.application.system import System
+from eventsourcing.application.system import System, SystemRunner
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 
@@ -56,7 +56,7 @@ def start_multiproc_tcp_base_system():
 #     start_actor_system(system_base='multiprocQueueBase')
 
 
-class Actors(object):
+class ActorsRunner(SystemRunner):
     """
     Uses actors to run a system of process applications.
     """
@@ -128,13 +128,6 @@ class Actors(object):
     def shutdown(self):
         msg = ActorExitRequest(recursive=True)
         self.actor_system.tell(self.system_actor, msg)
-
-    def __enter__(self):
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
 
 
 class SystemActor(Actor):

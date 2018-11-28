@@ -4,7 +4,7 @@ import unittest
 from time import sleep
 from uuid import uuid4
 
-from eventsourcing.application.multiprocess import Multiprocess
+from eventsourcing.application.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.contrib.paxos.application import PaxosSystem, PaxosProcess
 from eventsourcing.domain.model.decorators import retry
@@ -79,7 +79,7 @@ class TestPaxosSystem(unittest.TestCase):
         self.close_connections_before_forking()
 
         pipeline_ids = [1, 2, 3]
-        with Multiprocess(system=system, pipeline_ids=pipeline_ids), paxos_process:
+        with MultiprocessRunner(system=system, pipeline_ids=pipeline_ids), paxos_process:
             assert isinstance(paxos_process, PaxosProcess)
 
             sleep(1)
@@ -120,7 +120,7 @@ class TestPaxosSystem(unittest.TestCase):
         pipeline_ids = range(num_pipelines)
         paxos_process_class = system.process_classes['paxosprocess0']
 
-        multiprocess = Multiprocess(system=system, pipeline_ids=pipeline_ids)
+        multiprocess = MultiprocessRunner(system=system, pipeline_ids=pipeline_ids)
 
         num_proposals = 50
 

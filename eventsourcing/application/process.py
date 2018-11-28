@@ -91,7 +91,6 @@ class ProcessApplication(Pipeable, Application):
                 self.set_reader_position_from_tracking_records(upstream_name)
                 self.is_reader_position_ok[upstream_name] = True
 
-            reader = self.readers[upstream_name]
             while True:
                 with self._policy_lock:
                     # Get notification generator.
@@ -119,7 +118,8 @@ class ProcessApplication(Pipeable, Application):
                         pipeline_id = causal_dependency['pipeline_id']
                         notification_id = causal_dependency['notification_id']
 
-                        has_tracking_record = self.event_store.record_manager.has_tracking_record(
+                        _manager = self.event_store.record_manager
+                        has_tracking_record = _manager.has_tracking_record(
                             upstream_application_name=upstream_name,
                             pipeline_id=pipeline_id,
                             notification_id=notification_id

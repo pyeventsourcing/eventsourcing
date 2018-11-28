@@ -1,9 +1,17 @@
+from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-from six.moves.queue import Queue, Empty
-from threading import Lock
+from threading import Lock, Thread
+
+import six
+from six import with_metaclass
+from six.moves.queue import Empty, Queue
 
 from eventsourcing.application.process import Prompt
+from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
+from eventsourcing.exceptions import CausalDependencyFailed
+
+DEFAULT_POLL_INTERVAL = 5
 
 
 class System(object):
@@ -42,9 +50,10 @@ class System(object):
         self.is_session_shared = True
 
         # Determine which process follows which.
-        # A following is a list of process classes followed by a process class.
-        self.followings = OrderedDict()
         self.followers = OrderedDict()
+        # A following is a list of process classes followed by a process class.
+        # Todo: Factor this out, it's confusing. (Only used in ActorsRunner now).
+        self.followings = OrderedDict()
         for pipeline_expr in self.pipelines_exprs:
             previous_name = None
             for process_class in pipeline_expr:
@@ -67,40 +76,7 @@ class System(object):
 
                 previous_name = process_name
         self.pending_prompts = Queue()
-        self.run_with_iteration_lock = Lock()
-
-    # Todo: Extract function to new 'SinglethreadRunner' class or something (like the 'Multiprocess' class)?
-    def setup(self):
-        assert self.processes is None, "Already running"
-        self.processes = {}
-
-        # Construct the processes.
-        for process_class in self.process_classes.values():
-
-            process = self.construct_app(process_class)
-            self.processes[process.name] = process
-
-        # Do something to make sure followers' run() method is
-        # called when a process application publishes a prompt.
-        subscribe(
-            predicate=self.is_prompt,
-            handler=self.run_followers,
-        )
-
-        # Configure which process follows which.
-        for followed_name, followers in self.followers.items():
-            followed = self.processes[followed_name]
-            followed_log = followed.notification_log
-            for follower_name in followers:
-                follower = self.processes[follower_name]
-                follower.follow(followed_name, followed_log)
-
-        # Todo: See if can factor this out, it's confusing.
-        for follower_name, follows in self.followings.items():
-            follower = self.processes[follower_name]
-            for followed_name in follows:
-                followed = self.processes[followed_name]
-                follower.follow(followed.name, followed.notification_log)
+        self.iteration_lock = Lock()
 
     def construct_app(self, process_class, **kwargs):
         kwargs = dict(kwargs)
@@ -120,35 +96,23 @@ class System(object):
 
         return process
 
-    def close(self):
-        assert self.processes is not None, "Not running"
-        for process in self.processes.values():
-            process.close()
-        unsubscribe(
-            predicate=self.is_prompt,
-            handler=self.run_followers,
-        )
-        self.processes = None
-
     def is_prompt(self, event):
         return isinstance(event, Prompt)
 
     def run_followers(self, prompt):
+        """
+        First caller adds a prompt to queue and
+        runs followers until there are no more
+        pending prompts.
+
+        Subsequent callers just add a prompt
+        to the queue, avoiding recursion.
+        """
         assert isinstance(prompt, Prompt)
-        # self.run_followers_with_recursion(prompt)
-        self.run_followers_with_iteration(prompt)
-
-    def run_followers_with_recursion(self, prompt):
-        followers = self.followers[prompt.process_name]
-        for follower_name in followers:
-            follower = self.processes[follower_name]
-            follower.run(prompt)
-
-    def run_followers_with_iteration(self, prompt):
         # Put the prompt on the queue.
         self.pending_prompts.put(prompt)
 
-        if self.run_with_iteration_lock.acquire(False):
+        if self.iteration_lock.acquire(False):
             try:
                 while True:
                     try:
@@ -162,16 +126,214 @@ class System(object):
                             follower.run(prompt)
                         self.pending_prompts.task_done()
             finally:
-                self.run_with_iteration_lock.release()
+                self.iteration_lock.release()
+
+    # This is the old way of doing it, with recursion.
+    # def run_followers_with_recursion(self, prompt):
+    #     followers = self.followers[prompt.process_name]
+    #     for follower_name in followers:
+    #         follower = self.processes[follower_name]
+    #         follower.run(prompt)
+    #
 
     def __enter__(self):
-        self.setup()
+        self.runner = SingleThreadRunner(self)
+        self.runner.__enter__()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+        self.runner.__exit__(exc_type, exc_val, exc_tb)
 
     def drop_tables(self):
         for process_class in self.process_classes.values():
             with self.construct_app(process_class, setup_table=False) as process:
                 process.drop_table()
+
+
+class SystemRunner(with_metaclass(ABCMeta)):
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    @abstractmethod
+    def start(self):
+        pass
+
+    @abstractmethod
+    def close(self):
+        pass
+
+
+class InProcessRunner(SystemRunner):
+    """
+    Runs a system in the current process,
+    either in the current thread, or with
+    a thread for each process in the system.
+    """
+
+    def __init__(self, system: System):
+        self.system = system
+
+    def start(self):
+        assert self.system.processes is None, "Already running"
+        self.system.processes = {}
+
+        # Construct the processes.
+        for process_class in self.system.process_classes.values():
+
+            process = self.system.construct_app(process_class)
+            self.system.processes[process.name] = process
+
+        # Do something to make sure followers' run() method is
+        # called when a process application publishes a prompt.
+        subscribe(
+            predicate=self.system.is_prompt,
+            handler=self.handle_prompt,
+        )
+
+        # Configure which process follows which.
+        for followed_name, followers in self.system.followers.items():
+            followed = self.system.processes[followed_name]
+            followed_log = followed.notification_log
+            for follower_name in followers:
+                follower = self.system.processes[follower_name]
+                follower.follow(followed_name, followed_log)
+
+    @abstractmethod
+    def handle_prompt(self, prompt):
+        pass
+
+    def close(self):
+        assert self.system.processes is not None, "Not running"
+        for process in self.system.processes.values():
+            process.close()
+        unsubscribe(
+            predicate=self.system.is_prompt,
+            handler=self.handle_prompt,
+        )
+        self.processes = None
+
+
+class SingleThreadRunner(InProcessRunner):
+    """
+    Runs a system in the current thread.
+    """
+
+    def handle_prompt(self, prompt):
+        self.system.run_followers(prompt)
+
+
+class MultiThreadedRunner(InProcessRunner):
+    """
+    Runs a system with a thread for each process.
+    """
+
+    def __init__(self, system, poll_interval=None):
+        super(MultiThreadedRunner, self).__init__(system=system)
+        self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
+        assert isinstance(system, System)
+        self.threads = {}
+
+    def start(self):
+        super(MultiThreadedRunner, self).start()
+        assert not self.threads, "Already started"
+
+        self.inboxes = {}
+        self.outboxes = {}
+
+        # Setup queues.
+        for process_name, upstream_names in self.system.followings.items():
+            inbox_id = process_name.lower()
+            if inbox_id not in self.inboxes:
+                self.inboxes[inbox_id] = Queue()
+            for upstream_class_name in upstream_names:
+                outbox_id = upstream_class_name.lower()
+                if outbox_id not in self.outboxes:
+                    self.outboxes[outbox_id] = Outbox()
+                if inbox_id not in self.outboxes[outbox_id].downstream_inboxes:
+                    self.outboxes[outbox_id].downstream_inboxes[inbox_id] = self.inboxes[inbox_id]
+
+        # Construct application threads.
+        for process_name, process in self.system.processes.items():
+            process_instance_id = process_name
+            thread = ApplicationThread(
+                process=process,
+                poll_interval=self.poll_interval,
+                inbox=self.inboxes[process_instance_id],
+                outbox=self.outboxes[process_instance_id],
+            )
+            self.threads[process_instance_id] = thread
+
+        # Start application threads.
+        for thread in self.threads.values():
+            thread.start()
+
+    def handle_prompt(self, prompt):
+        self.broadcast_prompt(prompt)
+
+    def broadcast_prompt(self, prompt):
+        outbox_id = prompt.process_name
+        assert outbox_id in self.outboxes, (outbox_id, self.outboxes.keys())
+        self.outboxes[outbox_id].put(prompt)
+
+    @staticmethod
+    def is_prompt(event):
+        return isinstance(event, Prompt)
+
+    def close(self):
+        super(MultiThreadedRunner, self).close()
+        for thread in self.threads.values():
+            thread.inbox.put('QUIT')
+
+        for thread in self.threads.values():
+            thread.join(timeout=10)
+
+        self.threads.clear()
+
+
+class ApplicationThread(Thread):
+
+    def __init__(self, process, poll_interval=DEFAULT_POLL_INTERVAL,
+                 inbox=None, outbox=None, *args, **kwargs):
+        super(ApplicationThread, self).__init__(*args, **kwargs)
+        self.process = process
+        self.poll_interval = poll_interval
+        self.inbox = inbox
+        self.outbox = outbox
+
+    def run(self):
+        self.loop_on_prompts()
+
+    @retry(CausalDependencyFailed, max_attempts=100, wait=0.1)
+    def loop_on_prompts(self):
+
+        # Loop on getting prompts.
+        while True:
+            try:
+                # Todo: Make the poll interval gradually increase if there are only timeouts?
+                item = self.inbox.get(timeout=self.poll_interval)
+                self.inbox.task_done()
+
+                if item == 'QUIT':
+                    self.process.close()
+                    break
+
+                else:
+                    self.process.run(item)
+
+            except six.moves.queue.Empty:
+                # Basically, we're polling after a timeout.
+                self.process.run()
+
+
+class Outbox(object):
+    def __init__(self):
+        self.downstream_inboxes = {}
+
+    def put(self, msg):
+        for q in self.downstream_inboxes.values():
+            q.put(msg)

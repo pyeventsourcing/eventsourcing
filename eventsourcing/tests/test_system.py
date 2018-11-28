@@ -3,9 +3,9 @@ import time
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.application.multiprocess import Multiprocess
+from eventsourcing.application.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.application.system import System
+from eventsourcing.application.system import MultiThreadedRunner, System
 from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
 from eventsourcing.tests.test_process import ExampleAggregate
 from eventsourcing.tests.test_system_fixtures import Examples, Order, Orders, Payment, Payments, Reservation, \
@@ -13,7 +13,6 @@ from eventsourcing.tests.test_system_fixtures import Examples, Order, Orders, Pa
 
 
 class TestSystem(TestCase):
-
     infrastructure_class = SQLAlchemyApplication
 
     def test_singlethreaded_multiapp_system(self):
@@ -32,6 +31,62 @@ class TestSystem(TestCase):
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
+    def test_multithreading_singleapp_system(self):
+
+        system = System(Examples | Examples,
+                        setup_tables=True,
+                        infrastructure_class=self.infrastructure_class)
+
+        self.set_db_uri()
+
+        with MultiThreadedRunner(system):
+
+            app = system.processes['examples']
+
+            aggregate = ExampleAggregate.__create__()
+            aggregate.__save__()
+
+            assert aggregate.id in app.repository
+
+            # Check the aggregate is moved on.
+            retries = 50
+            while not app.repository[aggregate.id].is_moved_on:
+
+                time.sleep(0.1)
+                retries -= 1
+                assert retries, "Failed to move"
+
+    def test_multithreading_multiapp_system(self):
+        system = System(
+            Orders | Reservations | Orders,
+            Orders | Payments | Orders,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class
+        )
+
+        self.set_db_uri()
+
+        with MultiThreadedRunner(system):
+
+            orders = system.processes['orders']
+
+            # Create a new order.
+            order_id = create_new_order()
+
+            # Check new order exists in the repository.
+            assert order_id in orders.repository
+
+            retries = 50
+            while not orders.repository[order_id].is_reserved:
+                time.sleep(0.1)
+                retries -= 1
+                assert retries, "Failed set order.is_reserved"
+
+            while retries and not orders.repository[order_id].is_paid:
+                time.sleep(0.1)
+                retries -= 1
+                assert retries, "Failed set order.is_paid"
+
     def test_multiprocessing_singleapp_system(self):
 
         system = System(Examples | Examples,
@@ -42,7 +97,7 @@ class TestSystem(TestCase):
 
         self.close_connections_before_forking()
 
-        with Multiprocess(system), system.construct_app(Examples) as app:
+        with MultiprocessRunner(system), system.construct_app(Examples) as app:
 
             aggregate = ExampleAggregate.__create__()
             aggregate.__save__()
@@ -75,7 +130,7 @@ class TestSystem(TestCase):
 
         self.close_connections_before_forking()
 
-        with Multiprocess(system):
+        with MultiprocessRunner(system):
 
             with system.construct_app(Orders) as app:
                 retries = 50
@@ -88,9 +143,6 @@ class TestSystem(TestCase):
                     time.sleep(0.1)
                     retries -= 1
                     assert retries, "Failed set order.is_paid"
-
-    def set_db_uri(self):
-        set_db_uri()
 
     def test_multipipeline_multiprocessing_multiapp(self):
 
@@ -106,7 +158,7 @@ class TestSystem(TestCase):
 
         pipeline_ids = range(num_pipelines)
 
-        multiprocess = Multiprocess(system, pipeline_ids=pipeline_ids)
+        multiprocess = MultiprocessRunner(system, pipeline_ids=pipeline_ids)
 
         num_orders_per_pipeline = 5
         order_ids = []
@@ -157,6 +209,9 @@ class TestSystem(TestCase):
             print("Min order processing time: {:.3f}s".format(min(durations)))
             print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
             print("Max order processing time: {:.3f}s".format(max(durations)))
+
+    def set_db_uri(self):
+        set_db_uri()
 
     def close_connections_before_forking(self):
         # Used for closing Django connection before multiprocessing module forks the OS process.
