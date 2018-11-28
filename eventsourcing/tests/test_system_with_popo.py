@@ -18,6 +18,9 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
     def test_multithreading_multiapp_system(self):
         super(TestSystemWithPopo, self).test_multithreading_multiapp_system()
 
+    def test_clocked_multithreading_multiapp_system(self):
+        super(TestSystemWithPopo, self).test_clocked_multithreading_multiapp_system()
+
     @skip("Popo record manager doesn't support multiprocessing")
     def test_multiprocessing_multiapp_system(self):
         super(TestSystemWithPopo, self).test_multiprocessing_multiapp_system()

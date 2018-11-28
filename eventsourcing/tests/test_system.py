@@ -87,6 +87,37 @@ class TestSystem(TestCase):
                 retries -= 1
                 assert retries, "Failed set order.is_paid"
 
+    def test_clocked_multithreading_multiapp_system(self):
+        system = System(
+            Orders | Reservations | Orders,
+            Orders | Payments | Orders,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class
+        )
+
+        self.set_db_uri()
+
+        with MultiThreadedRunner(system, clock_speed=10000):
+
+            orders = system.processes['orders']
+
+            # Create a new order.
+            order_id = create_new_order()
+
+            # Check new order exists in the repository.
+            assert order_id in orders.repository
+
+            retries = 50
+            while not orders.repository[order_id].is_reserved:
+                time.sleep(0.1)
+                retries -= 1
+                assert retries, "Failed set order.is_reserved"
+
+            while retries and not orders.repository[order_id].is_paid:
+                time.sleep(0.1)
+                retries -= 1
+                assert retries, "Failed set order.is_paid"
+
     def test_multiprocessing_singleapp_system(self):
 
         system = System(Examples | Examples,

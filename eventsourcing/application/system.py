@@ -1,6 +1,7 @@
+import time
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-from threading import Lock, Thread
+from threading import Lock, Thread, Event, Timer
 
 import six
 from six import with_metaclass
@@ -137,12 +138,13 @@ class System(object):
     #
 
     def __enter__(self):
-        self.runner = SingleThreadRunner(self)
-        self.runner.__enter__()
+        self.__runner = SingleThreadRunner(self)
+        self.__runner.__enter__()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.runner.__exit__(exc_type, exc_val, exc_tb)
+        self.__runner.__exit__(exc_type, exc_val, exc_tb)
+        del(self.__runner)
 
     def drop_tables(self):
         for process_class in self.process_classes.values():
@@ -231,12 +233,13 @@ class MultiThreadedRunner(InProcessRunner):
     """
     Runs a system with a thread for each process.
     """
-
-    def __init__(self, system: System, poll_interval=None):
+    def __init__(self, system: System, poll_interval=None, clock_speed=None):
         super(MultiThreadedRunner, self).__init__(system=system)
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
         self.threads = {}
+        self.clock_speed = clock_speed
+        self.stop_clock = Event()
 
     def start(self):
         super(MultiThreadedRunner, self).start()
@@ -260,17 +263,66 @@ class MultiThreadedRunner(InProcessRunner):
         # Construct application threads.
         for process_name, process in self.system.processes.items():
             process_instance_id = process_name
+            if self.clock_speed:
+                clock_event = Event()
+                process.clock_event = clock_event
+            else:
+                clock_event = None
             thread = ApplicationThread(
                 process=process,
                 poll_interval=self.poll_interval,
                 inbox=self.inboxes[process_instance_id],
                 outbox=self.outboxes[process_instance_id],
+                clock_event=clock_event
             )
             self.threads[process_instance_id] = thread
 
         # Start application threads.
         for thread in self.threads.values():
             thread.start()
+
+        # Start clock.
+        self.start_clock()
+
+    def start_clock(self):
+        clock_events = [t.clock_event for t in self.threads.values()]
+        if self.clock_speed:
+            tick_interval = 1 / self.clock_speed
+            self.last_tick = None
+
+            def set_clock_events():
+                this_tick = time.time()
+                # if self.last_tick is not None:
+                #     tick_size = (this_tick - self.last_tick)
+                #     tick_error = tick_size - tick_interval
+                #     tick_error_percentage = 100 * tick_error / tick_interval
+                #     if tick_error_percentage > 0:
+                #         print(
+                #             f"Warning: tick error: {tick_size:.6f}s, {tick_error_percentage:.0f}%"
+                #         )
+                #     else:
+                #         print(
+                #             f"Warning: tick ok: {tick_size:.6f}s, {tick_interval:.6f}%"
+                #         )
+                self.last_tick = this_tick
+
+                for clock_event in clock_events:
+                    clock_event.set()
+                if not self.stop_clock.is_set():
+                    set_timer()
+
+            def set_timer():
+                if self.last_tick is not None:
+                    interval_remaining = tick_interval - (time.time() - self.last_tick)
+                    if interval_remaining < 0:
+                        print(f"Warning: negative interval remaining: {interval_remaining}")
+                        interval_remaining = tick_interval
+                else:
+                    interval_remaining = 0
+                timer = Timer(interval_remaining, set_clock_events)
+                timer.start()
+
+            set_timer()
 
     def handle_prompt(self, prompt):
         self.broadcast_prompt(prompt)
@@ -294,16 +346,20 @@ class MultiThreadedRunner(InProcessRunner):
 
         self.threads.clear()
 
+        self.stop_clock.set()
+
+
 
 class ApplicationThread(Thread):
 
     def __init__(self, process, poll_interval=DEFAULT_POLL_INTERVAL,
-                 inbox=None, outbox=None, *args, **kwargs):
+                 inbox=None, outbox=None, clock_event=None, *args, **kwargs):
         super(ApplicationThread, self).__init__(*args, **kwargs)
         self.process = process
         self.poll_interval = poll_interval
         self.inbox = inbox
         self.outbox = outbox
+        self.clock_event = clock_event
 
     def run(self):
         self.loop_on_prompts()
@@ -315,19 +371,31 @@ class ApplicationThread(Thread):
         while True:
             try:
                 # Todo: Make the poll interval gradually increase if there are only timeouts?
-                item = self.inbox.get(timeout=self.poll_interval)
+                prompt = self.inbox.get(timeout=self.poll_interval)
                 self.inbox.task_done()
 
-                if item == 'QUIT':
+                if prompt == 'QUIT':
                     self.process.close()
                     break
 
                 else:
-                    self.process.run(item)
+                    if self.clock_event is not None:
+                        self.clock_event.wait()
+                        self.clock_event.clear()
+                    started = time.time()
+                    self.process.run(prompt)
+                    if self.clock_event is not None:
+                        ended = time.time()
+                        duration = ended - started
+                        if self.clock_event.is_set():
+                            print(f"Warning: Process {self.process.name} overran clock cycle: {duration}")
+                        else:
+                            print(f"Info: Process {self.process.name} ran within clock cycle: {duration}")
 
             except six.moves.queue.Empty:
                 # Basically, we're polling after a timeout.
-                self.process.run()
+                if self.clock_event is None:
+                    self.process.run()
 
 
 class Outbox(object):
