@@ -186,24 +186,22 @@ class InProcessRunner(SystemRunner):
 
         # Construct the processes.
         for process_class in self.system.process_classes.values():
-
             process = self.system.construct_app(process_class)
             self.system.processes[process.name] = process
 
-        # Do something to make sure followers' run() method is
-        # called when a process application publishes a prompt.
-        subscribe(
-            predicate=self.system.is_prompt,
-            handler=self.handle_prompt,
-        )
-
-        # Configure which process follows which.
+        # Tell each process about the processes it follows.
         for followed_name, followers in self.system.followers.items():
             followed = self.system.processes[followed_name]
             followed_log = followed.notification_log
             for follower_name in followers:
                 follower = self.system.processes[follower_name]
                 follower.follow(followed_name, followed_log)
+
+        # Do something to propagate prompts.
+        subscribe(
+            predicate=self.system.is_prompt,
+            handler=self.handle_prompt,
+        )
 
     @abstractmethod
     def handle_prompt(self, prompt):
@@ -239,7 +237,12 @@ class MultiThreadedRunner(InProcessRunner):
         assert isinstance(system, System)
         self.threads = {}
         self.clock_speed = clock_speed
-        self.stop_clock = Event()
+        if self.clock_speed:
+            self.clock_event = Event()
+            self.stop_clock_event = Event()
+        else:
+            self.clock_event = None
+            self.stop_clock_event = None
 
     def start(self):
         super(MultiThreadedRunner, self).start()
@@ -247,6 +250,7 @@ class MultiThreadedRunner(InProcessRunner):
 
         self.inboxes = {}
         self.outboxes = {}
+        self.clock_events = []
 
         # Setup queues.
         for process_name, upstream_names in self.system.followings.items():
@@ -263,17 +267,17 @@ class MultiThreadedRunner(InProcessRunner):
         # Construct application threads.
         for process_name, process in self.system.processes.items():
             process_instance_id = process_name
-            if self.clock_speed:
-                clock_event = Event()
-                process.clock_event = clock_event
-            else:
-                clock_event = None
+            if self.clock_event:
+                process.clock_event = self.clock_event
+                process.tick_interval = 1 / self.clock_speed
+
             thread = ApplicationThread(
                 process=process,
                 poll_interval=self.poll_interval,
                 inbox=self.inboxes[process_instance_id],
                 outbox=self.outboxes[process_instance_id],
-                clock_event=clock_event
+                # Todo: Is it better to clock the prompts or the notifications?
+                # clock_event=clock_event
             )
             self.threads[process_instance_id] = thread
 
@@ -285,41 +289,51 @@ class MultiThreadedRunner(InProcessRunner):
         self.start_clock()
 
     def start_clock(self):
-        clock_events = [t.clock_event for t in self.threads.values()]
         if self.clock_speed:
             tick_interval = 1 / self.clock_speed
+            print(f"Tick interval: {tick_interval:.6f}s")
             self.last_tick = None
+            self.this_tick = None
+            self.tick_adjustment = 0
 
-            def set_clock_events():
-                this_tick = time.time()
-                # if self.last_tick is not None:
-                #     tick_size = (this_tick - self.last_tick)
-                #     tick_error = tick_size - tick_interval
-                #     tick_error_percentage = 100 * tick_error / tick_interval
-                #     if tick_error_percentage > 0:
-                #         print(
-                #             f"Warning: tick error: {tick_size:.6f}s, {tick_error_percentage:.0f}%"
-                #         )
-                #     else:
-                #         print(
-                #             f"Warning: tick ok: {tick_size:.6f}s, {tick_interval:.6f}%"
-                #         )
-                self.last_tick = this_tick
+            def set_clock_event():
+                self.this_tick = time.time()
 
-                for clock_event in clock_events:
-                    clock_event.set()
-                if not self.stop_clock.is_set():
+                if self.last_tick:
+                    tick_size = self.this_tick - self.last_tick
+
+                    tick_oversize = tick_size - tick_interval
+                    tick_oversize_percentage = 100 * (tick_oversize) / tick_interval
+                    if tick_oversize > 0.01:
+                        print(f"Tick size: { tick_size :.6f}s {tick_oversize_percentage:.2f}%")
+
+                    if abs(tick_oversize_percentage) < 300:
+                        self.tick_adjustment += 0.25 * tick_interval * tick_oversize
+                        max_tick_adjustment = 0.25 * tick_interval
+                        min_tick_adjustment = 0
+                        self.tick_adjustment = min(self.tick_adjustment, max_tick_adjustment)
+                        self.tick_adjustment = max(self.tick_adjustment, min_tick_adjustment)
+
+                self.last_tick = self.this_tick
+
+                self.clock_event.set()
+                self.clock_event.clear()
+
+                if not self.stop_clock_event.is_set():
                     set_timer()
 
             def set_timer():
+                # print(f"Tick adjustment: {self.tick_adjustment:.6f}")
                 if self.last_tick is not None:
-                    interval_remaining = tick_interval - (time.time() - self.last_tick)
-                    if interval_remaining < 0:
-                        print(f"Warning: negative interval remaining: {interval_remaining}")
-                        interval_remaining = tick_interval
+                    time_since_last_tick = time.time() - self.last_tick
+                    time_remaining = tick_interval - time_since_last_tick
+                    timer_interval = time_remaining - self.tick_adjustment
+                    if timer_interval < 0:
+                        timer_interval = 0
+                        print("Warning: clock thread is running flat out!")
                 else:
-                    interval_remaining = 0
-                timer = Timer(interval_remaining, set_clock_events)
+                    timer_interval = 0
+                timer = Timer(timer_interval, set_clock_event)
                 timer.start()
 
             set_timer()
@@ -346,8 +360,8 @@ class MultiThreadedRunner(InProcessRunner):
 
         self.threads.clear()
 
-        self.stop_clock.set()
-
+        if self.stop_clock_event is not None:
+            self.stop_clock_event.set()
 
 
 class ApplicationThread(Thread):
@@ -381,7 +395,6 @@ class ApplicationThread(Thread):
                 else:
                     if self.clock_event is not None:
                         self.clock_event.wait()
-                        self.clock_event.clear()
                     started = time.time()
                     self.process.run(prompt)
                     if self.clock_event is not None:

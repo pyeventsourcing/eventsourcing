@@ -1,3 +1,4 @@
+import time
 from collections import OrderedDict, defaultdict
 from threading import Lock
 
@@ -30,6 +31,8 @@ class ProcessApplication(Pipeable, Application):
         self.is_reader_position_ok = defaultdict(bool)
         self._notification_generators = {}
         self._policy_lock = Lock()
+        self.clock_event = None
+        self.tick_interval = None
         super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
 
         # Republish our events as prompts.
@@ -136,6 +139,14 @@ class ProcessApplication(Pipeable, Application):
                                 'notification_id': notification_id
                             })
 
+                    if self.clock_event is not None:
+                        self.clock_event.wait()
+
+                    if self.tick_interval is not None:
+                        cycle_started = time.time()
+                    else:
+                        cycle_started = None
+
                     # Call policy with the upstream event.
                     all_aggregates, causal_dependencies = self.call_policy(event)
 
@@ -170,6 +181,15 @@ class ProcessApplication(Pipeable, Application):
                                 except KeyError:
                                     pass
                         raise exc
+                    else:
+                        if self.tick_interval is not None:
+                            # Todo: Change this to use the full cycle time (improve getting notifications first).
+                            cycle_ended = time.time()
+                            cycle_time = cycle_ended - cycle_started
+                            if cycle_time > self.tick_interval:
+                                cycle_perc = 100 * (cycle_time - self.tick_interval) / self.tick_interval
+                                msg = f"Warning: {self.name} cycle exceeded tick interval: {cycle_perc:.2f}%"
+                                print(msg)
 
                 self.take_snapshots(new_events)
 
@@ -182,9 +202,9 @@ class ProcessApplication(Pipeable, Application):
 
     def get_notification_generator(self, upstream_name, advance_by):
         # Dict avoids re-entrant calls to run() starting their own generator,
-        # so that notifications are only received once. Helps with single-threaded
-        # system which otherwise has lots of tracking record conflicts as duplicate
-        # notifications are processed.
+        # so that notifications are only received once. Was needed in
+        # single-threaded runner before it was changed to use iteration not
+        # recursion. Hence, probably no longer needed - use reader directly.
         try:
             generator = self._notification_generators[upstream_name]
         except KeyError:
