@@ -76,8 +76,6 @@ class System(object):
                     followers.append(process_name)
 
                 previous_name = process_name
-        self.pending_prompts = Queue()
-        self.iteration_lock = Lock()
 
     def construct_app(self, process_class, **kwargs):
         kwargs = dict(kwargs)
@@ -99,43 +97,6 @@ class System(object):
 
     def is_prompt(self, event):
         return isinstance(event, Prompt)
-
-    def run_followers(self, prompt):
-        """
-        First caller adds a prompt to queue and
-        runs followers until there are no more
-        pending prompts.
-
-        Subsequent callers just add a prompt
-        to the queue, avoiding recursion.
-        """
-        assert isinstance(prompt, Prompt)
-        # Put the prompt on the queue.
-        self.pending_prompts.put(prompt)
-
-        if self.iteration_lock.acquire(False):
-            try:
-                while True:
-                    try:
-                        prompt = self.pending_prompts.get(False)
-                    except Empty:
-                        break
-                    else:
-                        followers = self.followers[prompt.process_name]
-                        for follower_name in followers:
-                            follower = self.processes[follower_name]
-                            follower.run(prompt)
-                        self.pending_prompts.task_done()
-            finally:
-                self.iteration_lock.release()
-
-    # This is the old way of doing it, with recursion.
-    # def run_followers_with_recursion(self, prompt):
-    #     followers = self.followers[prompt.process_name]
-    #     for follower_name in followers:
-    #         follower = self.processes[follower_name]
-    #         follower.run(prompt)
-    #
 
     def __enter__(self):
         self.__runner = SingleThreadRunner(self)
@@ -222,9 +183,51 @@ class SingleThreadRunner(InProcessRunner):
     """
     Runs a system in the current thread.
     """
+    def __init__(self, *args, **kwargs):
+        super(SingleThreadRunner, self).__init__(*args, **kwargs)
+        self.pending_prompts = Queue()
+        self.iteration_lock = Lock()
 
     def handle_prompt(self, prompt):
-        self.system.run_followers(prompt)
+        self.run_followers(prompt)
+
+    def run_followers(self, prompt):
+        """
+        First caller adds a prompt to queue and
+        runs followers until there are no more
+        pending prompts.
+
+        Subsequent callers just add a prompt
+        to the queue, avoiding recursion.
+        """
+        assert isinstance(prompt, Prompt)
+        # Put the prompt on the queue.
+        self.pending_prompts.put(prompt)
+
+        if self.iteration_lock.acquire(False):
+            try:
+                while True:
+                    try:
+                        prompt = self.pending_prompts.get(False)
+                    except Empty:
+                        break
+                    else:
+                        followers = self.system.followers[prompt.process_name]
+                        for follower_name in followers:
+                            follower = self.system.processes[follower_name]
+                            follower.run(prompt)
+                        self.pending_prompts.task_done()
+            finally:
+                self.iteration_lock.release()
+
+    # This is the old way of doing it, with recursion.
+    # def run_followers_with_recursion(self, prompt):
+    #     followers = self.system.followers[prompt.process_name]
+    #     for follower_name in followers:
+    #         follower = self.processes[follower_name]
+    #         follower.run(prompt)
+    #
+
 
 
 class MultiThreadedRunner(InProcessRunner):
