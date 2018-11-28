@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from eventsourcing.application.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
+from eventsourcing.application.system import MultiThreadedRunner
 from eventsourcing.contrib.paxos.application import PaxosSystem, PaxosProcess
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
@@ -60,6 +61,50 @@ class TestPaxosSystem(unittest.TestCase):
             self.assert_final_value(paxosprocess1, key3, value3)
             self.assert_final_value(paxosprocess2, key3, value3)
             print("Resolved paxos 3 with single thread in %ss" % ended3)
+
+    def test_multi_threaded(self):
+        set_db_uri()
+
+        system = PaxosSystem(
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
+
+        key1, key2, key3 = uuid4(), uuid4(), uuid4()
+        value1, value2, value3 = 11111, 22222, 33333
+
+        with MultiThreadedRunner(system):
+            paxosprocess0 = system.processes['paxosprocess0']
+            paxosprocess1 = system.processes['paxosprocess1']
+            paxosprocess2 = system.processes['paxosprocess2']
+
+            started1 = datetime.datetime.now()
+            assert isinstance(paxosprocess0, PaxosProcess)
+            paxosprocess0.propose_value(key1, value1)
+            ended1 = (datetime.datetime.now() - started1).total_seconds()
+            # Check each process has expected final value.
+            self.assert_final_value(paxosprocess0, key1, value1)
+            self.assert_final_value(paxosprocess1, key1, value1)
+            self.assert_final_value(paxosprocess2, key1, value1)
+            print("Resolved paxos 1 with multi threads in %ss" % ended1)
+
+            started2 = datetime.datetime.now()
+            paxosprocess1.propose_value(key2, value2)
+            ended2 = (datetime.datetime.now() - started2).total_seconds()
+            # Check each process has a resolution.
+            self.assert_final_value(paxosprocess0, key2, value2)
+            self.assert_final_value(paxosprocess1, key2, value2)
+            self.assert_final_value(paxosprocess2, key2, value2)
+            print("Resolved paxos 2 with multi threads in %ss" % ended2)
+
+            started3 = datetime.datetime.now()
+            paxosprocess2.propose_value(key3, value3)
+            ended3 = (datetime.datetime.now() - started3).total_seconds()
+            # Check each process has a resolution.
+            self.assert_final_value(paxosprocess0, key3, value3)
+            self.assert_final_value(paxosprocess1, key3, value3)
+            self.assert_final_value(paxosprocess2, key3, value3)
+            print("Resolved paxos 3 with multi threads in %ss" % ended3)
 
     def test_multiprocessing(self):
         set_db_uri()
