@@ -152,6 +152,9 @@ class System(object):
 
 class SystemRunner(with_metaclass(ABCMeta)):
 
+    def __init__(self, system: System):
+        self.system = system
+
     def __enter__(self):
         self.start()
         return self
@@ -174,9 +177,6 @@ class InProcessRunner(SystemRunner):
     either in the current thread, or with
     a thread for each process in the system.
     """
-
-    def __init__(self, system: System):
-        self.system = system
 
     def start(self):
         assert self.system.processes is None, "Already running"
@@ -232,7 +232,7 @@ class MultiThreadedRunner(InProcessRunner):
     Runs a system with a thread for each process.
     """
 
-    def __init__(self, system, poll_interval=None):
+    def __init__(self, system: System, poll_interval=None):
         super(MultiThreadedRunner, self).__init__(system=system)
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)

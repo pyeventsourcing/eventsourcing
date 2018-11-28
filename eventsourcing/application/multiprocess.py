@@ -15,9 +15,9 @@ from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 
 class MultiprocessRunner(SystemRunner):
 
-    def __init__(self, system, pipeline_ids=(DEFAULT_PIPELINE_ID,), poll_interval=None,
+    def __init__(self, system: System, pipeline_ids=(DEFAULT_PIPELINE_ID,), poll_interval=None,
                  setup_tables=False, sleep_for_setup_tables=0):
-        self.system = system
+        super(MultiprocessRunner, self).__init__(system=system)
         self.pipeline_ids = pipeline_ids
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
