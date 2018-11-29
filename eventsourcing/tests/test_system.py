@@ -69,24 +69,30 @@ class TestSystem(TestCase):
 
         with MultiThreadedRunner(system):
 
+            started = time.time()
+
             orders = system.processes['orders']
 
-            # Create a new order.
-            order_id = create_new_order()
+            # Create new orders.
+            num_orders = 10
+            order_ids = []
+            for i in range(num_orders):
+                order_id = create_new_order()
+                order_ids.append(order_id)
 
-            # Check new order exists in the repository.
-            assert order_id in orders.repository
+            retries = num_orders
+            for order_id in order_ids:
+                # while not orders.repository[order_id].is_reserved:
+                #     time.sleep(0.1)
+                #     retries -= 1
+                #     assert retries, "Failed set order.is_reserved"
 
-            retries = 50
-            while not orders.repository[order_id].is_reserved:
-                time.sleep(0.1)
-                retries -= 1
-                assert retries, "Failed set order.is_reserved"
+                while retries and not orders.repository[order_id].is_paid:
+                    time.sleep(0.1)
+                    retries -= 1
+                    assert retries, "Failed set order.is_paid"
 
-            while retries and not orders.repository[order_id].is_paid:
-                time.sleep(0.1)
-                retries -= 1
-                assert retries, "Failed set order.is_paid"
+            print(f"Duration: { time.time() - started :.4f}s")
 
     def test_clocked_multithreading_multiapp_system(self):
         system = System(
@@ -98,7 +104,7 @@ class TestSystem(TestCase):
 
         self.set_db_uri()
 
-        clock_speed = 40
+        clock_speed = 10
         tick_interval = 1 / clock_speed
         with MultiThreadedRunner(system, clock_speed=clock_speed):
 
@@ -113,9 +119,9 @@ class TestSystem(TestCase):
                 order_id = create_new_order()
                 order_ids.append(order_id)
                 # sleep(tick_interval / 3)
-                sleep(tick_interval * 10)
+                # sleep(tick_interval * 10)
 
-            retries = num_orders
+            retries = 10 * num_orders
             for order_id in order_ids:
                 # while not orders.repository[order_id].is_reserved:
                 #     time.sleep(0.1)
@@ -128,7 +134,7 @@ class TestSystem(TestCase):
                     retries -= 1
                     assert retries, "Failed set order.is_paid"
 
-            print(f"Duration: { time.time() - started :.4f}s")
+        print(f"Duration: { time.time() - started :.4f}s")
 
     def test_multiprocessing_singleapp_system(self):
 

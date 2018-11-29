@@ -300,19 +300,22 @@ class MultiThreadedRunner(InProcessRunner):
             self.tick_adjustment = 0
 
             def set_clock_event():
-                self.this_tick = time.time()
+                if self.stop_clock_event.is_set():
+                    return
+
+                self.this_tick = time.process_time()
 
                 if self.last_tick:
                     tick_size = self.this_tick - self.last_tick
 
                     tick_oversize = tick_size - tick_interval
                     tick_oversize_percentage = 100 * (tick_oversize) / tick_interval
-                    if tick_oversize > 0.01:
-                        print(f"Tick size: { tick_size :.6f}s {tick_oversize_percentage:.2f}%")
+                    if tick_oversize_percentage > 300:
+                        print(f"Warning: Tick over size: { tick_size :.6f}s {tick_oversize_percentage:.2f}%")
 
                     if abs(tick_oversize_percentage) < 300:
-                        self.tick_adjustment += 0.25 * tick_interval * tick_oversize
-                        max_tick_adjustment = 0.25 * tick_interval
+                        self.tick_adjustment += 0.5 * tick_interval * tick_oversize
+                        max_tick_adjustment = 0.5 * tick_interval
                         min_tick_adjustment = 0
                         self.tick_adjustment = min(self.tick_adjustment, max_tick_adjustment)
                         self.tick_adjustment = max(self.tick_adjustment, min_tick_adjustment)
@@ -328,7 +331,7 @@ class MultiThreadedRunner(InProcessRunner):
             def set_timer():
                 # print(f"Tick adjustment: {self.tick_adjustment:.6f}")
                 if self.last_tick is not None:
-                    time_since_last_tick = time.time() - self.last_tick
+                    time_since_last_tick = time.process_time() - self.last_tick
                     time_remaining = tick_interval - time_since_last_tick
                     timer_interval = time_remaining - self.tick_adjustment
                     if timer_interval < 0:
@@ -355,6 +358,13 @@ class MultiThreadedRunner(InProcessRunner):
 
     def close(self):
         super(MultiThreadedRunner, self).close()
+
+        if self.clock_event is not None:
+            self.clock_event.set()
+
+        if self.stop_clock_event is not None:
+            self.stop_clock_event.set()
+
         for thread in self.threads.values():
             thread.inbox.put('QUIT')
 
@@ -362,9 +372,6 @@ class MultiThreadedRunner(InProcessRunner):
             thread.join(timeout=10)
 
         self.threads.clear()
-
-        if self.stop_clock_event is not None:
-            self.stop_clock_event.set()
 
 
 class ApplicationThread(Thread):

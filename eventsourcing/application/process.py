@@ -74,7 +74,7 @@ class ProcessApplication(Pipeable, Application):
 
     def follow(self, upstream_application_name, notification_log):
         # Create a reader.
-        reader = NotificationLogReader(notification_log)
+        reader = NotificationLogReader(notification_log, use_direct_query_if_available=True)
         self.readers[upstream_application_name] = reader
 
     @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
@@ -143,7 +143,7 @@ class ProcessApplication(Pipeable, Application):
                         self.clock_event.wait()
 
                     if self.tick_interval is not None:
-                        cycle_started = time.time()
+                        cycle_started = time.process_time()
                     else:
                         cycle_started = None
 
@@ -184,11 +184,11 @@ class ProcessApplication(Pipeable, Application):
                     else:
                         if self.tick_interval is not None:
                             # Todo: Change this to use the full cycle time (improve getting notifications first).
-                            cycle_ended = time.time()
+                            cycle_ended = time.process_time()
                             cycle_time = cycle_ended - cycle_started
-                            if cycle_time > self.tick_interval:
-                                cycle_perc = 100 * (cycle_time - self.tick_interval) / self.tick_interval
-                                msg = f"Warning: {self.name} cycle exceeded tick interval: {cycle_perc:.2f}%"
+                            cycle_perc = 100 * (cycle_time) / self.tick_interval
+                            if cycle_perc > 100:
+                                msg = f"Warning: {self.name} cycle exceeded tick interval by: {cycle_perc - 100:.2f}%"
                                 print(msg)
 
                 self.take_snapshots(new_events)

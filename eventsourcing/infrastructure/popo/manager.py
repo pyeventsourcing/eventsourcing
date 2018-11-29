@@ -51,7 +51,6 @@ class PopoRecordManager(ACIDRecordManager):
         else:
             return max_notification_id
 
-
     def _get_notification_records(self):
         try:
             notification_records = self._all_notification_records[self.application_name]
@@ -63,7 +62,10 @@ class PopoRecordManager(ACIDRecordManager):
         notifications = []
         with self._rw_lock.gen_rlock():
             notification_records = self._get_notification_records()
-            for i in range(start + 1, stop + 1):
+            i = start + 1
+            while True:
+                if stop is not None and i >= stop + 1:
+                    break
                 try:
                     notification_record = notification_records[i]
                     notification = PopoNotification(
@@ -76,7 +78,10 @@ class PopoRecordManager(ACIDRecordManager):
                     )
                     notifications.append(notification)
                 except KeyError:
-                    pass
+                    break
+                else:
+                    i += 1
+
         return notifications
 
     def get_max_tracking_record_id(self, upstream_application_name):
