@@ -229,7 +229,6 @@ class SingleThreadRunner(InProcessRunner):
     #
 
 
-
 class MultiThreadedRunner(InProcessRunner):
     """
     Runs a system with a thread for each process.
@@ -289,60 +288,60 @@ class MultiThreadedRunner(InProcessRunner):
             thread.start()
 
         # Start clock.
-        self.start_clock()
+        if self.clock_speed:
+            self.start_clock()
 
     def start_clock(self):
-        if self.clock_speed:
-            tick_interval = 1 / self.clock_speed
-            print(f"Tick interval: {tick_interval:.6f}s")
-            self.last_tick = None
-            self.this_tick = None
-            self.tick_adjustment = 0
+        tick_interval = 1 / self.clock_speed
+        print(f"Tick interval: {tick_interval:.6f}s")
+        self.last_tick = None
+        self.this_tick = None
+        self.tick_adjustment = 0
 
-            def set_clock_event():
-                if self.stop_clock_event.is_set():
-                    return
+        def set_clock_event():
+            if self.stop_clock_event.is_set():
+                return
 
-                self.this_tick = time.process_time()
+            self.this_tick = time.process_time()
 
-                if self.last_tick:
-                    tick_size = self.this_tick - self.last_tick
+            if self.last_tick:
+                tick_size = self.this_tick - self.last_tick
 
-                    tick_oversize = tick_size - tick_interval
-                    tick_oversize_percentage = 100 * (tick_oversize) / tick_interval
-                    if tick_oversize_percentage > 300:
-                        print(f"Warning: Tick over size: { tick_size :.6f}s {tick_oversize_percentage:.2f}%")
+                tick_oversize = tick_size - tick_interval
+                tick_oversize_percentage = 100 * (tick_oversize) / tick_interval
+                if tick_oversize_percentage > 300:
+                    print(f"Warning: Tick over size: { tick_size :.6f}s {tick_oversize_percentage:.2f}%")
 
-                    if abs(tick_oversize_percentage) < 300:
-                        self.tick_adjustment += 0.5 * tick_interval * tick_oversize
-                        max_tick_adjustment = 0.5 * tick_interval
-                        min_tick_adjustment = 0
-                        self.tick_adjustment = min(self.tick_adjustment, max_tick_adjustment)
-                        self.tick_adjustment = max(self.tick_adjustment, min_tick_adjustment)
+                if abs(tick_oversize_percentage) < 300:
+                    self.tick_adjustment += 0.5 * tick_interval * tick_oversize
+                    max_tick_adjustment = 0.5 * tick_interval
+                    min_tick_adjustment = 0
+                    self.tick_adjustment = min(self.tick_adjustment, max_tick_adjustment)
+                    self.tick_adjustment = max(self.tick_adjustment, min_tick_adjustment)
 
-                self.last_tick = self.this_tick
+            self.last_tick = self.this_tick
 
-                self.clock_event.set()
-                self.clock_event.clear()
+            self.clock_event.set()
+            self.clock_event.clear()
 
-                if not self.stop_clock_event.is_set():
-                    set_timer()
+            if not self.stop_clock_event.is_set():
+                set_timer()
 
-            def set_timer():
-                # print(f"Tick adjustment: {self.tick_adjustment:.6f}")
-                if self.last_tick is not None:
-                    time_since_last_tick = time.process_time() - self.last_tick
-                    time_remaining = tick_interval - time_since_last_tick
-                    timer_interval = time_remaining - self.tick_adjustment
-                    if timer_interval < 0:
-                        timer_interval = 0
-                        print("Warning: clock thread is running flat out!")
-                else:
+        def set_timer():
+            # print(f"Tick adjustment: {self.tick_adjustment:.6f}")
+            if self.last_tick is not None:
+                time_since_last_tick = time.process_time() - self.last_tick
+                time_remaining = tick_interval - time_since_last_tick
+                timer_interval = time_remaining - self.tick_adjustment
+                if timer_interval < 0:
                     timer_interval = 0
-                timer = Timer(timer_interval, set_clock_event)
-                timer.start()
+                    print("Warning: clock thread is running flat out!")
+            else:
+                timer_interval = 0
+            timer = Timer(timer_interval, set_clock_event)
+            timer.start()
 
-            set_timer()
+        set_timer()
 
     def handle_prompt(self, prompt):
         self.broadcast_prompt(prompt)

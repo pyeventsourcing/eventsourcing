@@ -9,17 +9,17 @@ from eventsourcing.tests.test_system import TestSystem
 class TestSystemWithPopo(PopoTestCase, TestSystem):
     infrastructure_class = PopoApplication
 
-    def test_singlethreaded_multiapp_system(self):
-        super(TestSystemWithPopo, self).test_singlethreaded_multiapp_system()
+    def test_singlethreaded_runner_with_multiapp_system(self):
+        super(TestSystemWithPopo, self).test_singlethreaded_runner_with_multiapp_system()
 
-    def test_multithreading_singleapp_system(self):
-        super(TestSystemWithPopo, self).test_multithreading_singleapp_system()
+    def test_multithreaded_runner_with_singleapp_system(self):
+        super(TestSystemWithPopo, self).test_multithreaded_runner_with_singleapp_system()
 
-    def test_multithreading_multiapp_system(self):
-        super(TestSystemWithPopo, self).test_multithreading_multiapp_system()
+    def test_multithreaded_runner_with_multiapp_system(self):
+        super(TestSystemWithPopo, self).test_multithreaded_runner_with_multiapp_system()
 
-    def test_clocked_multithreading_multiapp_system(self):
-        super(TestSystemWithPopo, self).test_clocked_multithreading_multiapp_system()
+    def test_clocked_multithreaded_runner_with_multiapp_system(self):
+        super(TestSystemWithPopo, self).test_clocked_multithreaded_runner_with_multiapp_system()
 
     @skip("Popo record manager doesn't support multiprocessing")
     def test_multiprocessing_multiapp_system(self):

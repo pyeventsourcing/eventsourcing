@@ -16,7 +16,7 @@ from eventsourcing.tests.test_system_fixtures import Examples, Order, Orders, Pa
 class TestSystem(TestCase):
     infrastructure_class = SQLAlchemyApplication
 
-    def test_singlethreaded_multiapp_system(self):
+    def test_singlethreaded_runner_with_multiapp_system(self):
         system = System(Orders | Reservations | Orders,
                         Orders | Payments | Orders,
                         setup_tables=True,
@@ -32,7 +32,7 @@ class TestSystem(TestCase):
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
-    def test_multithreading_singleapp_system(self):
+    def test_multithreaded_runner_with_singleapp_system(self):
 
         system = System(Examples | Examples,
                         setup_tables=True,
@@ -57,7 +57,7 @@ class TestSystem(TestCase):
                 retries -= 1
                 assert retries, "Failed to move"
 
-    def test_multithreading_multiapp_system(self):
+    def test_multithreaded_runner_with_multiapp_system(self):
         system = System(
             Orders | Reservations | Orders,
             Orders | Payments | Orders,
@@ -94,7 +94,7 @@ class TestSystem(TestCase):
 
             print(f"Duration: { time.time() - started :.4f}s")
 
-    def test_clocked_multithreading_multiapp_system(self):
+    def test_clocked_multithreaded_runner_with_multiapp_system(self):
         system = System(
             Orders | Reservations | Orders,
             Orders | Payments | Orders,
