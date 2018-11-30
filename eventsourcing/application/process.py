@@ -107,10 +107,7 @@ class ProcessApplication(Pipeable, Application):
                     notification_count += 1
 
                     # Get domain event from notification.
-                    event = self.event_store.sequenced_item_mapper.from_topic_and_data(
-                        topic=notification['event_type'],
-                        data=notification['state']
-                    )
+                    event = self.get_event_from_notification(notification)
 
                     # Decode causal dependencies of the domain event.
                     causal_dependencies = notification.get('causal_dependencies') or '[]'
@@ -139,57 +136,11 @@ class ProcessApplication(Pipeable, Application):
                                 'notification_id': notification_id
                             })
 
+                    # Wait on the clock event, if there is one.
                     if self.clock_event is not None:
                         self.clock_event.wait()
 
-                    if self.tick_interval is not None:
-                        cycle_started = time.process_time()
-                    else:
-                        cycle_started = None
-
-                    # Call policy with the upstream event.
-                    all_aggregates, causal_dependencies = self.call_policy(event)
-
-                    # Collect pending events.
-                    new_events = self.collect_pending_events(all_aggregates)
-
-                    # Record process event.
-                    try:
-                        tracking_kwargs = self.construct_tracking_kwargs(
-                            notification, upstream_name
-                        )
-                        process_event = ProcessEvent(
-                            new_events, tracking_kwargs, causal_dependencies
-                        )
-                        self.record_process_event(process_event)
-
-                        # Todo: Maybe write one tracking record at the end of a run, if
-                        # necessary, or only during a period of time when nothing happens?
-                    except Exception as exc:
-                        # Need to invalidate reader position, so it is refreshed.
-                        self.is_reader_position_ok[upstream_name] = False
-
-                        # Need to purge from the cache relevant entities that
-                        # have evolved their state past what has been recorded,
-                        # otherwise strange errors (about version mismatches, or
-                        # when identifying causal dependencies) can arise.
-                        if self.repository._cache:
-                            originator_ids = set([event.originator_id for event in new_events])
-                            for originator_id in originator_ids:
-                                try:
-                                    del self.repository._cache[originator_id]
-                                except KeyError:
-                                    pass
-                        raise exc
-                    else:
-                        if self.tick_interval is not None:
-                            # Todo: Change this to use the full cycle time (improve getting notifications first).
-                            cycle_ended = time.process_time()
-                            cycle_time = cycle_ended - cycle_started
-                            cycle_perc = 100 * (cycle_time) / self.tick_interval
-                            if cycle_perc > 100:
-                                msg = f"Warning: {self.name} cycle exceeded tick interval by: {cycle_perc - 100:.2f}%"
-                                print(msg)
+                    new_events = self.process_upstream_event(event, notification['id'], upstream_name)
 
                 self.take_snapshots(new_events)
 
@@ -200,6 +151,60 @@ class ProcessApplication(Pipeable, Application):
 
         return notification_count
 
+    def process_upstream_event(self, event, notification_id, upstream_name):
+        if self.tick_interval is not None:
+            cycle_started = time.process_time()
+        else:
+            cycle_started = None
+        # Call policy with the upstream event.
+        all_aggregates, causal_dependencies = self.call_policy(event)
+        # Collect pending events.
+        new_events = self.collect_pending_events(all_aggregates)
+        # Record process event.
+        try:
+            tracking_kwargs = self.construct_tracking_kwargs(
+                notification_id, upstream_name
+            )
+            process_event = ProcessEvent(
+                new_events, tracking_kwargs, causal_dependencies
+            )
+            self.record_process_event(process_event)
+
+            # Todo: Maybe write one tracking record at the end of a run, if
+            # necessary, or only during a period of time when nothing happens?
+        except Exception as exc:
+            # Need to invalidate reader position, so it is refreshed.
+            self.is_reader_position_ok[upstream_name] = False
+
+            # Need to purge from the cache relevant entities that
+            # have evolved their state past what has been recorded,
+            # otherwise strange errors (about version mismatches, or
+            # when identifying causal dependencies) can arise.
+            if self.repository._cache:
+                originator_ids = set([event.originator_id for event in new_events])
+                for originator_id in originator_ids:
+                    try:
+                        del self.repository._cache[originator_id]
+                    except KeyError:
+                        pass
+            raise exc
+        else:
+            if self.tick_interval is not None:
+                # Todo: Change this to use the full cycle time (improve getting notifications first).
+                cycle_ended = time.process_time()
+                cycle_time = cycle_ended - cycle_started
+                cycle_perc = 100 * (cycle_time) / self.tick_interval
+                if cycle_perc > 100:
+                    msg = f"Warning: {self.name} cycle exceeded tick interval by: {cycle_perc - 100:.2f}%"
+                    print(msg)
+        return new_events
+
+    def get_event_from_notification(self, notification):
+        return self.event_store.sequenced_item_mapper.from_topic_and_data(
+            topic=notification['event_type'],
+            data=notification['state']
+        )
+
     def get_notification_generator(self, upstream_name, advance_by):
         # Dict avoids re-entrant calls to run() starting their own generator,
         # so that notifications are only received once. Was needed in
@@ -208,10 +213,13 @@ class ProcessApplication(Pipeable, Application):
         try:
             generator = self._notification_generators[upstream_name]
         except KeyError:
-            reader = self.readers[upstream_name]
-            generator = reader.read(advance_by=advance_by)
+            # Todo: Rename as 'iterator'? We use an iterator, doesn't matter whether or not it is a generator.
+            generator = self.read_reader(upstream_name, advance_by)
             self._notification_generators[upstream_name] = generator
         return generator
+
+    def read_reader(self, upstream_name, advance_by=None):
+        return self.readers[upstream_name].read(advance_by=advance_by)
 
     def del_notification_generator(self, upstream_name):
         try:
@@ -296,14 +304,13 @@ class ProcessApplication(Pipeable, Application):
 
         return pending_events
 
-    def construct_tracking_kwargs(self, notification, upstream_application_name):
-        if notification:
-            return {
-                'application_name': self.name,
-                'upstream_application_name': upstream_application_name,
-                'pipeline_id': self.pipeline_id,
-                'notification_id': notification['id'],
-            }
+    def construct_tracking_kwargs(self, notification_id, upstream_application_name):
+        return {
+            'application_name': self.name,
+            'upstream_application_name': upstream_application_name,
+            'pipeline_id': self.pipeline_id,
+            'notification_id': notification_id,
+        }
 
     def record_process_event(self, process_event):
         # Construct event records.

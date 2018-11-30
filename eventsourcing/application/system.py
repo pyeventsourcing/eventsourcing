@@ -1,6 +1,6 @@
 import time
 from abc import ABCMeta, abstractmethod
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
 
@@ -448,30 +448,30 @@ class PromptOutbox(object):
 
 class BarrierControlledMultiThreadedRunner(InProcessRunner):
     """
-    Receive prompts, but set an event for the prompting process.
-
     Clock thread loops until stopped, waiting for a barrier, after
     sleeping for remaining tick interval timer.
 
     Application thread loops until stopped, waiting for a barrier,
     then getting new notifications and processing all of them.
 
+    Counts the number of clock ticks, and stores tick durations.
+
+    Todo:
+    Receive prompts, but set an event for the prompting process, to avoid unnecessary runs.
+
     Maybe have two barriers, to make sure all reads are completed before any writes.
 
     Maybe avoid notifications being queried for each follower, get once and pass in?
-
-    Actually count the number of clock ticks.
 
     Allow commands to be scheduled at future clock tick number, and execute when reached.
 
     """
 
-    # Todo: Something with the prompts, to avoid unnecessary runs.
-    # Todo: Distinct fetch and execute cycles (need to adjust the Process class).
-    def __init__(self, normal_speed=1, scale_factor=1, *args, **kwargs):
+    def __init__(self, normal_speed=1, scale_factor=1, is_verbose=False, *args, **kwargs):
         super(BarrierControlledMultiThreadedRunner, self).__init__(*args, **kwargs)
         self.normal_speed = normal_speed
         self.scale_factor = scale_factor
+        self.is_verbose = is_verbose
         self.seen_prompt_events = {}
         self.fetch_barrier = None
         self.execute_barrier = None
@@ -516,10 +516,13 @@ class BarrierControlledMultiThreadedRunner(InProcessRunner):
 
         # Start clock thread.
         self.clock_thread = BarrierControlledClockThread(
+            normal_speed=self.normal_speed,
+            scale_factor=self.scale_factor,
             tick_interval=self.tick_interval,
             fetch_barrier=self.fetch_barrier,
             execute_barrier=self.execute_barrier,
             stop_event=self.stop_event,
+            is_verbose=self.is_verbose,
         )
         self.clock_thread.start()
 
@@ -552,59 +555,114 @@ class BarrierControlledApplicationThread(Thread):
 
     def run(self):
         while not self.stop_event.is_set():
+            # Isolate "fetch" and "execute" steps, to avoid
+            # events created in one application being processed by
+            # another application in the same tick. Race condition
+            # where one process writes new events before another has
+            # read all notifications from last tick. Actually, need
+            # to get all notifications from all upstream applications
+            # and then process the notifications. The run() method
+            # gets notifications from one, then processes, then gets
+            # from another, which makes the race condition probable.
+            all_notifications = []
+            try:
+                self.fetch_barrier.wait()
+            except BrokenBarrierError:
+                self.abort()
+            else:
+                try:
+                    # Get all notifications.
+                    for upstream_name in self.process_application.readers:
+                        notifications = list(self.process_application.read_reader(upstream_name))
+                        all_notifications.append((upstream_name, notifications))
+
+                except:
+                    self.abort()
+                    raise
+
+            if self.stop_event.is_set():
+                break
+
             try:
                 self.execute_barrier.wait()
             except BrokenBarrierError:
-                self.fetch_barrier.abort()
-                self.execute_barrier.abort()
-                self.stop_event.set()
+                self.abort()
             else:
                 try:
-                    self.process_application.run()
+                    # Process all notifications.
+                    for upstream_name, notifications in all_notifications:
+                        for notification in notifications:
+                            event = self.process_application.get_event_from_notification(notification)
+                            self.process_application.process_upstream_event(event, notification['id'], upstream_name)
                 except:
-                    self.fetch_barrier.abort()
-                    self.execute_barrier.abort()
-                    self.stop_event.set()
+                    self.abort()
                     raise
+
+    def abort(self):
+        self.fetch_barrier.abort()
+        self.execute_barrier.abort()
+        self.stop_event.set()
 
 
 class BarrierControlledClockThread(Thread):
-    def __init__(self, tick_interval, fetch_barrier: Barrier, execute_barrier: Barrier, stop_event: Event):
+    def __init__(self, normal_speed, scale_factor, tick_interval,
+                 fetch_barrier: Barrier, execute_barrier: Barrier,
+                 stop_event: Event, is_verbose=False):
         super(BarrierControlledClockThread, self).__init__(daemon=True)
+        # Todo: Remove the redundancy here.
+        self.normal_speed = normal_speed
+        self.scale_factor = scale_factor
         self.tick_interval = tick_interval
         self.fetch_barrier = fetch_barrier
         self.execute_barrier = execute_barrier
         self.stop_event = stop_event
         self.last_tick_time = None
         self.last_process_time = None
-        self.cum_tick_duration = 0
+        self.all_tick_durations = deque()
         self.tick_count = 0
-        self.tick_adjustment = 0.001
+        self.tick_adjustment = 0.0
+        self.is_verbose = is_verbose
+        if self.tick_interval:
+
+            self.tick_durations_window_size = max(1, int(round(1 / self.tick_interval, 0)))
+        else:
+            self.tick_durations_window_size = 100
 
     @property
     def actual_clock_speed(self):
-        if self.tick_count and self.cum_tick_duration:
-            return self.tick_count / self.cum_tick_duration
+        if self.all_tick_durations:
+            durations = self.all_tick_durations
+            return len(durations) / sum(durations)
+        else:
+            return 0
 
     def run(self):
         while not self.stop_event.is_set():
             try:
+                self.fetch_barrier.wait()
                 self.execute_barrier.wait()
             except BrokenBarrierError:
                 self.fetch_barrier.abort()
                 self.execute_barrier.abort()
                 self.stop_event.set()
             else:
-                process_time = time.process_time()
                 tick_time = time.time()
+                process_time = time.process_time()
                 if self.last_tick_time is not None:
                     tick_duration = tick_time - self.last_tick_time
-                    # self.cum_tick_duration += tick_duration
-                    process_duration = process_time - self.last_process_time
-                    intensity = 100 * process_duration / tick_duration
-                    clock_speed = 1 / tick_duration
-                    print(f"Tick {self.tick_count:4}:  {tick_duration:.6f}s, "
-                          f"{intensity:6.2f}%, {clock_speed:6.1f}Hz, {self.tick_adjustment:.6f}s")
+                    self.all_tick_durations.append(tick_duration)
+                    if len(self.all_tick_durations) > self.tick_durations_window_size:
+                        self.all_tick_durations.popleft()
+
+                    if self.is_verbose:
+                        process_duration = process_time - self.last_process_time
+                        intensity = 100 * process_duration / tick_duration
+                        clock_speed = 1 / tick_duration
+                        real_time = self.tick_count / self.normal_speed
+                        print(f"Tick {self.tick_count:4}: {real_time:4.2f}s  {tick_duration:.6f}s, "
+                              f"{intensity:6.2f}%, {clock_speed:6.1f}Hz, "
+                              f"{self.actual_clock_speed:6.1f}Hz, {self.tick_adjustment:.6f}s"
+                              )
 
                     if self.tick_interval:
                         tick_oversize = tick_duration - self.tick_interval
@@ -613,7 +671,11 @@ class BarrierControlledClockThread(Thread):
                         #     print(f"Warning: Tick over size: { tick_duration :.6f}s {tick_oversize_percentage:.2f}%")
 
                         if abs(tick_oversize_percentage) < 300:
-                            self.tick_adjustment += self.tick_interval * tick_oversize
+                            # Weight falls from 1 as reciprocal of count, to tick interval.
+                            # weight = max(1 / self.tick_count, min(.1, self.tick_interval))
+                            weight = 1 / (1 + self.tick_count * self.tick_interval) ** 2
+                            # print(f"Weight: {weight:.4f}")
+                            self.tick_adjustment += weight * tick_oversize
                             max_tick_adjustment = 1.0 * self.tick_interval
                             min_tick_adjustment = 0
                             self.tick_adjustment = min(self.tick_adjustment, max_tick_adjustment)

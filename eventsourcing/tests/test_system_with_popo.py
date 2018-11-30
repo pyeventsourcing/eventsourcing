@@ -35,12 +35,13 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
 
         self.set_db_uri()
 
-        normal_speed = 1
-        scale_factor = 0
+        normal_speed = 3
+        scale_factor = 1
         runner = BarrierControlledMultiThreadedRunner(
             system=system,
             normal_speed=normal_speed,
-            scale_factor=scale_factor
+            scale_factor=scale_factor,
+            is_verbose=False,
         )
         with runner:
 
@@ -49,13 +50,13 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
             orders = system.processes['orders']
 
             # Create a new order.
-            num_orders = 3000
+            num_orders = 4
             order_ids = []
             for i in range(num_orders):
                 order_id = create_new_order()
                 assert order_id in orders.repository
                 order_ids.append(order_id)
-                sleep(.2)
+                sleep(.141)
                 # sleep(tick_interval / 3)
                 # sleep(tick_interval * 10)
 
@@ -71,6 +72,12 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
                     # time.sleep(0.2)
                     retries -= 1
                     assert retries, "Failed set order.is_paid"
+
+            final_time = runner.clock_thread.tick_count / runner.normal_speed
+            print(f"Runner: average clock speed {runner.clock_thread.actual_clock_speed:.0f}Hz")
+            print(f"Runner: total tick count {runner.clock_thread.tick_count}")
+            print(f"Runner: total time in simulation {final_time:.2f}s")
+
 
         print(f"Duration: { time.time() - started :.4f}s")
 
