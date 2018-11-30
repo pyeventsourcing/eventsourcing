@@ -5,7 +5,7 @@ from time import sleep
 import six
 
 from eventsourcing.application.process import Prompt
-from eventsourcing.application.system import System, SystemRunner, DEFAULT_POLL_INTERVAL, Outbox
+from eventsourcing.application.system import System, SystemRunner, DEFAULT_POLL_INTERVAL, PromptOutbox
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed
@@ -43,7 +43,7 @@ class MultiprocessRunner(SystemRunner):
                 for upstream_class_name in upstream_names:
                     outbox_id = (pipeline_id, upstream_class_name.lower())
                     if outbox_id not in self.outboxes:
-                        self.outboxes[outbox_id] = Outbox()
+                        self.outboxes[outbox_id] = PromptOutbox()
                     if inbox_id not in self.outboxes[outbox_id].downstream_inboxes:
                         self.outboxes[outbox_id].downstream_inboxes[inbox_id] = self.inboxes[inbox_id]
 
