@@ -12,6 +12,7 @@ from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed
+from eventsourcing.interface.notificationlog import NotificationLogReader
 
 DEFAULT_POLL_INTERVAL = 5
 
@@ -100,7 +101,7 @@ class System(object):
         return isinstance(event, Prompt)
 
     def __enter__(self):
-        self.__runner = SingleThreadRunner(self)
+        self.__runner = SingleThreadedRunner(self)
         self.__runner.__enter__()
         return self
 
@@ -177,16 +178,15 @@ class InProcessRunner(SystemRunner):
             predicate=self.system.is_prompt,
             handler=self.handle_prompt,
         )
-        self.processes = None
 
 
-class SingleThreadRunner(InProcessRunner):
+class SingleThreadedRunner(InProcessRunner):
     """
     Runs a system in the current thread.
     """
 
     def __init__(self, *args, **kwargs):
-        super(SingleThreadRunner, self).__init__(*args, **kwargs)
+        super(SingleThreadedRunner, self).__init__(*args, **kwargs)
         self.pending_prompts = Queue()
         self.iteration_lock = Lock()
 
@@ -207,6 +207,8 @@ class SingleThreadRunner(InProcessRunner):
         self.pending_prompts.put(prompt)
 
         if self.iteration_lock.acquire(False):
+            start_time = time.time()
+            i = 0
             try:
                 while True:
                     try:
@@ -218,8 +220,11 @@ class SingleThreadRunner(InProcessRunner):
                         for follower_name in followers:
                             follower = self.system.processes[follower_name]
                             follower.run(prompt)
+                            i += 1
                         self.pending_prompts.task_done()
             finally:
+                run_frequency = i / (time.time() - start_time)
+                # print(f"Run frequency: {run_frequency}")
                 self.iteration_lock.release()
 
     # This is the old way of doing it, with recursion.
@@ -296,7 +301,7 @@ class PromptQueuedMultiThreadedRunner(InProcessRunner):
 
     def start_clock(self):
         tick_interval = 1 / self.clock_speed
-        print(f"Tick interval: {tick_interval:.6f}s")
+        # print(f"Tick interval: {tick_interval:.6f}s")
         self.last_tick = None
         self.this_tick = None
         self.tick_adjustment = 0
@@ -338,7 +343,7 @@ class PromptQueuedMultiThreadedRunner(InProcessRunner):
                 timer_interval = time_remaining - self.tick_adjustment
                 if timer_interval < 0:
                     timer_interval = 0
-                    print("Warning: clock thread is running flat out!")
+                    # print("Warning: clock thread is running flat out!")
             else:
                 timer_interval = 0
             timer = Timer(timer_interval, set_clock_event)
@@ -446,50 +451,231 @@ class PromptOutbox(object):
             queue.put(prompt)
 
 
-class BarrierControlledMultiThreadedRunner(InProcessRunner):
+class SteppingRunner(InProcessRunner):
+
+    def __init__(self, normal_speed=1, scale_factor=1, is_verbose=False, *args, **kwargs):
+        super(SteppingRunner, self).__init__(*args, **kwargs)
+        self.normal_speed = normal_speed
+        self.scale_factor = scale_factor
+        self.is_verbose = is_verbose
+        if scale_factor:
+            self.tick_interval = 1 / (normal_speed * scale_factor)
+        else:
+            self.tick_interval = 0
+        if self.is_verbose:
+            print(f"Tick interval: {self.tick_interval:.6f}s")
+
+
+class SteppingSingleThreadedRunner(SteppingRunner):
+
+    def __init__(self, *args, **kwargs):
+        super(SteppingSingleThreadedRunner, self).__init__(*args, **kwargs)
+        self.seen_prompt_events = {}
+        self.stop_event = Event()
+
+    def start(self):
+        super(SteppingSingleThreadedRunner, self).start()
+        # for process_name in self.system.processes:
+            # event = Event()
+            # event.set()
+            # self.seen_prompt_events[process_name] = event
+
+        self.clock_thread = ProcessRunningClockThread(
+            normal_speed=self.normal_speed,
+            scale_factor=self.scale_factor,
+            stop_event=self.stop_event,
+            is_verbose=self.is_verbose,
+            seen_prompt_events=self.seen_prompt_events,
+            processes=self.system.processes
+        )
+        self.clock_thread.start()
+
+    def handle_prompt(self, prompt):
+        pass
+        # self.seen_prompt_events[prompt.process_name].set()
+
+    def close(self):
+        super(SteppingSingleThreadedRunner, self).close()
+        self.stop_event.set()
+        tick_interval = 2 * max(1, self.tick_interval)
+        self.clock_thread.join(timeout=tick_interval)
+        if self.clock_thread.isAlive():
+            print(f"Warning: clock thread was still alive")
+
+
+class ProcessRunningClockThread(Thread):
+    def __init__(self, normal_speed, scale_factor, stop_event: Event,
+                 is_verbose=False, seen_prompt_events=None, processes=None):
+        super(ProcessRunningClockThread, self).__init__(daemon=True)
+        self.normal_speed = normal_speed
+        self.scale_factor = scale_factor
+        self.stop_event = stop_event
+        self.seen_prompt_events = seen_prompt_events
+        self.processes = processes
+        self.last_tick_time = None
+        self.last_process_time = None
+        self.all_tick_durations = deque()
+        self.tick_count = 0
+        self.tick_adjustment = 0.0
+        self.is_verbose = is_verbose
+        if normal_speed and scale_factor:
+            self.tick_interval = 1 / normal_speed / scale_factor
+        else:
+            self.tick_interval = None
+        if self.tick_interval:
+
+            self.tick_durations_window_size = max(100, int(round(1 / self.tick_interval, 0)))
+        else:
+            self.tick_durations_window_size = 1000
+        # Construct lists of followers for each process.
+        self.followers = {}
+        for process_name, process in self.processes.items():
+            self.followers[process_name] = []
+        for process_name, process in self.processes.items():
+            for upstream_process_name in process.readers:
+                self.followers[upstream_process_name].append(process_name)
+
+        # Construct a notification log reader for each process.
+        self.readers = {}
+        for process_name, process in self.processes.items():
+            reader = NotificationLogReader(
+                notification_log=process.notification_log,
+                use_direct_query_if_available=True
+            )
+            self.readers[process_name] = reader
+
+    @property
+    def actual_clock_speed(self):
+        if self.all_tick_durations:
+            durations = self.all_tick_durations
+            return len(durations) / sum(durations)
+        else:
+            return 0
+
+    def run(self):
+        # Get new notifications once.
+
+        while not self.stop_event.is_set():
+            try:
+                # Get all notifications.
+                all_notifications = {}
+                for process_name in self.processes:
+                    # seen_prompt = self.seen_prompt_events[process_name]
+                    # if seen_prompt.is_set():
+                    #     seen_prompt.clear()
+                    reader = self.readers[process_name]
+                    notifications = reader.read_list()
+                    all_notifications[process_name] = notifications
+
+                # Process all notifications.
+                all_events = {}
+                for process_name, notifications in all_notifications.items():
+                    events = []
+                    for notification in notifications:
+                        process = self.processes[process_name]
+                        # It's not the follower process, but the method does the same thing.
+                        event = process.get_event_from_notification(notification)
+                        notification_id = notification['id']
+                        events.append((notification_id, event))
+                    all_events[process_name] = events
+
+                for process_name, events in all_events.items():
+                    # print(f"Process: {process_name}")
+                    for follower_name in self.followers[process_name]:
+                        follower_process = self.processes[follower_name]
+                        # print(f"Follower: {follower_name}")
+                        for notification_id, event in events:
+                            # print(f"Notification: {notification_id}, {event}")
+                            follower_process.process_upstream_event(event, notification_id, process_name)
+
+            except:
+                self.stop_event.set()
+                raise
+            else:
+                tick_time = time.time()
+                process_time = time.process_time()
+                if self.last_tick_time is not None:
+                    tick_duration = tick_time - self.last_tick_time
+                    self.all_tick_durations.append(tick_duration)
+                    if len(self.all_tick_durations) > self.tick_durations_window_size:
+                        self.all_tick_durations.popleft()
+
+                    if self.is_verbose:
+                        process_duration = process_time - self.last_process_time
+                        intensity = 100 * process_duration / tick_duration
+                        clock_speed = 1 / tick_duration
+                        real_time = self.tick_count / self.normal_speed
+                        print(f"Tick {self.tick_count:4}: {real_time:4.2f}s  {tick_duration:.6f}s, "
+                              f"{intensity:6.2f}%, {clock_speed:6.1f}Hz, "
+                              f"{self.actual_clock_speed:6.1f}Hz, {self.tick_adjustment:.6f}s"
+                              )
+
+                    if self.tick_interval:
+                        tick_oversize = tick_duration - self.tick_interval
+                        tick_oversize_percentage = 100 * (tick_oversize) / self.tick_interval
+                        # if tick_oversize_percentage > 300:
+                        #     print(f"Warning: Tick over size: { tick_duration :.6f}s {tick_oversize_percentage:.2f}%")
+
+                        if abs(tick_oversize_percentage) < 300:
+                            # Weight falls from 1 as reciprocal of count, to tick interval.
+                            # weight = max(1 / self.tick_count, min(.1, self.tick_interval))
+                            weight = 1 / (1 + self.tick_count * self.tick_interval) ** 2
+                            # print(f"Weight: {weight:.4f}")
+                            self.tick_adjustment += weight * tick_oversize
+                            max_tick_adjustment = 1.0 * self.tick_interval
+                            min_tick_adjustment = 0
+                            self.tick_adjustment = min(self.tick_adjustment, max_tick_adjustment)
+                            self.tick_adjustment = max(self.tick_adjustment, min_tick_adjustment)
+
+                self.last_tick_time = tick_time
+                self.last_process_time = process_time
+                self.tick_count += 1
+
+                if self.tick_interval:
+                    sleep_interval = self.tick_interval - self.tick_adjustment
+                    sleep(max(sleep_interval, 0))
+
+
+class SteppingMultiThreadedRunner(SteppingRunner):
     """
-    Clock thread loops until stopped, waiting for a barrier, after
-    sleeping for remaining tick interval timer.
+    Has a clock thread, and a thread for each application process
+    in the system. The clock thread loops until stopped, waiting
+    for a barrier, after sleeping for remaining tick interval timer.
+    Application threads loop until stopped, waiting for the same
+    barrier. Then, after all threads are waiting at the barrier,
+    the barrier is lifted. The clock thread proceeds by sleeping
+    for the clock tick interval. The application threads proceed by
+    getting new notifications and processing all of them.
 
-    Application thread loops until stopped, waiting for a barrier,
-    then getting new notifications and processing all of them.
+    There are actually two barriers, so that each application thread
+    waits before getting notifications, and then waits for all processes
+    to complete getting notification before processing the notifications
+    through the application policy. This avoids events created by a process
+    application "bleeding" into the notifications of another process
+    application in the same clock cycle.
 
-    Counts the number of clock ticks, and stores tick durations.
 
     Todo:
     Receive prompts, but set an event for the prompting process, to avoid unnecessary runs.
 
-    Maybe have two barriers, to make sure all reads are completed before any writes.
-
-    Maybe avoid notifications being queried for each follower, get once and pass in?
-
     Allow commands to be scheduled at future clock tick number, and execute when reached.
 
     """
-
-    def __init__(self, normal_speed=1, scale_factor=1, is_verbose=False, *args, **kwargs):
-        super(BarrierControlledMultiThreadedRunner, self).__init__(*args, **kwargs)
-        self.normal_speed = normal_speed
-        self.scale_factor = scale_factor
-        self.is_verbose = is_verbose
+    def __init__(self, *args, **kwargs):
+        super(SteppingMultiThreadedRunner, self).__init__(*args, **kwargs)
         self.seen_prompt_events = {}
         self.fetch_barrier = None
         self.execute_barrier = None
         self.application_threads = {}
         self.clock_thread = None
         self.stop_event = Event()
-        if scale_factor:
-            self.tick_interval = 1 / (normal_speed * scale_factor)
-        else:
-            self.tick_interval = 0
-        print(f"Tick interval: {self.tick_interval:.6f}s")
 
     def handle_prompt(self, prompt):
         seen_prompt = self.seen_prompt_events[prompt.process_name]
         seen_prompt.set()
 
     def start(self):
-        super(BarrierControlledMultiThreadedRunner, self).start()
+        super(SteppingMultiThreadedRunner, self).start()
         parties = 1 + len(self.system.processes)
         self.fetch_barrier = Barrier(parties)
         self.execute_barrier = Barrier(parties)
@@ -515,7 +701,7 @@ class BarrierControlledMultiThreadedRunner(InProcessRunner):
             thread.start()
 
         # Start clock thread.
-        self.clock_thread = BarrierControlledClockThread(
+        self.clock_thread = BarrierControllingClockThread(
             normal_speed=self.normal_speed,
             scale_factor=self.scale_factor,
             tick_interval=self.tick_interval,
@@ -527,7 +713,7 @@ class BarrierControlledMultiThreadedRunner(InProcessRunner):
         self.clock_thread.start()
 
     def close(self):
-        super(BarrierControlledMultiThreadedRunner, self).close()
+        super(SteppingMultiThreadedRunner, self).close()
         self.stop_event.set()
         self.execute_barrier.abort()
         self.fetch_barrier.abort()
@@ -604,11 +790,11 @@ class BarrierControlledApplicationThread(Thread):
         self.stop_event.set()
 
 
-class BarrierControlledClockThread(Thread):
+class BarrierControllingClockThread(Thread):
     def __init__(self, normal_speed, scale_factor, tick_interval,
                  fetch_barrier: Barrier, execute_barrier: Barrier,
                  stop_event: Event, is_verbose=False):
-        super(BarrierControlledClockThread, self).__init__(daemon=True)
+        super(BarrierControllingClockThread, self).__init__(daemon=True)
         # Todo: Remove the redundancy here.
         self.normal_speed = normal_speed
         self.scale_factor = scale_factor

@@ -1,11 +1,11 @@
 import os
-import time
+from time import sleep, time
 from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.application.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.application.system import PromptQueuedMultiThreadedRunner, System, BarrierControlledMultiThreadedRunner
+from eventsourcing.application.system import PromptQueuedMultiThreadedRunner, System
 from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
 from eventsourcing.tests.test_process import ExampleAggregate
 from eventsourcing.tests.test_system_fixtures import Examples, Order, Orders, Payment, Payments, Reservation, \
@@ -52,7 +52,7 @@ class TestSystem(TestCase):
             retries = 50
             while not app.repository[aggregate.id].is_moved_on:
 
-                time.sleep(0.1)
+                sleep(0.1)
                 retries -= 1
                 assert retries, "Failed to move"
 
@@ -68,7 +68,7 @@ class TestSystem(TestCase):
 
         with PromptQueuedMultiThreadedRunner(system):
 
-            started = time.time()
+            started = time()
 
             orders = system.processes['orders']
 
@@ -82,16 +82,16 @@ class TestSystem(TestCase):
             retries = num_orders
             for order_id in order_ids:
                 # while not orders.repository[order_id].is_reserved:
-                #     time.sleep(0.1)
+                #     sleep(0.1)
                 #     retries -= 1
                 #     assert retries, "Failed set order.is_reserved"
 
                 while retries and not orders.repository[order_id].is_paid:
-                    time.sleep(0.1)
+                    sleep(0.1)
                     retries -= 1
                     assert retries, "Failed set order.is_paid"
 
-            print(f"Duration: { time.time() - started :.4f}s")
+            print(f"Duration: { time() - started :.4f}s")
 
     def test_clocked_multithreaded_runner_with_multiapp_system(self):
         system = System(
@@ -107,7 +107,7 @@ class TestSystem(TestCase):
         tick_interval = 1 / clock_speed
         with PromptQueuedMultiThreadedRunner(system, clock_speed=clock_speed):
 
-            started = time.time()
+            started = time()
 
             orders = system.processes['orders']
 
@@ -123,17 +123,16 @@ class TestSystem(TestCase):
             retries = 10 * num_orders
             for order_id in order_ids:
                 # while not orders.repository[order_id].is_reserved:
-                #     time.sleep(0.1)
+                #     sleep(0.1)
                 #     retries -= 1
                 #     assert retries, "Failed set order.is_reserved"
 
                 while retries and not orders.repository[order_id].is_paid:
-                    # time.sleep(1)
-                    time.sleep(0.1)
+                    sleep(0.1)
                     retries -= 1
                     assert retries, "Failed set order.is_paid"
 
-        print(f"Duration: { time.time() - started :.4f}s")
+        print(f"Duration: { time() - started :.4f}s")
 
     def test_multiprocessing_singleapp_system(self):
 
@@ -156,7 +155,7 @@ class TestSystem(TestCase):
             retries = 50
             while not app.repository[aggregate.id].is_moved_on:
 
-                time.sleep(0.1)
+                sleep(0.1)
                 retries -= 1
                 assert retries, "Failed to move"
 
@@ -183,12 +182,12 @@ class TestSystem(TestCase):
             with system.construct_app(Orders) as app:
                 retries = 50
                 while not app.repository[order_id].is_reserved:
-                    time.sleep(0.1)
+                    sleep(0.1)
                     retries -= 1
                     assert retries, "Failed set order.is_reserved"
 
                 while retries and not app.repository[order_id].is_paid:
-                    time.sleep(0.1)
+                    sleep(0.1)
                     retries -= 1
                     assert retries, "Failed set order.is_paid"
 
@@ -226,19 +225,19 @@ class TestSystem(TestCase):
                     order_id = create_new_order()
                     order_ids.append(order_id)
 
-                    time.sleep(0.05)
+                    sleep(0.05)
 
             # Wait for orders to be reserved and paid.
             retries = 10 + 10 * num_orders_per_pipeline * len(pipeline_ids)
             for i, order_id in enumerate(order_ids):
 
                 while not orders.repository[order_id].is_reserved:
-                    time.sleep(0.1)
+                    sleep(0.1)
                     retries -= 1
                     assert retries, "Failed set order.is_reserved {} ({})".format(order_id, i)
 
                 while retries and not orders.repository[order_id].is_paid:
-                    time.sleep(0.1)
+                    sleep(0.1)
                     retries -= 1
                     assert retries, "Failed set order.is_paid ({})".format(i)
 

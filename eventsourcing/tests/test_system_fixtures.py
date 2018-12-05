@@ -97,16 +97,16 @@ class Orders(ProcessApplication):
             order = repository[event.order_id]
             assert not order.is_reserved
             order.set_is_reserved(event.originator_id)
-            logger.info('set Order as reserved')
-            print(f'set Order {event.order_id} as reserved')
+            # logger.info('set Order as reserved')
+            # print(f'set Order {event.order_id} as reserved')
 
         elif isinstance(event, Payment.Created):
             # Set the order as paid.
             order = repository[event.order_id]
             assert not order.is_paid
             order.set_is_paid(event.originator_id)
-            logger.info('set Order as paid')
-            print(f'set Order {event.order_id} as paid')
+            # logger.info('set Order as paid')
+            # print(f'set Order {event.order_id} as paid')
 
 
 class Reservations(ProcessApplication):
@@ -115,8 +115,8 @@ class Reservations(ProcessApplication):
         if isinstance(event, Order.Created):
             # Create a reservation.
             # time.sleep(0.5)
-            logger.info('created Reservation for order')
-            print(f'created Reservation for order {event.originator_id}')
+            # logger.info('created Reservation for order')
+            # print(f'created Reservation for order {event.originator_id}')
             return Reservation.create(order_id=event.originator_id)
 
 
@@ -126,8 +126,8 @@ class Payments(ProcessApplication):
         if isinstance(event, Order.Reserved):
             # Make a payment.
             # time.sleep(0.5)
-            logger.info('created Payment for order')
-            print(f'created Payment for order {event.originator_id}')
+            # logger.info('created Payment for order')
+            # print(f'created Payment for order {event.originator_id}')
             return Payment.make(order_id=event.originator_id)
 
 
