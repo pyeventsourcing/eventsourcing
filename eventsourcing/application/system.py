@@ -1,6 +1,6 @@
 import time
 from abc import ABCMeta, abstractmethod
-from collections import OrderedDict, deque
+from collections import OrderedDict, deque, defaultdict
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
 
@@ -464,6 +464,10 @@ class SteppingRunner(InProcessRunner):
             self.tick_interval = 0
         if self.is_verbose:
             print(f"Tick interval: {self.tick_interval:.6f}s")
+        self.clock_thread = None
+
+    def call_in_future(self, cmd, ticks_delay):
+        self.clock_thread.call_in_future(cmd, ticks_delay)
 
 
 class SteppingSingleThreadedRunner(SteppingRunner):
@@ -503,7 +507,22 @@ class SteppingSingleThreadedRunner(SteppingRunner):
             print(f"Warning: clock thread was still alive")
 
 
-class ProcessRunningClockThread(Thread):
+class ClockThread(Thread):
+    def __init__(self, *args, **kwargs):
+        super(ClockThread, self).__init__()
+        self.future_cmds = defaultdict(list)
+        self.tick_count = 0
+
+    def call_in_future(self, cmd, ticks_delay):
+        assert ticks_delay > 0
+        self.future_cmds[ticks_delay + self.tick_count].append(cmd)
+
+    def call_commands(self):
+        for cmd in self.future_cmds.get(self.tick_count, []):
+            cmd()
+
+
+class ProcessRunningClockThread(ClockThread):
     def __init__(self, normal_speed, scale_factor, stop_event: Event,
                  is_verbose=False, seen_prompt_events=None, processes=None):
         super(ProcessRunningClockThread, self).__init__(daemon=True)
@@ -515,7 +534,6 @@ class ProcessRunningClockThread(Thread):
         self.last_tick_time = None
         self.last_process_time = None
         self.all_tick_durations = deque()
-        self.tick_count = 0
         self.tick_adjustment = 0.0
         self.is_verbose = is_verbose
         if normal_speed and scale_factor:
@@ -587,6 +605,8 @@ class ProcessRunningClockThread(Thread):
                         for notification_id, event in events:
                             # print(f"Notification: {notification_id}, {event}")
                             follower_process.process_upstream_event(event, notification_id, process_name)
+                # Call commands delayed until this clock tick.
+                self.call_commands()
 
             except:
                 self.stop_event.set()
@@ -784,13 +804,18 @@ class BarrierControlledApplicationThread(Thread):
                     self.abort()
                     raise
 
+            try:
+                self.execute_barrier.wait()
+            except BrokenBarrierError:
+                self.abort()
+
     def abort(self):
+        self.stop_event.set()
         self.fetch_barrier.abort()
         self.execute_barrier.abort()
-        self.stop_event.set()
 
 
-class BarrierControllingClockThread(Thread):
+class BarrierControllingClockThread(ClockThread):
     def __init__(self, normal_speed, scale_factor, tick_interval,
                  fetch_barrier: Barrier, execute_barrier: Barrier,
                  stop_event: Event, is_verbose=False):
@@ -805,7 +830,6 @@ class BarrierControllingClockThread(Thread):
         self.last_tick_time = None
         self.last_process_time = None
         self.all_tick_durations = deque()
-        self.tick_count = 0
         self.tick_adjustment = 0.0
         self.is_verbose = is_verbose
         if self.tick_interval:
@@ -824,9 +848,12 @@ class BarrierControllingClockThread(Thread):
 
     def run(self):
         while not self.stop_event.is_set():
+
             try:
                 self.fetch_barrier.wait()
                 self.execute_barrier.wait()
+                self.execute_barrier.wait()
+                self.call_commands()
             except BrokenBarrierError:
                 self.fetch_barrier.abort()
                 self.execute_barrier.abort()

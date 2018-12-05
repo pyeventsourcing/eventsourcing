@@ -34,7 +34,7 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
 
         self.set_db_uri()
 
-        normal_speed = 5
+        normal_speed = 3
         scale_factor = 0
         runner = SteppingSingleThreadedRunner(
             system=system,
@@ -51,17 +51,22 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
             orders = system.processes['orders']
 
             # Create a new order.
-            num_orders = 100
+            num_orders = 120
             order_ids = []
             for i in range(num_orders):
-                order_id = create_new_order()
-                assert order_id in orders.repository
-                order_ids.append(order_id)
-                sleep(0.01)
+                def cmd():
+                    order_id = create_new_order()
+                    assert order_id in orders.repository
+                    order_ids.append(order_id)
+                runner.call_in_future(cmd, 20 * (i + 1))
+                # sleep(0.1)
                 # sleep(tick_interval / 3)
                 # sleep(tick_interval * 10)
 
             retries = 10 * num_orders
+            while len(order_ids) < num_orders:
+                sleep(0.01)
+
             for order_id in order_ids[-1:]:
                 # while not orders.repository[order_id].is_reserved:
                 #     sleep(0.1)
@@ -117,15 +122,20 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
             orders = system.processes['orders']
 
             # Create a new order.
-            num_orders = 100
+            num_orders = 12
             order_ids = []
             for i in range(num_orders):
-                order_id = create_new_order()
-                assert order_id in orders.repository
-                order_ids.append(order_id)
-                sleep(0.01)
+                def cmd():
+                    order_id = create_new_order()
+                    assert order_id in orders.repository
+                    order_ids.append(order_id)
+                runner.call_in_future(cmd, 20 * (i + 1))
+                # sleep(0.1)
                 # sleep(tick_interval / 3)
                 # sleep(tick_interval * 10)
+
+            while len(order_ids) < num_orders:
+                sleep(0.01)
 
             retries = 10 * num_orders
             for order_id in order_ids[-1:]:
