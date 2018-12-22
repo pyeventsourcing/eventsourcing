@@ -140,6 +140,7 @@ class ProcessApplication(Pipeable, Application):
                     if self.clock_event is not None:
                         self.clock_event.wait()
 
+                    #print("Processing upstream event: ", event)
                     new_events = self.process_upstream_event(event, notification['id'], upstream_name)
 
                 self.take_snapshots(new_events)
@@ -244,6 +245,9 @@ class ProcessApplication(Pipeable, Application):
         if new_aggregates is not None:
             if not isinstance(new_aggregates, (list, tuple)):
                 new_aggregates = [new_aggregates]
+                if self.repository._use_cache:
+                    for new_aggregate in new_aggregates:
+                        self.repository._cache[new_aggregate.id] = new_aggregate
             all_aggregates += new_aggregates
 
         causal_dependencies = []

@@ -499,10 +499,9 @@ class SteppingSingleThreadedRunner(SteppingRunner):
         # self.seen_prompt_events[prompt.process_name].set()
 
     def close(self):
-        super(SteppingSingleThreadedRunner, self).close()
         self.stop_event.set()
-        tick_interval = 2 * max(1, self.tick_interval)
-        self.clock_thread.join(timeout=tick_interval)
+        super(SteppingSingleThreadedRunner, self).close()
+        self.clock_thread.join(5)
         if self.clock_thread.isAlive():
             print(f"Warning: clock thread was still alive")
 
@@ -514,12 +513,12 @@ class ClockThread(Thread):
         self.tick_count = 0
 
     def call_in_future(self, cmd, ticks_delay):
-        assert ticks_delay > 0
+        ticks_delay = max(ticks_delay, 1)
         self.future_cmds[ticks_delay + self.tick_count].append(cmd)
 
     def call_commands(self):
-        for cmd in self.future_cmds.get(self.tick_count, []):
-            cmd()
+        for future_cmd in self.future_cmds.get(self.tick_count, []):
+            future_cmd()
 
 
 class ProcessRunningClockThread(ClockThread):
@@ -573,7 +572,10 @@ class ProcessRunningClockThread(ClockThread):
     def run(self):
         # Get new notifications once.
 
+        # loop_counter = 0
+
         while not self.stop_event.is_set():
+            # print("Loop count: {}".format(loop_counter))
             try:
                 # Get all notifications.
                 all_notifications = {}
@@ -590,6 +592,7 @@ class ProcessRunningClockThread(ClockThread):
                 for process_name, notifications in all_notifications.items():
                     events = []
                     for notification in notifications:
+                        # print(process_name, notification)
                         process = self.processes[process_name]
                         # It's not the follower process, but the method does the same thing.
                         event = process.get_event_from_notification(notification)
@@ -609,8 +612,12 @@ class ProcessRunningClockThread(ClockThread):
                 self.call_commands()
 
             except:
-                self.stop_event.set()
-                raise
+                if self.stop_event.is_set():
+                    break
+                else:
+                    # print("Error... Loop count: {}".format(loop_counter))
+                    self.stop_event.set()
+                    raise
             else:
                 tick_time = time.time()
                 process_time = time.process_time()
@@ -733,8 +740,8 @@ class SteppingMultiThreadedRunner(SteppingRunner):
         self.clock_thread.start()
 
     def close(self):
-        super(SteppingMultiThreadedRunner, self).close()
         self.stop_event.set()
+        super(SteppingMultiThreadedRunner, self).close()
         self.execute_barrier.abort()
         self.fetch_barrier.abort()
 
@@ -745,7 +752,7 @@ class SteppingMultiThreadedRunner(SteppingRunner):
 
         self.application_threads.clear()
 
-        self.clock_thread.join(timeout=1)
+        self.clock_thread.join()
         if self.clock_thread.isAlive():
             print(f"Warning: clock thread was still alive")
 
