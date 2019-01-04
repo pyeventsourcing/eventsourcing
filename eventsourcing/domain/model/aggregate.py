@@ -78,7 +78,7 @@ class AggregateRootWithHashchainedEvents(EntityWithHashchain, BaseAggregateRoot)
     class AttributeChanged(Event, BaseAggregateRoot.AttributeChanged):
         """Published when an AggregateRoot is changed."""
 
-    class Discarded(Event, BaseAggregateRoot.Discarded):
+    class Discarded(Event, EntityWithHashchain.Discarded, BaseAggregateRoot.Discarded):
         """Published when an AggregateRoot is discarded."""
 
 

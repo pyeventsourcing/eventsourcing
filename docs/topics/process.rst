@@ -356,7 +356,7 @@ library ``Command`` class. The ``Command`` class extends the ``AggregateRoot`` c
 with a method ``done()`` and a property ``is_done``.
 
 The ``CreateNewOrder`` class extends the library's ``Command`` class with an event
-sourced ``order_id`` attribute, which will be used to associate the commands objets
+sourced ``order_id`` attribute, which will be used to associate the command's objects
 with the orders created by the system in response.
 
 .. code:: python
@@ -424,7 +424,7 @@ by setting an ``Order`` as paid.
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import ProcessApplicationWithSnapshotting as ProcessApplication
+    from eventsourcing.application.process import ProcessApplication
     from eventsourcing.utils.topic import resolve_topic
 
 
@@ -479,8 +479,7 @@ responds to ``Order.Paid`` events by setting the command as done.
 
 .. code:: python
 
-    from eventsourcing.application.sqlalchemy import CommandProcess
-    #from eventsourcing.application.django import CommandProcess
+    from eventsourcing.application.command import CommandProcess
     from eventsourcing.domain.model.decorators import retry
     from eventsourcing.exceptions import OperationalError, RecordConflictError
 
@@ -529,6 +528,8 @@ rather than coding `test doubles <https://martinfowler.com/bliki/TestDouble.html
 
 .. code:: python
 
+    from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
+
     def test_orders_policy():
         # Prepare repository with a real Order aggregate.
         order = Order.__create__(command_id=None)
@@ -538,7 +539,7 @@ rather than coding `test doubles <https://martinfowler.com/bliki/TestDouble.html
         assert not order.is_reserved
 
         # Process reservation created.
-        with Orders() as orders:
+        with Orders.mixin(SQLAlchemyApplication)() as orders:
             event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
             orders.policy(repository=repository, event=event)
 
@@ -560,7 +561,7 @@ In the payments policy test below, a new payment is created because an order was
         repository = {order.id: order}
 
         # Check payment is created whenever order is reserved.
-        with Payments() as payments:
+        with Payments.mixin(SQLAlchemyApplication)() as payments:
             event = Order.Reserved(originator_id=order.id, originator_version=1)
             payment = payments.policy(repository=repository, event=event)
 
@@ -628,7 +629,8 @@ The orders-reservations-payments system can be defined using these pipeline expr
     system = System(
         commands_pipeline,
         reservations_pipeline,
-        payments_pipeline
+        payments_pipeline,
+        infrastructure_class=SQLAlchemyApplication
     )
 
 This is equivalent to a system defined with the following single pipeline expression.
@@ -636,7 +638,8 @@ This is equivalent to a system defined with the following single pipeline expres
 .. code:: python
 
     system = System(
-        Commands | Orders | Reservations | Orders | Payments | Orders | Commands
+        Commands | Orders | Reservations | Orders | Payments | Orders | Commands,
+        infrastructure_class=SQLAlchemyApplication
     )
 
 Although a process application class can appear many times in the pipeline
@@ -684,26 +687,26 @@ in-memory SQLite database.
 
     with system:
         # Create new order command.
-        cmd_id = system.commands.create_new_order()
+        cmd_id = system.processes['commands'].create_new_order()
 
         # Check the command has an order ID and is done.
-        cmd = system.commands.repository[cmd_id]
+        cmd = system.processes['commands'].repository[cmd_id]
         assert cmd.order_id
         assert cmd.is_done
 
         # Check the order is reserved and paid.
-        order = system.orders.repository[cmd.order_id]
+        order = system.processes['orders'].repository[cmd.order_id]
         assert order.is_reserved
         assert order.is_paid
 
         # Check the reservation exists.
-        reservation = system.reservations.repository[order.reservation_id]
+        reservation = system.processes['reservations'].repository[order.reservation_id]
 
         # Check the payment exists.
-        payment = system.payments.repository[order.payment_id]
+        payment = system.processes['payments'].repository[order.payment_id]
 
 Basically, given the system is running, when a "create new order" command is
-created, then the command is done, and an order has been both reservered and paid.
+created, then the command is done, and an order has been both reserved and paid.
 
 Everything happens synchronously, in a single thread, so that by the time
 ``create_new_order()`` has returned, the system has already processed the
@@ -721,7 +724,7 @@ Multiprocessing
 ~~~~~~~~~~~~~~~
 
 The example below shows the same system of process applications running in
-different operating system processes, using the library's ``Multiprocess`` class,
+different operating system processes, using the library's ``MultiprocessRunner`` class,
 which uses Python's ``multiprocessing`` library.
 
 Running the system with multiple operating system processes means the different processes
@@ -757,7 +760,7 @@ process applications were using different databases, upstream notification
 logs would need to be presented in an API, so that downstream could read
 notifications from a remote notification log, as discussed in the section
 about notifications (using separate databases is not currently supported
-by the ``Multiprocess`` class).
+by the ``MultiprocessRunner`` class).
 
 The MySQL database needs to be created before running the next bit of code.
 
@@ -773,7 +776,7 @@ Because the system isn't yet running, the command remains unprocessed.
 .. code:: python
 
 
-    with Commands(setup_table=True) as commands:
+    with Commands.mixin(SQLAlchemyApplication)(setup_table=True) as commands:
 
         # Create a new command.
         cmd_id = commands.create_new_order()
@@ -804,16 +807,16 @@ Single pipeline
 .. a response is created (how?), the request actor could be sent
 .. a message, so clients get a blocking call that doesn't involve polling.
 
-The code below uses the library's ``Multiprocess`` class to run the ``system``.
+The code below uses the library's ``MultiprocessRunner`` class to run the ``system``.
 It starts one operating system process for each process application
 in the system, which in this example will give four child operating
 system processes.
 
 .. code:: python
 
-    from eventsourcing.application.multiprocess import Multiprocess
+    from eventsourcing.application.multiprocess import MultiprocessRunner
 
-    multiprocessing_system = Multiprocess(system, setup_tables=True)
+    multiprocessing_system = MultiprocessRunner(system, setup_tables=True)
 
 The operating system processes can be started by using the ``multiprocess``
 object as a context manager. The unprocessed commands will be processed
@@ -827,7 +830,7 @@ shortly after the various operating system processes have been started.
         assert repository[cmd_id].is_done
 
     # Process the command.
-    with multiprocessing_system, Commands() as commands:
+    with multiprocessing_system, Commands.mixin(SQLAlchemyApplication)() as commands:
         assert_command_is_done(commands.repository, cmd_id)
 
 The process applications read their upstream notification logs when they start,
@@ -884,11 +887,11 @@ Pipelines have integer IDs. In this example, the pipeline IDs are ``[0, 1, 2]``.
 It would be possible to run the system with e.g. pipelines 0-7 on one machine, pipelines 8-15
 on another machine, and so on.
 
-The ``pipeline_ids`` are given to the ``Multiprocess`` object.
+The ``pipeline_ids`` are given to the ``MultiprocessRunner`` object.
 
 .. code:: python
 
-    multiprocessing_system = Multiprocess(system, pipeline_ids=pipeline_ids)
+    multiprocessing_system = MultiprocessRunner(system, pipeline_ids=pipeline_ids)
 
 With the multiprocessing system running each of the process applications
 as a separate operating system process, and the commands process running
@@ -897,7 +900,7 @@ process, which causes orders to be processed by the system.
 
 .. code:: python
 
-    with multiprocessing_system, Commands() as commands:
+    with multiprocessing_system, Commands.mixin(SQLAlchemyApplication)() as commands:
 
         # Create new orders.
         command_ids = []
@@ -986,11 +989,11 @@ The actors will run by sending messages recursively.
 
 .. code:: python
 
-    from eventsourcing.application.actors import Actors
+    from eventsourcing.application.actors import ActorsRunner
 
-    actors = Actors(system, pipeline_ids=pipeline_ids)
+    actors = ActorsRunner(system, pipeline_ids=pipeline_ids)
 
-    with actors, Commands() as commands:
+    with actors, Commands.mixin(SQLAlchemyApplication)() as commands:
 
         # Create new orders.
         command_ids = []
@@ -1023,7 +1026,7 @@ by calling ``actors.start()``. The actors can be shutdown with ``actors.shutdown
 If ``actors`` is used as a context manager, as above, the ``start()`` method is
 called when the context manager enters. The ``close()`` method is called
 when the context manager exits. By default the ``shutdown()`` method
-is not called by ``close()``. If ``Actors`` is constructed with ``shutdown_on_close=True``,
+is not called by ``close()``. If ``ActorsRunner`` is constructed with ``shutdown_on_close=True``,
 which is ``False`` by default, then the actors will be shutdown by ``close()``, and so
 also when the context manager exits. Event so, shutting down the system actors will not
 shutdown a "mutliproc" base system.

@@ -1,10 +1,10 @@
 from eventsourcing.application.policies import SnapshottingPolicy
-from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.application.simple import Application
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
 
-class ApplicationWithSnapshotting(SimpleApplication):
+class SnapshottingApplication(Application):
     # Todo: Change this to default to None?
     snapshot_period = 2
 
@@ -12,10 +12,10 @@ class ApplicationWithSnapshotting(SimpleApplication):
         self.snapshot_period = snapshot_period or self.snapshot_period
         self.snapshot_record_class = snapshot_record_class
         self.snapshotting_policy = None
-        super(ApplicationWithSnapshotting, self).__init__(**kwargs)
+        super(SnapshottingApplication, self).__init__(**kwargs)
 
     def setup_event_store(self):
-        super(ApplicationWithSnapshotting, self).setup_event_store()
+        super(SnapshottingApplication, self).setup_event_store()
         # Setup event store for snapshots.
         self.snapshot_store = EventStore(
             record_manager=self.infrastructure_factory.construct_snapshot_record_manager(),
@@ -29,12 +29,12 @@ class ApplicationWithSnapshotting(SimpleApplication):
         self.snapshot_strategy = EventSourcedSnapshotStrategy(
             snapshot_store=self.snapshot_store
         )
-        super(ApplicationWithSnapshotting, self).setup_repository(
+        super(SnapshottingApplication, self).setup_repository(
             snapshot_strategy=self.snapshot_strategy, **kwargs
         )
 
     def setup_persistence_policy(self):
-        super(ApplicationWithSnapshotting, self).setup_persistence_policy()
+        super(SnapshottingApplication, self).setup_persistence_policy()
         self.snapshotting_policy = SnapshottingPolicy(
             repository=self.repository,
             snapshot_store=self.snapshot_store,
@@ -43,12 +43,17 @@ class ApplicationWithSnapshotting(SimpleApplication):
         )
 
     def setup_table(self):
-        super(ApplicationWithSnapshotting, self).setup_table()
+        super(SnapshottingApplication, self).setup_table()
         if self.datastore is not None:
             self.datastore.setup_table(self.snapshot_store.record_manager.record_class)
 
+    def drop_table(self):
+        super(SnapshottingApplication, self).drop_table()
+        if self.datastore is not None:
+            self.datastore.drop_table(self.snapshot_store.record_manager.record_class)
+
     def close(self):
-        super(ApplicationWithSnapshotting, self).close()
+        super(SnapshottingApplication, self).close()
         if self.snapshotting_policy is not None:
             self.snapshotting_policy.close()
             self.snapshotting_policy = None

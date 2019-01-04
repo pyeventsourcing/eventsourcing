@@ -1,21 +1,19 @@
-from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 
 
 class InfrastructureFactory(object):
-    record_manager_class = AbstractSequencedItemRecordManager
+    record_manager_class = None
     sequenced_item_class = SequencedItem
     integer_sequenced_record_class = None
     integer_sequenced_noid_record_class = None
     timestamp_sequenced_record_class = None
     snapshot_record_class = None
-    tracking_record_manager_class = None
 
     def __init__(self, record_manager_class=None, sequenced_item_class=None,
                  integer_sequenced_record_class=None, timestamp_sequenced_record_class=None,
-                 tracking_record_manager_class=None,
                  snapshot_record_class=None, contiguous_record_ids=False, application_name=None,
-                 pipeline_id=-1):
+                 pipeline_id=DEFAULT_PIPELINE_ID):
 
         self.record_manager_class = record_manager_class or self.record_manager_class
 
@@ -25,8 +23,6 @@ class InfrastructureFactory(object):
 
         self.timestamp_sequenced_record_class = timestamp_sequenced_record_class or \
                                                 self.timestamp_sequenced_record_class
-
-        self.tracking_record_manager_class = tracking_record_manager_class or self.tracking_record_manager_class
 
         self.snapshot_record_class = snapshot_record_class or self.snapshot_record_class
 
@@ -41,7 +37,7 @@ class InfrastructureFactory(object):
 
     def construct_timestamp_sequenced_record_manager(self, record_class=None):
         record_class = record_class or self.timestamp_sequenced_record_class
-        assert self.integer_sequenced_record_class
+        # assert self.integer_sequenced_record_class
         return self.construct_record_manager(
             record_class=record_class,
         )
@@ -60,9 +56,6 @@ class InfrastructureFactory(object):
             pipeline_id=self.pipeline_id,
             **kwargs
         )
-
-    def construct_tracking_record_manager(self, *args, **kwargs):
-        return self.tracking_record_manager_class(*args, **kwargs)
 
     def construct_datastore(self):
         return None

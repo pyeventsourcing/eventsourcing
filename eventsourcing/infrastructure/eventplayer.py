@@ -18,6 +18,10 @@ class EventPlayer(AbstractEventPlayer):
         self._event_store = event_store
         self._snapshot_strategy = snapshot_strategy
         self._cache = {}
+        # NB If you use the cache, make sure to del entities
+        # when records fail to write otherwise the cache will
+        # give an entity that is ahead of the event records,
+        # and writing more records will give a broken sequence.
         self._use_cache = use_cache
         self._mutator_func = mutator_func
 

@@ -1,17 +1,29 @@
 import os
 import unittest
+from abc import ABCMeta
 from functools import wraps
 from unittest import TestCase
 
+import six
 
-class AbstractTestCase(TestCase):
-    """
-    Base class for test cases with abstract test_* methods.
+try:
+    from abc import ABC
+except ImportError:
+    class ABC(six.with_metaclass(ABCMeta)):
+        """Helper class that provides a standard way to create an ABC using
+        inheritance.
+        """
+
+
+class AbstractTestCase(ABC, TestCase):
+    """Base class for abstract test cases.
+
+    Skips tests in all subclass test cases,
+    if class name ends with 'TestCase'.
     """
 
     def setUp(self):
-        """
-        Returns None if test case class ends with 'TestCase',
+        """Returns None if test case class ends with 'TestCase',
         which means the test case isn't included in the suite.
         """
         super(AbstractTestCase, self).setUp()

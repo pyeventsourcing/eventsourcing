@@ -134,7 +134,9 @@ class RecordManagerNotificationLog(LocalNotificationLog):
     def get_items(self, start, stop, next_position=None):
         notifications = []
         for record in self.record_manager.get_notifications(start, stop):
-            notification = {'id': record.id}
+            notification = {
+                'id': getattr(record, self.record_manager.notification_id_name)
+            }
             for field_name in self.record_manager.field_names:
                 notification[field_name] = getattr(record, field_name)
             if hasattr(record, 'causal_dependencies'):
@@ -143,9 +145,12 @@ class RecordManagerNotificationLog(LocalNotificationLog):
         return notifications
 
     def get_next_position(self):
-        return self.get_end_position() or 1
+        """Next unoccupied position in zero-based sequence.
 
-    def get_end_position(self):
+        Since the notification IDs are one-based, the next position is
+        the current max notification ID. If there are no records,
+        the max notification ID will be None, and the next position is zero.
+        """
         return self.record_manager.get_max_record_id() or 0
 
 
@@ -201,11 +206,12 @@ class RemoteNotificationLog(AbstractNotificationLog):
 
 
 class NotificationLogReader(six.with_metaclass(ABCMeta)):
-    def __init__(self, notification_log):
+    def __init__(self, notification_log, use_direct_query_if_available=False):
         assert isinstance(notification_log, AbstractNotificationLog)
         self.notification_log = notification_log
         self.section_count = 0
         self.position = 0
+        self.use_direct_query_if_available = use_direct_query_if_available
 
     def __getitem__(self, item=None):
         if isinstance(item, slice):
@@ -250,56 +256,68 @@ class NotificationLogReader(six.with_metaclass(ABCMeta)):
         if self.position < 0:
             raise ValueError("Position less than zero: {}".format(self.position))
 
-        # Get current section.
-        section = self.notification_log['current']
-
-        # Follow previous links.
-        while section.previous_id:
-
-            # Break if we can go forward from here.
-            if start_item_num is not None:
-                if int(section.section_id.split(',')[0]) <= start_item_num:
-                    break
-
-            # Get the previous document.
-            section_id = section.previous_id
-            section = self.notification_log[section_id]
-
-        # Yield items in first section, optionally after last item number.
-        self.section_count += 1
-        items = section.items
-        if start_item_num is not None:
-            section_start_num = int(section.section_id.split(',')[0])
-            from_index = start_item_num - section_start_num
-            items = items[from_index:]
-
-        if advance_by is None:
-            advance_by = -1
-
-        # Yield all items in all subsequent sections.
-        while True:
-
-            items_iter = iter(items)
-            while True:
-                if stop_index is not None and self.position >= stop_index:
-                    return
-                if advance_by == 0:
-                    return
-                try:
-                    item = next(items_iter)
-                except StopIteration:
-                    break
-                self.position += 1
-                advance_by -= 1
-                yield item
-
-            if section.next_id:
-                # Follow link to get next section.
-                section = self.notification_log[section.next_id]
-                items = section.items
-                self.section_count += 1
+        if self.use_direct_query_if_available and isinstance(
+                self.notification_log, RecordManagerNotificationLog):
+            if advance_by is not None:
+                stop_item_num = start_item_num + advance_by
             else:
-                break
+                stop_item_num = None
+            # Directly query for notifications.
+            for item in self.notification_log.get_items(start_item_num - 1, stop_item_num):
+                yield item
+                self.position += 1
+
+        else:
+            # Otherwise, use sections (Vaughn Vernon's linked section design).
+            section = self.notification_log['current']
+
+            # Follow previous links.
+            while section.previous_id:
+
+                # Break if we can go forward from here.
+                if start_item_num is not None:
+                    if int(section.section_id.split(',')[0]) <= start_item_num:
+                        break
+
+                # Get the previous document.
+                section_id = section.previous_id
+                section = self.notification_log[section_id]
+
+            # Yield items in first section, optionally after last item number.
+            self.section_count += 1
+            items = section.items
+            if start_item_num is not None:
+                section_start_num = int(section.section_id.split(',')[0])
+                from_index = start_item_num - section_start_num
+                items = items[from_index:]
+
+            if advance_by is None:
+                advance_by = -1
+
+            # Yield all items in all subsequent sections.
+            while True:
+
+                items_iter = iter(items)
+                while True:
+                    if stop_index is not None and self.position >= stop_index:
+                        return
+                    if advance_by == 0:
+                        return
+                    try:
+                        item = next(items_iter)
+                    except StopIteration:
+                        break
+                    self.position += 1
+                    advance_by -= 1
+                    yield item
+
+                if section.next_id:
+                    # Follow link to get next section.
+                    section = self.notification_log[section.next_id]
+                    items = section.items
+                    self.section_count += 1
+                else:
+                    break
 
     def read_list(self, advance_by=None):
         return list(self.read_items(advance_by=advance_by))

@@ -17,21 +17,22 @@ if 'READTHEDOCS' in os.environ:
 install_requires = singledispatch_requires + [
     'python-dateutil<=2.6.99999',
     'six<=1.11.99999',
-    'pycryptodome<=3.4.99999',
-    'requests<=2.18.99999',
+    'pycryptodome<=3.6.99999',
+    'requests<=2.19.99999',
+    'readerwriterlock<=1.0.99999',
 ]
 
 sqlalchemy_requires = [
     'sqlalchemy<=1.2.99999,>=0.9',
-    'sqlalchemy-utils<=0.32.99999',
+    'sqlalchemy-utils<=0.33.99999',
 ]
 
 cassandra_requires = [
-    'cassandra-driver<=3.12.99999'
+    'cassandra-driver<=3.14.99999'
 ]
 
 django_requires = [  # Note, Django 2 doesn't support Python 2.7
-    'django>=1.11,<=2.0.99999' if str != bytes else 'django>=1.11,<=1.11.99999',
+    'django>=1.11,<=2.1.99999' if str != bytes else 'django>=1.11,<=1.11.99999',
 ]
 
 testing_requires = [
@@ -43,6 +44,7 @@ testing_requires = [
     'celery<=4.1.99999',
     'pymysql<=0.8.99999',
     'thespian<=3.9.99999',
+    'psycopg2-binary'  # for Django with PostgreSQL.
 ] + cassandra_requires + sqlalchemy_requires + django_requires
 
 docs_requires = ['Sphinx', 'sphinx_rtd_theme', 'sphinx-autobuild'] + testing_requires
@@ -96,11 +98,11 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: Implementation :: CPython',
-        'Programming Language :: Python :: Implementation :: PyPy',
+        # 'Programming Language :: Python :: Implementation :: PyPy',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
 )

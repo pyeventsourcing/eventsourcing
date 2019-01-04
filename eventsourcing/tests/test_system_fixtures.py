@@ -1,7 +1,7 @@
 import logging
 import os
 
-from eventsourcing.application.sqlalchemy import ProcessApplication
+from eventsourcing.application.process import ProcessApplication
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import OperationalError, RecordConflictError
@@ -90,43 +90,51 @@ logger = logging.getLogger()
 class Orders(ProcessApplication):
     persist_event_type = Order.Created
 
-    def policy(self, repository, event):
+    @staticmethod
+    def policy(repository, event):
         if isinstance(event, Reservation.Created):
             # Set the order as reserved.
             order = repository[event.order_id]
             assert not order.is_reserved
             order.set_is_reserved(event.originator_id)
-            logger.info('set Order as reserved')
+            # logger.info('set Order as reserved')
+            # print(f'set Order {event.order_id} as reserved')
 
         elif isinstance(event, Payment.Created):
             # Set the order as paid.
             order = repository[event.order_id]
             assert not order.is_paid
             order.set_is_paid(event.originator_id)
-            logger.info('set Order as paid')
+            # logger.info('set Order as paid')
+            # print(f'set Order {event.order_id} as paid')
 
 
 class Reservations(ProcessApplication):
-    def policy(self, repository, event):
+    @staticmethod
+    def policy(repository, event):
         if isinstance(event, Order.Created):
             # Create a reservation.
             # time.sleep(0.5)
-            logger.info('created Reservation for order')
+            # logger.info('created Reservation for order')
+            # print(f'created Reservation for order {event.originator_id}')
             return Reservation.create(order_id=event.originator_id)
 
 
 class Payments(ProcessApplication):
-    def policy(self, repository, event):
+    @staticmethod
+    def policy(repository, event):
         if isinstance(event, Order.Reserved):
             # Make a payment.
             # time.sleep(0.5)
-            logger.info('created Payment for order')
+            # logger.info('created Payment for order')
+            # print(f'created Payment for order {event.originator_id}')
             return Payment.make(order_id=event.originator_id)
 
 
 class Examples(ProcessApplication):
     persist_event_type = ExampleAggregate.Created
 
-    def policy(self, repository, event):
+    @staticmethod
+    def policy(repository, event):
         if isinstance(event, ExampleAggregate.Created):
             repository[event.originator_id].move_on()

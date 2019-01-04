@@ -57,7 +57,7 @@ class Timebucketedlog(TimestampedVersionedEntity):
     def bucket_size(self):
         return self._bucket_size
 
-    def append_message(self, message):
+    def log_message(self, message):
         assert isinstance(message, six.string_types)
         bucket_id = make_timebucket_id(self.name, decimaltimestamp(), self.bucket_size)
         event = MessageLogged(

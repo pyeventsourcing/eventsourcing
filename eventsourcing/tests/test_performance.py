@@ -1,4 +1,7 @@
+from unittest import skip
+
 import time
+from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import PopoTestCase
 from math import floor
 from uuid import uuid4
 
@@ -13,18 +16,18 @@ from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoID
     TimestampSequencedNoIDRecord, TimestampSequencedWithIDRecord
 from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader, get_timebucketedlog_reader
 from eventsourcing.tests.base import notquick
-from eventsourcing.tests.example_application_tests.base import WithExampleApplication
+from eventsourcing.tests.example_application_tests import base
 from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import \
     WithEncryption
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    WithSQLAlchemyRecordManagers
+    SQLAlchemyRecordManagerTestCase
 
 
 @notquick
-class PerformanceTestCase(WithExampleApplication):
+class PerformanceTestCase(base.WithExampleApplication):
     drop_tables = True
 
     def test_entity_performance(self):
@@ -158,7 +161,7 @@ class PerformanceTestCase(WithExampleApplication):
             number_of_messages = 111
             events = []
             for i in range(number_of_messages):
-                event = log.append_message('Logger message number {}'.format(i))
+                event = log.log_message('Logger message number {}'.format(i))
                 events.append(event)
             time_to_write = (time.time() - start_write)
             print("Time to log {} messages: {:.2f}s ({:.0f} messages/s, {:.6f}s each)"
@@ -256,12 +259,19 @@ class TestDjangoPerformanceWithEncryption(WithEncryption, TestDjangoPerformance)
 
 
 @notquick
+class TestPopoPerformance(PopoTestCase, PerformanceTestCase):
+    @skip("Popo record manager only supports sequencing with integers")
+    def test_log_performance(self):
+        pass
+
+
+@notquick
 class TestCassandraPerformanceWithEncryption(WithEncryption, TestCassandraPerformance):
     pass
 
 
 @notquick
-class TestSQLAlchemyPerformance(WithSQLAlchemyRecordManagers, PerformanceTestCase):
+class TestSQLAlchemyPerformance(SQLAlchemyRecordManagerTestCase, PerformanceTestCase):
     def construct_entity_record_manager(self):
         return self.factory.construct_integer_sequenced_record_manager(
             record_class=IntegerSequencedWithIDRecord
@@ -290,3 +300,7 @@ class TestSQLAlchemyPerformanceNoID(TestSQLAlchemyPerformance):
 @notquick
 class TestSQLAlchemyPerformanceWithEncryption(WithEncryption, TestSQLAlchemyPerformance):
     pass
+
+
+# Avoid running abstract test case.
+del (PerformanceTestCase)

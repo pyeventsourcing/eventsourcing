@@ -8,25 +8,22 @@ from eventsourcing.domain.model.array import AbstractArrayRepository, Array, Big
 from eventsourcing.exceptions import ArrayIndexError, ConcurrencyError
 from eventsourcing.infrastructure.repositories.array import ArrayRepository, BigArrayRepository
 from eventsourcing.tests.base import notquick
-from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
+from eventsourcing.tests.sequenced_item_tests.base import WithEventPersistence
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    WithSQLAlchemyRecordManagers
+    SQLAlchemyRecordManagerTestCase
 
 try:
     from unittest import mock
 except:
     import mock
 
-try:
-    from queue import Queue
-except ImportError:
-    from Queue import Queue
+from six.moves.queue import Queue
 
 
-class TestArrayWithSQLAlchemy(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
+class TestArrayWithSQLAlchemy(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
     def setUp(self):
         super(TestArrayWithSQLAlchemy, self).setUp()
         self.repo = ArrayRepository(
@@ -121,7 +118,7 @@ class TestArrayWithSQLAlchemy(WithSQLAlchemyRecordManagers, WithPersistencePolic
             array[-4]
 
 
-class BigArrayTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
+class BigArrayTestCase(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
     def start_and_append(self, array_size, num_items):
         array = self.get_big_array(array_size)
         items = self.append_items(num_items, array)

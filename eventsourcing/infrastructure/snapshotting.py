@@ -61,7 +61,7 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
             state=None if entity is None else deepcopy(entity.__dict__)
         )
 
-        self.snapshot_store.append(snapshot)
+        self.snapshot_store.store(snapshot)
 
         # Return the snapshot.
         return snapshot
