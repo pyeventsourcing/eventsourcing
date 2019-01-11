@@ -202,7 +202,7 @@ class OperatingSystemProcess(multiprocessing.Process):
                 # Basically, we're polling after a timeout.
                 self.run_process()
 
-    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
+    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.1)
     def run_process(self, prompt=None):
         self.process.run(prompt)
 
