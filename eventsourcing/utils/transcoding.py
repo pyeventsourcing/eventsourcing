@@ -48,7 +48,7 @@ class ObjectJSONEncoder(JSONEncoder):
             }
         elif hasattr(obj, '__class__') and hasattr(obj, '__slots__'):
             topic = get_topic(obj.__class__)
-            state = {k:getattr(obj, k) for k in obj.__slots__}
+            state = {k: getattr(obj, k) for k in obj.__slots__}
             return {
                 '__class__': {
                     'topic': topic,
@@ -120,8 +120,8 @@ class ObjectJSONDecoder(JSONDecoder):
         if hasattr(obj, '__dict__'):
             obj.__dict__.update(state)
         else:
-            for k,v in state.items():
-                setattr(obj, k, v)
+            for k, v in state.items():
+                object.__setattr__(obj, k, v)
         return obj
 
 
