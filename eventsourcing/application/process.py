@@ -77,7 +77,6 @@ class ProcessApplication(Pipeable, Application):
         reader = NotificationLogReader(notification_log, use_direct_query_if_available=True)
         self.readers[upstream_application_name] = reader
 
-    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
     def run(self, prompt=None, advance_by=None):
 
         if prompt:

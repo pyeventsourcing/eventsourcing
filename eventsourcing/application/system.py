@@ -11,7 +11,7 @@ from six.moves.queue import Empty, Queue
 from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import CausalDependencyFailed
+from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError
 from eventsourcing.interface.notificationlog import NotificationLogReader
 
 DEFAULT_POLL_INTERVAL = 5
@@ -389,7 +389,7 @@ class PromptQueuedApplicationThread(Thread):
     adds its prompts to an "outbox" queue.
     """
 
-    def __init__(self, process, poll_interval=DEFAULT_POLL_INTERVAL,
+    def __init__(self, process: ProcessApplication, poll_interval=DEFAULT_POLL_INTERVAL,
                  inbox=None, outbox=None, clock_event=None):
         super(PromptQueuedApplicationThread, self).__init__(daemon=True)
         self.process = process
@@ -419,7 +419,7 @@ class PromptQueuedApplicationThread(Thread):
                     if self.clock_event is not None:
                         self.clock_event.wait()
                     started = time.time()
-                    self.process.run(prompt)
+                    self.run_process(prompt)
                     if self.clock_event is not None:
                         ended = time.time()
                         duration = ended - started
@@ -431,7 +431,12 @@ class PromptQueuedApplicationThread(Thread):
             except six.moves.queue.Empty:
                 # Basically, we're polling after a timeout.
                 if self.clock_event is None:
+                    self.run_process()
                     self.process.run()
+
+    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.1)
+    def run_process(self, prompt=None):
+        self.process.run(prompt)
 
 
 class PromptOutbox(object):

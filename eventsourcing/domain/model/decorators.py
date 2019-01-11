@@ -156,7 +156,7 @@ def attribute(getter):
         raise ProgrammingError("Expected a function, got: {}".format(repr(getter)))
 
 
-def retry(exc=Exception, max_attempts=1, wait=0, stall=0):
+def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
     def _retry(func):
 
         @wraps(func)
@@ -171,6 +171,8 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0):
                     attempts += 1
                     if max_attempts is None or attempts < max_attempts:
                         sleep(wait * (1 + 0.1 * (random() - 0.5)))
+                        if verbose:
+                            print("Retrying {}".format(func))
                     else:
                         # Max retries exceeded.
                         raise e

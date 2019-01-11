@@ -8,15 +8,15 @@ from eventsourcing.application.process import Prompt
 from eventsourcing.application.system import System, SystemRunner, DEFAULT_POLL_INTERVAL, PromptOutbox
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import CausalDependencyFailed
+from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 
 
 class MultiprocessRunner(SystemRunner):
 
-    def __init__(self, system: System, pipeline_ids=(DEFAULT_PIPELINE_ID,), poll_interval=None,
-                 setup_tables=False, sleep_for_setup_tables=0):
+    def __init__(self, system: System, pipeline_ids=(DEFAULT_PIPELINE_ID,),
+                 poll_interval=None, setup_tables=False, sleep_for_setup_tables=0):
         super(MultiprocessRunner, self).__init__(system=system)
         self.pipeline_ids = pipeline_ids
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
@@ -196,11 +196,15 @@ class OperatingSystemProcess(multiprocessing.Process):
                     break
 
                 else:
-                    self.process.run(item)
+                    self.run_process(item)
 
             except six.moves.queue.Empty:
                 # Basically, we're polling after a timeout.
-                self.process.run()
+                self.run_process()
+
+    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
+    def run_process(self, prompt=None):
+        self.process.run(prompt)
 
     def broadcast_prompt(self, prompt):
         self.outbox.put(prompt)

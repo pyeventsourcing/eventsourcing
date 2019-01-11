@@ -84,7 +84,10 @@ class DomainEntity(QualnameABC):
         def __mutate__(self, entity_class=None):
             if entity_class is None:
                 entity_class = resolve_topic(self.originator_topic)
-            obj = entity_class(**self.__entity_kwargs__)
+            try:
+                obj = entity_class(**self.__entity_kwargs__)
+            except TypeError as e:
+                raise
             return obj
 
         @property
