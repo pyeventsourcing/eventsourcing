@@ -236,13 +236,13 @@ class SingleThreadedRunner(InProcessRunner):
     #
 
 
-class PromptQueuedMultiThreadedRunner(InProcessRunner):
+class MultiThreadedRunner(InProcessRunner):
     """
     Runs a system with a thread for each process.
     """
 
     def __init__(self, system: System, poll_interval=None, clock_speed=None):
-        super(PromptQueuedMultiThreadedRunner, self).__init__(system=system)
+        super(MultiThreadedRunner, self).__init__(system=system)
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
         self.threads = {}
@@ -255,7 +255,7 @@ class PromptQueuedMultiThreadedRunner(InProcessRunner):
             self.stop_clock_event = None
 
     def start(self):
-        super(PromptQueuedMultiThreadedRunner, self).start()
+        super(MultiThreadedRunner, self).start()
         assert not self.threads, "Already started"
 
         self.inboxes = {}
@@ -364,7 +364,7 @@ class PromptQueuedMultiThreadedRunner(InProcessRunner):
         return isinstance(event, Prompt)
 
     def close(self):
-        super(PromptQueuedMultiThreadedRunner, self).close()
+        super(MultiThreadedRunner, self).close()
 
         if self.clock_event is not None:
             self.clock_event.set()
@@ -418,8 +418,10 @@ class PromptQueuedApplicationThread(Thread):
                 else:
                     if self.clock_event is not None:
                         self.clock_event.wait()
-                    started = time.time()
+                        started = time.time()
+
                     self.run_process(prompt)
+
                     if self.clock_event is not None:
                         ended = time.time()
                         duration = ended - started
@@ -432,9 +434,8 @@ class PromptQueuedApplicationThread(Thread):
                 # Basically, we're polling after a timeout.
                 if self.clock_event is None:
                     self.run_process()
-                    self.process.run()
 
-    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.1)
+    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.1, verbose=True)
     def run_process(self, prompt=None):
         self.process.run(prompt)
 

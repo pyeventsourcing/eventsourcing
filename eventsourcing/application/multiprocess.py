@@ -182,7 +182,7 @@ class OperatingSystemProcess(multiprocessing.Process):
     def loop_on_prompts(self):
 
         # Run once, in case prompts were missed.
-        self.process.run()
+        self.run_process()
 
         # Loop on getting prompts.
         while True:

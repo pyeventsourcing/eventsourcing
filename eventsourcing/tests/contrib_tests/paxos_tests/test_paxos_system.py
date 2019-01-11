@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from eventsourcing.application.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.application.system import PromptQueuedMultiThreadedRunner
+from eventsourcing.application.system import MultiThreadedRunner
 from eventsourcing.contrib.paxos.application import PaxosSystem, PaxosProcess
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
@@ -73,7 +73,7 @@ class TestPaxosSystem(unittest.TestCase):
         key1, key2, key3 = uuid4(), uuid4(), uuid4()
         value1, value2, value3 = 11111, 22222, 33333
 
-        with PromptQueuedMultiThreadedRunner(system):
+        with MultiThreadedRunner(system):
             paxosprocess0 = system.processes['paxosprocess0']
             paxosprocess1 = system.processes['paxosprocess1']
             paxosprocess2 = system.processes['paxosprocess2']

@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from eventsourcing.application.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.application.system import PromptQueuedMultiThreadedRunner, System
+from eventsourcing.application.system import MultiThreadedRunner, System
 from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
 from eventsourcing.tests.test_process import ExampleAggregate
 from eventsourcing.tests.test_system_fixtures import Examples, Order, Orders, Payment, Payments, Reservation, \
@@ -39,7 +39,7 @@ class TestSystem(TestCase):
 
         self.set_db_uri()
 
-        with PromptQueuedMultiThreadedRunner(system):
+        with MultiThreadedRunner(system):
 
             app = system.processes['examples']
 
@@ -66,7 +66,7 @@ class TestSystem(TestCase):
 
         self.set_db_uri()
 
-        with PromptQueuedMultiThreadedRunner(system):
+        with MultiThreadedRunner(system):
 
             started = time()
 
@@ -105,7 +105,7 @@ class TestSystem(TestCase):
 
         clock_speed = 10
         tick_interval = 1 / clock_speed
-        with PromptQueuedMultiThreadedRunner(system, clock_speed=clock_speed):
+        with MultiThreadedRunner(system, clock_speed=clock_speed):
 
             started = time()
 
