@@ -1,17 +1,11 @@
+from functools import singledispatch
 from inspect import isfunction
 from random import random
 from time import sleep
 
-from six import wraps
-
-try:
-    # Python 3.4+
-    from functools import singledispatch
-except ImportError:
-    from singledispatch import singledispatch
-
 from eventsourcing.domain.model.events import subscribe
 from eventsourcing.exceptions import ProgrammingError
+from six import wraps
 
 
 def subscribe_to(*event_classes):
@@ -203,3 +197,26 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
         if not isinstance(wait, (float, int)):
             raise TypeError("'wait' must be a float: {}".format(max_attempts))
         return _retry
+
+
+def applicationpolicy(arg=None):
+    """
+    Decorator for application policy method.
+
+    Allows policy to be built up from methods
+    registered for different event classes.
+    """
+
+    def _mutator(func):
+        wrapped = singledispatch(func)
+
+        @wraps(wrapped)
+        def wrapper(*args):
+            return wrapped.dispatch(type(args[-1]))(*args)
+
+        wrapper.register = wrapped.register
+
+        return wrapper
+
+    assert isfunction(arg)
+    return _mutator(arg)
