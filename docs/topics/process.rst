@@ -433,7 +433,7 @@ by setting an ``Order`` as paid.
 
         @staticmethod
         def policy(repository, event):
-            if isinstance(event, Order.Created):
+            if isinstance(event, CreateNewOrder.Created):
                 command_class = resolve_topic(event.originator_topic)
                 if command_class is CreateNewOrder:
                     return Order.__create__(command_id=event.originator_id)
