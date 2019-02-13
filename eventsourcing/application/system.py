@@ -79,15 +79,17 @@ class System(object):
 
                 previous_name = process_name
 
-    def construct_app(self, process_class, **kwargs):
+    def construct_app(self, process_class, infrastructure_class=None, **kwargs):
         kwargs = dict(kwargs)
         if 'setup_table' not in kwargs:
             kwargs['setup_table'] = self.setup_tables
         if 'session' not in kwargs and process_class.is_constructed_with_session:
             kwargs['session'] = self.session
 
-        if self.infrastructure_class:
-            process_class = process_class.mixin(self.infrastructure_class)
+        if infrastructure_class is None:
+            infrastructure_class = self.infrastructure_class
+        if infrastructure_class is not None:
+            process_class = process_class.mixin(infrastructure_class)
 
         process = process_class(**kwargs)
 
@@ -117,8 +119,9 @@ class System(object):
 
 class SystemRunner(with_metaclass(ABCMeta)):
 
-    def __init__(self, system: System):
+    def __init__(self, system: System, infrastructure_class=None):
         self.system = system
+        self.infrastructure_class = infrastructure_class
 
     def __enter__(self):
         self.start()
@@ -149,7 +152,10 @@ class InProcessRunner(SystemRunner):
 
         # Construct the processes.
         for process_class in self.system.process_classes.values():
-            process = self.system.construct_app(process_class)
+            process = self.system.construct_app(
+                process_class=process_class,
+                infrastructure_class=self.infrastructure_class
+            )
             self.system.processes[process.name] = process
 
         # Tell each process about the processes it follows.
