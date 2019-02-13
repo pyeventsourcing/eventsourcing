@@ -379,6 +379,10 @@ with the orders created by the system in response.
 
 
     class CreateNewOrder(Command):
+
+        class Created(Command.Created):
+            pass
+
         @attribute
         def order_id(self):
             pass
@@ -446,10 +450,8 @@ by setting an ``Order`` as paid.
 
         @staticmethod
         def policy(repository, event):
-            if isinstance(event, Command.Created):
-                command_class = resolve_topic(event.originator_topic)
-                if command_class is CreateNewOrder:
-                    return Order.__create__(command_id=event.originator_id)
+            if isinstance(event, CreateNewOrder.Created):
+                return Order.__create__(command_id=event.originator_id)
 
             elif isinstance(event, Reservation.Created):
                 # Set the order as reserved.
