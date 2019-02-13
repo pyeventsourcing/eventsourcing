@@ -4,8 +4,8 @@ Process and system
 
 This section is about process applications. A process application is
 a projection into an event sourced application. A system of process
-applications can be constructed by linking applications together in
-a pipeline.
+applications can be defined with pipeline expressions that indicate
+how the process application of a system follow each other.
 
 Reliability is the most important concern in this section. A process
 is considered to be reliable if its product is entirely unaffected
@@ -40,13 +40,13 @@ concerns discussed in this section are scalability and maintainability.
 .. contents:: :local:
 
 
-Please note, the code presented in the example below works only with the library's
-SQLAlchemy record manager. Django support is planned, but not yet implemented. Support
-for Cassandra is being considered but applications will probably be simple replications
-of application state, due to the limited atomicity of Cassandra's lightweight transactions.
-Cassandra could be used to archive events written firstly into a relational database.
-Events could be removed from the relational database before storage limits are encountered.
-Events missing in the relational database could be sourced from Cassandra.
+.. Please note, the code presented in the example below works only with the library's
+.. SQLAlchemy record manager. Django support is planned, but not yet implemented. Support
+.. for Cassandra is being considered but applications will probably be simple replications
+.. of application state, due to the limited atomicity of Cassandra's lightweight transactions.
+.. Cassandra could be used to archive events written firstly into a relational database.
+.. Events could be removed from the relational database before storage limits are encountered.
+.. Events missing in the relational database could be sourced from Cassandra.
 
 
 Overview
@@ -55,11 +55,16 @@ Overview
 Process application
 -------------------
 
-The library's process application class ``Process`` functions as a projection into
-an event-sourced application. Applications and projections are discussed in previous
-sections. The ``Process`` class extends ``SimpleApplication`` by also reading notification
-logs and writing tracking records. A process application also has a policy that defines how
-it will respond to domain events it reads from notification logs.
+The library class
+:class:`~eventsourcing.application.process.ProcessApplication`
+functions as a projection into an event-sourced application.
+It extends :class:`~eventsourcing.application.simple.SimpleApplication`
+by having notification log readers which read domain events from
+upstream notification logs, an application policy which defines
+how to respond to such domain events. It also implements the
+process event pattern: so that domain event processing is reliable,
+individual process event data should be stored atomically
+(notification tracking, new domain events, new notifications).
 
 
 Notification tracking
@@ -121,38 +126,45 @@ Hence, interruptions can only cause delays.
 System of processes
 -------------------
 
-The library class ``System`` can be used to define a system of process applications,
-independently of scale.
+The library class :class:`~eventsourcing.application.system.System`
+can be used to define a system of process applications,
+entirely independently of infrastructure.
 
 In a system, one process application can follow another. One process can
 follow two other processes in a slightly more complicated system. A system
-could be just one process following itself.
+could be just one process application following itself.
 
 
-Scale-independence
-~~~~~~~~~~~~~~~~~~
+Infrastructure-independence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The system can run at different scales, but the definition of the system is
-independent of scale.
+A system is defined independently of infrastructure so that the
+same system can be run with different infrastructure at different times.
 
-A system of process applications can run in a single thread, with synchronous propagation
-and processing of events. This is intended as a development mode.
+For example, a system of process applications can run in a single thread,
+with synchronous propagation and processing of events. This is intended
+as a development mode.
 
-A system can also run with multiple operating system processes, with asynchronous
-propagation and processing of events. Having an asynchronous pipeline means events at
-different stages can be processed at the same time. This could be described as "diachronic"
-parallelism, like the way a pipelined CPU core has stages. This kind of parallelism can
-improve throughput, up to a limit provided by the number of steps required by the domain.
-The reliability of the sequantial processing allows one to write a reliable "saga" or a
-"process manager". In other words, a complicated sequence involving different aggregates,
-and perhaps different bounded contexts, can be implemented reliably without long-lived
-transactions.
+A system can also be run with multiple threads or operating system processes,
+with asynchronous propagation of events. An asynchronous pipeline means one event
+can be processed be each process application in the system at the same time.
+This is very much like the way a pipelined core in a CPU has stages to improve
+throughput of processing machine instruction. The reliability of the domain event
+processing allows one to write a reliable "saga" or a "process manager" without
+cluttering the application logic with precaution and remediation for infrastructure
+failures. In other words, a complicated sequence involving different aggregates in
+different applications, can be implemented reliably without long-running processes
+or long-lived transactions. Throughput can be increased by breaking a long step into
+smaller steps, up but only to a limit provided by the number of steps actually required
+by the domain.
 
-To scale the system further, a system of process applications can run with parallel instances
-of the pipeline expressions, just like the way an operating system can use many cores (pipelines)
-processing instruction in parallel. Having parallel pipelines means that many events can be
-processed at the same stage at the same time. This "synchronic" parallelism allows a system
-to take advantage of the scale of its infrastructure.
+A system of process applications can also be run with many parallel instances of its pipeline.
+This is very much like the way a CPU might have many cores (pipelines) to process machine
+instructions in parallel. This "synchronic" parallelism means that many
+events can be processed in the same application at the same time. This kind of parallelism
+allows the system to be scaled ("horizontally" or "vertically"), but only to a limit
+provided by the degree of parallelism in the domain (greatest when there are no causal
+dependencies).
 
 
 Causal dependencies
@@ -173,6 +185,22 @@ pipeline is included. By default in the library, only dependencies in different 
 included. If causal dependencies from all pipelines were included in each notification, each
 pipeline could be processed in parallel, to an extent limited by the dependencies between the
 notifications.
+
+
+.. If persistence were optional, this design could be used for high-performance applications
+.. which would be understood to be less durable. Data could be streamed out asynchronously
+.. and still stored atomically but after the processing notifications are available.
+.. Resuming could then go back several steps, and perhaps a signal could be sent so
+.. downstream restarts from an earlier step. Or maybe the new repeat processing could
+.. be ignored by downstream, having already processed those items.
+
+
+.. Refactoring
+.. ~~~~~~~~~~~
+
+.. Todo: Something about moving from a single process application to two. Migrate
+.. aggregates by replicating those events from the notification log, and just carry
+.. on.
 
 
 Kahn process networks
@@ -205,21 +233,6 @@ steps that might otherwise be controlled with a "long-lived transaction". It cou
 the state of the sequence and determine the next processing step based on intermediate results'
 (quote from Enterprise Integration Patterns). Exceptional "unhappy path" behaviour can be
 implemented as part of the logic of the application.
-
-.. If persistence were optional, this design could be used for high-performance applications
-.. which would be understood to be less durable. Data could be streamed out asynchronously
-.. and still stored atomically but after the processing notifications are available.
-.. Resuming could then go back several steps, and perhaps a signal could be sent so
-.. downstream restarts from an earlier step. Or maybe the new repeat processing could
-.. be ignored by downstream, having already processed those items.
-
-
-.. Refactoring
-.. ~~~~~~~~~~~
-
-.. Todo: Something about moving from a single process application to two. Migrate
-.. aggregates by replicating those events from the notification log, and just carry
-.. on.
 
 
 Example
