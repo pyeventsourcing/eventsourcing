@@ -11,7 +11,7 @@ from six.moves.queue import Empty, Queue
 from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError
+from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError, EventSourcingError
 from eventsourcing.interface.notificationlog import NotificationLogReader
 
 DEFAULT_POLL_INTERVAL = 5
@@ -401,7 +401,6 @@ class PromptQueuedApplicationThread(Thread):
     def run(self):
         self.loop_on_prompts()
 
-    @retry(CausalDependencyFailed, max_attempts=100, wait=0.1)
     def loop_on_prompts(self):
 
         # Loop on getting prompts.
@@ -409,6 +408,13 @@ class PromptQueuedApplicationThread(Thread):
             try:
                 # Todo: Make the poll interval gradually increase if there are only timeouts?
                 prompt = self.inbox.get(timeout=self.poll_interval)
+
+            except six.moves.queue.Empty:
+                # Basically, we're polling after a timeout.
+                if self.clock_event is None:
+                    self.run_process()
+
+            else:
                 self.inbox.task_done()
 
                 if prompt == 'QUIT':
@@ -430,13 +436,17 @@ class PromptQueuedApplicationThread(Thread):
                         else:
                             print(f"Info: Process {self.process.name} ran within clock cycle: {duration}")
 
-            except six.moves.queue.Empty:
-                # Basically, we're polling after a timeout.
-                if self.clock_event is None:
-                    self.run_process()
-
-    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.1, verbose=True)
     def run_process(self, prompt=None):
+        try:
+            self._run_process(prompt)
+        except CausalDependencyFailed:
+            pass
+        except EventSourcingError:
+            pass
+
+    @retry(CausalDependencyFailed, max_attempts=100, wait=0.2)
+    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
+    def _run_process(self, prompt=None):
         self.process.run(prompt)
 
 
