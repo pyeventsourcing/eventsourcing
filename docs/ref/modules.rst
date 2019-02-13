@@ -22,10 +22,46 @@ application
 
 The application layer brings together the domain and infrastructure layers.
 
-base
-----
+actors
+------
 
-.. automodule:: eventsourcing.application.base
+.. automodule:: eventsourcing.application.actors
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+command
+-------
+
+.. automodule:: eventsourcing.application.command
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+django
+------
+
+.. automodule:: eventsourcing.application.django
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+multiprocess
+------------
+
+.. automodule:: eventsourcing.application.multiprocess
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+pipeline
+--------
+
+.. automodule:: eventsourcing.application.pipeline
     :members:
     :show-inheritance:
     :undoc-members:
@@ -40,10 +76,55 @@ policies
     :undoc-members:
 
 
+popo
+----
+
+.. automodule:: eventsourcing.application.popo
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+process
+-------
+
+.. automodule:: eventsourcing.application.process
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
 simple
 ------
 
 .. automodule:: eventsourcing.application.simple
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+snapshotting
+------------
+
+.. automodule:: eventsourcing.application.snapshotting
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+sqlalchemy
+----------
+
+.. automodule:: eventsourcing.application.sqlalchemy
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+system
+------
+
+.. automodule:: eventsourcing.application.system
     :members:
     :show-inheritance:
     :undoc-members:

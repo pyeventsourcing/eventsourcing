@@ -3,11 +3,10 @@ from collections import OrderedDict, defaultdict
 from threading import Lock
 
 from eventsourcing.application.pipeline import Pipeable
-from eventsourcing.application.simple import Application
+from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.application.snapshotting import SnapshottingApplication
-from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
-from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, PromptFailed, RecordConflictError
+from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.interface.notificationlog import NotificationLogReader
@@ -21,7 +20,7 @@ class ProcessEvent(object):
         self.causal_dependencies = causal_dependencies
 
 
-class ProcessApplication(Pipeable, Application):
+class ProcessApplication(Pipeable, SimpleApplication):
     set_notification_ids = False
     use_causal_dependencies = False
 
@@ -139,7 +138,7 @@ class ProcessApplication(Pipeable, Application):
                     if self.clock_event is not None:
                         self.clock_event.wait()
 
-                    #print("Processing upstream event: ", event)
+                    # print("Processing upstream event: ", event)
                     new_events = self.process_upstream_event(event, notification['id'], upstream_name)
 
                 self.take_snapshots(new_events)

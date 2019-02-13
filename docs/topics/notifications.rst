@@ -275,7 +275,7 @@ with a queue, for example in an actor framework. Although this will smooth over 
 and unfortunate coincidences will be avoided, the continuous maximum throughput will not
 be increased, a queue will eventually reach a limit and a different exception will be raised.
 
-Given the rate limit, it could an application quite a long time to fill up
+Given the rate limit, it could take an application quite a long time to fill up
 a well provisioned database table. Nevertheless, if the rate of writing or the volume
 of domain event records in your system inclines you towards partitioning the table
 of stored events, or if anyway your database works in this way (e.g. Cassandra), then the

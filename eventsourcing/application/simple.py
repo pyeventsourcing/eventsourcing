@@ -15,7 +15,7 @@ from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_bytes
 
 
-class Application(with_metaclass(ABCMeta)):
+class SimpleApplication(with_metaclass(ABCMeta)):
     """
     Sets up infrastructure for use
     with an event sourced domain model.
@@ -196,3 +196,7 @@ class Application(with_metaclass(ABCMeta)):
     @classmethod
     def mixin(cls, *bases):
         return type(cls.__name__, bases + (cls,), {})
+
+
+class Application(SimpleApplication):
+    pass

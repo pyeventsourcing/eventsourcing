@@ -1,10 +1,10 @@
 from eventsourcing.application.policies import SnapshottingPolicy
-from eventsourcing.application.simple import Application
+from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
 
-class SnapshottingApplication(Application):
+class SnapshottingApplication(SimpleApplication):
     # Todo: Change this to default to None?
     snapshot_period = 2
 

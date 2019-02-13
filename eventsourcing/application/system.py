@@ -11,7 +11,7 @@ from six.moves.queue import Empty, Queue
 from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError
+from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError, EventSourcingError
 from eventsourcing.interface.notificationlog import NotificationLogReader
 
 DEFAULT_POLL_INTERVAL = 5
@@ -79,15 +79,17 @@ class System(object):
 
                 previous_name = process_name
 
-    def construct_app(self, process_class, **kwargs):
+    def construct_app(self, process_class, infrastructure_class=None, **kwargs):
         kwargs = dict(kwargs)
         if 'setup_table' not in kwargs:
             kwargs['setup_table'] = self.setup_tables
         if 'session' not in kwargs and process_class.is_constructed_with_session:
             kwargs['session'] = self.session
 
-        if self.infrastructure_class:
-            process_class = process_class.mixin(self.infrastructure_class)
+        if infrastructure_class is None:
+            infrastructure_class = self.infrastructure_class
+        if infrastructure_class is not None:
+            process_class = process_class.mixin(infrastructure_class)
 
         process = process_class(**kwargs)
 
@@ -117,8 +119,9 @@ class System(object):
 
 class SystemRunner(with_metaclass(ABCMeta)):
 
-    def __init__(self, system: System):
+    def __init__(self, system: System, infrastructure_class=None):
         self.system = system
+        self.infrastructure_class = infrastructure_class
 
     def __enter__(self):
         self.start()
@@ -149,7 +152,10 @@ class InProcessRunner(SystemRunner):
 
         # Construct the processes.
         for process_class in self.system.process_classes.values():
-            process = self.system.construct_app(process_class)
+            process = self.system.construct_app(
+                process_class=process_class,
+                infrastructure_class=self.infrastructure_class
+            )
             self.system.processes[process.name] = process
 
         # Tell each process about the processes it follows.
@@ -401,7 +407,6 @@ class PromptQueuedApplicationThread(Thread):
     def run(self):
         self.loop_on_prompts()
 
-    @retry(CausalDependencyFailed, max_attempts=100, wait=0.1)
     def loop_on_prompts(self):
 
         # Loop on getting prompts.
@@ -409,6 +414,13 @@ class PromptQueuedApplicationThread(Thread):
             try:
                 # Todo: Make the poll interval gradually increase if there are only timeouts?
                 prompt = self.inbox.get(timeout=self.poll_interval)
+
+            except six.moves.queue.Empty:
+                # Basically, we're polling after a timeout.
+                if self.clock_event is None:
+                    self.run_process()
+
+            else:
                 self.inbox.task_done()
 
                 if prompt == 'QUIT':
@@ -430,13 +442,17 @@ class PromptQueuedApplicationThread(Thread):
                         else:
                             print(f"Info: Process {self.process.name} ran within clock cycle: {duration}")
 
-            except six.moves.queue.Empty:
-                # Basically, we're polling after a timeout.
-                if self.clock_event is None:
-                    self.run_process()
-
-    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.1, verbose=True)
     def run_process(self, prompt=None):
+        try:
+            self._run_process(prompt)
+        except CausalDependencyFailed:
+            pass
+        except EventSourcingError:
+            pass
+
+    @retry(CausalDependencyFailed, max_attempts=100, wait=0.2)
+    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
+    def _run_process(self, prompt=None):
         self.process.run(prompt)
 
 
