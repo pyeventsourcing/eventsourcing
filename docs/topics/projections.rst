@@ -410,10 +410,6 @@ notification log even when the notification doesn't imply a real entry in the in
 
     # Define indexer.
     class Indexer(object):
-        class Event(AggregateRoot.Event):
-            pass
-        class Created(AggregateRoot.Created):
-            pass
         def __init__(self, notification_log, record_manager):
             self.reader = NotificationLogReader(notification_log)
             self.manager = record_manager
