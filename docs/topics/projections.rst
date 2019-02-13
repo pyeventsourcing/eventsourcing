@@ -403,6 +403,13 @@ notification log even when the notification doesn't imply a real entry in the in
         class Created(Event, AggregateRoot.Created):
             pass
 
+        class Updated(Event):
+            def mutate(self, aggregate):
+                aggregate.index_value = self.index_value
+
+        def update_index(self, index_value):
+            self.__trigger_event__(IndexItem.Updated, index_value=index_value)
+
 
     def uuid_from_url(url):
         return uuid.uuid5(uuid.NAMESPACE_URL, url.encode('utf8') if bytes == str else url)
@@ -410,12 +417,9 @@ notification log even when the notification doesn't imply a real entry in the in
 
     # Define indexer.
     class Indexer(object):
-        class Event(AggregateRoot.Event):
-            pass
-        class Created(AggregateRoot.Created):
-            pass
-        def __init__(self, notification_log, record_manager):
+        def __init__(self, notification_log, record_manager, repository):
             self.reader = NotificationLogReader(notification_log)
+            self.repository = repository
             self.manager = record_manager
             # Position reader at max record ID.
             # - this can be generalised to get the max ID from many
@@ -467,25 +471,25 @@ notification log even when the notification doesn't imply a real entry in the in
                     )
                     index_key = uuid_from_url(event.email_address)
                     index_value = event.originator_id
-                else:
-                    index_key = uuid.uuid4()
-                    index_value = ''
-
-                # Todo: And if we can't create new index item, get existing and append value.
-                index_item = IndexItem.__create__(originator_id=index_key, index_value=index_value)
-                index_item.__save__()
+                    try:
+                        index_item = self.repository[index_key]
+                        index_item.update_index(index_value)
+                    except KeyError:
+                        index_item = IndexItem.__create__(originator_id=index_key, index_value=index_value)
+                    index_item.__save__()
 
 
     # Construct original application.
     original = SQLAlchemyApplication(persist_event_type=User.Event)
 
     # Construct index application.
-    index = SQLAlchemyApplication(persist_event_type=IndexItem.Event)
+    index = SQLAlchemyApplication(name='indexer', persist_event_type=IndexItem.Event)
 
     # Setup event driven indexing.
     indexer = Indexer(
         notification_log=original.notification_log,
-        record_manager=index.event_store.record_manager
+        record_manager=index.event_store.record_manager,
+        repository=index.repository,
     )
 
     @subscribe_to(User.Event)
@@ -503,6 +507,12 @@ notification log even when the notification doesn't imply a real entry in the in
     index_key = uuid_from_url('me@example.com')
     assert index_key not in index.repository
 
+    user1.verify_email_address('me@example.com')
+    user1.__save__()
+    assert index_key in index.repository
+    assert index.repository[index_key].index_value == user1.id
+
+    user1.add_email_address('me@example.com')
     user1.verify_email_address('me@example.com')
     user1.__save__()
     assert index_key in index.repository
