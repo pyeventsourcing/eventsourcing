@@ -483,7 +483,7 @@ notification log even when the notification doesn't imply a real entry in the in
     original = SQLAlchemyApplication(persist_event_type=User.Event)
 
     # Construct index application.
-    index = SQLAlchemyApplication(persist_event_type=IndexItem.Event)
+    index = SQLAlchemyApplication(name='indexer', persist_event_type=IndexItem.Event)
 
     # Setup event driven indexing.
     indexer = Indexer(
