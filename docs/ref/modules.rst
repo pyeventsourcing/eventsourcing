@@ -139,6 +139,7 @@ different entities or aggregates.
 The domain model package contains classes and functions that can help develop an
 event sourced domain model.
 
+
 .. automodule:: eventsourcing.domain.model.aggregate
     :members:
     :show-inheritance:
@@ -158,6 +159,28 @@ A kind of collection, indexed by integer. Doesn't need to replay all events to e
 
 collection
 ----------
+
+Collections.
+
+.. automodule:: eventsourcing.domain.model.collection
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+command
+-------
+
+Commands as aggregates.
+
+.. automodule:: eventsourcing.domain.model.command
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+
+decorator
+---------
 
 Decorators useful in domain models based on the classes in this library.
 

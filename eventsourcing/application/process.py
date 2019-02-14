@@ -364,12 +364,6 @@ class ProcessApplication(Pipeable, SimpleApplication):
                 self.event_store.record_manager.tracking_record_class
             )
 
-    @classmethod
-    def reset_connection_after_forking(cls):
-        """
-        Resets database connection after forking.
-        """
-
 
 class RepositoryWrapper(object):
     def __init__(self, repository):

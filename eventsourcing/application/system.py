@@ -9,6 +9,7 @@ from six import with_metaclass
 from six.moves.queue import Empty, Queue
 
 from eventsourcing.application.process import ProcessApplication, Prompt
+from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError, EventSourcingError
@@ -81,7 +82,7 @@ class System(object):
 
     def construct_app(self, process_class, infrastructure_class=None, **kwargs):
         kwargs = dict(kwargs)
-        if 'setup_table' not in kwargs:
+        if not kwargs.get('setup_table'):
             kwargs['setup_table'] = self.setup_tables
         if 'session' not in kwargs and process_class.is_constructed_with_session:
             kwargs['session'] = self.session
@@ -90,6 +91,8 @@ class System(object):
             infrastructure_class = self.infrastructure_class
         if infrastructure_class is not None:
             process_class = process_class.mixin(infrastructure_class)
+        elif not issubclass(process_class, ApplicationWithConcreteInfrastructure):
+            raise Exception("Does not have application infrastructure: {}".format(process_class))
 
         process = process_class(**kwargs)
 
@@ -119,9 +122,12 @@ class System(object):
 
 class SystemRunner(with_metaclass(ABCMeta)):
 
-    def __init__(self, system: System, infrastructure_class=None):
+    def __init__(self, system: System, infrastructure_class=None, setup_tables=False):
         self.system = system
-        self.infrastructure_class = infrastructure_class
+        self.infrastructure_class = infrastructure_class or self.system.infrastructure_class
+        if not self.infrastructure_class:
+            assert self.infrastructure_class, "Runner needs infrastructure_class"
+        self.setup_tables = setup_tables
 
     def __enter__(self):
         self.start()
@@ -154,7 +160,8 @@ class InProcessRunner(SystemRunner):
         for process_class in self.system.process_classes.values():
             process = self.system.construct_app(
                 process_class=process_class,
-                infrastructure_class=self.infrastructure_class
+                infrastructure_class=self.infrastructure_class,
+                setup_table=self.setup_tables,
             )
             self.system.processes[process.name] = process
 

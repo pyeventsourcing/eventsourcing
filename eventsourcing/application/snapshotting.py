@@ -12,10 +12,13 @@ class SnapshottingApplication(SimpleApplication):
         self.snapshot_period = snapshot_period or self.snapshot_period
         self.snapshot_record_class = snapshot_record_class
         self.snapshotting_policy = None
+        self.snapshot_store = None
+        self.snapshot_strategy = None
+        self.snapshotting_policy = None
         super(SnapshottingApplication, self).__init__(**kwargs)
 
-    def setup_event_store(self):
-        super(SnapshottingApplication, self).setup_event_store()
+    def construct_event_store(self):
+        super(SnapshottingApplication, self).construct_event_store()
         # Setup event store for snapshots.
         self.snapshot_store = EventStore(
             record_manager=self.infrastructure_factory.construct_snapshot_record_manager(),
@@ -24,17 +27,17 @@ class SnapshottingApplication(SimpleApplication):
             )
         )
 
-    def setup_repository(self, **kwargs):
+    def construct_repository(self, **kwargs):
         # Setup repository with a snapshot strategy.
         self.snapshot_strategy = EventSourcedSnapshotStrategy(
             snapshot_store=self.snapshot_store
         )
-        super(SnapshottingApplication, self).setup_repository(
+        super(SnapshottingApplication, self).construct_repository(
             snapshot_strategy=self.snapshot_strategy, **kwargs
         )
 
-    def setup_persistence_policy(self):
-        super(SnapshottingApplication, self).setup_persistence_policy()
+    def construct_persistence_policy(self):
+        super(SnapshottingApplication, self).construct_persistence_policy()
         self.snapshotting_policy = SnapshottingPolicy(
             repository=self.repository,
             snapshot_store=self.snapshot_store,

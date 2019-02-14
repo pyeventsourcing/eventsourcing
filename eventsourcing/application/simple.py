@@ -17,10 +17,14 @@ from eventsourcing.utils.random import decode_bytes
 
 class SimpleApplication(with_metaclass(ABCMeta)):
     """
-    Sets up infrastructure for use
-    with an event sourced domain model.
-    """
+    Base class for event sourced applications.
 
+    Constructs infrastructure objects such as the repository and
+    event store, and also the notification log which presents the
+    application state as a sequence of events.
+
+    Needs actual infrastructure classes.
+    """
     infrastructure_factory_class = InfrastructureFactory
     is_constructed_with_session = False
 
@@ -46,6 +50,10 @@ class SimpleApplication(with_metaclass(ABCMeta)):
                  snapshot_record_class=None, setup_table=True, contiguous_record_ids=True,
                  pipeline_id=DEFAULT_PIPELINE_ID, json_encoder_class=None,
                  json_decoder_class=None, notification_log_section_size=None):
+        self._datastore = None
+        self._event_store = None
+        self._repository = None
+        self.infrastructure_factory = None
 
         self.name = name or type(self).__name__.lower()
 
@@ -73,15 +81,16 @@ class SimpleApplication(with_metaclass(ABCMeta)):
 
         self.contiguous_record_ids = contiguous_record_ids
         self.pipeline_id = pipeline_id
-        self.setup_cipher(cipher_key)
-        self.setup_infrastructure()
+        self.construct_cipher(cipher_key)
+        self.construct_infrastructure()
+
         if setup_table:
             self.setup_table()
-        self.setup_notification_log()
+        self.construct_notification_log()
 
         self.persistence_policy = persistence_policy
         if self.persistence_policy is None:
-            self.setup_persistence_policy()
+            self.construct_persistence_policy()
 
     @property
     def datastore(self):
@@ -95,18 +104,15 @@ class SimpleApplication(with_metaclass(ABCMeta)):
     def repository(self):
         return self._repository
 
-    def setup_cipher(self, cipher_key):
+    def construct_cipher(self, cipher_key):
         cipher_key = decode_bytes(cipher_key or os.getenv('CIPHER_KEY', ''))
         self.cipher = AESCipher(cipher_key) if cipher_key else None
 
-    def setup_infrastructure(self, *args, **kwargs):
+    def construct_infrastructure(self, *args, **kwargs):
         self.infrastructure_factory = self.construct_infrastructure_factory(*args, **kwargs)
-        self.setup_datastore()
-        self.setup_event_store()
-        self.setup_repository()
-
-    def setup_datastore(self):
-        self._datastore = self.infrastructure_factory.construct_datastore()
+        self.construct_datastore()
+        self.construct_event_store()
+        self.construct_repository()
 
     def construct_infrastructure_factory(self, *args, **kwargs):
         """
@@ -125,7 +131,10 @@ class SimpleApplication(with_metaclass(ABCMeta)):
             *args, **kwargs
         )
 
-    def setup_event_store(self):
+    def construct_datastore(self):
+        self._datastore = self.infrastructure_factory.construct_datastore()
+
+    def construct_event_store(self):
         # Construct event store.
         sequenced_item_mapper = self.sequenced_item_mapper_class(
             sequenced_item_class=self.sequenced_item_class,
@@ -141,7 +150,7 @@ class SimpleApplication(with_metaclass(ABCMeta)):
             sequenced_item_mapper=sequenced_item_mapper,
         )
 
-    def setup_repository(self, **kwargs):
+    def construct_repository(self, **kwargs):
         self._repository = self.repository_class(
             event_store=self.event_store,
             use_cache=self.use_cache,
@@ -162,13 +171,13 @@ class SimpleApplication(with_metaclass(ABCMeta)):
                 self.event_store.record_manager.record_class
             )
 
-    def setup_notification_log(self):
+    def construct_notification_log(self):
         self.notification_log = RecordManagerNotificationLog(
             self.event_store.record_manager,
             section_size=self.notification_log_section_size
         )
 
-    def setup_persistence_policy(self):
+    def construct_persistence_policy(self):
         self.persistence_policy = PersistencePolicy(
             event_store=self.event_store,
             event_type=self.persist_event_type
@@ -194,9 +203,15 @@ class SimpleApplication(with_metaclass(ABCMeta)):
         self.close()
 
     @classmethod
+    def reset_connection_after_forking(cls):
+        pass
+
+    @classmethod
     def mixin(cls, *bases):
         return type(cls.__name__, bases + (cls,), {})
 
 
-class Application(SimpleApplication):
-    pass
+class ApplicationWithConcreteInfrastructure(SimpleApplication):
+    """
+    Subclasses have actual infrastructure.
+    """

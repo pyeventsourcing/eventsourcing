@@ -60,8 +60,8 @@ class ActorsRunner(SystemRunner):
     """
     Uses actors to run a system of process applications.
     """
-    def __init__(self, system: System, pipeline_ids, system_actor_name='system', shutdown_on_close=False):
-        super(ActorsRunner, self).__init__(system=system)
+    def __init__(self, system: System, pipeline_ids, system_actor_name='system', shutdown_on_close=False, **kwargs):
+        super(ActorsRunner, self).__init__(system=system, **kwargs)
         self.pipeline_ids = list(pipeline_ids)
         self.pipeline_actors = {}
         self.system_actor_name = system_actor_name
@@ -87,7 +87,7 @@ class ActorsRunner(SystemRunner):
         # Initialise the system actor.
         msg = SystemInitRequest(
             self.system.process_classes,
-            self.system.infrastructure_class,
+            self.infrastructure_class,
             self.system.followings,
             self.pipeline_ids
         )

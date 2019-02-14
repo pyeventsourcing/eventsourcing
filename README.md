@@ -70,7 +70,11 @@ example domain events, and an example database table. Plus lots of examples in t
 
 ## Synopsis
 
-Develop a domain model.
+Define a domain model. Here we define a model with one aggregate root
+class called "World", which has a command method called "make_it_so" that
+triggers a domain event called "SomethingHappened", which mutates the
+aggregate by appending the "what" of the domain event to the "history"
+of the world.
 
 ```python
 from eventsourcing.domain.model.aggregate import AggregateRoot
@@ -86,8 +90,8 @@ class World(AggregateRoot):
         self.__trigger_event__(World.SomethingHappened, what=something)
 
     class SomethingHappened(AggregateRoot.Event):
-        def mutate(self, obj):
-            obj.history.append(self)
+        def mutate(self, aggregate):
+            aggregate.history.append(self.what)
 ```
 
 Generate a cipher key (optional).
@@ -99,7 +103,7 @@ from eventsourcing.utils.random import encode_random_bytes
 cipher_key = encode_random_bytes(num_bytes=32)
 ```
 
-Configure environment variables.
+Configure environment variables (optional).
 
 ```python
 import os
@@ -111,13 +115,12 @@ os.environ['CIPHER_KEY'] = cipher_key
 os.environ['DB_URI'] = 'sqlite:///:memory:'
 ```
 
-Run the code.
+Run the code. Construct application and use as context manager.
 
 ```python
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.exceptions import ConcurrencyError
 
-# Construct application and use as context manager.
 with SQLAlchemyApplication(persist_event_type=World.Event) as app:
 
     # Create new aggregate.
@@ -131,8 +134,8 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
     world.make_it_so('trucks')
 
     # View current state of aggregate object.
-    assert world.history[0].what == 'dinosaurs'
-    assert world.history[1].what == 'trucks'
+    assert world.history[0] == 'dinosaurs'
+    assert world.history[1] == 'trucks'
 
     # Note version of object at this stage.
     version = world.__version__
@@ -151,9 +154,9 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
 
     # View retrieved aggregate.
     assert isinstance(copy, World)
-    assert copy.history[0].what == 'dinosaurs'
-    assert copy.history[1].what == 'trucks'
-    assert copy.history[2].what == 'internet'
+    assert copy.history[0] == 'dinosaurs'
+    assert copy.history[1] == 'trucks'
+    assert copy.history[2] == 'internet'
 
     # Verify retrieved state (cryptographically).
     assert copy.__head__ == world.__head__
@@ -174,7 +177,7 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
 
     # Get historical state (at version from above).
     old = app.repository.get_entity(world.id, at=version)
-    assert old.history[-1].what == 'trucks' # internet not happened
+    assert old.history[-1] == 'trucks' # internet not happened
     assert len(old.history) == 2
 
     # Optimistic concurrency control (no branches).

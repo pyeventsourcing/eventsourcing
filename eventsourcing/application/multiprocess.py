@@ -5,6 +5,7 @@ from time import sleep
 import six
 
 from eventsourcing.application.process import Prompt
+from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.application.system import System, SystemRunner, DEFAULT_POLL_INTERVAL, PromptOutbox
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
@@ -15,9 +16,9 @@ from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 
 class MultiprocessRunner(SystemRunner):
 
-    def __init__(self, system: System, pipeline_ids=(DEFAULT_PIPELINE_ID,),
-                 poll_interval=None, setup_tables=False, sleep_for_setup_tables=0):
-        super(MultiprocessRunner, self).__init__(system=system)
+    def __init__(self, system: System, pipeline_ids=(DEFAULT_PIPELINE_ID,), poll_interval=None,
+                 setup_tables=False, sleep_for_setup_tables=0, *args, **kwargs):
+        super(MultiprocessRunner, self).__init__(system=system, *args, **kwargs)
         self.pipeline_ids = pipeline_ids
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
@@ -57,7 +58,7 @@ class MultiprocessRunner(SystemRunner):
                 process_class = self.system.process_classes[process_name]
                 os_process = OperatingSystemProcess(
                     application_process_class=process_class,
-                    infrastructure_class=self.system.infrastructure_class,
+                    infrastructure_class=self.infrastructure_class,
                     upstream_names=upstream_names,
                     poll_interval=self.poll_interval,
                     pipeline_id=pipeline_id,
@@ -118,6 +119,9 @@ class OperatingSystemProcess(multiprocessing.Process):
         process_class = self.application_process_class
         if self.infrastructure_class:
             process_class = process_class.mixin(self.infrastructure_class)
+
+        if not issubclass(process_class, ApplicationWithConcreteInfrastructure):
+            raise Exception("Does not have application infrastructure: {}".format(process_class))
 
         self.process = process_class(
             pipeline_id=self.pipeline_id,
