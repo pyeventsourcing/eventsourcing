@@ -46,9 +46,8 @@ Overview
 A "process application" is defined here as a
 :doc:`projection </topics/projections>` into
 an :doc:`event sourced application </topics/application>`.
-
-A system of process applications can be defined by indicating
-which applications are followed by which others.
+A system of process applications can be made by indicating
+which applications each follows.
 
 Applications have their state projected by their followers. Each application
 projects the state of the applications it follows through its policy into its
