@@ -2,8 +2,13 @@
 Application
 ===========
 
-The application layer combines objects from the domain and
-infrastructure layers.
+This section discusses how an event sourced domain model can
+be combined with library infrastructure to make an event sourced
+application. The normal layered architecture of an enterprise
+application is followed: an application layer supports an interface
+layer and depends on both a :doc:`domain layer </topics/domainmodel>`
+and an :doc:`infrastructure layer </topics/infrastructure>`.
+
 
 .. contents:: :local:
 
@@ -11,13 +16,19 @@ infrastructure layers.
 Overview
 ========
 
-An application object normally has repositories and policies.
-A repository allows aggregates to be retrieved by ID, using a
-dictionary-like interface. Whereas aggregates implement commands
-that publish events, policies subscribe to events and execute commands.
 
-An application can be understood by understanding its policies,
-aggregates, commands, and events.
+In this library, an application object has an event store which encapsulates
+infrastructure required to store the state of an application as a sequence of
+domain events. An application also has a persistence subscriber, a repository,
+and a notification log. The event store is used by the repository and notification
+log to retrieve events, and by the persistence subscriber to store events.
+
+The state of an application is partitioned across a set of event-sourced "aggregates"
+(domain entities). Each aggregate has a unique ID, and the state of an aggregate is
+determined by a sequence of domain events. Aggregates implement commands which
+trigger domain events that mutate the state of their aggregate by augmenting the
+aggregate's sequence of events. The repository of an application allows individual
+aggregates of the application to be retrieved by ID, optionally at a particular version.
 
 An application object can have methods ("application services")
 which provide a relatively simple interface for client operations,
