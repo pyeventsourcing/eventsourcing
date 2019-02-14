@@ -191,8 +191,8 @@ Infrastructure-independence
 
 A system of process applications can be defined independently of infrastructure so that the
 same system can be run with different infrastructure at different times.
-For example, a system of process applications could be developed with
-SQLAlchemy, and later deployed in a Django project.
+For example, a system of process applications could be developed for use with
+SQLAlchemy, and later reused in a Django project.
 
 
 System runners
