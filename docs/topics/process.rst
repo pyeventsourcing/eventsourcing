@@ -696,7 +696,7 @@ For convenience, let's redefine ``system`` to use that infrastructure class by
 default. It's still possible to pass an application infrastructure class
 to each system runners in the examples below, but this helps to keep this code
 as simple as possible. For the same reason ``setup_tables`` is set, which means
-database tables will be created automatically in all examples below.
+database tables will be created automatically in the examples below.
 
 .. code:: python
 
@@ -846,7 +846,6 @@ Because the system isn't yet running, the command remains unprocessed.
 
 .. code:: python
 
-
     with Commands.mixin(SQLAlchemyApplication)(setup_table=True) as commands:
 
         # Create a new command.
@@ -889,7 +888,7 @@ system processes.
 
     from eventsourcing.application.multiprocess import MultiprocessRunner
 
-    multiprocessing_runner = MultiprocessRunner(system)
+    runner = MultiprocessRunner(system)
 
 The operating system processes can be started by using the ``multiprocess``
 object as a context manager. The unprocessed commands will be processed
@@ -903,9 +902,9 @@ shortly after the various operating system processes have been started.
         assert repository[cmd_id].is_done
 
     # Process the command.
-    commands_app = Commands.mixin(SQLAlchemyApplication)()
-    with multiprocessing_runner, commands_app:
-        assert_command_is_done(commands_app.repository, cmd_id)
+    commands = Commands.mixin(SQLAlchemyApplication)()
+    with runner, commands:
+        assert_command_is_done(commands.repository, cmd_id)
 
 The process applications read their upstream notification logs when they start,
 so the unprocessed command is picked up and processed immediately.
