@@ -166,8 +166,8 @@ a "process manager" to be written without restricting or cluttering the applicat
 logic with precaution and remediation for infrastructure failures.
 
 
-Infrastructure
-~~~~~~~~~~~~~~
+Infrastructure-independence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A system of process applications can be defined independently of infrastructure so that the
 same system can be run with different infrastructure at different times.
