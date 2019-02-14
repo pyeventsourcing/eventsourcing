@@ -12,26 +12,6 @@ partitions or sudden termination of operating system processes.
 Infrastructure unreliability may cause processing delays, but disorderly
 environments shouldn't cause disorderly processing results.
 
-A "process application" is defined here as a
-:doc:`projection </topics/projections>` into
-an event sourced :doc:`application </topics/application>`. The
-state that is projected by a process application is the state of
-the applications that it follows. The projection itself is normally
-defined by the application's policy. Then, a system of process
-applications can be defined by indicating which application each
-process application follows. Such a system can be run in various ways.
-
-The trick to obtaining a reliable system, and one that can be run in
-various different ways, is remembering that production is determined
-by consumption with recording. That is to say, if the consumption and
-the recording are reliable, then the process is bound to be reliable.
-As shown below, the reliability of this library's approach to event
-processing depends only on counting and the atomicity of database
-transactions.
-
-Please note, the continuing existence of committed database records is
-beyond the scope of this consideration of reliability.
-
 .. (If we can reject the pervasive description of `distributed systems
 .. <https://en.wikipedia.org/wiki/Distributed_computing>`__ as a system of
 .. passing messages, where `message passing means sending messages
@@ -62,6 +42,24 @@ beyond the scope of this consideration of reliability.
 
 Overview
 ========
+
+A "process application" is defined here as a
+:doc:`projection </topics/projections>` into
+an :doc:`event sourced application </topics/application>`.
+
+A system of process applications can be defined by indicating
+which applications are followed by which others.
+
+Applications have their state projected by their followers. Each application
+projects the state of the applications it follows through its policy into its
+own state. The projection itself is defined by the application's policy.
+
+The trick is remembering that production is determined
+by consumption with recording. That is to say, if the consumption and
+the recording are reliable, then the production is bound to be reliable.
+As shown below, the reliability of this library's approach to event
+processing depends only on counting and the atomicity of database
+transactions.
 
 Process application
 -------------------
@@ -128,6 +126,15 @@ progression.
 The atomicity of the recording and consumption determines the production as atomic:
 a continuous stream of events is processed in discrete, sequenced, indivisible units.
 Hence, interruptions can only cause delays.
+
+Whilst the heart of this design is having the event processing proceed atomically
+so that any completed "process events" are exactly what they should be, of course
+the "CID" parts of ACID database transactions are also crucial. Especially, it is
+assumed that records that have been committed will be available after any
+so-called "infrastructure failure". The continuing existence of data that has been
+successfully committed to a database is beyond the scope of this discussion about
+reliability. However, the "single point of failure" this may represent is acknowledged.
+
 
 .. It is assumed that whatever records have been
 .. committed by a process will not somehow be damaged by a sudden termination of the
