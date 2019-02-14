@@ -152,10 +152,13 @@ System of processes
 The library class :class:`~eventsourcing.application.system.System`
 can be used to define a system of process applications,
 entirely independently of infrastructure.
-
 In a system, one process application can follow another. One process can
 follow two other processes in a slightly more complicated system. A system
 could be just one process application following itself.
+
+The reliability of the domain event processing allows a reliable "saga" or
+a "process manager" to be written without restricting or cluttering the application
+logic with precaution and remediation for infrastructure failures.
 
 
 Infrastructure independence
@@ -166,6 +169,18 @@ same system can be run with different infrastructure at different times.
 For example, a system of process applications could be developed with
 SQLAlchemy, and later deployed in a Django project.
 
+
+System runners
+~~~~~~~~~~~~~~
+
+A system of process applications can run in a single thread,
+with synchronous propagation and processing of events.
+
+A system can also be run with multiple threads or multiple operating system processes,
+with application state propagated asynchronously in different ways. An asynchronous
+pipeline means one event can be processed be each process application at the same time.
+This is very much like the way a pipelined core in a CPU has stages to improve
+throughput of processing machine instructions.
 
 Maintainability
 ~~~~~~~~~~~~~~~
@@ -178,40 +193,22 @@ without any concurrent threads or processes makes it much easier to
 develop and maintain the system.
 
 
-System runners
-~~~~~~~~~~~~~~
-
-A system of process applications can run in a single thread,
-with synchronous propagation and processing of events. This is intended
-as a development mode.
-
-A system can also be run with multiple threads or multiple operating system processes,
-with application state propagated asynchronously in different ways. An asynchronous
-pipeline means one event can be processed be each process application at the same time.
-This is very much like the way a pipelined core in a CPU has stages to improve
-throughput of processing machine instructions.
-
-The reliability of the domain event processing allows a reliable "saga" or
-a "process manager" to be written without restricting or cluttering the application
-logic with precaution and remediation for infrastructure failures. In other words,
-a complicated sequence involving different aggregates in different applications, can
-be implemented reliably without long-running processesor long-lived transactions.
-
-
 Scalability
 ~~~~~~~~~~~
 
-Throughput can be increased by breaking a long step into smaller steps, up but only
+Especially when using multiple operating system processes, throughput can be
+increased by breaking longer steps into smaller steps, up but only
 to a limit provided by the number of steps actually required by the domain. Such
-"diachronic" parallelism provides limited opportunities for scaling throughput.
+"diachronic" parallelism therefore provides limited opportunities for scaling throughput.
 
 A system of process applications can also be run with many parallel instances of its pipeline.
 This is very much like the way a CPU might have many cores (pipelines) to process machine
 instructions in parallel. This "synchronic" parallelism means that many
-events can be processed in the same application at the same time. This kind of parallelism
-allows the system to be scaled, but only to a limit provided by the degree of parallelism
-inherent in the domain (greatest when there are no causal dependencies between events, least
-when there are maximal causal dependencies between events).
+events can effectively be processed with the same process application at
+the same time. This kind of parallelism allows the system to be scaled, but
+only to a limit provided by the degree of parallelism inherent in the domain
+(greatest when there are no causal dependencies between domain events, least
+when there are maximal causal dependencies between domain events).
 
 
 Causal dependencies
