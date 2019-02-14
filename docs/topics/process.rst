@@ -39,17 +39,25 @@ Overview
 In this discussion, a "process application" is a
 :doc:`projection </topics/projections>` into
 an :doc:`event sourced application </topics/application>`.
-A process application may follow several others. A system
-of process applications can be defined by indicating
-which applications each will follow when the system is run.
 
-A process application projects the state of the applications
-it follows into its own state. The state of an application
-may be obtained using a notification log reader to obtain
-application state as a sequence of domain events. The projection
-itself is defined by the application's policy, which defines
-different responses to different types of domain events in
-terms of domain model operations.
+
+A process application may "follow" others. A process application
+projects the state of the applications it follows into its own state.
+The state of an application may be obtained using a
+:doc:`notification log reader  </topics/notifications>`
+to obtain the state of the application as a sequence of domain events.
+The projection itself is defined by the application's policy, which
+defines responses to domain events in terms of domain model operations,
+causing new domain events to be generated.
+
+The processing of events is designed to be atomic, so that
+processing can progress or not, in a determinate manner,
+according to infrastructure availability.
+
+Hence, a reliable system of process applications can be defined by
+defining each application in turn, and by indicating which
+applications it follows. This definition of a system
+can be entirely independent of infrastructure.
 
 
 Process application
