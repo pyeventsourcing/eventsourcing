@@ -51,12 +51,15 @@ To run the examples below, please install the library with the
 Simple application
 ==================
 
-The library provides a simple application class ``SimpleApplication``
-which can be constructed directly.
+The library provides an abstract base class for applications called
+:class:`~eventsourcing.application.simple.SimpleApplication`.
 
-Its ``uri`` attribute is an SQLAlchemy-style database connection
-string. An SQLAlchemy thread-scoped session facade will be setup
-using the ``uri`` value.
+The base class is extended by
+:class:`~eventsourcing.application.sqlalchemy.SQLAlchemyApplication`
+which uses SQLAlchemy to store and retrieve domain event records. Its
+``uri`` constructor argument is an SQLAlchemy-style database connection
+string. An SQLAlchemy thread-scoped session facade will be setup using
+the ``uri`` value.
 
 .. code:: python
 
@@ -64,8 +67,8 @@ using the ``uri`` value.
 
 
 As you can see, this example is using SQLite to manage
-an in memory relational database. You can change ``uri``
-to any valid connection string.
+an in memory relational database (which is also the default).
+You can change ``uri`` to any valid connection string.
 
 Here are some example connection strings: for an SQLite
 file; for a PostgreSQL database; or for a MySQL database.
@@ -89,8 +92,9 @@ even ``mysql-connector-python-rf`` for MySQL).
     mysql+sqlconnector://scott:tiger@hostname/dbname
 
 
-Encryption is optionally enabled in ``SimpleApplication`` with a
-suitable AES key (16, 24, or 32 random bytes encoded as Base64).
+Encryption is optionally enabled in
+:class:`~eventsourcing.application.simple.SimpleApplication`
+with a suitable AES key (16, 24, or 32 random bytes encoded as Base64).
 
 .. code:: python
 
@@ -124,15 +128,15 @@ For example, a session object provided by a framework extension such as
 to the application object.
 
 Once constructed, the application object will have an event store, provided
-by the library's ``EventStore`` class, for which it uses the library's
-infrastructure classes for SQLAlchemy.
+by the library's :class:`~eventsourcing.infrastructure.eventstore.EventStore`
+class.
 
 .. code:: python
 
     application.event_store
 
 The ``application`` also has a persistence policy, provided by the
-library's ``PersistencePolicy`` class.
+library's :class:`~eventsourcing.application.policies.PersistencePolicy` class.
 
 .. code:: python
 
@@ -141,8 +145,9 @@ library's ``PersistencePolicy`` class.
 The persistence policy appends domain events of type `persist_event_type`
 to its event store whenever they are published.
 
-The ``SimpleApplication`` also has a repository, an instance of
-the library's ``EventSourcedRepository`` class.
+The :class:`~eventsourcing.application.simple.SimpleApplication` also has a
+repository, an instance of the library class
+:class:`~eventsourcing.infrastructure.eventsourcedrepository.EventSourcedRepository`.
 
 .. code:: python
 
@@ -153,8 +158,9 @@ Both the repository and persistence policy use the event store.
 The aggregate repository is generic, and can retrieve all
 aggregates in an application, regardless of their class.
 
-The example below uses the ``AggregateRoot`` class directly
-to create a new aggregate object that is available in the
+The example below uses the library class
+:class:`~eventsourcing.domain.model.aggregate.AggregateRoot`
+directly to create a new aggregate object that is available in the
 application's repository.
 
 .. code:: python
@@ -193,8 +199,9 @@ Concurrency errors can be avoided if all commands for a single aggregate
 are executed in series, for example by treating each aggregate as an actor,
 within an actor framework.
 
-The ``SimpleApplication`` has a ``notification_log`` attribute,
-which can be used to follow the application events as a single sequence.
+The :class:`~eventsourcing.application.simple.SimpleApplication` has a
+``notification_log`` attribute, which can be used to follow the application
+events as a single sequence.
 
 .. code:: python
 
@@ -218,10 +225,9 @@ which can be used to follow the application events as a single sequence.
 Custom application
 ==================
 
-The ``Application`` class can be extended.
-
-The example below shows a custom application class ``MyApplication`` that
-extends ``Application`` with application service ``create_aggregate()``
+The library class :class:`~eventsourcing.application.simple.SimpleApplication`
+can be extended. The example below shows a custom application class ``MyApplication`` that
+extends ``SQLAlchemyApplication`` with application service ``create_aggregate()``
 that can create new ``CustomAggregate`` entities.
 
 .. code:: python
@@ -240,8 +246,8 @@ that can create new ``CustomAggregate`` entities.
 
 The application code above depends on an entity class called
 ``CustomAggregate``, which is defined below. It extends the
-library's ``AggregateRoot`` entity with an event sourced, mutable
-attribute ``a``.
+library's :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`
+entity with an event sourced, mutable attribute ``a``.
 
 .. code:: python
 
