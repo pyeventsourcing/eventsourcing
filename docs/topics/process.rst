@@ -39,25 +39,39 @@ Overview
 In this discussion, a "process application" is a
 :doc:`projection </topics/projections>` into
 an :doc:`event sourced application </topics/application>`.
-
 A process application may follow several others. A system
 of process applications can be defined by indicating
 which applications each will follow when the system is run.
 
-A process application projects the state of any applications
-it follows through its policy into its own state. The state
-of an application may be obtained using notification log readers
-to obtain application state as a sequence of domain events.
-The projection itself is defined by the application's policy, which
-defines responses to domain events in terms of domain model
-operations.
+A process application projects the state of the applications
+it follows into its own state. The state of an application
+may be obtained using a notification log reader to obtain
+application state as a sequence of domain events. The projection
+itself is defined by the application's policy, which defines
+different responses to different types of domain events in
+terms of domain model operations.
+
+
+Process application
+-------------------
+
+The library class
+:class:`~eventsourcing.application.process.ProcessApplication`
+functions as a projection into an event-sourced application.
+It extends :class:`~eventsourcing.application.simple.SimpleApplication`
+by having notification log readers which read domain events from
+notification logs of applications it follows, and an application policy
+which defines how to respond to such domain events. It also
+implements the process event pattern: individual "process event" data
+should be stored atomically (notification tracking, new domain events,
+new notifications) so that domain event processing is reliable.
 
 
 Reliability
------------
+~~~~~~~~~~~
 
 Reliability is the most important concern in this section. A process
-is considered to be reliable if the result is entirely unaffected
+is considered to be reliable if its result is entirely unaffected
 (except in being delayed) by infrastructure failure such as network
 partitions or sudden termination of operating system processes.
 Infrastructure unreliability may cause processing delays, but disorderly
@@ -70,21 +84,6 @@ recording are reliable, then production is bound to be reliable.
 As shown below, the reliability of this library's approach to event
 processing depends only on counting and the atomicity of database
 transactions, both of which are normally considered reliable.
-
-
-Process application
--------------------
-
-The library class
-:class:`~eventsourcing.application.process.ProcessApplication`
-functions as a projection into an event-sourced application.
-It extends :class:`~eventsourcing.application.simple.SimpleApplication`
-by having notification log readers which read domain events from
-upstream notification logs, and an application policy which defines
-how to respond to such domain events. It also implements the
-process event pattern: individual "process event" data should be stored
-atomically (notification tracking, new domain events, new notifications)
-so that domain event processing is reliable.
 
 
 Notification tracking
