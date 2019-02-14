@@ -2,8 +2,21 @@
 Process and system
 ==================
 
-This section discusses how to make a reliable distributed system
-that is also scalable and maintainable.
+This section discusses how to make reliable distributed systems
+that are scalable and maintainable.
+
+The common characterisation of distributed systems as "passing messages"
+is set aside in favour of the subjective aim of "catching up" on recent
+events. A design for distributed systems is introduced that uses
+process application classes as building blocks.
+The earlier design of the event-sourced application class is extended in
+the design of the "process application" class. Process application classes
+can be composed into a pipeline expression. A system of process applications
+can be defined as a set of pipeline expressions.
+
+Just as event sourcing "atomised" application state as a set of domain
+events, the processing of domain events in a system of process applications
+can be atomised as a set of "process events".
 
 .. (If we can reject the pervasive description of `distributed systems
 .. <https://en.wikipedia.org/wiki/Distributed_computing>`__ as a system of
@@ -36,28 +49,23 @@ that is also scalable and maintainable.
 Overview
 ========
 
-In this discussion, a "process application" is a
-:doc:`projection </topics/projections>` into
-an :doc:`event sourced application </topics/application>`.
-
-
-A process application may "follow" others. A process application
+A process application is an event-sourced :doc:`projection </topics/projections>`
+into an event-sourced :doc:`application </topics/application>`. One
+process application may "follow" another. A process application
 projects the state of the applications it follows into its own state.
-The state of an application may be obtained using a
-:doc:`notification log reader  </topics/notifications>`
-to obtain the state of the application as a sequence of domain events.
-The projection itself is defined by the application's policy, which
-defines responses to domain events in terms of domain model operations,
-causing new domain events to be generated.
+Being an event sourced application, the state of a process application
+can be obtained using a :doc:`notification log reader  </topics/notifications>`
+to obtain the state as a sequence of domain events. The projection itself
+is defined by the application's policy, which defines responses to domain
+events in terms of domain model operations, causing new domain events to
+be generated.
 
-The processing of events is designed to be atomic, so that
-processing can progress or not, in a determinate manner,
-according to infrastructure availability.
-
-Hence, a reliable system of process applications can be defined by
-defining each application in turn, and by indicating which
-applications it follows. This definition of a system
-can be entirely independent of infrastructure.
+The processing of events is designed to be atomic, so that processing
+can progress or not, in a determinate manner, according to infrastructure
+availability. Hence, a reliable system of process applications can be
+defined by defining each application in turn, and by indicating which
+applications it follows. This definition of a system can be entirely
+independent of infrastructure.
 
 
 Process application
@@ -67,11 +75,10 @@ The library class
 :class:`~eventsourcing.application.process.ProcessApplication`
 functions as a projection into an event-sourced application.
 It extends :class:`~eventsourcing.application.simple.SimpleApplication`
-by having notification log readers which read domain events from
-notification logs of applications it follows, and an application policy
-which defines how to respond to such domain events. It also
-implements the process event pattern: individual "process event" data
-should be stored atomically (notification tracking, new domain events,
+by having a notification log reader for each application it follows, and
+an application policy which defines how to respond to such domain events.
+It also implements the process event pattern: individual "process event"
+data should be stored atomically (notification tracking, new domain events,
 new notifications) so that domain event processing is reliable.
 
 
