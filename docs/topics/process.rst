@@ -43,15 +43,21 @@ environments shouldn't cause disorderly processing results.
 Overview
 ========
 
-A "process application" is defined here as a
+In this discussion, a "process application" is a
 :doc:`projection </topics/projections>` into
 an :doc:`event sourced application </topics/application>`.
-A system of process applications can be made by indicating
-which applications each follows.
 
-Applications have their state projected by their followers. Each application
-projects the state of the applications it follows through its policy into its
-own state. The projection itself is defined by the application's policy.
+A process application may follow several others. A system
+of process applications can be defined by indicating
+which applications each will follow when the system is run.
+
+A process application projects the state of any applications
+it follows through its policy into its own state. The state
+of an application may be obtained using notification log readers
+to obtain application state as a sequence of domain events.
+The projection itself is defined by the application's policy, which
+defines responses to domain events in terms of domain model
+operations.
 
 The trick is remembering that production is determined
 by consumption with recording. That is to say, if the consumption and
@@ -82,7 +88,7 @@ A process application consumes events by reading domain event notifications
 from its notification log readers. The events are retrieved in a reliable order,
 without race conditions or duplicates or missing items. Each notification in a
 notification log has a unique integer ID, and the notification log IDs form a
-contiguous sequence.
+contiguous sequence (counting).
 
 To keep track of its position in the notification log, a process application
 will create a new tracking record for each event notification it processes.
@@ -129,7 +135,7 @@ Hence, interruptions can only cause delays.
 Whilst the heart of this design is having the event processing proceed atomically
 so that any completed "process events" are exactly what they should be, of course
 the "CID" parts of ACID database transactions are also crucial. Especially, it is
-assumed that records that have been committed will be available after any
+assumed that any records that have been committed will be available after any
 so-called "infrastructure failure". The continuing existence of data that has been
 successfully committed to a database is beyond the scope of this discussion about
 reliability. However, the "single point of failure" this may represent is acknowledged.
@@ -152,50 +158,78 @@ follow two other processes in a slightly more complicated system. A system
 could be just one process application following itself.
 
 
-Infrastructure-independence
+Infrastructure independence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A system is defined independently of infrastructure so that the
+A system can be defined independently of infrastructure so that the
 same system can be run with different infrastructure at different times.
+For example, a system of process applications could be developed with
+SQLAlchemy, and later deployed in a Django project.
 
-For example, a system of process applications can run in a single thread,
+
+Maintainability
+~~~~~~~~~~~~~~~
+
+Whilst maintainability is greatly assisted by having an entire
+system of applications defined independently of infrastructure, it
+greatly helps also to be able to run such a system with a single
+thread. So long as the behaviours are preserved, running the system
+without any concurrent threads or processes makes it much easier to
+develop and maintain the system.
+
+
+System runners
+~~~~~~~~~~~~~~
+
+A system of process applications can run in a single thread,
 with synchronous propagation and processing of events. This is intended
 as a development mode.
 
-A system can also be run with multiple threads or operating system processes,
-with asynchronous propagation of events. An asynchronous pipeline means one event
-can be processed be each process application in the system at the same time.
+A system can also be run with multiple threads or multiple operating system processes,
+with application state propagated asynchronously in different ways. An asynchronous
+pipeline means one event can be processed be each process application at the same time.
 This is very much like the way a pipelined core in a CPU has stages to improve
-throughput of processing machine instruction. The reliability of the domain event
-processing allows one to write a reliable "saga" or a "process manager" without
-cluttering the application logic with precaution and remediation for infrastructure
-failures. In other words, a complicated sequence involving different aggregates in
-different applications, can be implemented reliably without long-running processes
-or long-lived transactions. Throughput can be increased by breaking a long step into
-smaller steps, up but only to a limit provided by the number of steps actually required
-by the domain.
+throughput of processing machine instructions.
+
+The reliability of the domain event processing allows a reliable "saga" or
+a "process manager" to be written without restricting or cluttering the application
+logic with precaution and remediation for infrastructure failures. In other words,
+a complicated sequence involving different aggregates in different applications, can
+be implemented reliably without long-running processesor long-lived transactions.
+
+
+Scalability
+~~~~~~~~~~~
+
+Throughput can be increased by breaking a long step into smaller steps, up but only
+to a limit provided by the number of steps actually required by the domain. Such
+"diachronic" parallelism provides limited opportunities for scaling throughput.
 
 A system of process applications can also be run with many parallel instances of its pipeline.
 This is very much like the way a CPU might have many cores (pipelines) to process machine
 instructions in parallel. This "synchronic" parallelism means that many
 events can be processed in the same application at the same time. This kind of parallelism
-allows the system to be scaled ("horizontally" or "vertically"), but only to a limit
-provided by the degree of parallelism in the domain (greatest when there are no causal
-dependencies).
+allows the system to be scaled, but only to a limit provided by the degree of parallelism
+inherent in the domain (greatest when there are no causal dependencies between events, least
+when there are maximal causal dependencies between events).
 
 
 Causal dependencies
 ~~~~~~~~~~~~~~~~~~~
 
-If an aggregate is created and then updated, the second event is causally dependent on
-the first. Causal dependencies between events can be detected and used to synchronise
-the processing of parallel pipelines downstream. Downstream processing of one pipeline
-can wait for an event to be processed in another.
+Causal dependencies are needed to synchronise between parallel processing of a
+sequence of events. This is used in the library when a system is run with multiple
+pipelines.
+
+Causal dependencies between events can be automatically detected and used to synchronise
+the processing of parallel pipelines downstream. For example, if an aggregate is created
+and then updated, the second event is obviously causally dependent on the first. Downstream
+processing of one pipeline can wait for an event to be processed in another.
 
 In the process applications, the causal dependencies are automatically inferred by detecting
-the originator ID and version of aggregates as they are retrieved. The old notifications are
-referenced in the first new notification. Downstream can then check all causal dependencies have
-been processed, using its tracking records.
+the originator ID and version of aggregates as they are retrieved from the repository. The
+old notifications are referenced in the first new notification. Downstream can then check
+all causal dependencies have been processed, using its tracking records.
 
 In case there are many dependencies in the same pipeline, only the newest dependency in each
 pipeline is included. By default in the library, only dependencies in different pipelines are
@@ -737,13 +771,6 @@ its events as they are read from an upstream notification log.
 
 Single threaded
 ~~~~~~~~~~~~~~~
-
-Whilst maintainability is greatly assisted by having an entire
-system of applications defined independently of infrastructure, it
-greatly helps also to be able to run such a system with a single
-thread. So long as the behaviours are preserved, running the system
-without any concurrent threads or processes makes it much easier to
-develop and maintain the system.
 
 If the ``system`` object is used with the library class
 :class:`~eventsourcing.application.system.SingleThreadedRunner`, the process
