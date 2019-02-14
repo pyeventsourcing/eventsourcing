@@ -878,7 +878,7 @@ Single pipeline
 .. a message, so clients get a blocking call that doesn't involve polling.
 
 The code below uses the library's
-:class:`~eventsourcing.application.system.MultiprocessRunner`
+:class:`~eventsourcing.application.multiprocess.MultiprocessRunner`
 class to run the ``system``.
 It starts one operating system process for each process application
 in the system, which in this example will give four child operating
@@ -890,7 +890,7 @@ system processes.
 
     runner = MultiprocessRunner(system)
 
-The operating system processes can be started by using the ``multiprocess``
+The operating system processes can be started by using the ``runner``
 object as a context manager. The unprocessed commands will be processed
 shortly after the various operating system processes have been started.
 
@@ -960,7 +960,9 @@ Pipelines have integer IDs. In this example, the pipeline IDs are ``[0, 1, 2]``.
 It would be possible to run the system with e.g. pipelines 0-7 on one machine, pipelines 8-15
 on another machine, and so on.
 
-The ``pipeline_ids`` are given to the ``MultiprocessRunner`` object.
+The ``pipeline_ids`` are given to the
+:class:`~eventsourcing.application.multiprocess.MultiprocessRunner`
+class when the ``runner`` is constructed.
 
 .. code:: python
 
