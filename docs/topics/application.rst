@@ -61,13 +61,14 @@ which uses SQLAlchemy to store and retrieve domain event records. Its
 string. An SQLAlchemy thread-scoped session facade will be setup using
 the ``uri`` value.
 
+As you can see, this example will use SQLite to manage
+an in memory relational database (which is also the default).
+
 .. code:: python
 
     uri = 'sqlite:///:memory:'
 
 
-As you can see, this example is using SQLite to manage
-an in memory relational database (which is also the default).
 You can change ``uri`` to any valid connection string.
 
 Here are some example connection strings: for an SQLite
@@ -137,13 +138,13 @@ class.
 
 The ``application`` also has a persistence policy, provided by the
 library's :class:`~eventsourcing.application.policies.PersistencePolicy` class.
+The persistence policy appends to its event store published domain events of the
+type defined by the ``persist_event_type`` constructor argument.
+
 
 .. code:: python
 
     application.persistence_policy
-
-The persistence policy appends domain events of type `persist_event_type`
-to its event store whenever they are published.
 
 The :class:`~eventsourcing.application.simple.SimpleApplication` also has a
 repository, an instance of the library class
