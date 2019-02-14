@@ -2,15 +2,8 @@
 Process and system
 ==================
 
-This section discusses how to make a reliable, distributed system
+This section discusses how to make a reliable distributed system
 that is also scalable and maintainable.
-
-Reliability is the most important concern in this section. A process
-is considered to be reliable if its product is entirely unaffected
-(except in being delayed) by infrastructure failure such as network
-partitions or sudden termination of operating system processes.
-Infrastructure unreliability may cause processing delays, but disorderly
-environments shouldn't cause disorderly processing results.
 
 .. (If we can reject the pervasive description of `distributed systems
 .. <https://en.wikipedia.org/wiki/Distributed_computing>`__ as a system of
@@ -59,12 +52,25 @@ The projection itself is defined by the application's policy, which
 defines responses to domain events in terms of domain model
 operations.
 
-The trick is remembering that production is determined
-by consumption with recording. That is to say, if the consumption and
-the recording are reliable, then the production is bound to be reliable.
+
+Reliability
+-----------
+
+Reliability is the most important concern in this section. A process
+is considered to be reliable if the result is entirely unaffected
+(except in being delayed) by infrastructure failure such as network
+partitions or sudden termination of operating system processes.
+Infrastructure unreliability may cause processing delays, but disorderly
+environments shouldn't (at least by default) cause disorderly processing
+results.
+
+The only trick is remembering that production is determined in general
+by consumption with recording. In particular, if consumption and
+recording are reliable, then production is bound to be reliable.
 As shown below, the reliability of this library's approach to event
 processing depends only on counting and the atomicity of database
-transactions.
+transactions, both of which are normally considered reliable.
+
 
 Process application
 -------------------
@@ -161,10 +167,10 @@ a "process manager" to be written without restricting or cluttering the applicat
 logic with precaution and remediation for infrastructure failures.
 
 
-Infrastructure independence
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Infrastructure
+~~~~~~~~~~~~~~
 
-A system can be defined independently of infrastructure so that the
+A system of process applications can be defined independently of infrastructure so that the
 same system can be run with different infrastructure at different times.
 For example, a system of process applications could be developed with
 SQLAlchemy, and later deployed in a Django project.
@@ -175,12 +181,15 @@ System runners
 
 A system of process applications can run in a single thread,
 with synchronous propagation and processing of events.
+A system can also be run with multiple threads or multiple
+operating system processes, with application state propagated
+asynchronously in different ways.
 
-A system can also be run with multiple threads or multiple operating system processes,
-with application state propagated asynchronously in different ways. An asynchronous
-pipeline means one event can be processed be each process application at the same time.
-This is very much like the way a pipelined core in a CPU has stages to improve
+An asynchronous pipeline means one event can be processed be
+each process application at the same time. This is very much
+like the way a pipelined core in a CPU has stages to improve
 throughput of processing machine instructions.
+
 
 Maintainability
 ~~~~~~~~~~~~~~~
