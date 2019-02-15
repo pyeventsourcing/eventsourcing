@@ -210,6 +210,10 @@ class SimpleApplication(with_metaclass(ABCMeta)):
     def mixin(cls, *bases):
         return type(cls.__name__, bases + (cls,), {})
 
+    @classmethod
+    def bind(cls, *bases, **kwargs):
+        return cls.mixin(*bases)(**kwargs)
+
 
 class ApplicationWithConcreteInfrastructure(SimpleApplication):
     """

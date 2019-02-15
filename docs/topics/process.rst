@@ -653,7 +653,7 @@ rather than coding `test doubles <https://martinfowler.com/bliki/TestDouble.html
         assert not order.is_reserved
 
         # Process reservation created.
-        with Orders.mixin(SQLAlchemyApplication)() as orders:
+        with Orders.bind(SQLAlchemyApplication) as orders:
             event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
             orders.policy(repository=repository, event=event)
 
@@ -664,7 +664,13 @@ rather than coding `test doubles <https://martinfowler.com/bliki/TestDouble.html
     # Run the test.
     test_orders_policy()
 
-In the payments policy test below, a new payment is created because an order was reserved.
+The class method ``bind()`` simply calls ``mixin()`` to obtain a new object class
+which has ``Orders`` and ``SQLAlchemyApplication`` as bases, which is immediately
+constructed into a process application object. Using a process application
+object as a context manager ensures it is finally closed.
+
+In the payments policy test below, a new payment is created because an order
+was reserved.
 
 .. code:: python
 
@@ -675,7 +681,7 @@ In the payments policy test below, a new payment is created because an order was
         repository = {order.id: order}
 
         # Check payment is created whenever order is reserved.
-        with Payments.mixin(SQLAlchemyApplication)() as payments:
+        with Payments.bind(SQLAlchemyApplication) as payments:
             event = Order.Reserved(originator_id=order.id, originator_version=1)
             payment = payments.policy(repository=repository, event=event)
 
@@ -747,6 +753,7 @@ This is equivalent to a system defined with the following single pipeline expres
 .. code:: python
 
     pipeline = Commands | Orders | Reservations | Orders | Payments | Orders | Commands
+
     system = System(pipeline)
 
 Although a process application class can appear many times in the pipeline
@@ -762,6 +769,8 @@ with ``infrastructure_class`` as
 :class:`~eventsourcing.application.sqlalchemy.SQLAlchemyApplication`,
 which means SQLAlchemy will be used to store data.
 
+If a system runner is used as a context manager, then it will be started
+automatically and finally closed.
 
 .. code:: python
 
@@ -773,11 +782,12 @@ which means SQLAlchemy will be used to store data.
         pass
 
 
-For convenience, let's redefine ``system`` to use that infrastructure class by
+For convenience, let's redefine ``system`` to use the infrastructure class by
 default. It's still possible to pass an application infrastructure class
-to each system runners in the examples below, but this helps to keep this code
-as simple as possible. For the same reason ``setup_tables`` is set, which means
-database tables will be created automatically in the examples below.
+to system runners, and override this default, but setting a default infrastructure
+class on the syste object helps to keep these examples simple. For the same
+reason ``setup_tables`` is set, which means database tables will be created
+automatically in the examples below.
 
 .. code:: python
 
@@ -829,8 +839,9 @@ which is the default.
 
 .. code:: python
 
-
+    # Run system with single thread.
     with system:
+
         # Create "create order" command.
         cmd_id = system.processes['commands'].create_order()
 
@@ -921,7 +932,7 @@ Because the system isn't yet running, the command remains unprocessed.
 
 .. code:: python
 
-    with Commands.mixin(SQLAlchemyApplication)(setup_table=True) as commands:
+    with Commands.bind(SQLAlchemyApplication, setup_table=True) as commands:
 
         # Create a new command.
         cmd_id = commands.create_order()
@@ -977,8 +988,7 @@ shortly after the various operating system processes have been started.
         assert repository[cmd_id].is_done
 
     # Process the command.
-    commands = Commands.mixin(SQLAlchemyApplication)()
-    with runner, commands:
+    with runner, Commands.bind(SQLAlchemyApplication) as commands:
         assert_command_is_done(commands.repository, cmd_id)
 
 The process applications read their upstream notification logs when they start,
@@ -1044,15 +1054,13 @@ class when the ``runner`` is constructed.
     runner = MultiprocessRunner(system, pipeline_ids=pipeline_ids)
 
 With the multiprocessing system running each of the process applications
-as a separate operating system process, and the commands process running
-in the current process, commands are created in each pipeline of the commands
-process, which causes orders to be processed by the system.
+as a separate operating system process, and the commands process application
+constructed in the current process, commands are created in each pipeline of
+the commands process, which causes orders to be processed by the system.
 
 .. code:: python
 
-    commands = Commands.mixin(SQLAlchemyApplication)()
-
-    with runner, commands:
+    with runner, Commands.bind(SQLAlchemyApplication) as commands:
 
         # Create new orders.
         command_ids = []
@@ -1144,9 +1152,9 @@ The actors will run by sending messages recursively.
     from eventsourcing.application.actors import ActorsRunner
 
     runner = ActorsRunner(system, pipeline_ids=pipeline_ids)
-    commands = Commands.mixin(SQLAlchemyApplication)()
 
-    with runner, commands:
+
+    with runner, Commands.bind(SQLAlchemyApplication) as commands:
 
         # Create new orders.
         command_ids = []
