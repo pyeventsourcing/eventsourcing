@@ -18,10 +18,12 @@ Just as event sourcing "atomised" application state as a set of domain
 events, the processing of domain events in a system of process applications
 can be atomised as a set of "process events".
 
-And, rather than seeking foundations in idealism of mathematics (e.g. CSP)
-or in physics (e.g. Actors), the approach taken here is to seek foundations
-in engineering empiricism. In particular, in the empirical reliability of
-counting and of ACID database transactions.
+And, rather than seeking foundations in idealism of mathematics (e.g.
+`CSP <https://en.wikipedia.org/wiki/Communicating_sequential_processes>`__)
+or in physics (e.g. `Actor model <https://en.wikipedia.org/wiki/Actor_model>`__),
+the approach taken here is to seek reliable foundations in engineering empiricism,
+specifically in the empirical reliability of counting and of ACID database
+transactions.
 
 .. (If we can reject the pervasive description of `distributed systems
 .. <https://en.wikipedia.org/wiki/Distributed_computing>`__ as a system of
