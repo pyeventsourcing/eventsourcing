@@ -255,8 +255,9 @@ pipelines.
 
 Causal dependencies between events can be automatically detected and used to synchronise
 the processing of parallel pipelines downstream. For example, if an aggregate is created
-and then updated, the second event is obviously causally dependent on the first. Downstream
-processing of one pipeline can wait for an event to be processed in another.
+and then updated, the second event is obviously causally dependent on the first (you can't
+update something that doesn't exist). Downstream processing in one pipeline can wait for
+a dependency to be processed in another pipeline.
 
 In the process applications, the causal dependencies are automatically inferred by detecting
 the originator ID and version of aggregates as they are retrieved from the repository. The
