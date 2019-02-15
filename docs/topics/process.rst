@@ -8,7 +8,6 @@ that are scalable and maintainable.
 The common characterisation of distributed systems as "passing messages"
 is set aside in favour of the subjective aim of "catching up" on recent
 events, which leads directly to the notion of the process event.
-
 Just as event sourcing "atomised" application state as a set of domain
 events, the processing of domain events in a system of process applications
 can be atomised as a set of regular "process events". (A provisional description
@@ -20,7 +19,8 @@ applications as building blocks. The earlier design of the
 the design of the "process application" class. Process application classes can
 be composed into a pipeline expression. A system of process applications
 can be defined as a set of pipeline expressions. Such a system can be
-easily run in different ways on different infrastructure.
+run in various ways using various infrastructure, with identical resulting
+behaviour.
 
 Rather than seeking reliability in mathematics (e.g.
 `CSP <https://en.wikipedia.org/wiki/Communicating_sequential_processes>`__)
