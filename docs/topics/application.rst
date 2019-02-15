@@ -52,24 +52,29 @@ Simple application
 ==================
 
 The library provides an abstract base class for applications called
-:class:`~eventsourcing.application.simple.SimpleApplication`.
+:class:`~eventsourcing.application.simple.SimpleApplication`. This
+application class is independent of infrastructure, and as such
+can be used to define applications independently of infrastructure,
+but also can't be constructed directly.
 
+For that reason, the example below uses a subclass that depends on SQLAlchemy.
 The base class is extended by
 :class:`~eventsourcing.application.sqlalchemy.SQLAlchemyApplication`
-which uses SQLAlchemy to store and retrieve domain event records. Its
-``uri`` constructor argument is an SQLAlchemy-style database connection
-string. An SQLAlchemy thread-scoped session facade will be setup using
-the ``uri`` value.
+which uses SQLAlchemy to store and retrieve domain event records.
 
-As you can see, this example will use SQLite to manage
-an in memory relational database (which is also the default).
+The SQLAlchemy application class has a ``uri`` constructor argument,
+which is an (SQLAlchemy-style) database connection string. The example
+below uses SQLite with an in-memory database (which is also the default).
+You can use any valid connection string. In case you were wondering,
+the ``uri`` value is used to construct an SQLAlchemy thread-scoped session
+facade. As an alternative, this class also supports passing in an already
+constructed session object, which can be used with interface frameworks
+integrations such as Flask-SQLAlchemy (see below).
 
 .. code:: python
 
     uri = 'sqlite:///:memory:'
 
-
-You can change ``uri`` to any valid connection string.
 
 Here are some example connection strings: for an SQLite
 file; for a PostgreSQL database; or for a MySQL database.
@@ -105,10 +110,13 @@ with a suitable AES key (16, 24, or 32 random bytes encoded as Base64).
     cipher_key = encode_random_bytes(num_bytes=32)
 
 These values can be given to the application object as
-constructor arguments ``uri`` and ``cipher_key``. Alternatively,
-the ``uri`` value can be set as environment variable ``DB_URI``,
-and the ``cipher_key`` value can be set as environment variable
-``CIPHER_KEY``.
+constructor arguments ``uri`` and ``cipher_key``.
+
+The ``persist_event_type`` value determines which
+types of domain event will be persisted by the application.
+So that different applications can be constructed in the
+same process, the default value of ``persist_event_type``
+is ``None``.
 
 .. code:: python
 
@@ -121,6 +129,9 @@ and the ``cipher_key`` value can be set as environment variable
         persist_event_type=AggregateRoot.Event,
     )
 
+Alternatively, the ``uri`` value can be set as environment variable ``DB_URI``,
+and the ``cipher_key`` value can be set as environment variable
+``CIPHER_KEY``.
 
 Instead of providing a URI, an already existing SQLAlchemy
 session can be passed in, using constructor argument ``session``.
@@ -128,40 +139,45 @@ For example, a session object provided by a framework extension such as
 `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__ could be passed
 to the application object.
 
-Once constructed, the application object will have an event store, provided
+Once constructed, the application object has an event store, provided
 by the library's :class:`~eventsourcing.infrastructure.eventstore.EventStore`
 class.
 
-.. code:: python
-
-    application.event_store
-
-The ``application`` also has a persistence policy, provided by the
-library's :class:`~eventsourcing.application.policies.PersistencePolicy` class.
-The persistence policy appends to its event store published domain events of the
-type defined by the ``persist_event_type`` constructor argument.
-
 
 .. code:: python
 
-    application.persistence_policy
+    from eventsourcing.infrastructure.eventstore import EventStore
 
-The :class:`~eventsourcing.application.simple.SimpleApplication` also has a
-repository, an instance of the library class
+    assert isinstance(application.event_store, EventStore)
+
+
+The ``application`` has a persistence policy, an instance of the library class
+:class:`~eventsourcing.application.policies.PersistencePolicy`. The persistence policy
+uses the event store.
+
+.. code:: python
+
+    from eventsourcing.application.policies import PersistencePolicy
+
+    assert isinstance(application.persistence_policy, PersistencePolicy)
+
+
+The ``application`` also has a repository, an instance of the library class
 :class:`~eventsourcing.infrastructure.eventsourcedrepository.EventSourcedRepository`.
+The repository is generic, and can retrieve all aggregates in an application,
+regardless of their class. That is, there aren't different repositories for
+different types of aggregate in this application. The repository also uses
+the event store.
 
 .. code:: python
 
-    application.repository
+    from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
-Both the repository and persistence policy use the event store.
+    assert isinstance(application.repository, EventSourcedRepository)
 
-The aggregate repository is generic, and can retrieve all
-aggregates in an application, regardless of their class.
 
-The example below uses the library class
-:class:`~eventsourcing.domain.model.aggregate.AggregateRoot`
-directly to create a new aggregate object that is available in the
+The library class :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`
+can be used directly to create a new aggregate object that is available in the
 application's repository.
 
 .. code:: python
@@ -226,29 +242,9 @@ events as a single sequence.
 Custom application
 ==================
 
-The library class :class:`~eventsourcing.application.simple.SimpleApplication`
-can be extended. The example below shows a custom application class ``MyApplication`` that
-extends ``SQLAlchemyApplication`` with application service ``create_aggregate()``
-that can create new ``CustomAggregate`` entities.
-
-.. code:: python
-
-    from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-
-
-    class MyApplication(SQLAlchemyApplication):
-        def __init__(self, **kwargs):
-            super(MyApplication, self).__init__(
-                persist_event_type=CustomAggregate.Event, **kwargs)
-
-        def create_aggregate(self, a):
-            return CustomAggregate.__create__(a=1)
-
-
-The application code above depends on an entity class called
-``CustomAggregate``, which is defined below. It extends the
-library's :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`
-entity with an event sourced, mutable attribute ``a``.
+Firstly, a custom aggregate root class called ``CustomAggregate`` is defined
+below. It extends the library's :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`
+entity with event-sourced attribute ``a``.
 
 .. code:: python
 
@@ -267,6 +263,23 @@ entity with an event sourced, mutable attribute ``a``.
 For more sophisticated domain models, please read about the custom
 entities, commands, and domain events that can be developed using
 classes from the library's :doc:`domain model layer </topics/domainmodel>`.
+
+The example below shows a custom application class ``MyApplication`` that
+extends ``SQLAlchemyApplication`` with application service ``create_aggregate()``
+that can create new ``CustomAggregate`` entities.
+
+The `persist_event_type` value can be set as a class attribute.
+
+.. code:: python
+
+    from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
+
+
+    class MyApplication(SQLAlchemyApplication):
+        persist_event_type = AggregateRoot.Event
+
+        def create_aggregate(self, a):
+            return CustomAggregate.__create__(a=1)
 
 
 Run the code
