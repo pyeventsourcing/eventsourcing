@@ -10,8 +10,9 @@ is set aside in favour of the subjective aim of "catching up" on recent
 events, which leads directly to the notion of the process event.
 Just as event sourcing "atomised" application state as a set of domain
 events, the processing of domain events in a system of process applications
-can be atomised as a set of regular "process events". (A provisional description
-of the process event pattern is included at the end of this section.)
+can be atomised as a set of regular "process events" in which any domain
+events are subordinated. A provisional description of the process event
+pattern is included at the end of this section.
 
 A design for distributed systems is introduced that uses event-sourced
 applications as building blocks. The earlier design of the
