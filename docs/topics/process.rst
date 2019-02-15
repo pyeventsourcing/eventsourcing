@@ -7,18 +7,22 @@ that are scalable and maintainable.
 
 The common characterisation of distributed systems as "passing messages"
 is set aside in favour of the subjective aim of "catching up" on recent
-events. A design for distributed systems is introduced that uses
-process application classes as building blocks.
-The earlier design of the event-sourced application class is extended in
-the design of the "process application" class. Process application classes
-can be composed into a pipeline expression. A system of process applications
-can be defined as a set of pipeline expressions.
+events, which leads directly to the notion of the process event.
 
 Just as event sourcing "atomised" application state as a set of domain
 events, the processing of domain events in a system of process applications
-can be atomised as a set of "process events".
+can be atomised as a set of regular "process events". (A provisional description
+of the process event pattern is included at the end of this section.)
 
-And, rather than seeking foundations in idealism of mathematics (e.g.
+A design for distributed systems is introduced that uses event-sourced
+applications as building blocks. The earlier design of the
+:doc:`event-sourced application </topics/application>` is extended in
+the design of the "process application" class. Process application classes can
+be composed into a pipeline expression. A system of process applications
+can be defined as a set of pipeline expressions. Such a system can be
+easily run in different ways on different infrastructure.
+
+Rather than seeking reliability in mathematics (e.g.
 `CSP <https://en.wikipedia.org/wiki/Communicating_sequential_processes>`__)
 or in physics (e.g. `Actor model <https://en.wikipedia.org/wiki/Actor_model>`__),
 the approach taken here is to seek reliable foundations in engineering empiricism,
@@ -1384,3 +1388,25 @@ library doesn't currently have any such adapter process classes or documentation
 .. committing successfully. This hasn't been implemented in the library.
 
 .. Todo: Something about deleting old tracking records automatically.
+
+Process event pattern
+=====================
+
+`draft`
+
+A set of EVENT SOURCED APPLICATIONS can be composed into a system of applications. Application state can be propagated to other applications. Application state is defined by domain event records that have been committed. Each application has a policy which defines how it responds to the domain events it processes.
+
+Infrastructure may fail at any time. Although committed database transactions are expected to be durable, the operating system processes, the network, and the databases may go down at any time. Depending on the system design, application state may be adversely affected by infrastructure failures.
+
+Therefore…
+
+Use counting to sequence the domain events of an application. Use a unique constraint to make sure only one domain event is recorded for each position. Ensure there are no gaps by calculating the next position from the last recorded position. Also use counting to follow the domain events of an upstream application. Use a tracking record to store the current position in the upstream sequence. Use a unique constraint to make sure tracking can be recorded for each upstream domain event only once.
+
+Use atomic database transactions to record process event atomically. Include the tracking position,
+the new domain events created by application policy, and their position in the application’s sequence.
+Use an object class (or other data type) called "ProcessEvent" to keep these data together, so that
+they can be passed into functions as a single argument.
+
+Then, the distributed system can be considered reliable in the sense that the facts in the database will represent either that a process event occurred or that it didn’t occur, and so application state will by entirely unaffected by infrastructure failures.
+
+Event sourced applications may be implemented with EVENT SOURCED AGGREGATES.  To scale the system, use CAUSAL DEPENDENCIES to synchronise parallel pipelines. Use SYSTEM RUNNERS to bind system to infrastructure it needs to run.
