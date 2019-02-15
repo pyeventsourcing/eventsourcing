@@ -65,11 +65,7 @@ which uses SQLAlchemy to store and retrieve domain event records.
 The SQLAlchemy application class has a ``uri`` constructor argument,
 which is an (SQLAlchemy-style) database connection string. The example
 below uses SQLite with an in-memory database (which is also the default).
-You can use any valid connection string. In case you were wondering,
-the ``uri`` value is used to construct an SQLAlchemy thread-scoped session
-facade. As an alternative, this class also supports passing in an already
-constructed session object, which can be used with interface frameworks
-integrations such as Flask-SQLAlchemy (see below).
+You can use any valid connection string.
 
 .. code:: python
 
@@ -97,6 +93,14 @@ even ``mysql-connector-python-rf`` for MySQL).
     # MySQL with mysql-connector-python-rf.
     mysql+sqlconnector://scott:tiger@hostname/dbname
 
+In case you were wondering, the ``uri`` value is used to construct
+an SQLAlchemy thread-scoped session facade.
+
+Instead of providing a ``uri`` value, an already existing SQLAlchemy
+session can be passed in, using constructor argument ``session``.
+For example, a session object provided by a framework integrations such as
+`Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__ could be passed
+to the application object.
 
 Encryption is optionally enabled in
 :class:`~eventsourcing.application.simple.SimpleApplication`
@@ -131,12 +135,6 @@ applications can be constructed in the same process, the default value of
 Alternatively, the ``uri`` value can be set as environment variable ``DB_URI``,
 and the ``cipher_key`` value can be set as environment variable
 ``CIPHER_KEY``.
-
-Instead of providing a URI, an already existing SQLAlchemy
-session can be passed in, using constructor argument ``session``.
-For example, a session object provided by a framework extension such as
-`Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`__ could be passed
-to the application object.
 
 Once constructed, the application object has an event store, provided
 by the library's :class:`~eventsourcing.infrastructure.eventstore.EventStore`
