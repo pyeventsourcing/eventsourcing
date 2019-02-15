@@ -109,14 +109,12 @@ with a suitable AES key (16, 24, or 32 random bytes encoded as Base64).
     # Keep this safe (random bytes encoded with Base64).
     cipher_key = encode_random_bytes(num_bytes=32)
 
-These values can be given to the application object as
-constructor arguments ``uri`` and ``cipher_key``.
 
-The ``persist_event_type`` value determines which
-types of domain event will be persisted by the application.
-So that different applications can be constructed in the
-same process, the default value of ``persist_event_type``
-is ``None``.
+These values can be given to the application object as constructor arguments
+``uri`` and ``cipher_key``. The ``persist_event_type`` value determines which
+types of domain event will be persisted by the application. So that different
+applications can be constructed in the same process, the default value of
+``persist_event_type`` is ``None``.
 
 .. code:: python
 
@@ -128,6 +126,7 @@ is ``None``.
         cipher_key=cipher_key,
         persist_event_type=AggregateRoot.Event,
     )
+
 
 Alternatively, the ``uri`` value can be set as environment variable ``DB_URI``,
 and the ``cipher_key`` value can be set as environment variable
@@ -142,7 +141,6 @@ to the application object.
 Once constructed, the application object has an event store, provided
 by the library's :class:`~eventsourcing.infrastructure.eventstore.EventStore`
 class.
-
 
 .. code:: python
 
