@@ -56,7 +56,7 @@ class System(object):
         # Determine which process follows which.
         self.followers = OrderedDict()
         # A following is a list of process classes followed by a process class.
-        # Todo: Factor this out, it's confusing. (Only used in ActorsRunner now).
+        # Todo: Factor this out, it's confusing. (Only used in ActorModelRunner now).
         self.followings = OrderedDict()
         for pipeline_expr in self.pipelines_exprs:
             previous_name = None

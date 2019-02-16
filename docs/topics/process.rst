@@ -1061,16 +1061,16 @@ Actor model
 
 An Actor model library, in particular the `Thespian Actor Library
 <https://github.com/kquick/Thespian>`__, can be used to run
-a pipelined system of process applications as actors.
+a system of process applications as actors.
 
 The example below runs with Thespian's "simple system base".
 The actors will run by sending messages recursively.
 
 .. code:: python
 
-    from eventsourcing.application.actors import ActorsRunner
+    from eventsourcing.application.actors import ActorModelRunner
 
-    with ActorsRunner(system, pipeline_ids=pipeline_ids):
+    with ActorModelRunner(system, pipeline_ids=pipeline_ids):
 
         # Create new orders.
         command_ids = []
@@ -1107,7 +1107,7 @@ by calling ``actors.start()``. The actors can be shutdown with ``actors.shutdown
 If ``actors`` is used as a context manager, as above, the ``start()`` method is
 called when the context manager enters. The ``close()`` method is called
 when the context manager exits. By default the ``shutdown()`` method
-is not called by ``close()``. If ``ActorsRunner`` is constructed with ``shutdown_on_close=True``,
+is not called by ``close()``. If ``ActorModelRunner`` is constructed with ``shutdown_on_close=True``,
 which is ``False`` by default, then the actors will be shutdown by ``close()``, and so
 also when the context manager exits. Event so, shutting down the system actors will not
 shutdown a "mutliproc" base system.
