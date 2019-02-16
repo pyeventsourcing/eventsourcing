@@ -40,10 +40,10 @@ A design for distributed systems is introduced that uses event-sourced
 applications as building blocks. The earlier design of the
 :doc:`event-sourced application </topics/application>` is extended in
 the design of the "process application". Process application classes
-can be composed into pipeline expressions. A pipelined system of process
-applications can be defined with a set of pipeline expressions. This
-definition of a system can be entirely independent of infrastructure.
-Such a system can be run in different ways with identical results.
+can be composed into a set of pipeline expressions that together define
+a system pipeline. This definition of a system can be entirely independent
+of infrastructure. Such a system can be run in different ways with identical
+results.
 
 Rather than seeking reliability in mathematics (e.g.
 `CSP <https://en.wikipedia.org/wiki/Communicating_sequential_processes>`__)
@@ -203,14 +203,14 @@ System runners
 ~~~~~~~~~~~~~~
 
 A system of process applications can run in a single thread,
-with synchronous propagation and processing of events.
-A system can also be run with multiple threads or multiple
-operating system processes, with application state propagated
-asynchronously in different ways.
+with synchronous propagation and processing of events through
+the system pipeline. A system can also be run with multiple
+threads or multiple operating system processes, with application
+state propagated asynchronously in various ways.
 
-An asynchronous pipeline means one event can be processed by
-each process application at the same time. This is very much
-like
+An asynchronous pipeline with multi-threading or multi-processing
+means one event can be processed by each process application at
+the same time. This is very much like
 `instruction pipelining <https://en.wikipedia.org/wiki/Instruction_pipelining>`__
 in a CPU core.
 
@@ -236,14 +236,14 @@ the domain. Such "diachronic" parallelism therefore provides limited
 opportunities for scaling throughput.
 
 A system of process applications can also be run with many parallel
-instances of its pipeline. This is very much like the way a multi-core
-CPU has many cores (a core is a pipeline). This "synchronic" parallelism
-means that many events can effectively be processed with the same process
-application at the same time. This kind of parallelism allows the system
-to be scaled, but only to a limit provided by the degree of parallelism
-inherent in the domain (greatest when there are no causal dependencies
-between domain events, least when there are maximal causal dependencies
-between domain events).
+instances of the system pipeline. This is very much like the way a
+multi-core CPU has many cores (a core is a pipeline). This "synchronic"
+parallelism means that many domain events can be processed by the same
+process application at the same time. This kind of parallelism allows
+the system to be scaled, but only to a limit provided by the degree of
+parallelism inherent in the domain (greatest when there are no causal
+dependencies between domain events, least when there are maximal causal
+dependencies between domain events).
 
 
 Causal dependencies
