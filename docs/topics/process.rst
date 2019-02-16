@@ -153,8 +153,8 @@ records).
 
 If some of the new records can't be written, then none are. If anything goes wrong
 before all the records have been written, the transaction will abort, and none of
-the records will be written. On the other hand, if a tracking record is written,
-then so are any new event records, and the process will have fully completed an atomic
+the records will be written. On the other hand, if a tracking record was written,
+then so were any new event records, and so the process will have completed an atomic
 progression.
 
 The atomicity of the recording and consumption determines the production as atomic:
@@ -208,10 +208,11 @@ A system can also be run with multiple threads or multiple
 operating system processes, with application state propagated
 asynchronously in different ways.
 
-An asynchronous pipeline means one event can be processed be
+An asynchronous pipeline means one event can be processed by
 each process application at the same time. This is very much
-like the way a pipelined core in a CPU has stages to improve
-throughput of processing machine instructions.
+like
+`instruction pipelining <https://en.wikipedia.org/wiki/Instruction_pipelining>`__
+in a CPU core.
 
 
 Maintainability
@@ -228,19 +229,21 @@ develop and maintain the system.
 Scalability
 ~~~~~~~~~~~
 
-Especially when using multiple operating system processes, throughput can be
-increased by breaking longer steps into smaller steps, up but only
-to a limit provided by the number of steps actually required by the domain. Such
-"diachronic" parallelism therefore provides limited opportunities for scaling throughput.
+Especially when using multiple operating system processes, throughput
+can be increased by breaking longer steps into smaller steps, up but
+only to a limit provided by the number of steps actually required by
+the domain. Such "diachronic" parallelism therefore provides limited
+opportunities for scaling throughput.
 
-A system of process applications can also be run with many parallel instances of its pipeline.
-This is very much like the way a CPU might have many cores (pipelines) to process machine
-instructions in parallel. This "synchronic" parallelism means that many
-events can effectively be processed with the same process application at
-the same time. This kind of parallelism allows the system to be scaled, but
-only to a limit provided by the degree of parallelism inherent in the domain
-(greatest when there are no causal dependencies between domain events, least
-when there are maximal causal dependencies between domain events).
+A system of process applications can also be run with many parallel
+instances of its pipeline. This is very much like the way a multi-core
+CPU has many cores (a core is a pipeline). This "synchronic" parallelism
+means that many events can effectively be processed with the same process
+application at the same time. This kind of parallelism allows the system
+to be scaled, but only to a limit provided by the degree of parallelism
+inherent in the domain (greatest when there are no causal dependencies
+between domain events, least when there are maximal causal dependencies
+between domain events).
 
 
 Causal dependencies
@@ -253,8 +256,9 @@ pipelines.
 Causal dependencies between events can be automatically detected and used to synchronise
 the processing of parallel pipelines downstream. For example, if an aggregate is created
 and then updated, the second event is obviously causally dependent on the first (you can't
-update something that doesn't exist). Downstream processing in one pipeline can wait for
-a dependency to be processed in another pipeline.
+update something that doesn't exist). Downstream processing in one pipeline can wait (stall)
+for a dependency to be processed in another pipeline. This is like a pipeline interlock in
+a multi-core CPU.
 
 In the process applications, the causal dependencies are automatically inferred by detecting
 the originator ID and version of aggregates as they are retrieved from the repository. The
