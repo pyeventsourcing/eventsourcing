@@ -773,13 +773,15 @@ and can be followed by one or many applications.
 
 The system above is defined entirely without infrastructure, and can be
 run by providing an ``infrastructure_class`` when constructing a
-runner. For example, the ``system`` can be run using the library's
+runner.
+
+In the example below, the ``system`` is run using the library's
 :class:`~eventsourcing.application.system.SingleThreadedRunner`
 with ``infrastructure_class`` as
 :class:`~eventsourcing.application.sqlalchemy.SQLAlchemyApplication`,
 which means SQLAlchemy will be used to store data.
 
-If a system runner is used as a context manager, then it will be started
+The system runner object is used as a context manager, so it is started
 automatically and finally closed.
 
 .. code:: python
@@ -794,12 +796,13 @@ automatically and finally closed.
         pass
 
 
-For convenience, let's redefine ``system`` to use an infrastructure class
-by default. It's still possible to pass an application infrastructure class
-to system runners, and override this default, but setting a default infrastructure
-class on the system object helps to keep these examples simple. For the same
-reason ``setup_tables`` is set ``True``, which means database tables will be
-created automatically in the examples below.
+Let's redefine ``system`` to use an infrastructure class by default.
+It's still possible to pass an application infrastructure class
+to system runners, and override this default, but setting a default
+infrastructure class on the system object helps to keep these
+examples simple. For the same reason ``setup_tables`` is set ``True``,
+which means database tables will be created automatically in the
+examples below.
 
 .. code:: python
 
@@ -930,18 +933,23 @@ class to run the ``system``. It will start one operating system
 process for each process application in the system, which in this
 example will give a pipeline with four child operating system processes.
 
-The operating system processes can be started by using the ``runner``
-object as a context manager.
+Since the pipeline will be asynchronous, let's define a method to check
+things are eventually done.
 
 .. code:: python
-
-    from eventsourcing.application.multiprocess import MultiprocessRunner
-
 
     @retry((AssertionError, KeyError), max_attempts=100, wait=0.5)
     def assert_eventually_done(repository, cmd_id):
         """Checks the command is eventually done."""
         assert repository[cmd_id].is_done
+
+
+The operating system processes can be started by using the runner
+as a context manager.
+
+.. code:: python
+
+    from eventsourcing.application.multiprocess import MultiprocessRunner
 
 
     with MultiprocessRunner(system):
@@ -995,42 +1003,23 @@ object as a context manager.
 Multiple pipelines
 ~~~~~~~~~~~~~~~~~~
 
-The system can run with many instances of its pipeline. In
-this case, each process application in the system can have many
-operating system processes, and so can process many events at the
-same time.
-
-In the example below, there will be three instances of the system
-pipeline, giving twelve child operating system processes altogether.
-Fifteen orders will processed by the system altogether, five in each
-pipeline.
-
-.. code:: python
-
-    num_pipelines = 3
-    num_orders = 15
-
-Pipelines have integer IDs. In this example, the pipeline IDs are ``[0, 1, 2]``.
-
-.. code:: python
-
-    pipeline_ids = range(num_pipelines)
-
-It would be possible to run the system with e.g. pipelines 0-7 on one machine, pipelines 8-15
-on another machine, and so on.
-
-The ``pipeline_ids`` are given to the
+The system can run with many instances of its pipeline. By having more
+than one instance of the system pipeline, more than one instance of each
+process application can be instantiated (one for each pipeline). Pipelines
+are distinguished by integer ID. The ``pipeline_ids`` are given to the
 :class:`~eventsourcing.application.multiprocess.MultiprocessRunner`
-class when the ``runner`` is constructed.
+class when the runner is constructed.
 
-In the example below, with the multiprocessing system running each of the
-process applications as a separate operating system process, and the commands
-process application constructed in the current process, commands are created
-in each pipeline of the commands process, which causes orders to be processed
-by the system.
-
+In this example, there are three pipeline IDs, so there will be three
+instances of the system pipeline, giving twelve child operating system
+processes altogether. Fifteen orders will processed by the system altogether,
+five in each pipeline.
 
 .. code:: python
+
+    pipeline_ids = [0, 1, 2]
+
+    num_orders = 15
 
     with MultiprocessRunner(system, pipeline_ids=pipeline_ids):
 
@@ -1049,8 +1038,12 @@ by the system.
             assert_eventually_done(system.commands.repository, command_id)
 
 
-Especially if cluster scaling is automated, it would be useful for processes to be distributed
-automatically across the cluster. Actor model seems like a possible foundation for such automation.
+It would be possible to run the system with e.g. pipelines 0-7 on one machine,
+pipelines 8-15 on another machine, and so on.
+
+If cluster scaling is automated, it would be useful for processes to be
+distributed automatically across the cluster. Actor model seems like one
+possible foundation for such automation.
 
 
 .. There are other ways in which the reliability could be relaxed...
