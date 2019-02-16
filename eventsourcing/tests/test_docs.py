@@ -59,13 +59,13 @@ class TestDocs(TestCase):
             for name in filenames:
                 if name in skipped:
                     continue
-                # if name.endswith('.rst'):
+                if name.endswith('.rst'):
                 # if name.endswith('aggregates_in_ddd.rst'):
                 # if name.endswith('example_application.rst'):
                 # if name.endswith('everything.rst'):
                 # if name.endswith('domainmodel.rst'):
                 # if name.endswith('infrastructure.rst'):
-                if name.endswith('application.rst'):
+                # if name.endswith('application.rst'):
                 # if name.endswith('snapshotting.rst'):
                 # if name.endswith('notifications.rst'):
                 # if name.endswith('projections.rst'):

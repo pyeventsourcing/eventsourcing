@@ -220,7 +220,7 @@ Maintainability
 
 Whilst maintainability is greatly assisted by having an entire
 system of applications defined independently of infrastructure, it
-greatly helps also to be able to run such a system with a single
+also greatly helps to run such a system synchronously with a single
 thread. So long as the behaviours are preserved, running the system
 without any concurrent threads or processes makes it much easier to
 develop and maintain the system.
@@ -308,8 +308,8 @@ High performance or "real time" processing could be obtained by avoiding writing
 durable database and instead running applications with an in-memory database.
 
 
-Process manager
-~~~~~~~~~~~~~~~
+Process manager?
+~~~~~~~~~~~~~~~~
 
 A process application, specifically an aggregate combined with a policy in a process application,
 could function effectively as a "saga", or "process manager", or "workflow manager". That is, it
@@ -332,8 +332,8 @@ aggregates and the policies of its process applications. This allows highly
 maintainable code, code that is easily tested, easily understood, easily changed.
 
 Below, the "orders, reservations, payments" system is run: firstly as a single
-threaded system; then with multiprocessing using a single pipeline; and finally
-with both multiprocessing and multiple pipelines.
+threaded system; then with multiprocessing using a single pipeline; with multiple
+pipelines; and finally with actors.
 
 
 Aggregates
@@ -786,13 +786,15 @@ automatically and finally closed.
 
     from eventsourcing.application.system import SingleThreadedRunner
 
-    with SingleThreadedRunner(system, infrastructure_class=SQLAlchemyApplication):
+    with SingleThreadedRunner(system,
+                              infrastructure_class=SQLAlchemyApplication,
+                              setup_tables=True):
 
         # Do stuff here...
         pass
 
 
-For convenience, let's redefine ``system`` to use the infrastructure class
+For convenience, let's redefine ``system`` to use an infrastructure class
 by default. It's still possible to pass an application infrastructure class
 to system runners, and override this default, but setting a default infrastructure
 class on the system object helps to keep these examples simple. For the same
@@ -811,23 +813,11 @@ State is propagated between process applications through notification logs only.
 perhaps be recognised as the "bounded context" pattern. Each application can access only
 the aggregates it has created. For example, an ``Order`` aggregate created by the ``Orders``
 process is available in neither the repository of ``Reservations`` nor the repository of
-``Payments``. That is because if an application could directly use the aggregates of another
-application, processing could produce different results at different times, and in consequence
+``Payments``. If an application could directly use the aggregates of another
+application, then processing could produce different results at different times, and in consequence
 the processing wouldn't be reliable. If necessary, a process application could replicate the
 state of an aggregate within its own context in an application it is following, by projecting
 its events as they are read from an upstream notification log.
-
-
-.. Except for the definition and implementation of process,
-.. there are no special concepts or components. There are only policies and
-.. aggregates and events, and the way they are processed in a process application.
-.. There isn't a special mechanism that provides reliability despite the rest
-.. of the system, each aggregate is equally capable of functioning as a saga object,
-.. every policy is capable of functioning as a process manager or workflow.
-.. There doesn't need to be a special mechanism for coding compensating
-.. transactions. If required, a failure (e.g. to create a payment) can be
-.. coded as an event that can processed to reverse previous steps (e.g.
-.. to cancel a reservation).
 
 
 Single threaded
@@ -849,41 +839,35 @@ which is the default.
 
 .. code:: python
 
-    # Run system with single thread.
     with system:
 
         # Create "create order" command.
-        cmd_id = system.processes['commands'].create_order()
+        cmd_id = system.commands.create_order()
 
         # Check the command has an order ID and is done.
-        cmd = system.processes['commands'].repository[cmd_id]
+        cmd = system.commands.repository[cmd_id]
         assert cmd.order_id
         assert cmd.is_done
 
         # Check the order is reserved and paid.
-        order = system.processes['orders'].repository[cmd.order_id]
+        order = system.orders.repository[cmd.order_id]
         assert order.is_reserved
         assert order.is_paid
 
         # Check the reservation exists.
-        reservation = system.processes['reservations'].repository[order.reservation_id]
+        reservation = system.reservations.repository[order.reservation_id]
 
         # Check the payment exists.
-        payment = system.processes['payments'].repository[order.payment_id]
+        payment = system.payments.repository[order.payment_id]
 
-Basically, given the system is running, when a "create new order" command is
-created, then the command is done, and an order has been both reserved and paid.
 
 Everything happens synchronously, in a single thread, so that by the time
-``create_order()`` has returned, the system has already processed the
+``create_order()`` has returned, the system pipeline has already processed the
 command, which can be retrieved from the "commands" repository.
 
 Running the system with a single thread and an in-memory database is
 useful when developing and testing a system of process applications,
 because it runs very quickly and the behaviour is very easy to follow.
-
-.. The process applications above could run in different threads (not
-.. yet implemented).
 
 
 Multiprocessing
@@ -892,7 +876,7 @@ Multiprocessing
 The example below shows the same system of process applications running in
 different operating system processes, using the library's
 :class:`~eventsourcing.application.system.MultiprocessRunner`
-class, which uses Python's ``multiprocessing`` library.
+class (which uses Python's ``multiprocessing`` library).
 
 Running the system with multiple operating system processes means the different processes
 are running concurrently, so that as the payment is made for one order, another order might
@@ -922,6 +906,7 @@ In this example, the process applications share a MySQL database.
         os.getenv('MYSQL_HOST', '127.0.0.1'),
     )
 
+
 The process applications could each use their own separate database. If the
 process applications were using different databases, upstream notification
 logs would need to be presented in an API, so that downstream could read
@@ -935,74 +920,52 @@ The MySQL database needs to be created before running the next bit of code.
 
     $ mysql -e "CREATE DATABASE eventsourcing;"
 
-Before starting the system's operating system processes, let's create a ``CreateOrder``
-command using the ``create_order()`` method on the ``Commands`` process (defined above).
-Because the system isn't yet running, the command remains unprocessed.
-
-
-.. code:: python
-
-    with Commands.bind(SQLAlchemyApplication, setup_table=True) as commands:
-
-        # Create a new command.
-        cmd_id = commands.create_order()
-
-        # Check command exists in repository.
-        assert cmd_id in commands.repository
-
-        # Check command is not done.
-        assert not commands.repository[cmd_id].is_done
-
-The database tables for storing events and tracking notification were created by the code
-above, because the ``Commands`` process was constructed with ``setup_table=True``, which
-is ``False`` by default.
-
 
 Single pipeline
 ~~~~~~~~~~~~~~~
 
-.. Todo: Command logging process application, that is presented
-.. as being suitable for use in both a multi-threaded Web
-.. application server, and a worker queue processing stuff, the
-.. worker or the Web application instance could have their commands
-.. distributed across pipelines in a system at random. The command
-.. logging process could do that. A command could be the name of a
-.. method on the process application object, and it could have args
-.. used to call the method. An actor could be used to send a message,
-.. and the actor ID could be included in the command, so that when
-.. a response is created (how?), the request actor could be sent
-.. a message, so clients get a blocking call that doesn't involve polling.
-
 The code below uses the library's
 :class:`~eventsourcing.application.multiprocess.MultiprocessRunner`
-class to run the ``system``.
-It starts one operating system process for each process application
-in the system, which in this example will give four child operating
-system processes.
+class to run the ``system``. It will start one operating system
+process for each process application in the system, which in this
+example will give a pipeline with four child operating system processes.
+
+The operating system processes can be started by using the ``runner``
+object as a context manager.
 
 .. code:: python
 
     from eventsourcing.application.multiprocess import MultiprocessRunner
 
-    runner = MultiprocessRunner(system)
 
-The operating system processes can be started by using the ``runner``
-object as a context manager. The unprocessed commands will be processed
-shortly after the various operating system processes have been started.
-
-.. code:: python
-
-    # Check the unprocessed command gets processed eventually.
     @retry((AssertionError, KeyError), max_attempts=100, wait=0.5)
-    def assert_command_is_done(repository, cmd_id):
+    def assert_eventually_done(repository, cmd_id):
+        """Checks the command is eventually done."""
         assert repository[cmd_id].is_done
 
-    # Process the command.
-    with runner, Commands.bind(SQLAlchemyApplication) as commands:
-        assert_command_is_done(commands.repository, cmd_id)
 
-The process applications read their upstream notification logs when they start,
-so the unprocessed command is picked up and processed immediately.
+    with MultiprocessRunner(system):
+
+        # Create "create order" command.
+        cmd_id = system.commands.create_order()
+
+        # Wait for the processing to complete....
+        assert_eventually_done(system.commands.repository, cmd_id)
+
+        # Check the command has an order ID and is done.
+        cmd = system.commands.repository[cmd_id]
+        assert cmd.order_id
+
+        # Check the order is reserved and paid.
+        order = system.orders.repository[cmd.order_id]
+        assert order.is_reserved
+        assert order.is_paid
+
+        # Check the reservation exists.
+        reservation = system.reservations.repository[order.reservation_id]
+
+        # Check the payment exists.
+        payment = system.payments.repository[order.payment_id]
 
 
 .. Each operating system processes runs a loop that begins by making a call to get prompts
@@ -1032,19 +995,20 @@ so the unprocessed command is picked up and processed immediately.
 Multiple pipelines
 ~~~~~~~~~~~~~~~~~~
 
-The system can run with multiple instances of the system's pipeline expressions. Running the
-system with parallel pipelines means that each process application in the system
-can process many events at the same time.
+The system can run with many instances of its pipeline. In
+this case, each process application in the system can have many
+operating system processes, and so can process many events at the
+same time.
 
-In the example below, there will be three parallel pipelines for the
-system's four process applications, give twelve child operating system
-processes altogether. Five orders will be processed in each pipeline,
-so fifteen orders will processed by the system altogether.
+In the example below, there will be three instances of the system
+pipeline, giving twelve child operating system processes altogether.
+Fifteen orders will processed by the system altogether, five in each
+pipeline.
 
 .. code:: python
 
     num_pipelines = 3
-    num_orders_per_pipeline = 5
+    num_orders = 15
 
 Pipelines have integer IDs. In this example, the pipeline IDs are ``[0, 1, 2]``.
 
@@ -1059,96 +1023,41 @@ The ``pipeline_ids`` are given to the
 :class:`~eventsourcing.application.multiprocess.MultiprocessRunner`
 class when the ``runner`` is constructed.
 
-.. code:: python
+In the example below, with the multiprocessing system running each of the
+process applications as a separate operating system process, and the commands
+process application constructed in the current process, commands are created
+in each pipeline of the commands process, which causes orders to be processed
+by the system.
 
-    runner = MultiprocessRunner(system, pipeline_ids=pipeline_ids)
-
-With the multiprocessing system running each of the process applications
-as a separate operating system process, and the commands process application
-constructed in the current process, commands are created in each pipeline of
-the commands process, which causes orders to be processed by the system.
 
 .. code:: python
 
-    with runner, Commands.bind(SQLAlchemyApplication) as commands:
+    with MultiprocessRunner(system, pipeline_ids=pipeline_ids):
 
-        # Create new orders.
         command_ids = []
-        for _ in range(num_orders_per_pipeline):
+        while True:
+            if len(command_ids) >= num_orders:
+                break
+
             for pipeline_id in pipeline_ids:
-
-                # Change the pipeline for the command.
-                commands.change_pipeline(pipeline_id)
-
-                # Create a "create new order" command.
-                cmd_id = commands.create_order()
+                system.commands.change_pipeline(pipeline_id)
+                cmd_id = system.commands.create_order()
                 command_ids.append(cmd_id)
 
         # Check all commands are eventually done.
-        for i, command_id in enumerate(command_ids):
-            assert_command_is_done(commands.repository, command_id)
+        for command_id in command_ids:
+            assert_eventually_done(system.commands.repository, command_id)
 
-
-..            # Calculate timings from event timestamps.
-..            orders = [app.repository[oid] for oid in command_ids]
-..            min_created_on = min([o.__created_on__ for o in orders])
-..            max_created_on = max([o.__created_on__ for o in orders])
-..            max_last_modified = max([o.__last_modified__ for o in orders])
-..            create_duration = max_created_on - min_created_on
-..            duration = max_last_modified - min_created_on
-..            rate = len(command_ids) / float(duration)
-..            period = 1 / rate
-..            print("Orders created rate: {:.1f} order/s".format((len(command_ids) - 1) / create_duration))
-..            print("Orders processed: {} orders in {:.3f}s at rate of {:.1f} "
-..                  "orders/s, {:.3f}s each".format((len(command_ids) - 1), duration, rate, period))
-..
-..            # Print min, average, max duration.
-..            durations = [o.__last_modified__ - o.__created_on__ for o in orders]
-..            print("Min order processing time: {:.3f}s".format(min(durations)))
-..            print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
-..            print("Max order processing time: {:.3f}s".format(max(durations)))
-
-
-
-.. Since the above policy ``sleep(0.5)`` statements ensure each order takes at least one second
-.. to process, so varying the number of pipelines and the number of orders demonstrates
-.. even on a machine with few cores (e.g. my laptop) that processing is truly
-.. concurrent both across the process applications and across the pipelines of the
-.. system. (The total processing time for a batch of orders tends towards the duration
-.. of the longest step, multiplied by the size of the batch, divided by the number of
-.. pipelines. So the maximum rate of a system is the number of pipelines divided by
-.. the duration of the longest step. Obviously, the minimum processing time for a single
-.. order, its total latecy, is equal to the sum of the durations of each step regardless
-.. of the batch size or the number of pipelines.)
-
-.. Without the ``sleep(0.5)`` statements, the system with its five-step process can process
-.. on my small laptop about twenty-five orders per second per pipeline, approximately 40ms
-.. for each order, with min and average order processing times of approximately 100ms and
-.. 150ms for the five steps. The atomic database transaction code takes about 4ms from opening
-.. the transaction in Python to closing the session in Python. So it seems there is room for
-.. improving performance in future versions of the library.
-
-.. Most business applications process less than one command per second. However, to process spikes
-.. in the demand without spikes in latency, or if continuous usage gives ten or a hundred
-.. times more commands per second, then the number of pipelines could be increased accordingly.
-.. On "Amazon Prime Day" in 2016, Amazon Inc. sold an estimated 636 items per second.
-.. Eventually with this design, the database would limit throughput. But since the operations
-.. are pipelined, the database could be scaled vertically (more cores and memory) in proportion
-.. to the number of pipelines.
 
 Especially if cluster scaling is automated, it would be useful for processes to be distributed
-automatically across the cluster. Actor model seems like a good foundation for such automation.
+automatically across the cluster. Actor model seems like a possible foundation for such automation.
 
 
-.. Todo: Make option to send event as prompt. Change Process to use event passed as prompt.
+.. There are other ways in which the reliability could be relaxed...
 
-.. There are other ways in which the reliability could be relaxed. Persistence could be
-.. optional. ...
 
 Actor model
 ~~~~~~~~~~~
-
-`beta`
 
 An Actor model library, in particular the `Thespian Actor Library
 <https://github.com/kquick/Thespian>`__, can be used to run
@@ -1161,26 +1070,27 @@ The actors will run by sending messages recursively.
 
     from eventsourcing.application.actors import ActorsRunner
 
-    runner = ActorsRunner(system, pipeline_ids=pipeline_ids)
-
-
-    with runner, Commands.bind(SQLAlchemyApplication) as commands:
+    with ActorsRunner(system, pipeline_ids=pipeline_ids):
 
         # Create new orders.
         command_ids = []
-        for _ in range(num_orders_per_pipeline):
+        while True:
+            if len(command_ids) >= num_orders:
+                break
+
             for pipeline_id in pipeline_ids:
 
                 # Change the pipeline for the command.
-                commands.change_pipeline(pipeline_id)
+                system.commands.change_pipeline(pipeline_id)
 
                 # Create a "create new order" command.
-                cmd_id = commands.create_order()
+                cmd_id = system.commands.create_order()
                 command_ids.append(cmd_id)
+
 
         # Check all commands are eventually done.
         for i, command_id in enumerate(command_ids):
-            assert_command_is_done(commands.repository, command_id)
+            assert_eventually_done(system.commands.repository, command_id)
 
 An Thespian "system base" other than the default "simple system base" can be
 started by calling the functions ``start_multiproc_tcp_base_system()`` or
@@ -1210,10 +1120,6 @@ shutdown a "mutliproc" base system.
 .. `Thespian documentation <http://thespianpy.com/doc>`__ for more information about
 .. `dynamic source loading <http://thespianpy.com/doc/in_depth.html>`__.
 
-.. .. code:: python
-..
-..     actors.shutdown()
-..
 .. A system actor could start an actor for each pipeline-stage
 .. when its address is requested, or otherwise make sure there is
 .. one running actor for each process application-pipeline.

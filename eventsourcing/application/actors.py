@@ -120,6 +120,7 @@ class ActorsRunner(SystemRunner):
 
     def close(self):
         """Stops all the actors running a system of process applications."""
+        super(ActorsRunner, self).close()
         unsubscribe(handler=self.forward_prompt, predicate=self.is_prompt)
         if self.shutdown_on_close:
             self.shutdown()

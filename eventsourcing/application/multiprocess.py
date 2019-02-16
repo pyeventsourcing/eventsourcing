@@ -83,6 +83,8 @@ class MultiprocessRunner(SystemRunner):
         return isinstance(event, Prompt)
 
     def close(self):
+        super(MultiprocessRunner, self).close()
+
         unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
 
         for os_process in self.os_processes:

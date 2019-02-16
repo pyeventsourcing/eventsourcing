@@ -212,7 +212,11 @@ class SimpleApplication(with_metaclass(ABCMeta)):
 
     @classmethod
     def bind(cls, *bases, **kwargs):
-        return cls.mixin(*bases)(**kwargs)
+
+        process_class = cls.mixin(*bases)
+        if not issubclass(process_class, ApplicationWithConcreteInfrastructure):
+            raise Exception("Does not have infrastructure: {}, {}".format(cls, tuple(bases)))
+        return process_class(**kwargs)
 
 
 class ApplicationWithConcreteInfrastructure(SimpleApplication):

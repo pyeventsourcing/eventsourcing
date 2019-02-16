@@ -50,7 +50,7 @@ class System(object):
                 if process_name not in self.process_classes:
                     self.process_classes[process_name] = process_class
 
-        self.processes = None
+        self.processes = {}
         self.is_session_shared = True
 
         # Determine which process follows which.
@@ -82,19 +82,11 @@ class System(object):
 
     def construct_app(self, process_class, infrastructure_class=None, **kwargs):
         kwargs = dict(kwargs)
-        if not kwargs.get('setup_table'):
-            kwargs['setup_table'] = self.setup_tables
         if 'session' not in kwargs and process_class.is_constructed_with_session:
             kwargs['session'] = self.session
 
-        if infrastructure_class is None:
-            infrastructure_class = self.infrastructure_class
-        if infrastructure_class is not None:
-            process_class = process_class.mixin(infrastructure_class)
-        elif not issubclass(process_class, ApplicationWithConcreteInfrastructure):
-            raise Exception("Does not have application infrastructure: {}".format(process_class))
-
-        process = process_class(**kwargs)
+        infrastructure_class = infrastructure_class or self.infrastructure_class
+        process = process_class.bind(infrastructure_class, **kwargs)
 
         if process_class.is_constructed_with_session and self.is_session_shared:
             if self.session is None:
@@ -119,6 +111,19 @@ class System(object):
             with self.construct_app(process_class, setup_table=False) as process:
                 process.drop_table()
 
+    def __getattr__(self, process_name):
+        if self.processes and process_name in self.processes:
+            process = self.processes[process_name]
+        else:
+            try:
+                process_class = self.process_classes[process_name]
+            except KeyError:
+                raise AttributeError(process_name)
+            else:
+                process = self.construct_app(process_class, setup_table=self.setup_tables)
+                self.processes[process_name] = process
+        return process
+
 
 class SystemRunner(with_metaclass(ABCMeta)):
 
@@ -140,9 +145,11 @@ class SystemRunner(with_metaclass(ABCMeta)):
     def start(self):
         pass
 
-    @abstractmethod
     def close(self):
-        pass
+        if self.system.processes:
+            for process_name, process in self.system.processes.items():
+                process.close()
+            self.system.processes.clear()
 
 
 class InProcessRunner(SystemRunner):
@@ -153,15 +160,14 @@ class InProcessRunner(SystemRunner):
     """
 
     def start(self):
-        assert self.system.processes is None, "Already running"
-        self.system.processes = {}
+        assert len(self.system.processes) == 0, "Already running"
 
         # Construct the processes.
         for process_class in self.system.process_classes.values():
             process = self.system.construct_app(
                 process_class=process_class,
                 infrastructure_class=self.infrastructure_class,
-                setup_table=self.setup_tables,
+                setup_table=self.setup_tables or self.system.setup_tables,
             )
             self.system.processes[process.name] = process
 
@@ -184,9 +190,8 @@ class InProcessRunner(SystemRunner):
         pass
 
     def close(self):
-        assert self.system.processes is not None, "Not running"
-        for process in self.system.processes.values():
-            process.close()
+        super(InProcessRunner, self).close()
+
         unsubscribe(
             predicate=self.system.is_prompt,
             handler=self.handle_prompt,
