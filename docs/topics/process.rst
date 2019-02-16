@@ -2,33 +2,8 @@
 Process and system
 ==================
 
-This section discusses how to make reliable distributed systems
-that are scalable and maintainable.
-
-The common characterisation of distributed systems as "passing messages"
-is set aside in favour of the subjective aim of "catching up" on recent
-events, which leads directly to the notion of the process event.
-Just as event sourcing "atomised" application state as a set of domain
-events, the processing of domain events in a system of process applications
-can be atomised as a set of regular "process events" in which any domain
-events are subordinated. A provisional description of the process event
-pattern is included at the end of this section.
-
-A design for distributed systems is introduced that uses event-sourced
-applications as building blocks. The earlier design of the
-:doc:`event-sourced application </topics/application>` is extended in
-the design of the "process application" class. Process application classes can
-be composed into a pipeline expression. A system of process applications
-can be defined as a set of pipeline expressions. Such a system can be
-run in various ways using various infrastructure, with identical resulting
-behaviour.
-
-Rather than seeking reliability in mathematics (e.g.
-`CSP <https://en.wikipedia.org/wiki/Communicating_sequential_processes>`__)
-or in physics (e.g. `Actor model <https://en.wikipedia.org/wiki/Actor_model>`__),
-the approach taken here is to seek reliable foundations in engineering empiricism,
-specifically in the empirical reliability of counting and of ACID database
-transactions.
+This section discusses how to make a reliable distributed system
+that is scalable and maintainable.
 
 .. (If we can reject the pervasive description of `distributed systems
 .. <https://en.wikipedia.org/wiki/Distributed_computing>`__ as a system of
@@ -61,6 +36,37 @@ transactions.
 Overview
 ========
 
+A design for distributed systems is introduced that uses event-sourced
+applications as building blocks. The earlier design of the
+:doc:`event-sourced application </topics/application>` is extended in
+the design of the "process application". Process application classes
+can be composed into a pipeline expression, and a system can be defined as a
+set of pipeline expressions. This definition of a system can be entirely
+independent of infrastructure. Such a system can be run in different ways
+with identical results.
+
+Rather than seeking reliability in mathematics (e.g.
+`CSP <https://en.wikipedia.org/wiki/Communicating_sequential_processes>`__)
+or in physics (e.g. `Actor model <https://en.wikipedia.org/wiki/Actor_model>`__),
+the approach taken here is to seek reliable foundations in engineering empiricism,
+specifically in the empirical reliability of counting and of ACID database
+transactions.
+
+Just as event sourcing "atomised" application state as a set of domain
+events, similarly the processing of domain events can be atomised as a
+potentially distributed set of local "process events" in which new domain
+events may occur. The subjective aim of a process event is "catching up
+on what happened".
+
+The processing of domain events is designed to be atomic and successive
+so that processing can progress in a determinate manner according to
+infrastructure availability. A provisional description of a design
+pattern for process events is included at the end of this section.
+
+
+Process application
+-------------------
+
 A process application is an event-sourced :doc:`projection </topics/projections>`
 into an event-sourced :doc:`application </topics/application>`. One
 process application may "follow" another. A process application
@@ -72,26 +78,17 @@ is defined by the application's policy, which defines responses to domain
 events in terms of domain model operations, causing new domain events to
 be generated.
 
-The processing of events is designed to be atomic, so that processing
-can progress or not, in a determinate manner, according to infrastructure
-availability. Hence, a reliable system of process applications can be
-defined by defining each application in turn, and by indicating which
-applications it follows. This definition of a system can be entirely
-independent of infrastructure.
-
-
-Process application
--------------------
-
 The library class
 :class:`~eventsourcing.application.process.ProcessApplication`
 functions as a projection into an event-sourced application.
 It extends :class:`~eventsourcing.application.simple.SimpleApplication`
-by having a notification log reader for each application it follows, and
-an application policy which defines how to respond to such domain events.
-It also implements the process event pattern: individual "process event"
-data should be stored atomically (notification tracking, new domain events,
-new notifications) so that domain event processing is reliable.
+by having a notification log reader for each application it follows.
+
+The process application class has an application policy which defines
+how to respond to the domain events it reads from the notification logs
+of the applications it follows. The process application class implements
+the process event pattern: individual "process event" data is
+stored atomically.
 
 
 Reliability
@@ -105,7 +102,7 @@ Infrastructure unreliability may cause processing delays, but disorderly
 environments shouldn't (at least by default) cause disorderly processing
 results.
 
-The only trick is remembering that production is determined in general
+The only trick was remembering that production is determined in general
 by consumption with recording. In particular, if consumption and
 recording are reliable, then production is bound to be reliable.
 As shown below, the reliability of this library's approach to event
@@ -314,9 +311,9 @@ A process application, specifically an aggregate combined with a policy in a pro
 could function effectively as a "saga", or "process manager", or "workflow manager". That is, it
 could effectively control a sequence of steps involving other aggregates in other bounded contexts,
 steps that might otherwise be controlled with a "long-lived transaction". It could 'maintain
-the state of the sequence and determine the next processing step based on intermediate results'
-(quote from Enterprise Integration Patterns). Exceptional "unhappy path" behaviour can be
-implemented as part of the logic of the application.
+the state of the sequence and determine the next processing step based on intermediate results',
+to quote a phrase from Enterprise Integration Patterns. Exceptional "unhappy path" behaviour can
+be implemented as part of the logic of the application.
 
 
 Example
@@ -590,6 +587,7 @@ by creating a new ``Payment``.
             if isinstance(event, Order.Reserved):
                 return Payment.__create__(order_id=event.originator_id)
 
+
 Additionally, the library class
 :class:`~eventsourcing.application.command.CommandProcess`
 is extended by defining a policy that responds to ``Order.Created``
@@ -597,7 +595,6 @@ events by setting the ``order_id`` on the command. It also
 responds to ``Order.Paid`` events by setting the command as done.
 An alternative approach to updating the command may involve creating
 separate "command response" aggregates.
-
 
 .. code:: python
 
@@ -623,7 +620,8 @@ separate "command response" aggregates.
             cmd.__save__()
             return cmd.id
 
-The ``@retry`` decorator here protects against any contention writing to the ``Commands`` notification log.
+The ``@retry`` decorator here tries to overcome contention writing to the
+``Commands`` notification log.
 
 Please note, the ``__save__()`` method of aggregates shouldn't be called in a process policy,
 because pending events from both new and changed aggregates will be automatically collected by
@@ -953,7 +951,7 @@ Because the system isn't yet running, the command remains unprocessed.
 
 The database tables for storing events and tracking notification were created by the code
 above, because the ``Commands`` process was constructed with ``setup_table=True``, which
-is by default ``False`` in the application classes.
+is ``False`` by default.
 
 
 Single pipeline
