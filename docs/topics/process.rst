@@ -818,9 +818,8 @@ the aggregates it has created. For example, an ``Order`` aggregate created by th
 process is available in neither the repository of ``Reservations`` nor the repository of
 ``Payments``. If an application could directly use the aggregates of another
 application, then processing could produce different results at different times, and in consequence
-the processing wouldn't be reliable. If necessary, a process application could replicate the
-state of an aggregate within its own context in an application it is following, by projecting
-its events as they are read from an upstream notification log.
+the processing wouldn't be reliable. If necessary, a process application can replicate
+upstream aggregates within its own state.
 
 
 Single threaded
