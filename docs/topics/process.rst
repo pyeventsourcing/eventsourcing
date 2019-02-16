@@ -40,10 +40,10 @@ A design for distributed systems is introduced that uses event-sourced
 applications as building blocks. The earlier design of the
 :doc:`event-sourced application </topics/application>` is extended in
 the design of the "process application". Process application classes
-can be composed into a pipeline expression, and a system can be defined as a
-set of pipeline expressions. This definition of a system can be entirely
-independent of infrastructure. Such a system can be run in different ways
-with identical results.
+can be composed into pipeline expressions. A pipelined system of process
+applications can be defined with a set of pipeline expressions. This
+definition of a system can be entirely independent of infrastructure.
+Such a system can be run in different ways with identical results.
 
 Rather than seeking reliability in mathematics (e.g.
 `CSP <https://en.wikipedia.org/wiki/Communicating_sequential_processes>`__)
