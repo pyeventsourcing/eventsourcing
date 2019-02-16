@@ -1044,13 +1044,16 @@ five in each pipeline.
 
         command_ids = []
         while True:
-            if len(command_ids) >= num_orders:
-                break
-
             for pipeline_id in pipeline_ids:
-                system.commands.change_pipeline(pipeline_id)
-                cmd_id = system.commands.create_order()
-                command_ids.append(cmd_id)
+                if len(command_ids) >= num_orders:
+                    break
+                else:
+                    # Change the pipeline for the command.
+                    system.commands.change_pipeline(pipeline_id)
+
+                    # Create a "create new order" command.
+                    cmd_id = system.commands.create_order()
+                    command_ids.append(cmd_id)
 
         # Check all commands are eventually done.
         for command_id in command_ids:
@@ -1087,17 +1090,17 @@ The actors will run by sending messages recursively.
         # Create new orders.
         command_ids = []
         while True:
-            if len(command_ids) >= num_orders:
-                break
 
             for pipeline_id in pipeline_ids:
+                if len(command_ids) >= num_orders:
+                    break
+                else:
+                    # Change the pipeline for the command.
+                    system.commands.change_pipeline(pipeline_id)
 
-                # Change the pipeline for the command.
-                system.commands.change_pipeline(pipeline_id)
-
-                # Create a "create new order" command.
-                cmd_id = system.commands.create_order()
-                command_ids.append(cmd_id)
+                    # Create a "create new order" command.
+                    cmd_id = system.commands.create_order()
+                    command_ids.append(cmd_id)
 
 
         # Check all commands are eventually done.
@@ -1105,7 +1108,7 @@ The actors will run by sending messages recursively.
             assert_eventually_done(system.commands.repository, command_id)
 
 
-An Thespian "system base" other than the default "simple system base" can be
+With Thespian, a "system base" other than the default "simple system base" can be
 started by calling the functions ``start_multiproc_tcp_base_system()`` or
 ``start_multiproc_queue_base_system()`` before starting the system actors.
 
