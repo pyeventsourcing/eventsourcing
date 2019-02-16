@@ -792,12 +792,12 @@ automatically and finally closed.
         pass
 
 
-For convenience, let's redefine ``system`` to use the infrastructure class by
-default. It's still possible to pass an application infrastructure class
+For convenience, let's redefine ``system`` to use the infrastructure class
+by default. It's still possible to pass an application infrastructure class
 to system runners, and override this default, but setting a default infrastructure
-class on the syste object helps to keep these examples simple. For the same
-reason ``setup_tables`` is set, which means database tables will be created
-automatically in the examples below.
+class on the system object helps to keep these examples simple. For the same
+reason ``setup_tables`` is set ``True``, which means database tables will be
+created automatically in the examples below.
 
 .. code:: python
 
