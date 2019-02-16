@@ -49,8 +49,8 @@ Rather than seeking reliability in mathematics (e.g.
 `CSP <https://en.wikipedia.org/wiki/Communicating_sequential_processes>`__)
 or in physics (e.g. `Actor model <https://en.wikipedia.org/wiki/Actor_model>`__),
 the approach taken here is to seek reliable foundations in engineering empiricism,
-specifically in the empirical reliability of counting and of ACID database
-transactions.
+specifically in the empirical reliability of `counting <https://en.wikipedia.org/wiki/Counting>`__
+and of `ACID database transactions <https://en.wikipedia.org/wiki/ACID_(computer_science)>`__.
 
 Just as event sourcing "atomised" application state as a set of domain
 events, similarly the processing of domain events can be atomised as a
