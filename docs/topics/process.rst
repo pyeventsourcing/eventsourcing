@@ -489,10 +489,6 @@ with the orders created by the system in response.
 
 
     class CreateOrder(Command):
-
-        class Created(Command.Created):
-            pass
-
         @attribute
         def order_id(self):
             pass
