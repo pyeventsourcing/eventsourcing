@@ -82,15 +82,18 @@ class SimpleApplication(with_metaclass(ABCMeta)):
         self.contiguous_record_ids = contiguous_record_ids
         self.pipeline_id = pipeline_id
         self.construct_cipher(cipher_key)
-        self.construct_infrastructure()
-
-        if setup_table:
-            self.setup_table()
-        self.construct_notification_log()
 
         self.persistence_policy = persistence_policy
-        if self.persistence_policy is None:
-            self.construct_persistence_policy()
+
+        if self.record_manager_class or self.infrastructure_factory_class.record_manager_class:
+            self.construct_infrastructure()
+
+            if setup_table:
+                self.setup_table()
+            self.construct_notification_log()
+
+            if self.persistence_policy is None:
+                self.construct_persistence_policy()
 
     @property
     def datastore(self):

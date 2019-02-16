@@ -35,16 +35,18 @@ class ProcessApplication(Pipeable, SimpleApplication):
         super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
 
         # Republish our events as prompts.
-        subscribe(
-            predicate=self.persistence_policy.is_event,
-            handler=self.publish_prompt,
-        )
+        if self.persistence_policy:
+            subscribe(
+                predicate=self.persistence_policy.is_event,
+                handler=self.publish_prompt,
+            )
 
     def close(self):
-        unsubscribe(
-            predicate=self.persistence_policy.is_event,
-            handler=self.publish_prompt,
-        )
+        if self.persistence_policy:
+            unsubscribe(
+                predicate=self.persistence_policy.is_event,
+                handler=self.publish_prompt,
+            )
         super(ProcessApplication, self).close()
 
     def is_upstream_prompt(self, prompt):
