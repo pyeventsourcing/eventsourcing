@@ -957,7 +957,7 @@ things are eventually done.
 
 .. code:: python
 
-    @retry((AssertionError, KeyError), max_attempts=100, wait=0.5)
+    @retry((AssertionError, KeyError), max_attempts=50, wait=0.1)
     def assert_eventually_done(repository, cmd_id):
         """Checks the command is eventually done."""
         assert repository[cmd_id].is_done
@@ -969,7 +969,6 @@ as a context manager.
 .. code:: python
 
     from eventsourcing.application.multiprocess import MultiprocessRunner
-
 
     with MultiprocessRunner(system):
 
@@ -1042,18 +1041,17 @@ five in each pipeline.
 
     with MultiprocessRunner(system, pipeline_ids=pipeline_ids):
 
+        # Create new orders.
         command_ids = []
-        while True:
+        while len(command_ids) >= num_orders:
             for pipeline_id in pipeline_ids:
-                if len(command_ids) >= num_orders:
-                    break
-                else:
-                    # Change the pipeline for the command.
-                    system.commands.change_pipeline(pipeline_id)
 
-                    # Create a "create new order" command.
-                    cmd_id = system.commands.create_order()
-                    command_ids.append(cmd_id)
+                # Change the pipeline for the command.
+                system.commands.change_pipeline(pipeline_id)
+
+                # Create a "create new order" command.
+                cmd_id = system.commands.create_order()
+                command_ids.append(cmd_id)
 
         # Check all commands are eventually done.
         for command_id in command_ids:
@@ -1089,19 +1087,15 @@ The actors will run by sending messages recursively.
 
         # Create new orders.
         command_ids = []
-        while True:
-
+        while len(command_ids) >= num_orders:
             for pipeline_id in pipeline_ids:
-                if len(command_ids) >= num_orders:
-                    break
-                else:
-                    # Change the pipeline for the command.
-                    system.commands.change_pipeline(pipeline_id)
 
-                    # Create a "create new order" command.
-                    cmd_id = system.commands.create_order()
-                    command_ids.append(cmd_id)
+                # Change the pipeline for the command.
+                system.commands.change_pipeline(pipeline_id)
 
+                # Create a "create new order" command.
+                cmd_id = system.commands.create_order()
+                command_ids.append(cmd_id)
 
         # Check all commands are eventually done.
         for i, command_id in enumerate(command_ids):
