@@ -8,6 +8,7 @@ import six
 from six import with_metaclass
 from six.moves.queue import Empty, Queue
 
+from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.domain.model.decorators import retry
@@ -39,7 +40,8 @@ class System(object):
         """
         self.pipelines_exprs = pipeline_exprs
         self.setup_tables = kwargs.get('setup_tables', False)
-        self.infrastructure_class = kwargs.get('infrastructure_class', None)
+        # self.infrastructure_class = kwargs.get('infrastructure_class', None)
+        self.infrastructure_class = kwargs.get('infrastructure_class', PopoApplication)
 
         self.session = kwargs.get('session', None)
 
@@ -111,7 +113,7 @@ class System(object):
             with self.construct_app(process_class, setup_table=False) as process:
                 process.drop_table()
 
-    def __getattr__(self, process_name):
+    def __getattr__(self, process_name, infrastructure_class=None):
         if self.processes and process_name in self.processes:
             process = self.processes[process_name]
         else:
@@ -120,7 +122,11 @@ class System(object):
             except KeyError:
                 raise AttributeError(process_name)
             else:
-                process = self.construct_app(process_class, setup_table=self.setup_tables)
+                process = self.construct_app(
+                    process_class=process_class,
+                    setup_table=self.setup_tables,
+                    infrastructure_class=infrastructure_class,
+                )
                 self.processes[process_name] = process
         return process
 
@@ -133,6 +139,7 @@ class SystemRunner(with_metaclass(ABCMeta)):
         if not self.infrastructure_class:
             assert self.infrastructure_class, "Runner needs infrastructure_class"
         self.setup_tables = setup_tables
+        self.processes = {}
 
     def __enter__(self):
         self.start()
@@ -151,6 +158,8 @@ class SystemRunner(with_metaclass(ABCMeta)):
                 process.close()
             self.system.processes.clear()
 
+    def __getattr__(self, process_name):
+        return self.system.__getattr__(process_name, infrastructure_class=self.infrastructure_class)
 
 class InProcessRunner(SystemRunner):
     """
