@@ -357,20 +357,12 @@ an order can be set as paid, which involves a payment ID.
         class Event(AggregateRoot.Event):
             pass
 
+        @classmethod
+        def create(cls, command_id):
+            return cls.__create__(command_id=command_id)
+
         class Created(Event, AggregateRoot.Created):
-            def __init__(self, **kwargs):
-                assert 'command_id' in kwargs, kwargs
-                super(Order.Created, self).__init__(**kwargs)
-
-        class Reserved(Event):
-            def mutate(self, order):
-                order.is_reserved = True
-                order.reservation_id = self.reservation_id
-
-        class Paid(Event):
-            def mutate(self, order):
-                order.is_paid = True
-                order.payment_id = self.payment_id
+            pass
 
         def __init__(self, command_id=None, **kwargs):
             super(Order, self).__init__(**kwargs)
@@ -384,11 +376,21 @@ an order can be set as paid, which involves a payment ID.
                 Order.Reserved, reservation_id=reservation_id
             )
 
+        class Reserved(Event):
+            def mutate(self, order):
+                order.is_reserved = True
+                order.reservation_id = self.reservation_id
+
         def set_is_paid(self, payment_id):
             assert not self.is_paid, "Order {} already paid.".format(self.id)
             self.__trigger_event__(
                 self.Paid, payment_id=payment_id, command_id=self.command_id
             )
+
+        class Paid(Event):
+            def mutate(self, order):
+                order.is_paid = True
+                order.payment_id = self.payment_id
 
 
 A ``Reservation`` can be created. A reservation has an ``order_id``.
@@ -399,6 +401,10 @@ A ``Reservation`` can be created. A reservation has an ``order_id``.
 
         class Event(AggregateRoot.Event):
             pass
+
+        @classmethod
+        def create(cls, order_id):
+            return cls.__create__(order_id=order_id)
 
         class Created(Event, AggregateRoot.Created):
             pass
@@ -417,6 +423,10 @@ Similarly, a ``Payment`` can be created. A payment also has an ``order_id``.
         class Event(AggregateRoot.Event):
             pass
 
+        @classmethod
+        def create(cls, order_id):
+            return cls.__create__(order_id=order_id)
+
         class Created(Event, AggregateRoot.Created):
             pass
 
@@ -425,8 +435,15 @@ Similarly, a ``Payment`` can be created. A payment also has an ``order_id``.
             self.order_id = order_id
 
 
-The behaviours of this domain model can be fully tested
-with simple test cases, without involving any other components.
+All the domain event classes are defined explicitly on the aggregate root
+classes. This is important because the application policies will use the
+domain event classes to decide how to respond to the events, and if the
+aggregate classes use the event classes from the base aggregate root class,
+then one aggregate's ``Created`` event can't be distinguished from another's,
+and the application policy won't work as expected.
+
+The behaviours of this domain model can be fully tested with simple test
+cases, without involving any other components.
 
 
 Commands
@@ -476,14 +493,18 @@ with the orders created by the system in response.
         class Event(Command.Event):
             pass
 
-        class Created(Event, Command.Created):
-            pass
+        @classmethod
+        def create(cls):
+            return cls.__create__()
 
-        class AttributeChanged(Event, Command.AttributeChanged):
+        class Created(Event, Command.Created):
             pass
 
         @attribute
         def order_id(self):
+            pass
+
+        class AttributeChanged(Event, Command.AttributeChanged):
             pass
 
 
@@ -500,7 +521,7 @@ without involving any other components.
     def test_create_order_command():
 
         # Create a "create order" command.
-        cmd = CreateOrder.__create__()
+        cmd = CreateOrder.create()
 
         # Check the initial values.
         assert cmd.order_id is None
@@ -547,7 +568,7 @@ by setting an ``Order`` as paid.
         @staticmethod
         def policy(repository, event):
             if isinstance(event, CreateOrder.Created):
-                return Order.__create__(command_id=event.originator_id)
+                return Order.create(command_id=event.originator_id)
 
             elif isinstance(event, Reservation.Created):
                 # Set the order as reserved.
@@ -571,7 +592,7 @@ by creating a new ``Reservation`` aggregate.
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Created):
-                return Reservation.__create__(order_id=event.originator_id)
+                return Reservation.create(order_id=event.originator_id)
 
 
 The payments process application responds to an ``Order.Reserved`` event
@@ -584,7 +605,7 @@ by creating a new ``Payment``.
         @staticmethod
         def policy(repository, event):
             if isinstance(event, Order.Reserved):
-                return Payment.__create__(order_id=event.originator_id)
+                return Payment.create(order_id=event.originator_id)
 
 
 Additionally, the library class
@@ -619,7 +640,7 @@ create new ``Order`` aggregates.
         @staticmethod
         @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
         def create_order():
-            cmd = CreateOrder.__create__()
+            cmd = CreateOrder.create()
             cmd.__save__()
             return cmd.id
 
@@ -669,7 +690,7 @@ rather than coding `test doubles <https://martinfowler.com/bliki/TestDouble.html
     def test_orders_policy():
 
         # Prepare repository with a real Order aggregate.
-        order = Order.__create__(command_id=None)
+        order = Order.create(command_id=None)
         repository = {order.id: order}
 
         # Check order is not reserved.
@@ -692,7 +713,7 @@ because an order was reserved.
     def test_payments_policy():
 
         # Prepare repository with a real Order aggregate.
-        order = Order.__create__(command_id=None)
+        order = Order.create(command_id=None)
         repository = {order.id: order}
 
         # Check payment is created whenever order is reserved.
