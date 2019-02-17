@@ -897,7 +897,8 @@ This example uses SQLAlchemy to access a MySQL database.
     from eventsourcing.application.multiprocess import MultiprocessRunner
     from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 
-    runner = MultiprocessRunner(system,
+    runner = MultiprocessRunner(
+        system=system,
         infrastructure_class=SQLAlchemyApplication,
         setup_tables=True
     )
@@ -1062,9 +1063,14 @@ The actors will run by sending messages recursively.
 
     from eventsourcing.application.actors import ActorModelRunner
 
-    with ActorModelRunner(system, pipeline_ids=[0, 1, 2],
-            infrastructure_class=SQLAlchemyApplication,
-            setup_tables=True) as runner:
+    runner = ActorModelRunner(
+        system=system,
+        pipeline_ids=[0, 1, 2],
+        infrastructure_class=SQLAlchemyApplication,
+        setup_tables=True
+    )
+
+    with runner:
 
         # Create new orders.
         command_ids = []
