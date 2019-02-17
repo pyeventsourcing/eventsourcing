@@ -575,8 +575,10 @@ by creating a new ``Payment``.
 Additionally, the library class
 :class:`~eventsourcing.application.command.CommandProcess`
 is extended by defining a policy that responds to ``Order.Created``
-events by setting the ``order_id`` on the command. It also
-responds to ``Order.Paid`` events by setting the command as done.
+events by setting the ``order_id`` on the command, and to
+``Order.Paid`` events by setting the command as done. It also
+has a factory method ``create_order()`` which can be used to
+create new ``Order`` aggregates.
 
 .. code:: python
 
@@ -604,10 +606,8 @@ responds to ``Order.Paid`` events by setting the command as done.
             cmd.__save__()
             return cmd.id
 
-The ``@retry`` decorator overcome contention writing to the ``Commands``
-application's notification log when creating new commands whilst also
-processing domain events from the ``Orders`` application to mark existing
-commands as done.
+The ``@retry`` decorator overcomes contention when creating new commands
+whilst also processing domain events from the ``Orders`` application.
 
 Please note, the ``__save__()`` method of aggregates shouldn't be called in a process policy,
 because pending events from both new and changed aggregates will be automatically collected by
