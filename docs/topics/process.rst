@@ -452,7 +452,7 @@ One advantage of using a separate commands application is that commands can be
 introduced into an event processing system without interrupting the flow
 of event processing by the other process applications (due to potential
 contention writing to the application's notification log). A commands
-application does it need to follow any other applications, in which case
+application does not need to follow any other applications, in which case
 there is no event processing to interrupt. Hence, normal application command
 methods can be used on a commands application to create commands, and
 another process application can follow it and thereby process the commands,
