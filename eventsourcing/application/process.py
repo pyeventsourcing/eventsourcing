@@ -34,7 +34,7 @@ class ProcessApplication(Pipeable, SimpleApplication):
         self.tick_interval = None
         super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
 
-        # Republish our events as prompts.
+        # Publish prompts for any domain events that we persist.
         if self.persistence_policy:
             subscribe(
                 predicate=self.persistence_policy.is_event,

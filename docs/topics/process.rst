@@ -397,7 +397,10 @@ A ``Reservation`` can be created. A reservation has an ``order_id``.
 
     class Reservation(AggregateRoot):
 
-        class Created(AggregateRoot.Created):
+        class Event(AggregateRoot.Event):
+            pass
+
+        class Created(Event, AggregateRoot.Created):
             pass
 
         def __init__(self, order_id, **kwargs):
@@ -411,7 +414,10 @@ Similarly, a ``Payment`` can be created. A payment also has an ``order_id``.
 
     class Payment(AggregateRoot):
 
-        class Created(AggregateRoot.Created):
+        class Event(AggregateRoot.Event):
+            pass
+
+        class Created(Event, AggregateRoot.Created):
             pass
 
         def __init__(self, order_id, **kwargs):
@@ -466,6 +472,15 @@ with the orders created by the system in response.
 
 
     class CreateOrder(Command):
+
+        class Event(Command.Event):
+            pass
+
+        class Created(Event, Command.Created):
+            pass
+
+        class AttributeChanged(Event, Command.AttributeChanged):
+            pass
 
         @attribute
         def order_id(self):
@@ -588,6 +603,8 @@ create new ``Order`` aggregates.
 
 
     class Commands(CommandProcess):
+
+        persist_event_type = CreateOrder.Event
 
         @staticmethod
         def policy(repository, event):
