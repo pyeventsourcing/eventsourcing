@@ -11,15 +11,15 @@ from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 class AbstractSequencedItemMapper(six.with_metaclass(ABCMeta)):
     @abstractmethod
-    def to_sequenced_item(self, domain_event):
+    def item_from_event(self, domain_event):
         """
-        Returns sequenced item for given domain event.
+        Constructs and returns a sequenced item for given domain event.
         """
 
     @abstractmethod
-    def from_sequenced_item(self, sequenced_item):
+    def event_from_item(self, sequenced_item):
         """
-        Return domain event from given sequenced item.
+        Constructs and returns a domain event for given sequenced item.
         """
 
 
@@ -40,7 +40,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         self.position_attr_name = position_attr_name or self.field_names.position
         self.other_attr_names = other_attr_names or self.field_names.other_names
 
-    def to_sequenced_item(self, domain_event):
+    def item_from_event(self, domain_event):
         """
         Constructs a sequenced item from a domain event.
         """
@@ -58,7 +58,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         position = getattr(domain_event, self.position_attr_name, None)
 
         # Get topic and data.
-        topic, data = self.get_topic_and_data(
+        topic, state = self.get_item_topic_and_state(
             domain_event.__class__,
             domain_event.__dict__
         )
@@ -68,12 +68,25 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         #   to populate database fields, and shouldn't affect the hash.
         other_args = tuple((getattr(domain_event, name) for name in self.other_attr_names))
 
-        return (sequence_id, position, topic, data) + other_args
+        return (sequence_id, position, topic, state) + other_args
+
+    def get_item_topic_and_state(self, domain_event_class, event_attrs):
+        # Get the topic from the event attrs, otherwise from the class.
+        topic = get_topic(domain_event_class)
+
+        # Serialise the event attributes.
+        state = json_dumps(event_attrs, cls=self.json_encoder_class)
+
+        # Encrypt serialised state.
+        if self.cipher:
+            state = self.cipher.encrypt(state)
+
+        return topic, state
 
     def construct_sequenced_item(self, item_args):
         return self.sequenced_item_class(*item_args)
 
-    def from_sequenced_item(self, sequenced_item):
+    def event_from_item(self, sequenced_item):
         """
         Reconstructs domain event from stored event topic and
         event attrs. Used in the event store when getting domain events.
@@ -82,40 +95,28 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
             self.sequenced_item_class, type(sequenced_item)
         )
 
-        # Get the topic and data.
+        # Get the topic and state.
         topic = getattr(sequenced_item, self.field_names.topic)
-        data = getattr(sequenced_item, self.field_names.data)
+        state = getattr(sequenced_item, self.field_names.state)
 
-        return self.from_topic_and_data(topic, data)
+        return self.event_from_topic_and_state(topic, state)
 
-    def from_topic_and_data(self, topic, data):
-        domain_event_class, event_attrs = self.get_class_and_state(topic, data)
+    def event_from_topic_and_state(self, topic, state):
+        domain_event_class, event_attrs = self.get_event_class_and_attrs(topic, state)
 
         # Reconstruct domain event object.
         return reconstruct_object(domain_event_class, event_attrs)
 
-    def get_topic_and_data(self, domain_event_class, event_attrs):
-        # Get the topic from the event attrs, otherwise from the class.
-        topic = get_topic(domain_event_class)
-
-        # Serialise the event attributes.
-        data = json_dumps(event_attrs, cls=self.json_encoder_class)
-
-        # Encrypt data.
-        if self.cipher:
-            data = self.cipher.encrypt(data)
-        return topic, data
-
-    def get_class_and_state(self, topic, data):
+    def get_event_class_and_attrs(self, topic, state):
         # Resolve topic to event class.
         domain_event_class = resolve_topic(topic)
 
-        # Decrypt data.
+        # Decrypt state.
         if self.cipher:
-            data = self.cipher.decrypt(data)
+            state = self.cipher.decrypt(state)
 
         # Deserialize data.
-        event_attrs = json_loads(data, cls=self.json_decoder_class)
+        event_attrs = json_loads(state, cls=self.json_decoder_class)
         return domain_event_class, event_attrs
 
 

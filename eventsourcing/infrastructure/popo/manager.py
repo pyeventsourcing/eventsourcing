@@ -4,11 +4,11 @@ from readerwriterlock import rwlock
 
 
 class PopoNotification(object):
-    def __init__(self, notification_id, originator_id, originator_version, event_type, state):
+    def __init__(self, notification_id, originator_id, originator_version, topic, state):
         self.notification_id = notification_id
         self.originator_id = originator_id
         self.originator_version = originator_version
-        self.event_type = event_type
+        self.topic = topic
         self.state = state
 
 
@@ -72,7 +72,7 @@ class PopoRecordManager(ACIDRecordManager):
                         notification_id=notification_record['notification_id'],
                         originator_id=notification_record['sequenced_item'].originator_id,
                         originator_version=notification_record['sequenced_item'].originator_version,
-                        event_type=notification_record['sequenced_item'].event_type,
+                        topic=notification_record['sequenced_item'].topic,
                         state=notification_record['sequenced_item'].state,
 
                     )

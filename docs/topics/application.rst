@@ -400,22 +400,22 @@ by using the method ``get_items()`` of the event store's record manager.
     assert len(items) == 4
 
     assert items[0].originator_id == aggregate.id
-    assert items[0].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Created'
+    assert items[0].topic == 'eventsourcing.domain.model.aggregate#AggregateRoot.Created'
     assert '"a":1' in items[0].state, items[0].state
     assert '"timestamp":' in items[0].state
 
     assert items[1].originator_id == aggregate.id
-    assert items[1].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
+    assert items[1].topic == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
     assert '"name":"_a"' in items[1].state
     assert '"timestamp":' in items[1].state
 
     assert items[2].originator_id == aggregate.id
-    assert items[2].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
+    assert items[2].topic == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
     assert '"name":"_a"' in items[2].state
     assert '"timestamp":' in items[2].state
 
     assert items[3].originator_id == aggregate.id
-    assert items[3].event_type == 'eventsourcing.domain.model.aggregate#AggregateRoot.Discarded'
+    assert items[3].topic == 'eventsourcing.domain.model.aggregate#AggregateRoot.Discarded'
     assert '"timestamp":' in items[3].state
 
 In this example, the ``cipher_key`` was not set, so the stored data is visible.

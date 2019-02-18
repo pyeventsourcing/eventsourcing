@@ -43,7 +43,7 @@ class TestCassandraDatastore(CassandraDatastoreTestCase, base.DatastoreTestCase)
             sequence_id=uuid4(),
             position=0,
             topic='topic',
-            data='{}'
+            state='{}'
         )
         try:
             record.save()

@@ -464,9 +464,9 @@ notification log even when the notification doesn't imply a real entry in the in
                 # Alternatively, construct, execute, then record index commands in a big array.
                 # Could record commands in same transaction as result of commands if commands are not idempotent.
                 # Could use compaction to remove all blank items, but never remove the last record.
-                if notification['event_type'].endswith('User.EmailAddressVerified'):
-                    event = original.event_store.sequenced_item_mapper.from_topic_and_data(
-                        notification['event_type'],
+                if notification['topic'].endswith('User.EmailAddressVerified'):
+                    event = original.event_store.mapper.event_from_topic_and_state(
+                        notification['topic'],
                         notification['state'],
                     )
                     index_key = uuid_from_url(event.email_address)

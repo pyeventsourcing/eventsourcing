@@ -296,7 +296,7 @@ object that is scoped to the request.
         originator_version = db.Column(db.BigInteger(), nullable=False)
 
         # Topic of the item (e.g. path to domain event class).
-        event_type = db.Column(db.String(255))
+        topic = db.Column(db.String(255))
 
         # State of the item (serialized dict, possibly encrypted).
         state = db.Column(db.Text())

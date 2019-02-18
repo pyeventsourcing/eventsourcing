@@ -70,7 +70,7 @@ class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, base.DatastoreTestCas
                 sequence_id=uuid4(),
                 position=0,
                 topic='topic',
-                data='{}'
+                state='{}'
             )
             self.datastore.session.add(record)
             self.datastore.session.commit()

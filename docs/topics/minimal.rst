@@ -379,7 +379,7 @@ with each item positioned in its sequence by an integer index number.
         topic = Column(String(255))
 
         # State of the item (serialized dict, possibly encrypted).
-        data = Column(Text())
+        state = Column(Text())
 
         __table_args__ = Index('index', 'sequence_id', 'position', unique=True),
 
@@ -538,12 +538,12 @@ the ``data`` field represents the state of the event (normally a JSON string).
     assert sequenced_items[0].sequence_id == entity.id
     assert sequenced_items[0].position == 0
     assert 'Created' in sequenced_items[0].topic
-    assert 'bar' in sequenced_items[0].data
+    assert 'bar' in sequenced_items[0].state
 
     assert sequenced_items[1].sequence_id == entity.id
     assert sequenced_items[1].position == 1
     assert 'AttributeChanged' in sequenced_items[1].topic
-    assert 'baz' in sequenced_items[1].data
+    assert 'baz' in sequenced_items[1].state
 
 
 Application

@@ -158,7 +158,7 @@ Before continuing with code examples below, we need to setup an event store.
     # Set up a persistence policy.
     persistence_policy = PersistencePolicy(
         event_store=event_store,
-        event_type=DomainEntity.Event
+        persist_event_type=DomainEntity.Event
     )
 
 Please note, the ``SQLAlchemyRecordManager`` is has its
@@ -719,8 +719,11 @@ and a ``section_size``.
     assert section.next_id == '6,10', section.next_id
     assert len(section.items) == 5, section.items
 
+    raise Exception(section.items)
+
 The sections of the record notification log each have notification items that
 reflect the recorded domain event.
+
 The items (notifications) in the sections from ``RecordManagerNotificationLog``
 are Python dicts with three key-values: ``id``, ``topic``, and ``data``.
 
@@ -743,9 +746,9 @@ how that can be done (this function doesn't exist in the library).
 
     def resolve_notifications(notifications):
         return [
-            sequenced_item_mapper.from_topic_and_data(
-                topic=notification['event_type'],
-                data=notification['state']
+            sequenced_item_mapper.event_from_topic_and_state(
+                topic=notification['topic'],
+                state=notification['state']
             ) for notification in notifications
         ]
 
@@ -989,12 +992,12 @@ The example below uses the record notification log, constructed above.
 
     item = section_dict['items'][0]
     assert item['id'] == 1
-    assert item['event_type'] == 'eventsourcing.domain.model.entity#VersionedEntity.Created'
+    assert item['topic'] == 'eventsourcing.domain.model.entity#VersionedEntity.Created'
 
-    assert section_dict['items'][1]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'
-    assert section_dict['items'][2]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'
-    assert section_dict['items'][3]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'
-    assert section_dict['items'][4]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][1]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][2]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][3]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][4]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
 
     # Resolve the notifications to domain events.
     domain_events = resolve_notifications(section_dict['items'])

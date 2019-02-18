@@ -1,8 +1,8 @@
 from collections import namedtuple
 
-SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data'])
+SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'state'])
 
-StoredEvent = namedtuple('StoredEvent', ['originator_id', 'originator_version', 'event_type', 'state'])
+StoredEvent = namedtuple('StoredEvent', ['originator_id', 'originator_version', 'topic', 'state'])
 
 
 class SequencedItemFieldNames(object):
@@ -25,8 +25,8 @@ class SequencedItemFieldNames(object):
         return self._field_names[2]
 
     @property
-    def data(self):
-        # Data is assumed to be the fourth field of a sequenced item.
+    def state(self):
+        # State is assumed to be the fourth field of a sequenced item.
         return self._field_names[3]
 
     @property

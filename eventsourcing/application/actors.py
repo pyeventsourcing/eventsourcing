@@ -5,6 +5,7 @@ from thespian.actors import *
 from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.system import System, SystemRunner
 from eventsourcing.domain.model.events import subscribe, unsubscribe
+from eventsourcing.exceptions import RecordConflictError
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 
 logger = logging.getLogger()
@@ -344,18 +345,23 @@ class ProcessSlave(Actor):
         # Just process one notification so prompts are dispatched promptly, sent
         # messages only dispatched from actor after receive_message() returns.
         advance_by = 1
-        if msg.last_prompts:
-            for prompt in msg.last_prompts.values():
-                notification_count += self.process.run(prompt, advance_by=advance_by)
-        else:
-            notification_count += self.process.run(advance_by=advance_by)
 
-        if notification_count:
-            # Run again, until nothing was done.
+        try:
+            if msg.last_prompts:
+                for prompt in msg.last_prompts.values():
+                    notification_count += self.process.run(prompt, advance_by=advance_by)
+            else:
+                notification_count += self.process.run(advance_by=advance_by)
+        except RecordConflictError:
+            # Run again.
             self.send(self.myAddress, SlaveRunRequest(last_prompts={}, master=msg.master))
         else:
-            # Report back to master.
-            self.send(msg.master, SlaveRunResponse())
+            if notification_count:
+                # Run again, until nothing was done.
+                self.send(self.myAddress, SlaveRunRequest(last_prompts={}, master=msg.master))
+            else:
+                # Report back to master.
+                self.send(msg.master, SlaveRunResponse())
 
     def close(self):
         unsubscribe(

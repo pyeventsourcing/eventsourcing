@@ -18,7 +18,7 @@ class TestPersistencePolicy(unittest.TestCase):
         self.event_store = mock.Mock(spec=AbstractEventStore)
         self.persistence_policy = PersistencePolicy(
             event_store=self.event_store,
-            event_type=VersionedEntity.Event
+            persist_event_type=VersionedEntity.Event
         )
 
     def tearDown(self):

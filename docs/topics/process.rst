@@ -65,7 +65,7 @@ pattern for process events is included at the end of this section.
 
 
 Process application
--------------------
+===================
 
 A process application is an event-sourced :doc:`projection </topics/projections>`
 into an event-sourced :doc:`application </topics/application>`. One
@@ -92,7 +92,7 @@ data are stored together atomically).
 
 
 Reliability
-~~~~~~~~~~~
+-----------
 
 Reliability is the most important concern in this section. A process
 is considered to be reliable if its result is entirely unaffected
@@ -111,9 +111,10 @@ transactions, both of which are normally considered reliable.
 
 
 Notification tracking
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
-A process application consumes events by reading domain event notifications
+A process application consumes events by
+:doc:`reading domain event notifications </topics/notifications>`
 from its notification log readers. The events are retrieved in a reliable order,
 without race conditions or duplicates or missing items. Each notification in a
 notification log has a unique integer ID, and the notification log IDs form a
@@ -127,7 +128,7 @@ of the notification log reader when the process is commenced or resumed.
 
 
 Policies
-~~~~~~~~
+--------
 
 A process application will respond to events according to its policy. Its policy might
 do nothing in response to one type of event, and it might call an aggregate command method
@@ -145,7 +146,7 @@ in an atomic database transaction.
 
 
 Atomicity
-~~~~~~~~~
+---------
 
 A process application is as reliable as the atomicity of its database transactions,
 just like a ratchet is as strong as its teeth (notification log) and pawl (tracking
@@ -176,7 +177,7 @@ reliability. However, the "single point of failure" this may represent is acknow
 
 
 System of processes
--------------------
+===================
 
 The library class :class:`~eventsourcing.application.system.System`
 can be used to define a system of process applications,
@@ -191,7 +192,7 @@ logic with precaution and remediation for infrastructure failures.
 
 
 Infrastructure-independence
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------
 
 A system of process applications can be defined independently of infrastructure so that the
 same system can be run with different infrastructure at different times.
@@ -200,7 +201,7 @@ SQLAlchemy, and later reused in a Django project.
 
 
 System runners
-~~~~~~~~~~~~~~
+--------------
 
 A system of process applications can run in a single thread,
 with synchronous propagation and processing of events through
@@ -216,7 +217,7 @@ in a CPU core.
 
 
 Maintainability
-~~~~~~~~~~~~~~~
+---------------
 
 Whilst maintainability is greatly assisted by having an entire
 system of applications defined independently of infrastructure, it
@@ -227,7 +228,7 @@ develop and maintain the system.
 
 
 Scalability
-~~~~~~~~~~~
+-----------
 
 Especially when using multiple operating system processes, throughput
 can be increased by breaking longer steps into smaller steps, up but
@@ -247,7 +248,7 @@ dependencies between domain events).
 
 
 Causal dependencies
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 Causal dependencies are needed to synchronise between parallel processing of a
 sequence of events. This is used in the library when a system is run with multiple
@@ -289,7 +290,7 @@ notifications.
 
 
 Kahn process networks
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 Because a notification log and reader functions effectively as a FIFO, a system of
 determinate process applications can be recognised as a `Kahn Process Network
@@ -308,8 +309,8 @@ High performance or "real time" processing could be obtained by avoiding writing
 durable database and instead running applications with an in-memory database.
 
 
-Process manager?
-~~~~~~~~~~~~~~~~
+Process managers
+----------------
 
 A process application, specifically an aggregate combined with a policy in a process application,
 could function effectively as a "saga", or "process manager", or "workflow manager". That is, it

@@ -15,7 +15,7 @@ class IntegerSequencedRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    data = models.TextField()
+    state = models.TextField()
 
     class Meta:
         unique_together = (("sequence_id", "position"),)
@@ -36,7 +36,7 @@ class TimestampSequencedRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    data = models.TextField()
+    state = models.TextField()
 
     class Meta:
         unique_together = (("sequence_id", "position"),)
@@ -60,7 +60,7 @@ class SnapshotRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    data = models.TextField()
+    state = models.TextField()
 
     class Meta:
         unique_together = (("sequence_id", "position"),)
@@ -81,7 +81,7 @@ class EntitySnapshotRecord(models.Model):
     originator_version = models.BigIntegerField()
 
     # Topic of the item (e.g. path to domain event class).
-    event_type = models.TextField()
+    topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
     state = models.TextField()
@@ -113,7 +113,7 @@ class StoredEventRecord(models.Model):
     notification_id = models.BigIntegerField()
 
     # Topic of the item (e.g. path to domain event class).
-    event_type = models.TextField()
+    topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
     state = models.TextField()

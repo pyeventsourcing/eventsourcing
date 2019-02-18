@@ -201,9 +201,9 @@ class ProcessApplication(Pipeable, SimpleApplication):
         return new_events
 
     def get_event_from_notification(self, notification):
-        return self.event_store.sequenced_item_mapper.from_topic_and_data(
-            topic=notification['event_type'],
-            data=notification['state']
+        return self.event_store.mapper.event_from_topic_and_state(
+            topic=notification['topic'],
+            state=notification['state']
         )
 
     def get_notification_generator(self, upstream_name, advance_by):
@@ -329,7 +329,7 @@ class ProcessApplication(Pipeable, SimpleApplication):
 
     def construct_event_records(self, pending_events, causal_dependencies=None):
         # Convert to event records.
-        sequenced_items = self.event_store.to_sequenced_item(pending_events)
+        sequenced_items = self.event_store.item_from_event(pending_events)
         event_records = self.event_store.record_manager.to_records(sequenced_items)
 
         # Set notification log IDs, and causal dependencies.

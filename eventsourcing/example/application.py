@@ -121,21 +121,21 @@ class ApplicationWithPersistencePolicies(ApplicationWithEventStores):
         if self.entity_event_store:
             return PersistencePolicy(
                 event_store=self.entity_event_store,
-                event_type=VersionedEntity.Event,
+                persist_event_type=VersionedEntity.Event,
             )
 
     def construct_snapshot_persistence_policy(self):
         if self.snapshot_event_store:
             return PersistencePolicy(
                 event_store=self.snapshot_event_store,
-                event_type=Snapshot,
+                persist_event_type=Snapshot,
             )
 
     def construct_log_persistence_policy(self):
         if self.log_event_store:
             return PersistencePolicy(
                 event_store=self.log_event_store,
-                event_type=Logged,
+                persist_event_type=Logged,
             )
 
     def close(self):

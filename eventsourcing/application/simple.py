@@ -183,7 +183,7 @@ class SimpleApplication(with_metaclass(ABCMeta)):
     def construct_persistence_policy(self):
         self.persistence_policy = PersistencePolicy(
             event_store=self.event_store,
-            event_type=self.persist_event_type
+            persist_event_type=self.persist_event_type
         )
 
     def change_pipeline(self, pipeline_id):

@@ -299,7 +299,7 @@ class ExampleDDDApplication(object):
             event_store=event_store,
         )
         self.persistence_policy = PersistencePolicy(
-            event_type=ExampleAggregateRoot.Event,
+            persist_event_type=ExampleAggregateRoot.Event,
             event_store=event_store,
         )
 

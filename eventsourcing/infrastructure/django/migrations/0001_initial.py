@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
                 ('application_name', models.CharField(max_length=32)),
                 ('originator_id', models.UUIDField()),
                 ('originator_version', models.BigIntegerField()),
-                ('event_type', models.TextField()),
+                ('topic', models.TextField()),
                 ('state', models.TextField()),
             ],
             options={
@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
                 ('sequence_id', models.UUIDField()),
                 ('position', models.BigIntegerField()),
                 ('topic', models.TextField()),
-                ('data', models.TextField()),
+                ('state', models.TextField()),
             ],
             options={
                 'db_table': 'integer_sequenced_items',
@@ -58,7 +58,7 @@ class Migration(migrations.Migration):
                 ('sequence_id', models.UUIDField()),
                 ('position', models.BigIntegerField()),
                 ('topic', models.TextField()),
-                ('data', models.TextField()),
+                ('state', models.TextField()),
             ],
             options={
                 'db_table': 'snapshots',
@@ -73,7 +73,7 @@ class Migration(migrations.Migration):
                 ('originator_version', models.BigIntegerField()),
                 ('pipeline_id', models.IntegerField()),
                 ('notification_id', models.BigIntegerField()),
-                ('event_type', models.TextField()),
+                ('topic', models.TextField()),
                 ('state', models.TextField()),
                 ('causal_dependencies', models.TextField()),
             ],
@@ -88,7 +88,7 @@ class Migration(migrations.Migration):
                 ('sequence_id', models.UUIDField()),
                 ('position', models.DecimalField(decimal_places=6, max_digits=24)),
                 ('topic', models.TextField()),
-                ('data', models.TextField()),
+                ('state', models.TextField()),
             ],
             options={
                 'db_table': 'timestamp_sequenced_items',

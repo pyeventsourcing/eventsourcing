@@ -38,7 +38,7 @@ table will have matching column names.
 Whatever the names of the fields, the first field of a sequenced item will represent the
 identity of a sequence to which an item belongs. The second field will represent the
 position of the item in its sequence. The third field will represent a topic to which
-the item pertains. And the fourth field will represent the data associated with the item.
+the item pertains. And the fourth field will represent the state of the item.
 
 
 SequencedItem namedtuple
@@ -52,17 +52,17 @@ The library provides a sequenced item named tuple called
     from eventsourcing.infrastructure.sequenceditem import SequencedItem
 
 
-Like in the example above, the library's ``SequencedItem`` namedtuple has four fields. The
-``sequence_id`` identifies the sequence in which the item belongs. The ``position``
-identifies the position of the item in its sequence. The ``topic`` identifies a
-dimension of concern to which the item pertains. The ``data`` holds the data associated
-with the item.
+Like in the example above, the library's ``SequencedItem`` namedtuple
+has four fields. The ``sequence_id`` identifies the sequence to which
+the item belongs. The ``position`` identifies the position of the item
+in its sequence. The ``topic`` identifies a dimension of concern to
+which the item pertains. The ``state`` holds the state of the item.
 
 A sequenced item is just a tuple, and can be used as such. In the example
 below, a sequenced item happens to be constructed with a UUID to identify
 a sequence. The item has also been given an integer position value, it has a
 topic that happens to correspond to a domain event class in the library. The
-item's data is a JSON object in which ``foo`` is ``bar``.
+item's state is a JSON string in which ``foo`` is ``bar``.
 
 .. code:: python
 
@@ -70,13 +70,13 @@ item's data is a JSON object in which ``foo`` is ``bar``.
 
     sequence1 = uuid4()
 
-    data = '{"foo":"bar","position":0,"sequence_id":{"UUID":"%s"}}' % sequence1.hex
+    state = '{"foo":"bar","position":0,"sequence_id":{"UUID":"%s"}}' % sequence1.hex
 
     sequenced_item1 = SequencedItem(
         sequence_id=sequence1,
         position=0,
         topic='eventsourcing.domain.model.events#DomainEvent',
-        data=data,
+        state=state,
     )
 
 
@@ -89,22 +89,20 @@ simply the values given when the object was constructed.
     assert sequenced_item1.sequence_id == sequence1
     assert sequenced_item1.position == 0
     assert sequenced_item1.topic == 'eventsourcing.domain.model.events#DomainEvent'
-    assert sequenced_item1.data == data, sequenced_item1.data
-    sequenced_item1.data
+    assert sequenced_item1.state == state, sequenced_item1.state
 
 
 StoredEvent namedtuple
 ----------------------
 
 The library provides a sequenced item named tuple called ``StoredEvent``. The attributes of the
-``StoredEvent`` namedtuple are ``originator_id``, ``originator_version``, ``event_type``, and ``state``.
+``StoredEvent`` namedtuple are ``originator_id``, ``originator_version``, ``topic``, and ``state``.
 
 The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to ``sequence_id`` above.
 The ``originator_version`` is the version of the aggregate that published the event, and is equivalent to
 ``position`` above.
-The ``event_type`` identifies the class of the domain event that is stored, and is equivalent to ``topic`` above.
-The ``state`` holds the state of the domain event, and is equivalent to ``data`` above.
-
+The ``topic`` identifies the class of the domain event that is stored, and is equivalent to ``topic`` above.
+The ``state`` holds the state of the domain event, and is equivalent to ``state`` above.
 
 .. code:: python
 
@@ -115,12 +113,12 @@ The ``state`` holds the state of the domain event, and is equivalent to ``data``
     stored_event1 = StoredEvent(
         originator_id=aggregate1,
         originator_version=0,
-        event_type='eventsourcing.domain.model.events#DomainEvent',
+        topic='eventsourcing.domain.model.events#DomainEvent',
         state='{"foo":"bar","originator_version":0,"originator_id":{"UUID":"%s"}}' % aggregate1.hex,
     )
     assert stored_event1.originator_id == aggregate1
     assert stored_event1.originator_version == 0
-    assert stored_event1.event_type == 'eventsourcing.domain.model.events#DomainEvent'
+    assert stored_event1.topic == 'eventsourcing.domain.model.events#DomainEvent'
     assert stored_event1.state == '{"foo":"bar","originator_version":0,"originator_id":{"UUID":"%s"}}' % aggregate1.hex
 
 
@@ -147,23 +145,23 @@ sequenced item named tuple ``SequencedItem``.
     sequenced_item_mapper = SequencedItemMapper()
 
 
-The method ``from_sequenced_item()`` can be used to convert sequenced item objects to application-level objects.
+The method ``event_from_item()`` can be used to convert sequenced item objects to application-level objects.
 
 
 .. code:: python
 
-    domain_event = sequenced_item_mapper.from_sequenced_item(sequenced_item1)
+    domain_event = sequenced_item_mapper.event_from_item(sequenced_item1)
 
     assert domain_event.foo == 'bar'
 
 
-The method ``to_sequenced_item()`` can be used to convert application-level objects to sequenced item named tuples.
+The method ``item_from_event()`` can be used to convert application-level objects to sequenced item named tuples.
 
 
 .. code:: python
 
-    recovered_data = sequenced_item_mapper.to_sequenced_item(domain_event).data
-    assert recovered_data == sequenced_item1.data, (recovered_data, sequenced_item1.data)
+    recovered_state = sequenced_item_mapper.item_from_event(domain_event).state
+    assert recovered_state == sequenced_item1.state, (recovered_state, sequenced_item1.state)
 
 
 If the names of the first two fields of the sequenced item named tuple (e.g. ``sequence_id`` and ``position``) do not
@@ -190,7 +188,7 @@ using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
 
     assert domain_event1.foo == 'baz'
 
-    assert sequenced_item_mapper.to_sequenced_item(domain_event1).sequence_id == aggregate1
+    assert sequenced_item_mapper.item_from_event(domain_event1).sequence_id == aggregate1
 
 
 Alternatively, a sequenced item named tuple type that is different from the
@@ -203,7 +201,7 @@ namedtuple, can be passed with the constructor arg ``sequenced_item_class``.
         sequenced_item_class=StoredEvent
     )
 
-    domain_event1 = sequenced_item_mapper.from_sequenced_item(stored_event1)
+    domain_event1 = sequenced_item_mapper.event_from_item(stored_event1)
 
     assert domain_event1.foo == 'bar', domain_event1
 
@@ -270,18 +268,18 @@ The code below extends the JSON transcoding to support sets.
         sequenced_item_class=StoredEvent,
     )
 
-    domain_event = customized_sequenced_item_mapper.from_sequenced_item(
+    domain_event = customized_sequenced_item_mapper.event_from_item(
         StoredEvent(
             originator_id=sequence1,
             originator_version=0,
-            event_type='eventsourcing.domain.model.events#DomainEvent',
+            topic='eventsourcing.domain.model.events#DomainEvent',
             state='{"foo":{"__set__":["bar","baz"]},"originator_version":0,"originator_id":{"UUID":"%s"}}' % sequence1
             .hex,
         )
     )
     assert domain_event.foo == set(["bar", "baz"])
 
-    sequenced_item = customized_sequenced_item_mapper.to_sequenced_item(domain_event)
+    sequenced_item = customized_sequenced_item_mapper.item_from_event(domain_event)
     assert sequenced_item.state.startswith('{"foo":{"__set__":["ba')
 
 
@@ -290,7 +288,7 @@ Application-level encryption
 
 The ``SequencedItemMapper`` can be constructed with a symmetric cipher. If
 a cipher is given, then the ``state`` field of every sequenced item will be
-encrypted before being sent to the database. The data retrieved from the
+encrypted before being sent to the database. The state retrieved from the
 database will be decrypted and verified, which protects against tampering.
 
 The library provides an AES cipher object class called ``AESCipher``. It
@@ -346,14 +344,14 @@ be used to pass in a cipher object, and thereby enable encryption.
     assert domain_event1.foo == 'bar'
 
     # Map the domain event to an encrypted stored event namedtuple.
-    stored_event = ciphered_sequenced_item_mapper.to_sequenced_item(domain_event1)
+    stored_event = ciphered_sequenced_item_mapper.item_from_event(domain_event1)
 
     # Attribute names and values of the domain event are not visible in the encrypted ``state`` field.
     assert 'foo' not in stored_event.state
     assert 'bar' not in stored_event.state
 
     # Recover the domain event from the encrypted state.
-    domain_event = ciphered_sequenced_item_mapper.from_sequenced_item(stored_event)
+    domain_event = ciphered_sequenced_item_mapper.event_from_item(stored_event)
 
     # Domain event has decrypted attributes.
     assert domain_event.foo == 'bar'
