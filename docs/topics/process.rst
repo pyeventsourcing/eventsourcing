@@ -472,7 +472,6 @@ of the system.
 
 In the example below, the command class ``CreateOrder`` is defined using the
 library's command class, :class:`~eventsourcing.domain.model.command.Command`, which
-introduces the name ``Command`` for use in domain models, and which
 extends the library's :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`
 class with a method ``done()`` and a property ``is_done``.
 
@@ -1047,12 +1046,17 @@ class when the runner is constructed.
 
 In this example, there are three pipeline IDs, so there will be three
 instances of the system pipeline, giving twelve child operating system
-processes altogether. Fifteen orders will processed by the system altogether,
-five in each pipeline.
+processes altogether.
 
 .. code:: python
 
     runner.pipeline_ids = [0, 1, 2]
+
+
+Fifteen orders will processed by the system altogether,
+five in each pipeline.
+
+.. code:: python
 
     num_orders = 15
 
@@ -1077,7 +1081,9 @@ five in each pipeline.
 
 
 It would be possible to run the system with e.g. pipelines 0-7 on one machine,
-pipelines 8-15 on another machine, and so on.
+pipelines 8-15 on another machine, and so on. That sort of thing can be
+expressed in configuration management, for example with
+`Kubernetes <https://kubernetes.io/>`__.
 
 If cluster scaling is automated, it would be useful for processes to be
 distributed automatically across the cluster. Actor model seems like one
@@ -1145,8 +1151,8 @@ called when the context manager enters. The ``close()`` method is called
 when the context manager exits. By default the ``shutdown()`` method
 is not called by ``close()``. If ``ActorModelRunner`` is constructed with ``shutdown_on_close=True``,
 which is ``False`` by default, then the actors will be shutdown by ``close()``, and so
-also when the context manager exits. Event so, shutting down the system actors will not
-shutdown a "mutliproc" base system.
+also when the context manager exits. Even so, shutting down the system actors will not
+shutdown a "multiproc" base system.
 
 .. These methods can be used separately. A script can be called to initialise the base
 .. system. Another script can start the system actors. Another script can be called to
