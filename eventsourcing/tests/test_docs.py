@@ -23,7 +23,7 @@ class TestDocs(TestCase):
         # Need to drop the stored events, because the __main__#Order topics
         # mess up the multiprocessing tests (because the Orders application
         # has the same ID so events from one test cause another to fail).
-        os.environ['DB_URI'] = 'mysql+pymysql://{}:{}@{}/eventsourcing'.format(
+        os.environ['DB_URI'] = 'mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true'.format(
             os.getenv('MYSQL_USER', 'root'),
             os.getenv('MYSQL_PASSWORD', ''),
             os.getenv('MYSQL_HOST', '127.0.0.1'),

@@ -522,7 +522,7 @@ The ``uri`` for MySQL used with this driver would look something like this.
 
 .. code::
 
-    mysql+pymysql://username:password@localhost/eventsourcing
+    mysql+pymysql://username:password@localhost/eventsourcing?charset=utf8mb4&binary_prefix=true
 
 
 Alternatively for MySQL, the Python package `mysqlclient <https://pypi.python.org/pypi/mysqlclient>`__
@@ -536,7 +536,7 @@ The ``uri`` for MySQL used with this driver would look something like this.
 
 .. code::
 
-    mysql+mysqldb://username:password@localhost/eventsourcing
+    mysql+mysqldb://username:password@localhost/eventsourcing?charset=utf8mb4&binary_prefix=true
 
 
 Another alternative is `PyMySQL <https://pypi.python.org/pypi/PyMySQL>`__. It has a BSD licence.
@@ -549,7 +549,7 @@ The ``uri`` for MySQL used with this driver would look something like this.
 
 .. code::
 
-    mysql+pymysql://username:password@localhost/eventsourcing
+    mysql+pymysql://username:password@localhost/eventsourcing?charset=utf8mb4&binary_prefix=true
 
 
 PostgreSQL

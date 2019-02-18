@@ -88,7 +88,7 @@ even ``mysql-connector-python-rf`` for MySQL).
     postgresql+psycopg2://scott:tiger@localhost:5432/mydatabase
 
     # MySQL with pymysql.
-    mysql+pymysql://scott:tiger@hostname/dbname
+    mysql+pymysql://scott:tiger@hostname/dbname?charset=utf8mb4&binary_prefix=true
 
     # MySQL with mysql-connector-python-rf.
     mysql+sqlconnector://scott:tiger@hostname/dbname
