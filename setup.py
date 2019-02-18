@@ -44,7 +44,7 @@ testing_requires = [
     'celery<=4.2.99999',
     'pymysql<=0.9.99999',
     'thespian<=3.9.99999',
-    'psycopg2-binary<=2.2.99999'  # for Django with PostgreSQL.
+    'psycopg2-binary<=2.7.99999'  # for Django with PostgreSQL.
 ] + cassandra_requires + sqlalchemy_requires + django_requires
 
 docs_requires = ['Sphinx', 'sphinx_rtd_theme', 'sphinx-autobuild'] + testing_requires
