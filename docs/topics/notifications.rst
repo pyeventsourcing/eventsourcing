@@ -719,25 +719,18 @@ and a ``section_size``.
     assert section.next_id == '6,10', section.next_id
     assert len(section.items) == 5, section.items
 
-    raise Exception(section.items)
+The notifications (``section.items``) from ``RecordManagerNotificationLog``
+are Python dicts with keys: ``id``, ``topic``, ``state``, ``originator_id``,
+``originator_version``, and ``casual_dependencies``.
 
-The sections of the record notification log each have notification items that
-reflect the recorded domain event.
-
-The items (notifications) in the sections from ``RecordManagerNotificationLog``
-are Python dicts with three key-values: ``id``, ``topic``, and ``data``.
-
-The record manager uses its ``sequenced_item_class`` to identify the actual
-names of the record fields containing the topic and the data, and constructs
-the notifications (the dicts) with the values of those fields. The
-notification's data is simply the record data, so if the record data
-was encrypted, the notification data will also be encrypted. The keys of
-the event notification do not reflect the sequenced item class
-being used in the record manager.
-
-The ``topic`` value can be resolved to a Python class, such as
-a domain event class. An object instance, such as a domain event
-object, can then be reconstructed using the notification's ``data``.
+A domain event can be obtained from a notification by calling the method
+``event_from_topic_and_state()`` on a sequenced item mapper, passing in
+the ``topic`` and ``state`` values. The ``topic`` value can be resolved
+to a Python class, such as a domain event class. An object instance, such
+as a domain event object, can then be reconstructed using the notification's
+``state``. The notification's ``state`` is simply the stored event ``state``,
+so if the record data was encrypted, the notification data will also be
+encrypted. The sequenced item mapper needs to be configured accordingly.
 
 In the code below, the function ``resolve_notifications`` shows
 how that can be done (this function doesn't exist in the library).
@@ -755,12 +748,21 @@ how that can be done (this function doesn't exist in the library).
     # Resolve a section of notifications into domain events.
     domain_events = resolve_notifications(section.items)
 
-    # Check we got the first entity's "created" event.
-    assert isinstance(domain_events[0], VersionedEntity.Created)
+    from eventsourcing.domain.model.array import ItemAssigned
+    assert type(domain_events[0]) == VersionedEntity.Created
+    assert type(domain_events[1]) == ItemAssigned
+    assert type(domain_events[2]) == ItemAssigned
+    assert type(domain_events[3]) == ItemAssigned
+    assert type(domain_events[4]) == ItemAssigned
+
     assert domain_events[0].originator_id == first_entity.id
+    assert domain_events[1].item == 'item0'
+    assert domain_events[3].item == 'item1'
+    assert domain_events[4].item == 'item2'
+
 
 If the notification data was encrypted by the sequenced item
-mapper, the sequence item mapper will decrypt the data before
+mapper, the sequenced item mapper will decrypt the data before
 reconstructing the domain event. In this example, the sequenced
 item mapper does not have a cipher, so the notification data is
 not encrypted.
@@ -832,14 +834,6 @@ by e.g. user, and place the events of all aggregates created by a user in the sa
 notification log, since they are perhaps most likely to be causally related. This
 mechanism would allow the number of logs to be increased and decreased, with aggregate
 event notifications switching from one log to another and still be processed coherently.
-
-
-Todo: Define notification records in SQLAlchemy: application_id, pipeline_id, record_id, originator_id,
-originator_version with unique index on (application_id, log_id, record_id) and unique index on
-(originator_id, originator_version). Give notification record class to record manager.
-Change manager to write a notification record for each event. Maybe change aggregate
-__save__() method to accept other records, which could be used to save a tracking record.
-Use with an event record class that also has (application_id) column.
 
 
 BigArrayNotificationLog
