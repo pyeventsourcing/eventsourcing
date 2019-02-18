@@ -1050,7 +1050,12 @@ processes altogether.
 
 .. code:: python
 
-    runner.pipeline_ids = [0, 1, 2]
+    runner = MultiprocessRunner(
+        system=system,
+        infrastructure_class=SQLAlchemyApplication,
+        setup_tables=True,
+        pipeline_ids = [0, 1, 2]
+    )
 
 
 Fifteen orders will processed by the system altogether,
@@ -1097,8 +1102,8 @@ Actor model
 ~~~~~~~~~~~
 
 An Actor model library, in particular the `Thespian Actor Library
-<https://github.com/kquick/Thespian>`__, can be used to run
-a system of process applications as actors.
+<https://github.com/kquick/Thespian>`__, can also be used to run
+a multi-pipeline system of process applications.
 
 The example below runs with Thespian's "simple system base".
 The actors will run by sending messages recursively.
@@ -1107,14 +1112,11 @@ The actors will run by sending messages recursively.
 
     from eventsourcing.application.actors import ActorModelRunner
 
-    runner = ActorModelRunner(
-        system=system,
-        pipeline_ids=[0, 1, 2],
+    with ActorModelRunner(
+        system=system, pipeline_ids=[0, 1, 2],
         infrastructure_class=SQLAlchemyApplication,
         setup_tables=True
-    )
-
-    with runner:
+    ) as runner:
 
         # Create new orders.
         command_ids = []

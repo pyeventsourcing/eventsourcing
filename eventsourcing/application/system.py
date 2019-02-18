@@ -1,6 +1,6 @@
 import time
 from abc import ABCMeta, abstractmethod
-from collections import OrderedDict, deque, defaultdict
+from collections import OrderedDict, defaultdict, deque
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
 
@@ -13,7 +13,8 @@ from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError, EventSourcingError
+from eventsourcing.exceptions import CausalDependencyFailed, EventSourcingError, OperationalError, ProgrammingError, \
+    RecordConflictError
 from eventsourcing.interface.notificationlog import NotificationLogReader
 
 DEFAULT_POLL_INTERVAL = 5
@@ -40,8 +41,7 @@ class System(object):
         """
         self.pipelines_exprs = pipeline_exprs
         self.setup_tables = kwargs.get('setup_tables', False)
-        # self.infrastructure_class = kwargs.get('infrastructure_class', None)
-        self.infrastructure_class = kwargs.get('infrastructure_class', PopoApplication)
+        self.infrastructure_class = kwargs.get('infrastructure_class', None)
 
         self.session = kwargs.get('session', None)
 
@@ -136,8 +136,13 @@ class SystemRunner(with_metaclass(ABCMeta)):
     def __init__(self, system: System, infrastructure_class=None, setup_tables=False):
         self.system = system
         self.infrastructure_class = infrastructure_class or self.system.infrastructure_class
-        if not self.infrastructure_class:
-            assert self.infrastructure_class, "Runner needs infrastructure_class"
+        # Check that a concrete infrastructure class is involved.
+        if not all([issubclass(c, ApplicationWithConcreteInfrastructure)
+                    for c in self.system.process_classes.values()]):
+            if self.infrastructure_class is None or not issubclass(
+                self.infrastructure_class, ApplicationWithConcreteInfrastructure
+            ):
+                raise ProgrammingError("System runner needs a concrete application infrastructure class")
         self.setup_tables = setup_tables
         self.processes = {}
 
@@ -161,11 +166,12 @@ class SystemRunner(with_metaclass(ABCMeta)):
     def __getattr__(self, process_name):
         return self.system.__getattr__(process_name, infrastructure_class=self.infrastructure_class)
 
+
 class InProcessRunner(SystemRunner):
     """
     Runs a system in the current process,
     either in the current thread, or with
-    a thread for each process in the system.
+    one thread for each process in the system.
     """
 
     def start(self):
@@ -212,8 +218,10 @@ class SingleThreadedRunner(InProcessRunner):
     Runs a system in the current thread.
     """
 
-    def __init__(self, *args, **kwargs):
-        super(SingleThreadedRunner, self).__init__(*args, **kwargs)
+    def __init__(self, system: System, infrastructure_class=PopoApplication, *args, **kwargs):
+        super(SingleThreadedRunner, self).__init__(system=system,
+                                                   infrastructure_class=infrastructure_class, *args, **kwargs
+                                                   )
         self.pending_prompts = Queue()
         self.iteration_lock = Lock()
 
@@ -522,10 +530,6 @@ class SteppingSingleThreadedRunner(SteppingRunner):
 
     def start(self):
         super(SteppingSingleThreadedRunner, self).start()
-        # for process_name in self.system.processes:
-            # event = Event()
-            # event.set()
-            # self.seen_prompt_events[process_name] = event
 
         self.clock_thread = ProcessRunningClockThread(
             normal_speed=self.normal_speed,
@@ -539,7 +543,6 @@ class SteppingSingleThreadedRunner(SteppingRunner):
 
     def handle_prompt(self, prompt):
         pass
-        # self.seen_prompt_events[prompt.process_name].set()
 
     def close(self):
         self.stop_event.set()
@@ -731,6 +734,7 @@ class SteppingMultiThreadedRunner(SteppingRunner):
     Allow commands to be scheduled at future clock tick number, and execute when reached.
 
     """
+
     def __init__(self, *args, **kwargs):
         super(SteppingMultiThreadedRunner, self).__init__(*args, **kwargs)
         self.seen_prompt_events = {}
