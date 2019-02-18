@@ -69,7 +69,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'eventsourcing'
-copyright = '2017, John Bywater'
+copyright = '2019, John Bywater'
 author = 'John Bywater'
 
 # The version info for the project you're documenting, acts as replacement for
