@@ -264,7 +264,7 @@ The example below shows a custom application class ``MyApplication`` that
 extends ``SQLAlchemyApplication`` with application service ``create_aggregate()``
 that can create new ``CustomAggregate`` entities.
 
-The `persist_event_type` value can be set as a class attribute.
+The ``persist_event_type`` value can be set as a class attribute.
 
 .. code:: python
 
