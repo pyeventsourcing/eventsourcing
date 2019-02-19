@@ -637,15 +637,19 @@ create new ``Order`` aggregates.
 
         persist_event_type = CreateOrder.Event
 
-        @staticmethod
-        def policy(repository, event):
-            if isinstance(event, Order.Created):
-                cmd = repository[event.command_id]
-                cmd.order_id = event.originator_id
+        @applicationpolicy
+        def policy(self, repository, event):
+            pass
 
-            elif isinstance(event, Order.Paid):
-                cmd = repository[event.command_id]
-                cmd.done()
+        @policy.register(Order.Created)
+        def _(self, repository, event):
+            cmd = repository[event.command_id]
+            cmd.order_id = event.originator_id
+
+        @policy.register(Order.Paid)
+        def _(self, repository, event):
+            cmd = repository[event.command_id]
+            cmd.done()
 
         @staticmethod
         @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
