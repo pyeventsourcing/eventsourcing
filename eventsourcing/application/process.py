@@ -49,9 +49,6 @@ class ProcessApplication(Pipeable, SimpleApplication):
             )
         super(ProcessApplication, self).close()
 
-    def is_upstream_prompt(self, prompt):
-        return isinstance(prompt, Prompt) and prompt.process_name in self.readers.keys()
-
     def publish_prompt(self, event=None):
         """
         Publishes prompt for a given event.
