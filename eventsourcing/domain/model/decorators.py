@@ -197,26 +197,3 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
         if not isinstance(wait, (float, int)):
             raise TypeError("'wait' must be a float: {}".format(max_attempts))
         return _retry
-
-
-def applicationpolicy(arg=None):
-    """
-    Decorator for application policy method.
-
-    Allows policy to be built up from methods
-    registered for different event classes.
-    """
-
-    def _mutator(func):
-        wrapped = singledispatch(func)
-
-        @wraps(wrapped)
-        def wrapper(*args):
-            return wrapped.dispatch(type(args[-1]))(*args)
-
-        wrapper.register = wrapped.register
-
-        return wrapper
-
-    assert isfunction(arg)
-    return _mutator(arg)

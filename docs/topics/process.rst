@@ -565,26 +565,32 @@ by setting an ``Order`` as paid.
 .. code:: python
 
     from eventsourcing.application.process import ProcessApplication
+    from eventsourcing.application.decorators import applicationpolicy
 
 
     class Orders(ProcessApplication):
 
-        @staticmethod
-        def policy(repository, event):
-            if isinstance(event, CreateOrder.Created):
-                return Order.create(command_id=event.originator_id)
+        @applicationpolicy
+        def policy(self, repository, event):
+            pass
 
-            elif isinstance(event, Reservation.Created):
-                # Set the order as reserved.
-                order = repository[event.order_id]
-                assert not order.is_reserved
-                order.set_is_reserved(event.originator_id)
+        @policy.register(CreateOrder.Created)
+        def _(self, repository, event):
+            return Order.create(command_id=event.originator_id)
 
-            elif isinstance(event, Payment.Created):
-                # Set the order as paid.
-                order = repository[event.order_id]
-                assert not order.is_paid
-                order.set_is_paid(event.originator_id)
+        @policy.register(Reservation.Created)
+        def _(self, repository, event):
+            # Set the order as reserved.
+            order = repository[event.order_id]
+            assert not order.is_reserved
+            order.set_is_reserved(event.originator_id)
+
+        @policy.register(Payment.Created)
+        def _(self, repository, event):
+            # Set the order as paid.
+            order = repository[event.order_id]
+            assert not order.is_paid
+            order.set_is_paid(event.originator_id)
 
 The reservations process application responds to an ``Order.Created`` event
 by creating a new ``Reservation`` aggregate.
@@ -702,7 +708,7 @@ rather than coding `test doubles <https://martinfowler.com/bliki/TestDouble.html
 
         # Check order is reserved whenever a reservation is created.
         event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
-        Orders.policy(repository=repository, event=event)
+        Orders().policy(repository, event)
         assert order.is_reserved
 
 
@@ -722,7 +728,7 @@ because an order was reserved.
 
         # Check payment is created whenever order is reserved.
         event = Order.Reserved(originator_id=order.id, originator_version=1)
-        payment = Payments.policy(repository=repository, event=event)
+        payment = Payments.policy(repository, event)
         assert isinstance(payment, Payment), payment
         assert payment.order_id == order.id
 
