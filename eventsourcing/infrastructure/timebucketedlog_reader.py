@@ -1,9 +1,5 @@
-from time import time
-
 import six
-from six import with_metaclass
 
-from eventsourcing.domain.model.events import QualnameABCMeta
 from eventsourcing.domain.model.timebucketedlog import MessageLogged, Timebucketedlog, make_timebucket_id, \
     next_bucket_starts, previous_bucket_starts
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
@@ -17,7 +13,7 @@ def get_timebucketedlog_reader(log, event_store):
     return TimebucketedlogReader(log=log, event_store=event_store)
 
 
-class TimebucketedlogReader(with_metaclass(QualnameABCMeta)):
+class TimebucketedlogReader(object):
     def __init__(self, log, event_store, page_size=50):
         assert isinstance(log, Timebucketedlog)
         self.log = log
