@@ -599,10 +599,13 @@ by creating a new ``Reservation`` aggregate.
 
     class Reservations(ProcessApplication):
 
-        @staticmethod
-        def policy(repository, event):
-            if isinstance(event, Order.Created):
-                return Reservation.create(order_id=event.originator_id)
+        @applicationpolicy
+        def policy(self, repository, event):
+            pass
+
+        @policy.register(Order.Created)
+        def _(self, repository, event):
+            return Reservation.create(order_id=event.originator_id)
 
 
 The payments process application responds to an ``Order.Reserved`` event
@@ -612,10 +615,13 @@ by creating a new ``Payment``.
 
     class Payments(ProcessApplication):
 
-        @staticmethod
-        def policy(repository, event):
-            if isinstance(event, Order.Reserved):
-                return Payment.create(order_id=event.originator_id)
+        @applicationpolicy
+        def policy(self, repository, event):
+            pass
+
+        @policy.register(Order.Reserved)
+        def _(self, repository, event):
+            return Payment.create(order_id=event.originator_id)
 
 
 Additionally, the library class
@@ -732,7 +738,7 @@ because an order was reserved.
 
         # Check payment is created whenever order is reserved.
         event = Order.Reserved(originator_id=order.id, originator_version=1)
-        payment = Payments.policy(repository, event)
+        payment = Payments().policy(repository, event)
         assert isinstance(payment, Payment), payment
         assert payment.order_id == order.id
 
