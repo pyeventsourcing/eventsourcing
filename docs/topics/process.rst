@@ -113,37 +113,36 @@ transactions, both of which are normally considered reliable.
 Notification tracking
 ---------------------
 
-A process application consumes events by
-:doc:`reading domain event notifications </topics/notifications>`
-from its notification log readers. The events are retrieved in a reliable
-order, without race conditions or duplicates or missing items. Each
-notification in a notification log has a unique integer ID, and the
-notification log IDs form a contiguous sequence (counting).
+A process application consumes domain events by
+:doc:`reading event notifications </topics/notifications>`
+from its notification log readers. The domain events are retrieved in
+a reliable order, without race conditions or duplicates or missing items.
+Each event notification in a notification log has a unique integer ID, and
+the notification log IDs form a contiguous sequence (counting).
 
 To keep track of its position in the notification log, a process application
-will create a new tracking record for each event notification it processes.
+will create a unique tracking record for each event notification it processes.
 The tracking records determine how far the process has progressed through
 the notification log. The tracking records are used to set the position of
-the notification log reader when the process is commenced or resumed.
+the notification log reader when the process application is commenced or resumed.
 
-There can only be one tracking record for each notification. Once the tracking
-record has been written it can't be written again, and neither can any new
-events unfortunately triggered by duplicate calls to aggregate commands (which
-may not be idempotent). If an event can be processed at all, then it will be
-processed exactly once.
+There can only be one tracking record for each event notification. Once the
+tracking record has been written it can't be written again, in which case neither
+will any new domain events. Hence, if a domain event notification can be processed
+at all, then it will be processed exactly once.
 
 
 Policies
 --------
 
-A process application will respond to events according to its policy.
+A process application will respond to domain events according to its policy.
 Its policy might do nothing in response to one type of event, and it
 might call an aggregate command method in response to another type of
 event. If the aggregate method triggers new domain events, they will
 be available in its notification log for others to read.
 
 Whatever the policy response, the process application will write one
-tracking record for each notification, along with new stored event
+tracking record for each event notification, along with new stored event
 and notification records, in an atomic database transaction.
 
 
