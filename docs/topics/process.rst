@@ -115,48 +115,48 @@ Notification tracking
 
 A process application consumes events by
 :doc:`reading domain event notifications </topics/notifications>`
-from its notification log readers. The events are retrieved in a reliable order,
-without race conditions or duplicates or missing items. Each notification in a
-notification log has a unique integer ID, and the notification log IDs form a
-contiguous sequence (counting).
+from its notification log readers. The events are retrieved in a reliable
+order, without race conditions or duplicates or missing items. Each
+notification in a notification log has a unique integer ID, and the
+notification log IDs form a contiguous sequence (counting).
 
 To keep track of its position in the notification log, a process application
 will create a new tracking record for each event notification it processes.
 The tracking records determine how far the process has progressed through
-the notification log. The tracking records are used to set the position
-of the notification log reader when the process is commenced or resumed.
+the notification log. The tracking records are used to set the position of
+the notification log reader when the process is commenced or resumed.
+
+There can only be one tracking record for each notification. Once the tracking
+record has been written it can't be written again, and neither can any new
+events unfortunately triggered by duplicate calls to aggregate commands (which
+may not be idempotent). If an event can be processed at all, then it will be
+processed exactly once.
 
 
 Policies
 --------
 
-A process application will respond to events according to its policy. Its policy might
-do nothing in response to one type of event, and it might call an aggregate command method
-in response to another type of event. If the aggregate method triggers new domain events,
-they will be available in its notification log for others to read.
+A process application will respond to events according to its policy.
+Its policy might do nothing in response to one type of event, and it
+might call an aggregate command method in response to another type of
+event. If the aggregate method triggers new domain events, they will
+be available in its notification log for others to read.
 
-There can only be one tracking record for each notification. Once the tracking record
-has been written it can't be written again, and neither can any new events unfortunately
-triggered by duplicate calls to aggregate commands (which may not be idempotent). If an
-event can be processed at all, then it will be processed exactly once.
-
-Whatever the policy response, the process application will write one tracking
-record for each notification, along with new stored event and notification records,
-in an atomic database transaction.
+Whatever the policy response, the process application will write one
+tracking record for each notification, along with new stored event
+and notification records, in an atomic database transaction.
 
 
 Atomicity
 ---------
 
-A process application is as reliable as the atomicity of its database transactions,
-just like a ratchet is as strong as its teeth (notification log) and pawl (tracking
-records).
-
-If some of the new records can't be written, then none are. If anything goes wrong
-before all the records have been written, the transaction will abort, and none of
-the records will be written. On the other hand, if a tracking record was written,
-then so were any new event records, and so the process will have completed an atomic
-progression.
+Just like a ratchet is as strong as its teeth (notification log) and pawl
+(tracking records), a process application is as reliable as the atomicity
+of its database transactions. If some of the new records can't be written,
+then none are. If anything goes wrong before all the records have been
+written, the transaction will abort, and none of the records will be written.
+On the other hand, if a tracking record was written, then so were any new
+event records, and so the process will have completed an atomic progression.
 
 The atomicity of the recording and consumption determines the production as atomic:
 a continuous stream of events is processed in discrete, sequenced, indivisible units.
