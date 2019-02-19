@@ -451,7 +451,7 @@ Commands
 --------
 
 Commands have been discussed previously as
-:doc:`methods on aggregate objects </topics/domainmodel>`. Here, system
+:doc:`methods on domain entities </topics/domainmodel>`. Here, system
 commands are introduced, as event sourced aggregates created within a
 separate "commands application".
 
