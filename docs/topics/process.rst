@@ -367,10 +367,12 @@ an order can be set as paid, which involves a payment ID.
         def __init__(self, command_id=None, **kwargs):
             super(Order, self).__init__(**kwargs)
             self.command_id = command_id
-            self.is_reserved = False
-            self.is_paid = False
             self.reservation_id = None
             self.payment_id = None
+
+        @property
+        def is_reserved(self):
+            return self.reservation_id is not None
 
         def set_is_reserved(self, reservation_id):
             assert not self.is_reserved, "Order {} already reserved.".format(self.id)
@@ -380,8 +382,11 @@ an order can be set as paid, which involves a payment ID.
 
         class Reserved(Event):
             def mutate(self, order: "Order"):
-                order.is_reserved = True
                 order.reservation_id = self.reservation_id
+
+        @property
+        def is_paid(self):
+            return self.payment_id is not None
 
         def set_is_paid(self, payment_id):
             assert not self.is_paid, "Order {} already paid.".format(self.id)
@@ -391,7 +396,6 @@ an order can be set as paid, which involves a payment ID.
 
         class Paid(Event):
             def mutate(self, order: "Order"):
-                order.is_paid = True
                 order.payment_id = self.payment_id
 
 
