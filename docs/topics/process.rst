@@ -369,6 +369,8 @@ an order can be set as paid, which involves a payment ID.
             self.command_id = command_id
             self.is_reserved = False
             self.is_paid = False
+            self.reservation_id = None
+            self.payment_id = None
 
         def set_is_reserved(self, reservation_id):
             assert not self.is_reserved, "Order {} already reserved.".format(self.id)
@@ -377,7 +379,7 @@ an order can be set as paid, which involves a payment ID.
             )
 
         class Reserved(Event):
-            def mutate(self, order):
+            def mutate(self, order: "Order"):
                 order.is_reserved = True
                 order.reservation_id = self.reservation_id
 
@@ -388,7 +390,7 @@ an order can be set as paid, which involves a payment ID.
             )
 
         class Paid(Event):
-            def mutate(self, order):
+            def mutate(self, order: "Order"):
                 order.is_paid = True
                 order.payment_id = self.payment_id
 
@@ -476,8 +478,9 @@ class with a method ``done()`` and a property ``is_done``.
 
 The ``CreateOrder`` class extends the library's
 :class:`~eventsourcing.domain.model.command.Command`
-class with an event sourced ``order_id`` attribute, which will be used to associate
-the command's objects with the orders created by the system in response.
+class with an event sourced ``order_id`` attribute, which will eventually be used
+to keep the ID of an ``Order`` aggregate created by the system in response to
+a ``CreateOrder`` command being created.
 
 .. code:: python
 
@@ -644,13 +647,13 @@ create new ``Order`` aggregates.
 The ``@retry`` decorator overcomes contention when creating new commands
 whilst also processing domain events from the ``Orders`` application.
 
-Please note, the ``__save__()`` method of aggregates shouldn't be called in a process policy,
+Please note, the ``__save__()`` method of aggregates must not be called in a process policy,
 because pending events from both new and changed aggregates will be automatically collected by
 the process application after its ``policy()`` method has returned. To be reliable, a process
 application needs to commit all the event records atomically with a tracking record, and calling
-``__save__()`` will instead commit events in a separate transaction. Policies should normally
-return new aggregates to the caller, but do not need to return existing aggregates that have
-been accessed or changed.
+``__save__()`` will instead commit events in a separate transaction. Policies must return new
+aggregates to the caller, but do not need to return existing aggregates that have been accessed
+or changed.
 
 
 Tests
