@@ -108,11 +108,6 @@ class System(object):
         self.__runner.__exit__(exc_type, exc_val, exc_tb)
         del (self.__runner)
 
-    def drop_tables(self):
-        for process_class in self.process_classes.values():
-            with self.construct_app(process_class, setup_table=False) as process:
-                process.drop_table()
-
     def __getattr__(self, process_name, infrastructure_class=None):
         if self.processes and process_name in self.processes:
             process = self.processes[process_name]
@@ -393,10 +388,6 @@ class MultiThreadedRunner(InProcessRunner):
         outbox_id = prompt.process_name
         assert outbox_id in self.outboxes, (outbox_id, self.outboxes.keys())
         self.outboxes[outbox_id].put(prompt)
-
-    @staticmethod
-    def is_prompt(event):
-        return isinstance(event, Prompt)
 
     def close(self):
         super(MultiThreadedRunner, self).close()
