@@ -556,10 +556,12 @@ Processes
 ---------
 
 A process application has a policy. The policy may respond to a domain
-event by calling a command method on an aggregate.
+event by calling a command method on an aggregate. Process applications
+are defined for orders, reservations, and payments.
 
-The orders process responds to new commands by creating a new ``Order``. It responds
-to new reservations by setting an ``Order`` as reserved. And it responds to a new ``Payment``,
+The ``Orders`` process application policy responds to new commands by
+creating a new ``Order`` aggregate. It responds to new reservations by
+setting an ``Order`` as reserved. And it responds to a new ``Payment``,
 by setting an ``Order`` as paid.
 
 .. code:: python
@@ -576,23 +578,36 @@ by setting an ``Order`` as paid.
 
         @policy.register(CreateOrder.Created)
         def _(self, repository, event):
-            return Order.create(command_id=event.originator_id)
+            return self.create_order(command_id=event.originator_id)
 
         @policy.register(Reservation.Created)
         def _(self, repository, event):
-            # Set the order as reserved.
+            self._set_order_is_reserved(repository, event)
+
+        @policy.register(Payment.Created)
+        def _(self, repository, event):
+            self._set_order_is_paid(repository, event)
+
+        @classmethod
+        def create_order(cls, command_id):
+            return Order.create(command_id=command_id)
+
+        def _set_order_is_reserved(self, repository, event):
             order = repository[event.order_id]
             assert not order.is_reserved
             order.set_is_reserved(event.originator_id)
 
-        @policy.register(Payment.Created)
-        def _(self, repository, event):
-            # Set the order as paid.
+        def _set_order_is_paid(self, repository, event):
             order = repository[event.order_id]
             assert not order.is_paid
             order.set_is_paid(event.originator_id)
 
-The reservations process application responds to an ``Order.Created`` event
+The decorator ``@applicationpolicy`` is similar to ``@singledispatch``
+from the ``functools`` core Python package. It isn't magic, it's just
+a slightly better alternative to an "if-instance-elif-isinstance-..."
+block.
+
+The ``Reservations`` process application responds to an ``Order.Created`` event
 by creating a new ``Reservation`` aggregate.
 
 .. code:: python
@@ -605,7 +620,11 @@ by creating a new ``Reservation`` aggregate.
 
         @policy.register(Order.Created)
         def _(self, repository, event):
-            return Reservation.create(order_id=event.originator_id)
+            return self.create_reservation(event.originator_id)
+
+        @staticmethod
+        def create_reservation(order_id):
+            return Reservation.create(order_id=order_id)
 
 
 The payments process application responds to an ``Order.Reserved`` event
@@ -621,7 +640,12 @@ by creating a new ``Payment``.
 
         @policy.register(Order.Reserved)
         def _(self, repository, event):
-            return Payment.create(order_id=event.originator_id)
+            order_id = event.originator_id
+            return self.create_payment(order_id)
+
+        @staticmethod
+        def create_payment(order_id):
+            return Payment.create(order_id=order_id)
 
 
 Additionally, the library class

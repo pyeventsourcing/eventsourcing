@@ -234,9 +234,16 @@ class ProcessApplication(Pipeable, SimpleApplication):
         reader.seek(max_record_id or 0)
 
     def call_policy(self, event):
+        # Get the application policy.
         policy = self.policy_func or self.policy
+
+        # Wrap the actual repository, so we can collect aggregates.
         repository = RepositoryWrapper(self.repository)
+
+        # Actually call the policy.
         new_aggregates = policy(repository, event)
+
+        # Collect all aggregates.
         repo_aggregates = list(repository.retrieved_aggregates.values())
         all_aggregates = repo_aggregates[:]
         if new_aggregates is not None:
@@ -247,6 +254,7 @@ class ProcessApplication(Pipeable, SimpleApplication):
                         self.repository._cache[new_aggregate.id] = new_aggregate
             all_aggregates += new_aggregates
 
+        # Identify causal dependencies.
         causal_dependencies = []
         if self.use_causal_dependencies:
             highest = defaultdict(int)
