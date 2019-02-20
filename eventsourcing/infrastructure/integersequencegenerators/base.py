@@ -13,12 +13,6 @@ class AbstractIntegerSequenceGenerator(object):
         Returns the next item in the container.
         """
 
-    def next(self):
-        """
-        Python 2.7 version of the iterator protocol.
-        """
-        return self.__next__()
-
 
 class SimpleIntegerSequenceGenerator(AbstractIntegerSequenceGenerator):
 
