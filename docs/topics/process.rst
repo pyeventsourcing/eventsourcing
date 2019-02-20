@@ -1,5 +1,5 @@
 ==================
-Process and system
+Distributed system
 ==================
 
 This section discusses how to make a reliable distributed system
