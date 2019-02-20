@@ -5,21 +5,7 @@ from uuid import UUID
 
 import six
 
-if hasattr(datetime, 'timezone'):
-    utc_timezone = datetime.timezone.utc
-else:
-    from datetime import tzinfo, timedelta
-
-
-    class UTC(tzinfo):
-        def utcoffset(self, date_time):
-            return timedelta(0)
-
-        def dst(self, date_time):
-            return timedelta(0)
-
-
-    utc_timezone = UTC()
+utc_timezone = datetime.timezone.utc
 
 
 def decimaltimestamp_from_uuid(uuid_arg):
