@@ -1,16 +1,12 @@
 import datetime
+from collections import deque
 from decimal import Decimal
-from json import JSONDecoder, JSONEncoder, dumps, loads
+from json import JSONDecodeError, JSONDecoder, JSONEncoder, dumps, loads
 from uuid import UUID
 
 import dateutil.parser
-import six
-
-if not six.PY2:
-    from json import JSONDecodeError
 
 from eventsourcing.utils.topic import get_topic, resolve_topic
-from collections import deque
 
 
 class ObjectJSONEncoder(JSONEncoder):
@@ -135,11 +131,7 @@ def json_dumps(obj, cls=None):
 
 
 def json_loads(s, cls=None):
-    # Python 3 introduces JSONDecodeError.
-    if six.PY2:
+    try:
         return loads(s, cls=cls)
-    else:
-        try:
-            return loads(s, cls=cls)
-        except JSONDecodeError:
-            raise ValueError("Couldn't load JSON string: {}".format(s))
+    except JSONDecodeError:
+        raise ValueError("Couldn't load JSON string: {}".format(s))
