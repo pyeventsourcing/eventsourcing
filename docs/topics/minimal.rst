@@ -522,12 +522,12 @@ Remember that we can always get the sequenced items directly from the record man
 A sequenced item is tuple containing a serialised representation of the domain event.
 The library class :class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`
 is a Python namedtuple with four fields: ``sequence_id``, ``position``, ``topic``,
-and ``data``.
+and ``state``.
 
 In this example, an event's ``originator_id`` attribute is mapped to the ``sequence_id``
 field, and the event's ``originator_version`` attribute is mapped to the ``position``
 field. The ``topic`` field of a sequenced item is used to identify the event class, and
-the ``data`` field represents the state of the event (normally a JSON string).
+the ``state`` field represents the state of the event (normally a JSON string).
 
 .. code:: python
 

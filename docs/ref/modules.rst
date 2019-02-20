@@ -142,6 +142,7 @@ event sourced domain model.
 
 .. automodule:: eventsourcing.domain.model.aggregate
     :members:
+    :special-members:
     :show-inheritance:
     :undoc-members:
 
@@ -153,6 +154,7 @@ A kind of collection, indexed by integer. Doesn't need to replay all events to e
 
 .. automodule:: eventsourcing.domain.model.array
     :members:
+    :special-members:
     :show-inheritance:
     :undoc-members:
 
@@ -164,6 +166,7 @@ Collections.
 
 .. automodule:: eventsourcing.domain.model.collection
     :members:
+    :special-members:
     :show-inheritance:
     :undoc-members:
 
@@ -175,6 +178,7 @@ Commands as aggregates.
 
 .. automodule:: eventsourcing.domain.model.command
     :members:
+    :special-members:
     :show-inheritance:
     :undoc-members:
 
@@ -197,6 +201,7 @@ Base classes for domain entities of different kinds.
 
 .. automodule:: eventsourcing.domain.model.entity
     :members:
+    :special-members:
     :show-inheritance:
     :undoc-members:
 
@@ -208,6 +213,7 @@ Base classes for domain events of different kinds.
 
 .. automodule:: eventsourcing.domain.model.events
     :members:
+    :special-members:
     :show-inheritance:
     :undoc-members:
 
@@ -219,6 +225,7 @@ Snapshotting is implemented in the domain layer as an event.
 
 .. automodule:: eventsourcing.domain.model.snapshot
     :members:
+    :special-members:
     :show-inheritance:
     :undoc-members:
 
@@ -232,6 +239,7 @@ partition becoming very large (and then unworkable).
 
 .. automodule:: eventsourcing.domain.model.timebucketedlog
     :members:
+    :special-members:
     :show-inheritance:
     :undoc-members:
 
@@ -272,7 +280,7 @@ Classes for event sourcing with Apache Cassandra.
     :show-inheritance:
     :undoc-members:
 
-.. automodule:: eventsourcing.infrastructure.cassandra.models
+.. automodule:: eventsourcing.infrastructure.cassandra.records
     :members:
     :show-inheritance:
     :undoc-members:
@@ -294,12 +302,22 @@ django
 
 A Django application for event sourcing with the Django ORM.
 
-.. automodule:: eventsourcing.infrastructure.django.models
+.. automodule:: eventsourcing.infrastructure.django.factory
     :members:
     :show-inheritance:
     :undoc-members:
 
 .. automodule:: eventsourcing.infrastructure.django.manager
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+.. automodule:: eventsourcing.infrastructure.django.models
+    :members:
+    :show-inheritance:
+    :undoc-members:
+
+.. automodule:: eventsourcing.infrastructure.django.utils
     :members:
     :show-inheritance:
     :undoc-members:
