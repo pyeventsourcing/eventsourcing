@@ -1,11 +1,10 @@
-from functools import singledispatch
+from functools import singledispatch, wraps
 from inspect import isfunction
 from random import random
 from time import sleep
 
 from eventsourcing.domain.model.events import subscribe
 from eventsourcing.exceptions import ProgrammingError
-from six import wraps
 
 
 def subscribe_to(*event_classes):

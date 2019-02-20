@@ -1,18 +1,8 @@
 import os
 import unittest
-from abc import ABCMeta
+from abc import ABC
 from functools import wraps
 from unittest import TestCase
-
-import six
-
-try:
-    from abc import ABC
-except ImportError:
-    class ABC(six.with_metaclass(ABCMeta)):
-        """Helper class that provides a standard way to create an ABC using
-        inheritance.
-        """
 
 
 class AbstractTestCase(ABC, TestCase):

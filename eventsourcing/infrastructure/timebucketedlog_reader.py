@@ -1,5 +1,3 @@
-import six
-
 from eventsourcing.domain.model.timebucketedlog import MessageLogged, Timebucketedlog, make_timebucket_id, \
     next_bucket_starts, previous_bucket_starts
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
@@ -19,7 +17,7 @@ class TimebucketedlogReader(object):
         self.log = log
         assert isinstance(event_store, AbstractEventStore), event_store
         self.event_store = event_store
-        assert isinstance(page_size, six.integer_types)
+        assert isinstance(page_size, int)
         self.page_size = page_size
         self.position = None
 

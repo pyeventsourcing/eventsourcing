@@ -1,6 +1,4 @@
-from abc import ABCMeta
-
-from six import with_metaclass
+from abc import ABC
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
@@ -21,7 +19,7 @@ from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 # in favour of the new, less complicated application base classes
 
 
-class ApplicationWithEventStores(with_metaclass(ABCMeta)):
+class ApplicationWithEventStores(ABC):
     """
     Event sourced application object class.
 

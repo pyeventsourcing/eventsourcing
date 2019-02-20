@@ -2,13 +2,12 @@ import itertools
 from copy import deepcopy
 from uuid import UUID
 
-import six
 from eventsourcing.application.process import ProcessApplication, ProcessEvent
 from eventsourcing.application.system import System
-from eventsourcing.contrib.paxos.composable import PaxosInstance, Resolution, PaxosMessage
+from eventsourcing.contrib.paxos.composable import PaxosInstance, PaxosMessage, Resolution
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.exceptions import RepositoryKeyError, RecordConflictError, OperationalError
+from eventsourcing.exceptions import OperationalError, RecordConflictError, RepositoryKeyError
 
 
 class PaxosAggregate(AggregateRoot):
@@ -33,7 +32,7 @@ class PaxosAggregate(AggregateRoot):
     is_verbose = False
 
     def __init__(self, quorum_size, network_uid, **kwargs):
-        assert isinstance(quorum_size, six.integer_types)
+        assert isinstance(quorum_size, int)
         self.quorum_size = quorum_size
         self.network_uid = network_uid
         self.promises_received = set()
@@ -74,7 +73,6 @@ class PaxosAggregate(AggregateRoot):
         """
         __notifiable__ = False
 
-
     class AttributesChanged(Event):
         """
         Published when attributes of paxos_instance are changed.
@@ -98,6 +96,7 @@ class PaxosAggregate(AggregateRoot):
         """
         Published when a Paxos message is announced.
         """
+
         @property
         def msg(self):
             return self.__dict__['msg']
@@ -107,7 +106,7 @@ class PaxosAggregate(AggregateRoot):
         """
         Factory method that returns a new Paxos aggregate.
         """
-        assert isinstance(quorum_size, six.integer_types), "Not an integer: {}".format(quorum_size)
+        assert isinstance(quorum_size, int), "Not an integer: {}".format(quorum_size)
         return cls.__create__(
             event_class=cls.Started,
             originator_id=originator_id,

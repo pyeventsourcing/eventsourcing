@@ -7,8 +7,6 @@
 # from multiprocessing.pool import Pool
 # from unittest.case import TestCase, skip
 #
-# import six
-#
 # from eventsourcing.contrib.suffixtrees.application import SuffixTreeApplication
 # from eventsourcing.contrib.suffixtrees.domain.model.generalizedsuffixtree import GeneralizedSuffixTree, \
 #     STRING_ID_END, SuffixTreeEdge, SuffixTreeNode
@@ -834,7 +832,7 @@
 #
 # def get_all_substrings(s):
 #     length = len(s)
-#     return (s[i:j] for i in six.moves.xrange(length) for j in six.moves.xrange(i + 1, length + 1))
+#     return (s[i:j] for i in range(length) for j in range(i + 1, length + 1))
 #
 #
 # worker_app = None

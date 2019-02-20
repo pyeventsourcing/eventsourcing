@@ -4,14 +4,12 @@ from __future__ import unicode_literals
 import datetime
 from uuid import uuid4
 
-import six
-
-from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, Discarded, \
-    TimestampedVersionedEntity
 from eventsourcing.domain.model.decorators import attribute
+from eventsourcing.domain.model.entity import AttributeChanged, Created, Discarded, TimestampedVersionedEntity
 from eventsourcing.domain.model.events import publish
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.exceptions import RepositoryKeyError
+from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
 
 class SuffixTree(TimestampedVersionedEntity):
@@ -371,28 +369,14 @@ def register_new_suffix_tree(case_insensitive=False):
     return entity
 
 
-# Repositories.
-
-class SuffixTreeRepository(AbstractEntityRepository):
-    pass
-
-
-class NodeRepository(AbstractEntityRepository):
-    pass
-
-
-class EdgeRepository(AbstractEntityRepository):
-    pass
-
-
 # Domain services
 
 def find_substring(substring, suffix_tree, edge_repo):
     """Returns the index if substring in tree, otherwise -1.
     """
-    assert isinstance(substring, six.string_types)
+    assert isinstance(substring, str)
     assert isinstance(suffix_tree, SuffixTree)
-    assert isinstance(edge_repo, EdgeRepository)
+    assert isinstance(edge_repo, EventSourcedRepository)
     if not substring:
         return -1
     if suffix_tree.case_insensitive:
@@ -417,38 +401,22 @@ def has_substring(substring, suffix_tree, edge_repo):
     return find_substring(substring, suffix_tree, edge_repo) != -1
 
 
-# Application
-from eventsourcing.contrib.suffixtrees.infrastructure.respositories.suffixtree_repo import SuffixTreeRepo, \
-    NodeRepo, EdgeRepo
-
-
 class SuffixTreeApplication(ExampleApplication):
-    def __init__(self, **kwargs):
-        super(SuffixTreeApplication, self).__init__(**kwargs)
-        self.suffix_tree_repo = SuffixTreeRepo(self.event_store)
-        self.node_repo = NodeRepo(self.event_store)
-        self.edge_repo = EdgeRepo(self.event_store)
-
-    def close(self):
-        super(SuffixTreeApplication, self).close()
-        self.suffix_tree_repo = None
-        self.node_repo = None
-        self.edge_repo = None
 
     def register_new_suffixtree(self, case_insensitive=False):
         return register_new_suffix_tree(case_insensitive)
 
     def find_substring(self, substring, suffix_tree_id):
-        suffix_tree = self.suffix_tree_repo[suffix_tree_id]
+        suffix_tree = self.example_repository[suffix_tree_id]
         started = datetime.datetime.now()
-        result = find_substring(substring=substring, suffix_tree=suffix_tree, edge_repo=self.edge_repo)
+        result = find_substring(substring=substring, suffix_tree=suffix_tree, edge_repo=self.example_repository)
         print("- found substring '{}' in: {}".format(substring, datetime.datetime.now() - started))
         return result
 
     def has_substring(self, substring, suffix_tree_id):
-        suffix_tree = self.suffix_tree_repo[suffix_tree_id]
+        suffix_tree = self.example_repository[suffix_tree_id]
         return has_substring(
             substring=substring,
             suffix_tree=suffix_tree,
-            edge_repo=self.edge_repo,
+            edge_repo=self.example_repository,
         )

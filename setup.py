@@ -16,7 +16,6 @@ if 'READTHEDOCS' in os.environ:
 
 install_requires = singledispatch_requires + [
     'python-dateutil<=2.8.99999',
-    'six<=1.12.99999',
     'pycryptodome<=3.7.99999',
     'requests<=2.21.99999',
     'readerwriterlock<=1.0.99999',

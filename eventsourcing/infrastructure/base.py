@@ -1,6 +1,4 @@
-from abc import ABCMeta, abstractmethod
-
-import six
+from abc import ABC, abstractmethod
 
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
@@ -8,7 +6,7 @@ from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedI
 DEFAULT_PIPELINE_ID = 0
 
 
-class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
+class AbstractSequencedItemRecordManager(ABC):
     def __init__(self, record_class, sequenced_item_class=SequencedItem,
                  contiguous_record_ids=False, application_name=None,
                  pipeline_id=DEFAULT_PIPELINE_ID):
@@ -82,7 +80,7 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
             results_ascending=results_ascending,
 
         )
-        for item in six.moves.map(self.from_record, records):
+        for item in map(self.from_record, records):
             yield item
 
     def list_items(self, *args, **kwargs):

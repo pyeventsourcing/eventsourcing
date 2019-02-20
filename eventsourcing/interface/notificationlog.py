@@ -1,10 +1,9 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 
 import requests
-import six
 
 from eventsourcing.domain.model.array import BigArray
 from eventsourcing.infrastructure.base import ACIDRecordManager
@@ -29,7 +28,7 @@ class Section(object):
         self.next_id = next_id
 
 
-class AbstractNotificationLog(six.with_metaclass(ABCMeta)):
+class AbstractNotificationLog(ABC):
     """
     Presents a sequence of sections from a sequence of notifications.
     """
@@ -205,7 +204,7 @@ class RemoteNotificationLog(AbstractNotificationLog):
         return '{}/{}/'.format(self.base_url.strip('/'), section_id)
 
 
-class NotificationLogReader(six.with_metaclass(ABCMeta)):
+class NotificationLogReader(ABC):
     def __init__(self, notification_log, use_direct_query_if_available=False):
         assert isinstance(notification_log, AbstractNotificationLog)
         self.notification_log = notification_log

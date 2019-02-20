@@ -1,12 +1,9 @@
 import time
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from collections import OrderedDict, defaultdict, deque
+from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
-
-import six
-from six import with_metaclass
-from six.moves.queue import Empty, Queue
 
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication, Prompt
@@ -126,7 +123,7 @@ class System(object):
         return process
 
 
-class SystemRunner(with_metaclass(ABCMeta)):
+class SystemRunner(ABC):
 
     def __init__(self, system: System, infrastructure_class=None, setup_tables=False):
         self.system = system
@@ -348,7 +345,7 @@ class MultiThreadedRunner(InProcessRunner):
                 tick_oversize = tick_size - tick_interval
                 tick_oversize_percentage = 100 * (tick_oversize) / tick_interval
                 if tick_oversize_percentage > 300:
-                    print(f"Warning: Tick over size: { tick_size :.6f}s {tick_oversize_percentage:.2f}%")
+                    print(f"Warning: Tick over size: {tick_size :.6f}s {tick_oversize_percentage:.2f}%")
 
                 if abs(tick_oversize_percentage) < 300:
                     self.tick_adjustment += 0.5 * tick_interval * tick_oversize
@@ -435,7 +432,7 @@ class PromptQueuedApplicationThread(Thread):
                 # Todo: Make the poll interval gradually increase if there are only timeouts?
                 prompt = self.inbox.get(timeout=self.poll_interval)
 
-            except six.moves.queue.Empty:
+            except Empty:
                 # Basically, we're polling after a timeout.
                 if self.clock_event is None:
                     self.run_process()

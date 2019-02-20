@@ -1,7 +1,5 @@
 from abc import ABCMeta
 
-from six import with_metaclass
-
 
 class PipelineExpression(object):
     def __init__(self, left, right):
@@ -26,5 +24,5 @@ class PipeableMetaclass(ABCMeta):
         return PipelineExpression(self, other)
 
 
-class Pipeable(with_metaclass(PipeableMetaclass)):
+class Pipeable(metaclass=PipeableMetaclass):
     pass

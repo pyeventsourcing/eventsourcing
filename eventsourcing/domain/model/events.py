@@ -2,8 +2,6 @@ import os
 from collections import OrderedDict
 from uuid import uuid1
 
-import six
-
 from eventsourcing.exceptions import EventHashError
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
@@ -197,7 +195,7 @@ class EventWithOriginatorVersion(DomainEvent):
     """
 
     def __init__(self, originator_version, **kwargs):
-        if not isinstance(originator_version, six.integer_types):
+        if not isinstance(originator_version, int):
             raise TypeError("Version must be an integer: {}".format(originator_version))
         kwargs['originator_version'] = originator_version
         super(EventWithOriginatorVersion, self).__init__(**kwargs)

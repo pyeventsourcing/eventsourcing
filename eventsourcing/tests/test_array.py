@@ -1,6 +1,8 @@
 from math import ceil, log
+from queue import Queue
 from random import shuffle
 from threading import Thread
+from unittest import mock
 from unittest.case import skip
 from uuid import UUID, uuid4
 
@@ -14,13 +16,6 @@ from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager impo
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
     SQLAlchemyRecordManagerTestCase
-
-try:
-    from unittest import mock
-except:
-    import mock
-
-from six.moves.queue import Queue
 
 
 class TestArrayWithSQLAlchemy(SQLAlchemyRecordManagerTestCase, WithEventPersistence):

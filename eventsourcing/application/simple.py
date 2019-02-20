@@ -1,7 +1,5 @@
 import os
-from abc import ABCMeta
-
-from six import with_metaclass
+from abc import ABC
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
@@ -15,7 +13,7 @@ from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_bytes
 
 
-class SimpleApplication(with_metaclass(ABCMeta)):
+class SimpleApplication(ABC):
     """
     Base class for event sourced applications.
 

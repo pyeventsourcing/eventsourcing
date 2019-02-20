@@ -1,9 +1,7 @@
 import datetime
-from decimal import Decimal
 import time
+from decimal import Decimal
 from uuid import UUID
-
-import six
 
 utc_timezone = datetime.timezone.utc
 
@@ -27,7 +25,7 @@ def timestamp_long_from_uuid(uuid_arg):
     :return: Unix timestamp integer in tenths of microseconds.
     :rtype: int
     """
-    if isinstance(uuid_arg, six.string_types):
+    if isinstance(uuid_arg, str):
         uuid_arg = UUID(uuid_arg)
     assert isinstance(uuid_arg, UUID), uuid_arg
     uuid_time = uuid_arg.time

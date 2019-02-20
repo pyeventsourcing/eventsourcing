@@ -5,8 +5,6 @@
 # from time import sleep
 # from uuid import uuid4
 #
-# import six
-#
 # from eventsourcing.domain.model.collection import Collection
 # from eventsourcing.domain.model.entity import AbstractEntityRepository, AttributeChanged, Created, Discarded, \
 #     TimestampedVersionedEntity, attribute, mutate_entity
@@ -76,8 +74,8 @@
 #                 '0.case_insensitive})'.format(self))
 #
 #     def add_string(self, string, string_id):
-#         assert isinstance(string, six.string_types)
-#         assert isinstance(string_id, six.string_types)
+#         assert isinstance(string, str)
+#         assert isinstance(string_id, str)
 #
 #         # Lower the string, if it's a case insensitive tree.
 #         if self._case_insensitive:
@@ -314,7 +312,7 @@
 #     def remove_string(self, string, string_id):
 #         # Todo: Maybe this is an application service?
 #
-#         assert isinstance(string_id, six.string_types)
+#         assert isinstance(string_id, str)
 #         if self._case_insensitive:
 #             string = string.lower()
 #         assert STRING_ID_END not in string_id
@@ -649,18 +647,18 @@
 #
 #     def __init__(self, source_node_id, first_char_index, last_char_index):
 #         """
-#         :type source_node_id: six.string_types
+#         :type source_node_id: str
 #             Index of node where this suffix starts.
 #
-#         :type first_char_index: six.string_types
+#         :type first_char_index: str
 #             Index of start of suffix in string.
 #
-#         :type last_char_index: six.string_types
+#         :type last_char_index: str
 #             Index of end of suffix in string.
 #         """
-#         assert isinstance(source_node_id, six.string_types)
-#         assert isinstance(first_char_index, six.integer_types)
-#         assert isinstance(last_char_index, six.integer_types)
+#         assert isinstance(source_node_id, str)
+#         assert isinstance(first_char_index, int)
+#         assert isinstance(last_char_index, int)
 #         assert source_node_id is not None
 #         self.source_node_id = source_node_id
 #         self.first_char_index = first_char_index

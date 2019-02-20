@@ -1,12 +1,11 @@
 import multiprocessing
 from multiprocessing import Manager
+from queue import Empty
 from time import sleep
-
-import six
 
 from eventsourcing.application.process import Prompt
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
-from eventsourcing.application.system import System, SystemRunner, DEFAULT_POLL_INTERVAL, PromptOutbox
+from eventsourcing.application.system import DEFAULT_POLL_INTERVAL, PromptOutbox, System, SystemRunner
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError
@@ -204,7 +203,7 @@ class OperatingSystemProcess(multiprocessing.Process):
                 else:
                     self.run_process(item)
 
-            except six.moves.queue.Empty:
+            except Empty:
                 # Basically, we're polling after a timeout.
                 self.run_process()
 

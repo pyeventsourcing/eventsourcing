@@ -4,8 +4,6 @@ from abc import abstractmethod
 from time import sleep
 from uuid import uuid4
 
-import six
-
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
@@ -522,7 +520,7 @@ class AbstractSequencedItemIteratorTestCase(WithRecordManagers):
     def setup_sequenced_items(self):
         self.sequenced_items = []
         self.number_of_sequenced_items = 12
-        for i in six.moves.range(self.number_of_sequenced_items):
+        for i in range(self.number_of_sequenced_items):
             sequenced_item = SequencedItem(
                 sequence_id=self.entity_id,
                 position=i,

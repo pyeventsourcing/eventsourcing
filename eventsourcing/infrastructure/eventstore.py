@@ -1,7 +1,5 @@
 # coding=utf-8
-from abc import ABCMeta, abstractmethod
-
-import six
+from abc import ABC, abstractmethod
 
 from eventsourcing.exceptions import ConcurrencyError, RecordConflictError
 from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
@@ -9,7 +7,7 @@ from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
 
 
-class AbstractEventStore(six.with_metaclass(ABCMeta)):
+class AbstractEventStore(ABC):
     """
     Abstract base class for event stores. Defines the methods
     expected of an event store by other classes in the library.
@@ -140,7 +138,7 @@ class EventStore(AbstractEventStore):
             )
 
         # Deserialize to domain events.
-        domain_events = six.moves.map(self.mapper.event_from_item, sequenced_items)
+        domain_events = map(self.mapper.event_from_item, sequenced_items)
         return list(domain_events)
 
     def get_domain_event(self, originator_id, position):

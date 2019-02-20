@@ -1,7 +1,5 @@
-from functools import singledispatch
+from functools import singledispatch, wraps
 from inspect import isfunction
-
-from six import wraps
 
 
 def applicationpolicy(arg=None):
