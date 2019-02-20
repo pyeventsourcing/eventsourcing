@@ -9,8 +9,7 @@ services:
 python:
   - 3.6
   - 3.7-dev
-#  - pypy  # Cassandra suddenly failing to find hosts on Travis, 21 April 2018. Not sure why.
-#  - pypy3  # Sadly psycopg doesn't work with pypy3 at the moment, 22 July 2018. Known unresolved issue.
+#  - pypy3  # psycopg2cffi works with pypy3. However PyPy doesn't support Python3.6.
 
 
 before_install:
