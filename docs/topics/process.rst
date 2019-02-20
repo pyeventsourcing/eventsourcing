@@ -24,13 +24,13 @@ that is scalable and maintainable.
 .. contents:: :local:
 
 
-.. Please note, the code presented in the example below works only with the library's
-.. SQLAlchemy record manager. Django support is planned, but not yet implemented. Support
-.. for Cassandra is being considered but applications will probably be simple replications
-.. of application state, due to the limited atomicity of Cassandra's lightweight transactions.
-.. Cassandra could be used to archive events written firstly into a relational database.
-.. Events could be removed from the relational database before storage limits are encountered.
-.. Events missing in the relational database could be sourced from Cassandra.
+Please note, the code presented in the example below works only with the library's
+SQLAlchemy and Django infrastructure code. Support for Cassandra is being considered
+but applications will probably be simple replications of application state, due to the
+limited atomicity of Cassandra's lightweight transactions. For example, Cassandra could
+be used to archive events written firstly into a relational database. Events could
+be removed from the relational database before storage limits are encountered. Events
+missing in the relational database could be sourced from Cassandra.
 
 
 Overview
