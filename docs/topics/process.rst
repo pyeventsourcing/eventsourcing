@@ -24,15 +24,6 @@ that is scalable and maintainable.
 .. contents:: :local:
 
 
-Please note, the code presented in the example below works only with the library's
-SQLAlchemy and Django infrastructure code. Support for Cassandra is being considered
-but applications will probably be simple replications of application state, due to the
-limited atomicity of Cassandra's lightweight transactions. For example, Cassandra could
-be used to archive events written firstly into a relational database. Events could
-be removed from the relational database before storage limits are encountered. Events
-missing in the relational database could be sourced from Cassandra.
-
-
 Overview
 ========
 
@@ -335,6 +326,14 @@ The behaviour of the system is entirely defined by the combination of the
 aggregates and the policies of its process applications. This allows highly
 maintainable code, code that is easily tested, easily understood, easily
 changed, easily reconfigured for use with different infrastructure.
+
+Please note, the code presented in the example below works only with the library's
+SQLAlchemy and Django infrastructure code. Support for Cassandra is being considered
+but such applications will probably be simple replications of application state, due
+to the limited atomicity of Cassandra's lightweight transactions. For example,
+Cassandra could be used to archive events written firstly into a relational database.
+Events could be removed from the relational database before storage limits are encountered.
+Events missing in the relational database could be sourced from Cassandra.
 
 
 Aggregates
