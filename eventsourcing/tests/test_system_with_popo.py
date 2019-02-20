@@ -83,12 +83,12 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
                     sleep(0.2)
                     retries -= 1
 
-            if runner.clock_thread.is_alive():
-                self.fail("Clock thread still alive")
-            final_time = runner.clock_thread.tick_count / runner.normal_speed
-            print(f"Runner: average clock speed {runner.clock_thread.actual_clock_speed:.1f}Hz")
-            print(f"Runner: total tick count {runner.clock_thread.tick_count}")
-            print(f"Runner: total time in simulation {final_time:.2f}s")
+        if runner.clock_thread.is_alive():
+            self.fail("Clock thread still alive")
+        final_time = runner.clock_thread.tick_count / runner.normal_speed
+        print(f"Runner: average clock speed {runner.clock_thread.actual_clock_speed:.1f}Hz")
+        print(f"Runner: total tick count {runner.clock_thread.tick_count}")
+        print(f"Runner: total time in simulation {final_time:.2f}s")
 
         elapsed_time = time() - start_time
         print(f"Duration: { elapsed_time :.4f}s")
@@ -151,10 +151,10 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
                     sleep(0.2)
                     retries -= 1
 
-            final_time = runner.clock_thread.tick_count / runner.normal_speed
-            print(f"Runner: average clock speed {runner.clock_thread.actual_clock_speed:.0f}Hz")
-            print(f"Runner: total tick count {runner.clock_thread.tick_count}")
-            print(f"Runner: total time in simulation {final_time:.2f}s")
+        final_time = runner.clock_thread.tick_count / runner.normal_speed
+        print(f"Runner: average clock speed {runner.clock_thread.actual_clock_speed:.0f}Hz")
+        print(f"Runner: total tick count {runner.clock_thread.tick_count}")
+        print(f"Runner: total time in simulation {final_time:.2f}s")
 
         elapsed_time = time() - start_time
         print(f"Duration: { elapsed_time :.4f}s")
