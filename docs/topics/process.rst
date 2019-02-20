@@ -481,10 +481,10 @@ extends the library's :class:`~eventsourcing.domain.model.aggregate.AggregateRoo
 class with a method ``done()`` and a property ``is_done``.
 
 The ``CreateOrder`` class extends the library's
-:class:`~eventsourcing.domain.model.command.Command`
-class with an event sourced ``order_id`` attribute, which will eventually be used
-to keep the ID of an ``Order`` aggregate created by the system in response to
-a ``CreateOrder`` command being created.
+:class:`~eventsourcing.domain.model.command.Command`.
+A ``CreateOrder`` command can be assigned an order ID.
+Its ``order_id`` is initially ``None``.
+
 
 .. code:: python
 
@@ -512,10 +512,12 @@ a ``CreateOrder`` command being created.
             pass
 
 
-A ``CreateOrder`` command can be assigned an order ID. Its ``order_id`` is initially ``None``.
+The ``order_id`` will eventually be used to keep the ID of
+an ``Order`` aggregate created by the system in response to
+a ``CreateOrder`` command being created.
 
-The behaviour of a system command aggregate can be fully tested with simple test cases,
-without involving any other components.
+The behaviour of a system command aggregate can be fully tested
+with simple test cases, without involving any other components.
 
 .. code:: python
 
