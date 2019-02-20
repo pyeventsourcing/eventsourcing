@@ -588,8 +588,8 @@ by setting an ``Order`` as paid.
         def _(self, repository, event):
             self._set_order_is_paid(repository, event)
 
-        @classmethod
-        def create_order(cls, command_id):
+        @staticmethod
+        def create_order(command_id):
             return Order.create(command_id=command_id)
 
         def _set_order_is_reserved(self, repository, event):
