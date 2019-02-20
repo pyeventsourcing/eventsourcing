@@ -1,6 +1,6 @@
-===========
-Application
-===========
+=================
+Application layer
+=================
 
 This section discusses how an event sourced domain model can
 be combined with library infrastructure to make an event sourced

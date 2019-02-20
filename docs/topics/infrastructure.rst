@@ -1,6 +1,6 @@
-==============
-Infrastructure
-==============
+====================
+Infrastructure layer
+====================
 
 The library's infrastructure layer provides a cohesive
 mechanism for storing events as sequences of items.

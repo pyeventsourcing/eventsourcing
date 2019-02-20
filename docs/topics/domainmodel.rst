@@ -1,5 +1,5 @@
 ============
-Domain model
+Domain layer
 ============
 
 The library's domain layer has base classes for domain events and entities. These classes show how to
