@@ -1,8 +1,11 @@
 import os
+import platform
 
 from setuptools import find_packages, setup
 
 from eventsourcing import __version__
+
+is_pypy = platform.python_implementation() == 'PyPy'
 
 # Read the docs doesn't need to build the Cassandra driver (and can't).
 if 'READTHEDOCS' in os.environ:
@@ -37,7 +40,8 @@ testing_requires = cassandra_requires + sqlalchemy_requires + django_requires + 
     'celery<=4.2.99999',
     'pymysql<=0.9.99999',
     'thespian<=3.9.99999',
-    'psycopg2-binary<=2.7.99999'  # for Django with PostgreSQL.
+    # Tests use Django with PostgreSQL.
+    'psycopg2cffi<=2.8.99999' if is_pypy else 'psycopg2-binary<=2.7.99999'
 ]
 
 docs_requires = testing_requires + [

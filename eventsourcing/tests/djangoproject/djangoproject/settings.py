@@ -80,6 +80,13 @@ WSGI_APPLICATION = 'djangoproject.wsgi.application'
 # more than one adds complications, so use PostgreSQL for all Django tests,
 # despite relative slow performance.
 
+try:
+    from psycopg2cffi import compat
+    compat.register()
+except ImportError:
+    pass
+
+
 
 try:
     from psycopg2cffi import compat

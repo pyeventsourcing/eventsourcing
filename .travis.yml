@@ -7,9 +7,10 @@ services:
   - postgresql
 
 python:
+  - 3.5
   - 3.6
   - 3.7-dev
-#  - pypy3  # psycopg2cffi works with pypy3. However PyPy doesn't support Python3.6.
+  - pypy3  # psycopg2cffi works with pypy3. However PyPy doesn't support Python3.6.
 
 
 before_install:
