@@ -1,20 +1,17 @@
 import os
+import platform
+
 from setuptools import find_packages, setup
 
-try:
-    from functools import singledispatch
-
-    singledispatch_requires = []
-except ImportError:
-    singledispatch_requires = ['singledispatch==3.4.0.3']
-
 from eventsourcing import __version__
+
+is_pypy = platform.python_implementation() == 'PyPy'
 
 # Read the docs doesn't need to build the Cassandra driver (and can't).
 if 'READTHEDOCS' in os.environ:
     os.environ['CASS_DRIVER_NO_CYTHON'] = '1'
 
-install_requires = singledispatch_requires + [
+install_requires = [
     'python-dateutil<=2.8.99999',
     'pycryptodome<=3.7.99999',
     'requests<=2.21.99999',
@@ -30,11 +27,11 @@ cassandra_requires = [
     'cassandra-driver<=3.16.99999'
 ]
 
-django_requires = [  # Note, Django 2 doesn't support Python 2.7
-    'django>=1.11,<=2.1.99999' if str != bytes else 'django>=1.11,<=1.11.99999',
+django_requires = [
+    'django>=1.11,<=2.1.99999'
 ]
 
-testing_requires = [
+testing_requires = cassandra_requires + sqlalchemy_requires + django_requires + [
     'mock<=2.0.99999',
     'flask<=1.0.99999',
     'flask_sqlalchemy<=2.3.99',
@@ -43,11 +40,15 @@ testing_requires = [
     'celery<=4.2.99999',
     'pymysql<=0.9.99999',
     'thespian<=3.9.99999',
-    'psycopg2-binary<=2.7.99999'  # for Django with PostgreSQL.
-] + cassandra_requires + sqlalchemy_requires + django_requires
+    # Tests use Django with PostgreSQL.
+    'psycopg2cffi<=2.8.99999' if is_pypy else 'psycopg2-binary<=2.7.99999'
+]
 
-docs_requires = ['Sphinx', 'sphinx_rtd_theme', 'sphinx-autobuild'] + testing_requires
-
+docs_requires = testing_requires + [
+    'Sphinx',
+    'sphinx_rtd_theme',
+    'sphinx-autobuild'
+]
 
 long_description = """
 A library for event sourcing in Python.
@@ -97,11 +98,10 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        # 'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: Implementation :: CPython',
-        # 'Programming Language :: Python :: Implementation :: PyPy',
+        'Programming Language :: Python :: Implementation :: PyPy',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
 )
