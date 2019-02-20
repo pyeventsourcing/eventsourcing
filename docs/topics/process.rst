@@ -904,9 +904,9 @@ to which applications each is followed by.
 In the example below, the ``system`` object is used directly as a context
 manager. Using the ``system`` object in this manner implicitly constructs
 a :class:`~eventsourcing.application.system.SingleThreadedRunner`. By
-default, the infrastructure is "Plain Old Python Objects", as implemented
-in library class :class:`~eventsourcing.application.popo.PopoApplication`.
-It literally uses plain old Python objects to store domain events,
+default, this runner uses the infrastructure is "Plain Old Python Objects",
+as implemented in library class :class:`~eventsourcing.application.popo.PopoApplication`.
+It literally uses plain old Python objects to store domain events in memory,
 and is the by far the fastest concrete application infrastructure class
 in the library. It can be used when proper disk-based durability is not
 required, for example during system development.
