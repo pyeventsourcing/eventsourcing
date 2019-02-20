@@ -557,9 +557,9 @@ with simple test cases, without involving any other components.
 Processes
 ---------
 
-A process application has a policy. The policy may respond to a domain
-event by calling a command method on an aggregate. Process applications
-are defined for orders, reservations, and payments.
+A process application has a policy which defines how events are processed.
+In the code below, process applications are defined for orders, reservations,
+and payments.
 
 The ``Orders`` process application policy responds to new commands by
 creating a new ``Order`` aggregate. It responds to new reservations by
