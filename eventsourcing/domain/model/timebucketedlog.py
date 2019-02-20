@@ -197,8 +197,4 @@ def bucket_duration(bucket_size):
 # Todo: Move to general utils?
 def timestamp_from_datetime(dt):
     assert dt.tzinfo, "Datetime object does not have tzinfo"
-    try:
-        # Only in Python 3.3+.
-        return dt.timestamp()
-    except AttributeError:
-        return mktime(dt.timetuple()) + (dt.microsecond / 1000000.0)
+    return dt.timestamp()
