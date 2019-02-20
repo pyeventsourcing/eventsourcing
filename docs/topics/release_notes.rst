@@ -6,6 +6,17 @@ number are backwards compatible, within the scope of the documented
 examples. New major versions indicate a backward incompatible changes
 have been introduced since the previous major version.
 
+If you need help upgrading code and migrating data, please get in touch.
+
+Version 7.x series brings many incremental improvements across the library,
+especially the ability to define an entire system of process applications
+independently of infrastructure. Please note, records fields have been renamed.
+
+Version 6.x series was the first release of the "process and system" code.
+
+Version 5.x series was released after quite a lot of refactoring made
+things backward-incompatible.
+
 Version 4.x series was released after quite a lot of refactoring made
 things backward-incompatible. Object namespaces for entity and event
 classes was cleaned up, by moving library names to double-underscore
