@@ -1,4 +1,5 @@
 import os
+
 from setuptools import find_packages, setup
 
 from eventsourcing import __version__
@@ -27,7 +28,7 @@ django_requires = [
     'django>=1.11,<=2.1.99999'
 ]
 
-testing_requires = [
+testing_requires = cassandra_requires + sqlalchemy_requires + django_requires + [
     'mock<=2.0.99999',
     'flask<=1.0.99999',
     'flask_sqlalchemy<=2.3.99',
@@ -37,10 +38,13 @@ testing_requires = [
     'pymysql<=0.9.99999',
     'thespian<=3.9.99999',
     'psycopg2-binary<=2.7.99999'  # for Django with PostgreSQL.
-] + cassandra_requires + sqlalchemy_requires + django_requires
+]
 
-docs_requires = ['Sphinx', 'sphinx_rtd_theme', 'sphinx-autobuild'] + testing_requires
-
+docs_requires = testing_requires + [
+    'Sphinx',
+    'sphinx_rtd_theme',
+    'sphinx-autobuild'
+]
 
 long_description = """
 A library for event sourcing in Python.
