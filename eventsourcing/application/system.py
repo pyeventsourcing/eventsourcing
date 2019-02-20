@@ -598,7 +598,8 @@ class ProcessRunningClockThread(ClockThread):
     @property
     def actual_clock_speed(self):
         if self.all_tick_durations:
-            durations = self.all_tick_durations
+            # Todo: Might need to lock this, to avoid "RuntimeError: deque mutated during iteration".
+            durations = list(self.all_tick_durations)
             return len(durations) / sum(durations)
         else:
             return 0
