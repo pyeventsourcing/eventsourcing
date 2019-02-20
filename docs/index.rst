@@ -40,6 +40,7 @@ Please `register any issues, questions, and requests
    :maxdepth: 2
    :caption: Contents
 
+   topics/release_notes
    topics/background
    topics/quick_start
    topics/installing
@@ -49,10 +50,9 @@ Please `register any issues, questions, and requests
    topics/minimal
    topics/domainmodel
    topics/application
+   topics/deployment
    topics/snapshotting
    topics/notifications
    topics/projections
    topics/process
-   topics/deployment
-   topics/release_notes
    ref/modules

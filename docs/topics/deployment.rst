@@ -24,15 +24,16 @@ which is tested both stand-alone and with uWSGI.
 Application object
 ==================
 
-In general you need one, and only one, instance of your application
-object in each process. If your eventsourcing application object has
-any policies, for example if is has a persistence policy that will
-persist events whenever they are published, then constructing more
-than one instance of the application causes the policy event handlers
-to be subscribed more than once, so for example more than one attempt
-will be made to save each event, which won't work.
+In general you want one, and only one, instance of your application
+class in each process. If your eventsourcing application class has
+any subscriptions to the internal pub-sub mechanism, for example if
+has a persistence policy that will persist events whenever they are
+published, then constructing more than one instance of the application
+will cause the policy event handlers to be subscribed more than once,
+so for example more than one attempt will be made to save each event,
+which won't work very well.
 
-To make sure there is only one instance of your application object in
+To make sure there is only one instance of your application class in
 each process, one possible arrangement (see below) is to have a module
 with two functions and a variable. The first function constructs an
 application object and assigns it to the variable, and can perhaps be
@@ -46,8 +47,17 @@ Although the first function below must be called only once, the second
 function can be called many times. The example functions below have
 been written relatively strictly so that, when it is called, the function
 ``init_application()`` will raise an exception if it has already been
-called, and ``get_application()`` will raise an exeception if
+called, and ``get_application()`` will raise an exception if
 ``init_application()`` has not already been called.
+
+By the way, it's possible to have more than one application, but in
+general they need to have different domain event classes for the
+``persist_event_type`` value of each application, so they don't try
+to persist each other's events. However, in this example only one
+application is deployed and it is deployed without a value of
+``persist_event_type`` being set, so before this application
+would actually persist any events, the class of domain events it
+will persist must be given.
 
 .. code:: python
 
@@ -61,7 +71,7 @@ called, and ``get_application()`` will raise an exeception if
     _application = None
 
 
-    def init_application(**kwargs):
+    def init_application(persist_event_type=None, **kwargs):
         global _application
         if _application is not None:
             raise AssertionError("init_application() has already been called")
@@ -87,7 +97,7 @@ The expected behaviour is demonstrated below.
 
     init_application()
 
-    get_application()
+    app = get_application()
 
 
 As an aside, if you will use these function also in your test suite, and your
@@ -147,9 +157,9 @@ the object wasn't constructed by another thread before the lock was acquired.
         return _application
 
 
-    get_application()
-    get_application()
-    get_application()
+    app = get_application()
+    app = get_application()  # same object
+    app = get_application()  # same object
 
     close_application()
 
