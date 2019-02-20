@@ -48,6 +48,12 @@ class AbstractSequencedItemRecordManager(six.with_metaclass(ABCMeta)):
         Writes sequenced item(s) into the datastore.
         """
 
+    def record_sequenced_item(self, sequenced_item):
+        """
+        Writes sequenced item into the datastore.
+        """
+        return self.record_sequenced_items(sequenced_item)
+
     def get_item(self, sequence_id, position):
         """
         Gets sequenced item from the datastore.
