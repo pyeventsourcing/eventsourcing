@@ -79,6 +79,15 @@ WSGI_APPLICATION = 'djangoproject.wsgi.application'
 # and Docker compose makes it easy to use one MySQL database but using
 # more than one adds complications, so use PostgreSQL for all Django tests,
 # despite relative slow performance.
+
+
+try:
+    from psycopg2cffi import compat
+    compat.register()
+except ImportError:
+    pass
+
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
