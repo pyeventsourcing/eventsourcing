@@ -1130,7 +1130,7 @@ distributed automatically across the cluster. Actor model seems like one
 possible foundation for such automation.
 
 
-.. There are other ways in which the reliability could be relaxed...
+.. There are ways in which the reliability could be relaxed...
 
 
 Actor model runner
@@ -1147,11 +1147,9 @@ The actors will run by sending messages recursively.
 
     from eventsourcing.application.actors import ActorModelRunner
 
-    with ActorModelRunner(
-        system=system, pipeline_ids=[0, 1, 2],
-        infrastructure_class=SQLAlchemyApplication,
-        setup_tables=True
-    ) as runner:
+    with ActorModelRunner(system=system, setup_tables=True,
+                          infrastructure_class=SQLAlchemyApplication,
+                          pipeline_ids=[0, 1, 2]) as runner:
 
         # Create new orders.
         command_ids = []
