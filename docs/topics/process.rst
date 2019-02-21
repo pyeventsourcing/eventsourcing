@@ -895,7 +895,7 @@ a :class:`~eventsourcing.application.system.SingleThreadedRunner`. As a special 
 by default this runner introduces concrete application infrastructure class
 :class:`~eventsourcing.application.popo.PopoApplication`, which
 literally uses plain old Python objects to store domain events in memory,
-and is the the fastest concrete application infrastructure class
+and is the fastest concrete application infrastructure class
 in the library (much faster than in-memory SQLite). It can be used when proper
 disk-based durability is not required, for example during system development.
 

@@ -457,7 +457,7 @@ The average performance of assigning an item is a constant time. The worst
 case is the log of the index with base equal to the array size, which occurs
 when containing arrays are added, so that the last highest assigned index can
 be discovered. The probability of departing from average performance is
-inversely proportional to the array size, since the the larger the array
+inversely proportional to the array size, since the arger the array
 size, the less often the base arrays fill up. For a decent array size,
 the probability of needing to build the tree is very low. And when the tree
 does need building, it doesn't take very long (and most of it probably already
