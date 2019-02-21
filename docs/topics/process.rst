@@ -701,8 +701,8 @@ aggregates to the caller, but do not need to return existing aggregates that hav
 or changed.
 
 
-Tests
------
+.. Tests
+.. ~~~~~
 
 Process policies are just functions, and are easy to test.
 
@@ -845,39 +845,6 @@ expressions, there will only be one instance of each process when the pipeline
 system is instantiated. Each application can follow one or many applications,
 and can be followed by one or many applications.
 
-.. The system above is defined entirely without infrastructure, and can be
-.. run by providing an ``infrastructure_class`` when constructing a
-.. runner.
-
-.. In the example below, the ``system`` is run using the library's
-.. :class:`~eventsourcing.application.system.SingleThreadedRunner`.
-.. The runner object is used as a context manager, it is started
-.. automatically and finally closed.
-..
-.. The ``infrastructure_class``
-.. is the same :class:`~eventsourcing.application.popo.PopoApplication`
-.. that was used above.
-
-.. .. code:: python
-..
-..     from eventsourcing.application.system import SingleThreadedRunner
-..
-..     with SingleThreadedRunner(system):
-..
-..         # Do stuff here...
-..         pass
-
-.. For convenience in the examples below, let's redefine ``system`` to use
-.. SQLAlchemy infrastructure by default. The ``infrastructure_class`` is set to
-.. :class:`~eventsourcing.application.sqlalchemy.SQLAlchemyApplication`.
-.. For the same reason, ``setup_tables`` is set ``True``, which means
-.. database tables will be created automatically in the examples below.
-
-.. .. code:: python
-.. 
-..     system = System(pipeline, setup_tables=True)
-
-
 In this system, application state is propagated between process
 applications through notification logs only. This can perhaps be
 recognised as the "bounded context" pattern. Each application can
@@ -890,12 +857,29 @@ different times, and in consequence the processing wouldn't be
 reliable. If necessary, a process application can replicate upstream
 aggregates within its own state.
 
-So far everything has been defined independently of application infrastructure.
-The system runners introduce concrete application infrastructure.
+
+Runners
+-------
+
+The system above has been defined entirely independently of infrastructure.
+Concrete application infrastructure is introduced by the system runners. A
+concrete application infrastructure class can be specified when constructing
+a system runner with a suitable value of ``infrastructure_class``. A system
+runner can be used as a context manager.
+
+.. code:: python
+
+    from eventsourcing.application.popo import PopoApplication
+    from eventsourcing.application.system import SingleThreadedRunner
+
+    with SingleThreadedRunner(system, infrastructure_class=PopoApplication):
+
+        # Do stuff here...
+        pass
 
 
-Single threaded
-~~~~~~~~~~~~~~~
+Single threaded runner
+~~~~~~~~~~~~~~~~~~~~~~
 
 If the ``system`` object is used with the library class
 :class:`~eventsourcing.application.system.SingleThreadedRunner`, the process
@@ -907,13 +891,13 @@ to which applications each is followed by.
 
 In the example below, the ``system`` object is used directly as a context
 manager. Using the ``system`` object in this manner implicitly constructs
-a :class:`~eventsourcing.application.system.SingleThreadedRunner`. By
-default, this runner introduces concrete application infrastructure class
+a :class:`~eventsourcing.application.system.SingleThreadedRunner`. As a special case,
+by default this runner introduces concrete application infrastructure class
 :class:`~eventsourcing.application.popo.PopoApplication`, which
 literally uses plain old Python objects to store domain events in memory,
-and is the by far the fastest concrete application infrastructure class
-in the library. It can be used when proper disk-based durability is not
-required, for example during system development.
+and is the the fastest concrete application infrastructure class
+in the library (much faster than in-memory SQLite). It can be used when proper
+disk-based durability is not required, for example during system development.
 
 .. code:: python
 
@@ -940,16 +924,16 @@ required, for example during system development.
 
 
 Everything happens synchronously, in a single thread, so that by the time
-``create_order()`` has returned, the system pipeline has already processed the
-command, which can be retrieved from the "commands" repository.
+``create_order()`` has returned, the command has been fully processed by
+the system.
 
 Running the system with a single thread and an in-memory database is
 useful when developing and testing a system of process applications,
 because it runs very quickly and the behaviour is very easy to follow.
 
 
-Multiprocessing
-~~~~~~~~~~~~~~~
+Multiprocess runner
+~~~~~~~~~~~~~~~~~~~
 
 The example below shows the same system of process applications running in
 different operating system processes, using the library's
@@ -977,7 +961,8 @@ The code below uses the library's
 class to run the ``system``. It will start one operating system
 process for each process application in the system, which in this
 example will give a pipeline with four child operating system processes.
-This example uses SQLAlchemy to access a MySQL database.
+This example uses SQLAlchemy to access a MySQL database. The concrete
+infrastructure class is :class:`~eventsourcing.application.sqlalchemy.SQLAlchemyApplication`.
 
 .. code:: python
 
@@ -1148,8 +1133,8 @@ possible foundation for such automation.
 .. There are other ways in which the reliability could be relaxed...
 
 
-Actor model
-~~~~~~~~~~~
+Actor model runner
+~~~~~~~~~~~~~~~~~~
 
 An Actor model library, in particular the `Thespian Actor Library
 <https://github.com/kquick/Thespian>`__, can also be used to run
