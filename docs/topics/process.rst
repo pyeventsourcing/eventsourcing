@@ -890,6 +890,9 @@ different times, and in consequence the processing wouldn't be
 reliable. If necessary, a process application can replicate upstream
 aggregates within its own state.
 
+So far everything has been defined independently of application infrastructure.
+The system runners introduce concrete application infrastructure.
+
 
 Single threaded
 ~~~~~~~~~~~~~~~
@@ -897,6 +900,7 @@ Single threaded
 If the ``system`` object is used with the library class
 :class:`~eventsourcing.application.system.SingleThreadedRunner`, the process
 applications will run in a single thread in the current process.
+
 Events will be processed with synchronous handling of prompts,
 so that policies effectively call each other recursively, according
 to which applications each is followed by.
@@ -904,9 +908,9 @@ to which applications each is followed by.
 In the example below, the ``system`` object is used directly as a context
 manager. Using the ``system`` object in this manner implicitly constructs
 a :class:`~eventsourcing.application.system.SingleThreadedRunner`. By
-default, this runner uses the infrastructure is "Plain Old Python Objects",
-as implemented in library class :class:`~eventsourcing.application.popo.PopoApplication`.
-It literally uses plain old Python objects to store domain events in memory,
+default, this runner introduces concrete application infrastructure class
+:class:`~eventsourcing.application.popo.PopoApplication`, which
+literally uses plain old Python objects to store domain events in memory,
 and is the by far the fastest concrete application infrastructure class
 in the library. It can be used when proper disk-based durability is not
 required, for example during system development.
