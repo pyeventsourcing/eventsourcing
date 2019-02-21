@@ -141,13 +141,13 @@ and notification records, in an atomic database transaction.
 Atomicity
 ---------
 
-Just like a ratchet is as strong as its teeth (notification log) and pawl
-(tracking records), a process application is as reliable as the atomicity
-of its database transactions. If some of the new records can't be written,
-then none are. If anything goes wrong before all the records have been
-written, the transaction will abort, and none of the records will be written.
-On the other hand, if a tracking record was written, then so were any new
-event records, and so the process will have completed an atomic progression.
+Just like a ratchet is as strong as its teeth and pawl, a process
+application is as reliable as the atomicity of its database transactions.
+If some of the new records from processing a domain event can't be written,
+then none will be committed. If anything goes wrong before all the records are
+written, the transaction will abort, and none of the records will be committed.
+On the other hand, if a some records are committed, then all will be committed,
+and the process will complete an atomic progression.
 
 The atomicity of the recording and consumption determines the production as atomic:
 a continuous stream of events is processed in discrete, sequenced, indivisible units.
@@ -160,11 +160,6 @@ assumed that any records that have been committed will be available after any
 so-called "infrastructure failure". The continuing existence of data that has been
 successfully committed to a database is beyond the scope of this discussion about
 reliability. However, the "single point of failure" this may represent is acknowledged.
-
-
-.. It is assumed that whatever records have been
-.. committed by a process will not somehow be damaged by a sudden termination of the
-.. process.
 
 
 System of processes
