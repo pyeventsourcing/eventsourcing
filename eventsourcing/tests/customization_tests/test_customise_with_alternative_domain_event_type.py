@@ -63,7 +63,7 @@ class ExampleApplicationWithTimeuuidSequencedItems(object):
         )
         self.persistence_policy = PersistencePolicy(
             event_store=self.event_store,
-            event_type=DomainEvent,
+            persist_event_type=DomainEvent,
         )
 
     def start_entity(self):

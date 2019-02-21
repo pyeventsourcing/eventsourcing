@@ -9,10 +9,14 @@ from eventsourcing.infrastructure.sqlalchemy.datastore import DEFAULT_SQLALCHEMY
 from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
 from eventsourcing.infrastructure.sqlalchemy.records import Base, IntegerSequencedNoIDRecord, \
     IntegerSequencedWithIDRecord, SnapshotRecord, TimestampSequencedNoIDRecord, TimestampSequencedWithIDRecord
-from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
+from eventsourcing.tests.datastore_tests import base
 
 
-class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
+class SQLAlchemyDatastoreTestCase(base.AbstractDatastoreTestCase):
+    """
+    Base class for test cases that use an SQLAlchemy datastore.
+    """
+
     use_named_temporary_file = False
     connection_strategy = 'plain'
     infrastructure_factory_class = SQLAlchemyInfrastructureFactory
@@ -45,7 +49,10 @@ class SQLAlchemyDatastoreTestCase(AbstractDatastoreTestCase):
         )
 
 
-class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, DatastoreTestCase):
+class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, base.DatastoreTestCase):
+    """
+    Test case for SQLAlchemy datastore.
+    """
     def list_records(self):
         try:
             query = self.datastore.session.query(IntegerSequencedNoIDRecord)
@@ -63,7 +70,7 @@ class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, DatastoreTestCase):
                 sequence_id=uuid4(),
                 position=0,
                 topic='topic',
-                data='{}'
+                state='{}'
             )
             self.datastore.session.add(record)
             self.datastore.session.commit()

@@ -37,7 +37,7 @@ class IntegerSequencedWithIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    data = Column(Text())
+    state = Column(Text())
 
     __table_args__ = (
         Index('integer_sequenced_items_sequence_id_position_index', 'sequence_id', 'position', unique=True),
@@ -57,7 +57,7 @@ class IntegerSequencedNoIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    data = Column(Text())
+    state = Column(Text())
 
 
 IntegerSequencedRecord = IntegerSequencedWithIDRecord
@@ -80,7 +80,7 @@ class TimestampSequencedWithIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    data = Column(Text())
+    state = Column(Text())
 
     __table_args__ = (
         Index('timestamp_sequenced_items_sequence_id_position_index', 'sequence_id', 'position', unique=True),
@@ -101,7 +101,7 @@ class TimestampSequencedNoIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    data = Column(Text())
+    state = Column(Text())
 
     __table_args__ = (
         Index('timestamp_sequenced_items_noid_position_index', 'position', unique=False),
@@ -124,7 +124,7 @@ class SnapshotRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    data = Column(Text())
+    state = Column(Text())
 
 
 class EntitySnapshotRecord(Base):
@@ -140,7 +140,7 @@ class EntitySnapshotRecord(Base):
     originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
     # Topic of the item (e.g. path to domain entity class).
-    event_type = Column(Text(), nullable=False)
+    topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
@@ -158,14 +158,14 @@ class StoredEventRecord(Base):
     # Originator version of item in sequence.
     originator_version = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
-    # Partition ID.
+    # Pipeline ID.
     pipeline_id = Column(Integer(), nullable=True)
 
-    # Record ID.
-    id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=True)
+    # Notification ID.
+    notification_id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=True)
 
-    # Type of the event (class name).
-    event_type = Column(Text(), nullable=False)
+    # Topic of the item (e.g. path to domain event class).
+    topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
     state = Column(Text())
@@ -178,7 +178,7 @@ class StoredEventRecord(Base):
             'stored_events_notification_index',
             'application_name',
             'pipeline_id',
-            'id',
+            'notification_id',
             unique=True,
         ),
     )
@@ -187,13 +187,13 @@ class StoredEventRecord(Base):
 class NotificationTrackingRecord(Base):
     __tablename__ = 'notification_tracking'
 
-    # Application ID.
+    # Application name.
     application_name = Column(String(length=32), primary_key=True)
 
-    # Upstream application ID.
+    # Upstream application name.
     upstream_application_name = Column(String(length=32), primary_key=True)
 
-    # Partition ID.
+    # Pipeline ID.
     pipeline_id = Column(Integer(), primary_key=True)
 
     # Notification ID.

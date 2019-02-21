@@ -11,12 +11,12 @@ from eventsourcing.infrastructure.cassandra.records import IntegerSequencedRecor
     TimestampSequencedRecord
 from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
 from eventsourcing.infrastructure.datastore import DatastoreConnectionError, DatastoreTableError
-from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase, DatastoreTestCase
+from eventsourcing.tests.datastore_tests import base
 
 DEFAULT_KEYSPACE_FOR_TESTING = 'eventsourcing_tests'
 
 
-class CassandraDatastoreTestCase(AbstractDatastoreTestCase):
+class CassandraDatastoreTestCase(base.AbstractDatastoreTestCase):
     """
     Uses the datastore object to set up connection to and tables in Cassandra.
     """
@@ -29,7 +29,7 @@ class CassandraDatastoreTestCase(AbstractDatastoreTestCase):
         )
 
 
-class TestCassandraDatastore(CassandraDatastoreTestCase, DatastoreTestCase):
+class TestCassandraDatastore(CassandraDatastoreTestCase, base.DatastoreTestCase):
     def list_records(self):
         try:
             return list(IntegerSequencedRecord.objects.all())
@@ -43,7 +43,7 @@ class TestCassandraDatastore(CassandraDatastoreTestCase, DatastoreTestCase):
             sequence_id=uuid4(),
             position=0,
             topic='topic',
-            data='{}'
+            state='{}'
         )
         try:
             record.save()

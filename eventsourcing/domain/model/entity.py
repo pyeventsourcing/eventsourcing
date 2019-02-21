@@ -1,24 +1,21 @@
 """
 The entity module provides base classes for domain entities.
 """
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from uuid import uuid4
 
-from six import with_metaclass
-
-from eventsourcing.domain.model.events import AttributeChanged, Created, Discarded, DomainEvent, \
-    EventWithOriginatorID, \
-    EventWithOriginatorVersion, EventWithTimestamp, GENESIS_HASH, QualnameABC, publish, EventWithHash
-from eventsourcing.exceptions import EntityIsDiscarded, HeadHashError, OriginatorIDError, \
-    OriginatorVersionError
+from eventsourcing.domain.model.events import AttributeChanged, Created, Discarded, DomainEvent, EventWithHash, \
+    EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, GENESIS_HASH, publish
+from eventsourcing.exceptions import EntityIsDiscarded, HeadHashError, OriginatorIDError, OriginatorVersionError
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
-class DomainEntity(QualnameABC):
+class DomainEntity(object):
     """
     Base class for domain entities.
     """
+
     def __init__(self, id):
         self._id = id
         self.__is_discarded__ = False
@@ -35,6 +32,7 @@ class DomainEntity(QualnameABC):
         """
         Supertype for events of domain entities.
         """
+
         def __mutate__(self, obj):
             # Call super method.
             return super(DomainEntity.Event, self).__mutate__(obj)
@@ -84,8 +82,7 @@ class DomainEntity(QualnameABC):
         def __mutate__(self, entity_class=None):
             if entity_class is None:
                 entity_class = resolve_topic(self.originator_topic)
-            obj = entity_class(**self.__entity_kwargs__)
-            return obj
+            return entity_class(**self.__entity_kwargs__)
 
         @property
         def __entity_kwargs__(self):
@@ -183,12 +180,18 @@ class EntityWithHashchain(DomainEntity):
         """
         Supertype for events of domain entities.
         """
+
         def __mutate__(self, obj):
-            # Set entity head from event hash.
-            obj.__head__ = self.__event_hash__
 
             # Call super method.
-            return super(EntityWithHashchain.Event, self).__mutate__(obj)
+            obj = super(EntityWithHashchain.Event, self).__mutate__(obj)
+
+            # Set entity head from event hash.
+            #  - unless just discarded...
+            if obj is not None:
+                obj.__head__ = self.__event_hash__
+
+            return obj
 
         def __check_obj__(self, obj):
             """
@@ -216,12 +219,15 @@ class EntityWithHashchain(DomainEntity):
 
         def __mutate__(self, entity_class=None):
             # Call super method.
-            obj = super(EntityWithHashchain.Event, self).__mutate__(entity_class)
+            return super(EntityWithHashchain.Created, self).__mutate__(entity_class)
 
+    class Discarded(Event, DomainEntity.Discarded):
+        def __mutate__(self, obj):
             # Set entity head from event hash.
             obj.__head__ = self.__event_hash__
 
-            return obj
+            # Call super method.
+            return super(EntityWithHashchain.Discarded, self).__mutate__(obj)
 
     @classmethod
     def __create__(cls, *args, **kwargs):
@@ -283,7 +289,7 @@ class VersionedEntity(DomainEntity):
                      "Event type: '{}', entity type: '{}', entity ID: '{}'"
                      "".format(self.originator_version, obj.__version__,
                                type(self).__name__, type(obj).__name__, obj._id)
-                    )
+                     )
                 )
 
     class Created(DomainEntity.Created, Event):
@@ -385,7 +391,7 @@ class TimeuuidedVersionedEntity(TimeuuidedEntity, VersionedEntity):
     pass
 
 
-class AbstractEventPlayer(with_metaclass(ABCMeta)):
+class AbstractEventPlayer(object):
     pass
 
 

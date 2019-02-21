@@ -1,5 +1,4 @@
 import os
-import six
 from cassandra import InvalidRequest
 from cassandra.cqlengine.functions import Token
 from cassandra.cqlengine.query import BatchQuery, LWTException
@@ -9,7 +8,7 @@ from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
 
 
 class CassandraRecordManager(AbstractSequencedItemRecordManager):
-    def append(self, sequenced_item_or_items):
+    def record_sequenced_items(self, sequenced_item_or_items):
         if isinstance(sequenced_item_or_items, list):
             if len(sequenced_item_or_items):
                 b = BatchQuery()
@@ -28,18 +27,17 @@ class CassandraRecordManager(AbstractSequencedItemRecordManager):
             except LWTException:
                 self.raise_sequenced_item_conflict()
 
-    def get_item(self, sequence_id, position):
+    def get_record(self, sequence_id, position):
         kwargs = {
             self.field_names.sequence_id: sequence_id,
             '{}__eq'.format(self.field_names.position): position
         }
         query = self.filter(**kwargs)
-        items = six.moves.map(self.from_record, query)
-        items = list(items)
         try:
-            return items[0]
+            record = list(query)[0]
         except IndexError:
             self.raise_index_error(position)
+        return record
 
     def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                     query_ascending=True, results_ascending=True):

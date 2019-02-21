@@ -12,6 +12,12 @@ class Command(AggregateRoot):
     class Created(Event, AggregateRoot.Created):
         pass
 
+    class AttributeChanged(Event, AggregateRoot.AttributeChanged):
+        pass
+
+    class Discarded(Event, AggregateRoot.Discarded):
+        pass
+
     @property
     def is_done(self):
         return self._is_done

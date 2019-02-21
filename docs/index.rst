@@ -25,6 +25,9 @@ describes the :doc:`design </topics/design>` of the software,
 the :doc:`infrastructure layer </topics/infrastructure>`,
 the :doc:`domain model layer </topics/domainmodel>`,
 the :doc:`application layer </topics/application>`,
+
+shows how :doc:`notifications </topics/notifications>` and :doc:`projections </topics/projections>`
+can be combined to make a :doc:`reliable distributed system </topics/process>`,
 has information about :doc:`deployment </topics/deployment>`, and
 has some :doc:`background </topics/background>` information about the project.
 
@@ -37,18 +40,19 @@ Please `register any issues, questions, and requests
    :maxdepth: 2
    :caption: Contents
 
+   topics/release_notes
    topics/background
    topics/quick_start
    topics/installing
    topics/features
    topics/design
    topics/infrastructure
+   topics/minimal
    topics/domainmodel
    topics/application
+   topics/deployment
    topics/snapshotting
    topics/notifications
    topics/projections
    topics/process
-   topics/deployment
-   topics/release_notes
    ref/modules

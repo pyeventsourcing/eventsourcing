@@ -12,8 +12,8 @@ from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import Base
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
@@ -23,8 +23,10 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 # extra attributes. It's easy.
 
 # Define the sequenced item class.
-ExtendedSequencedItem = namedtuple('ExtendedSequencedItem',
-                                   ['sequence_id', 'position', 'topic', 'data', 'timestamp', 'event_type'])
+ExtendedSequencedItem = namedtuple(
+    'ExtendedSequencedItem',
+    ['sequence_id', 'position', 'topic', 'state', 'timestamp', 'event_type']
+)
 
 
 # Extend the database table definition to support the extra fields.
@@ -43,7 +45,7 @@ class ExtendedIntegerSequencedRecord(Base):
     topic = Column(String(255), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    data = Column(Text())
+    state = Column(Text())
 
     # Timestamp of the event.
     timestamp = Column(DECIMAL(24, 6, 6), nullable=False)
@@ -86,7 +88,7 @@ class ExampleApplicationWithExtendedSequencedItemType(object):
         )
         self.persistence_policy = PersistencePolicy(
             event_store=self.event_store,
-            event_type=DomainEvent,
+            persist_event_type=DomainEvent,
         )
 
     def close(self):

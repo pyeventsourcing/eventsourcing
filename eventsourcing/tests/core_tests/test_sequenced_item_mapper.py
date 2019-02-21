@@ -46,23 +46,23 @@ class TestSequencedItemMapper(TestCase):
         event1 = Event1(originator_id=entity_id1, originator_version=101)
 
         # Check to_sequenced_item() method results in a sequenced item.
-        sequenced_item = mapper.to_sequenced_item(event1)
+        sequenced_item = mapper.item_from_event(event1)
         self.assertIsInstance(sequenced_item, SequencedItem)
         self.assertEqual(sequenced_item.position, 101)
         self.assertEqual(sequenced_item.sequence_id, entity_id1)
         self.assertEqual(sequenced_item.topic, get_topic(Event1))
-        self.assertTrue(sequenced_item.data)
+        self.assertTrue(sequenced_item.state)
 
         # Use the returned values to create a new sequenced item.
         sequenced_item_copy = SequencedItem(
             sequence_id=sequenced_item.sequence_id,
             position=sequenced_item.position,
             topic=sequenced_item.topic,
-            data=sequenced_item.data,
+            state=sequenced_item.state,
         )
 
         # Check from_sequenced_item() returns an event.
-        domain_event = mapper.from_sequenced_item(sequenced_item_copy)
+        domain_event = mapper.event_from_item(sequenced_item_copy)
         self.assertIsInstance(domain_event, Event1)
         self.assertEqual(domain_event.originator_id, event1.originator_id)
         self.assertEqual(domain_event.originator_version, event1.originator_version)
@@ -81,24 +81,24 @@ class TestSequencedItemMapper(TestCase):
         after = decimaltimestamp()
 
         # Check to_sequenced_item() method results in a sequenced item.
-        sequenced_item = mapper.to_sequenced_item(event2)
+        sequenced_item = mapper.item_from_event(event2)
         self.assertIsInstance(sequenced_item, SequencedItem)
         self.assertGreater(sequenced_item.position, before)
         self.assertLess(sequenced_item.position, after)
         self.assertEqual(sequenced_item.sequence_id, 'entity2')
         self.assertEqual(sequenced_item.topic, get_topic(Event2))
-        self.assertTrue(sequenced_item.data)
+        self.assertTrue(sequenced_item.state)
 
         # Use the returned values to create a new sequenced item.
         sequenced_item_copy = SequencedItem(
             sequence_id=sequenced_item.sequence_id,
             position=sequenced_item.position,
             topic=sequenced_item.topic,
-            data=sequenced_item.data,
+            state=sequenced_item.state,
         )
 
         # Check from_sequenced_item() returns an event.
-        domain_event = mapper.from_sequenced_item(sequenced_item_copy)
+        domain_event = mapper.event_from_item(sequenced_item_copy)
         self.assertIsInstance(domain_event, Event2)
         self.assertEqual(domain_event.originator_id, event2.originator_id)
         self.assertEqual(domain_event.timestamp, event2.timestamp)
@@ -127,18 +127,18 @@ class TestSequencedItemMapper(TestCase):
         )
 
         # Check to_sequenced_item() method results in a sequenced item.
-        sequenced_item = mapper.to_sequenced_item(event3)
+        sequenced_item = mapper.item_from_event(event3)
 
         # Use the returned values to create a new sequenced item.
         sequenced_item_copy = SequencedItem(
             sequence_id=sequenced_item.sequence_id,
             position=sequenced_item.position,
             topic=sequenced_item.topic,
-            data=sequenced_item.data,
+            state=sequenced_item.state,
         )
 
         # Check from_sequenced_item() returns an event.
-        domain_event = mapper.from_sequenced_item(sequenced_item_copy)
+        domain_event = mapper.event_from_item(sequenced_item_copy)
         self.assertIsInstance(domain_event, Event3)
         self.assertEqual(domain_event.originator_id, event3.originator_id)
         self.assertEqual(domain_event.a, event3.a)

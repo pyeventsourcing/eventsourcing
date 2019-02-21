@@ -1,7 +1,5 @@
 # coding=utf-8
-from abc import ABCMeta, abstractmethod
-
-import six
+from abc import ABC, abstractmethod
 
 from eventsourcing.exceptions import ConcurrencyError, RecordConflictError
 from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
@@ -9,14 +7,14 @@ from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
 
 
-class AbstractEventStore(six.with_metaclass(ABCMeta)):
+class AbstractEventStore(ABC):
     """
     Abstract base class for event stores. Defines the methods
     expected of an event store by other classes in the library.
     """
 
     @abstractmethod
-    def append(self, domain_event_or_events):
+    def store(self, domain_event_or_events):
         """
         Put domain event in event store for later retrieval.
         """
@@ -69,9 +67,9 @@ class EventStore(AbstractEventStore):
         assert isinstance(record_manager, AbstractSequencedItemRecordManager), record_manager
         assert isinstance(sequenced_item_mapper, AbstractSequencedItemMapper), sequenced_item_mapper
         self.record_manager = record_manager
-        self.sequenced_item_mapper = sequenced_item_mapper
+        self.mapper = sequenced_item_mapper
 
-    def append(self, domain_event_or_events):
+    def store(self, domain_event_or_events):
         """
         Appends given domain event, or list of domain events, to their sequence.
 
@@ -79,15 +77,15 @@ class EventStore(AbstractEventStore):
         """
 
         # Convert to sequenced item.
-        sequenced_item_or_items = self.to_sequenced_item(domain_event_or_events)
+        sequenced_item_or_items = self.item_from_event(domain_event_or_events)
 
         # Append to the sequenced item(s) to the sequence.
         try:
-            self.record_manager.append(sequenced_item_or_items)
+            self.record_manager.record_sequenced_items(sequenced_item_or_items)
         except RecordConflictError as e:
             raise ConcurrencyError(e)
 
-    def to_sequenced_item(self, domain_event_or_events):
+    def item_from_event(self, domain_event_or_events):
         """
         Maps domain event to sequenced item namedtuple.
 
@@ -96,9 +94,9 @@ class EventStore(AbstractEventStore):
         """
         # Convert the domain event(s) to sequenced item(s).
         if isinstance(domain_event_or_events, (list, tuple)):
-            return [self.to_sequenced_item(e) for e in domain_event_or_events]
+            return [self.item_from_event(e) for e in domain_event_or_events]
         else:
-            return self.sequenced_item_mapper.to_sequenced_item(domain_event_or_events)
+            return self.mapper.item_from_event(domain_event_or_events)
 
     def get_domain_events(self, originator_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
                           page_size=None):
@@ -140,9 +138,8 @@ class EventStore(AbstractEventStore):
             )
 
         # Deserialize to domain events.
-        domain_events = six.moves.map(self.sequenced_item_mapper.from_sequenced_item, sequenced_items)
-        domain_events = list(domain_events)
-        return domain_events
+        domain_events = map(self.mapper.event_from_item, sequenced_items)
+        return list(domain_events)
 
     def get_domain_event(self, originator_id, position):
         """
@@ -158,7 +155,7 @@ class EventStore(AbstractEventStore):
             sequence_id=originator_id,
             position=position,
         )
-        return self.sequenced_item_mapper.from_sequenced_item(sequenced_item)
+        return self.mapper.event_from_item(sequenced_item)
 
     def get_most_recent_event(self, originator_id, lt=None, lte=None):
         """

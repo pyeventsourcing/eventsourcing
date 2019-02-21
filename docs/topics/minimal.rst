@@ -379,7 +379,7 @@ with each item positioned in its sequence by an integer index number.
         topic = Column(String(255))
 
         # State of the item (serialized dict, possibly encrypted).
-        data = Column(Text())
+        state = Column(Text())
 
         __table_args__ = Index('index', 'sequence_id', 'position', unique=True),
 
@@ -501,7 +501,7 @@ Now, let's firstly write the events we received earlier into the event store.
 
     # Put each received event into the event store.
     for event in received_events:
-        event_store.append(event)
+        event_store.store(event)
 
     # Check the events exist in the event store.
     stored_events = event_store.get_domain_events(entity.id)
@@ -522,12 +522,12 @@ Remember that we can always get the sequenced items directly from the record man
 A sequenced item is tuple containing a serialised representation of the domain event.
 The library class :class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`
 is a Python namedtuple with four fields: ``sequence_id``, ``position``, ``topic``,
-and ``data``.
+and ``state``.
 
 In this example, an event's ``originator_id`` attribute is mapped to the ``sequence_id``
 field, and the event's ``originator_version`` attribute is mapped to the ``position``
 field. The ``topic`` field of a sequenced item is used to identify the event class, and
-the ``data`` field represents the state of the event (normally a JSON string).
+the ``state`` field represents the state of the event (normally a JSON string).
 
 .. code:: python
 
@@ -538,12 +538,12 @@ the ``data`` field represents the state of the event (normally a JSON string).
     assert sequenced_items[0].sequence_id == entity.id
     assert sequenced_items[0].position == 0
     assert 'Created' in sequenced_items[0].topic
-    assert 'bar' in sequenced_items[0].data
+    assert 'bar' in sequenced_items[0].state
 
     assert sequenced_items[1].sequence_id == entity.id
     assert sequenced_items[1].position == 1
     assert 'AttributeChanged' in sequenced_items[1].topic
-    assert 'baz' in sequenced_items[1].data
+    assert 'baz' in sequenced_items[1].state
 
 
 Application
@@ -571,7 +571,7 @@ uses an event store to store events whenever they are received.
             unsubscribe(self.store_event)
 
         def store_event(self, event):
-            self.event_store.append(event)
+            self.event_store.store(event)
 
 
 A slightly more developed class :class:`~eventsourcing.application.policies.PersistencePolicy`

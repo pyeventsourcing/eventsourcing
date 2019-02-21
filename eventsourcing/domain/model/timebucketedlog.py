@@ -1,14 +1,12 @@
 import datetime
-from time import mktime, time
 from uuid import UUID, uuid5
 
-import six
 from dateutil.relativedelta import relativedelta
 
 from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
-from eventsourcing.domain.model.events import publish, EventWithTimestamp, EventWithOriginatorID, Logged
+from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithTimestamp, Logged, publish
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.utils.times import utc_timezone, decimaltimestamp, datetime_from_timestamp
+from eventsourcing.utils.times import datetime_from_timestamp, decimaltimestamp, utc_timezone
 from eventsourcing.utils.topic import get_topic
 
 Namespace_Timebuckets = UUID('0d7ee297-a976-4c29-91ff-84ffc79d8155')
@@ -57,8 +55,8 @@ class Timebucketedlog(TimestampedVersionedEntity):
     def bucket_size(self):
         return self._bucket_size
 
-    def append_message(self, message):
-        assert isinstance(message, six.string_types)
+    def log_message(self, message):
+        assert isinstance(message, str)
         bucket_id = make_timebucket_id(self.name, decimaltimestamp(), self.bucket_size)
         event = MessageLogged(
             originator_id=bucket_id,
@@ -197,8 +195,4 @@ def bucket_duration(bucket_size):
 # Todo: Move to general utils?
 def timestamp_from_datetime(dt):
     assert dt.tzinfo, "Datetime object does not have tzinfo"
-    try:
-        # Only in Python 3.3+.
-        return dt.timestamp()
-    except AttributeError:
-        return mktime(dt.timetuple()) + (dt.microsecond / 1000000.0)
+    return dt.timestamp()

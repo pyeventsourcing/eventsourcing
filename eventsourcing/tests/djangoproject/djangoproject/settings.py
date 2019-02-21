@@ -74,16 +74,26 @@ WSGI_APPLICATION = 'djangoproject.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
 
+# We need to use a separate database for the multiprocessing tests,
+# and it adds complications to use SQLite in memory for some tests,
+# and Docker compose makes it easy to use one MySQL database but using
+# more than one adds complications, so use PostgreSQL for all Django tests,
+# despite relative slow performance.
+
+try:
+    from psycopg2cffi import compat
+    compat.register()
+except ImportError:
+    pass
+
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
-        # 'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-        # 'ENGINE': 'django.db.backends.mysql',
-        # 'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        # 'NAME': 'eventsourcingdjangoorm',
-        # 'USER': 'username',
-        # 'PASSWORD': 'password'
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'HOST': os.getenv('POSTGRES_HOST', '127.0.0.1'),
+        'NAME': 'eventsourcing',
+        'USER': os.getenv('POSTGRES_USER', 'eventsourcing'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD', '')
     }
 }
 

@@ -1,11 +1,9 @@
-from abc import ABCMeta, abstractmethod
-
-import six
+from abc import ABC, abstractmethod
 
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp
 
 
-class AbstractSnapshop(six.with_metaclass(ABCMeta)):
+class AbstractSnapshop(ABC):
     @property
     @abstractmethod
     def topic(self):

@@ -6,16 +6,16 @@ from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.repositories.array import BigArrayRepository
 from eventsourcing.interface.notificationlog import BigArrayNotificationLog, NotificationLogReader, \
     NotificationLogView, RecordManagerNotificationLog, RemoteNotificationLog
-from eventsourcing.tests.sequenced_item_tests.base import WithPersistencePolicies
+from eventsourcing.tests.sequenced_item_tests.base import WithEventPersistence
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    WithSQLAlchemyRecordManagers
+    SQLAlchemyRecordManagerTestCase
 from eventsourcing.utils.topic import get_topic
 
 
-class NotificationLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolicies):
+class NotificationLogTestCase(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
 
     def assert_section(self, repo, requested_id, expected_id, expected_len_items, expected_previous_id,
                        expected_next_id):
@@ -43,7 +43,7 @@ class NotificationLogTestCase(WithSQLAlchemyRecordManagers, WithPersistencePolic
             get_topic(DomainEvent),
             item
         )
-        self.entity_record_manager.append(sequenced_item)
+        self.entity_record_manager.record_sequenced_items(sequenced_item)
 
 
 class TestNotificationLog(NotificationLogTestCase):
@@ -299,7 +299,7 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             # Check we got all the items.
             self.assertEqual(len(items_from_start), num_notifications)
             self.assertEqual(items_from_start[0]['id'], 1)
-            self.assertEqual(items_from_start[0]['data'], 'item1')
+            self.assertEqual(items_from_start[0]['state'], 'item1')
             self.assertEqual(items_from_start[0]['topic'], 'eventsourcing.domain.model.events#DomainEvent')
             expected_section_count = ceil(num_notifications / float(section_size))
             self.assertEqual(notification_log_reader.section_count, expected_section_count)
@@ -310,8 +310,8 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             # Check we got everything after item 5.
             self.assertEqual(len(items_from_5), num_notifications - section_size + 1)
             self.assertEqual(items_from_5[0]['id'], section_size)
-            self.assertEqual(items_from_5[0]['data'], 'item{}'.format(section_size))
             self.assertEqual(items_from_5[0]['topic'], 'eventsourcing.domain.model.events#DomainEvent')
+            self.assertEqual(items_from_5[0]['state'], 'item{}'.format(section_size))
             expected_section_count = ceil(num_notifications / float(section_size))
             self.assertEqual(notification_log_reader.section_count, expected_section_count)
 

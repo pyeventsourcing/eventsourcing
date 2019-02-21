@@ -2,7 +2,7 @@ from functools import reduce
 
 from eventsourcing.tests.example_application_tests.base import WithExampleApplication
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    WithSQLAlchemyRecordManagers
+    SQLAlchemyRecordManagerTestCase
 
 
 
@@ -17,7 +17,7 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager imp
 
 # Todo: Support stopping and resuming when iterating over all events.
 
-class TestGetAllEventFromSQLAlchemy(WithSQLAlchemyRecordManagers, WithExampleApplication):
+class TestGetAllEventFromSQLAlchemy(SQLAlchemyRecordManagerTestCase, WithExampleApplication):
     drop_tables = True
 
     def test(self):

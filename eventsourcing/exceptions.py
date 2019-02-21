@@ -43,7 +43,7 @@ class MutatorRequiresTypeNotInstance(ConsistencyError):
 
 
 class DataIntegrityError(ValueError, EventSourcingError):
-    "Raised when a sequenced item data is damaged (hash doesn't match data)"
+    "Raised when a sequenced item is damaged (hash doesn't match data)"
 
 
 class EventHashError(DataIntegrityError):

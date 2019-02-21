@@ -7,26 +7,26 @@ class PersistencePolicy(object):
     Stores events of given type to given event store, whenever they are published.
     """
 
-    def __init__(self, event_store, event_type=None):
+    def __init__(self, event_store, persist_event_type=None):
         assert isinstance(event_store, AbstractEventStore), type(event_store)
         self.event_store = event_store
-        self.event_type = event_type
+        self.persist_event_type = persist_event_type
         subscribe(self.store_event, self.is_event)
-
-    def is_event(self, event):
-        if self.event_type is None:
-            return False
-        if isinstance(event, (list, tuple)):
-            return all(map(self.is_event, event))
-        return isinstance(event, self.event_type)
-
-    def store_event(self, event):
-        self.event_store.append(event)
 
     def close(self):
         unsubscribe(self.store_event, self.is_event)
 
+    def is_event(self, event):
+        if self.persist_event_type is None:
+            return False
+        if isinstance(event, (list, tuple)):
+            return all(map(self.is_event, event))
+        return isinstance(event, self.persist_event_type)
 
+    def store_event(self, event):
+        self.event_store.store(event)
+
+# Todo: Separate PeriodicSnapshottingPolicy from base class? Make usage more configurable.
 class SnapshottingPolicy(object):
     def __init__(self, repository, snapshot_store, persist_event_type=EventWithOriginatorVersion, period=2):
         self.repository = repository

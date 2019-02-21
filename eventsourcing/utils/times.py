@@ -1,25 +1,9 @@
 import datetime
-from decimal import Decimal
 import time
+from decimal import Decimal
 from uuid import UUID
 
-import six
-
-if hasattr(datetime, 'timezone'):
-    utc_timezone = datetime.timezone.utc
-else:
-    from datetime import tzinfo, timedelta
-
-
-    class UTC(tzinfo):
-        def utcoffset(self, date_time):
-            return timedelta(0)
-
-        def dst(self, date_time):
-            return timedelta(0)
-
-
-    utc_timezone = UTC()
+utc_timezone = datetime.timezone.utc
 
 
 def decimaltimestamp_from_uuid(uuid_arg):
@@ -41,7 +25,7 @@ def timestamp_long_from_uuid(uuid_arg):
     :return: Unix timestamp integer in tenths of microseconds.
     :rtype: int
     """
-    if isinstance(uuid_arg, six.string_types):
+    if isinstance(uuid_arg, str):
         uuid_arg = UUID(uuid_arg)
     assert isinstance(uuid_arg, UUID), uuid_arg
     uuid_time = uuid_arg.time
@@ -62,7 +46,6 @@ def decimaltimestamp(t=None):
     """
     t = time.time() if t is None else t
     return Decimal('{:.6f}'.format(t))
-    # return Decimal('{:.9f}'.format(t))
 
 
 def datetime_from_timestamp(t):

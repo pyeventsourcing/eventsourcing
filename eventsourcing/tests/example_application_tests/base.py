@@ -9,10 +9,13 @@ from eventsourcing.example.domainmodel import Example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.eventstore import EventStore
+from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.sequenced_item_tests.base import WithRecordManagers
 
 
 class WithExampleApplication(WithRecordManagers):
+    sequenced_item_mapper_class = SequencedItemMapper
+
     def construct_application(self):
         cipher = self.construct_cipher()
         app = ExampleApplication(
@@ -20,6 +23,7 @@ class WithExampleApplication(WithRecordManagers):
             log_record_manager=self.log_record_manager,
             snapshot_record_manager=self.snapshot_record_manager,
             cipher=cipher,
+            sequenced_item_mapper_class=self.sequenced_item_mapper_class,
         )
         return app
 

@@ -2,12 +2,10 @@ from abc import abstractproperty
 from math import ceil, log
 from uuid import uuid5
 
-import six
-
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
 from eventsourcing.domain.model.events import publish
-from eventsourcing.exceptions import ConcurrencyError, ArrayIndexError
+from eventsourcing.exceptions import ArrayIndexError, ConcurrencyError
 
 
 class ItemAssigned(TimestampedVersionedEntity.Event):
@@ -58,9 +56,9 @@ class Array(object):
         """
         Returns item at index, or items in slice.
         """
-        assert isinstance(item, (six.integer_types, slice))
+        assert isinstance(item, (int, slice))
         array_size = self.repo.array_size
-        if isinstance(item, six.integer_types):
+        if isinstance(item, int):
             if item < 0:
                 index = array_size + item
                 if index < 0:
@@ -79,7 +77,7 @@ class Array(object):
             else:
                 start_index = item.start
 
-            if not isinstance(item.stop, six.integer_types):
+            if not isinstance(item.stop, int):
                 stop_index = array_size
             elif item.stop < 0:
                 stop_index = array_size + item.stop
@@ -132,7 +130,7 @@ class Array(object):
         except IndexError as e:
             raise ArrayIndexError(e)
         else:
-            return  item_assigned
+            return item_assigned
 
     def __eq__(self, other):
         return isinstance(other, type(self)) and self.id == other.id
@@ -207,6 +205,7 @@ class BigArray(Array):
     constitute a single point of failure.
 
     """
+
     def __init__(self, array_id, repo):
         assert isinstance(repo, AbstractArrayRepository), type(repo)
         super(BigArray, self).__init__(array_id=array_id, repo=repo)
@@ -253,9 +252,9 @@ class BigArray(Array):
         return item, i + n
 
     def __getitem__(self, item):
-        assert isinstance(item, (six.integer_types, slice))
+        assert isinstance(item, (int, slice))
         # Calculate the i and j of the containing base sequence.
-        if isinstance(item, six.integer_types):
+        if isinstance(item, int):
             return self.get_item(item)
         elif isinstance(item, slice):
             assert item.step in (None, 1), "Slice step must be 1: {}".format(str(item.step))

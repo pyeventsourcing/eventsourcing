@@ -31,7 +31,7 @@ class TestFactory(TestCase):
             originator_id=aggregate_id,
             originator_version=aggregate_version,
         )
-        event_store.append(domain_event)
+        event_store.store(domain_event)
 
         # Get the domain events.
         events = event_store.get_domain_events(originator_id=aggregate_id)

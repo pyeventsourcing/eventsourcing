@@ -2,11 +2,14 @@ import logging
 import os
 import time
 import unittest
+from unittest import skip
 
-from eventsourcing.application.actors import Actors, shutdown_actor_system, start_actor_system, \
+from eventsourcing.application.actors import ActorModelRunner, shutdown_actor_system, start_actor_system, \
     start_multiproc_tcp_base_system
+from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.application.system import System
-from eventsourcing.tests.test_system_fixtures import set_db_uri, create_new_order, Orders, Reservations, Payments
+from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
+from eventsourcing.tests.test_system_fixtures import Orders, Payments, Reservations, create_new_order, set_db_uri
 
 logger = logging.getLogger('')
 logger.setLevel(logging.ERROR)
@@ -16,35 +19,41 @@ logger.addHandler(ch)
 
 
 class TestActors(unittest.TestCase):
+    infrastructure_class = SQLAlchemyApplication
+
+    def setUp(self):
+        # Set environment.
+        set_db_uri()
+        # Define system.
+        self.system = System(Orders | Reservations | Orders | Payments | Orders,
+                             infrastructure_class=self.infrastructure_class)
 
     def test_simple_system_base(self):
         start_actor_system()
         self.check_actors()
 
+    @skip("Having trouble running Thespian's 'multiproc tcp base'")
     def test_multiproc_tcp_base(self):
         start_multiproc_tcp_base_system()
         self.check_actors()
 
-    # def _test_multiproc_udp_base(self):
-    #     start_multiproc_udp_base_system()
-    #     self.check_actors(1, 1)
-    #
-    # def _test_multiproc_queue_base(self):
-    #     start_multiproc_queue_base_system()
-    #     self.check_actors()
+    def close_connections_before_forking(self):
+        # Used for closing Django connection before multiprocessing module forks the OS process.
+        pass
 
-    def check_actors(self, num_pipelines=2, num_orders_per_pipeline=5):
+    def check_actors(self, num_pipelines=3, num_orders_per_pipeline=5):
 
         pipeline_ids = list(range(num_pipelines))
 
-        actors = Actors(self.system, pipeline_ids=pipeline_ids, shutdown_on_close=True)
+        self.close_connections_before_forking()
+
+        actors = ActorModelRunner(self.system, pipeline_ids=pipeline_ids, shutdown_on_close=True)
 
         # Todo: Use wakeupAfter() to poll for new notifications (see Timer Messages).
-        # Todo: Fix multiple pipelines with multiproc bases.
 
         order_ids = []
 
-        with Orders(setup_table=True) as app, actors:
+        with self.system.construct_app(Orders, setup_table=True) as app, actors:
 
             # Create some new orders.
             for _ in range(num_orders_per_pipeline):
@@ -56,7 +65,7 @@ class TestActors(unittest.TestCase):
                     order_ids.append(order_id)
 
             # Wait for orders to be reserved and paid.
-            retries = 100 + 100 * num_orders_per_pipeline * len(pipeline_ids)
+            retries = 20 + 10 * num_orders_per_pipeline * len(pipeline_ids)
             for i, order_id in enumerate(order_ids):
 
                 while not app.repository[order_id].is_reserved:
@@ -85,14 +94,6 @@ class TestActors(unittest.TestCase):
             print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
             print("Max order processing time: {:.3f}s".format(max(durations)))
 
-    def setUp(self):
-        # Shutdown base actor system, if running.
-        # ActorSystem().shutdown()
-        # Set environment.
-        set_db_uri()
-        # Define system.
-        self.system = System(Orders | Reservations | Orders | Payments | Orders)
-
     def tearDown(self):
         # Unset environment.
         try:
@@ -100,5 +101,12 @@ class TestActors(unittest.TestCase):
         except KeyError:
             pass
 
-        # Shutdown base actor system.
-        shutdown_actor_system()
+        try:
+            # Shutdown base actor system.
+            shutdown_actor_system()
+        finally:
+            # Clear event handlers.
+            try:
+                assert_event_handlers_empty()
+            finally:
+                clear_event_handlers()

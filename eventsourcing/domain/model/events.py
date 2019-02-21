@@ -1,10 +1,6 @@
 import os
-from abc import ABCMeta
 from collections import OrderedDict
 from uuid import uuid1
-
-import six
-from six import with_metaclass
 
 from eventsourcing.exceptions import EventHashError
 from eventsourcing.utils.hashing import hash_object
@@ -15,45 +11,11 @@ from eventsourcing.utils.transcoding import ObjectJSONEncoder
 GENESIS_HASH = os.getenv('GENESIS_HASH', '')
 
 
-class QualnameABCMeta(ABCMeta):
-    """
-    Supplies __qualname__ to object classes in Python 2.7.
-
-    Needed to get topics from nested classes in Python 2.7.
-    """
-    __outer_classes = {}
-
-    if not hasattr(object, '__qualname__'):
-
-        def __init__(cls, name, bases, dict):
-            super(QualnameABCMeta, cls).__init__(name, bases, dict)
-            QualnameABCMeta.__outer_classes[cls] = None
-            for class_attr in dict.values():  # iterate class attributes
-                for outer_class in QualnameABCMeta.__outer_classes:
-                    if class_attr == outer_class:  # is the object an already registered type?
-                        QualnameABCMeta.__outer_classes[outer_class] = cls
-                        break
-
-        @property
-        def __qualname__(cls):
-            c = QualnameABCMeta.__outer_classes[cls]
-            if c is None:
-                return cls.__name__
-            else:
-                return "%s.%s" % (c.__qualname__, cls.__name__)
-
-
 def create_timesequenced_event_id():
     return uuid1()
 
 
-class QualnameABC(with_metaclass(QualnameABCMeta)):
-    """
-    Base class that introduces __qualname__ for objects in Python 2.7.
-    """
-
-
-class DomainEvent(QualnameABC):
+class DomainEvent(object):
     """
     Base class for domain events.
 
@@ -233,7 +195,7 @@ class EventWithOriginatorVersion(DomainEvent):
     """
 
     def __init__(self, originator_version, **kwargs):
-        if not isinstance(originator_version, six.integer_types):
+        if not isinstance(originator_version, int):
             raise TypeError("Version must be an integer: {}".format(originator_version))
         kwargs['originator_version'] = originator_version
         super(EventWithOriginatorVersion, self).__init__(**kwargs)
@@ -319,8 +281,9 @@ class EventHandlersNotEmptyError(Exception):
 
 
 def assert_event_handlers_empty():
-    if len(_event_handlers):
-        msg = "Event handlers are still subscribed: %s" % _event_handlers
+    len_event_handlers = len(_event_handlers)
+    if len_event_handlers:
+        msg = "%d event handlers are still subscribed: %s" % (len_event_handlers, _event_handlers)
         raise EventHandlersNotEmptyError(msg)
 
 

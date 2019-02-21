@@ -1,19 +1,17 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from threading import Thread
-
-import six
 
 from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
 
 
-class AbstractSequencedItemIterator(six.with_metaclass(ABCMeta)):
+class AbstractSequencedItemIterator(ABC):
     DEFAULT_PAGE_SIZE = 1000
 
     def __init__(self, record_manager, sequence_id, page_size=None, gt=None, gte=None, lt=None, lte=None,
                  limit=None, is_ascending=True):
         assert isinstance(record_manager, AbstractSequencedItemRecordManager), type(record_manager)
-        assert isinstance(page_size, (six.integer_types, type(None)))
-        assert isinstance(limit, (six.integer_types, type(None)))
+        assert isinstance(page_size, (int, type(None)))
+        assert isinstance(limit, (int, type(None)))
         self.record_manager = record_manager
         self.sequence_id = sequence_id
         self.page_size = page_size or self.DEFAULT_PAGE_SIZE

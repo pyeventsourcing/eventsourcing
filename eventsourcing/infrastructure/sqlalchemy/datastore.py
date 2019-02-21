@@ -8,17 +8,17 @@ from sqlalchemy.pool import StaticPool
 from eventsourcing.infrastructure.datastore import Datastore, DatastoreSettings
 from eventsourcing.infrastructure.sqlalchemy.records import Base
 
-DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///:memory:'
+SQLITE_IN_MEMORY = 'sqlite:///:memory:'
+DEFAULT_SQLALCHEMY_DB_URI = SQLITE_IN_MEMORY
 # DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///FILE_SYSTEM_PATH'
 # DEFAULT_SQLALCHEMY_DB_URI = 'mysql://username:password@localhost/eventsourcing'
 # DEFAULT_SQLALCHEMY_DB_URI = 'postgresql://username:password@localhost:5432/eventsourcing'
-
+DEFAULT_SQLALCHEMY_DB_POOL_SIZE = 5
 
 class SQLAlchemySettings(DatastoreSettings):
-    def __init__(self, uri=None, pool_size=5):
+    def __init__(self, uri=None, pool_size=None):
         self.uri = uri or os.getenv('DB_URI', DEFAULT_SQLALCHEMY_DB_URI)
-        self.pool_size = pool_size
-        # self.pool_size = pool_size if not self.uri.startswith('sqlite') else 1
+        self.pool_size = int(pool_size or os.getenv('DB_POOL_SIZE', DEFAULT_SQLALCHEMY_DB_POOL_SIZE))
 
 
 class SQLAlchemyDatastore(Datastore):
@@ -62,6 +62,50 @@ class SQLAlchemyDatastore(Datastore):
                 **kwargs
             )
             assert self._engine
+
+    # Experiment with shared cache in sqlite :memory: database. The snag is
+    # that when the database is locked by one thread and another attempts to
+    # access, then the other thread immediately raises an exception because
+    # the database is locked. There are no concurrent transactions, so access
+    # would need to be controlled with a lock.
+    #
+    # def setup_connection(self):
+    #     assert isinstance(self.settings, SQLAlchemySettings), self.settings
+    #     if self._engine is None:
+    #         args = []
+    #         kwargs = {}
+    #         if self.is_sqlite():
+    #             kwargs['connect_args'] = {
+    #                 'check_same_thread': False,
+    #             }
+    #
+    #             if self.settings.uri == SQLITE_IN_MEMORY:
+    #                 # Do some things to pass in cache=shared, so in-memory database
+    #                 # has a shared (rather than private) cache, which makes it work
+    #                 # with multiple threads.
+    #                 PY2 = sys.version_info.major == 2
+    #                 if PY2:
+    #                     params = {}
+    #                 else:
+    #                     params = {'uri': True}
+    #                     kwargs['creator'] = lambda: sqlite3.connect('file::memory:?cache=shared', **params)
+    #                 args.append('sqlite://')
+    #             else:
+    #                 args.append(self.settings.uri)
+    #
+    #         elif self.settings.pool_size == 1:
+    #             kwargs['poolclass'] = StaticPool
+    #             args.append(self.settings.uri)
+    #         else:
+    #             kwargs['pool_size'] = self.settings.pool_size
+    #             args.append(self.settings.uri)
+    #
+    #         self._engine = create_engine(
+    #             strategy=self._connection_strategy,
+    #             *args,
+    #             **kwargs
+    #         )
+    #         assert self._engine
 
     def is_sqlite(self):
         return self.settings.uri.startswith('sqlite')

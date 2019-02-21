@@ -158,7 +158,7 @@ Before continuing with code examples below, we need to setup an event store.
     # Set up a persistence policy.
     persistence_policy = PersistencePolicy(
         event_store=event_store,
-        event_type=DomainEntity.Event
+        persist_event_type=DomainEntity.Event
     )
 
 Please note, the ``SQLAlchemyRecordManager`` is has its
@@ -275,7 +275,7 @@ with a queue, for example in an actor framework. Although this will smooth over 
 and unfortunate coincidences will be avoided, the continuous maximum throughput will not
 be increased, a queue will eventually reach a limit and a different exception will be raised.
 
-Given the rate limit, it could an application quite a long time to fill up
+Given the rate limit, it could take an application quite a long time to fill up
 a well provisioned database table. Nevertheless, if the rate of writing or the volume
 of domain event records in your system inclines you towards partitioning the table
 of stored events, or if anyway your database works in this way (e.g. Cassandra), then the
@@ -457,7 +457,7 @@ The average performance of assigning an item is a constant time. The worst
 case is the log of the index with base equal to the array size, which occurs
 when containing arrays are added, so that the last highest assigned index can
 be discovered. The probability of departing from average performance is
-inversely proportional to the array size, since the the larger the array
+inversely proportional to the array size, since the arger the array
 size, the less often the base arrays fill up. For a decent array size,
 the probability of needing to build the tree is very low. And when the tree
 does need building, it doesn't take very long (and most of it probably already
@@ -719,22 +719,18 @@ and a ``section_size``.
     assert section.next_id == '6,10', section.next_id
     assert len(section.items) == 5, section.items
 
-The sections of the record notification log each have notification items that
-reflect the recorded domain event.
-The items (notifications) in the sections from ``RecordManagerNotificationLog``
-are Python dicts with three key-values: ``id``, ``topic``, and ``data``.
+The notifications (``section.items``) from ``RecordManagerNotificationLog``
+are Python dicts with keys: ``id``, ``topic``, ``state``, ``originator_id``,
+``originator_version``, and ``casual_dependencies``.
 
-The record manager uses its ``sequenced_item_class`` to identify the actual
-names of the record fields containing the topic and the data, and constructs
-the notifications (the dicts) with the values of those fields. The
-notification's data is simply the record data, so if the record data
-was encrypted, the notification data will also be encrypted. The keys of
-the event notification do not reflect the sequenced item class
-being used in the record manager.
-
-The ``topic`` value can be resolved to a Python class, such as
-a domain event class. An object instance, such as a domain event
-object, can then be reconstructed using the notification's ``data``.
+A domain event can be obtained from a notification by calling the method
+``event_from_topic_and_state()`` on a sequenced item mapper, passing in
+the ``topic`` and ``state`` values. The ``topic`` value can be resolved
+to a Python class, such as a domain event class. An object instance, such
+as a domain event object, can then be reconstructed using the notification's
+``state``. The notification's ``state`` is simply the stored event ``state``,
+so if the record data was encrypted, the notification data will also be
+encrypted. The sequenced item mapper needs to be configured accordingly.
 
 In the code below, the function ``resolve_notifications`` shows
 how that can be done (this function doesn't exist in the library).
@@ -743,21 +739,30 @@ how that can be done (this function doesn't exist in the library).
 
     def resolve_notifications(notifications):
         return [
-            sequenced_item_mapper.from_topic_and_data(
-                topic=notification['event_type'],
-                data=notification['state']
+            sequenced_item_mapper.event_from_topic_and_state(
+                topic=notification['topic'],
+                state=notification['state']
             ) for notification in notifications
         ]
 
     # Resolve a section of notifications into domain events.
     domain_events = resolve_notifications(section.items)
 
-    # Check we got the first entity's "created" event.
-    assert isinstance(domain_events[0], VersionedEntity.Created)
+    from eventsourcing.domain.model.array import ItemAssigned
+    assert type(domain_events[0]) == VersionedEntity.Created
+    assert type(domain_events[1]) == ItemAssigned
+    assert type(domain_events[2]) == ItemAssigned
+    assert type(domain_events[3]) == ItemAssigned
+    assert type(domain_events[4]) == ItemAssigned
+
     assert domain_events[0].originator_id == first_entity.id
+    assert domain_events[1].item == 'item0'
+    assert domain_events[3].item == 'item1'
+    assert domain_events[4].item == 'item2'
+
 
 If the notification data was encrypted by the sequenced item
-mapper, the sequence item mapper will decrypt the data before
+mapper, the sequenced item mapper will decrypt the data before
 reconstructing the domain event. In this example, the sequenced
 item mapper does not have a cipher, so the notification data is
 not encrypted.
@@ -829,14 +834,6 @@ by e.g. user, and place the events of all aggregates created by a user in the sa
 notification log, since they are perhaps most likely to be causally related. This
 mechanism would allow the number of logs to be increased and decreased, with aggregate
 event notifications switching from one log to another and still be processed coherently.
-
-
-Todo: Define notification records in SQLAlchemy: application_id, pipeline_id, record_id, originator_id,
-originator_version with unique index on (application_id, log_id, record_id) and unique index on
-(originator_id, originator_version). Give notification record class to record manager.
-Change manager to write a notification record for each event. Maybe change aggregate
-__save__() method to accept other records, which could be used to save a tracking record.
-Use with an event record class that also has (application_id) column.
 
 
 BigArrayNotificationLog
@@ -989,12 +986,12 @@ The example below uses the record notification log, constructed above.
 
     item = section_dict['items'][0]
     assert item['id'] == 1
-    assert item['event_type'] == 'eventsourcing.domain.model.entity#VersionedEntity.Created'
+    assert item['topic'] == 'eventsourcing.domain.model.entity#VersionedEntity.Created'
 
-    assert section_dict['items'][1]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'
-    assert section_dict['items'][2]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'
-    assert section_dict['items'][3]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'
-    assert section_dict['items'][4]['event_type'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][1]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][2]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][3]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
+    assert section_dict['items'][4]['topic'] == 'eventsourcing.domain.model.array#ItemAssigned'
 
     # Resolve the notifications to domain events.
     domain_events = resolve_notifications(section_dict['items'])

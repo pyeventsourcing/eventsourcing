@@ -1,13 +1,11 @@
 import datetime
 from collections import deque
+from decimal import Decimal
 from unittest import TestCase
 from uuid import NAMESPACE_URL
 
-from decimal import Decimal
-
-from eventsourcing.domain.model.events import QualnameABC
-from eventsourcing.utils.transcoding import ObjectJSONEncoder, ObjectJSONDecoder, json_loads
 from eventsourcing.utils.times import utc_timezone
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder, json_loads
 
 
 class TestObjectJSONEncoder(TestCase):
@@ -117,8 +115,7 @@ class TestObjectJSONDecoder(TestCase):
             json_loads('{')
 
 
-
-class Object(QualnameABC):
+class Object(object):
     def __init__(self, a):
         self.a = a
 

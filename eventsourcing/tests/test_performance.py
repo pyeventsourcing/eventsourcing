@@ -1,8 +1,7 @@
 import time
 from math import floor
+from unittest import skip
 from uuid import uuid4
-
-import six
 
 from eventsourcing.domain.model.timebucketedlog import start_new_timebucketedlog
 from eventsourcing.example.domainmodel import Example, create_new_example
@@ -13,18 +12,16 @@ from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoID
     TimestampSequencedNoIDRecord, TimestampSequencedWithIDRecord
 from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader, get_timebucketedlog_reader
 from eventsourcing.tests.base import notquick
-from eventsourcing.tests.example_application_tests.base import WithExampleApplication
-from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import \
-    WithEncryption
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
-    WithCassandraRecordManagers
+from eventsourcing.tests.example_application_tests import base
+from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import WithEncryption
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import WithCassandraRecordManagers
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    WithSQLAlchemyRecordManagers
+from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import PopoTestCase
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import SQLAlchemyRecordManagerTestCase
 
 
 @notquick
-class PerformanceTestCase(WithExampleApplication):
+class PerformanceTestCase(base.WithExampleApplication):
     drop_tables = True
 
     def test_entity_performance(self):
@@ -46,15 +43,15 @@ class PerformanceTestCase(WithExampleApplication):
 
             # NB: Use range(1, 5) to test whether we can get more than 10000 items from Cassandra.
             # Setup a number of entities, with different lengths of event history.
-            for i in six.moves.range(0, 4):
+            for i in range(0, 4):
 
                 # Initialise table with other entities.
                 num_other_entities = i
                 filling = []
-                for _ in six.moves.range(num_other_entities):
+                for _ in range(num_other_entities):
                     filling.append(create_new_example(a=1, b=2))
 
-                # b = str([uuid4().hex for _ in six.moves.range(100000)])
+                # b = str([uuid4().hex for _ in range(100000)])
                 b = 2
                 example = create_new_example(a=1, b=b)
                 self.entities[i] = example
@@ -62,7 +59,7 @@ class PerformanceTestCase(WithExampleApplication):
                 # Beat a number of times.
                 num_beats = int(floor(10 ** i))
                 start_beating = time.time()
-                for _ in six.moves.range(num_beats):
+                for _ in range(num_beats):
                     # print("Beat example")
                     example.beat_heart()
 
@@ -94,7 +91,7 @@ class PerformanceTestCase(WithExampleApplication):
 
                     start_last_n = time.time()
                     last_n_stored_events = []
-                    for _ in six.moves.range(repetitions):
+                    for _ in range(repetitions):
                         iterator = SequencedItemIterator(
                             record_manager=ars,
                             sequence_id=example.id,
@@ -115,7 +112,7 @@ class PerformanceTestCase(WithExampleApplication):
 
                 # Get the entity by replaying all events (which it must since there isn't a snapshot).
                 start_replay = time.time()
-                for _ in six.moves.range(repetitions):
+                for _ in range(repetitions):
                     example = app.example_repository[example.id]
                     assert isinstance(example, Example)
                     heartbeats = example.count_heartbeats()
@@ -129,13 +126,13 @@ class PerformanceTestCase(WithExampleApplication):
                 app.example_repository.take_snapshot(example.id, lt=example.__version__)
 
                 extra_beats = 4
-                for _ in six.moves.range(extra_beats):
+                for _ in range(extra_beats):
                     example.beat_heart()
                 num_beats += extra_beats
 
                 # Get the entity using snapshot and replaying events since the snapshot.
                 start_replay = time.time()
-                for _ in six.moves.range(repetitions):
+                for _ in range(repetitions):
                     example = app.example_repository[example.id]
                 time_replaying = (time.time() - start_replay) / repetitions
 
@@ -158,7 +155,7 @@ class PerformanceTestCase(WithExampleApplication):
             number_of_messages = 111
             events = []
             for i in range(number_of_messages):
-                event = log.append_message('Logger message number {}'.format(i))
+                event = log.log_message('Logger message number {}'.format(i))
                 events.append(event)
             time_to_write = (time.time() - start_write)
             print("Time to log {} messages: {:.2f}s ({:.0f} messages/s, {:.6f}s each)"
@@ -222,7 +219,7 @@ class PerformanceTestCase(WithExampleApplication):
 
     def get_message_logged_events_and_next_position(self, log_reader, position, page_size, is_ascending=False):
         assert isinstance(log_reader, TimebucketedlogReader), type(log_reader)
-        assert isinstance(page_size, six.integer_types), type(page_size)
+        assert isinstance(page_size, int), type(page_size)
         assert isinstance(is_ascending, bool)
         if is_ascending:
             gt = position
@@ -256,12 +253,19 @@ class TestDjangoPerformanceWithEncryption(WithEncryption, TestDjangoPerformance)
 
 
 @notquick
+class TestPopoPerformance(PopoTestCase, PerformanceTestCase):
+    @skip("Popo record manager only supports sequencing with integers")
+    def test_log_performance(self):
+        pass
+
+
+@notquick
 class TestCassandraPerformanceWithEncryption(WithEncryption, TestCassandraPerformance):
     pass
 
 
 @notquick
-class TestSQLAlchemyPerformance(WithSQLAlchemyRecordManagers, PerformanceTestCase):
+class TestSQLAlchemyPerformance(SQLAlchemyRecordManagerTestCase, PerformanceTestCase):
     def construct_entity_record_manager(self):
         return self.factory.construct_integer_sequenced_record_manager(
             record_class=IntegerSequencedWithIDRecord
@@ -290,3 +294,7 @@ class TestSQLAlchemyPerformanceNoID(TestSQLAlchemyPerformance):
 @notquick
 class TestSQLAlchemyPerformanceWithEncryption(WithEncryption, TestSQLAlchemyPerformance):
     pass
+
+
+# Avoid running abstract test case.
+del (PerformanceTestCase)

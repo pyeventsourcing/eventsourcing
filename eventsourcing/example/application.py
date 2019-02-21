@@ -1,6 +1,4 @@
-from abc import ABCMeta
-
-from six import with_metaclass
+from abc import ABC
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
@@ -21,7 +19,7 @@ from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 # in favour of the new, less complicated application base classes
 
 
-class ApplicationWithEventStores(with_metaclass(ABCMeta)):
+class ApplicationWithEventStores(ABC):
     """
     Event sourced application object class.
 
@@ -33,7 +31,8 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
     def __init__(self, entity_record_manager=None,
                  log_record_manager=None,
                  snapshot_record_manager=None,
-                 cipher=None):
+                 cipher=None,
+                 sequenced_item_mapper_class=SequencedItemMapper):
 
         self.entity_event_store = None
         if entity_record_manager:
@@ -42,6 +41,7 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
                 event_position_attr='originator_version',
                 record_manager=entity_record_manager,
                 cipher=cipher,
+                sequenced_item_mapper_class=sequenced_item_mapper_class,
             )
 
         self.log_event_store = None
@@ -51,6 +51,7 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
                 event_position_attr='timestamp',
                 record_manager=log_record_manager,
                 cipher=cipher,
+                sequenced_item_mapper_class=sequenced_item_mapper_class,
             )
 
         self.snapshot_event_store = None
@@ -60,11 +61,13 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
                 event_position_attr='originator_version',
                 record_manager=snapshot_record_manager,
                 cipher=cipher,
+                sequenced_item_mapper_class=sequenced_item_mapper_class,
             )
 
-    def construct_event_store(self, event_sequence_id_attr, event_position_attr, record_manager,
-                              cipher=None):
+    def construct_event_store(self, sequenced_item_mapper_class, event_sequence_id_attr, event_position_attr,
+                              record_manager, cipher=None):
         sequenced_item_mapper = self.construct_sequenced_item_mapper(
+            sequenced_item_mapper_class=sequenced_item_mapper_class,
             sequenced_item_class=record_manager.sequenced_item_class,
             event_sequence_id_attr=event_sequence_id_attr,
             event_position_attr=event_position_attr,
@@ -76,11 +79,15 @@ class ApplicationWithEventStores(with_metaclass(ABCMeta)):
         )
         return event_store
 
-    def construct_sequenced_item_mapper(self, sequenced_item_class, event_sequence_id_attr,
-                                        event_position_attr, cipher=None,
+    def construct_sequenced_item_mapper(self,
+                                        sequenced_item_mapper_class,
+                                        sequenced_item_class,
+                                        event_sequence_id_attr,
+                                        event_position_attr,
+                                        cipher=None,
                                         json_encoder_class=ObjectJSONEncoder,
                                         json_decoder_class=ObjectJSONDecoder):
-        return SequencedItemMapper(
+        return sequenced_item_mapper_class(
             sequenced_item_class=sequenced_item_class,
             sequence_id_attr_name=event_sequence_id_attr,
             position_attr_name=event_position_attr,
@@ -112,21 +119,21 @@ class ApplicationWithPersistencePolicies(ApplicationWithEventStores):
         if self.entity_event_store:
             return PersistencePolicy(
                 event_store=self.entity_event_store,
-                event_type=VersionedEntity.Event,
+                persist_event_type=VersionedEntity.Event,
             )
 
     def construct_snapshot_persistence_policy(self):
         if self.snapshot_event_store:
             return PersistencePolicy(
                 event_store=self.snapshot_event_store,
-                event_type=Snapshot,
+                persist_event_type=Snapshot,
             )
 
     def construct_log_persistence_policy(self):
         if self.log_event_store:
             return PersistencePolicy(
                 event_store=self.log_event_store,
-                event_type=Logged,
+                persist_event_type=Logged,
             )
 
     def close(self):

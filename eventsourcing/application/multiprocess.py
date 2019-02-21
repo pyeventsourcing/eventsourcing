@@ -1,30 +1,27 @@
 import multiprocessing
 from multiprocessing import Manager
+from queue import Empty
 from time import sleep
 
-import six
-
 from eventsourcing.application.process import Prompt
-from eventsourcing.application.system import System
+from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
+from eventsourcing.application.system import DEFAULT_POLL_INTERVAL, PromptOutbox, System, SystemRunner
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import CausalDependencyFailed
+from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 
-DEFAULT_POLL_INTERVAL = 5
 
+class MultiprocessRunner(SystemRunner):
 
-class Multiprocess(object):
-
-    def __init__(self, system, pipeline_ids=(-1,), poll_interval=None, notification_log_section_size=5,
-                 pool_size=1, setup_tables=False, sleep_for_setup_tables=0):
-        self.pool_size = pool_size
-        self.system = system
+    def __init__(self, system: System, pipeline_ids=(DEFAULT_PIPELINE_ID,), poll_interval=None,
+                 setup_tables=False, sleep_for_setup_tables=0, *args, **kwargs):
+        super(MultiprocessRunner, self).__init__(system=system, *args, **kwargs)
         self.pipeline_ids = pipeline_ids
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
         self.os_processes = None
-        self.notification_log_section_size = notification_log_section_size
         self.setup_tables = setup_tables or system.setup_tables
         self.sleep_for_setup_tables = sleep_for_setup_tables
 
@@ -39,14 +36,14 @@ class Multiprocess(object):
 
         # Setup queues.
         for pipeline_id in self.pipeline_ids:
-            for process_class, upstream_classes in self.system.followings.items():
-                inbox_id = (pipeline_id, process_class.__name__.lower())
+            for process_name, upstream_names in self.system.followings.items():
+                inbox_id = (pipeline_id, process_name.lower())
                 if inbox_id not in self.inboxes:
                     self.inboxes[inbox_id] = self.manager.Queue()
-                for upstream_class in upstream_classes:
-                    outbox_id = (pipeline_id, upstream_class.__name__.lower())
+                for upstream_class_name in upstream_names:
+                    outbox_id = (pipeline_id, upstream_class_name.lower())
                     if outbox_id not in self.outboxes:
-                        self.outboxes[outbox_id] = Outbox()
+                        self.outboxes[outbox_id] = PromptOutbox()
                     if inbox_id not in self.outboxes[outbox_id].downstream_inboxes:
                         self.outboxes[outbox_id].downstream_inboxes[inbox_id] = self.inboxes[inbox_id]
 
@@ -56,17 +53,17 @@ class Multiprocess(object):
 
         # Start operating system process.
         for pipeline_id in self.pipeline_ids:
-            for process_class, upstream_classes in self.system.followings.items():
+            for process_name, upstream_names in self.system.followings.items():
+                process_class = self.system.process_classes[process_name]
                 os_process = OperatingSystemProcess(
                     application_process_class=process_class,
-                    upstream_names=[cls.__name__.lower() for cls in upstream_classes],
+                    infrastructure_class=self.infrastructure_class,
+                    upstream_names=upstream_names,
                     poll_interval=self.poll_interval,
                     pipeline_id=pipeline_id,
-                    notification_log_section_size=self.notification_log_section_size,
-                    pool_size=self.pool_size,
                     setup_tables=self.setup_tables,
-                    inbox=self.inboxes[(pipeline_id, process_class.__name__.lower())],
-                    outbox=self.outboxes[(pipeline_id, process_class.__name__.lower())],
+                    inbox=self.inboxes[(pipeline_id, process_name.lower())],
+                    outbox=self.outboxes[(pipeline_id, process_name.lower())],
                 )
                 os_process.daemon = True
                 os_process.start()
@@ -85,6 +82,8 @@ class Multiprocess(object):
         return isinstance(event, Prompt)
 
     def close(self):
+        super(MultiprocessRunner, self).close()
+
         unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
 
         for os_process in self.os_processes:
@@ -99,46 +98,34 @@ class Multiprocess(object):
         self.os_processes = None
         self.manager = None
 
-    def __enter__(self):
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-
-class Outbox(object):
-    def __init__(self):
-        self.downstream_inboxes = {}
-
-    def put(self, msg):
-        for q in self.downstream_inboxes.values():
-            q.put(msg)
-
 
 class OperatingSystemProcess(multiprocessing.Process):
 
-    def __init__(self, application_process_class, upstream_names, pipeline_id=-1,
-                 poll_interval=DEFAULT_POLL_INTERVAL, notification_log_section_size=None,
-                 pool_size=5, setup_tables=False, inbox=None, outbox=None, *args, **kwargs):
+    def __init__(self, application_process_class, infrastructure_class, upstream_names,
+                 pipeline_id=DEFAULT_PIPELINE_ID, poll_interval=DEFAULT_POLL_INTERVAL,
+                 setup_tables=False, inbox=None, outbox=None, *args, **kwargs):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
+        self.infrastructure_class = infrastructure_class
         self.upstream_names = upstream_names
         self.daemon = True
         self.pipeline_id = pipeline_id
         self.poll_interval = poll_interval
-        self.notification_log_section_size = notification_log_section_size
-        self.pool_size = pool_size
         self.inbox = inbox
         self.outbox = outbox
         self.setup_tables = setup_tables
 
     def run(self):
         # Construct process application object.
-        self.process = self.application_process_class(
+        process_class = self.application_process_class
+        if self.infrastructure_class:
+            process_class = process_class.mixin(self.infrastructure_class)
+
+        if not issubclass(process_class, ApplicationWithConcreteInfrastructure):
+            raise Exception("Does not have application infrastructure: {}".format(process_class))
+
+        self.process = process_class(
             pipeline_id=self.pipeline_id,
-            notification_log_section_size=self.notification_log_section_size,
-            pool_size=self.pool_size,
             setup_table=self.setup_tables,
         )
 
@@ -162,11 +149,12 @@ class OperatingSystemProcess(multiprocessing.Process):
                 notification_log = RecordManagerNotificationLog(
                     record_manager=record_manager.clone(
                         application_name=upstream_name,
+                        # Todo: Check if setting pipeline_id is necessary (it's the same?).
                         pipeline_id=self.pipeline_id
                     ),
                     section_size=self.process.notification_log_section_size
                 )
-                # Todo: Support upstream partition IDs different from self.pipeline_id.
+                # Todo: Support upstream partition IDs different from self.pipeline_id?
                 # Todo: Support combining partitions. Read from different partitions but write to the same partition,
                 # could be one os process that reads from many logs of the same upstream app, or many processes each
                 # reading one partition with contention writing to the same partition).
@@ -199,7 +187,7 @@ class OperatingSystemProcess(multiprocessing.Process):
     def loop_on_prompts(self):
 
         # Run once, in case prompts were missed.
-        self.process.run()
+        self.run_process()
 
         # Loop on getting prompts.
         while True:
@@ -213,11 +201,15 @@ class OperatingSystemProcess(multiprocessing.Process):
                     break
 
                 else:
-                    self.process.run(item)
+                    self.run_process(item)
 
-            except six.moves.queue.Empty:
+            except Empty:
                 # Basically, we're polling after a timeout.
-                self.process.run()
+                self.run_process()
+
+    @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.1)
+    def run_process(self, prompt=None):
+        self.process.run(prompt)
 
     def broadcast_prompt(self, prompt):
         self.outbox.put(prompt)

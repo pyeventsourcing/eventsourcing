@@ -1,9 +1,10 @@
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
-from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager, TrackingRecordManager
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedWithIDRecord, SnapshotRecord, \
     StoredEventRecord, TimestampSequencedNoIDRecord
 
@@ -13,9 +14,8 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
     integer_sequenced_record_class = IntegerSequencedWithIDRecord
     timestamp_sequenced_record_class = TimestampSequencedNoIDRecord
     snapshot_record_class = SnapshotRecord
-    tracking_record_manager_class = TrackingRecordManager
 
-    def __init__(self, session, uri=None, pool_size=5, *args, **kwargs):
+    def __init__(self, session, uri=None, pool_size=None, *args, **kwargs):
         super(SQLAlchemyInfrastructureFactory, self).__init__(*args, **kwargs)
         self.session = session
         self.uri = uri
@@ -36,10 +36,6 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
         self.session = datastore.session
         return datastore
 
-    def construct_tracking_record_manager(self):
-        s = super(SQLAlchemyInfrastructureFactory, self)
-        return s.construct_tracking_record_manager(self.session)
-
 
 def construct_sqlalchemy_eventstore(session,
                                     sequenced_item_class=None,
@@ -51,7 +47,7 @@ def construct_sqlalchemy_eventstore(session,
                                     record_class=None,
                                     contiguous_record_ids=False,
                                     application_name=None,
-                                    pipeline_id=-1,
+                                    pipeline_id=DEFAULT_PIPELINE_ID,
                                     ):
     sequenced_item_class = sequenced_item_class or StoredEvent
     sequenced_item_mapper = SequencedItemMapper(

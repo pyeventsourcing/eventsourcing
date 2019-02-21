@@ -1,14 +1,7 @@
+from functools import singledispatch, wraps
 from inspect import isfunction
 from random import random
 from time import sleep
-
-from six import wraps
-
-try:
-    # Python 3.4+
-    from functools import singledispatch
-except ImportError:
-    from singledispatch import singledispatch
 
 from eventsourcing.domain.model.events import subscribe
 from eventsourcing.exceptions import ProgrammingError
@@ -156,11 +149,13 @@ def attribute(getter):
         raise ProgrammingError("Expected a function, got: {}".format(repr(getter)))
 
 
-def retry(exc=Exception, max_attempts=1, wait=0):
+def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
     def _retry(func):
 
         @wraps(func)
         def wrapper(*args, **kwargs):
+            if stall:
+                sleep(stall)
             attempts = 0
             while True:
                 try:
@@ -169,6 +164,8 @@ def retry(exc=Exception, max_attempts=1, wait=0):
                     attempts += 1
                     if max_attempts is None or attempts < max_attempts:
                         sleep(wait * (1 + 0.1 * (random() - 0.5)))
+                        if verbose:
+                            print("Retrying {}".format(func))
                     else:
                         # Max retries exceeded.
                         raise e

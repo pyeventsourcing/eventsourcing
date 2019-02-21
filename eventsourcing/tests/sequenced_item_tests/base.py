@@ -1,16 +1,15 @@
 import json
 import uuid
+from abc import abstractmethod
 from time import sleep
 from uuid import uuid4
-
-import six
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp, \
     Logged
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.exceptions import RecordConflictError, OperationalError
+from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator, ThreadedSequencedItemIterator
@@ -22,6 +21,9 @@ from eventsourcing.utils.topic import get_topic
 
 
 class RecordManagerTestCase(AbstractDatastoreTestCase):
+    """
+    Abstract test case for record managers.
+    """
 
     def __init__(self, *args, **kwargs):
         super(RecordManagerTestCase, self).__init__(*args, **kwargs)
@@ -37,42 +39,12 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
                 self.datastore.drop_tables()
                 self.datastore.setup_tables()
 
-    def construct_entity_record_manager(self):
-        return self.factory.construct_integer_sequenced_record_manager()
-
-    def construct_snapshot_record_manager(self):
-        return self.factory.construct_snapshot_record_manager()
-
-    def construct_timestamp_sequenced_record_manager(self):
-        return self.factory.construct_timestamp_sequenced_record_manager()
-
     def tearDown(self):
         self._record_manager = None
         if self.datastore is not None:
             self.datastore.drop_tables()
             self.datastore.close_connection()
         super(RecordManagerTestCase, self).tearDown()
-
-    @property
-    def record_manager(self):
-        """
-        :rtype: AbstractSequencedItemRecordManager
-        """
-        if self._record_manager is None:
-            self._record_manager = self.construct_record_manager()
-        return self._record_manager
-
-    def construct_record_manager(self):
-        raise NotImplementedError()
-
-    def construct_positions(self):
-        raise NotImplementedError()
-
-    def EXAMPLE_EVENT_TOPIC1(self):
-        raise NotImplementedError()
-
-    def EXAMPLE_EVENT_TOPIC2(self):
-        raise NotImplementedError()
 
     def test(self):
         sequence_id1 = uuid.uuid1()
@@ -90,27 +62,27 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         self.assertLess(position2, position3)
 
         # Append an item.
-        data1 = json.dumps({'name': 'value1'})
+        state1 = json.dumps({'name': 'value1'})
         item1 = SequencedItem(
             sequence_id=sequence_id1,
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC1,
-            data=data1,
+            state=state1,
         )
-        self.record_manager.append(item1)
+        self.record_manager.record_sequenced_items(item1)
 
         # Check record manager returns one sequence ID.
         self.assertEqual([sequence_id1], self.record_manager.list_sequence_ids())
 
         # Append an item to a different sequence.
-        data2 = json.dumps({'name': 'value2'})
+        state2 = json.dumps({'name': 'value2'})
         item2 = SequencedItem(
             sequence_id=sequence_id2,
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC1,
-            data=data2,
+            state=state2,
         )
-        self.record_manager.append(item2)
+        self.record_manager.record_sequenced_items(item2)
 
         # Check record manager returns two sequence IDs.
         self.assertEqual(sorted([sequence_id1, sequence_id2]), sorted(self.record_manager.list_sequence_ids()))
@@ -118,7 +90,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         # Get first event.
         retrieved_item = self.record_manager.get_item(sequence_id1, position1)
         self.assertEqual(sequence_id1, retrieved_item.sequence_id)
-        self.assertEqual(data1, retrieved_item.data)
+        self.assertEqual(state1, retrieved_item.state)
 
         # Check index error is raised when item does not exist at position.
         with self.assertRaises(IndexError):
@@ -129,51 +101,51 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         self.assertEqual(1, len(retrieved_items), str(retrieved_items))
         self.assertIsInstance(retrieved_items[0], SequencedItem)
         self.assertEqual(retrieved_items[0].sequence_id, item1.sequence_id)
-        self.assertEqual(retrieved_items[0].data, item1.data)
+        self.assertEqual(retrieved_items[0].state, item1.state)
         self.assertEqual(retrieved_items[0].topic, item1.topic)
 
         # Check raises RecordConflictError when appending an item at same position in same sequence.
-        data3 = json.dumps({'name': 'value3'})
+        state3 = json.dumps({'name': 'value3'})
         item3 = SequencedItem(
             sequence_id=item1.sequence_id,
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC2,
-            data=data3,
+            state=state3,
         )
         self.assertEqual(item1.sequence_id, item3.sequence_id)
         self.assertNotEqual(item1.topic, item3.topic)
-        self.assertNotEqual(item1.data, item3.data)
+        self.assertNotEqual(item1.state, item3.state)
         # - append conflicting item as single item
         with self.assertRaises(RecordConflictError):
-            self.record_manager.append(item3)
+            self.record_manager.record_sequenced_items(item3)
 
         item4 = SequencedItem(
             sequence_id=item1.sequence_id,
             position=position2,
             topic=self.EXAMPLE_EVENT_TOPIC2,
-            data=data3,
+            state=state3,
         )
         item5 = SequencedItem(
             sequence_id=item1.sequence_id,
             position=position3,
             topic=self.EXAMPLE_EVENT_TOPIC2,
-            data=data3,
+            state=state3,
         )
         # - append conflicting item in list with new items (none should be appended)
         with self.assertRaises(RecordConflictError):
-            self.record_manager.append([item3, item4, item5])
+            self.record_manager.record_sequenced_items([item3, item4, item5])
 
         # Check there is still only one item.
         retrieved_items = self.record_manager.list_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 1)
 
         # Check adding an empty list does nothing.
-        self.record_manager.append([])
+        self.record_manager.record_sequenced_items([])
         retrieved_items = self.record_manager.list_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 1)
 
         # Append a second and third item at the next positions.
-        self.record_manager.append([item4, item5])
+        self.record_manager.record_sequenced_items([item4, item5])
 
         # Check there are three items.
         retrieved_items = self.record_manager.list_items(sequence_id1)
@@ -183,101 +155,101 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         self.assertIsInstance(retrieved_items[0], SequencedItem)
         self.assertEqual(retrieved_items[0].sequence_id, item1.sequence_id)
         self.assertEqual(retrieved_items[0].topic, item1.topic)
-        self.assertEqual(retrieved_items[0].data, item1.data)
+        self.assertEqual(retrieved_items[0].state, item1.state)
 
         self.assertIsInstance(retrieved_items[1], SequencedItem)
         self.assertEqual(retrieved_items[1].sequence_id, item3.sequence_id)
         self.assertEqual(retrieved_items[1].topic, item4.topic)
-        self.assertEqual(retrieved_items[1].data, item4.data)
+        self.assertEqual(retrieved_items[1].state, item4.state)
 
         self.assertIsInstance(retrieved_items[2], SequencedItem)
         self.assertEqual(retrieved_items[2].sequence_id, item5.sequence_id)
         self.assertEqual(retrieved_items[2].topic, item5.topic)
-        self.assertEqual(retrieved_items[2].data, item5.data)
+        self.assertEqual(retrieved_items[2].state, item5.state)
 
         # Get items greater than a position.
         retrieved_items = self.record_manager.list_items(sequence_id1, gt=position1)
         self.assertEqual(len(retrieved_items), 2)
-        self.assertEqual(retrieved_items[0].data, item4.data)
-        self.assertEqual(retrieved_items[1].data, item5.data)
+        self.assertEqual(retrieved_items[0].state, item4.state)
+        self.assertEqual(retrieved_items[1].state, item5.state)
 
         # Get items greater then or equal to a position.
         retrieved_items = self.record_manager.list_items(sequence_id1, gte=position2)
         self.assertEqual(len(retrieved_items), 2)
-        self.assertEqual(retrieved_items[0].data, item4.data)
-        self.assertEqual(retrieved_items[1].data, item5.data)
+        self.assertEqual(retrieved_items[0].state, item4.state)
+        self.assertEqual(retrieved_items[1].state, item5.state)
 
         # Get items less than a position.
         retrieved_items = self.record_manager.list_items(sequence_id1, lt=position3)
         self.assertEqual(len(retrieved_items), 2)
-        self.assertEqual(retrieved_items[0].data, item1.data)
-        self.assertEqual(retrieved_items[1].data, item4.data)
+        self.assertEqual(retrieved_items[0].state, item1.state)
+        self.assertEqual(retrieved_items[1].state, item4.state)
 
         # Get items less then or equal to a position.
         retrieved_items = self.record_manager.list_items(sequence_id1, lte=position2)
         self.assertEqual(len(retrieved_items), 2)
-        self.assertEqual(retrieved_items[0].data, item1.data)
-        self.assertEqual(retrieved_items[1].data, item4.data)
+        self.assertEqual(retrieved_items[0].state, item1.state)
+        self.assertEqual(retrieved_items[1].state, item4.state)
 
         # Get items greater then or equal to a position and less then or equal to a position.
         retrieved_items = self.record_manager.list_items(sequence_id1, gte=position2, lte=position2)
         self.assertEqual(len(retrieved_items), 1)
-        self.assertEqual(retrieved_items[0].data, item4.data)
+        self.assertEqual(retrieved_items[0].state, item4.state)
 
         # Get items greater then or equal to a position and less then a position.
         retrieved_items = self.record_manager.list_items(sequence_id1, gte=position2, lt=position3)
         self.assertEqual(len(retrieved_items), 1)
-        self.assertEqual(retrieved_items[0].data, item4.data)
+        self.assertEqual(retrieved_items[0].state, item4.state)
 
         # Get items greater then a position and less then or equal to a position.
         retrieved_items = self.record_manager.list_items(sequence_id1, gt=position1, lte=position2)
         self.assertEqual(len(retrieved_items), 1)
-        self.assertEqual(retrieved_items[0].data, item4.data)
+        self.assertEqual(retrieved_items[0].state, item4.state)
 
         # Get items greater a position and less a position.
         retrieved_items = self.record_manager.list_items(sequence_id1, gt=position1, lt=position3)
         self.assertEqual(len(retrieved_items), 1)
-        self.assertEqual(retrieved_items[0].data, item4.data)
+        self.assertEqual(retrieved_items[0].state, item4.state)
 
         # Get items with a limit.
         retrieved_items = self.record_manager.list_items(sequence_id1, limit=1)
         self.assertEqual(len(retrieved_items), 1)
-        self.assertEqual(retrieved_items[0].data, item1.data)
+        self.assertEqual(retrieved_items[0].state, item1.state)
 
         # Get items with a limit, and with descending query (so that we get the last ones).
         retrieved_items = self.record_manager.list_items(sequence_id1, limit=2,
                                                          query_ascending=False)
         self.assertEqual(2, len(retrieved_items))
-        self.assertEqual(retrieved_items[0].data, item4.data)
-        self.assertEqual(retrieved_items[1].data, item5.data)
+        self.assertEqual(retrieved_items[0].state, item4.state)
+        self.assertEqual(retrieved_items[1].state, item5.state)
 
         # Get items with a limit and descending query, greater than a position.
         retrieved_items = self.record_manager.list_items(sequence_id1, limit=2, gt=position2,
                                                          query_ascending=False)
         self.assertEqual(1, len(retrieved_items))
-        self.assertEqual(retrieved_items[0].data, item5.data)
+        self.assertEqual(retrieved_items[0].state, item5.state)
 
         # Get items with a limit and descending query, less than a position.
         retrieved_items = self.record_manager.list_items(sequence_id1, limit=2, lt=position3,
                                                          query_ascending=False)
         self.assertEqual(len(retrieved_items), 2)
-        self.assertEqual(retrieved_items[0].data, item1.data)
-        self.assertEqual(retrieved_items[1].data, item4.data)
+        self.assertEqual(retrieved_items[0].state, item1.state)
+        self.assertEqual(retrieved_items[1].state, item4.state)
 
         # Get items in descending order, queried in ascending order.
         retrieved_items = self.record_manager.list_items(sequence_id1,
                                                          results_ascending=False)
         self.assertEqual(len(retrieved_items), 3)
-        self.assertEqual(retrieved_items[0].data, item5.data)
-        self.assertEqual(retrieved_items[2].data, item1.data)
+        self.assertEqual(retrieved_items[0].state, item5.state)
+        self.assertEqual(retrieved_items[2].state, item1.state)
 
         # Get items in descending order, queried in descending order.
         retrieved_items = self.record_manager.list_items(sequence_id1,
                                                          query_ascending=False,
                                                          results_ascending=False)
         self.assertEqual(len(retrieved_items), 3)
-        self.assertEqual(retrieved_items[0].data, item5.data)
-        self.assertEqual(retrieved_items[2].data, item1.data)
+        self.assertEqual(retrieved_items[0].state, item5.state)
+        self.assertEqual(retrieved_items[2].state, item1.state)
 
         # Check we can get all the sequence IDs.
         sequence_ids = self.record_manager.list_sequence_ids()
@@ -329,8 +301,45 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         with self.assertRaises(OperationalError):
             self.record_manager.raise_operational_error(Exception())
 
+    @property
+    def record_manager(self):
+        """
+        :rtype: AbstractSequencedItemRecordManager
+        """
+        if self._record_manager is None:
+            self._record_manager = self.construct_record_manager()
+        return self._record_manager
+
+    @abstractmethod
+    def construct_record_manager(self):
+        raise NotImplementedError()
+
+    def construct_entity_record_manager(self):
+        return self.factory.construct_integer_sequenced_record_manager()
+
+    def construct_snapshot_record_manager(self):
+        return self.factory.construct_snapshot_record_manager()
+
+    def construct_timestamp_sequenced_record_manager(self):
+        return self.factory.construct_timestamp_sequenced_record_manager()
+
+    @abstractmethod
+    def construct_positions(self):
+        return None, None, None
+
+    @abstractmethod
+    def EXAMPLE_EVENT_TOPIC1(self):
+        pass
+
+    @abstractmethod
+    def EXAMPLE_EVENT_TOPIC2(self):
+        pass
+
 
 class WithRecordManagers(AbstractDatastoreTestCase):
+    """
+    Base class for test cases that need a record manager.
+    """
     drop_tables = False
 
     def __init__(self, *args, **kwargs):
@@ -404,6 +413,10 @@ class TimestampedEventExample2(EventWithTimestamp, EventWithOriginatorID):
 
 
 class IntegerSequencedRecordTestCase(RecordManagerTestCase):
+    """
+    Abstract test case for integer sequenced record managers.
+    """
+
     EXAMPLE_EVENT_TOPIC1 = get_topic(VersionedEventExample1)
     EXAMPLE_EVENT_TOPIC2 = get_topic(VersionedEventExample2)
 
@@ -415,6 +428,9 @@ class IntegerSequencedRecordTestCase(RecordManagerTestCase):
 
 
 class TimestampSequencedItemTestCase(RecordManagerTestCase):
+    """
+    Abstract test case for timestamp sequenced record managers.
+    """
     EXAMPLE_EVENT_TOPIC1 = get_topic(TimestampedEventExample1)
     EXAMPLE_EVENT_TOPIC2 = get_topic(TimestampedEventExample2)
 
@@ -428,49 +444,11 @@ class TimestampSequencedItemTestCase(RecordManagerTestCase):
         return self.factory.construct_timestamp_sequenced_record_manager()
 
 
-class SequencedItemIteratorTestCase(WithRecordManagers):
+class AbstractSequencedItemIteratorTestCase(WithRecordManagers):
+    """
+    Abstract test case for sequenced item iterators.
+    """
     ENTITY_ID1 = uuid4()
-
-    @property
-    def entity_id(self):
-        return self.ENTITY_ID1
-
-    @property
-    def num_events(self):
-        return 12
-
-    @property
-    def iterator_cls(self):
-        """
-        Returns iterator class.
-        """
-        raise NotImplementedError()
-
-    def construct_iterator(self, is_ascending, page_size, gt=None, lte=None, limit=None):
-        return self.iterator_cls(
-            record_manager=self.entity_record_manager,
-            sequence_id=self.entity_id,
-            page_size=page_size,
-            gt=gt,
-            lte=lte,
-            limit=limit,
-            is_ascending=is_ascending,
-        )
-
-    def setup_sequenced_items(self):
-        self.sequenced_items = []
-        self.number_of_sequenced_items = 12
-        for i in six.moves.range(self.number_of_sequenced_items):
-            sequenced_item = SequencedItem(
-                sequence_id=self.entity_id,
-                position=i,
-                topic='eventsourcing.example.domain_model#Example.Created',
-                data='{"i":%s,"entity_id":"%s","timestamp":%s}' % (
-                    i, self.entity_id, decimaltimestamp()
-                ),
-            )
-            self.sequenced_items.append(sequenced_item)
-            self.entity_record_manager.append(sequenced_item)
 
     def test(self):
         self.setup_sequenced_items()
@@ -485,8 +463,8 @@ class SequencedItemIteratorTestCase(WithRecordManagers):
         # # Check can get all events in ascending order.
         self.assert_iterator_yields_events(
             is_ascending=True,
-            expect_at_start=self.sequenced_items[0].data,
-            expect_at_end=self.sequenced_items[-1].data,
+            expect_at_start=self.sequenced_items[0].state,
+            expect_at_end=self.sequenced_items[-1].state,
             expect_item_count=12,
             expect_page_count=3,
             expect_query_count=3,
@@ -496,8 +474,8 @@ class SequencedItemIteratorTestCase(WithRecordManagers):
         # In descending order.
         self.assert_iterator_yields_events(
             is_ascending=False,
-            expect_at_start=self.sequenced_items[-1].data,
-            expect_at_end=self.sequenced_items[0].data,
+            expect_at_start=self.sequenced_items[-1].state,
+            expect_at_end=self.sequenced_items[0].state,
             expect_item_count=12,
             expect_page_count=3,
             expect_query_count=3,
@@ -507,8 +485,8 @@ class SequencedItemIteratorTestCase(WithRecordManagers):
         # Limit number of items.
         self.assert_iterator_yields_events(
             is_ascending=False,
-            expect_at_start=self.sequenced_items[-1].data,
-            expect_at_end=self.sequenced_items[-2].data,
+            expect_at_start=self.sequenced_items[-1].state,
+            expect_at_end=self.sequenced_items[-2].state,
             expect_item_count=2,
             expect_page_count=1,
             expect_query_count=1,
@@ -519,8 +497,8 @@ class SequencedItemIteratorTestCase(WithRecordManagers):
         # Match the page size to the number of events.
         self.assert_iterator_yields_events(
             is_ascending=True,
-            expect_at_start=self.sequenced_items[0].data,
-            expect_at_end=self.sequenced_items[-1].data,
+            expect_at_start=self.sequenced_items[0].state,
+            expect_at_end=self.sequenced_items[-1].state,
             expect_item_count=12,
             expect_page_count=1,
             expect_query_count=2,
@@ -530,8 +508,8 @@ class SequencedItemIteratorTestCase(WithRecordManagers):
         # Queries are minimised if we set a limit.
         self.assert_iterator_yields_events(
             is_ascending=True,
-            expect_at_start=self.sequenced_items[0].data,
-            expect_at_end=self.sequenced_items[-1].data,
+            expect_at_start=self.sequenced_items[0].state,
+            expect_at_end=self.sequenced_items[-1].state,
             expect_item_count=12,
             expect_page_count=1,
             expect_query_count=1,
@@ -539,37 +517,77 @@ class SequencedItemIteratorTestCase(WithRecordManagers):
             limit=12,
         )
 
-    def assert_iterator_yields_events(self, is_ascending, expect_at_start, expect_at_end, expect_item_count=1,
-                                      expect_page_count=0, expect_query_count=0, page_size=1, limit=None):
+    def setup_sequenced_items(self):
+        self.sequenced_items = []
+        self.number_of_sequenced_items = 12
+        for i in range(self.number_of_sequenced_items):
+            sequenced_item = SequencedItem(
+                sequence_id=self.entity_id,
+                position=i,
+                topic='eventsourcing.example.domain_model#Example.Created',
+                state='{"i":%s,"entity_id":"%s","timestamp":%s}' % (
+                    i, self.entity_id, decimaltimestamp()
+                ),
+            )
+            self.sequenced_items.append(sequenced_item)
+            self.entity_record_manager.record_sequenced_items(sequenced_item)
+
+    def assert_iterator_yields_events(self, is_ascending, expect_at_start,
+                                      expect_at_end, expect_item_count=1,
+                                      expect_page_count=0, expect_query_count=0,
+                                      page_size=1, limit=None):
         iterator = self.construct_iterator(is_ascending, page_size, limit=limit)
         retrieved_events = list(iterator)
         self.assertEqual(len(retrieved_events), expect_item_count, retrieved_events)
         self.assertEqual(iterator.page_counter, expect_page_count)
         self.assertEqual(iterator.query_counter, expect_query_count)
         self.assertEqual(iterator.all_item_counter, expect_item_count)
-        self.assertEqual(expect_at_start, retrieved_events[0].data)
-        self.assertEqual(expect_at_end, retrieved_events[-1].data)
+        self.assertEqual(expect_at_start, retrieved_events[0].state)
+        self.assertEqual(expect_at_end, retrieved_events[-1].state)
 
-
-class SimpleSequencedItemteratorTestCase(SequencedItemIteratorTestCase):
     @property
-    def iterator_cls(self):
-        return SequencedItemIterator
+    def entity_id(self):
+        return self.ENTITY_ID1
 
-
-class ThreadedSequencedItemIteratorTestCase(SequencedItemIteratorTestCase):
     @property
+    def num_events(self):
+        return 12
+
+    def construct_iterator(self, is_ascending, page_size, gt=None, lte=None, limit=None):
+        return self.iterator_cls(
+            record_manager=self.entity_record_manager,
+            sequence_id=self.entity_id,
+            page_size=page_size,
+            gt=gt,
+            lte=lte,
+            limit=limit,
+            is_ascending=is_ascending,
+        )
+
+    @property
+    @abstractmethod
     def iterator_cls(self):
-        return ThreadedSequencedItemIterator
+        """
+        Returns iterator class.
+        """
+        raise NotImplementedError()
 
 
-class WithPersistencePolicies(WithRecordManagers):
+class SequencedItemIteratorTestCase(AbstractSequencedItemIteratorTestCase):
+    iterator_cls = SequencedItemIterator
+
+
+class ThreadedSequencedItemIteratorTestCase(AbstractSequencedItemIteratorTestCase):
+    iterator_cls = ThreadedSequencedItemIterator
+
+
+class WithEventPersistence(WithRecordManagers):
     """
     Base class for test cases that need persistence policies.
     """
 
     def setUp(self):
-        super(WithPersistencePolicies, self).setUp()
+        super(WithEventPersistence, self).setUp()
         # Setup the persistence subscriber.
         self.entity_event_store = EventStore(
             record_manager=self.entity_record_manager,
@@ -600,21 +618,21 @@ class WithPersistencePolicies(WithRecordManagers):
         if self.entity_event_store is not None:
             self.integer_sequenced_event_policy = PersistencePolicy(
                 event_store=self.entity_event_store,
-                event_type=VersionedEntity.Event,
+                persist_event_type=VersionedEntity.Event,
             )
 
         self.timestamp_sequenced_event_policy = None
         if self.log_event_store is not None:
             self.timestamp_sequenced_event_policy = PersistencePolicy(
                 event_store=self.log_event_store,
-                event_type=Logged,
+                persist_event_type=Logged,
             )
 
         self.snapshot_policy = None
         if self.snapshot_store is not None:
             self.snapshot_policy = PersistencePolicy(
                 event_store=self.snapshot_store,
-                event_type=Snapshot,
+                persist_event_type=Snapshot,
             )
 
     def tearDown(self):
@@ -625,4 +643,4 @@ class WithPersistencePolicies(WithRecordManagers):
             self.timestamp_sequenced_event_policy.close()
         if self.entity_event_store:
             self.integer_sequenced_event_policy.close()
-        super(WithPersistencePolicies, self).tearDown()
+        super(WithEventPersistence, self).tearDown()
