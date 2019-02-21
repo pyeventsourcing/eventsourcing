@@ -129,8 +129,9 @@ Policies
 A process application will respond to domain events according to its policy.
 Its policy might do nothing in response to one type of event, and it
 might call an aggregate command method in response to another type of
-event. If the aggregate method triggers new domain events, they will
-be available in its notification log for others to read.
+event. If the aggregate method generates new domain events, they will
+be available in its notification log for others to read, just like a
+normal event-sourced application.
 
 Whatever the policy response, the process application will write one
 tracking record for each event notification, along with new stored event
