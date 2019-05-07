@@ -230,7 +230,9 @@ class PopoRecordManager(ACIDRecordManager):
                 next_position = max_position + 1
             else:
                 next_position = 0
-            assert position == next_position, (position, next_position)
+            if position != next_position:
+                raise AssertionError("Next position for sequence {} is {}, not {}".format(
+                    sequence_id, next_position, position))
 
         sequence_records[position] = sequenced_item
         self._all_sequence_max[self.application_name][sequence_id] = position
