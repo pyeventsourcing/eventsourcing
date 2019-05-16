@@ -390,7 +390,7 @@ notification log even when the notification doesn't imply a real entry in the in
         class EmailAddress(object):
             def __init__(self, email_address):
                 self.email_address = email_address
-                self.is_confirmed = False
+                self.is_verified = False
 
     class IndexItem(AggregateRoot):
         def __init__(self, index_value=None, *args, **kwargs):
@@ -504,11 +504,16 @@ notification log even when the notification doesn't imply a real entry in the in
     user1.add_email_address('me@example.com')
     user1.__save__()
 
+    assert not user1.email_addresses['me@example.com'].is_verified
+
     index_key = uuid_from_url('me@example.com')
     assert index_key not in index.repository
 
     user1.verify_email_address('me@example.com')
     user1.__save__()
+
+    assert user1.email_addresses['me@example.com'].is_verified
+
     assert index_key in index.repository
     assert index.repository[index_key].index_value == user1.id
 
