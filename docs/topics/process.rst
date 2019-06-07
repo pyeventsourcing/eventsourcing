@@ -69,18 +69,18 @@ is defined by the application's policy, which defines responses to domain
 events in terms of domain model operations, causing new domain events to
 be generated.
 
-The library class
-:class:`~eventsourcing.application.process.ProcessApplication`
+.. figure:: process-application.png
+   :alt: Process application diagram
+
+The library has a process application class
+:class:`~eventsourcing.application.process.ProcessApplication`, it
 functions as a projection into an event-sourced application.
 It extends :class:`~eventsourcing.application.simple.SimpleApplication`
-by having a notification log reader for each application it follows.
-
-The process application class has an application policy which defines
-how to respond to the domain events it reads from the notification logs
-of the applications it follows. The process application class implements
-the process event pattern (notification tracking and new domain event
-data are stored together atomically).
-
+by having a notification log reader for each application it follows. It
+has an application policy which defines how to respond to the domain events
+it reads from the notification logs of the applications it follows. This
+process application class implements the process event pattern (notification
+tracking and new domain event data are stored together atomically).
 
 Reliability
 -----------

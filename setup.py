@@ -45,8 +45,10 @@ testing_requires = cassandra_requires + sqlalchemy_requires + django_requires + 
 ]
 
 docs_requires = testing_requires + [
-    'Sphinx',
-    'sphinx_rtd_theme',
+    'Sphinx==1.8.5',
+    # 'sphinx_py3doc_enhanced_theme',
+    'sphinx_rtd_theme==0.4.3',
+    # 'Alabaster',
     'sphinx-autobuild'
 ]
 

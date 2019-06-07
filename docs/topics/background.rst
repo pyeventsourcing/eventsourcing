@@ -65,6 +65,11 @@ See also:
 
 -  `Kahn Process Networks <https://en.wikipedia.org/wiki/Kahn_process_networks>`__ page on Wikipedia
 
+-  `Don't Let the Internet Dupe You, Event Sourcing is Hard
+   <https://chriskiehl.com/article/event-sourcing-is-hard>`__
+   by Chris Kiehl
+
+
 Citations:
 
 - `An Evaluation on Using Coarse grained Events in an Event Sourcing Context and its Effects

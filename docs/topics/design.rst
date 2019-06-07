@@ -2,35 +2,38 @@
 Design
 ======
 
-The design of the library follows the layered architecture: interfaces,
-application, domain, and infrastructure.
+The design of the library follows the layered architecture of domain
+driven design: interfaces, application, domain, and infrastructure.
 
-The infrastructure layer encapsulates infrastructural services
-required by an event sourced application, in particular an event
-store.
+The core of the library is the infrastructure layer, which is a
+COHESIVE MECHANISM (pattern in domain driven design) for event sourcing
+that has been gradually improved through experience.
 
-The domain layer contains independent domain model classes. Nothing
-in the domain layer depends on anything in the infrastructure layer.
+The library's application layer depends on the domain model and infrastructure
+layers. An application object has a repository, from which existing aggregates
+can be retrieved. It may also have policies, such as a persistence policy which stores domain
+events in an event store. The application's repository shares the event store with the persistence
+policy, and uses the event store to retrieve events when reconstructing the state of an aggregate.
 
-The application layer is responsible for binding domain and infrastructure,
-and has policies such as the persistence policy, which stores domain
-events whenever they are published by the model.
+The library's domain layer contains domain model events and aggregates. Aggregates
+define a set of domain event classes, and have command methods to trigger new domain
+events. Nothing in the domain layer depends on anything in the infrastructure layer.
+These stand-alone library classes are implemented with "double underscore" methods, to
+keep the normal object namespace free to be used for domain modelling.
 
-The example application has an example repository, from which example
-entities can be retrieved. It also has a factory method to create new
-example entities. Each repository has an event player, which all share
-an event store with the persistence policy. The persistence policy uses
-the event store to store domain events. Event players use the
-event store to retrieve the stored events, and the model mutator functions
-to project entities from sequences of events.
+The library's infrastructure layer encapsulates infrastructural services
+required by event sourced applications, in particular by the event
+store. This layer is the original core of this library (the other
+layers were provided originally as reference examples, to demonstrate
+how to use the infrastructure).
 
-Functionality such as mapping events to a database, or snapshotting, is
-implemented as strategy objects, and injected into dependents by constructor
-parameter, making it easy to substitute custom classes for defaults.
+The central object of the infrastructure layer is the event store. The event
+store object has a sequenced item mapper and a record manager. The infrastructure
+layer uses a default persistence model of "sequenced items". Domain events can be
+serialised to (and deserialised from) sequenced items by the sequenced item mapper.
+Sequenced items can be recorded in (and retrieved from) a database system by the
+record manager.
 
-The sequenced item persistence model allows domain events to be stored
-in wide variety of database services, and optionally makes use of any
-optimistic concurrency controls the database system may afford.
+The library is designed to allow its default functionality to be extended or replaced easily.
 
-.. figure:: https://www.lucidchart.com/publicSegments/view/098200e1-0ca9-4660-be7f-11f8f13a2163/image.png
-   :alt: UML Class Diagram
+Any interface layer will depend on the application layer.

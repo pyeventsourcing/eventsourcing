@@ -62,6 +62,10 @@ The base class is extended by
 :class:`~eventsourcing.application.sqlalchemy.SQLAlchemyApplication`
 which uses SQLAlchemy to store and retrieve domain event records.
 
+
+Application object
+------------------
+
 The SQLAlchemy application class has a ``uri`` constructor argument,
 which is an (SQLAlchemy-style) database connection string. The example
 below uses SQLite with an in-memory database (which is also the default).
@@ -136,6 +140,10 @@ Alternatively, the ``uri`` value can be set as environment variable ``DB_URI``,
 and the ``cipher_key`` value can be set as environment variable
 ``CIPHER_KEY``.
 
+
+Event store
+-----------
+
 Once constructed, the application object has an event store, provided
 by the library's :class:`~eventsourcing.infrastructure.eventstore.EventStore`
 class.
@@ -147,6 +155,9 @@ class.
     assert isinstance(application.event_store, EventStore)
 
 
+Persistence policy
+------------------
+
 The ``application`` has a persistence policy, an instance of the library class
 :class:`~eventsourcing.application.policies.PersistencePolicy`. The persistence policy
 uses the event store.
@@ -157,6 +168,14 @@ uses the event store.
 
     assert isinstance(application.persistence_policy, PersistencePolicy)
 
+The persistence policy will only persist particular types of domain events.
+The application class attribute `persist_event_type` is used to define which
+classes of domain events will be persisted by the application's persistence
+policy.
+
+
+Repository
+----------
 
 The ``application`` also has a repository, an instance of the library class
 :class:`~eventsourcing.infrastructure.eventsourcedrepository.EventSourcedRepository`.
@@ -211,6 +230,10 @@ updated elsewhere, an attempt to update your object will cause a
 Concurrency errors can be avoided if all commands for a single aggregate
 are executed in series, for example by treating each aggregate as an actor,
 within an actor framework.
+
+
+Notification log
+----------------
 
 The :class:`~eventsourcing.application.simple.SimpleApplication` has a
 ``notification_log`` attribute, which can be used to follow the application
