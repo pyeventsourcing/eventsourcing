@@ -48,7 +48,7 @@ docs_requires = testing_requires + [
     'Sphinx==1.8.5',
     'sphinx_py3doc_enhanced_theme',
     'sphinx_rtd_theme==0.4.3',
-    # 'Alabaster',
+    'Alabaster',
     'sphinx-autobuild'
 ]
 
