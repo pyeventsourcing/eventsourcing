@@ -25,8 +25,29 @@ Another definition has event sourcing as a persistence mechanism
 for domain driven design.
 
 
-Cohesive mechanism
-==================
+This library
+============
+
+This is a library for event sourcing in Python. At its core, this library supports
+storing and retrieving sequences of items, such as the domain events of aggregates
+in a event-sourced domain driven design.
+
+To demonstrate how the persistence mechanism can be used effectively,
+this library shows how to create simple event-sourced applications.
+A style is suggested for writing stand-alone domain models, with aggregates
+that have command methods that trigger domain events. The domain events are
+used in turn to mutate the state of the aggregate.
+
+This library also shows how to define an entire distributed system of
+event-sourced applications independently of infrastructure. That means system
+behaviours can be rapidly developed whilst running the entire system synchronously
+in a single thread with a single in-memory database, and then the system can be run
+asynchronously on a cluster with durable databases, with the system performing exactly
+the same behaviour.
+
+
+A cohesive mechanism
+====================
 
 Quoting from Eric Evans' book `Domain Driven Design
 <https://en.wikipedia.org/wiki/Domain-driven_design>`__:
@@ -43,30 +64,8 @@ Quoting from Eric Evans' book `Domain Driven Design
 Although the basic event sourcing patterns are quite simple, and
 can be reproduced in code for each project, the persistence mechanism
 for event sourced domain driven design appears as a conceptually cohesive
-mechanism, and so it can be "partitioned into a separate lightweight framework".
+mechanism, and so have been "partitioned into a separate lightweight framework".
 
-
-This library
-============
-
-At its core, this library supports storing and retrieving sequences of items,
-such as domain events for aggregates in a domain driven design. A sequence of
-stored events can be used to obtain the current state of an aggregate.
-
-To demonstrate how the persistence mechanism can be used effectively,
-this library also shows how to create simple event-sourced applications. A
-style is suggested for writing stand-alone domain models, with aggregates that
-have command methods that trigger domain events that are used to mutate
-the state of the aggregate. An application has a repository, and notification
-log that can be used to propagate the state of the application as a single
-sequence of event notifications.
-
-Using this library, it is also possible to define an entire distributed
-system of event-sourced applications independently of infrastructure. System
-behaviours can be rapidly developed and easily maintained whilst running the
-entire system synchronously in a single thread with a single in-memory database,
-and then the system can be run asynchronously on a cluster with durable databases,
-with the system performing exactly the same behaviour.
 
 Register issues
 ===============
