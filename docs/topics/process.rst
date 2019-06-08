@@ -1,6 +1,6 @@
-==================
-Distributed system
-==================
+===================
+Distributed systems
+===================
 
 This section discusses how to make a reliable distributed system
 that is scalable and maintainable.

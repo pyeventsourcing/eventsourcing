@@ -1,6 +1,6 @@
-============
-Domain layer
-============
+==================
+Domain model layer
+==================
 
 The library's domain layer has base classes for domain events and entities. They can
 be used to develop an event-sourced domain model.

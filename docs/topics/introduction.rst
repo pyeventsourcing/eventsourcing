@@ -6,7 +6,8 @@ This documentation:
 
 - highlights the :doc:`design of the library </topics/design>` and :doc:`core features </topics/features>`,
 - has instructions for :doc:`installing </topics/installing>` the package,
-- describes the :doc:`infrastructure layer </topics/infrastructure>`,
+- describes
+  the :doc:`infrastructure layer </topics/infrastructure>`,
   the :doc:`domain model layer </topics/domainmodel>`, and
   the :doc:`application layer </topics/application>`,
 - shows how :doc:`notifications </topics/notifications>` and
