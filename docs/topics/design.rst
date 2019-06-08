@@ -6,8 +6,21 @@ The design of the library follows the layered architecture of domain
 driven design: interfaces, application, domain, and infrastructure.
 
 The core of the library is the infrastructure layer, which is a
-COHESIVE MECHANISM (pattern in domain driven design) for event sourcing
+COHESIVE MECHANISM (a pattern in domain driven design) for event sourcing
 that has been gradually improved through experience.
+
+The central object of the infrastructure layer is the event store. The event
+store object has a sequenced item mapper and a record manager. The infrastructure
+layer uses a default persistence model of "sequenced items". Domain events can be
+serialised to (and deserialised from) sequenced items by the sequenced item mapper.
+Sequenced items can be recorded in (and retrieved from) a database system by the
+record manager.
+
+The library is designed to allow its default functionality to be extended or replaced easily.
+
+
+Layered architecture
+====================
 
 The library's application layer depends on the domain model and infrastructure
 layers. An application object has a repository, from which existing aggregates
@@ -26,14 +39,5 @@ required by event sourced applications, in particular by the event
 store. This layer is the original core of this library (the other
 layers were provided originally as reference examples, to demonstrate
 how to use the infrastructure).
-
-The central object of the infrastructure layer is the event store. The event
-store object has a sequenced item mapper and a record manager. The infrastructure
-layer uses a default persistence model of "sequenced items". Domain events can be
-serialised to (and deserialised from) sequenced items by the sequenced item mapper.
-Sequenced items can be recorded in (and retrieved from) a database system by the
-record manager.
-
-The library is designed to allow its default functionality to be extended or replaced easily.
 
 Any interface layer will depend on the application layer.
