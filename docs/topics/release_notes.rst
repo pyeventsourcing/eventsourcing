@@ -8,6 +8,8 @@ have been introduced since the previous major version.
 
 If you need help upgrading code and migrating data, please get in touch.
 
+Version 7.1.0 brings improved documentation.
+
 Version 7.x series brings many incremental improvements across the library,
 especially the ability to define an entire system of process applications
 independently of infrastructure. Please note, records fields have been renamed.
