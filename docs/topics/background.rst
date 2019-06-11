@@ -2,26 +2,6 @@
 Background
 ==========
 
-Although the event sourcing patterns are each quite simple, and they can
-be reproduced in code for each project, they do suggest cohesive
-mechanisms, for example applying and publishing the events generated
-within domain entities, storing and retrieving selections of the events
-in a highly scalable manner, replaying the stored events for a
-particular entity to obtain the current state, and projecting views of
-the event stream that are persisted in other models.
-
-Therefore, quoting from Eric Evans' book about `domain-driven design
-<https://en.wikipedia.org/wiki/Domain-driven_design>`__:
-
-.. pull-quote::
-
-    *"Partition a conceptually COHESIVE MECHANISM into a separate
-    lightweight framework. Particularly watch for formalisms for
-    well-documented categories of algorithms. Expose the capabilities of the
-    framework with an INTENTION-REVEALING INTERFACE. Now the other elements
-    of the domain can focus on expressing the problem ('what'), delegating
-    the intricacies of the solution ('how') to the framework."*
-
 
 Inspiration:
 
@@ -64,6 +44,11 @@ See also:
    by Caitie McCaffrey
 
 -  `Kahn Process Networks <https://en.wikipedia.org/wiki/Kahn_process_networks>`__ page on Wikipedia
+
+-  `Don't Let the Internet Dupe You, Event Sourcing is Hard
+   <https://chriskiehl.com/article/event-sourcing-is-hard>`__
+   by Chris Kiehl
+
 
 Citations:
 

@@ -8,6 +8,10 @@ general story, which is elaborated over the following pages.
 
 .. contents:: :local:
 
+
+Install library
+===============
+
 Please use pip to install the library with the 'sqlalchemy' option.
 
 ::
@@ -15,21 +19,23 @@ Please use pip to install the library with the 'sqlalchemy' option.
     $ pip install eventsourcing[sqlalchemy]
 
 
+See the :doc:`Install documentation </topics/installing>` for more information about installing the library.
+
+
 Define model
 ============
 
-Define a domain model aggregate.
+Having installed the library, open a Python file in your favourite editor. The code snippets below
+form a working program. You can either type in the code, or copy and paste. Then run the program.
 
+Firstly let's define a domain model, by defining an aggregate class.
 The class ``World`` defined below is a subclass of
 :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`.
-
-The ``World`` has a property called ``history``. It also has an event sourced
-attribute called ``ruler``.
-
-It has a command method called ``make_it_so`` which triggers a domain event
-of type ``SomethingHappened`` which is defined as a nested class.
-The domain event class ``SomethingHappened`` has a ``mutate()`` method,
-which happens to append triggered events to the history.
+The class ``World`` has a property called ``history``. It also has an event
+sourced attribute called ``ruler``. It has a command method called ``make_it_so``
+which triggers a domain event of type ``SomethingHappened`` which is defined as
+a nested class. The domain event class ``SomethingHappened`` has a ``mutate()``
+method, which happens to append triggered events to the history.
 
 .. code:: python
 
@@ -57,23 +63,44 @@ which happens to append triggered events to the history.
 
         class SomethingHappened(AggregateRoot.Event):
             def mutate(self, obj):
-                obj._history.append(self)
+                obj._history.append(self.what)
 
 
-This class can be used and completely tested without any infrastructure.
+The most important thing here is to understand that an aggregate command method,
+such as ``make_it_so()`` above, should not do some work and then update the
+attributes of the aggregate with the result of the work, but rather it should
+trigger events with the results of the work, so that the events can be used
+to update the state of the aggregate then and, importantly, each time the
+aggregate is reconstructed from its events.
+
+This aggregate class can be used without any infrastructure. Without
+infrastructure however, there is no means of recovering the state of the
+aggregate once the object goes out of scope.
+
+.. code:: python
+
+    # Call library factory method.
+    world = World.__create__(ruler='gods')
+
+    assert world.ruler == 'gods'
+
+    # Execute commands.
+    world.make_it_so('dinosaurs')
+    world.make_it_so('trucks')
+
+    # Assign attribute.
+    world.ruler = 'money'
+
+    assert world.history == ('dinosaurs', 'trucks'), world.history
+    assert world.ruler == 'money'
+
 
 Although every aggregate is a "little world", developing a more realistic
 domain model would involve defining attributes, command methods, and domain
 events particular to a concrete domain.
 
-Basically, you can understand everything if you understand that command methods,
-such as ``make_it_so()`` in the example above, should not update the
-state of the aggregate directly with the results of their work, but instead
-trigger events using domain event classes which have ``mutate()`` methods
-that can update the state of the aggregate using the values given to the
-event when it was triggered. By refactoring the updating of the aggregate
-state, from the command method, to a domain event object class, triggered
-events can be stored and replayed to obtain persistent aggregates.
+See the :doc:`Domain model documentation </topics/domainmodel>` for more
+information about developing event-sourced domain models.
 
 
 Configure environment
@@ -137,9 +164,9 @@ application-level encryption.
 
         # View current state of aggregate.
         assert world.ruler == 'money'
-        assert world.history[2].what == 'internet'
-        assert world.history[1].what == 'trucks'
-        assert world.history[0].what == 'dinosaurs'
+        assert world.history[2] == 'internet'
+        assert world.history[1] == 'trucks'
+        assert world.history[0] == 'dinosaurs'
 
         # Publish pending events (to persistence subscriber).
         world.__save__()
@@ -150,9 +177,9 @@ application-level encryption.
 
         # View retrieved state.
         assert copy.ruler == 'money'
-        assert copy.history[2].what == 'internet'
-        assert copy.history[1].what == 'trucks'
-        assert copy.history[0].what == 'dinosaurs'
+        assert copy.history[2] == 'internet'
+        assert copy.history[1] == 'trucks'
+        assert copy.history[0] == 'dinosaurs'
 
         # Verify retrieved state (cryptographically).
         assert copy.__head__ == world.__head__
@@ -173,7 +200,7 @@ application-level encryption.
 
         # Get historical state (at version from above).
         old = app.repository.get_entity(world.id, at=version)
-        assert old.history[-1].what == 'trucks' # internet not happened
+        assert old.history[-1] == 'trucks' # internet not happened
         assert len(old.history) == 2
         assert old.ruler == 'gods'
 
@@ -212,3 +239,9 @@ application-level encryption.
             assert 'dinosaurs' not in item.state
             assert 'trucks' not in item.state
             assert 'internet' not in item.state
+
+
+See the :doc:`Application documentation
+</topics/application>` for more information about event-sourced applications,
+and the :doc:`Infrastructure documentation
+</topics/infrastructure>` for more information about infrastructure.

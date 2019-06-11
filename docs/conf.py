@@ -7,7 +7,6 @@ import types
 from os.path import abspath, dirname
 
 import django
-import sphinx_rtd_theme
 
 sys.path.append(str(dirname(dirname(abspath(__file__)))))
 
@@ -104,11 +103,44 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
+# import alabaster
 # html_theme = 'alabaster'
 # html_theme = 'classic'
-html_theme = "sphinx_rtd_theme"
 
+import sphinx_rtd_theme
+html_theme = "sphinx_rtd_theme"
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
+# html_theme_path = [alabaster.get_html_theme_path()]
+
+
+# import sphinx_py3doc_enhanced_theme
+# html_theme = "sphinx_py3doc_enhanced_theme"
+# html_theme_path = [sphinx_py3doc_enhanced_theme.get_html_theme_path()]
+#
+# html_theme_options = {
+#     'githuburl': 'https://github.com/johnbywater/eventsourcing/',
+#     'bodyfont': '"Lucida Grande",Arial,sans-serif',
+#     'headfont': '"Lucida Grande",Arial,sans-serif',
+#     'codefont': 'monospace,sans-serif',
+#     'linkcolor': '#0072AA',
+#     'visitedlinkcolor': '#6363bb',
+#     'extrastyling': False,
+# }
+# pygments_style = 'friendly'
+
+
+# html_theme = 'python_docs_theme'
+# html_theme_path = ['tools']
+# html_theme_options = {
+#     'root_url': 'https://github.com/johnbywater/eventsourcing',
+#     'root_name': 'Event sourcing in Python',
+#     'collapsiblesidebar': True,
+#     'issues_url': 'https://github.com/johnbywater/eventsourcing/issues',
+#     'root_include_title': False,   # We use the version switcher instead.
+# }
+# html_last_updated_fmt = '%b %d, %Y'
+
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

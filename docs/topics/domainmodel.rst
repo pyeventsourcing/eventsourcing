@@ -1,10 +1,9 @@
-============
-Domain layer
-============
+==================
+Domain model layer
+==================
 
-The library's domain layer has base classes for domain events and entities. These classes show how to
-write a domain model that uses the library's event sourcing infrastructure. They can also be used to
-develop an event-sourced application as a domain driven design.
+The library's domain layer has base classes for domain events and entities. They can
+be used to develop an event-sourced domain model.
 
 .. contents:: :local:
 

@@ -13,31 +13,31 @@ if 'READTHEDOCS' in os.environ:
 
 install_requires = [
     'python-dateutil<=2.8.99999',
-    'pycryptodome<=3.7.99999',
+    'pycryptodome<=3.8.99999',
     'requests<=2.21.99999',
     'readerwriterlock<=1.0.99999',
 ]
 
 sqlalchemy_requires = [
-    'sqlalchemy<=1.2.99999,>=0.9',
+    'sqlalchemy<=1.3.99999,>=0.9',
     'sqlalchemy-utils<=0.33.99999',
 ]
 
 cassandra_requires = [
-    'cassandra-driver<=3.16.99999'
+    'cassandra-driver<=3.17.99999'
 ]
 
 django_requires = [
-    'django>=1.11,<=2.1.99999'
+    'django<=2.2.99999'
 ]
 
 testing_requires = cassandra_requires + sqlalchemy_requires + django_requires + [
-    'mock<=2.0.99999',
+    'mock<=3.0.99999',
     'flask<=1.0.99999',
-    'flask_sqlalchemy<=2.3.99',
+    'flask_sqlalchemy<=2.4.99',
     'uwsgi<=2.0.99999',
     'redis<=3.2.99999',
-    'celery<=4.2.99999',
+    'celery<=4.3.99999',
     'pymysql<=0.9.99999',
     'thespian<=3.9.99999',
     # Tests use Django with PostgreSQL.
@@ -45,8 +45,11 @@ testing_requires = cassandra_requires + sqlalchemy_requires + django_requires + 
 ]
 
 docs_requires = testing_requires + [
-    'Sphinx',
-    'sphinx_rtd_theme',
+    'Sphinx==1.8.5',
+    'python_docs_theme',
+    'sphinx_py3doc_enhanced_theme',
+    'sphinx_rtd_theme==0.4.3',
+    'Alabaster',
     'sphinx-autobuild'
 ]
 
