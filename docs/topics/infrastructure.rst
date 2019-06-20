@@ -726,7 +726,7 @@ could be discarded and lost. Other greater IDs may already have
 been issued. The complexity for followers is that a gap may be
 permanent or temporary. It may be that a gap is eventually filled
 by a transaction that was somehow delayed. Although some database
-appear to have auto-incrementing functionaliuty that does not
+appear to have auto-incrementing functionality that does not
 lead to gaps even with transactions being rolled back, I don't
 understand when this happens and when it doesn't and so feel
 unable to reply on it, at least at the moment. It appears to be an

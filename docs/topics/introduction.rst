@@ -4,11 +4,11 @@ Introduction
 
 This documentation:
 
-- highlights the :doc:`design of the library </topics/design>` and :doc:`core features </topics/features>`,
+- highlights the :doc:`design </topics/design>` and :doc:`features </topics/features>` of the library,
 - has instructions for :doc:`installing </topics/installing>` the package,
 - describes
-  the :doc:`infrastructure layer </topics/infrastructure>`,
-  the :doc:`domain model layer </topics/domainmodel>`, and
+  the :doc:`domain model layer </topics/domainmodel>`,
+  the :doc:`infrastructure layer </topics/infrastructure>`,  and
   the :doc:`application layer </topics/application>`,
 - shows how :doc:`notifications </topics/notifications>` and
   :doc:`projections </topics/projections>` can be combined
@@ -33,13 +33,14 @@ This is a library for event sourcing in Python. At its core, this library suppor
 storing and retrieving sequences of items, such as the domain events of aggregates
 in a event-sourced domain driven design.
 
-To demonstrate how the persistence mechanism can be used effectively,
-this library shows how to create simple event-sourced applications.
-A style is suggested for writing stand-alone domain models, with aggregates
-that have command methods that trigger domain events. The domain events are
-used in turn to mutate the state of the aggregate.
+To demonstrate how its persistence mechanism can be used effectively,
+this library documentation has examples of event-sourced applications
+with event-sourced domain models. The library base classes used in these
+examples can be conveniently used to create your own applications.
+A style is suggested for writing event-sourced domain models, and
+event-soured aggregates that have command methods which trigger domain events.
 
-This library also shows how to define an entire distributed system of
+Using this library, it is also possible to define an entire distributed system of
 event-sourced applications independently of infrastructure. That means system
 behaviours can be rapidly developed whilst running the entire system synchronously
 in a single thread with a single in-memory database, and then the system can be run
@@ -74,3 +75,4 @@ Register issues
 This project is `hosted on GitHub <https://github.com/johnbywater/eventsourcing>`__.
 Please `register any issues, questions, and requests
 <https://github.com/johnbywater/eventsourcing/issues>`__ you may have.
+
