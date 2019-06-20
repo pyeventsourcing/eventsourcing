@@ -19,12 +19,8 @@ If you think using the library is a lot of fun, wait until you start working on 
 about helping users of the library make the jump to contributing members of the community, so there
 are several ways you can help the library’s development:
 
-- Report bugs on our `issue tracker
-<https://github.com/johnbywater/eventsourcing/issues>`__.
-
+- Report bugs on our `issue tracker <https://github.com/johnbywater/eventsourcing/issues>`__.
 - Join the `Slack channel <https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTUwZGQ4MDk0ZDJmZmU0MjM4MjdmOTBlZGI0ZTY4NWIxMGFkZTcwNmUxM2U4NGM3YjY5MTVmZTBiYzljZjI3ZTE>`__ and share your ideas
   for how to improve the library. We’re always open to suggestions.
-
 - Submit patches or pull requests for new and/or fixed behavior.
-
 - Improve the documentation or write unit tests.
