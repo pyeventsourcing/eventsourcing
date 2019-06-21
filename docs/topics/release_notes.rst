@@ -15,6 +15,12 @@ Version 7.x
 Version 7.x series brought many incremental improvements across the library.
 
 
+Version 7.1.1 (released 21 Jun 2019)
+------------------------------------
+
+Version 7.1.1 adds 'Support options' and 'Contributing' sections to the documentation.
+
+
 Version 7.1.0 (released 11 Jun 2019)
 ------------------------------------
 

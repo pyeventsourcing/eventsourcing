@@ -10,6 +10,18 @@ support professional users of the library in accomplishing their
 goals. Community support is also available.
 
 
+Community support
+=================
+
+The library has a growing community that may be able to help.
+
+- You may ask questions on the `Slack channel
+  <https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTUwZGQ4MDk0ZDJmZmU0MjM4MjdmOTBlZGI0ZTY4NWIxMGFkZTcwNmUxM2U4NGM3YjY5MTVmZTBiYzljZjI3ZTE>`__.
+
+- You may also register issues and requests on our
+  `issue tracker <https://github.com/johnbywater/eventsourcing/issues>`__.
+
+
 Training workshops
 ==================
 
@@ -37,15 +49,3 @@ with the design and development of their event-sourced applications and systems.
 
 Please contact the `Appropriate Software Foundation <https://www.appropriatesoftware.net/>`__
 for more information about available consulting services.
-
-
-Community support
-=================
-
-The library has a growing community that may be able to help.
-
-- You may ask questions on the `Slack channel
-  <https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTUwZGQ4MDk0ZDJmZmU0MjM4MjdmOTBlZGI0ZTY4NWIxMGFkZTcwNmUxM2U4NGM3YjY5MTVmZTBiYzljZjI3ZTE>`__.
-
-- You may also register issues and requests on our
-  `issue tracker <https://github.com/johnbywater/eventsourcing/issues>`__.
