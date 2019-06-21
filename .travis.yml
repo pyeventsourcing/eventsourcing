@@ -12,7 +12,7 @@ python:
   - "3.7"
   - "3.7-dev"  # 3.7 development branch
   - "3.8-dev"  # 3.8 development branch
-  - "nightly"  # nightly build
+  - "pypy3.5"
 
 before_install:
   - mysql -e 'CREATE DATABASE eventsourcing;'
