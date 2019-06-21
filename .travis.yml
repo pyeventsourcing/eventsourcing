@@ -1,17 +1,17 @@
-dist: xenial   # required for Python >= 3.7
 language: python
-#sudo: required
+sudo: required
 services:
   - cassandra
   - redis-server
   - mysql
   - postgresql
 
+dist: xenial   # required for Python >= 3.7
 python:
   - "3.6"
   - "3.7"
   - "3.7-dev"  # 3.7 development branch
-#  - "3.8-dev"  # 3.8 development branch
+  - "3.8-dev"  # 3.8 development branch
   - "pypy3.5"
 
 before_install:
