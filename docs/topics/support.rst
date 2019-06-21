@@ -29,9 +29,9 @@ Advice and development
 Advice and development services are available to help managers and developers
 with the design and development of their event-sourced applications and systems.
 
-- Coaching your developers in the use of the library.
 - Overall assessment of your existing implementation, with recommendations for improvement.
 - Address your specific concerns with how your event-sourced system is built (and running).
+- Coaching developers in the use of the library.
 - Development of sample applications and systems for guidance or demonstration purposes.
 - Development of working applications and systems for production use.
 
