@@ -1,3 +1,4 @@
+=============
 Release notes
 =============
 
@@ -8,16 +9,68 @@ have been introduced since the previous major version.
 
 If you need help upgrading code and migrating data, please get in touch.
 
-Version 7.1.0 brings improved documentation.
+Version 7.x
+===========
 
-Version 7.x series brings many incremental improvements across the library,
+Version 7.x series brought many incremental improvements across the library.
+
+
+Version 7.1.1 (released 21 Jun 2019)
+------------------------------------
+
+Version 7.1.1 adds 'Support options' and 'Contributing' sections to the documentation.
+
+
+Version 7.1.0 (released 11 Jun 2019)
+------------------------------------
+
+Version 7.1.0 brings improved structure to the documentation.
+
+
+Version 7.0.0 (released 21 Feb 2019)
+------------------------------------
+
+Version 7.0.0 brought many incremental improvements across the library,
 especially the ability to define an entire system of process applications
 independently of infrastructure. Please note, records fields have been renamed.
 
+
+Version 6.x
+===========
+
 Version 6.x series was the first release of the "process and system" code.
 
+
+Version 6.2.0 (released 15 Jul 2018)
+------------------------------------
+
+Version 6.2.0 (released 26 Jun 2018)
+------------------------------------
+
+Version 6.1.0 (released 14 Jun 2018)
+------------------------------------
+
+Version 6.0.0 (released 23 Apr 2018)
+------------------------------------
+
+Version 5.x
+===========
+
 Version 5.x series was released after quite a lot of refactoring made
-things backward-incompatible.
+things backward-incompatible. Support for Django ORM was added in version 5.0.0.
+
+Version 5.1.1 (released 4 Apr 2018)
+------------------------------------
+
+Version 5.1.0 (released 16 Feb 2018)
+------------------------------------
+
+Version 5.0.0 (released 24 Jan 2018)
+------------------------------------
+
+
+Version 4.x
+===========
 
 Version 4.x series was released after quite a lot of refactoring made
 things backward-incompatible. Object namespaces for entity and event
@@ -43,22 +96,148 @@ when the auto-incrementing ID bottleneck would otherwise throttle
 performance, "scaling-up" could involve switching application
 infrastructure to use a separate application log.
 
-Also, support for Django ORM was added in version 4.1.0.
+Version 4.0.0 (released 11 Dec 2017)
+------------------------------------
+
+
+Version 3.x
+===========
 
 Version 3.x series was a released after quite of a lot of refactoring
 made things backwards-incompatible. Documentation was greatly improved, in
 particular with pages reflecting the architectural layers of the library
 (infrastructure, domain, application).
 
+Version 3.1.0 (released 23 Nov 2017)
+------------------------------------
+
+Version 3.0.0 (released 25 May 2017)
+------------------------------------
+
+Version 2.x
+===========
+
 Version 2.x series was a major rewrite that implemented two distinct
 kinds of sequences: events sequenced by integer version numbers and
 events sequenced in time, with an archetypal "sequenced item" persistence
 model for storing events.
 
+Version 2.1.1 (released 30 Mar 2017)
+------------------------------------
+
+Version 2.1.0 (released 27 Mar 2017)
+------------------------------------
+
+Version 2.0.0 (released 27 Mar 2017)
+------------------------------------
+
+
+
+Version 1.x
+===========
+
 Version 1.x series was an extension of the version 0.x series,
 and attempted to bridge between sequencing events with both timestamps
 and version numbers.
 
+Version 1.2.1 (released 23 Oct 2016)
+------------------------------------
+
+Version 1.2.0 (released 23 Oct 2016)
+------------------------------------
+
+Version 1.1.0 (released 19 Oct 2016)
+------------------------------------
+
+Version 1.0.10 (released 5 Oct 2016)
+------------------------------------
+
+Version 1.0.9 (released 17 Aug 2016)
+------------------------------------
+
+Version 1.0.8 (released 30 Jul 2016)
+------------------------------------
+
+Version 1.0.7 (released 13 Jul 2016)
+------------------------------------
+
+Version 1.0.6 (released 7 Jul 2016)
+------------------------------------
+
+Version 1.0.5 (released 1 Jul 2016)
+------------------------------------
+
+Version 1.0.4 (released 30 Jun 2016)
+------------------------------------
+
+Version 1.0.3 (released 30 Jun 2016)
+------------------------------------
+
+Version 1.0.2 (released 8 Jun 2016)
+------------------------------------
+
+Version 1.0.1 (released 7 Jun 2016)
+------------------------------------
+
+
+
+Version 0.x
+===========
+
 Version 0.x series was the initial cut of the code, all events were
 sequenced by timestamps, or TimeUUIDs in Cassandra, because the project
 originally emerged whilst working with Cassandra.
+
+Version 0.9.4 (released 11 Feb 2016)
+------------------------------------
+
+Version 0.9.3 (released 1 Dec 2015)
+------------------------------------
+
+Version 0.9.2 (released 1 Dec 2015)
+------------------------------------
+
+Version 0.9.1 (released 10 Nov 2015)
+------------------------------------
+
+Version 0.9.0 (released 14 Sep 2015)
+------------------------------------
+
+Version 0.8.4 (released 14 Sep 2015)
+------------------------------------
+
+Version 0.8.3 (released 5 Sep 2015)
+------------------------------------
+
+Version 0.8.2 (released 5 Sep 2015)
+------------------------------------
+
+Version 0.8.1 (released 4 Sep 2015)
+------------------------------------
+
+Version 0.8.0 (released 29 Aug 2015)
+------------------------------------
+
+Version 0.7.0 (released 29 Aug 2015)
+------------------------------------
+
+Version 0.6.0 (released 28 Aug 2015)
+------------------------------------
+
+Version 0.5.0 (released 28 Aug 2015)
+------------------------------------
+
+Version 0.4.0 (released 28 Aug 2015)
+------------------------------------
+
+Version 0.3.0 (released 28 Aug 2015)
+------------------------------------
+
+Version 0.2.0 (released 27 Aug 2015)
+------------------------------------
+
+Version 0.1.0 (released 27 Aug 2015)
+------------------------------------
+
+Version 0.0.1 (released 27 Aug 2015)
+------------------------------------

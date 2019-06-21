@@ -2,9 +2,10 @@
 Application layer
 =================
 
-This section discusses how an event sourced domain model can
-be combined with library infrastructure to make an event sourced
-application. The normal layered architecture of an enterprise
+This section discusses how an :doc:`event-sourced domain model
+</topics/domainmodel>` can be combined with :doc:`library infrastructure
+</topics/infrastructure>` to make an event sourced application. The
+normal layered architecture of an enterprise
 application is followed: an application layer supports an interface
 layer and depends on both a :doc:`domain layer </topics/domainmodel>`
 and an :doc:`infrastructure layer </topics/infrastructure>`.
