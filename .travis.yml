@@ -15,13 +15,9 @@ python:
   - "pypy3.5"
 
 before_install:
-  - sudo rm -rf /var/lib/cassandra/*
-  - wget http://www.us.apache.org/dist/cassandra/3.11.2/apache-cassandra-3.11.2-bin.tar.gz && tar -xvzf
-    apache-cassandra-3.11.2-bin.tar.gz && sudo sh apache-cassandra-3.11.2/bin/cassandra
-YAML
+  - mysql -e 'CREATE DATABASE eventsourcing;'
 
 before_script:
-  - mysql -e 'CREATE DATABASE eventsourcing;'
   - psql -c 'create database eventsourcing;' -U postgres
 
 install:
