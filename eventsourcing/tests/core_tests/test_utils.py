@@ -48,19 +48,19 @@ class TestUtils(TestCase):
         self.assertGreater(timestamps[-1], timestamps[0])
 
     def test_decimaltimestamp_corresponds_with_decimaltimestamp_from_uuid(self):
-        # if os.getenv('TRAVIS_PYTHON_VERSION') in ['3.6', '3.7', '3.7-dev', 'pypy3.5']:
-        #     self.skipTest("Somehow this fails on Travis dist:xenial, with Python 3.6 and with PyPy.")
-#
-#         """
-# FAIL: test_decimaltimestamp_corresponds_with_decimaltimestamp_from_uuid (
-# eventsourcing.tests.core_tests.test_utils.TestUtils)
-# ----------------------------------------------------------------------
-# Traceback (most recent call last):
-#   File "/home/travis/build/johnbywater/eventsourcing/eventsourcing/tests/core_tests/test_utils.py", line 61,
-#   in test_decimaltimestamp_corresponds_with_decimaltimestamp_from_uuid
-#     self.assertLess(timestamp1, timestamp2)
-# AssertionError: Decimal('1561464862.322443') not less than Decimal('1561464861.100940')
-#         """
+        if os.getenv('TRAVIS_PYTHON_VERSION') in ['3.6', '3.7', '3.7-dev', 'pypy3.5']:
+            self.skipTest("Somehow this fails on Travis dist:xenial, with Python 3.6 and with PyPy.")
+
+        """
+FAIL: test_decimaltimestamp_corresponds_with_decimaltimestamp_from_uuid (
+eventsourcing.tests.core_tests.test_utils.TestUtils)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/travis/build/johnbywater/eventsourcing/eventsourcing/tests/core_tests/test_utils.py", line 61,
+  in test_decimaltimestamp_corresponds_with_decimaltimestamp_from_uuid
+    self.assertLess(timestamp1, timestamp2)
+AssertionError: Decimal('1561464862.322443') not less than Decimal('1561464861.100940')
+        """
 
         timestamp1 = decimaltimestamp()
         sleep(0.000001)
