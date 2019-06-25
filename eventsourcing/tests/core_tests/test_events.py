@@ -1,10 +1,8 @@
 import unittest
-from time import time
 from uuid import UUID, uuid4, uuid1
 
 from decimal import Decimal
 
-from eventsourcing.domain.model.decorators import subscribe_to
 from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmptyError, EventWithOriginatorID, \
     EventWithOriginatorVersion, EventWithTimestamp, _event_handlers, assert_event_handlers_empty, \
     create_timesequenced_event_id, publish, subscribe, unsubscribe, EventWithTimeuuid
@@ -139,21 +137,32 @@ class TestEventWithTimeuuid(unittest.TestCase):
         class Event(EventWithTimeuuid):
             pass
 
-        # Check event can be instantiated with an event_id.
-        event_id = uuid1()
-        event = Event(event_id=event_id)
-        self.assertEqual(event.event_id, event_id)
-
-        # Check event can be instantiated without an event_id.
-        time1 = decimaltimestamp()
+        # Check event has a UUID event_id.
         event = Event()
-        self.assertGreater(decimaltimestamp_from_uuid(event.event_id), time1)
-        self.assertLess(decimaltimestamp_from_uuid(event.event_id), decimaltimestamp())
+        self.assertIsInstance(event.event_id, UUID)
 
         # Check the event_id can't be reassigned.
         with self.assertRaises(AttributeError):
             # noinspection PyPropertyAccess
             event.event_id = decimaltimestamp()
+
+        # Check event can be instantiated with a given UUID.
+        event_id = uuid1()
+        event = Event(event_id=event_id)
+        self.assertEqual(event.event_id, event_id)
+
+        # Generate a series of timestamps.
+        events = [Event() for _ in range(100)]
+        timestamps = [decimaltimestamp_from_uuid(e.event_id) for e in events]
+
+        # Check series doesn't decrease at any point.
+        last = timestamps[0]
+        for timestamp in timestamps[1:]:
+            self.assertLessEqual(last, timestamp)
+            last = timestamp
+
+        # Check last timestamp is greater than the first.
+        self.assertGreater(timestamps[-1], timestamps[0])
 
 
 class TestEventWithOriginatorVersionAndID(unittest.TestCase):

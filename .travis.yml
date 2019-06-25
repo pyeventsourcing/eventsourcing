@@ -1,5 +1,5 @@
 language: python
-sudo: required
+
 services:
   - cassandra
   - redis-server
@@ -7,24 +7,43 @@ services:
   - postgresql
 
 python:
-#  - 3.5  # we use f-strings
-  - 3.6
-  - 3.7-dev
-  - pypy3
+  - "3.6"
+  - "3.7"
+  - "3.7-dev"
+  - "pypy3.5"
+#  - "3.8-dev"  # 3.8 development branch
 
 
 before_install:
-  - mysql -e 'CREATE DATABASE eventsourcing;'
+  - sudo apt-get -qq update
+  - sudo apt-get install -y openjdk-8-jdk
+  - sudo apt-get install -y icedtea-8-plugin
+  - sudo update-java-alternatives -v --set java-1.8.0-openjdk-amd64
+#  - sudo update-java-alternatives --set /usr/lib/jvm/java-1.8.0-openjdk-amd64
+#  - source /etc/environment
+  - export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
+
+#  - echo $JAVA_HOME
+#  - java -version
+
+  - sudo rm -rf /var/lib/cassandra/*
+  - wget http://www.us.apache.org/dist/cassandra/3.11.4/apache-cassandra-3.11.4-bin.tar.gz
+    && tar -xzf apache-cassandra-3.11.4-bin.tar.gz
+
+  - sudo sh ./apache-cassandra-3.11.4/bin/cassandra -R
+  - sleep 20
 
 before_script:
+  - mysql -e 'CREATE DATABASE eventsourcing;'
   - psql -c 'create database eventsourcing;' -U postgres
 
 install:
-- pip install -U pip wheel
-- CASS_DRIVER_NO_CYTHON=1 pip install -e .[testing]
-- pip install pymysql
-- pip install mysql-connector-python-rf
-- pip install python-coveralls
+- pip3 install -U pip wheel
+- CASS_DRIVER_NO_CYTHON=1 pip3 install -e .[testing]
+#- pip install -e .[testing]
+- pip3 install pymysql
+- pip3 install mysql-connector-python-rf
+- pip3 install python-coveralls
 
 env:
   global:

@@ -28,8 +28,7 @@ def timestamp_long_from_uuid(uuid_arg):
     if isinstance(uuid_arg, str):
         uuid_arg = UUID(uuid_arg)
     assert isinstance(uuid_arg, UUID), uuid_arg
-    uuid_time = uuid_arg.time
-    return uuid_time - 0x01B21DD213814000
+    return uuid_arg.time - 0x01B21DD213814000
 
 
 def decimaltimestamp(t=None):
