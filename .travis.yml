@@ -24,8 +24,8 @@ before_install:
   - sudo apt-get install -y icedtea-8-plugin
   - sudo update-java-alternatives -v --set java-1.8.0-openjdk-amd64
 #  - sudo update-java-alternatives --set /usr/lib/jvm/java-1.8.0-openjdk-amd64
-  - source /etc/environment
-#  - export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
+#  - source /etc/environment
+  - export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
   - java -version
 
   - sudo rm -rf /var/lib/cassandra/*
@@ -40,7 +40,7 @@ before_script:
   - psql -c 'create database eventsourcing;' -U postgres
 
 install:
-  - pip3 install -U virtualenv
+#  - pip3 install -U virtualenv
   - virtualenv venv
   - source venv/bin/activate
   - which python
