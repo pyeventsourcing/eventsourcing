@@ -10,9 +10,9 @@ services:
 python:
   - "3.6"
   - "3.7"
-  - "3.7-dev"  # 3.7 development branch
+  - "3.7-dev"
   - "pypy3.5"
-#  - "3.8-dev"  # 3.8 development branch
+#  - "3.8-dev"  # Doesn't work because psycopg2-binary doesn't work with 3.8-dev at the moment.
 
 
 before_install:
@@ -24,8 +24,8 @@ before_install:
   - sudo apt-get install -y icedtea-8-plugin
   - sudo update-java-alternatives -v --set java-1.8.0-openjdk-amd64
 #  - sudo update-java-alternatives --set /usr/lib/jvm/java-1.8.0-openjdk-amd64
-#  - source /etc/environment
-  - export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
+  - source /etc/environment
+#  - export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
   - java -version
 
   - sudo rm -rf /var/lib/cassandra/*
