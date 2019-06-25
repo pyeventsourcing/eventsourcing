@@ -83,6 +83,8 @@ class System(object):
         kwargs = dict(kwargs)
         if 'session' not in kwargs and process_class.is_constructed_with_session:
             kwargs['session'] = self.session
+        if 'setup_tables' not in kwargs and self.setup_tables:
+            kwargs['setup_table'] = self.setup_tables
 
         infrastructure_class = infrastructure_class or self.infrastructure_class
         process = process_class.bind(infrastructure_class, **kwargs)

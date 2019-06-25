@@ -20,7 +20,7 @@ install_requires = [
 
 sqlalchemy_requires = [
     'sqlalchemy<=1.3.99999,>=0.9',
-    'sqlalchemy-utils<=0.33.99999',
+    'sqlalchemy-utils<=0.34.99999',
 ]
 
 cassandra_requires = [
