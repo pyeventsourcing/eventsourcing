@@ -149,7 +149,11 @@ class SystemRunner(ABC):
 
     @abstractmethod
     def start(self):
-        pass
+        """
+        Starts running the system.
+
+        Abstract method which must be implemented on concrete descendants.
+        """
 
     def close(self):
         if self.system.processes:
@@ -196,7 +200,11 @@ class InProcessRunner(SystemRunner):
 
     @abstractmethod
     def handle_prompt(self, prompt):
-        pass
+        """
+        Handles publication of a prompt.
+
+        Abstract method which must be implemented on concrete descendants.
+        """
 
     def close(self):
         super(InProcessRunner, self).close()
@@ -532,7 +540,9 @@ class SteppingSingleThreadedRunner(SteppingRunner):
         self.clock_thread.start()
 
     def handle_prompt(self, prompt):
-        pass
+        """
+        Ignores prompts.
+        """
 
     def close(self):
         self.stop_event.set()
