@@ -51,7 +51,10 @@ class TestUtils(TestCase):
         if os.getenv('TRAVIS_PYTHON_VERSION') in ['3.6', '3.7', '3.7-dev', 'pypy3.5']:
             self.skipTest("Somehow this fails on Travis dist:xenial, with Python 3.6 and with PyPy.")
 
-        """
+            # This is the weird error that happens in Python 3.7.1 on Travis Xenial dist.
+            # Why does the second timestamp "happen" more than one second before the first?
+            # Perhaps UUID1 doesn't actually use time.time() sometimes? Maybe it was a bug in v3.7.1?
+            """
 FAIL: test_decimaltimestamp_corresponds_with_decimaltimestamp_from_uuid (
 eventsourcing.tests.core_tests.test_utils.TestUtils)
 ----------------------------------------------------------------------
@@ -60,7 +63,7 @@ Traceback (most recent call last):
   in test_decimaltimestamp_corresponds_with_decimaltimestamp_from_uuid
     self.assertLess(timestamp1, timestamp2)
 AssertionError: Decimal('1561464862.322443') not less than Decimal('1561464861.100940')
-        """
+            """
 
         timestamp1 = decimaltimestamp()
         sleep(0.000001)
