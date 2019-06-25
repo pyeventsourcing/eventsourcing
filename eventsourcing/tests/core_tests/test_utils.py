@@ -49,7 +49,7 @@ class TestUtils(TestCase):
 
     def test_decimaltimestamp_corresponds_with_decimaltimestamp_from_uuid(self):
         if os.getenv('TRAVIS_PYTHON_VERSION') in ['3.6', '3.7', '3.7-dev', 'pypy3.5']:
-            self.skipTest("Somehow this fails on Travis dist:xenial, with Python 3.6 and with PyPy.")
+            self.skipTest("Somehow this fails on Travis dist:xenial.")
 
             # This is the weird error that happens in Python 3.7.1 on Travis Xenial dist.
             # Why does the second timestamp "happen" more than one second before the first?
