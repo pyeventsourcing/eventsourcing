@@ -7,24 +7,30 @@ number are backwards compatible, within the scope of the documented
 examples. New major versions indicate a backward incompatible changes
 have been introduced since the previous major version.
 
-If you need help upgrading code and migrating data, please get in touch.
 
 Version 7.x
 ===========
 
-Version 7.x series brought many incremental improvements across the library.
+Version 7.x series refined the "process and system" code.
+
+
+Version 7.1.2 (released 26 Jun 2019)
+------------------------------------
+
+Version 7.1.2 fixed method 'construct_app()' on class 'System' to set 'setup_table'
+on its process applications using the system's value of 'setup_tables'.
 
 
 Version 7.1.1 (released 21 Jun 2019)
 ------------------------------------
 
-Version 7.1.1 adds 'Support options' and 'Contributing' sections to the documentation.
+Version 7.1.1 added 'Support options' and 'Contributing' sections to the documentation.
 
 
 Version 7.1.0 (released 11 Jun 2019)
 ------------------------------------
 
-Version 7.1.0 brings improved structure to the documentation.
+Version 7.1.0 improved structure to the documentation.
 
 
 Version 7.0.0 (released 21 Feb 2019)
@@ -56,8 +62,9 @@ Version 6.0.0 (released 23 Apr 2018)
 Version 5.x
 ===========
 
-Version 5.x series was released after quite a lot of refactoring made
-things backward-incompatible. Support for Django ORM was added in version 5.0.0.
+Version 5.x added support for Django ORM. It was released
+as a new major version after quite a lot of refactoring made
+things backward-incompatible.
 
 Version 5.1.1 (released 4 Apr 2018)
 ------------------------------------
@@ -68,6 +75,7 @@ Version 5.1.0 (released 16 Feb 2018)
 Version 5.0.0 (released 24 Jan 2018)
 ------------------------------------
 
+Support for Django ORM was added in version 5.0.0.
 
 Version 4.x
 ===========
