@@ -40,9 +40,9 @@ before_script:
   - psql -c 'create database eventsourcing;' -U postgres
 
 install:
-#  - pip3 install -U virtualenv
-  - virtualenv venv
-  - source venv/bin/activate
+  - pip install -U virtualenv
+  - virtualenv --python=python ../venv
+  - source ../venv/bin/activate
   - which python
   - python --version
   - pip install -U pip wheel
