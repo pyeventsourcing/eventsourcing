@@ -336,7 +336,7 @@ classes: ``Event``, ``Created``, ``AttributeChanged``, and ``Discarded``.
 
 The domain event class ``DomainEntity.Event`` is a super type of the others.
 The others also inherit from the library base classes ``Created``,
-``AttributeChanged``, and ``Discarded``. All these domain events classes
+``AttributeChanged``, and ``Discarded``. All these domain event classes
 are subclasses of ``DomainEvent``.
 
 .. code:: python
