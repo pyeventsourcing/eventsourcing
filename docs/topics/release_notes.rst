@@ -18,7 +18,8 @@ Version 7.1.2 (released 26 Jun 2019)
 ------------------------------------
 
 Version 7.1.2 fixed method 'construct_app()' on class 'System' to set 'setup_table'
-on its process applications using the system's value of 'setup_tables'.
+on its process applications using the system's value of 'setup_tables'. Also
+updated version of dependency of SQLAlchemy-Utils.
 
 
 Version 7.1.1 (released 21 Jun 2019)
