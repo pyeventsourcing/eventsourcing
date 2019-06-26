@@ -18,7 +18,7 @@ from eventsourcing import __version__
 def build_and_test(cwd):
     # Declare temporary working directory variable.
     # tmpcwd27 = os.path.join(cwd, 'tmpve2.7')
-    tmpcwd34 = os.path.join(cwd, 'tmpve3.7')
+    tmpcwd37 = os.path.join(cwd, 'tmpve3.7')
 
     # Build distribution.
     subprocess.check_call([sys.executable, 'setup.py', 'clean', '--all'], cwd=cwd)
@@ -27,7 +27,7 @@ def build_and_test(cwd):
 
     targets = [
         # (tmpcwd27, 'python2.7'),
-        (tmpcwd34, 'python3.7'),
+        (tmpcwd37, 'python3.7'),
     ]
     for (tmpcwd, python_executable) in targets:
 
@@ -76,7 +76,6 @@ def build_and_test(cwd):
 
 
 def test_installation(tmpcwd):
-    subprocess.check_call(['bin/python', '-c', 'import dateutil.parser'], cwd=tmpcwd)
     subprocess.check_call(['bin/python', '-m' 'unittest', 'discover', 'eventsourcing.tests'], cwd=tmpcwd)
 
 
