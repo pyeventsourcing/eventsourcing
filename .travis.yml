@@ -2,7 +2,6 @@ dist: xenial   # required for Python >= 3.7
 language: python
 
 services:
-  - cassandra
   - redis-server
   - mysql
   - postgresql
@@ -18,26 +17,28 @@ python:
 before_install:
   - python --version
 
-  # Cassandra needs OpenJDK 8.
+  # Install OpenJDK 8 (Cassandra 3.11 needs it).
   - sudo apt-get -qq update
   - sudo apt-get install -y openjdk-8-jdk
   - sudo apt-get install -y icedtea-8-plugin
-  - sudo update-java-alternatives -v --set java-1.8.0-openjdk-amd64
 #  - sudo update-java-alternatives --set /usr/lib/jvm/java-1.8.0-openjdk-amd64
+  - sudo update-java-alternatives -v --set java-1.8.0-openjdk-amd64
 #  - source /etc/environment
   - export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
   - java -version
 
+  # Install Cassandra.
   - sudo rm -rf /var/lib/cassandra/*
   - wget http://www.us.apache.org/dist/cassandra/3.11.4/apache-cassandra-3.11.4-bin.tar.gz
     && tar -xzf apache-cassandra-3.11.4-bin.tar.gz
 
+  # Start Cassandra.
   - sudo sh ./apache-cassandra-3.11.4/bin/cassandra -R
   - sleep 20
 
 before_script:
   - mysql -e 'CREATE DATABASE eventsourcing;'
-  - psql -c 'create database eventsourcing;' -U postgres
+  - psql -c 'CREATE DATABASE eventsourcing;' -U postgres
 
 install:
   - pip install -U virtualenv
@@ -61,6 +62,7 @@ script:
 - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
       coverage run --concurrency=multiprocessing -m unittest discover eventsourcing.tests -v;
   fi
+
 - if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then
       python -m unittest discover eventsourcing.tests -v;
   fi

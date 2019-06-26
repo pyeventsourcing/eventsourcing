@@ -2,6 +2,8 @@
 import os
 import subprocess
 import sys
+from subprocess import CalledProcessError
+from time import sleep
 
 try:
     del os.environ['PYTHONPATH']
@@ -29,16 +31,17 @@ def build_and_test(cwd):
     ]
     for (tmpcwd, python_executable) in targets:
 
-        # Rebuild virtualenvs.
-        rebuild_virtualenv(cwd, tmpcwd, python_executable)
+        check_locally = False
+        if check_locally:
+            # Rebuild virtualenvs.
+            rebuild_virtualenv(cwd, tmpcwd, python_executable)
 
-        # Install from dist folder.
-        subprocess.check_call(['bin/pip', 'install', '-U', 'pip'], cwd=tmpcwd)
-        tar_path = '../dist/eventsourcing-{}.tar.gz[testing]'.format(__version__)
-        subprocess.check_call(['bin/pip', 'install', '-U', tar_path], cwd=tmpcwd)
+            # Install from dist folder.
+            tar_path = '../dist/eventsourcing-{}.tar.gz[testing]'.format(__version__)
+            subprocess.check_call(['bin/pip', 'install', '-U', tar_path], cwd=tmpcwd)
 
-        # Check installed tests all pass.
-        test_installation(tmpcwd)
+            # Check installed tests all pass.
+            test_installation(tmpcwd)
 
         # Build and upload to Test PyPI.
         if not is_uploaded_testpypi:
@@ -49,11 +52,22 @@ def build_and_test(cwd):
         rebuild_virtualenv(cwd, tmpcwd, python_executable)
 
         # Install from Test PyPI.
-        subprocess.check_call(['bin/pip', 'install', '-U', 'eventsourcing[testing]==' + __version__,
-                               '--index-url', 'https://testpypi.python.org/simple',
-                               '--extra-index-url', 'https://pypi.python.org/simple'
-                               ],
-                               cwd=tmpcwd)
+        cmd = [
+            'bin/pip', 'install',
+            '-U', 'eventsourcing[testing]==' + __version__,
+            '--index-url', 'https://testpypi.python.org/simple',
+            '--extra-index-url', 'https://pypi.python.org/simple'
+        ]
+
+        patience = 10
+        while patience:
+            try:
+                subprocess.check_call(cmd, cwd=tmpcwd)
+                break
+            except CalledProcessError:
+                patience -= 1
+                print("Patience:", patience)
+                sleep(6)
 
         # Check installed tests all pass.
         test_installation(tmpcwd)
@@ -69,6 +83,7 @@ def test_installation(tmpcwd):
 def rebuild_virtualenv(cwd, venv_path, python_executable):
     remove_virtualenv(cwd, venv_path)
     subprocess.check_call(['virtualenv', '-p', python_executable, venv_path], cwd=cwd)
+    subprocess.check_call(['bin/pip', 'install', '-U', 'pip', 'wheel'], cwd=venv_path)
 
 
 def remove_virtualenv(cwd, venv_path):
