@@ -15,6 +15,7 @@ def get_topic(domain_class):
     return domain_class.__module__ + '#' + getattr(domain_class, '__qualname__', domain_class.__name__)
 
 
+# Todo: Document this.
 substitutions = {}
 
 
