@@ -221,6 +221,9 @@ class EntityWithHashchain(DomainEntity):
             # Call super method.
             return super(EntityWithHashchain.Created, self).__mutate__(entity_class)
 
+    class AttributeChanged(Event, DomainEntity.AttributeChanged):
+        pass
+
     class Discarded(Event, DomainEntity.Discarded):
         def __mutate__(self, obj):
             # Set entity head from event hash.
@@ -310,12 +313,6 @@ class VersionedEntity(DomainEntity):
     class Discarded(Event, DomainEntity.Discarded):
         """Published when a VersionedEntity is discarded."""
 
-    # def __change_attribute__(self, name, value):
-    #     if self.__version__:
-    #         super(VersionedEntity, self).__change_attribute__(name, value)
-    #     else:
-    #         setattr(self, name, value)
-
 
 class TimestampedEntity(DomainEntity):
     def __init__(self, __created_on__=None, **kwargs):
@@ -358,6 +355,8 @@ class TimestampedEntity(DomainEntity):
         """Published when a TimestampedEntity is discarded."""
 
 
+# Todo: Move stuff from "test_customise_with_alternative_domain_event_type" in here (to define event classes
+#  and update ___last_event_id__ in mutate method).
 class TimeuuidedEntity(DomainEntity):
     def __init__(self, event_id, **kwargs):
         super(TimeuuidedEntity, self).__init__(**kwargs)
