@@ -15,6 +15,9 @@ def get_topic(domain_class):
     return domain_class.__module__ + '#' + getattr(domain_class, '__qualname__', domain_class.__name__)
 
 
+substitutions = {}
+
+
 def resolve_topic(topic):
     """Return class described by given topic.
 
@@ -27,11 +30,20 @@ def resolve_topic(topic):
     Raises:
         TopicResolutionError: If there is no such class.
     """
+    # Substitute one topic for another, if so defined.
+    #  - this allows classes to be moved and renamed
+    topic = substitutions.get(topic, topic)
+
+    # Partition topic into module and class names.
+    module_name, _, class_name = topic.partition('#')
+
+    # Import the module.
     try:
-        module_name, _, class_name = topic.partition('#')
         module = importlib.import_module(module_name)
     except ImportError as e:
         raise TopicResolutionError("{}: {}".format(topic, e))
+
+    # Identify the class.
     try:
         cls = resolve_attr(module, class_name)
     except AttributeError as e:
