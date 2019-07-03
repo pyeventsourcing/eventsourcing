@@ -19,8 +19,13 @@ class DomainEvent(object):
     """
     Base class for domain events.
 
-    Implements methods to make instances read-only, comparable
-    for equality, have recognisable representations, and hashable.
+    Implements methods to make instances read-only,
+    comparable for equality in Python, and have
+    recognisable representations.
+
+    To make domain events hashable, this class also
+    implements a method to create a cryptographic hash
+    of the state of the event.
     """
     __json_encoder_class__ = ObjectJSONEncoder
     __notifiable__ = True
@@ -33,7 +38,9 @@ class DomainEvent(object):
 
     def __repr__(self):
         """
-        Returns string representing the type and attribute values of the event.
+        Creates a string representing the type and attribute values of the event.
+
+        :rtype str
         """
         sorted_items = tuple(sorted(self.__dict__.items()))
         args_strings = ("{0}={1!r}".format(*item) for item in sorted_items)
@@ -42,35 +49,32 @@ class DomainEvent(object):
 
     def __mutate__(self, obj):
         """
-        Update obj with values from self.
+        Updates 'obj' with values from 'self'.
+
+        Calls the 'mutate()' method.
 
         Can be extended, but subclasses must call super
-        method, and return an object.
+        and return an object to their caller.
 
-        :param obj: object to be mutated
+        :param obj: object (normally a domain entity) to be mutated
         :return: mutated object
         """
-        # Call mutate() method.
         self.mutate(obj)
-
         return obj
 
     def mutate(self, obj):
         """
-        Convenience for use in custom models, to update
-        obj with values from self without needing to call
-        super method and return obj (two extra lines).
+        Updates ("mutates") given 'obj'.
 
-        Can be overridden by subclasses. Any value returned
-        by this method will be ignored.
+        Intended to be overridden by subclasses, as the most
+        concise way of coding a default projection of the event
+        (for example into the state of a domain entity).
 
-        Please note, subclasses that extend mutate() might
-        not have fully completed that method before this method
-        is called. To ensure all base classes have completed
-        their mutate behaviour before mutating an event in a concrete
-        class, extend mutate() instead of overriding this method.
+        The advantage of implementing a default projection
+        using this method rather than __mutate__ is that you
+        don't need to call super or return a value.
 
-        :param obj: object to be mutated
+        :param obj: domain entity to be mutated
         """
 
     def __setattr__(self, key, value):
@@ -82,69 +86,89 @@ class DomainEvent(object):
     def __eq__(self, other):
         """
         Tests for equality of two event objects.
+
+        :rtype bool
         """
         return isinstance(other, DomainEvent) and self.__hash__() == other.__hash__()
 
     def __ne__(self, other):
         """
         Negates the equality test.
+
+        :rtype bool
         """
         return not (self == other)
 
     def __hash__(self):
         """
-        Computes a Python integer hash for an event,
-        using its event hash string.
+        Computes a Python integer hash for an event.
 
-        Supports equality and inequality comparisons.
+        Supports Python equality and inequality comparisons.
+
+        :return: Python integer hash
+        :rtype int
         """
         state = self.__dict__.copy()
         state['__event_topic__'] = get_topic(type(self))
-        return hash(self.__hash_object__(state))
+
+        # Calculate the cryptographic hash of the event.
+        sha256_hash = self.__hash_object__(state)
+
+        # Return the Python hash of the cryptographic hash.
+        return hash(sha256_hash)
 
     @classmethod
     def __hash_object__(cls, obj):
+        """
+        Calculates SHA-256 hash of JSON encoded 'obj'.
+
+        :param obj: Object to be hashed.
+        :return: SHA-256 as hexadecimal string.
+        :rtype str
+        """
         return hash_object(cls.__json_encoder_class__, obj)
 
 
 class EventWithHash(DomainEvent):
     """
-    Base class for domain events.
+    Base class for domain events with a cryptographic event hash.
 
-    Implements methods to make instances read-only, comparable
-    for equality, have recognisable representations, and hashable.
+    Extends DomainEvent by setting a cryptographic event hash
+    when the event is originated, and checking the event hash
+    whenever its default projection mutates an object.
     """
 
     def __init__(self, **kwargs):
-        """
-        Initialises event attribute values directly from constructor kwargs.
-        """
         super(EventWithHash, self).__init__(**kwargs)
 
-        # Seal the event with a hash of the other values.
-        # __event_topic__ is needed to obtain a different hash
-        # for different types of events with otherwise equal
-        # attributes.
+        # Set __event_topic__ to differentiate events of
+        # different types with otherwise equal attributes.
         self.__dict__['__event_topic__'] = get_topic(type(self))
+
+        # Set __event_hash__ with a SHA-256 hash of the event.
         self.__dict__['__event_hash__'] = self.__hash_object__(self.__dict__)
 
     @property
     def __event_hash__(self):
-        return self.__dict__.get('__event_hash__')
+        """
+        Returns SHA-256 hash of the original state of the event.
 
-    def __check_hash__(self):
-        state = self.__dict__.copy()
-        event_hash = state.pop('__event_hash__')
-        if event_hash != self.__hash_object__(state):
-            raise EventHashError()
+        :return: SHA-256 as hexadecimal string.
+        :rtype str
+        """
+        return self.__dict__.get('__event_hash__')
 
     def __hash__(self):
         """
         Computes a Python integer hash for an event,
-        using its event hash string.
+        using its pre-computed event hash.
 
-        Supports equality and inequality comparisons.
+        Supports Python equality and inequality comparisons only.
+
+        :return: Python integer hash
+        :rtype int
         """
+        # Return the Python hash of the cryptographic hash.
         return hash(self.__event_hash__)
 
     def __mutate__(self, obj):
@@ -161,17 +185,37 @@ class EventWithHash(DomainEvent):
         # Check the hash.
         self.__check_hash__()
 
-        # Call mutate() method.
+        # Call super and return value.
         return super(EventWithHash, self).__mutate__(obj)
+
+    def __check_hash__(self):
+        """
+        Raises EventHashError, unless self.__event_hash__ can
+        be derived from the current state of the event object.
+        """
+        state = self.__dict__.copy()
+        event_hash = state.pop('__event_hash__')
+        if event_hash != self.__hash_object__(state):
+            raise EventHashError()
 
 
 class EventWithOriginatorID(DomainEvent):
+    """
+    For events that have an originator ID.
+    """
     def __init__(self, originator_id, **kwargs):
         kwargs['originator_id'] = originator_id
         super(EventWithOriginatorID, self).__init__(**kwargs)
 
     @property
     def originator_id(self):
+        """
+        Originator ID is the identity of the object
+        that originated this event.
+
+        :return: A UUID representing the identity of the originator.
+        :rtype UUID
+        """
         return self.__dict__['originator_id']
 
 
@@ -186,6 +230,11 @@ class EventWithTimestamp(DomainEvent):
 
     @property
     def timestamp(self):
+        """
+        A UNIX timestamp as a Decimal object.
+
+        :rtype Decimal
+        """
         return self.__dict__['timestamp']
 
 
@@ -202,6 +251,13 @@ class EventWithOriginatorVersion(DomainEvent):
 
     @property
     def originator_version(self):
+        """
+        Originator version is the version of the object
+        that originated this event.
+
+        :return: A integer representing the version of the originator.
+        :rtype int
+        """
         return self.__dict__['originator_version']
 
 
@@ -221,13 +277,13 @@ class EventWithTimeuuid(DomainEvent):
 
 class Created(DomainEvent):
     """
-    Can be published when an entity is created.
+    Can be originated when something is created.
     """
 
 
 class AttributeChanged(DomainEvent):
     """
-    Can be published when an attribute of an entity is created.
+    Can be originated when the value of an attribute changes.
     """
 
     @property
@@ -241,13 +297,13 @@ class AttributeChanged(DomainEvent):
 
 class Discarded(DomainEvent):
     """
-    Published when something is discarded.
+    Can be originated when something is discarded.
     """
 
 
 class Logged(DomainEvent):
     """
-    Published when something is logged.
+    Can be originated when something is logged.
     """
 
 
@@ -255,12 +311,29 @@ _event_handlers = OrderedDict()
 
 
 def subscribe(handler, predicate=None):
+    """
+    Adds 'handler' to list of event handlers
+    to be called if 'predicate' is satisfied.
+
+    If predicate is None, the handler will
+    be called whenever an event is published.
+
+    :param handler: Will be called when an event is published.
+    :param predicate: Conditions whether the handler will be called.
+    """
     if predicate not in _event_handlers:
         _event_handlers[predicate] = []
     _event_handlers[predicate].append(handler)
 
 
 def unsubscribe(handler, predicate=None):
+    """
+    Removes 'handler' from list of event handlers
+    to be called if 'predicate' is satisfied.
+
+    :param handler:
+    :param predicate:
+    """
     if predicate in _event_handlers:
         handlers = _event_handlers[predicate]
         if handler in handlers:
@@ -281,6 +354,10 @@ class EventHandlersNotEmptyError(Exception):
 
 
 def assert_event_handlers_empty():
+    """
+    Raises EventHandlersNotEmptyError, unless
+    there are no event handlers subscribed.
+    """
     len_event_handlers = len(_event_handlers)
     if len_event_handlers:
         msg = "%d event handlers are still subscribed: %s" % (len_event_handlers, _event_handlers)
@@ -288,4 +365,7 @@ def assert_event_handlers_empty():
 
 
 def clear_event_handlers():
+    """
+    Removes all previously subscribed event handlers.
+    """
     _event_handlers.clear()

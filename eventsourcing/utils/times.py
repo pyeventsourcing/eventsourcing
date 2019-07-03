@@ -42,6 +42,7 @@ def decimaltimestamp(t=None):
     :param t: Floating point UNIX timestamp ("seconds since epoch").
     :return: A Decimal with 6 decimal places, representing the
             given floating point or the value returned by time.time().
+    :rtype Decimal
     """
     t = time.time() if t is None else t
     return Decimal('{:.6f}'.format(t))
