@@ -343,8 +343,15 @@ def unsubscribe(handler, predicate=None):
 
 
 def publish(event):
-    for predicate, handlers in _event_handlers.copy().items():
-        for handler in handlers:
+    """
+    Calls subscribed event handlers with the
+    given 'event', except those with predicates
+    that are not satisfied by the event.
+
+    :param event:
+    """
+    for predicate, handlers in list(_event_handlers.items()):
+        for handler in list(handlers):
             if predicate is None or predicate(event):
                 handler(event)
 
