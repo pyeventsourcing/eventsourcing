@@ -11,12 +11,14 @@ be used to develop an event-sourced domain model.
 Domain events
 =============
 
-The purpose of a domain model event is to be constructed when something happens, normally the
-results from the work of a command method (a function of its arguments). The library has a base
-class for domain events called ``DomainEvent``.
+Domain model events occur when something happens in a domain model, perhaps
+recording a fact directly from the domain, or more generally registering the
+results of the work of a command method (a function of facts from the domain).
 
-Domain events can be freely constructed from the ``DomainEvent`` class. Attributes are
-set directly from the constructor keyword arguments.
+The library has a base class for domain model events called ``DomainEvent``.
+Domain events objects can be freely constructed from the ``DomainEvent``
+class. Attribute values of a domain event object are set directly from
+constructor keyword arguments.
 
 .. code:: python
 
@@ -26,8 +28,9 @@ set directly from the constructor keyword arguments.
     assert domain_event.a == 1
 
 
-The attributes of domain events are read-only. New values cannot be assigned to existing objects.
-Domain events are immutable in that sense.
+Domain events are meant to be immutable. And so the attributes of these domain
+event objects are read-only: new values cannot be assigned to attributes of existing
+domain event objects.
 
 .. code:: python
 
@@ -40,8 +43,8 @@ Domain events are immutable in that sense.
         raise Exception("Shouldn't get here")
 
 
-Domain events can be compared for equality as value objects, instances are equal if they have the
-same type and the same attributes.
+Domain events can be compared for equality and inequality. Instances
+are equal if they have both the same type and the same attributes.
 
 .. code:: python
 
