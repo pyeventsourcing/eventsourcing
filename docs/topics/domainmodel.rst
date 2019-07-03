@@ -13,7 +13,8 @@ Domain events
 
 Domain model events occur when something happens in a domain model, perhaps
 recording a fact directly from the domain, or more generally registering the
-results of the work of a command method (a function of facts from the domain).
+results of the work of a command method (perhaps a function of facts from the
+domain).
 
 The library has a base class for domain model events called ``DomainEvent``.
 Domain events objects can be freely constructed from the ``DomainEvent``
