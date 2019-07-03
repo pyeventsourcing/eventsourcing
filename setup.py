@@ -76,6 +76,7 @@ setup(
     author='John Bywater',
     author_email='john.bywater@appropriatesoftware.net',
     url='https://github.com/johnbywater/eventsourcing',
+    license='BSD-3-Clause',
     packages=packages,
     install_requires=install_requires,
     extras_require={
