@@ -6,7 +6,7 @@ from tempfile import NamedTemporaryFile
 from unittest.case import TestCase
 
 import eventsourcing
-from eventsourcing.domain.model.events import assert_event_handlers_empty
+from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.records import Base
 
@@ -15,10 +15,7 @@ base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
 class TestDocs(TestCase):
     def tearDown(self):
-        from eventsourcing.domain.model.events import _event_handlers
-        if _event_handlers:
-            print("Warning: event handlers still subscribed: {}".format(_event_handlers))
-        _event_handlers.clear()
+        clear_event_handlers()
 
         # Need to drop the stored events, because the __main__#Order topics
         # mess up the multiprocessing tests (because the Orders application

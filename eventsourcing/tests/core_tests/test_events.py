@@ -4,8 +4,8 @@ from uuid import UUID, uuid4, uuid1
 from decimal import Decimal
 
 from eventsourcing.domain.model.events import DomainEvent, EventHandlersNotEmptyError, EventWithOriginatorID, \
-    EventWithOriginatorVersion, EventWithTimestamp, _event_handlers, assert_event_handlers_empty, \
-    create_timesequenced_event_id, publish, subscribe, unsubscribe, EventWithTimeuuid
+    EventWithOriginatorVersion, EventWithTimestamp, assert_event_handlers_empty, \
+    create_timesequenced_event_id, publish, subscribe, unsubscribe, EventWithTimeuuid, clear_event_handlers
 from eventsourcing.utils.topic import resolve_topic, get_topic
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.exceptions import TopicResolutionError
@@ -327,7 +327,7 @@ class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
 # Todo: Review and reduce. This is the original test case, much but not all of which is covered by the new tests above.
 class TestEvents(unittest.TestCase):
     def tearDown(self):
-        _event_handlers.clear()
+        clear_event_handlers()
 
     def test_event_attributes(self):
         entity_id1 = uuid4()
