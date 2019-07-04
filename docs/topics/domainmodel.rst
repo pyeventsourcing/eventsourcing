@@ -16,10 +16,11 @@ recording a fact directly from the domain, or more generally registering the
 results of the work of a command method (perhaps a function of facts from the
 domain).
 
-The library has a base class for domain model events called ``DomainEvent``.
-Domain events objects can be freely constructed from the ``DomainEvent``
-class. Attribute values of a domain event object are set directly from
-constructor keyword arguments.
+The library has a base class for domain model events called
+:class:`~eventsourcing.domain.model.events.DomainEvent`.
+Domain events objects can be freely constructed from this
+class. Attribute values of a domain event object are set
+directly from constructor keyword arguments.
 
 .. code:: python
 
@@ -111,9 +112,15 @@ The ``unsubscribe()`` function can be used to stop the handler receiving further
 Event library
 -------------
 
-The library has a small collection of domain event subclasses, such as ``EventWithOriginatorID``,
-``EventWithOriginatorVersion``, ``EventWithTimestamp``, ``EventWithTimeuuid``, ``EventWithHash``,
-``Created``, ``AttributeChanged``, ``Discarded``.
+The library has a small collection of domain event subclasses, such as
+:class:`~eventsourcing.domain.model.events.EventWithOriginatorID`,
+:class:`~eventsourcing.domain.model.events.EventWithOriginatorVersion`,
+:class:`~eventsourcing.domain.model.events.EventWithTimestamp`,
+:class:`~eventsourcing.domain.model.events.EventWithTimeuuid`,
+:class:`~eventsourcing.domain.model.events.EventWithHash`,
+:class:`~eventsourcing.domain.model.events.Created`,
+:class:`~eventsourcing.domain.model.events.AttributeChanged`,
+:class:`~eventsourcing.domain.model.events.Discarded`,
 
 Some classes require particular arguments when constructed. An ``originator_id`` arg
 is required for ``EventWithOriginatorID`` to identify a sequence to which the event belongs.
@@ -224,11 +231,17 @@ the domain events of a domain entity on the entity class itself.
 Domain entities
 ===============
 
-A domain entity is an object that is not defined by its attributes, but rather by a thread of continuity and its
-identity. The attributes of a domain entity can change, directly by assignment, or indirectly by calling a method of
-the object.
+A domain entity is an object that is not defined by its
+attributes, but rather by a thread of continuity and its
+identity. The attributes of a domain entity can change,
+directly by assignment, or indirectly by calling a method
+of the object.
 
-The library has a base class for domain entities called ``DomainEntity``, which has an ``id`` attribute.
+The library has a base class for domain entities called
+:class:`~eventsourcing.domain.model.entity.DomainEntity`.
+It has an ``id`` attribute, because all entities are
+meant to have a constant ID that provides continuity whilst
+other attributes may change.
 
 .. code:: python
 
@@ -244,8 +257,9 @@ The library has a base class for domain entities called ``DomainEntity``, which 
 Entity library
 --------------
 
-The library also has a domain entity class called ``VersionedEntity``, which extends the ``DomainEntity`` class
-with a ``__version__`` attribute.
+The library also has a domain entity class called
+:class:`~eventsourcing.domain.model.entity.VersionedEntity`,
+which extends the ``DomainEntity`` class with a ``__version__`` attribute.
 
 .. code:: python
 
@@ -257,8 +271,10 @@ with a ``__version__`` attribute.
     assert entity.__version__ == 1
 
 
-The library also has a domain entity class called ``TimestampedEntity``, which extends the ``DomainEntity`` class
-with attributes ``__created_on__`` and ``__last_modified__``.
+The library also has a domain entity class called
+:class:`~eventsourcing.domain.model.entity.TimestampedEntity`,
+which extends the ``DomainEntity`` class with attributes
+``__created_on__`` and ``__last_modified__``.
 
 .. code:: python
 
@@ -271,7 +287,9 @@ with attributes ``__created_on__`` and ``__last_modified__``.
     assert entity.__last_modified__ == 123
 
 
-There is also a ``TimestampedVersionedEntity`` that has ``id``, ``__version__``, ``__created_on__``, and ``__last_modified__``
+There is also a
+:class:`~eventsourcing.domain.model.entity.TimestampedVersionedEntity`,
+that has ``id``, ``__version__``, ``__created_on__``, and ``__last_modified__``
 attributes.
 
 .. code:: python
@@ -432,8 +450,9 @@ entity is set to have the event's ``timestamp`` value.
 Hash-chained events
 -------------------
 
-The library also has entity class ``EntityWithHashchain``. It has event classes
-that inherit from ``EventWithHash``.
+The library also has entity class
+:class:`~eventsourcing.domain.model.entity.EntityWithHashchain`.
+It has event classes that inherit from ``EventWithHash``.
 
 .. code:: python
 

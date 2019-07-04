@@ -40,7 +40,7 @@ class DomainEvent(object):
         """
         Creates a string representing the type and attribute values of the event.
 
-        :rtype str
+        :rtype: str
         """
         sorted_items = tuple(sorted(self.__dict__.items()))
         args_strings = ("{0}={1!r}".format(*item) for item in sorted_items)
@@ -87,7 +87,7 @@ class DomainEvent(object):
         """
         Tests for equality of two event objects.
 
-        :rtype bool
+        :rtype: bool
         """
         return isinstance(other, DomainEvent) and self.__hash__() == other.__hash__()
 
@@ -95,7 +95,7 @@ class DomainEvent(object):
         """
         Negates the equality test.
 
-        :rtype bool
+        :rtype: bool
         """
         return not (self == other)
 
@@ -106,7 +106,7 @@ class DomainEvent(object):
         Supports Python equality and inequality comparisons.
 
         :return: Python integer hash
-        :rtype int
+        :rtype: int
         """
         state = self.__dict__.copy()
         state['__event_topic__'] = get_topic(type(self))
@@ -124,7 +124,7 @@ class DomainEvent(object):
 
         :param obj: Object to be hashed.
         :return: SHA-256 as hexadecimal string.
-        :rtype str
+        :rtype: str
         """
         return hash_object(cls.__json_encoder_class__, obj)
 
@@ -154,7 +154,7 @@ class EventWithHash(DomainEvent):
         Returns SHA-256 hash of the original state of the event.
 
         :return: SHA-256 as hexadecimal string.
-        :rtype str
+        :rtype: str
         """
         return self.__dict__.get('__event_hash__')
 
@@ -166,7 +166,7 @@ class EventWithHash(DomainEvent):
         Supports Python equality and inequality comparisons only.
 
         :return: Python integer hash
-        :rtype int
+        :rtype: int
         """
         # Return the Python hash of the cryptographic hash.
         return hash(self.__event_hash__)
@@ -214,7 +214,7 @@ class EventWithOriginatorID(DomainEvent):
         that originated this event.
 
         :return: A UUID representing the identity of the originator.
-        :rtype UUID
+        :rtype: UUID
         """
         return self.__dict__['originator_id']
 
@@ -233,7 +233,7 @@ class EventWithTimestamp(DomainEvent):
         """
         A UNIX timestamp as a Decimal object.
 
-        :rtype Decimal
+        :rtype: Decimal
         """
         return self.__dict__['timestamp']
 
@@ -256,7 +256,7 @@ class EventWithOriginatorVersion(DomainEvent):
         that originated this event.
 
         :return: A integer representing the version of the originator.
-        :rtype int
+        :rtype: int
         """
         return self.__dict__['originator_version']
 

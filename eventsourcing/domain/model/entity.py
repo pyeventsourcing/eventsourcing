@@ -66,7 +66,7 @@ class DomainEntity(object):
 
     class Created(Event, Created):
         """
-        Published when an entity is created.
+        Triggered when an entity is created.
         """
 
         def __init__(self, originator_topic, **kwargs):
@@ -101,7 +101,7 @@ class DomainEntity(object):
 
     class AttributeChanged(Event, AttributeChanged):
         """
-        Published when a DomainEntity is discarded.
+        Triggered when a named attribute is assigned a new value.
         """
 
         def __mutate__(self, obj):
@@ -117,7 +117,7 @@ class DomainEntity(object):
 
     class Discarded(Discarded, Event):
         """
-        Published when a DomainEntity is discarded.
+        Triggered when a DomainEntity is discarded.
         """
 
         def __mutate__(self, obj):
