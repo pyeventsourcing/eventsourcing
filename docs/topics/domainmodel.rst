@@ -2,7 +2,7 @@
 Domain model layer
 ==================
 
-The library's domain layer has base classes for domain events and entities. They can
+The library's domain model layer has base classes for domain events and entities. They can
 be used to develop an event-sourced domain model.
 
 .. contents:: :local:
@@ -11,11 +11,16 @@ be used to develop an event-sourced domain model.
 Domain events
 =============
 
-The purpose of a domain event is to be published when something happens, normally the results from the
-work of a command. The library has a base class for domain events called ``DomainEvent``.
+Domain model events occur when something happens in a domain model, perhaps
+recording a fact directly from the domain, or more generally registering the
+results of the work of a command method (perhaps a function of facts from the
+domain).
 
-Domain events can be freely constructed from the ``DomainEvent`` class. Attributes are
-set directly from the constructor keyword arguments.
+The library has a base class for domain model events called
+:class:`~eventsourcing.domain.model.events.DomainEvent`.
+Domain events objects can be freely constructed from this
+class. Attribute values of a domain event object are set
+directly from constructor keyword arguments.
 
 .. code:: python
 
@@ -25,8 +30,9 @@ set directly from the constructor keyword arguments.
     assert domain_event.a == 1
 
 
-The attributes of domain events are read-only. New values cannot be assigned to existing objects.
-Domain events are immutable in that sense.
+Domain events are meant to be immutable. And so the attributes of these domain
+event objects are read-only: new values cannot be assigned to attributes of existing
+domain event objects.
 
 .. code:: python
 
@@ -39,8 +45,8 @@ Domain events are immutable in that sense.
         raise Exception("Shouldn't get here")
 
 
-Domain events can be compared for equality as value objects, instances are equal if they have the
-same type and the same attributes.
+Domain events can be compared for equality and inequality. Instances
+are equal if they have both the same type and the same attributes.
 
 .. code:: python
 
@@ -106,35 +112,25 @@ The ``unsubscribe()`` function can be used to stop the handler receiving further
 Event library
 -------------
 
-The library has a small collection of domain event subclasses, such as ``EventWithOriginatorID``,
-``EventWithOriginatorVersion``, ``EventWithTimestamp``, ``EventWithTimeuuid``, ``Created``, ``AttributeChanged``,
-``Discarded``.
+The library has a small collection of domain event subclasses, such as
+:class:`~eventsourcing.domain.model.events.EventWithOriginatorID`,
+:class:`~eventsourcing.domain.model.events.EventWithOriginatorVersion`,
+:class:`~eventsourcing.domain.model.events.EventWithTimestamp`,
+:class:`~eventsourcing.domain.model.events.EventWithTimeuuid`,
+:class:`~eventsourcing.domain.model.events.EventWithHash`,
+:class:`~eventsourcing.domain.model.events.Created`,
+:class:`~eventsourcing.domain.model.events.AttributeChanged`,
+:class:`~eventsourcing.domain.model.events.Discarded`,
 
-Some of these classes provide useful defaults for particular attributes, such as a ``timestamp``.
-Timestamps can be used to sequence events.
-
-.. code:: python
-
-    from eventsourcing.domain.model.events import EventWithTimestamp
-    from eventsourcing.domain.model.events import EventWithTimeuuid
-    from decimal import Decimal
-    from uuid import UUID
-
-    # Automatic timestamp.
-    assert isinstance(EventWithTimestamp().timestamp, Decimal)
-
-    # Automatic UUIDv1.
-    assert isinstance(EventWithTimeuuid().event_id, UUID)
-
-
-Some classes require particular arguments when constructed. The ``originator_id`` can be used
-to identify a sequence to which an event belongs. The ``originator_version`` can be used to
-position the event in a sequence.
+Some classes require particular arguments when constructed. An ``originator_id`` arg
+is required for ``EventWithOriginatorID`` to identify a sequence to which the event belongs.
+An ``originator_version`` arg is required for ``EventWithOriginatorVersion`` to position the
+events in a sequence.
 
 .. code:: python
 
-    from eventsourcing.domain.model.events import EventWithOriginatorVersion
     from eventsourcing.domain.model.events import EventWithOriginatorID
+    from eventsourcing.domain.model.events import EventWithOriginatorVersion
     from uuid import uuid4
 
     # Requires originator_id.
@@ -144,7 +140,23 @@ position the event in a sequence.
     EventWithOriginatorVersion(originator_version=0)
 
 
-Some are just useful for their distinct type, for example in subscription predicates.
+Some of these classes provide useful defaults for particular attributes, such as the ``timestamp``
+of an ``EventWithTimestamp`` (a ``Decimal`` value) and the ``event_id`` of an ``EventWithTimeuuid``
+(a ``UUID``).
+
+.. code:: python
+
+    from eventsourcing.domain.model.events import EventWithTimestamp
+    from eventsourcing.domain.model.events import EventWithTimeuuid
+    from decimal import Decimal
+    from uuid import UUID
+
+    assert isinstance(EventWithTimestamp().timestamp, Decimal)
+
+    assert isinstance(EventWithTimeuuid().event_id, UUID)
+
+
+The event classes are useful for their distinct type, for example in subscription predicates.
 
 .. code:: python
 
@@ -216,26 +228,20 @@ the domain events of a domain entity on the entity class itself.
     assert done.timestamp > seen.timestamp
 
 
-So long as the entity event classes inherit ultimately from library class
-``QualnameABC``, which ``DomainEvent`` does, the utility functions ``get_topic()``
-and ``resolve_topic()`` can work with domain events defined as inner or nested
-classes in all versions of Python. These functions are used in the ``DomainEntity.Created``
-event class, and in the infrastructure class ``SequencedItemMapper``. The requirement
-to inherit from ``QualnameABC`` actually only applies when using nested classes in Python 2.7
-with the utility functions ``get_topic()`` and ``resolve_topic()``. Events classes that
-are not nested, or that will not be run with Python 2.7, do not need to
-inherit from ``QualnameABC`` in order to work with these two functions (and
-hence the library domain and infrastructure classes which use those functions).
-
-
 Domain entities
 ===============
 
-A domain entity is an object that is not defined by its attributes, but rather by a thread of continuity and its
-identity. The attributes of a domain entity can change, directly by assignment, or indirectly by calling a method of
-the object.
+A domain entity is an object that is not defined by its
+attributes, but rather by a thread of continuity and its
+identity. The attributes of a domain entity can change,
+directly by assignment, or indirectly by calling a method
+of the object.
 
-The library has a base class for domain entities called ``DomainEntity``, which has an ``id`` attribute.
+The library has a base class for domain entities called
+:class:`~eventsourcing.domain.model.entity.DomainEntity`.
+It has an ``id`` attribute, because all entities are
+meant to have a constant ID that provides continuity whilst
+other attributes may change.
 
 .. code:: python
 
@@ -251,8 +257,9 @@ The library has a base class for domain entities called ``DomainEntity``, which 
 Entity library
 --------------
 
-The library also has a domain entity class called ``VersionedEntity``, which extends the ``DomainEntity`` class
-with a ``__version__`` attribute.
+The library also has a domain entity class called
+:class:`~eventsourcing.domain.model.entity.VersionedEntity`,
+which extends the ``DomainEntity`` class with a ``__version__`` attribute.
 
 .. code:: python
 
@@ -264,8 +271,10 @@ with a ``__version__`` attribute.
     assert entity.__version__ == 1
 
 
-The library also has a domain entity class called ``TimestampedEntity``, which extends the ``DomainEntity`` class
-with attributes ``__created_on__`` and ``__last_modified__``.
+The library also has a domain entity class called
+:class:`~eventsourcing.domain.model.entity.TimestampedEntity`,
+which extends the ``DomainEntity`` class with attributes
+``__created_on__`` and ``__last_modified__``.
 
 .. code:: python
 
@@ -278,7 +287,9 @@ with attributes ``__created_on__`` and ``__last_modified__``.
     assert entity.__last_modified__ == 123
 
 
-There is also a ``TimestampedVersionedEntity`` that has ``id``, ``__version__``, ``__created_on__``, and ``__last_modified__``
+There is also a
+:class:`~eventsourcing.domain.model.entity.TimestampedVersionedEntity`,
+that has ``id``, ``__version__``, ``__created_on__``, and ``__last_modified__``
 attributes.
 
 .. code:: python
@@ -336,7 +347,7 @@ classes: ``Event``, ``Created``, ``AttributeChanged``, and ``Discarded``.
 
 The domain event class ``DomainEntity.Event`` is a super type of the others.
 The others also inherit from the library base classes ``Created``,
-``AttributeChanged``, and ``Discarded``. All these domain events classes
+``AttributeChanged``, and ``Discarded``. All these domain event classes
 are subclasses of ``DomainEvent``.
 
 .. code:: python
@@ -352,19 +363,13 @@ are subclasses of ``DomainEvent``.
     assert issubclass(DomainEntity.Event, DomainEvent)
 
 
-These entity event classes can be freely constructed, with
-suitable arguments.
+These entity event classes can be freely constructed, with suitable arguments.
 
-All events need an ``originator_id``. Events of versioned entities also
+All entity events need an ``originator_id``. Events of versioned entities also
 need an ``originator_version``. Events of timestamped entities generate
 a current ``timestamp`` value, unless one is given. ``Created`` events
-also need an ``originator_topic``. The other events need an ``__previous_hash__``.
-``AttributeChanged`` events also need ``name`` and ``value``.
-
-All the events of ``DomainEntity`` use SHA-256 to generate an ``event_hash``
-from the event attribute values when constructed for the first time. Events
-can be chained together by constructing each subsequent event to have its
-``__previous_hash__`` as the ``event_hash`` of the previous event.
+also need an ``originator_topic``. ``AttributeChanged`` events also need ``name``
+and ``value``.
 
 .. code:: python
 
@@ -399,7 +404,9 @@ can be chained together by constructing each subsequent event to have its
 
 
 The events have a ``__mutate__()`` function, which can be used to mutate the
-state of a given object appropriately.
+state of an entity. This is a convenient way to code a "default" or "self" projection
+of the entity's sequence of events (the projection of the events into the
+entity itself).
 
 For example, the ``DomainEntity.Created`` event mutates to an
 entity instance. The class that is instantiated is determined by the
@@ -438,6 +445,32 @@ As another example, when a versioned entity is mutated by an event of the
 Similarly, when a timestamped entity is mutated by an event of the
 ``TimestampedEntity`` class, the ``__last_modified__`` attribute of the
 entity is set to have the event's ``timestamp`` value.
+
+
+Hash-chained events
+-------------------
+
+The library also has entity class
+:class:`~eventsourcing.domain.model.entity.EntityWithHashchain`.
+It has event classes that inherit from ``EventWithHash``.
+
+.. code:: python
+
+    from eventsourcing.domain.model.entity import EntityWithHashchain
+    from eventsourcing.domain.model.events import EventWithHash
+
+
+    assert issubclass(EntityWithHashchain.Event, EventWithHash)
+    assert issubclass(EntityWithHashchain.Created, EventWithHash)
+    assert issubclass(EntityWithHashchain.AttributeChanged, EventWithHash)
+    assert issubclass(EntityWithHashchain.Discarded, EventWithHash)
+
+
+All the events of ``EntityWithHashchain`` use SHA-256 to generate an ``event_hash``
+from the event attribute values when constructed for the first time. Events
+are chained together by ``EntityWithHashchain`` by constructing each subsequent
+event to have an attribute ``__previous_hash__`` which is the ``__event_hash__``
+of the previous event (stored by the entity on entity's attribute ``__head__``).
 
 
 Factory method
@@ -784,10 +817,13 @@ command cannot be stored then none of them will be stored. If all the events
 from an aggregate are to be written to a database as a single atomic operation,
 then they must have been published by the entity as a single list.
 
+Base class
+----------
+
 The library has a domain entity class called
-:class:`~eventsourcing.domain.model.aggregate.AggregateRoot` that can be
+:class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot` that can be
 useful in a domain driven design, especially where a single command can cause
-many events to be published. The ``AggregateRoot`` entity class extends
+many events to be published. The ``BaseAggregateRoot`` entity class extends
 ``TimestampedVersionedEntity``. It overrides the ``__publish__()`` method of
 the base class, so that triggered events are published only to a private list
 of pending events, rather than directly to the publish-subscribe mechanism. It
@@ -795,14 +831,14 @@ also adds a method called ``__save__()``, which publishes all
 pending events to the publish-subscribe mechanism as a single list.
 
 It can be subclassed by custom aggregate root entities. In the example below, the
-entity class ``World`` inherits from ``AggregateRoot``.
+entity class ``World`` inherits from ``BaseAggregateRoot``.
 
 .. code:: python
 
-    from eventsourcing.domain.model.aggregate import AggregateRoot
+    from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 
 
-    class World(AggregateRoot):
+    class World(BaseAggregateRoot):
         """
         Example domain entity, with mutator function on domain event.
         """
@@ -814,14 +850,14 @@ entity class ``World`` inherits from ``AggregateRoot``.
             for something in somethings:
                 self.__trigger_event__(World.SomethingHappened, what=something)
 
-        class SomethingHappened(AggregateRoot.Event):
+        class SomethingHappened(BaseAggregateRoot.Event):
             def mutate(self, obj):
                 obj.history.append(self)
 
 
 The ``World`` aggregate root has a command method ``make_things_so()`` which publishes
 ``SomethingHappened`` events. The ``mutate()`` method of the ``SomethingHappened`` class
-simply appends the event (``self``) to the aggregate object ``obj``.
+simply appends the event (``self``) to the aggregate object (``obj``).
 
 We can see the events that are published by subscribing to the handler ``receive_events()``.
 
@@ -856,17 +892,58 @@ Events are pending, and will not be published until the ``__save__()`` method is
     world.__save__()
 
     # Pending events published as a list.
-    assert len(received_events) == 1
-    assert len(received_events[0]) == 4
+    assert len(received_events[-1]) == 4
 
     # No longer any pending events.
     assert len(world.__pending_events__) == 0
 
+
 Data integrity
 --------------
 
-Domain events triggered by the library's ``AggregateRoot`` class are both hashed and
-also hash-chained together.
+The library class
+:class:`~eventsourcing.domain.model.aggregate.AggregateRootWithHashchainedEvents`
+extends ``BaseAggregateRoot`` by also inheriting from ``EntityWithHashchain``, so
+that aggregate events are individually hashed and also hash-chained together.
+It is aliased as ``AggregateRoot``.
+
+.. code:: python
+
+    from eventsourcing.domain.model.aggregate import AggregateRoot
+
+
+    class World(AggregateRoot):
+        """
+        Example domain entity, with mutator function on domain event.
+        """
+        def __init__(self, *args, **kwargs):
+            super(World, self).__init__(*args, **kwargs)
+            self.history = []
+
+        def make_things_so(self, *somethings):
+            for something in somethings:
+                self.__trigger_event__(World.SomethingHappened, what=something)
+
+        class SomethingHappened(AggregateRoot.Event):
+            def mutate(self, obj):
+                obj.history.append(self)
+
+
+    # Create new world.
+    world = World.__create__()
+    assert isinstance(world, World)
+
+    # Command that publishes many events.
+    world.make_things_so('dinosaurs', 'trucks', 'internet')
+
+    # State of aggregate object has changed
+    # but no events have been published yet.
+    assert world.history[0].what == 'dinosaurs'
+    assert world.history[1].what == 'trucks'
+    assert world.history[2].what == 'internet'
+
+    # Publish pending events.
+    world.__save__()
 
 The state of each event, including the hash of the previous event, is hashed using
 SHA-256. The state of each event can be validated as a part of the chain. If the
@@ -880,7 +957,7 @@ The hash of the last event applied to an aggregate root is available as an attri
 
     # Entity's head hash is determined exclusively
     # by the entire sequence of events and SHA-256.
-    assert world.__head__ == received_events[0][-1].__event_hash__
+    assert world.__head__ == received_events[-1][-1].__event_hash__
 
 
 A different sequence of events will almost certainly result a different
@@ -905,6 +982,15 @@ perhaps with random bytes encoded as Base64.
 The "genesis hash" used as the previous hash of the first event in a sequence can be
 set using environment variable ``GENESIS_HASH``.
 
-    # Clean up.
+The class ``AggregateRootWithHashchainedEvents`` can be used when you want to be able
+to verify aggregates' sequences of events cryptographically (which can be useful
+even during development to catch programming errors and to avoid doubt that the
+infrastructure is working properly). However, the class ``BaseAggregateRoot`` is
+probably faster than ``AggregateRootWithHashchainedEvents`` and can be used whenever
+you don't actually need to verify the sequence of events cryptographically.
+
+.. code:: python
+
+    # Clean up after running examples.
     unsubscribe(handler=receive_event)
     del received_events[:]  # received_events.clear()

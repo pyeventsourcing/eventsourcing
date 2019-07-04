@@ -62,10 +62,12 @@ class TestPaxosSystem(unittest.TestCase):
             self.assert_final_value(paxosprocess2, key3, value3)
             print("Resolved paxos 3 with single thread in %ss" % ended3)
 
-    def test_multi_threaded(self, is_skipped='TRAVIS_PYTHON_VERSION' in os.environ):
-        if is_skipped:
-            self.skipTest("There's an intermittent problem with the multi-threaded"
-                          "runner with SQLAlchemy and Python 3.7 on Travis. Fix me :).")
+    def test_multi_threaded(self):
+
+        if 'TRAVIS_PYTHON_VERSION' in os.environ:
+            if self.infrastructure_class is SQLAlchemyApplication:
+                self.skipTest("There's an intermittent problem with the multi-threaded"
+                              "runner with SQLAlchemy and Python 3.7 on Travis. Fix me :).")
         set_db_uri()
 
         system = PaxosSystem(

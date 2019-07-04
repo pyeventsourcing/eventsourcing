@@ -22,7 +22,7 @@ class Example(EntityWithHashchain, TimestampedVersionedEntity):
     class Heartbeat(Event, TimestampedVersionedEntity.Event):
         """Published when a heartbeat in the entity occurs (see below)."""
         def mutate(self, obj):
-            """Update obj with values from self."""
+            """Updates 'obj' with values from self."""
             assert isinstance(obj, Example), obj
             obj._count_heartbeats += 1
 
