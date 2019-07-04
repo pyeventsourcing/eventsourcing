@@ -307,8 +307,6 @@ class Logged(DomainEvent):
     """
 
 
-_event_handlers = OrderedDict()
-
 _subscriptions = []
 
 
@@ -361,14 +359,8 @@ def assert_event_handlers_empty():
     Raises EventHandlersNotEmptyError, unless
     there are no event handlers subscribed.
     """
-    len_event_handlers = len(_event_handlers)
-    if len_event_handlers:
-        msg = "%d event handlers are still subscribed: %s" % (len_event_handlers, _event_handlers.items())
-        raise EventHandlersNotEmptyError(msg)
-
-    len_subscriptions = len(_subscriptions)
-    if len_subscriptions:
-        msg = "%d subscriptions still exist: %s" % (len_subscriptions, _subscriptions)
+    if len(_subscriptions):
+        msg = "subscriptions still exist: %s" % _subscriptions
         raise EventHandlersNotEmptyError(msg)
 
 
@@ -376,5 +368,4 @@ def clear_event_handlers():
     """
     Removes all previously subscribed event handlers.
     """
-    _event_handlers.clear()
     _subscriptions.clear()

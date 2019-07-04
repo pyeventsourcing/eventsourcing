@@ -4,7 +4,7 @@ from uuid import uuid4
 from mock import mock
 
 from eventsourcing.domain.model.decorators import mutator, retry, subscribe_to
-from eventsourcing.domain.model.events import EventHandlersNotEmptyError, _event_handlers, \
+from eventsourcing.domain.model.events import EventHandlersNotEmptyError, \
     assert_event_handlers_empty, publish, clear_event_handlers
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.utils.topic import get_topic
@@ -201,4 +201,4 @@ class TestDecorators(TestCase):
         self.assertEqual(2, handler2.call_count)
         self.assertEqual(2, handler3.call_count)
 
-        _event_handlers.clear()
+        clear_event_handlers()
