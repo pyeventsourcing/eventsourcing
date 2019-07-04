@@ -323,10 +323,6 @@ def subscribe(handler, predicate=None):
     :param handler: Will be called when an event is published.
     :param predicate: Conditions whether the handler will be called.
     """
-    # if predicate not in _event_handlers:
-    #     _event_handlers[predicate] = []
-    # _event_handlers[predicate].append(handler)
-
     if (predicate, handler) not in _subscriptions:
         _subscriptions.append((predicate, handler))
 
@@ -339,13 +335,6 @@ def unsubscribe(handler, predicate=None):
     :param handler:
     :param predicate:
     """
-    # if predicate in _event_handlers:
-    #     handlers = _event_handlers[predicate]
-    #     if handler in handlers:
-    #         handlers.remove(handler)
-    #         if not handlers:
-    #             _event_handlers.pop(predicate)
-
     if (predicate, handler) in _subscriptions:
         _subscriptions.remove((predicate, handler))
 
@@ -358,26 +347,9 @@ def publish(event):
 
     :param event:
     """
-    # subscriptions = []
-    # for predicate, handlers in _event_handlers.items():
-    #     subscriptions.append((predicate, handlers[:]))
-    #
-    # for predicate, handlers in subscriptions:
-    #     if predicate is None or predicate(event):
-    #         for handler in handlers:
-    #             handler(event)
-
-    last_condition = None
-    last_predicate = None
     for predicate, handler in _subscriptions[:]:
-        if predicate == last_predicate and last_condition is not None:
-            condition = last_condition
-        else:
-            condition = predicate is None or predicate(event)
-        if condition:
+        if predicate is None or predicate(event):
             handler(event)
-        last_condition = condition
-        last_predicate = predicate
 
 
 class EventHandlersNotEmptyError(Exception):
