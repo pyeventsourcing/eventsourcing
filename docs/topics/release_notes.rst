@@ -14,6 +14,12 @@ Version 7.x
 Version 7.x series refined the "process and system" code.
 
 
+Version 7.1.3 (released 4 Jul 2019)
+------------------------------------
+
+Version 7.1.3 improved the domain model layer documentation.
+
+
 Version 7.1.2 (released 26 Jun 2019)
 ------------------------------------
 
