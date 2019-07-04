@@ -332,7 +332,7 @@ class TimestampedEntity(DomainEntity):
         """Supertype for events of timestamped entities."""
 
         def __mutate__(self, obj):
-            """Update obj with values from self."""
+            """Updates 'obj' with values from self."""
             obj = super(TimestampedEntity.Event, self).__mutate__(obj)
             if obj is not None:
                 assert isinstance(obj, TimestampedEntity), obj

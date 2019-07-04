@@ -173,7 +173,7 @@ class EventWithHash(DomainEvent):
 
     def __mutate__(self, obj):
         """
-        Update obj with values from self.
+        Updates 'obj' with values from self.
 
         Can be extended, but subclasses must call super
         method, and return an object.
