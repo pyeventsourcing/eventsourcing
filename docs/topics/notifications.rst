@@ -85,31 +85,27 @@ to avoid interruptions in processing the application's events.
 
 If placing all the events in a single sequence is restrictive,
 then perhaps partitioning the application notifications may offer a
-scalable approach. For example, if each user has one partition, each
-notification sequence would contain all events from the aggregates
-pertaining to one user. So that the various sequences can
-be discovered, it would be useful to have a sequence in
-which the creation of each partition is recorded. The application
-could then be scaled by partition.
-(Please note, the library doesn't currently support partitioning
-the aggregates of an application.)
+scalable approach. For example, if each user's work is independent of
+the others', then each could have one partition, each notification sequence
+would contain all events from the aggregates pertaining to one user. So
+that the various sequences can be discovered, it would be useful to have
+a sequence in which the creation of each partition is recorded. The
+application could then be scaled by partition.
 
-If partitioning the aggregates of application is restrictive, then it
-would also be possible to have a notification sequence for each aggregate; in
+If partitioning the aggregates of application is restrictive, perhaps
+because each user's work is dependent on the others', then it
+might be possible to have a notification sequence for each aggregate; in
 this case, the events would already have been placed in a sequence and so they
 could be presented directly as notifications. But as aggregates come and go,
 the overhead of keeping track of the notification sequences may become restrictive.
-(Please note, the library doesn't currently support notifications for individual aggregates.)
 
-An alternative to sequencing events individually would be to sequence the lists of events published
-when saving the pending events of an aggregate (see ``AggregateRoot``), so that in cases
-where it is feasible to place all the commands in a sequence, it would also
-be feasible to place the resulting lists of events in a sequence, assuming
-the number of such lists is less than or equal to the number of commands. Sequencing
-the lists would allow these little units of coherence to be propagated, which may be
-useful in some cases.
-(Please note, the library doesn't currently support
-notifications for lists of events.)
+Another possibility would be to sequence the lists of events published when saving
+the pending events of an aggregate (see ``AggregateRoot``), so that in cases where
+it is feasible to place all the commands in a sequence, it would also be feasible
+to place the resulting lists of events for each command in a sequence. Sequencing
+the lists would allow these little units of coherence to be propagated atomically,
+which may be useful in some cases. (Please note, the library doesn't currently support
+atomic notification of collections of events, instead each event is notified individually.)
 
 Before continuing with code examples below, we need to setup an event store.
 
@@ -190,10 +186,13 @@ If an application's domain model involves the library's ``AggregateRoot``
 class, which publishes all pending events together as a list, rather than
 inserting each event, it would be possible to insert the lists of events
 into the application sequence as a single entry. This may reduce the number
-of inserts into the application sequence. The lists could be sequenced by
-timestamp or integer. Timestamps may allow the greatest write-speed. (This
-approach currently hasn't been explored any further, but it should be.)
-
+of inserts into the application sequence. However since this library uses
+one table with two indexes for the aggregate and application sequence,
+perhaps the greatest benefit would be processing these atomically a list
+of events that have been created atomically. That might avoid projections
+being in an intermediate state such that a user could view only some of the
+effects of an action when that would be alarming. This isn't implemented at
+time of writing.
 
 Timestamps
 ~~~~~~~~~~
@@ -234,24 +233,24 @@ used to get all application events ordered by timestamp. If you use this class i
 way, make sure your clocks are in sync, and query events from the last position until
 a time in the recent past, in order to implement a jitter buffer.
 
-Todo: Code example.
+.. Todo: Code example.
 
-(An improvement could be to have a  timestamp field that is populated
-by the database server, and index that instead of the application event's
-timestamp which would vary according to the variation between the clock
-of application servers. Code changes and other suggestions are always welcome.)
+.. (An improvement could be to have a  timestamp field that is populated
+.. by the database server, and index that instead of the application event's
+.. timestamp which would vary according to the variation between the clock
+.. of application servers. Code changes and other suggestions are always welcome.)
 
 Integers
 ~~~~~~~~
 
-To reproduce the application's sequence of events perfectly, without any risk
-of gaps or duplicates or jumbled items, or race conditions, we can generate
-and then follow a contiguous sequence of integers. It is also possible to
-generate and follow a non-contiguous sequence of integers, but the gaps will
-need to be negotiated, by guessing how long an unusually slow write would take
-to become visible, since such gaps could be filled in the future.
+To reproduce an application's sequence of events perfectly, without any risk
+of gaps or duplicates or jumbled items, or race conditions, it seems that we
+need to generate and then follow a contiguous sequence of integers. It is also
+possible to generate and follow a non-contiguous sequence of integers, but the
+gaps will need to be negotiated, by guessing how long an unusually slow write
+would take to become visible, since such gaps could be filled in the future.
 
-The library's relational record managers with record classes that have an indexed
+The library's relational record managers have record classes that have an indexed
 integer ID column. Record IDs are used to place all the application's event records
 in a single sequence. This technique is recommended for enterprise applications, and
 at least the earlier stages of more ambitious projects. There is an inherent limit
@@ -374,7 +373,7 @@ BigArray
 ~~~~~~~~
 
 This is a long section, and can be skipped if you aren't currently
-required to scale beyond the limits of a database table that has
+trying to scale beyond the limits of a database table that has
 indexed record IDs.
 
 To support ultra-high capacity requirements, the application sequence must

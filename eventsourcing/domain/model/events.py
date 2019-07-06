@@ -17,12 +17,11 @@ def create_timesequenced_event_id():
 
 class DomainEvent(object):
     """
-    Base class for domain events.
+    Base class for domain model events.
 
     Implements methods to make instances read-only,
     comparable for equality in Python, and have
-    recognisable representations.
-
+    recognisable representations.Custom
     To make domain events hashable, this class also
     implements a method to create a cryptographic hash
     of the state of the event.

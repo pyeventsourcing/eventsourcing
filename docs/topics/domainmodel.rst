@@ -123,9 +123,10 @@ The library has a small collection of domain event subclasses, such as
 :class:`~eventsourcing.domain.model.events.Discarded`,
 
 Some classes require particular arguments when constructed. An ``originator_id`` arg
-is required for ``EventWithOriginatorID`` to identify a sequence to which the event belongs.
-An ``originator_version`` arg is required for ``EventWithOriginatorVersion`` to position the
-events in a sequence.
+is required for :class:`~eventsourcing.domain.model.events.EventWithOriginatorID`
+to identify a sequence to which the event belongs. An ``originator_version`` arg is
+required for :class:`~eventsourcing.domain.model.events.EventWithOriginatorVersion`
+to position the events in a sequence.
 
 .. code:: python
 
@@ -141,8 +142,9 @@ events in a sequence.
 
 
 Some of these classes provide useful defaults for particular attributes, such as the ``timestamp``
-of an ``EventWithTimestamp`` (a ``Decimal`` value) and the ``event_id`` of an ``EventWithTimeuuid``
-(a ``UUID``).
+of an :class:`~eventsourcing.domain.model.events.EventWithTimestamp` (a ``Decimal`` value) and
+the ``event_id`` (a version 1 ``UUID``) of an
+:class:`~eventsourcing.domain.model.events.EventWithTimeuuid`.
 
 .. code:: python
 
@@ -259,7 +261,8 @@ Entity library
 
 The library also has a domain entity class called
 :class:`~eventsourcing.domain.model.entity.VersionedEntity`,
-which extends the ``DomainEntity`` class with a ``__version__`` attribute.
+which extends the :class:`~eventsourcing.domain.model.entity.DomainEntity`
+class with a ``__version__`` attribute.
 
 .. code:: python
 
@@ -273,8 +276,8 @@ which extends the ``DomainEntity`` class with a ``__version__`` attribute.
 
 The library also has a domain entity class called
 :class:`~eventsourcing.domain.model.entity.TimestampedEntity`,
-which extends the ``DomainEntity`` class with attributes
-``__created_on__`` and ``__last_modified__``.
+which extends the :class:`~eventsourcing.domain.model.entity.DomainEntity`
+class with attributes ``__created_on__`` and ``__last_modified__``.
 
 .. code:: python
 
@@ -346,9 +349,11 @@ classes: ``Event``, ``Created``, ``AttributeChanged``, and ``Discarded``.
 
 
 The domain event class ``DomainEntity.Event`` is a super type of the others.
-The others also inherit from the library base classes ``Created``,
-``AttributeChanged``, and ``Discarded``. All these domain event classes
-are subclasses of ``DomainEvent``.
+The others also inherit from the library base classes
+:class:`~eventsourcing.domain.model.events.Created`,
+:class:`~eventsourcing.domain.model.events.AttributeChanged`, and
+:class:`~eventsourcing.domain.model.events.Discarded`. All these domain event classes
+are subclasses of :class:`~eventsourcing.domain.model.events.DomainEvent`.
 
 .. code:: python
 
@@ -426,7 +431,8 @@ entity class is provided, the ``originator_topic`` will be ignored.
 
 
 As another example, when a versioned entity is mutated by an event of the
-``VersionedEntity`` class, the entity version number is set to the event
+:class:`~eventsourcing.domain.model.entity.VersionedEntity`
+class, the entity version number is set to the event
 ``originator_version``.
 
 .. code:: python
@@ -443,7 +449,8 @@ As another example, when a versioned entity is mutated by an event of the
 
 
 Similarly, when a timestamped entity is mutated by an event of the
-``TimestampedEntity`` class, the ``__last_modified__`` attribute of the
+:class:`~eventsourcing.domain.model.entity.TimestampedEntity`
+class, the ``__last_modified__`` attribute of the
 entity is set to have the event's ``timestamp`` value.
 
 
@@ -452,7 +459,8 @@ Hash-chained events
 
 The library also has entity class
 :class:`~eventsourcing.domain.model.entity.EntityWithHashchain`.
-It has event classes that inherit from ``EventWithHash``.
+It has event classes that inherit from
+:class:`~eventsourcing.domain.model.events.EventWithHash`.
 
 .. code:: python
 
@@ -466,22 +474,25 @@ It has event classes that inherit from ``EventWithHash``.
     assert issubclass(EntityWithHashchain.Discarded, EventWithHash)
 
 
-All the events of ``EntityWithHashchain`` use SHA-256 to generate an ``event_hash``
+All the events of
+:class:`~eventsourcing.domain.model.entity.EntityWithHashchain`
+use SHA-256 to generate an ``event_hash``
 from the event attribute values when constructed for the first time. Events
-are chained together by ``EntityWithHashchain`` by constructing each subsequent
-event to have an attribute ``__previous_hash__`` which is the ``__event_hash__``
-of the previous event (stored by the entity on entity's attribute ``__head__``).
+are chained together by :class:`~eventsourcing.domain.model.entity.EntityWithHashchain`
+by constructing each subsequent event to have an attribute ``__previous_hash__``
+which is the ``__event_hash__`` of the previous event (stored by the entity on
+entity's ``__head__`` attribute).
 
 
 Factory method
 --------------
 
-The ``DomainEntity`` has a class method ``__create__()`` which can return
-new entity objects. When called, it constructs the ``Created`` event of the
-concrete class with suitable arguments such as a unique ID, and a topic representing
-the concrete entity class, and then it projects that event into an entity
-object using the event's ``__mutate__()`` method. Then it publishes the
-event, and then it returns the new entity to the caller. This technique
+The :class:`~eventsourcing.domain.model.entity.DomainEntity` has a class
+method ``__create__()`` which returns new entities. When called, it constructs
+a ``Created`` event with suitable arguments such as a unique ID, and a topic
+representing the concrete entity class, and then it projects that event into
+an entity object using the event's  ``__mutate__()`` method. Then it publishes
+the event, and then it returns the new entity to the caller. This technique
 works correctly for subclasses of both the entity and the event class.
 
 .. code:: python
@@ -518,7 +529,8 @@ Triggering events
 Commands methods will construct, apply, and publish events, using the results from working
 on command arguments. The events need to be constructed with suitable arguments.
 
-To help trigger events in an extensible manner, the ``DomainEntity`` class has a
+To help trigger events in an extensible manner, the
+:class:`~eventsourcing.domain.model.entity.DomainEntity` class has a
 method called ``__trigger_event__()``, that is extended by subclasses in the library,
 which can be used in command  methods to construct, apply, and publish events with
 suitable arguments. The events' ``__mutate__()`` methods update the entity appropriately.
@@ -733,8 +745,6 @@ the command method ``make_it_so()`` triggers the custom event ``SomethingHappene
 
 .. code:: python
 
-    from eventsourcing.domain.model.decorators import mutator
-
     class World(VersionedEntity):
 
         def __init__(self, *args, **kwargs):
@@ -823,15 +833,16 @@ Base class
 The library has a domain entity class called
 :class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot` that can be
 useful in a domain driven design, especially where a single command can cause
-many events to be published. The ``BaseAggregateRoot`` entity class extends
-``TimestampedVersionedEntity``. It overrides the ``__publish__()`` method of
+many events to be published. The :class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot`
+entity class extends :class:`~eventsourcing.domain.model.entity.TimestampedVersionedEntity`.
+It overrides the  ``__publish__()`` method of
 the base class, so that triggered events are published only to a private list
 of pending events, rather than directly to the publish-subscribe mechanism. It
 also adds a method called ``__save__()``, which publishes all
 pending events to the publish-subscribe mechanism as a single list.
 
 It can be subclassed by custom aggregate root entities. In the example below, the
-entity class ``World`` inherits from ``BaseAggregateRoot``.
+entity class ``World`` inherits from :class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot`.
 
 .. code:: python
 
