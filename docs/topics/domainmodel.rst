@@ -444,14 +444,13 @@ of an entity's :class:`~eventsourcing.domain.model.entity.DomainEntity.Created`
 event mutates "nothing" to an entity instance. The class that is instantiated is
 determined by the event's ``originator_topic`` attribute. Although the
 :func:`~eventsourcing.domain.model.events.DomainEvent.__mutate__` method of an
-event normally requires a value to be given for the ``obj`` argument, the `obj`
-argument is optional for this method on
-:class:`~eventsourcing.domain.model.entity.DomainEntity.Created` events. The
-default value of the optional ``obj`` arg is ``None``, but if a value is provided
-it must be a callable, that returns an entity when called, such as a domain entity
-class. If a domain entity class is given as the ``obj`` arg, then the event's
-``originator_topic`` will be ignored for the purposes of determining which class
-to instantiate.
+event normally requires a value to be given for the ``obj`` argument, it is
+optional for the method on
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Created` events. If a
+value is provided it must be a callable that returns an entity when called,
+such as a domain entity class. If a domain entity class is given as the ``obj``
+arg, then the event's ``originator_topic`` will be ignored for the purposes of
+determining which class to instantiate.
 
 .. code:: python
 
@@ -461,7 +460,7 @@ to instantiate.
 
 
 When a :class:`~eventsourcing.domain.model.entity.VersionedEntity` is mutated by
-one of its domain events, the entity version number is set to the event
+one of its domain events, the entity version number is set to the event's
 ``originator_version``.
 
 .. code:: python
