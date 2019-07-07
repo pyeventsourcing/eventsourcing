@@ -122,8 +122,8 @@ The library has a small collection of domain event subclasses, such as
 :class:`~eventsourcing.domain.model.events.EventWithTimeuuid`,
 :class:`~eventsourcing.domain.model.events.EventWithHash`,
 :class:`~eventsourcing.domain.model.events.Created`,
-:class:`~eventsourcing.domain.model.events.AttributeChanged`,
-:class:`~eventsourcing.domain.model.events.Discarded`,
+:class:`~eventsourcing.domain.model.events.AttributeChanged`, and
+:class:`~eventsourcing.domain.model.events.Discarded`.
 
 Some classes require particular arguments when constructed. An ``originator_id`` arg
 is required for :class:`~eventsourcing.domain.model.events.EventWithOriginatorID`
@@ -236,17 +236,19 @@ the domain events of a domain entity on the entity class itself.
 Domain entities
 ===============
 
-A domain entity is an object that is not defined by its
-attributes, but rather by a thread of continuity and its
-identity. The attributes of a domain entity can change,
-directly by assignment, or indirectly by calling a method
-of the object.
+A domain entity is an object that has an identity which provides
+a thread of continuity. The attributes of a domain entity can change,
+directly by assignment, or indirectly by calling a method of the object.
+But the identity does not change.
 
 The library has a base class for domain entities called
 :class:`~eventsourcing.domain.model.entity.DomainEntity`.
 It has an ``id`` attribute, because all entities are
-meant to have a constant ID that provides continuity whilst
-other attributes may change.
+meant to have a constant ID that provides continuity when
+other attributes change.
+
+In the example below, a domain entity object is constructed
+with an ID that is a version 4 UUID.
 
 .. code:: python
 
@@ -357,11 +359,18 @@ classes:
 
 
 The domain event class :class:`~eventsourcing.domain.model.entity.DomainEntity.Event`
-is inherited by the others. The others also inherit from the library base classes
+is inherited by the others. The others also inherit from the corresponding library
+base classes
 :class:`~eventsourcing.domain.model.events.Created`,
 :class:`~eventsourcing.domain.model.events.AttributeChanged`, and
-:class:`~eventsourcing.domain.model.events.Discarded`. All these domain event classes
-are subclasses of :class:`~eventsourcing.domain.model.events.DomainEvent`.
+:class:`~eventsourcing.domain.model.events.Discarded`.
+
+The domain entity's event class :class:`~eventsourcing.domain.model.entity.DomainEntity.Event`
+inherits from the base domain event class :class:`~eventsourcing.domain.model.events.DomainEvent`
+and from :class:`~eventsourcing.domain.model.events.EventWithOriginatorID` so that all
+events of :class:`~eventsourcing.domain.model.entity.DomainEntity`
+have an ``originator_id`` attribute.
+
 
 .. code:: python
 
@@ -379,15 +388,17 @@ are subclasses of :class:`~eventsourcing.domain.model.events.DomainEvent`.
 These entity event classes can be freely constructed, with suitable arguments.
 
 All events of :class:`~eventsourcing.domain.model.entity.DomainEntity`
-need an ``originator_id``. Events of
-:class:`~eventsourcing.domain.model.entity.VersionedEntity` also
-need an ``originator_version``. Events of
+need an ``originator_id``.
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Created` events
+also need an ``originator_topic``.
+:class:`~eventsourcing.domain.model.entity.DomainEntity.AttributeChanged` events
+also need ``name`` and ``value``.
+
+Events of :class:`~eventsourcing.domain.model.entity.VersionedEntity`
+also need an ``originator_version``. Events of
 :class:`~eventsourcing.domain.model.entity.TimestampedEntity`
 generate a current ``timestamp`` value, unless one is given.
-:class:`~eventsourcing.domain.model.events.Created` events
-also need an ``originator_topic``.
-:class:`~eventsourcing.domain.model.events.AttributeChanged` events
-also need ``name`` and ``value``.
+
 
 .. code:: python
 
@@ -427,15 +438,18 @@ can be used to mutate the state of an entity. This is a convenient way to code t
 "default" or "self" projection of the entity's sequence of events (the projection
 of the events into the entity itself).
 
-For example, the ``DomainEntity.Created`` event mutates nothing to an
-entity instance. The class that is instantiated is determined by the event's
-``originator_topic`` attribute. The ``__mutate__()`` method normally requires
-an ``obj`` argument, but this is not required for ``DomainEntity.Created``
-events. The default value of the ``obj`` arg of the ``__mutate__()`` method
-of ``Created`` events is ``None``, but if a value is provided it
-must be a callable, such as a domain entity class, that returns an entity when
-called. If a domain entity class is given as the ``obj`` arg, the event's
-``originator_topic`` will be ignored.
+For example, the
+:func:`~eventsourcing.domain.model.entity.DomainEntity.Created.__mutate__` method
+of an entity's :class:`~eventsourcing.domain.model.entity.DomainEntity.Created`
+event mutates "nothing" to an entity instance. The class that is instantiated is
+determined by the event's ``originator_topic`` attribute. Although the ``__mutate__()``
+method of an event normally requires an ``obj`` argument, this is not required for
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Created` events. The default
+value of the ``obj`` arg of the ``__mutate__()`` method of ``Created`` events is
+``None``, but if a value is provided it must be a callable, such as a domain entity
+class, that returns an entity when called. If a domain entity class is given as the
+``obj`` arg, then the event's ``originator_topic`` will be ignored for the purposes
+of determining which class to instantiate.
 
 .. code:: python
 
