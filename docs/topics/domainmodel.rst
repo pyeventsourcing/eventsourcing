@@ -335,7 +335,7 @@ This style breaks PEP8, but it seems worthwhile in order to keep the
 used by other libraries (such as SQLAlchemy and Django) for similar reasons.
 
 The exception is the ``id`` attribute of the domain entity base class,
-which is assumed to be required by all domain entities (or aggregates) in
+which is assumed to be required by all domain entities (and aggregates) in
 all domains.
 
 
