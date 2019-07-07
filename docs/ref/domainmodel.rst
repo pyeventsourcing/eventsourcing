@@ -9,6 +9,8 @@ event sourced domain model.
 
 .. contents:: :local:
 
+.. py:module:: eventsourcing.domain.model.events
+
 events
 ------
 
@@ -21,6 +23,8 @@ Base classes for domain events of different kinds.
     :special-members:
     :exclude-members: __weakref__, __dict__
 
+
+.. py:module:: eventsourcing.domain.model.entity
 
 entity
 ------
@@ -35,6 +39,8 @@ Base classes for domain model entities.
     :exclude-members: __weakref__, __init__
 
 
+.. py:module:: eventsourcing.domain.model.aggregate
+
 aggregate
 ---------
 
@@ -47,6 +53,8 @@ Base classes for aggregates in a domain driven design.
     :special-members:
     :exclude-members: __weakref__, __dict__
 
+
+.. py:module:: eventsourcing.domain.model.command
 
 command
 -------
@@ -61,6 +69,8 @@ Commands as aggregates.
     :exclude-members: __weakref__, __dict__
 
 
+.. py:module:: eventsourcing.domain.model.decorator
+
 decorator
 ---------
 
@@ -74,6 +84,8 @@ Decorators useful in domain models based on the classes in this library.
     :exclude-members: __weakref__, __dict__
 
 
+.. py:module:: eventsourcing.domain.model.snapshot
+
 snapshot
 --------
 
@@ -86,6 +98,8 @@ Snapshotting is implemented in the domain layer as an event.
     :special-members:
     :exclude-members: __weakref__, __dict__
 
+
+.. py:module:: eventsourcing.domain.model.timebucketedlog
 
 timebucketedlog
 ---------------
@@ -102,6 +116,8 @@ partition becoming very large (and then unworkable).
     :exclude-members: __weakref__, __dict__
 
 
+.. py:module:: eventsourcing.domain.model.collection
+
 collection
 ----------
 
@@ -114,6 +130,8 @@ Collections.
     :special-members:
     :exclude-members: __weakref__, __dict__
 
+
+.. py:module:: eventsourcing.domain.model.array
 
 array
 -----
