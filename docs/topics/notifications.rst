@@ -338,8 +338,9 @@ a sequence of IDs that has gaps, a non-contiguous sequence, which could lead
 to race conditions and missed items. The gaps would need to be negotiated,
 which is relatively complicated. To keep things relatively simple, a record
 manager that does not have the ``contiguous_record_ids`` feature enabled cannot
-be used with the library's ``RecordManagerNotificationLog`` class (introduced
-below). If you want to sequence the application events with a non-contiguous
+be used with the library class
+:class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
+(introduced below). If you want to sequence the application events with a non-contiguous
 sequence, then you will need to write something that can negotiate the gaps.
 
 To use contiguous IDs to sequence the events of an application, simply use a
@@ -348,7 +349,8 @@ such as the ``StoredEventRecord`` record class, and with a True value for its
 ``contiguous_record_ids`` constructor argument. The ``record_manager``
 above was constructed in this way. The records can be then be obtained
 using the ``get_notifications()`` method of the record manager. The record IDs
-will form a contiguous sequence, suitable for the ``RecordManagerNotificationLog``.
+will form a contiguous sequence, suitable for the :class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
+
 
 .. code:: python
 
@@ -364,7 +366,7 @@ will form a contiguous sequence, suitable for the ``RecordManagerNotificationLog
 
     assert len(notifications) == 1, notifications
 
-The local notification log class ``RecordManagerNotificationLog``
+The local notification log class :class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
 (see below) can adapt record managers, presenting the
 application sequence as notifications in a standard way.
 
@@ -691,15 +693,15 @@ RecordManagerNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A relational record manager can be adapted by the library class
-:class:`~eventsourcing.interface.notificationlog.RecordManagerNotificationLog`,
+:class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`,
 which will then present the application's events as notifications.
 
-The ``RecordManagerNotificationLog`` is constructed with a ``record_manager``,
-and a ``section_size``.
+The :class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
+is constructed with a ``record_manager``, and a ``section_size``.
 
 .. code:: python
 
-    from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
+    from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 
     # Construct notification log.
     notification_log = RecordManagerNotificationLog(record_manager, section_size=5)
@@ -718,7 +720,8 @@ and a ``section_size``.
     assert section.next_id == '6,10', section.next_id
     assert len(section.items) == 5, section.items
 
-The notifications (``section.items``) from ``RecordManagerNotificationLog``
+The notifications (``section.items``) from a
+:class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
 are Python dicts with keys: ``id``, ``topic``, ``state``, ``originator_id``,
 ``originator_version``, and ``casual_dependencies``.
 
@@ -767,7 +770,8 @@ item mapper does not have a cipher, so the notification data is
 not encrypted.
 
 The library's ``SimpleApplication`` has a ``notification_log`` that
-uses this ``RecordManagerNotificationLog`` class.
+uses this :class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
+class.
 
 .. Todo: Move that function into the library, where? Perhaps subclass
 .. NotificationLogReader with EventNotificationLogReader?
@@ -849,7 +853,7 @@ and a ``section_size``.
 
 .. code:: python
 
-    from eventsourcing.interface.notificationlog import BigArrayNotificationLog
+    from eventsourcing.application.notificationlog import BigArrayNotificationLog
 
     # Construct notification log.
     big_array_notification_log = BigArrayNotificationLog(big_array, section_size=5)
@@ -1094,7 +1098,7 @@ Notification log reader
 -----------------------
 
 The library object class
-:class:`~eventsourcing.interface.notificationlog.NotificationLogReader` effectively
+:class:`~eventsourcing.application.notificationlog.NotificationLogReader` effectively
 functions as an iterator, yielding a continuous sequence of notifications that
 it discovers from the sections of a notification log, local or remote.
 
@@ -1125,7 +1129,7 @@ Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-lik
 
 .. code:: python
 
-    from eventsourcing.interface.notificationlog import NotificationLogReader
+    from eventsourcing.application.notificationlog import NotificationLogReader
 
     # Construct log reader.
     reader = NotificationLogReader(notification_log)

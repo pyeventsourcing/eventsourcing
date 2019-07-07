@@ -2,10 +2,11 @@ from math import ceil
 from threading import Thread
 from uuid import uuid4
 
+from eventsourcing.application.notificationlog import RecordManagerNotificationLog, BigArrayNotificationLog, \
+    NotificationLogReader
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.repositories.array import BigArrayRepository
-from eventsourcing.interface.notificationlog import BigArrayNotificationLog, NotificationLogReader, \
-    NotificationLogView, RecordManagerNotificationLog, RemoteNotificationLog
+from eventsourcing.interface.notificationlog import NotificationLogView, RemoteNotificationLog
 from eventsourcing.tests.sequenced_item_tests.base import WithEventPersistence
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import \
     WithCassandraRecordManagers

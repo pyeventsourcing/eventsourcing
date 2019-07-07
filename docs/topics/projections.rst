@@ -184,10 +184,10 @@ which gives "exactly once" processing.
 
 .. code:: python
 
+    from eventsourcing.application.notificationlog import NotificationLogReader, RecordManagerNotificationLog
     from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
     from eventsourcing.exceptions import ConcurrencyError
     from eventsourcing.domain.model.aggregate import AggregateRoot
-    from eventsourcing.interface.notificationlog import NotificationLogReader, RecordManagerNotificationLog
 
 
     # Define record replicator.

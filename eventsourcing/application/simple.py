@@ -1,6 +1,7 @@
 import os
 from abc import ABC
 
+from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
@@ -8,7 +9,6 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_bytes
 

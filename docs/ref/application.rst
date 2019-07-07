@@ -29,6 +29,28 @@ snapshotting
     :exclude-members: __weakref__, __dict__
 
 
+policies
+--------
+
+.. automodule:: eventsourcing.application.policies
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+
+notificationlog
+---------------
+
+.. automodule:: eventsourcing.application.notificationlog
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+
 django
 ------
 
@@ -55,17 +77,6 @@ popo
 ----
 
 .. automodule:: eventsourcing.application.popo
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
-
-
-policies
---------
-
-.. automodule:: eventsourcing.application.policies
     :show-inheritance:
     :member-order: bysource
     :members:

@@ -5,6 +5,7 @@ from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
 
+from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
@@ -12,7 +13,6 @@ from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, EventSourcingError, OperationalError, ProgrammingError, \
     RecordConflictError
-from eventsourcing.interface.notificationlog import NotificationLogReader
 
 DEFAULT_POLL_INTERVAL = 5
 

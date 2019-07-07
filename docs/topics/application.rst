@@ -243,7 +243,7 @@ events as a single sequence.
 .. code:: python
 
     # Follow application event notifications.
-    from eventsourcing.interface.notificationlog import NotificationLogReader
+    from eventsourcing.application.notificationlog import NotificationLogReader
     reader = NotificationLogReader(application.notification_log)
     notification_ids = [n['id'] for n in reader.read()]
     assert notification_ids == [1, 2, 3], notification_ids

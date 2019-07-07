@@ -2,11 +2,11 @@ import logging
 
 from thespian.actors import *
 
+from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.system import System, SystemRunner
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import RecordConflictError
-from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 
 logger = logging.getLogger()
 
