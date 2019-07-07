@@ -442,14 +442,16 @@ For example, the
 :func:`~eventsourcing.domain.model.entity.DomainEntity.Created.__mutate__` method
 of an entity's :class:`~eventsourcing.domain.model.entity.DomainEntity.Created`
 event mutates "nothing" to an entity instance. The class that is instantiated is
-determined by the event's ``originator_topic`` attribute. Although the ``__mutate__()``
-method of an event normally requires an ``obj`` argument, this is not required for
-:class:`~eventsourcing.domain.model.entity.DomainEntity.Created` events. The default
-value of the ``obj`` arg of the ``__mutate__()`` method of ``Created`` events is
-``None``, but if a value is provided it must be a callable, such as a domain entity
-class, that returns an entity when called. If a domain entity class is given as the
-``obj`` arg, then the event's ``originator_topic`` will be ignored for the purposes
-of determining which class to instantiate.
+determined by the event's ``originator_topic`` attribute. Although the
+:func:`~eventsourcing.domain.model.events.DomainEvent.__mutate__` method of an
+event normally requires a value to be given for the ``obj`` argument, the `obj`
+argument is optional for this method on
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Created` events. The
+default value of the optional ``obj`` arg is ``None``, but if a value is provided
+it must be a callable, that returns an entity when called, such as a domain entity
+class. If a domain entity class is given as the ``obj`` arg, then the event's
+``originator_topic`` will be ignored for the purposes of determining which class
+to instantiate.
 
 .. code:: python
 
