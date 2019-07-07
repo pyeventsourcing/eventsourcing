@@ -422,20 +422,20 @@ also need ``name`` and ``value``.
 
 
 All the events have a
-:func:`~eventsourcing.domain.model.events.DomainEvent.__mutate__` function, which
+:func:`~eventsourcing.domain.model.events.DomainEvent.__mutate__` method, which
 can be used to mutate the state of an entity. This is a convenient way to code the
 "default" or "self" projection of the entity's sequence of events (the projection
 of the events into the entity itself).
 
-For example, the ``DomainEntity.Created`` event mutates to an
-entity instance. The class that is instantiated is determined by the
-``originator_topic`` attribute of the ``DomainEntity.Created`` event.
-
-A domain event's ``__mutate__()`` method normally requires an ``obj`` argument, but
-that is not required for ``DomainEntity.Created`` events. The default
-is ``None``, but if a value is provided it must be callable that
-returns an object, such as a domain entity class. If a domain
-entity class is provided, the ``originator_topic`` will be ignored.
+For example, the ``DomainEntity.Created`` event mutates nothing to an
+entity instance. The class that is instantiated is determined by the event's
+``originator_topic`` attribute. The ``__mutate__()`` method normally requires
+an ``obj`` argument, but this is not required for ``DomainEntity.Created``
+events. The default value of the ``obj`` arg of the ``__mutate__()`` method
+of ``Created`` events is ``None``, but if a value is provided it
+must be a callable, such as a domain entity class, that returns an entity when
+called. If a domain entity class is given as the ``obj`` arg, the event's
+``originator_topic`` will be ignored.
 
 .. code:: python
 
@@ -444,9 +444,8 @@ entity class is provided, the ``originator_topic`` will be ignored.
     assert entity.id == entity_id
 
 
-As another example, when a versioned entity is mutated by an event of the
-:class:`~eventsourcing.domain.model.entity.VersionedEntity`
-class, the entity version number is set to the event
+When a :class:`~eventsourcing.domain.model.entity.VersionedEntity` is mutated by
+one of its domain events, the entity version number is set to the event
 ``originator_version``.
 
 .. code:: python
@@ -462,10 +461,9 @@ class, the entity version number is set to the event
     assert entity.b == 2
 
 
-Similarly, when a timestamped entity is mutated by an event of the
-:class:`~eventsourcing.domain.model.entity.TimestampedEntity`
-class, the ``__last_modified__`` attribute of the
-entity is set to have the event's ``timestamp`` value.
+Similarly, when a :class:`~eventsourcing.domain.model.entity.TimestampedEntity`
+is mutated by one of its events, the ``__last_modified__`` attribute of the
+entity is set to the event's ``timestamp`` value.
 
 
 Hash-chained events
