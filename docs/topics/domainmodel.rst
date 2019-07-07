@@ -378,9 +378,12 @@ are subclasses of :class:`~eventsourcing.domain.model.events.DomainEvent`.
 
 These entity event classes can be freely constructed, with suitable arguments.
 
-All entity events need an ``originator_id``. Events of versioned entities also
-need an ``originator_version``. Events of timestamped entities generate
-a current ``timestamp`` value, unless one is given.
+All events of :class:`~eventsourcing.domain.model.entity.DomainEntity`
+need an ``originator_id``. Events of
+:class:`~eventsourcing.domain.model.entity.VersionedEntity` also
+need an ``originator_version``. Events of
+:class:`~eventsourcing.domain.model.entity.TimestampedEntity`
+generate a current ``timestamp`` value, unless one is given.
 :class:`~eventsourcing.domain.model.events.Created` events
 also need an ``originator_topic``.
 :class:`~eventsourcing.domain.model.events.AttributeChanged` events
@@ -418,10 +421,11 @@ also need ``name`` and ``value``.
     )
 
 
-The events have a ``__mutate__()`` function, which can be used to mutate the
-state of an entity. This is a convenient way to code a "default" or "self" projection
-of the entity's sequence of events (the projection of the events into the
-entity itself).
+All the events have a
+:func:`~eventsourcing.domain.model.events.DomainEvent.__mutate__` function, which
+can be used to mutate the state of an entity. This is a convenient way to code the
+"default" or "self" projection of the entity's sequence of events (the projection
+of the events into the entity itself).
 
 For example, the ``DomainEntity.Created`` event mutates to an
 entity instance. The class that is instantiated is determined by the
@@ -498,12 +502,14 @@ Factory method
 --------------
 
 The :class:`~eventsourcing.domain.model.entity.DomainEntity` has a class
-method ``__create__()`` which returns new entities. When called, it constructs
-a ``Created`` event with suitable arguments such as a unique ID, and a topic
-representing the concrete entity class, and then it projects that event into
-an entity object using the event's  ``__mutate__()`` method. Then it publishes
-the event, and then it returns the new entity to the caller. This technique
-works correctly for subclasses of both the entity and the event class.
+method :func:`~eventsourcing.domain.model.entity.DomainEntity.__create__`
+which returns new entities. When called, it constructs a
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Created` event
+with suitable arguments such as a unique ID, and a topic representing the
+concrete entity class, and then it projects that event into an entity object
+using the event's :func:`~eventsourcing.domain.model.entity.DomainEntity.Created.__mutate__`
+method. Then it publishes the event, and then it returns the new entity to the caller.
+This technique works correctly for subclasses of both the entity and the event class.
 
 .. code:: python
 
