@@ -338,7 +338,12 @@ Entity events
 -------------
 
 The library's domain entity classes have domain events defined as inner
-classes: ``Event``, ``Created``, ``AttributeChanged``, and ``Discarded``.
+classes:
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Event`,
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Created`,
+:class:`~eventsourcing.domain.model.entity.DomainEntity.AttributeChanged`,
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Discarded`.
+
 
 .. code:: python
 
@@ -348,8 +353,8 @@ classes: ``Event``, ``Created``, ``AttributeChanged``, and ``Discarded``.
     DomainEntity.Discarded
 
 
-The domain event class ``DomainEntity.Event`` is a super type of the others.
-The others also inherit from the library base classes
+The domain event class :class:`~eventsourcing.domain.model.entity.DomainEntity.Event`
+is inherited by the others. The others also inherit from the library base classes
 :class:`~eventsourcing.domain.model.events.Created`,
 :class:`~eventsourcing.domain.model.events.AttributeChanged`, and
 :class:`~eventsourcing.domain.model.events.Discarded`. All these domain event classes
@@ -372,9 +377,11 @@ These entity event classes can be freely constructed, with suitable arguments.
 
 All entity events need an ``originator_id``. Events of versioned entities also
 need an ``originator_version``. Events of timestamped entities generate
-a current ``timestamp`` value, unless one is given. ``Created`` events
-also need an ``originator_topic``. ``AttributeChanged`` events also need ``name``
-and ``value``.
+a current ``timestamp`` value, unless one is given.
+:class:`~eventsourcing.domain.model.events.Created` events
+also need an ``originator_topic``.
+:class:`~eventsourcing.domain.model.events.AttributeChanged` events
+also need ``name`` and ``value``.
 
 .. code:: python
 
@@ -531,13 +538,16 @@ on command arguments. The events need to be constructed with suitable arguments.
 
 To help trigger events in an extensible manner, the
 :class:`~eventsourcing.domain.model.entity.DomainEntity` class has a
-method called ``__trigger_event__()``, that is extended by subclasses in the library,
-which can be used in command  methods to construct, apply, and publish events with
-suitable arguments. The events' ``__mutate__()`` methods update the entity appropriately.
+method called
+:class:`~eventsourcing.domain.model.entity.DomainEntity.__trigger_event__()`,
+that is extended by subclasses in the library.
+It can be used in command  methods to construct, apply, and publish events with
+suitable arguments.
 
-For example, triggering an ``AttributeChanged`` event on a timestamped, versioned
-entity will cause the attribute value to be updated, but it will also
-cause the version number to increase, and it will update the last modified time.
+For example, triggering an :class:`~eventsourcing.domain.model.events.AttributeChanged`
+event on a timestamped, versioned entity will cause the attribute value to be updated,
+but it will also cause the version number to increase, and it will update the last
+modified time.
 
 .. code:: python
 
@@ -554,8 +564,13 @@ cause the version number to increase, and it will update the last modified time.
     assert entity.__last_modified__ > entity.__created_on__
 
 
-The command method ``__change_attribute__()`` triggers an
-``AttributeChanged`` event. In the code below, the attribute ``full_name``
+Changing attributes
+-------------------
+
+The command method
+:func:`~eventsourcing.domain.model.entity.DomainEntity.__change_attribute__`
+triggers an :class:`~eventsourcing.domain.model.entity.DomainEntity.AttributeChanged`
+event. In the code below, the attribute ``full_name``
 is set to 'Mr Boots'. A subscriber receives the event.
 
 .. code:: python
@@ -593,8 +608,10 @@ is set to 'Mr Boots'. A subscriber receives the event.
 Discarding entities
 -------------------
 
-The entity method ``__discard__()`` can be used to discard the entity, by triggering
-a ``Discarded`` event, after which the entity is unavailable for further changes.
+The command method
+:func:`~eventsourcing.domain.model.entity.DomainEntity.__discard__()` triggers a
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Discarded` event, after which
+the entity is unavailable for further changes.
 
 .. code:: python
 
