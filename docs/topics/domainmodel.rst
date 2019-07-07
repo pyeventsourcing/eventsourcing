@@ -62,7 +62,8 @@ Publish-subscribe
 
 Domain events can be published, using the library's publish-subscribe mechanism.
 
-The ``publish()`` function is used to publish events. The ``event`` arg is required.
+The function :func:`~eventsourcing.domain.model.events.publish` is used to publish
+events to subscribed handlers. The argument ``event`` is required.
 
 .. code:: python
 
@@ -71,7 +72,8 @@ The ``publish()`` function is used to publish events. The ``event`` arg is requi
     publish(event=domain_event)
 
 
-The ``subscribe()`` function is used to subscribe a ``handler`` that will receive events.
+The function :func:`~eventsourcing.domain.model.events.subscribe` is used to
+subscribe a ``handler`` that will receive events.
 
 The optional ``predicate`` arg can be used to provide a function that will decide whether
 or not the subscribed handler will actually be called when an event is published.
@@ -97,7 +99,8 @@ or not the subscribed handler will actually be called when an event is published
     assert received_events[0] == domain_event
 
 
-The ``unsubscribe()`` function can be used to stop the handler receiving further events.
+The function :func:`~eventsourcing.domain.model.events.unsubscribe` can be
+used to unsubscribe handers, to stop the handler receiving further events.
 
 .. code:: python
 
