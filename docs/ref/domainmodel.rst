@@ -1,9 +1,6 @@
 domain.model
 ============
 
-The domain layer contains a domain model, and optionally services that work across
-different entities or aggregates.
-
 The domain model package contains classes and functions that can help develop an
 event sourced domain model.
 
