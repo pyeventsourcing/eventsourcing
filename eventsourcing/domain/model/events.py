@@ -1,5 +1,4 @@
 import os
-from collections import OrderedDict
 from uuid import uuid1
 
 from eventsourcing.exceptions import EventHashError

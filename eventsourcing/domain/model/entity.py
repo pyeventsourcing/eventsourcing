@@ -1,6 +1,3 @@
-"""
-The entity module provides base classes for domain entities.
-"""
 from abc import abstractmethod
 from uuid import uuid4
 

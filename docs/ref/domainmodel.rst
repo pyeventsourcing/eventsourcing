@@ -27,26 +27,12 @@ entity
 
 Base classes for domain model entities.
 
-.. autoclass:: eventsourcing.domain.model.entity.DomainEntity
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
-
 .. automodule:: eventsourcing.domain.model.entity
     :show-inheritance:
     :member-order: bysource
     :members:
     :special-members:
     :exclude-members: __weakref__, __init__
-
-
-.. automodule:: eventsourcing.domain.model.entity
-    :members:
-    :special-members:
-    :show-inheritance:
-    :undoc-members:
 
 
 aggregate
