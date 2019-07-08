@@ -157,7 +157,8 @@ each notification (which might then involve "null" commands). For reliability,
 the tracking records need to be written in the same atomic database
 transaction as the projection records.
 
-The library's ``Process`` class uses tracking records.
+The library's :class:`~eventsourcing.application.process.Process` class uses
+tracking records.
 
 Application state replication
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -168,12 +169,16 @@ as a notification log, then a "replicator" can read the notification
 log and write copies of the original records into a replica's record
 manager.
 
-In the example below, the ``SimpleApplication`` class is used, which
-has a ``RecordManagerNotificationLog`` as its ``notification_log``.
-Reading this log, locally or remotely, will yield all the event records
-persisted by the ``SimpleApplication``. The ``SimpleApplication``
-uses a record manager with contiguous record IDs which allows it to
-be used within a record manager notification log object.
+In the example below, the
+:class:`~eventsourcing.application.simple.SimpleApplication` class is
+used, which has a
+:class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
+as its ``notification_log``. Reading this log, locally or remotely, will yield
+all the event records persisted by the
+:class:`~eventsourcing.application.simple.SimpleApplication`. The
+:class:`~eventsourcing.application.simple.SimpleApplication` uses a record manager
+with contiguous record IDs which allows it to be used within a record manager
+notification log object.
 
 A record manager notification log object represents records as record
 notifications. With record notifications, the ID of the record in the
