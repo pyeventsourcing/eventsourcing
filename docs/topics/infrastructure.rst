@@ -302,22 +302,24 @@ field of every sequenced item will be encrypted before being sent to the databas
 The state retrieved from the database will be decrypted and verified, which protects
 against tampering.
 
-The library provides an AES cipher object class called :class:`~eventsourcing.utils.cyper.aes.AESCipher`.
+The library provides an AES cipher object class called :class:`~eventsourcing.utils.cipher.aes.AESCipher`.
 It uses the AES cipher from the Python Cryptography Toolkit, as forked by
 the actively maintained `PyCryptodome project <https://pycryptodome.readthedocs.io/>`__.
 
-The :class:`~eventsourcing.utils.cyper.aes.AESCipher` class uses AES in GCM mode, which
+The :class:`~eventsourcing.utils.cipher.aes.AESCipher` class uses AES in GCM mode, which
 is a padding-less, authenticated encryption mode. Other AES modes aren't supported by this
 class, at the moment.
 
-The :class:`~eventsourcing.utils.cyper.aes.AESCipher` constructor arg ``cipher_key`` is required.
+The :class:`~eventsourcing.utils.cipher.aes.AESCipher` constructor arg ``cipher_key`` is required.
 The key must be either 16, 24, or 32 random bytes (128, 192, or 256 bits). Longer keys
 take more time to encrypt plaintext, but produce more secure ciphertext.
 
 Generating and storing a secure key requires functionality beyond the scope of this library.
-However, the library contains a function:func:`~eventsourcing.utils.random.encode_random_bytes`
+However, the library contains a function
+:func:`~eventsourcing.utils.random.encode_random_bytes`
 that may help to generate a unicode key string, representing random bytes encoded with Base64.
-A companion function:func:`~eventsourcing.utils.random.decode_bytes` decodes the unicode key
+A companion function
+:func:`~eventsourcing.utils.random.decode_bytes` decodes the unicode key
 string into a sequence of bytes.
 
 .. code:: python
@@ -846,8 +848,9 @@ for information about configuring away from default settings.
     cassandra_datastore.setup_tables()
 
 
-With the database setup, the ``CassandraRecordManager`` can be constructed,
-and used to store events using Apache Cassandra.
+With the database setup, the
+:class:`~eventsourcing.infrastructure.cassandra.manager.CassandraRecordManager`
+can be constructed, and used to store events using Apache Cassandra.
 
 .. code:: python
 
