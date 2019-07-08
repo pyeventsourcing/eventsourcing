@@ -73,10 +73,9 @@ events to subscribed handlers. The argument ``event`` is required.
 
 
 The function :func:`~eventsourcing.domain.model.events.subscribe` is used to
-subscribe a ``handler`` that will receive events.
-
-The optional ``predicate`` arg can be used to provide a function that will decide whether
-or not the subscribed handler will actually be called when an event is published.
+subscribe a ``handler`` that will receive events. The optional arg ``predicate``
+can be used to provide a function that will decide whether or not the subscribed
+handler will actually be called when an event is published.
 
 .. code:: python
 
