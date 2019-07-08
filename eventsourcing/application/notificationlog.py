@@ -195,6 +195,15 @@ class NotificationLogReader(ABC):
             raise StopIteration
 
     def seek(self, position):
+        """
+        Sets position of reader in notification log sequence.
+
+        This represents the position of the last notification read by the reader.
+        The next notification returned by the reader will be the next position.
+
+        :param int position: Position is notification log sequence.
+        :raises ValueError: if the position is less than zero
+        """
         if position < 0:
             raise ValueError("Position less than zero: {}".format(position))
         self.position = position
