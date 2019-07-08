@@ -8,6 +8,11 @@ from eventsourcing.application.notificationlog import Section, AbstractNotificat
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder, json_dumps
 
 
+# These classes are imported here only to avoid breaking backwards compatibility.
+# Todo: Remove this import statement >= v8.x
+from eventsourcing.application.notificationlog import RecordManagerNotificationLog, BigArrayNotificationLog
+
+
 class RemoteNotificationLog(AbstractNotificationLog):
     """
     Presents notification log sections retrieved an HTTP API
