@@ -132,7 +132,7 @@ def attribute(getter):
     """
     When used as a method decorator, returns a property object
     with the method as the getter and a setter defined to call
-    instance method change_attribute(), which publishes an
+    instance method __change_attribute__(), which publishes an
     AttributeChanged event.
     """
     if isfunction(getter):

@@ -202,7 +202,7 @@ participle such as "chosen", "done", "found", "paid", "quit", "seen".
 
     class SomethingHappened(DomainEvent):
         """
-        Published whenever something happens.
+        Triggered whenever something happens.
         """
 
 
@@ -214,12 +214,12 @@ It is possible to code domain events as inner or nested classes.
 
         class Seen(EventWithTimestamp):
             """
-            Published when the job is seen.
+            Triggered when the job is seen.
             """
 
         class Done(EventWithTimestamp):
             """
-            Published when the job is done.
+            Triggered when the job is done.
             """
 
 Inner or nested classes can be used, and are used in the library, to define
@@ -669,9 +669,14 @@ Subclasses can extend the entity base classes, by adding event-based properties 
 Custom attributes
 -----------------
 
-The library's ``@attribute`` decorator provides a property getter and setter, which will triggers an
-``AttributeChanged`` event when the property is assigned. Simple mutable attributes can be coded as
-decorated functions without a body, such as the ``full_name`` function of ``User`` below.
+The library function
+:func:`~eventsourcing.domain.model.decorators.attribute`
+is a decorator that provides a property getter and setter. It
+will trigger an
+:class:`~eventsourcing.domain.model.entity.DomainEntity.AttributeChanged`
+event when a value is assigned to the property. Simple mutable attributes
+can be coded as decorated functions without a body (any body is ignored)
+such as ``full_name`` of ``User`` below .
 
 .. code:: python
 
@@ -686,12 +691,16 @@ decorated functions without a body, such as the ``full_name`` function of ``User
 
         @attribute
         def full_name(self):
-            """Full name of the user."""
+            """
+            The full name of the user (an event-sourced attribute).
+            """
 
 
-In the code below, after the entity has been created, assigning to the ``full_name`` attribute causes
-the entity to be updated. An ``AttributeChanged`` event is published. Both the ``Created`` and
-``AttributeChanged`` events are received by a subscriber.
+In the code below, after the entity has been created, assigning to ``full_name`` triggers
+an :class:`~eventsourcing.domain.model.entity.VersionedEntity.AttributeChanged`. A
+:class:`~eventsourcing.domain.model.entity.VersionedEntity.Created` event and an
+:class:`~eventsourcing.domain.model.entity.VersionedEntity.AttributeChanged`
+event are received by a subscriber.
 
 .. code:: python
 
@@ -729,10 +738,13 @@ the arguments of a command will be used to perform some work. Then, the result
 of the work will be used to trigger a domain event that represents what happened.
 Please note, command methods normally have no return value.
 
-For example, the ``set_password()`` method of the ``User`` entity below is given
-a raw password. It creates an encoded string from the raw password, and then uses
-the ``__change_attribute__()`` method to trigger an ``AttributeChanged`` event for
-the ``_password`` attribute with the encoded password.
+For example, the ``set_password()`` method of the ``User`` entity below is given a
+raw password. It creates an encoded string from the raw password, and then uses the
+:func:`~eventsourcing.domain.model.entity.DomainEntity.__change_attribute__` method
+to trigger an
+:class:`~eventsourcing.domain.model.entity.VersionedEntity.AttributeChanged`
+event for the ``_password`` attribute, with the encoded password as the new
+value of the attribute.
 
 .. code:: python
 
@@ -772,12 +784,13 @@ Custom events
 Custom events can be defined as inner or nested classes of the custom entity class.
 In the code below, the entity class ``World`` has a custom event called ``SomethingHappened``.
 
-Custom event classes can extend the ``__mutate__()`` method, so it affects
+Custom event classes can extend the
+:func:`~eventsourcing.domain.model.events.DomainEvent.__mutate__` method, so it affects
 entities in a way that is specific to that type of event. More conveniently, event
-classes can implement a ``mutate()`` method, which avoids the need to call the
-super method and return the obj. For example, the ``SomethingHappened`` event class
-has a ``mutate()`` method which simply appends the event object to the entity's ``history``
-attribute.
+classes can implement a :func:`~eventsourcing.domain.model.events.DomainEvent.mutate`
+method, which avoids the need to call the super method and return the ``obj``. For example,
+the event class ``SomethingHappened`` has a ``mutate()`` method which simply appends the
+``what`` of the event to the entity's ``history``.
 
 Custom events are normally triggered by custom commands. In the example below,
 the command method ``make_it_so()`` triggers the custom event ``SomethingHappened``.
@@ -798,13 +811,15 @@ the command method ``make_it_so()`` triggers the custom event ``SomethingHappene
             self.__trigger_event__(World.SomethingHappened, what=what_happened)
 
         class SomethingHappened(VersionedEntity.Event):
-            """Published when something happens in the world."""
+            """Triggered when something happens in the world."""
             def mutate(self, obj):
-                obj.history.append(self)
+                obj.history.append(self.what)
 
 
-A new world can now be created, using the ``__create__()`` method. The command ``make_it_so()`` can
-be used to make things happen in this world. When something happens, the history of the world
+A new "world" entity can now be created, using the class method
+:func:`~eventsourcing.domain.model.entity.DomainEntity.__create__`.
+The entity command ``make_it_so()`` can be used to make things
+happen in this world. When something happens, the history of the world
 is augmented with the new event.
 
 .. code:: python
@@ -815,9 +830,9 @@ is augmented with the new event.
     world.make_it_so('trucks')
     world.make_it_so('internet')
 
-    assert world.history[0].what == 'dinosaurs'
-    assert world.history[1].what == 'trucks'
-    assert world.history[2].what == 'internet'
+    assert world.history[0] == 'dinosaurs'
+    assert world.history[1] == 'trucks'
+    assert world.history[2] == 'internet'
 
 
 Aggregate root
@@ -874,10 +889,11 @@ The library has a domain entity class called
 useful in a domain driven design, especially where a single command can cause
 many events to be published. The :class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot`
 entity class extends :class:`~eventsourcing.domain.model.entity.TimestampedVersionedEntity`.
-It overrides the  ``__publish__()`` method of
-the base class, so that triggered events are published only to a private list
-of pending events, rather than directly to the publish-subscribe mechanism. It
-also adds a method called ``__save__()``, which publishes all
+Its method :func:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot.__publish__` overrides
+the base class :class:`~eventsourcing.domain.model.entity.DomainEntity`, so that triggered events
+are published only to a private list of pending events, rather than directly to the publish-subscribe
+mechanism. It also introduces the method
+:func:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot.__save__`, which publishes all
 pending events to the publish-subscribe mechanism as a single list.
 
 It can be subclassed by custom aggregate root entities. In the example below, the
@@ -902,7 +918,7 @@ entity class ``World`` inherits from :class:`~eventsourcing.domain.model.aggrega
 
         class SomethingHappened(BaseAggregateRoot.Event):
             def mutate(self, obj):
-                obj.history.append(self)
+                obj.history.append(self.what)
 
 
 The ``World`` aggregate root has a command method ``make_things_so()`` which publishes
@@ -926,12 +942,13 @@ We can see the events that are published by subscribing to the handler ``receive
     # State of aggregate object has changed
     # but no events have been published yet.
     assert len(received_events) == 0
-    assert world.history[0].what == 'dinosaurs'
-    assert world.history[1].what == 'trucks'
-    assert world.history[2].what == 'internet'
+    assert world.history[0] == 'dinosaurs'
+    assert world.history[1] == 'trucks'
+    assert world.history[2] == 'internet'
 
 
-Events are pending, and will not be published until the ``__save__()`` method is called.
+Events are pending, and will not be published until
+:func:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot.__save__` is called.
 
 .. code:: python
 
@@ -953,9 +970,11 @@ Data integrity
 
 The library class
 :class:`~eventsourcing.domain.model.aggregate.AggregateRootWithHashchainedEvents`
-extends ``BaseAggregateRoot`` by also inheriting from ``EntityWithHashchain``, so
+extends
+:class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot` by also inheriting from
+:class:`~eventsourcing.domain.model.entity.EntityWithHashchain`, so
 that aggregate events are individually hashed and also hash-chained together.
-It is aliased as ``AggregateRoot``.
+It is "aliased" as :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`.
 
 .. code:: python
 
@@ -976,7 +995,7 @@ It is aliased as ``AggregateRoot``.
 
         class SomethingHappened(AggregateRoot.Event):
             def mutate(self, obj):
-                obj.history.append(self)
+                obj.history.append(self.what)
 
 
     # Create new world.
@@ -988,16 +1007,17 @@ It is aliased as ``AggregateRoot``.
 
     # State of aggregate object has changed
     # but no events have been published yet.
-    assert world.history[0].what == 'dinosaurs'
-    assert world.history[1].what == 'trucks'
-    assert world.history[2].what == 'internet'
+    assert world.history[0] == 'dinosaurs'
+    assert world.history[1] == 'trucks'
+    assert world.history[2] == 'internet'
 
     # Publish pending events.
     world.__save__()
 
 The state of each event, including the hash of the previous event, is hashed using
 SHA-256. The state of each event can be validated as a part of the chain. If the
-sequence of events is accidentally damaged in any way, then a ``DataIntegrityError``
+sequence of events is accidentally damaged in any way, then a
+:class:`~eventsourcing.exceptions.DataIntegrityError`
 will almost certainly be raised from the domain layer when the sequence is replayed.
 
 The hash of the last event applied to an aggregate root is available as an attribute called
@@ -1032,12 +1052,14 @@ perhaps with random bytes encoded as Base64.
 The "genesis hash" used as the previous hash of the first event in a sequence can be
 set using environment variable ``GENESIS_HASH``.
 
-The class ``AggregateRootWithHashchainedEvents`` can be used when you want to be able
-to verify aggregates' sequences of events cryptographically (which can be useful
-even during development to catch programming errors and to avoid doubt that the
-infrastructure is working properly). However, the class ``BaseAggregateRoot`` is
-probably faster than ``AggregateRootWithHashchainedEvents`` and can be used whenever
-you don't actually need to verify the sequence of events cryptographically.
+The class
+:class:`~eventsourcing.domain.model.aggregate.AggregateRootWithHashchainedEvents`
+can be used when you want to be able to verify aggregates' sequences of events
+cryptographically (which can be useful even during development to catch programming
+errors and to avoid doubt that the infrastructure is working properly). However, the
+class :class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot`
+is probably faster and can be used whenever you don't actually need to verify
+the sequence of events cryptographically.
 
 .. code:: python
 
