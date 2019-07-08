@@ -285,8 +285,9 @@ entities, commands, and domain events that can be developed using
 classes from the library's :doc:`domain model layer </topics/domainmodel>`.
 
 The example below shows a custom application class ``MyApplication`` that
-extends ``SQLAlchemyApplication`` with application service ``create_aggregate()``
-that can create new ``CustomAggregate`` entities.
+extends :class:`~eventsourcing.application.sqlalchemy.SQLAlchemyApplication`
+with application service ``create_aggregate()`` that can create new
+``CustomAggregate`` entities.
 
 The ``persist_event_type`` value can be set as a class attribute.
 
@@ -387,7 +388,8 @@ Stored events
 -------------
 
 It is always possible to get the domain events for an aggregate,
-by using the application's event store method ``get_domain_events()``.
+by using the application's event store method
+:func:`~eventsourcing.infrastructure.eventstore.EventStore.get_domain_events`.
 
 .. code:: python
 
@@ -416,7 +418,9 @@ Sequenced items
 ---------------
 
 It is also possible to get the sequenced item namedtuples for an aggregate,
-by using the method ``get_items()`` of the event store's record manager.
+by using the method
+:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.get_items`
+of the event store's record manager.
 
 .. code:: python
 
@@ -498,4 +502,3 @@ such as when this documentation is tested as part of the library's test suite).
 .. Todo: Something about publishing events to a message queue.
 
 .. Todo: Something about receiving events in a message queue worker.
-
