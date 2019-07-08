@@ -7,6 +7,8 @@ for the application, such as the way an event store encapsulates a database.
 .. contents:: :local:
 
 
+.. py:module:: eventsourcing.infrastructure.base
+
 base
 ----
 
@@ -19,6 +21,8 @@ Abstract base classes for the infrastructure layer.
     :special-members:
     :exclude-members: __weakref__, __dict__
 
+
+.. py:module:: eventsourcing.infrastructure.eventstore
 
 eventstore
 ----------
@@ -33,6 +37,8 @@ persistence mechanism.
     :special-members:
     :exclude-members: __weakref__, __dict__
 
+
+.. py:module:: eventsourcing.infrastructure.cassandra
 
 cassandra
 ---------
@@ -68,6 +74,8 @@ Classes for event sourcing with Apache Cassandra.
     :exclude-members: __weakref__, __dict__
 
 
+.. py:module:: eventsourcing.infrastructure.datastore
+
 datastore
 ---------
 
@@ -80,6 +88,8 @@ Base classes for concrete datastore classes.
     :special-members:
     :exclude-members: __weakref__, __dict__
 
+
+.. py:module:: eventsourcing.infrastructure.django
 
 django
 ------
@@ -115,6 +125,8 @@ A Django application for event sourcing with the Django ORM.
     :exclude-members: __weakref__, __dict__
 
 
+.. py:module:: eventsourcing.infrastructure.eventplayer
+
 eventplayer
 -----------
 
@@ -128,6 +140,8 @@ Base classes for event players of different kinds.
     :exclude-members: __weakref__, __dict__
 
 
+.. py:module:: eventsourcing.infrastructure.eventsourcedrepository
+
 eventsourcedrepository
 ----------------------
 
@@ -140,6 +154,8 @@ Base classes for event sourced repositories (not abstract, can be used directly)
     :special-members:
     :exclude-members: __weakref__, __dict__
 
+
+.. py:module:: eventsourcing.infrastructure.integersequencegenerators
 
 integersequencegenerators
 -------------------------
@@ -161,6 +177,8 @@ Different ways of generating sequences of integers.
     :exclude-members: __weakref__, __dict__
 
 
+.. py:module:: eventsourcing.infrastructure.iterators
+
 iterators
 ---------
 
@@ -173,6 +191,8 @@ Different ways of getting sequenced items from a datastore.
     :special-members:
     :exclude-members: __weakref__, __dict__
 
+
+.. py:module:: eventsourcing.infrastructure.repositories
 
 repositories
 ------------
@@ -201,6 +221,8 @@ Repository base classes for entity classes defined in the library.
     :exclude-members: __weakref__, __dict__
 
 
+.. py:module:: eventsourcing.infrastructure.sequenceditem
+
 sequenceditem
 -------------
 
@@ -213,6 +235,8 @@ The persistence model for storing events.
     :special-members:
     :exclude-members: __weakref__, __dict__
 
+
+.. py:module:: eventsourcing.infrastructure.sequenceditemmapper
 
 sequenceditemmapper
 -------------------
@@ -227,6 +251,8 @@ The sequenced item mapper maps sequenced items to application-level objects.
     :exclude-members: __weakref__, __dict__
 
 
+.. py:module:: eventsourcing.infrastructure.snapshotting
+
 snapshotting
 ------------
 
@@ -240,6 +266,8 @@ the current state of a projection.
     :special-members:
     :exclude-members: __weakref__, __dict__
 
+
+.. py:module:: eventsourcing.infrastructure.sqlalchemy
 
 sqlalchemy
 ----------
@@ -275,10 +303,13 @@ Classes for event sourcing with SQLAlchemy.
     :exclude-members: __weakref__, __dict__
 
 
+.. py:module:: eventsourcing.infrastructure.timebucketedlog_reader
+
 timebucketedlog_reader
 ----------------------
 
 Reader for timebucketed logs.
+
 
 .. automodule:: eventsourcing.infrastructure.timebucketedlog_reader
     :show-inheritance:
