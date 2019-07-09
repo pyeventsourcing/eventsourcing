@@ -23,7 +23,7 @@ class AbstractDatastoreTestCase(AbstractTestCase):
     @property
     def datastore(self):
         """
-        :rtype: eventsourcing.infrastructure.datastore.datastore.Datastore
+        :rtype: eventsourcing.infrastructure.datastore.datastore.AbstractDatastore
         """
         if self._datastore is None:
             self._datastore = self.construct_datastore()
@@ -32,7 +32,7 @@ class AbstractDatastoreTestCase(AbstractTestCase):
     @abstractmethod
     def construct_datastore(self):
         """
-        :rtype: eventsourcing.infrastructure.datastore.datastore.Datastore
+        :rtype: eventsourcing.infrastructure.datastore.datastore.AbstractDatastore
         """
 
     @property

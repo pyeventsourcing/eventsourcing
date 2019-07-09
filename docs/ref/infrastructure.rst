@@ -317,3 +317,19 @@ Reader for timebucketed logs.
     :members:
     :special-members:
     :exclude-members: __weakref__, __dict__
+
+
+.. py:module:: eventsourcing.infrastructure.factory
+
+factory
+-------
+
+Infrastructure factory.
+
+
+.. automodule:: eventsourcing.infrastructure.factory
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__

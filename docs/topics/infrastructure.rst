@@ -19,12 +19,11 @@ reflection off a common sequenced item type.
 .. contents:: :local:
 
 
-Sequenced item type
-====================
+Sequenced items
+===============
 
-Sequenced item types are declared as named tuples (``namedtuple`` from ``collections``).
-
-Below is an example of a sequenced item named tuple.
+Sequenced item types are declared as Python named tuples.
+The example below is a sequenced item type with four fields.
 
 .. code:: python
 
@@ -32,19 +31,21 @@ Below is an example of a sequenced item named tuple.
 
     SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data'])
 
-The fields can be named differently, however a suitable database
-table will have matching column names.
+The field names are arbitrary, however a
+suitable database table will have matching column names.
 
-Whatever the names of the fields, the first field of a sequenced item will represent the
-identity of a sequence to which an item belongs. The second field will represent the
-position of the item in its sequence. The third field will represent a topic to which
-the item pertains. And the fourth field will represent the state of the item.
+Whatever the names of the fields, the first field of a
+sequenced item will represent the identity of a sequence
+to which an item belongs. The second field will represent
+the position of the item in its sequence. The third field
+will represent a topic to which the item pertains. And
+the fourth field will represent the state of the item.
 
 
-SequencedItem namedtuple
-------------------------
+SequencedItem
+-------------
 
-The library provides a sequenced item named tuple called
+The library provides a sequenced item type called
 :class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`.
 
 .. code:: python
@@ -53,7 +54,7 @@ The library provides a sequenced item named tuple called
 
 
 Like in the example above, the library's
-:class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem` namedtuple
+:class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`
 has four fields. The ``sequence_id`` identifies the sequence to which
 the item belongs. The ``position`` identifies the position of the item
 in its sequence. The ``topic`` identifies a dimension of concern to
@@ -93,18 +94,22 @@ simply the values given when the object was constructed.
     assert sequenced_item1.state == state, sequenced_item1.state
 
 
-StoredEvent namedtuple
-----------------------
+StoredEvent
+-----------
 
-The library also provides a sequenced item named tuple called
-:class:`~eventsourcing.infrastructure.sequenceditem.StoredEvent`. Its
-attributes are ``originator_id``, ``originator_version``, ``topic``, and ``state``.
+The library also provides a sequenced item type called
+:class:`~eventsourcing.infrastructure.sequenceditem.StoredEvent`.
+Its attributes are ``originator_id``, ``originator_version``,
+``topic``, and ``state``.
 
-The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to ``sequence_id`` above.
-The ``originator_version`` is the version of the aggregate that published the event, and is equivalent to
-``position`` above.
-The ``topic`` identifies the class of the domain event that is stored, and is equivalent to ``topic`` above.
-The ``state`` holds the state of the domain event, and is equivalent to ``state`` above.
+The ``originator_id`` is perhaps the ID of a domain entity that
+triggered the event, and is equivalent to ``sequence_id`` above.
+The ``originator_version`` could be the version of a domain entity
+that triggered the event, and is equivalent to ``position`` above.
+The ``topic`` identifies the class of the domain event that is
+stored, and is equivalent to ``topic`` above.
+The ``state`` holds the state of the domain event, and is
+equivalent to ``state`` above.
 
 .. code:: python
 
@@ -1013,10 +1018,13 @@ order of the results. Hence, it can affect both the content of the results and t
 Optimistic concurrency control
 ------------------------------
 
-It is a feature of the event store that it isn't possible successfully to append two events at the same position in
-the same sequence. This condition is coded as a
-:class:`~eventsourcing.exceptions.ConcurrencyError` since a correct program running in a
-single thread wouldn't attempt to append an event that it had already successfully appended.
+It is a feature of the event store that it isn't possible successfully
+to append two events at the same position in the same sequence. This condition
+is coded as a :class:`~eventsourcing.exceptions.ConcurrencyError` since
+a correct program running in a single thread wouldn't attempt to append
+an event that it had already successfully appended. The exception class
+:class:`~eventsourcing.exceptions.ConcurrencyError` is a subclass of the
+exception class :class:`~eventsourcing.exceptions.RecordConflictError`.
 
 .. code:: python
 
@@ -1078,92 +1086,100 @@ example by treating each aggregate as an actor within an actor framework, or wit
 by something like Zookeeper.
 
 
-Event store factory
--------------------
+Infrastructure factory
+======================
 
-As a convenience, the library function ``construct_sqlalchemy_eventstore()``
-can be used to construct an event store that uses the SQLAlchemy classes.
+To help with construction of infrastructure objects, the library
+has a various infrastructure factory classes. The abstract base class
+:class:`~eventsourcing.infrastructure.factory.InfrastructureFactory`
+defines common the method signatures. The concrete subclass
+:class:`~eventsourcing.infrastructure.sqlalchemy.factory.SQLAlchemyInfrastructureFactory`
+helps with construction of SQLAlchemy infrastructure. Similarly
+:class:`~eventsourcing.infrastructure.django.factory.DjangoInfrastructureFactory`
+helps with Django infrastructure and
+:class:`~eventsourcing.infrastructure.cassandra.factory.CassandraInfrastructureFactory`
+helps with Cassandra.
 
-.. code:: python
-
-    from eventsourcing.infrastructure.sqlalchemy import factory
-
-    event_store = factory.construct_sqlalchemy_eventstore(
-        session=datastore.session,
-        application_name=uuid4().hex,
-        contiguous_record_ids=True,
-    )
-
-
-By default, the event store is constructed with the
-:class:`~eventsourcing.infrastructure.sequenceditem.StoredEvent` sequenced item named tuple,
-and the record class ``StoredEventRecord``. The optional args ``sequenced_item_class``
-and ``record_class`` can be used to construct different kinds of event store.
-
-
-Timestamped event store
------------------------
-
-The examples so far have used an integer sequenced event store, where the items are sequenced by integer version.
-
-The example below constructs an event store for timestamp-sequenced domain events, using the library
-record class ``TimestampSequencedRecord``.
-
-.. code:: python
-
-    from uuid import uuid4
-
-    from eventsourcing.infrastructure.sqlalchemy.records import TimestampSequencedRecord
-    from eventsourcing.utils.times import decimaltimestamp
-
-    # Setup database table for timestamped sequenced items.
-    datastore.setup_table(TimestampSequencedRecord)
-
-    # Construct event store for timestamp sequenced events.
-    timestamped_event_store = factory.construct_sqlalchemy_eventstore(
-        sequenced_item_class=SequencedItem,
-        record_class=TimestampSequencedRecord,
-        sequence_id_attr_name='originator_id',
-        position_attr_name='timestamp',
-        session=datastore.session,
-    )
-
-    # Construct an event.
-    aggregate_id = uuid4()
-    event = DomainEvent(
-        originator_id=aggregate_id,
-        timestamp=decimaltimestamp(),
-    )
-
-    # Store the event.
-    timestamped_event_store.store(event)
-
-    # Check the event was stored.
-    events = timestamped_event_store.get_domain_events(aggregate_id)
-    assert len(events) == 1
-    assert events[0].originator_id == aggregate_id
-    assert events[0].timestamp < decimaltimestamp()
-
-
-Please note, optimistic concurrent control doesn't work with timestamped sequenced items to maintain
-consistency of a domain entity, because each event is likely to have a unique timestamp, and so
-branches can occur without restraint. Optimistic concurrency control will prevent one timestamp
-sequenced event from overwritting another. For this reason, although domain events are usefully timestamped,
-it is not a very good idea to store the events of an entity or aggregate as timestamp-sequenced items.
-Timestamp-sequenced items are useful for storing events that are logically independent of others, such
-as messages in a log, things that do not risk causing a consistency error due to concurrent operations.
-It remains that timestamp sequenced items can happen to occur at the same timestamp, in which case
-there would be a concurrency error exception, and the event could be retried with a later timestamp.
-
-
-TimeUUIDs
-~~~~~~~~~
-
-If throughput is so high that such conflicts are too frequent, the library also supports sequencing
-items by TimeUUID, which includes a random component that makes it very unlikely two events will
-conflict. This feature currently works with Apache Cassandra only. Tests exist in the library, other
-documentation is forthcoming.
-
+.. .. code:: python
+..
+..     from eventsourcing.infrastructure.sqlalchemy import factory
+..
+..     event_store = factory.construct_sqlalchemy_eventstore(
+..         session=datastore.session,
+..         application_name=uuid4().hex,
+..         contiguous_record_ids=True,
+..     )
+..
+..
+.. By default, the event store is constructed with the
+.. :class:`~eventsourcing.infrastructure.sequenceditem.StoredEvent` sequenced item named tuple,
+.. and the record class ``StoredEventRecord``. The optional args ``sequenced_item_class``
+.. and ``record_class`` can be used to construct different kinds of event store.
+..
+..
+.. Timestamped event store
+.. -----------------------
+..
+.. The examples so far have used an integer sequenced event store, where the items are sequenced by integer version.
+..
+.. The example below constructs an event store for timestamp-sequenced domain events, using the library
+.. record class ``TimestampSequencedRecord``.
+..
+.. .. code:: python
+..
+..     from uuid import uuid4
+..
+..     from eventsourcing.infrastructure.sqlalchemy.records import TimestampSequencedRecord
+..     from eventsourcing.utils.times import decimaltimestamp
+..
+..     # Setup database table for timestamped sequenced items.
+..     datastore.setup_table(TimestampSequencedRecord)
+..
+..     # Construct event store for timestamp sequenced events.
+..     timestamped_event_store = factory.construct_sqlalchemy_eventstore(
+..         sequenced_item_class=SequencedItem,
+..         record_class=TimestampSequencedRecord,
+..         sequence_id_attr_name='originator_id',
+..         position_attr_name='timestamp',
+..         session=datastore.session,
+..     )
+..
+..     # Construct an event.
+..     aggregate_id = uuid4()
+..     event = DomainEvent(
+..         originator_id=aggregate_id,
+..         timestamp=decimaltimestamp(),
+..     )
+..
+..     # Store the event.
+..     timestamped_event_store.store(event)
+..
+..     # Check the event was stored.
+..     events = timestamped_event_store.get_domain_events(aggregate_id)
+..     assert len(events) == 1
+..     assert events[0].originator_id == aggregate_id
+..     assert events[0].timestamp < decimaltimestamp()
+..
+..
+.. Please note, optimistic concurrent control doesn't work with timestamped sequenced items to maintain
+.. consistency of a domain entity, because each event is likely to have a unique timestamp, and so
+.. branches can occur without restraint. Optimistic concurrency control will prevent one timestamp
+.. sequenced event from overwritting another. For this reason, although domain events are usefully timestamped,
+.. it is not a very good idea to store the events of an entity or aggregate as timestamp-sequenced items.
+.. Timestamp-sequenced items are useful for storing events that are logically independent of others, such
+.. as messages in a log, things that do not risk causing a consistency error due to concurrent operations.
+.. It remains that timestamp sequenced items can happen to occur at the same timestamp, in which case
+.. there would be a concurrency error exception, and the event could be retried with a later timestamp.
+..
+..
+.. TimeUUIDs
+.. ~~~~~~~~~
+..
+.. If throughput is so high that such conflicts are too frequent, the library also supports sequencing
+.. items by TimeUUID, which includes a random component that makes it very unlikely two events will
+.. conflict. This feature currently works with Apache Cassandra only. Tests exist in the library, other
+.. documentation is forthcoming.
+..
 
 .. Todo: The library function ``construct_cassandra_eventstore()`` can be used to
 .. construct an event store that uses the Apache Cassandra classes.

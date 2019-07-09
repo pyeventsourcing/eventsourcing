@@ -5,7 +5,7 @@ from sqlalchemy.exc import InternalError
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from eventsourcing.infrastructure.datastore import Datastore, DatastoreSettings
+from eventsourcing.infrastructure.datastore import AbstractDatastore, DatastoreSettings
 from eventsourcing.infrastructure.sqlalchemy.records import Base
 
 SQLITE_IN_MEMORY = 'sqlite:///:memory:'
@@ -21,7 +21,7 @@ class SQLAlchemySettings(DatastoreSettings):
         self.pool_size = int(pool_size or os.getenv('DB_POOL_SIZE', DEFAULT_SQLALCHEMY_DB_POOL_SIZE))
 
 
-class SQLAlchemyDatastore(Datastore):
+class SQLAlchemyDatastore(AbstractDatastore):
 
     def __init__(self, base=Base, tables=None, connection_strategy='plain',
                  session=None, **kwargs):
