@@ -2,6 +2,7 @@ import time
 from collections import OrderedDict, defaultdict
 from threading import Lock
 
+from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.application.snapshotting import SnapshottingApplication
@@ -9,7 +10,6 @@ from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.utils.transcoding import json_dumps, json_loads
 
 

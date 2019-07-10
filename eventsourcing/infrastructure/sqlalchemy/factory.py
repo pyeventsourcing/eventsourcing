@@ -10,6 +10,9 @@ from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedWith
 
 
 class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
+    """
+    Infrastructure factory for SQLAlchemy infrastructure.
+    """
     record_manager_class = SQLAlchemyRecordManager
     integer_sequenced_record_class = IntegerSequencedWithIDRecord
     timestamp_sequenced_record_class = TimestampSequencedNoIDRecord
@@ -21,11 +24,23 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
         self.uri = uri
         self.pool_size = pool_size
 
-    def construct_record_manager(self, **kwargs):
+    def construct_record_manager(self, *args, **kwargs):
+        """
+        Constructs SQLAlchemy record manager.
+        :param args:
+        :param kwargs:
+        :return: An SQLAlchemy record manager.
+        :rtype: SQLAlchemyRecordManager
+        """
         s = super(SQLAlchemyInfrastructureFactory, self)
-        return s.construct_record_manager(session=self.session, **kwargs)
+        return s.construct_record_manager(session=self.session, *args, **kwargs)
 
     def construct_datastore(self):
+        """
+        Constructs SQLAlchemy datastore.
+
+        :rtype: SQLAlchemyDatastore
+        """
         datastore = SQLAlchemyDatastore(
             settings=SQLAlchemySettings(
                 uri=self.uri,

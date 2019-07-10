@@ -225,7 +225,7 @@ application-level encryption.
         assert last_hash == world.__head__
 
         # Project application event notifications.
-        from eventsourcing.interface.notificationlog import NotificationLogReader
+        from eventsourcing.application.notificationlog import NotificationLogReader
         reader = NotificationLogReader(app.notification_log)
         notifications = reader.read()
         notification_ids = [n['id'] for n in notifications]

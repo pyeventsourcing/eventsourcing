@@ -8,7 +8,7 @@ from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace
 
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import DatasourceSettingsError
-from eventsourcing.infrastructure.datastore import Datastore, DatastoreSettings
+from eventsourcing.infrastructure.datastore import AbstractDatastore, DatastoreSettings
 
 DEFAULT_HOSTS = '127.0.0.1'
 DEFAULT_PORT = 9042
@@ -38,7 +38,7 @@ class CassandraSettings(DatastoreSettings):
         self.password = password
 
 
-class CassandraDatastore(Datastore):
+class CassandraDatastore(AbstractDatastore):
     def __init__(self, tables, *args, **kwargs):
         super(CassandraDatastore, self).__init__(*args, **kwargs)
         assert isinstance(tables, tuple), tables

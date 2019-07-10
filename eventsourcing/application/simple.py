@@ -1,6 +1,7 @@
 import os
 from abc import ABC
 
+from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
@@ -8,7 +9,6 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_bytes
 
@@ -44,7 +44,7 @@ class SimpleApplication(ABC):
 
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
                  cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
-                 record_manager_class=None, stored_event_record_class=None,
+                 record_manager_class=None, stored_event_record_class=None, event_store_class=None,
                  snapshot_record_class=None, setup_table=True, contiguous_record_ids=True,
                  pipeline_id=DEFAULT_PIPELINE_ID, json_encoder_class=None,
                  json_decoder_class=None, notification_log_section_size=None):
@@ -67,21 +67,19 @@ class SimpleApplication(ABC):
 
         self.record_manager_class = record_manager_class or type(self).record_manager_class
 
+        self.event_store_class = event_store_class or type(self).event_store_class
         self.stored_event_record_class = stored_event_record_class or type(self).stored_event_record_class
 
         self.snapshot_record_class = snapshot_record_class or type(self).snapshot_record_class
-
         self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
-
         self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
-
         self.persist_event_type = persist_event_type or type(self).persist_event_type
 
         self.contiguous_record_ids = contiguous_record_ids
         self.pipeline_id = pipeline_id
-        self.construct_cipher(cipher_key)
-
         self.persistence_policy = persistence_policy
+
+        self.construct_cipher(cipher_key)
 
         if self.record_manager_class or self.infrastructure_factory_class.record_manager_class:
             self.construct_infrastructure()
@@ -129,6 +127,7 @@ class SimpleApplication(ABC):
             application_name=self.name,
             pipeline_id=self.pipeline_id,
             snapshot_record_class=self.snapshot_record_class,
+            event_store_class=self.event_store_class,
             *args, **kwargs
         )
 
@@ -136,20 +135,7 @@ class SimpleApplication(ABC):
         self._datastore = self.infrastructure_factory.construct_datastore()
 
     def construct_event_store(self):
-        # Construct event store.
-        sequenced_item_mapper = self.sequenced_item_mapper_class(
-            sequenced_item_class=self.sequenced_item_class,
-            cipher=self.cipher,
-            # sequence_id_attr_name=sequence_id_attr_name,
-            # position_attr_name=position_attr_name,
-            json_encoder_class=self.json_encoder_class,
-            json_decoder_class=self.json_decoder_class,
-        )
-        record_manager = self.infrastructure_factory.construct_integer_sequenced_record_manager()
-        self._event_store = self.event_store_class(
-            record_manager=record_manager,
-            sequenced_item_mapper=sequenced_item_mapper,
-        )
+        self._event_store = self.infrastructure_factory.construct_integer_sequenced_event_store(self.cipher)
 
     def construct_repository(self, **kwargs):
         self._repository = self.repository_class(

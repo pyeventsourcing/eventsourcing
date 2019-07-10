@@ -267,12 +267,12 @@ class TestCassandraPerformanceWithEncryption(WithEncryption, TestCassandraPerfor
 @notquick
 class TestSQLAlchemyPerformance(SQLAlchemyRecordManagerTestCase, PerformanceTestCase):
     def construct_entity_record_manager(self):
-        return self.factory.construct_integer_sequenced_record_manager(
+        return self.factory.construct_record_manager(
             record_class=IntegerSequencedWithIDRecord
         )
 
     def construct_log_record_manager(self):
-        return self.factory.construct_timestamp_sequenced_record_manager(
+        return self.factory.construct_record_manager(
             record_class=TimestampSequencedWithIDRecord
         )
 
@@ -281,12 +281,12 @@ class TestSQLAlchemyPerformance(SQLAlchemyRecordManagerTestCase, PerformanceTest
 class TestSQLAlchemyPerformanceNoID(TestSQLAlchemyPerformance):
 
     def construct_entity_record_manager(self):
-        return self.factory.construct_integer_sequenced_record_manager(
+        return self.factory.construct_record_manager(
             record_class=IntegerSequencedNoIDRecord
         )
 
     def construct_log_record_manager(self):
-        return self.factory.construct_timestamp_sequenced_record_manager(
+        return self.factory.construct_record_manager(
             record_class=TimestampSequencedNoIDRecord
         )
 

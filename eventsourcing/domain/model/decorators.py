@@ -1,6 +1,6 @@
+import random
 from functools import singledispatch, wraps
 from inspect import isfunction
-from random import random
 from time import sleep
 
 from eventsourcing.domain.model.events import subscribe
@@ -132,7 +132,7 @@ def attribute(getter):
     """
     When used as a method decorator, returns a property object
     with the method as the getter and a setter defined to call
-    instance method change_attribute(), which publishes an
+    instance method __change_attribute__(), which publishes an
     AttributeChanged event.
     """
     if isfunction(getter):
@@ -150,6 +150,16 @@ def attribute(getter):
 
 
 def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
+    """
+    Retry decorator.
+
+    :param exc: List of exceptions that will cause the call to be retried if raised.
+    :param max_attempts: Maximum number of attempts to try.
+    :param wait: Amount of time to wait before retrying after an exception.
+    :param stall: Amount of time to wait before the first attempt.
+    :param verbose: If True, prints a message to STDOUT when retries occur.
+    :return: Returns the value returned by decorated function.
+    """
     def _retry(func):
 
         @wraps(func)
@@ -163,7 +173,7 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
                 except exc as e:
                     attempts += 1
                     if max_attempts is None or attempts < max_attempts:
-                        sleep(wait * (1 + 0.1 * (random() - 0.5)))
+                        sleep(wait * (1 + 0.1 * (random.random() - 0.5)))
                         if verbose:
                             print("Retrying {}".format(func))
                     else:

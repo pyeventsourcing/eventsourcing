@@ -123,6 +123,7 @@ os.environ['DB_URI'] = 'sqlite:///:memory:'
 Run the code. Construct application and use as context manager.
 
 ```python
+from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.exceptions import ConcurrencyError
 
@@ -214,7 +215,6 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
         assert world.id == item.originator_id
 
     # Project application event notifications.
-    from eventsourcing.interface.notificationlog import NotificationLogReader
     reader = NotificationLogReader(app.notification_log)
     notification_ids = [n['id'] for n in reader.read()]
     assert notification_ids == [1, 2, 3, 4, 5]

@@ -4,6 +4,9 @@ from eventsourcing.infrastructure.factory import InfrastructureFactory
 
 
 class DjangoInfrastructureFactory(InfrastructureFactory):
+    """
+    Infrastructure factory for Django.
+    """
     record_manager_class = DjangoRecordManager
     integer_sequenced_record_class = IntegerSequencedRecord
     timestamp_sequenced_record_class = TimestampSequencedRecord

@@ -62,7 +62,8 @@ Publish-subscribe
 
 Domain events can be published, using the library's publish-subscribe mechanism.
 
-The ``publish()`` function is used to publish events. The ``event`` arg is required.
+The function :func:`~eventsourcing.domain.model.events.publish` is used to publish
+events to subscribed handlers. The argument ``event`` is required.
 
 .. code:: python
 
@@ -71,10 +72,10 @@ The ``publish()`` function is used to publish events. The ``event`` arg is requi
     publish(event=domain_event)
 
 
-The ``subscribe()`` function is used to subscribe a ``handler`` that will receive events.
-
-The optional ``predicate`` arg can be used to provide a function that will decide whether
-or not the subscribed handler will actually be called when an event is published.
+The function :func:`~eventsourcing.domain.model.events.subscribe` is used to
+subscribe a ``handler`` that will receive events. The optional arg ``predicate``
+can be used to provide a function that will decide whether or not the subscribed
+handler will actually be called when an event is published.
 
 .. code:: python
 
@@ -97,7 +98,8 @@ or not the subscribed handler will actually be called when an event is published
     assert received_events[0] == domain_event
 
 
-The ``unsubscribe()`` function can be used to stop the handler receiving further events.
+The function :func:`~eventsourcing.domain.model.events.unsubscribe` can be
+used to unsubscribe handers, to stop the handler receiving further events.
 
 .. code:: python
 
@@ -119,13 +121,14 @@ The library has a small collection of domain event subclasses, such as
 :class:`~eventsourcing.domain.model.events.EventWithTimeuuid`,
 :class:`~eventsourcing.domain.model.events.EventWithHash`,
 :class:`~eventsourcing.domain.model.events.Created`,
-:class:`~eventsourcing.domain.model.events.AttributeChanged`,
-:class:`~eventsourcing.domain.model.events.Discarded`,
+:class:`~eventsourcing.domain.model.events.AttributeChanged`, and
+:class:`~eventsourcing.domain.model.events.Discarded`.
 
 Some classes require particular arguments when constructed. An ``originator_id`` arg
-is required for ``EventWithOriginatorID`` to identify a sequence to which the event belongs.
-An ``originator_version`` arg is required for ``EventWithOriginatorVersion`` to position the
-events in a sequence.
+is required for :class:`~eventsourcing.domain.model.events.EventWithOriginatorID`
+to identify a sequence to which the event belongs. An ``originator_version`` arg is
+required for :class:`~eventsourcing.domain.model.events.EventWithOriginatorVersion`
+to position the events in a sequence.
 
 .. code:: python
 
@@ -141,8 +144,9 @@ events in a sequence.
 
 
 Some of these classes provide useful defaults for particular attributes, such as the ``timestamp``
-of an ``EventWithTimestamp`` (a ``Decimal`` value) and the ``event_id`` of an ``EventWithTimeuuid``
-(a ``UUID``).
+of an :class:`~eventsourcing.domain.model.events.EventWithTimestamp` (a ``Decimal`` value) and
+the ``event_id`` (a version 1 ``UUID``) of an
+:class:`~eventsourcing.domain.model.events.EventWithTimeuuid`.
 
 .. code:: python
 
@@ -197,7 +201,7 @@ participle such as "chosen", "done", "found", "paid", "quit", "seen".
 
     class SomethingHappened(DomainEvent):
         """
-        Published whenever something happens.
+        Triggered whenever something happens.
         """
 
 
@@ -209,12 +213,12 @@ It is possible to code domain events as inner or nested classes.
 
         class Seen(EventWithTimestamp):
             """
-            Published when the job is seen.
+            Triggered when the job is seen.
             """
 
         class Done(EventWithTimestamp):
             """
-            Published when the job is done.
+            Triggered when the job is done.
             """
 
 Inner or nested classes can be used, and are used in the library, to define
@@ -231,17 +235,19 @@ the domain events of a domain entity on the entity class itself.
 Domain entities
 ===============
 
-A domain entity is an object that is not defined by its
-attributes, but rather by a thread of continuity and its
-identity. The attributes of a domain entity can change,
-directly by assignment, or indirectly by calling a method
-of the object.
+A domain entity is an object that has an identity which provides
+a thread of continuity. The attributes of a domain entity can change,
+directly by assignment, or indirectly by calling a method of the object.
+But the identity does not change.
 
 The library has a base class for domain entities called
 :class:`~eventsourcing.domain.model.entity.DomainEntity`.
 It has an ``id`` attribute, because all entities are
-meant to have a constant ID that provides continuity whilst
-other attributes may change.
+meant to have a constant ID that provides continuity when
+other attributes change.
+
+In the example below, a domain entity object is constructed
+with an ID that is a version 4 UUID.
 
 .. code:: python
 
@@ -259,7 +265,8 @@ Entity library
 
 The library also has a domain entity class called
 :class:`~eventsourcing.domain.model.entity.VersionedEntity`,
-which extends the ``DomainEntity`` class with a ``__version__`` attribute.
+which extends the :class:`~eventsourcing.domain.model.entity.DomainEntity`
+class with a ``__version__`` attribute.
 
 .. code:: python
 
@@ -273,8 +280,8 @@ which extends the ``DomainEntity`` class with a ``__version__`` attribute.
 
 The library also has a domain entity class called
 :class:`~eventsourcing.domain.model.entity.TimestampedEntity`,
-which extends the ``DomainEntity`` class with attributes
-``__created_on__`` and ``__last_modified__``.
+which extends the :class:`~eventsourcing.domain.model.entity.DomainEntity`
+class with attributes ``__created_on__`` and ``__last_modified__``.
 
 .. code:: python
 
@@ -327,7 +334,7 @@ This style breaks PEP8, but it seems worthwhile in order to keep the
 used by other libraries (such as SQLAlchemy and Django) for similar reasons.
 
 The exception is the ``id`` attribute of the domain entity base class,
-which is assumed to be required by all domain entities (or aggregates) in
+which is assumed to be required by all domain entities (and aggregates) in
 all domains.
 
 
@@ -335,7 +342,12 @@ Entity events
 -------------
 
 The library's domain entity classes have domain events defined as inner
-classes: ``Event``, ``Created``, ``AttributeChanged``, and ``Discarded``.
+classes:
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Event`,
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Created`,
+:class:`~eventsourcing.domain.model.entity.DomainEntity.AttributeChanged`,
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Discarded`.
+
 
 .. code:: python
 
@@ -345,10 +357,19 @@ classes: ``Event``, ``Created``, ``AttributeChanged``, and ``Discarded``.
     DomainEntity.Discarded
 
 
-The domain event class ``DomainEntity.Event`` is a super type of the others.
-The others also inherit from the library base classes ``Created``,
-``AttributeChanged``, and ``Discarded``. All these domain event classes
-are subclasses of ``DomainEvent``.
+The domain event class :class:`~eventsourcing.domain.model.entity.DomainEntity.Event`
+is inherited by the others. The others also inherit from the corresponding library
+base classes
+:class:`~eventsourcing.domain.model.events.Created`,
+:class:`~eventsourcing.domain.model.events.AttributeChanged`, and
+:class:`~eventsourcing.domain.model.events.Discarded`.
+
+The domain entity's event class :class:`~eventsourcing.domain.model.entity.DomainEntity.Event`
+inherits from the base domain event class :class:`~eventsourcing.domain.model.events.DomainEvent`
+and from :class:`~eventsourcing.domain.model.events.EventWithOriginatorID` so that all
+events of :class:`~eventsourcing.domain.model.entity.DomainEntity`
+have an ``originator_id`` attribute.
+
 
 .. code:: python
 
@@ -365,11 +386,18 @@ are subclasses of ``DomainEvent``.
 
 These entity event classes can be freely constructed, with suitable arguments.
 
-All entity events need an ``originator_id``. Events of versioned entities also
-need an ``originator_version``. Events of timestamped entities generate
-a current ``timestamp`` value, unless one is given. ``Created`` events
-also need an ``originator_topic``. ``AttributeChanged`` events also need ``name``
-and ``value``.
+All events of :class:`~eventsourcing.domain.model.entity.DomainEntity`
+need an ``originator_id``.
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Created` events
+also need an ``originator_topic``.
+:class:`~eventsourcing.domain.model.entity.DomainEntity.AttributeChanged` events
+also need ``name`` and ``value``.
+
+Events of :class:`~eventsourcing.domain.model.entity.VersionedEntity`
+also need an ``originator_version``. Events of
+:class:`~eventsourcing.domain.model.entity.TimestampedEntity`
+generate a current ``timestamp`` value, unless one is given.
+
 
 .. code:: python
 
@@ -403,20 +431,25 @@ and ``value``.
     )
 
 
-The events have a ``__mutate__()`` function, which can be used to mutate the
-state of an entity. This is a convenient way to code a "default" or "self" projection
-of the entity's sequence of events (the projection of the events into the
-entity itself).
+All the events have a
+:func:`~eventsourcing.domain.model.events.DomainEvent.__mutate__` method, which
+can be used to mutate the state of an entity. This is a convenient way to code the
+"default" or "self" projection of the entity's sequence of events (the projection
+of the events into the entity itself).
 
-For example, the ``DomainEntity.Created`` event mutates to an
-entity instance. The class that is instantiated is determined by the
-``originator_topic`` attribute of the ``DomainEntity.Created`` event.
-
-A domain event's ``__mutate__()`` method normally requires an ``obj`` argument, but
-that is not required for ``DomainEntity.Created`` events. The default
-is ``None``, but if a value is provided it must be callable that
-returns an object, such as a domain entity class. If a domain
-entity class is provided, the ``originator_topic`` will be ignored.
+For example, the
+:func:`~eventsourcing.domain.model.entity.DomainEntity.Created.__mutate__` method
+of an entity's :class:`~eventsourcing.domain.model.entity.DomainEntity.Created`
+event mutates "nothing" to an entity instance. The class that is instantiated is
+determined by the event's ``originator_topic`` attribute. Although the
+:func:`~eventsourcing.domain.model.events.DomainEvent.__mutate__` method of an
+event normally requires a value to be given for the ``obj`` argument, it is
+optional for the method on
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Created` events. If a
+value is provided it must be a callable that returns an entity when called,
+such as a domain entity class. If a domain entity class is given as the ``obj``
+arg, then the event's ``originator_topic`` will be ignored for the purposes of
+determining which class to instantiate.
 
 .. code:: python
 
@@ -425,8 +458,8 @@ entity class is provided, the ``originator_topic`` will be ignored.
     assert entity.id == entity_id
 
 
-As another example, when a versioned entity is mutated by an event of the
-``VersionedEntity`` class, the entity version number is set to the event
+When a :class:`~eventsourcing.domain.model.entity.VersionedEntity` is mutated by
+one of its domain events, the entity version number is set to the event's
 ``originator_version``.
 
 .. code:: python
@@ -442,9 +475,9 @@ As another example, when a versioned entity is mutated by an event of the
     assert entity.b == 2
 
 
-Similarly, when a timestamped entity is mutated by an event of the
-``TimestampedEntity`` class, the ``__last_modified__`` attribute of the
-entity is set to have the event's ``timestamp`` value.
+Similarly, when a :class:`~eventsourcing.domain.model.entity.TimestampedEntity`
+is mutated by one of its events, the ``__last_modified__`` attribute of the
+entity is set to the event's ``timestamp`` value.
 
 
 Hash-chained events
@@ -452,7 +485,8 @@ Hash-chained events
 
 The library also has entity class
 :class:`~eventsourcing.domain.model.entity.EntityWithHashchain`.
-It has event classes that inherit from ``EventWithHash``.
+It has event classes that inherit from
+:class:`~eventsourcing.domain.model.events.EventWithHash`.
 
 .. code:: python
 
@@ -466,23 +500,28 @@ It has event classes that inherit from ``EventWithHash``.
     assert issubclass(EntityWithHashchain.Discarded, EventWithHash)
 
 
-All the events of ``EntityWithHashchain`` use SHA-256 to generate an ``event_hash``
+All the events of
+:class:`~eventsourcing.domain.model.entity.EntityWithHashchain`
+use SHA-256 to generate an ``event_hash``
 from the event attribute values when constructed for the first time. Events
-are chained together by ``EntityWithHashchain`` by constructing each subsequent
-event to have an attribute ``__previous_hash__`` which is the ``__event_hash__``
-of the previous event (stored by the entity on entity's attribute ``__head__``).
+are chained together by :class:`~eventsourcing.domain.model.entity.EntityWithHashchain`
+by constructing each subsequent event to have an attribute ``__previous_hash__``
+which is the ``__event_hash__`` of the previous event (stored by the entity on
+entity's ``__head__`` attribute).
 
 
 Factory method
 --------------
 
-The ``DomainEntity`` has a class method ``__create__()`` which can return
-new entity objects. When called, it constructs the ``Created`` event of the
-concrete class with suitable arguments such as a unique ID, and a topic representing
-the concrete entity class, and then it projects that event into an entity
-object using the event's ``__mutate__()`` method. Then it publishes the
-event, and then it returns the new entity to the caller. This technique
-works correctly for subclasses of both the entity and the event class.
+The :class:`~eventsourcing.domain.model.entity.DomainEntity` has a class
+method :func:`~eventsourcing.domain.model.entity.DomainEntity.__create__`
+which returns new entities. When called, it constructs a
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Created` event
+with suitable arguments such as a unique ID, and a topic representing the
+concrete entity class, and then it projects that event into an entity object
+using the event's :func:`~eventsourcing.domain.model.entity.DomainEntity.Created.__mutate__`
+method. Then it publishes the event, and then it returns the new entity to the caller.
+This technique works correctly for subclasses of both the entity and the event class.
 
 .. code:: python
 
@@ -518,14 +557,18 @@ Triggering events
 Commands methods will construct, apply, and publish events, using the results from working
 on command arguments. The events need to be constructed with suitable arguments.
 
-To help trigger events in an extensible manner, the ``DomainEntity`` class has a
-method called ``__trigger_event__()``, that is extended by subclasses in the library,
-which can be used in command  methods to construct, apply, and publish events with
-suitable arguments. The events' ``__mutate__()`` methods update the entity appropriately.
+To help trigger events in an extensible manner, the
+:class:`~eventsourcing.domain.model.entity.DomainEntity` class has a
+method called
+:class:`~eventsourcing.domain.model.entity.DomainEntity.__trigger_event__()`,
+that is extended by subclasses in the library.
+It can be used in command  methods to construct, apply, and publish events with
+suitable arguments.
 
-For example, triggering an ``AttributeChanged`` event on a timestamped, versioned
-entity will cause the attribute value to be updated, but it will also
-cause the version number to increase, and it will update the last modified time.
+For example, triggering an :class:`~eventsourcing.domain.model.events.AttributeChanged`
+event on a timestamped, versioned entity will cause the attribute value to be updated,
+but it will also cause the version number to increase, and it will update the last
+modified time.
 
 .. code:: python
 
@@ -542,8 +585,13 @@ cause the version number to increase, and it will update the last modified time.
     assert entity.__last_modified__ > entity.__created_on__
 
 
-The command method ``__change_attribute__()`` triggers an
-``AttributeChanged`` event. In the code below, the attribute ``full_name``
+Changing attributes
+-------------------
+
+The command method
+:func:`~eventsourcing.domain.model.entity.DomainEntity.__change_attribute__`
+triggers an :class:`~eventsourcing.domain.model.entity.DomainEntity.AttributeChanged`
+event. In the code below, the attribute ``full_name``
 is set to 'Mr Boots'. A subscriber receives the event.
 
 .. code:: python
@@ -581,8 +629,10 @@ is set to 'Mr Boots'. A subscriber receives the event.
 Discarding entities
 -------------------
 
-The entity method ``__discard__()`` can be used to discard the entity, by triggering
-a ``Discarded`` event, after which the entity is unavailable for further changes.
+The command method
+:func:`~eventsourcing.domain.model.entity.DomainEntity.__discard__()` triggers a
+:class:`~eventsourcing.domain.model.entity.DomainEntity.Discarded` event, after which
+the entity is unavailable for further changes.
 
 .. code:: python
 
@@ -618,9 +668,14 @@ Subclasses can extend the entity base classes, by adding event-based properties 
 Custom attributes
 -----------------
 
-The library's ``@attribute`` decorator provides a property getter and setter, which will triggers an
-``AttributeChanged`` event when the property is assigned. Simple mutable attributes can be coded as
-decorated functions without a body, such as the ``full_name`` function of ``User`` below.
+The library function
+:func:`~eventsourcing.domain.model.decorators.attribute`
+is a decorator that provides a property getter and setter. It
+will trigger an
+:class:`~eventsourcing.domain.model.entity.DomainEntity.AttributeChanged`
+event when a value is assigned to the property. Simple mutable attributes
+can be coded as decorated functions without a body (any body is ignored)
+such as ``full_name`` of ``User`` below .
 
 .. code:: python
 
@@ -635,12 +690,16 @@ decorated functions without a body, such as the ``full_name`` function of ``User
 
         @attribute
         def full_name(self):
-            """Full name of the user."""
+            """
+            The full name of the user (an event-sourced attribute).
+            """
 
 
-In the code below, after the entity has been created, assigning to the ``full_name`` attribute causes
-the entity to be updated. An ``AttributeChanged`` event is published. Both the ``Created`` and
-``AttributeChanged`` events are received by a subscriber.
+In the code below, after the entity has been created, assigning to ``full_name`` triggers
+an :class:`~eventsourcing.domain.model.entity.VersionedEntity.AttributeChanged`. A
+:class:`~eventsourcing.domain.model.entity.VersionedEntity.Created` event and an
+:class:`~eventsourcing.domain.model.entity.VersionedEntity.AttributeChanged`
+event are received by a subscriber.
 
 .. code:: python
 
@@ -678,10 +737,13 @@ the arguments of a command will be used to perform some work. Then, the result
 of the work will be used to trigger a domain event that represents what happened.
 Please note, command methods normally have no return value.
 
-For example, the ``set_password()`` method of the ``User`` entity below is given
-a raw password. It creates an encoded string from the raw password, and then uses
-the ``__change_attribute__()`` method to trigger an ``AttributeChanged`` event for
-the ``_password`` attribute with the encoded password.
+For example, the ``set_password()`` method of the ``User`` entity below is given a
+raw password. It creates an encoded string from the raw password, and then uses the
+:func:`~eventsourcing.domain.model.entity.DomainEntity.__change_attribute__` method
+to trigger an
+:class:`~eventsourcing.domain.model.entity.VersionedEntity.AttributeChanged`
+event for the ``_password`` attribute, with the encoded password as the new
+value of the attribute.
 
 .. code:: python
 
@@ -721,19 +783,18 @@ Custom events
 Custom events can be defined as inner or nested classes of the custom entity class.
 In the code below, the entity class ``World`` has a custom event called ``SomethingHappened``.
 
-Custom event classes can extend the ``__mutate__()`` method, so it affects
+Custom event classes can extend the
+:func:`~eventsourcing.domain.model.events.DomainEvent.__mutate__` method, so it affects
 entities in a way that is specific to that type of event. More conveniently, event
-classes can implement a ``mutate()`` method, which avoids the need to call the
-super method and return the obj. For example, the ``SomethingHappened`` event class
-has a ``mutate()`` method which simply appends the event object to the entity's ``history``
-attribute.
+classes can implement a :func:`~eventsourcing.domain.model.events.DomainEvent.mutate`
+method, which avoids the need to call the super method and return the ``obj``. For example,
+the event class ``SomethingHappened`` has a ``mutate()`` method which simply appends the
+``what`` of the event to the entity's ``history``.
 
 Custom events are normally triggered by custom commands. In the example below,
 the command method ``make_it_so()`` triggers the custom event ``SomethingHappened``.
 
 .. code:: python
-
-    from eventsourcing.domain.model.decorators import mutator
 
     class World(VersionedEntity):
 
@@ -749,13 +810,15 @@ the command method ``make_it_so()`` triggers the custom event ``SomethingHappene
             self.__trigger_event__(World.SomethingHappened, what=what_happened)
 
         class SomethingHappened(VersionedEntity.Event):
-            """Published when something happens in the world."""
+            """Triggered when something happens in the world."""
             def mutate(self, obj):
-                obj.history.append(self)
+                obj.history.append(self.what)
 
 
-A new world can now be created, using the ``__create__()`` method. The command ``make_it_so()`` can
-be used to make things happen in this world. When something happens, the history of the world
+A new "world" entity can now be created, using the class method
+:func:`~eventsourcing.domain.model.entity.DomainEntity.__create__`.
+The entity command ``make_it_so()`` can be used to make things
+happen in this world. When something happens, the history of the world
 is augmented with the new event.
 
 .. code:: python
@@ -766,9 +829,9 @@ is augmented with the new event.
     world.make_it_so('trucks')
     world.make_it_so('internet')
 
-    assert world.history[0].what == 'dinosaurs'
-    assert world.history[1].what == 'trucks'
-    assert world.history[2].what == 'internet'
+    assert world.history[0] == 'dinosaurs'
+    assert world.history[1] == 'trucks'
+    assert world.history[2] == 'internet'
 
 
 Aggregate root
@@ -823,15 +886,17 @@ Base class
 The library has a domain entity class called
 :class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot` that can be
 useful in a domain driven design, especially where a single command can cause
-many events to be published. The ``BaseAggregateRoot`` entity class extends
-``TimestampedVersionedEntity``. It overrides the ``__publish__()`` method of
-the base class, so that triggered events are published only to a private list
-of pending events, rather than directly to the publish-subscribe mechanism. It
-also adds a method called ``__save__()``, which publishes all
+many events to be published. The :class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot`
+entity class extends :class:`~eventsourcing.domain.model.entity.TimestampedVersionedEntity`.
+Its method :func:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot.__publish__` overrides
+the base class :class:`~eventsourcing.domain.model.entity.DomainEntity`, so that triggered events
+are published only to a private list of pending events, rather than directly to the publish-subscribe
+mechanism. It also introduces the method
+:func:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot.__save__`, which publishes all
 pending events to the publish-subscribe mechanism as a single list.
 
 It can be subclassed by custom aggregate root entities. In the example below, the
-entity class ``World`` inherits from ``BaseAggregateRoot``.
+entity class ``World`` inherits from :class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot`.
 
 .. code:: python
 
@@ -852,7 +917,7 @@ entity class ``World`` inherits from ``BaseAggregateRoot``.
 
         class SomethingHappened(BaseAggregateRoot.Event):
             def mutate(self, obj):
-                obj.history.append(self)
+                obj.history.append(self.what)
 
 
 The ``World`` aggregate root has a command method ``make_things_so()`` which publishes
@@ -876,12 +941,13 @@ We can see the events that are published by subscribing to the handler ``receive
     # State of aggregate object has changed
     # but no events have been published yet.
     assert len(received_events) == 0
-    assert world.history[0].what == 'dinosaurs'
-    assert world.history[1].what == 'trucks'
-    assert world.history[2].what == 'internet'
+    assert world.history[0] == 'dinosaurs'
+    assert world.history[1] == 'trucks'
+    assert world.history[2] == 'internet'
 
 
-Events are pending, and will not be published until the ``__save__()`` method is called.
+Events are pending, and will not be published until
+:func:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot.__save__` is called.
 
 .. code:: python
 
@@ -903,9 +969,11 @@ Data integrity
 
 The library class
 :class:`~eventsourcing.domain.model.aggregate.AggregateRootWithHashchainedEvents`
-extends ``BaseAggregateRoot`` by also inheriting from ``EntityWithHashchain``, so
+extends
+:class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot` by also inheriting from
+:class:`~eventsourcing.domain.model.entity.EntityWithHashchain`, so
 that aggregate events are individually hashed and also hash-chained together.
-It is aliased as ``AggregateRoot``.
+It is "aliased" as :class:`~eventsourcing.domain.model.aggregate.AggregateRoot`.
 
 .. code:: python
 
@@ -926,7 +994,7 @@ It is aliased as ``AggregateRoot``.
 
         class SomethingHappened(AggregateRoot.Event):
             def mutate(self, obj):
-                obj.history.append(self)
+                obj.history.append(self.what)
 
 
     # Create new world.
@@ -938,16 +1006,17 @@ It is aliased as ``AggregateRoot``.
 
     # State of aggregate object has changed
     # but no events have been published yet.
-    assert world.history[0].what == 'dinosaurs'
-    assert world.history[1].what == 'trucks'
-    assert world.history[2].what == 'internet'
+    assert world.history[0] == 'dinosaurs'
+    assert world.history[1] == 'trucks'
+    assert world.history[2] == 'internet'
 
     # Publish pending events.
     world.__save__()
 
 The state of each event, including the hash of the previous event, is hashed using
 SHA-256. The state of each event can be validated as a part of the chain. If the
-sequence of events is accidentally damaged in any way, then a ``DataIntegrityError``
+sequence of events is accidentally damaged in any way, then a
+:class:`~eventsourcing.exceptions.DataIntegrityError`
 will almost certainly be raised from the domain layer when the sequence is replayed.
 
 The hash of the last event applied to an aggregate root is available as an attribute called
@@ -982,12 +1051,14 @@ perhaps with random bytes encoded as Base64.
 The "genesis hash" used as the previous hash of the first event in a sequence can be
 set using environment variable ``GENESIS_HASH``.
 
-The class ``AggregateRootWithHashchainedEvents`` can be used when you want to be able
-to verify aggregates' sequences of events cryptographically (which can be useful
-even during development to catch programming errors and to avoid doubt that the
-infrastructure is working properly). However, the class ``BaseAggregateRoot`` is
-probably faster than ``AggregateRootWithHashchainedEvents`` and can be used whenever
-you don't actually need to verify the sequence of events cryptographically.
+The class
+:class:`~eventsourcing.domain.model.aggregate.AggregateRootWithHashchainedEvents`
+can be used when you want to be able to verify aggregates' sequences of events
+cryptographically (which can be useful even during development to catch programming
+errors and to avoid doubt that the infrastructure is working properly). However, the
+class :class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot`
+is probably faster and can be used whenever you don't actually need to verify
+the sequence of events cryptographically.
 
 .. code:: python
 

@@ -3,6 +3,7 @@ from multiprocessing import Manager
 from queue import Empty
 from time import sleep
 
+from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 from eventsourcing.application.process import Prompt
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.application.system import DEFAULT_POLL_INTERVAL, PromptOutbox, System, SystemRunner
@@ -10,7 +11,6 @@ from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
-from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
 
 
 class MultiprocessRunner(SystemRunner):

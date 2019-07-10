@@ -5,7 +5,7 @@ class DatastoreSettings(object):
     """Base class for settings for database connection used by a stored event repository."""
 
 
-class Datastore(ABC):
+class AbstractDatastore(ABC):
     def __init__(self, settings):
         # assert isinstance(settings, DatastoreSettings), settings
         self.settings = settings

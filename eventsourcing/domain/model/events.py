@@ -1,5 +1,4 @@
 import os
-from collections import OrderedDict
 from uuid import uuid1
 
 from eventsourcing.exceptions import EventHashError
@@ -17,12 +16,11 @@ def create_timesequenced_event_id():
 
 class DomainEvent(object):
     """
-    Base class for domain events.
+    Base class for domain model events.
 
     Implements methods to make instances read-only,
     comparable for equality in Python, and have
-    recognisable representations.
-
+    recognisable representations.Custom
     To make domain events hashable, this class also
     implements a method to create a cryptographic hash
     of the state of the event.
@@ -277,13 +275,13 @@ class EventWithTimeuuid(DomainEvent):
 
 class Created(DomainEvent):
     """
-    Can be originated when something is created.
+    Happens when something is created.
     """
 
 
 class AttributeChanged(DomainEvent):
     """
-    Can be originated when the value of an attribute changes.
+    Happens when the value of an attribute changes.
     """
 
     @property
@@ -297,13 +295,13 @@ class AttributeChanged(DomainEvent):
 
 class Discarded(DomainEvent):
     """
-    Can be originated when something is discarded.
+    Happens when something is discarded.
     """
 
 
 class Logged(DomainEvent):
     """
-    Can be originated when something is logged.
+    Happens when something is logged.
     """
 
 
@@ -318,8 +316,8 @@ def subscribe(handler, predicate=None):
     If predicate is None, the handler will
     be called whenever an event is published.
 
-    :param handler: Will be called when an event is published.
-    :param predicate: Conditions whether the handler will be called.
+    :param callable handler: Will be called when an event is published.
+    :param callable predicate: Conditions whether the handler will be called.
     """
     if (predicate, handler) not in _subscriptions:
         _subscriptions.append((predicate, handler))
@@ -330,8 +328,8 @@ def unsubscribe(handler, predicate=None):
     Removes 'handler' from list of event handlers
     to be called if 'predicate' is satisfied.
 
-    :param handler:
-    :param predicate:
+    :param callable handler: Previously subscribed handler.
+    :param callable predicate: Previously subscribed predicate.
     """
     if (predicate, handler) in _subscriptions:
         _subscriptions.remove((predicate, handler))
@@ -339,15 +337,29 @@ def unsubscribe(handler, predicate=None):
 
 def publish(event):
     """
-    Calls subscribed event handlers with the
-    given 'event', except those with predicates
-    that are not satisfied by the event.
+    Published given 'event' by calling subscribed event
+    handlers with the given 'event', except those with
+    predicates that are not satisfied by the event.
 
-    :param event:
+    Handlers are called in the order they are subscribed.
+
+    :param DomainEvent event: Domain event to be published.
     """
+    # A cache of conditions means predicates aren't evaluated
+    # more than once for each event.
+    cache = {}
     for predicate, handler in _subscriptions[:]:
-        if predicate is None or predicate(event):
+        if predicate is None:
             handler(event)
+        else:
+            cached_condition = cache.get(predicate)
+            if cached_condition is True:
+                handler(event)
+            elif cached_condition is None:
+                condition = predicate(event)
+                cache[predicate] = condition
+                if condition:
+                    handler(event)
 
 
 class EventHandlersNotEmptyError(Exception):

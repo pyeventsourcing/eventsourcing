@@ -5,13 +5,29 @@ Release notes
 It is the aim of the project that releases with the same major version
 number are backwards compatible, within the scope of the documented
 examples. New major versions indicate a backward incompatible changes
-have been introduced since the previous major version.
+have been introduced since the previous major version. New minor
+version indicate new functionality has been added, or existing functionality
+extended. New point version indicates existing code or documentation
+has been improved in a way that neither breaks backwards compatibility
+nor extends the functionality of the library.
 
 
 Version 7.x
 ===========
 
 Version 7.x series refined the "process and system" code.
+
+
+Version 7.1.4 (released 10 Jul 2019)
+------------------------------------
+
+Version 7.1.4 improved the library documentation.
+
+
+Version 7.1.3 (released 4 Jul 2019)
+------------------------------------
+
+Version 7.1.3 improved the domain model layer documentation.
 
 
 Version 7.1.2 (released 26 Jun 2019)

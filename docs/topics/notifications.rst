@@ -85,31 +85,27 @@ to avoid interruptions in processing the application's events.
 
 If placing all the events in a single sequence is restrictive,
 then perhaps partitioning the application notifications may offer a
-scalable approach. For example, if each user has one partition, each
-notification sequence would contain all events from the aggregates
-pertaining to one user. So that the various sequences can
-be discovered, it would be useful to have a sequence in
-which the creation of each partition is recorded. The application
-could then be scaled by partition.
-(Please note, the library doesn't currently support partitioning
-the aggregates of an application.)
+scalable approach. For example, if each user's work is independent of
+the others', then each could have one partition, each notification sequence
+would contain all events from the aggregates pertaining to one user. So
+that the various sequences can be discovered, it would be useful to have
+a sequence in which the creation of each partition is recorded. The
+application could then be scaled by partition.
 
-If partitioning the aggregates of application is restrictive, then it
-would also be possible to have a notification sequence for each aggregate; in
+If partitioning the aggregates of application is restrictive, perhaps
+because each user's work is dependent on the others', then it
+might be possible to have a notification sequence for each aggregate; in
 this case, the events would already have been placed in a sequence and so they
 could be presented directly as notifications. But as aggregates come and go,
 the overhead of keeping track of the notification sequences may become restrictive.
-(Please note, the library doesn't currently support notifications for individual aggregates.)
 
-An alternative to sequencing events individually would be to sequence the lists of events published
-when saving the pending events of an aggregate (see ``AggregateRoot``), so that in cases
-where it is feasible to place all the commands in a sequence, it would also
-be feasible to place the resulting lists of events in a sequence, assuming
-the number of such lists is less than or equal to the number of commands. Sequencing
-the lists would allow these little units of coherence to be propagated, which may be
-useful in some cases.
-(Please note, the library doesn't currently support
-notifications for lists of events.)
+Another possibility would be to sequence the lists of events published when saving
+the pending events of an aggregate (see :class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot`),
+so that in cases where it is feasible to place all the commands in a sequence, it would also be feasible
+to place the resulting lists of events for each command in a sequence. Sequencing
+the lists would allow these little units of coherence to be propagated atomically,
+which may be useful in some cases. (Please note, the library doesn't currently support
+atomic notification of collections of events, instead each event is notified individually.)
 
 Before continuing with code examples below, we need to setup an event store.
 
@@ -161,11 +157,11 @@ Before continuing with code examples below, we need to setup an event store.
         persist_event_type=DomainEntity.Event
     )
 
-Please note, the ``SQLAlchemyRecordManager`` is has its
+Please note, the
+:class:`~eventsourcing.infrastructure.sqlalchemy.manager.SQLAlchemyRecordManager` is has its
 ``contiguous_record_ids`` option enabled.
 
-The infrastructure classes are explained
-in other sections of this documentation.
+The infrastructure classes are explained in other sections of this documentation.
 
 
 Application sequence
@@ -186,14 +182,18 @@ can be written. Using timestamps allows records to be inserted
 independently of others, but timestamps can cause uncertainty when
 following the events of an application.
 
-If an application's domain model involves the library's ``AggregateRoot``
+If an application's domain model involves the library's
+:class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot`
 class, which publishes all pending events together as a list, rather than
 inserting each event, it would be possible to insert the lists of events
 into the application sequence as a single entry. This may reduce the number
-of inserts into the application sequence. The lists could be sequenced by
-timestamp or integer. Timestamps may allow the greatest write-speed. (This
-approach currently hasn't been explored any further, but it should be.)
-
+of inserts into the application sequence. However since this library uses
+one table with two indexes for the aggregate and application sequence,
+perhaps the greatest benefit would be processing these atomically a list
+of events that have been created atomically. That might avoid projections
+being in an intermediate state such that a user could view only some of the
+effects of an action when that would be alarming. This isn't implemented at
+time of writing.
 
 Timestamps
 ~~~~~~~~~~
@@ -234,24 +234,24 @@ used to get all application events ordered by timestamp. If you use this class i
 way, make sure your clocks are in sync, and query events from the last position until
 a time in the recent past, in order to implement a jitter buffer.
 
-Todo: Code example.
+.. Todo: Code example.
 
-(An improvement could be to have a  timestamp field that is populated
-by the database server, and index that instead of the application event's
-timestamp which would vary according to the variation between the clock
-of application servers. Code changes and other suggestions are always welcome.)
+.. (An improvement could be to have a  timestamp field that is populated
+.. by the database server, and index that instead of the application event's
+.. timestamp which would vary according to the variation between the clock
+.. of application servers. Code changes and other suggestions are always welcome.)
 
 Integers
 ~~~~~~~~
 
-To reproduce the application's sequence of events perfectly, without any risk
-of gaps or duplicates or jumbled items, or race conditions, we can generate
-and then follow a contiguous sequence of integers. It is also possible to
-generate and follow a non-contiguous sequence of integers, but the gaps will
-need to be negotiated, by guessing how long an unusually slow write would take
-to become visible, since such gaps could be filled in the future.
+To reproduce an application's sequence of events perfectly, without any risk
+of gaps or duplicates or jumbled items, or race conditions, it seems that we
+need to generate and then follow a contiguous sequence of integers. It is also
+possible to generate and follow a non-contiguous sequence of integers, but the
+gaps will need to be negotiated, by guessing how long an unusually slow write
+would take to become visible, since such gaps could be filled in the future.
 
-The library's relational record managers with record classes that have an indexed
+The library's relational record managers have record classes that have an indexed
 integer ID column. Record IDs are used to place all the application's event records
 in a single sequence. This technique is recommended for enterprise applications, and
 at least the earlier stages of more ambitious projects. There is an inherent limit
@@ -339,8 +339,9 @@ a sequence of IDs that has gaps, a non-contiguous sequence, which could lead
 to race conditions and missed items. The gaps would need to be negotiated,
 which is relatively complicated. To keep things relatively simple, a record
 manager that does not have the ``contiguous_record_ids`` feature enabled cannot
-be used with the library's ``RecordManagerNotificationLog`` class (introduced
-below). If you want to sequence the application events with a non-contiguous
+be used with the library class
+:class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
+(introduced below). If you want to sequence the application events with a non-contiguous
 sequence, then you will need to write something that can negotiate the gaps.
 
 To use contiguous IDs to sequence the events of an application, simply use a
@@ -349,7 +350,8 @@ such as the ``StoredEventRecord`` record class, and with a True value for its
 ``contiguous_record_ids`` constructor argument. The ``record_manager``
 above was constructed in this way. The records can be then be obtained
 using the ``get_notifications()`` method of the record manager. The record IDs
-will form a contiguous sequence, suitable for the ``RecordManagerNotificationLog``.
+will form a contiguous sequence, suitable for the :class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
+
 
 .. code:: python
 
@@ -365,7 +367,7 @@ will form a contiguous sequence, suitable for the ``RecordManagerNotificationLog
 
     assert len(notifications) == 1, notifications
 
-The local notification log class ``RecordManagerNotificationLog``
+The local notification log class :class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
 (see below) can adapt record managers, presenting the
 application sequence as notifications in a standard way.
 
@@ -374,7 +376,7 @@ BigArray
 ~~~~~~~~
 
 This is a long section, and can be skipped if you aren't currently
-required to scale beyond the limits of a database table that has
+trying to scale beyond the limits of a database table that has
 indexed record IDs.
 
 To support ultra-high capacity requirements, the application sequence must
@@ -628,7 +630,7 @@ be useful to process the application sequence within the context by
 constructing another sequence that does not have duplicates or gaps, and
 then propagating that sequence.
 
-The local notification log class ``BigArrayNotificationLog``
+The local notification log class :class:`~eventsourcing.application.notificationlog.BigArrayNotificationLog`
 (see below) can adapt big arrays, presenting the assigned items
 as notifications in a standard way. Gaps in the array will result in
 notification items of ``None``. But where there are gaps, there
@@ -692,15 +694,15 @@ RecordManagerNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A relational record manager can be adapted by the library class
-:class:`~eventsourcing.interface.notificationlog.RecordManagerNotificationLog`,
+:class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`,
 which will then present the application's events as notifications.
 
-The ``RecordManagerNotificationLog`` is constructed with a ``record_manager``,
-and a ``section_size``.
+The :class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
+is constructed with a ``record_manager``, and a ``section_size``.
 
 .. code:: python
 
-    from eventsourcing.interface.notificationlog import RecordManagerNotificationLog
+    from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 
     # Construct notification log.
     notification_log = RecordManagerNotificationLog(record_manager, section_size=5)
@@ -719,7 +721,8 @@ and a ``section_size``.
     assert section.next_id == '6,10', section.next_id
     assert len(section.items) == 5, section.items
 
-The notifications (``section.items``) from ``RecordManagerNotificationLog``
+The notifications (``section.items``) from a
+:class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
 are Python dicts with keys: ``id``, ``topic``, ``state``, ``originator_id``,
 ``originator_version``, and ``casual_dependencies``.
 
@@ -767,8 +770,9 @@ reconstructing the domain event. In this example, the sequenced
 item mapper does not have a cipher, so the notification data is
 not encrypted.
 
-The library's ``SimpleApplication`` has a ``notification_log`` that
-uses this ``RecordManagerNotificationLog`` class.
+The library's :class:`~eventsourcing.application.simple.SimpleApplication`
+has a ``notification_log`` that uses the :class:`~eventsourcing.application.notificationlog
+.RecordManagerNotificationLog` class.
 
 .. Todo: Move that function into the library, where? Perhaps subclass
 .. NotificationLogReader with EventNotificationLogReader?
@@ -845,12 +849,12 @@ A big array can be adapted by the library class
 :class:`~eventsourcing.interface.notificationlog.BigArrayNotificationLog`,
 which will then present the items assigned to the array as notifications.
 
-The ``BigArrayNotificationLog`` is constructed with a ``big_array``,
-and a ``section_size``.
+The :class:`~eventsourcing.interface.notificationlog.BigArrayNotificationLog`
+is constructed with a ``big_array``, and a ``section_size``.
 
 .. code:: python
 
-    from eventsourcing.interface.notificationlog import BigArrayNotificationLog
+    from eventsourcing.application.notificationlog import BigArrayNotificationLog
 
     # Construct notification log.
     big_array_notification_log = BigArrayNotificationLog(big_array, section_size=5)
@@ -923,22 +927,23 @@ is simple and can scale using established HTTP technology.
 This library has a pair of classes that can help to present a
 notification log remotely.
 
-The ``RemoteNotificationLog`` class has the same interface for getting
-sections as the local notification log classes described above, but
-instead of using a local datasource, it requests serialized
-sections from a Web API.
+The :class:`~eventsourcing.interface.notificationlog.RemoteNotificationLog`
+class has the same interface for getting sections as the local notification
+log classes described above, but instead of using a local datasource, it
+requests serialized sections from a Web API.
 
-The ``NotificationLogView`` class serializes sections from a local
-notification log, and can be used to implement a Web API that presents
-notifications to a network.
+The :class:`~eventsourcing.interface.notificationlog.NotificationLogView`
+class serializes sections from a local notification log, and can be used
+to implement a Web API that presents notifications to a network.
 
 Alternatively to presenting domain event data and topic information,
 a Web API could present only the event's sequence ID and position values,
 requiring clients to obtain the domain event from the event store using
 those references. If the notification log uses a big array, and the big
 array is assigned with only sequence ID and position values, the big array
-notification log could be used directly with the ``NotificationLogView``
-to notify of domain events by reference rather than by value. However, if
+notification log could be used directly with the
+:class:`~eventsourcing.interface.notificationlog.NotificationLogView` to
+notify of domain events by reference rather than by value. However, if
 the notification log uses a record manager, then a notification log adapter
 would be needed to convert the events into the references.
 
@@ -956,9 +961,11 @@ NotificationLogView
 The library class :class:`~eventsourcing.interface.notificationlog.NotificationLogView`
 presents sections from a local notification log, and can be used to implement a Web API.
 
-The ``NotificationLogView`` class is constructed with a local ``notification_log``
-object and an optional ``json_encoder_class`` (which defaults to the library's.
-``ObjectJSONEncoder`` class, used explicitly in the example below).
+The :class:`~eventsourcing.interface.notificationlog.NotificationLogView`
+class is constructed with a local ``notification_log`` object and an optional
+``json_encoder_class`` (which defaults to the library's
+:class:`~eventsourcing.utils.transcoding.ObjectJSONEncoder` class, used explicitly
+in the example below).
 
 The example below uses the record notification log, constructed above.
 
@@ -1008,7 +1015,7 @@ A Web application could identify a section ID from an HTTP request
 path, and respond by returning an HTTP response with JSON
 content that represents that section of a notification log.
 
-The example uses the library's ``NotificationLogView`` to
+The example uses the library's :class:`~eventsourcing.interface.notificationlog.NotificationLogView` to
 serialize the sections of the record notification log (see above).
 
 .. code:: python
@@ -1038,39 +1045,45 @@ a Cache-Control header when responding with archived sections.
 
 A more standard approach would be to use Atom (application/atom+xml)
 which is a common standard for producing RSS feeds and thus a great
-fit for representing lists of events, rather than ``NotificationLogView``.
+fit for representing lists of events, rather than
+:class:`~eventsourcing.interface.notificationlog.NotificationLogView`.
 However, just as this library doesn't (currently) have any code that
 generates Atom feeds from domain events, there isn't any code that
 reads domain events from atom feeds. So if you wanted to use Atom
-rather than ``NotificationLogView`` in your API, then you will also
-need to write a version of ``RemoteNotificationLog`` that can work
-with your Atom API.
+rather than :class:`~eventsourcing.interface.notificationlog.NotificationLogView`
+in your API, then you will also need to write a version of
+:class:`~eventsourcing.interface.notificationlog.RemoteNotificationLog`
+that can work with your Atom API.
 
 RemoteNotificationLog
 ~~~~~~~~~~~~~~~~~~~~~
 
 The library class :class:`~eventsourcing.interface.notificationlog.RemoteNotificationLog`
 can be used in the same way as the local notification logs above. The difference is that
-rather than accessing a database using a ``BigArray`` or record manager, it makes requests
-to an API.
+rather than accessing a database using a record manager, it makes requests to an API.
 
-The ``RemoteNotificationLog`` class is constructed with a ``base_url``, a ``notification_log_id``
-and a ``json_decoder_class``. The JSON decoder must be capable of decoding JSON encoded by
+The :class:`~eventsourcing.interface.notificationlog.RemoteNotificationLog`
+class is constructed with a ``base_url``, a ``notification_log_id`` and a
+``json_decoder_class``. The JSON decoder must be capable of decoding JSON encoded by
 the API. Hence, the JSON decoder must match the JSON encoder used by the API.
 
-The default ``json_decoder_class`` is the library's ``ObjectJSONDecoder``. This encoder
-matches the default ``json_encoder_class`` of the library's ``NotificationLogView`` class,
-which is the library's ``ObjectJSONEncoder`` class. If you want to extend the JSON encoder
-classes used here, just make sure they match, otherwise you will get decoding errors.
+The default ``json_decoder_class`` is the library class
+:class:`~eventsourcing.utils.transcoding.ObjectJSONDecoder`. This encoder
+matches the default ``json_encoder_class`` of the library class
+:class:`~eventsourcing.interface.notificationlog.NotificationLogView`,
+which is also the library class :class:`~eventsourcing.utils.transcoding.ObjectJSONDecoder`.
+If you want to extend the JSON encoder classes used here, just make sure they match,
+otherwise you will get decoding errors.
 
-The ``NotificationLogReader`` can use the ``RemoteNotificationLog`` in the same way that
+The :class:`~eventsourcing.application.notificationlog.NotificationLogReader` can use the
+:class:`~eventsourcing.interface.notificationlog.RemoteNotificationLog` in the same way that
 it uses a local notification log object. Just construct it with a remote notification log
 object, rather than a local notification log object, then read notifications in the same
 way (as described above).
 
-If the API uses a ``NotificationLogView`` to serialise the sections of a local
-notification log, the remote notification log object functions effectively as a
-proxy for a local notification log on a remote node.
+If the API uses a :class:`~eventsourcing.interface.notificationlog.NotificationLogView`
+to serialise the sections of a local notification log, the remote notification log object
+functions effectively as a proxy for a local notification log on a remote node.
 
 .. code:: python
 
@@ -1082,10 +1095,10 @@ If a server were running at "base_url" the ``remote_notification_log`` would
 function in the same was as the local notification logs described above, returning
 section objects for section IDs using the square brackets syntax.
 
-If the section objects were created by a ``NotifcationLogView`` that
-had the ``notification_log`` above, we could obtain all the events of an
-application across an HTTP connection, accurately and without great
-complication.
+If the section objects were created by a
+:class:`~eventsourcing.interface.notificationlog.NotificationLogView`
+that had the ``notification_log`` above, we could obtain all the events of an
+application across an HTTP connection, accurately and without great complication.
 
 See ``test_notificationlog.py`` for an example that uses a Flask app running
 in a local HTTP server to get notifications remotely using these classes.
@@ -1095,13 +1108,14 @@ Notification log reader
 -----------------------
 
 The library object class
-:class:`~eventsourcing.interface.notificationlog.NotificationLogReader` effectively
+:class:`~eventsourcing.application.notificationlog.NotificationLogReader` effectively
 functions as an iterator, yielding a continuous sequence of notifications that
 it discovers from the sections of a notification log, local or remote.
 
 A notification log reader object will navigate the linked sections of a notification
 log, backwards from the "current" section of the notification log, until reaching the position
-it seeks. The position, which defaults to ``0``, can be set directly with the reader's ``seek()``
+it seeks. The position, which defaults to ``0``, can be set directly with the reader's
+:func:`~eventsourcing.application.notificationlog.NotificationLogReader.seek`
 method. Hence, by default, the reader will navigate all the way back to the
 first section.
 
@@ -1111,13 +1125,15 @@ as a continuous sequence all the subsequent notifications in the notification lo
 As it navigates forwards, yielding notifications, it maintains position so that it can
 continue when there are further notifications. This position could be persisted, so that
 position is maintained across invocations, but that is not a feature of the
-``NotificationLogReader`` class, and would have to be added in a subclass or client object.
+class :class:`~eventsourcing.application.notificationlog.NotificationLogReader`,
+and would have to be added in a subclass or client object.
 
-The ``NotificationLogReader`` supports slices. The position is set indirectly when a slice
-has a start index.
+The class :class:`~eventsourcing.application.notificationlog.NotificationLogReader`
+supports slices. The position is set indirectly when a slice has a start index.
 
 All the notification logs discussed above (local and remote) have the same interface,
-and can be used by ``NotificationLogReader`` progressively to obtain unseen notifications.
+and can be used by :class:`~eventsourcing.application.notificationlog.NotificationLogReader`
+progressively to obtain unseen notifications.
 
 The example below happens to yield notifications from a big array notification log, but it
 would work equally well with a record notification log, or with a remote notification log.
@@ -1126,7 +1142,7 @@ Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-lik
 
 .. code:: python
 
-    from eventsourcing.interface.notificationlog import NotificationLogReader
+    from eventsourcing.application.notificationlog import NotificationLogReader
 
     # Construct log reader.
     reader = NotificationLogReader(notification_log)
@@ -1212,4 +1228,3 @@ reliable approach to following the events of an application.
 
     # Clean up.
     persistence_policy.close()
-

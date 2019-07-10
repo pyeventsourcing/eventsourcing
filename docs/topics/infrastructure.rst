@@ -19,12 +19,11 @@ reflection off a common sequenced item type.
 .. contents:: :local:
 
 
-Sequenced item type
-====================
+Sequenced items
+===============
 
-Sequenced item types are declared as named tuples (``namedtuple`` from ``collections``).
-
-Below is an example of a sequenced item named tuple.
+Sequenced item types are declared as Python named tuples.
+The example below is a sequenced item type with four fields.
 
 .. code:: python
 
@@ -32,19 +31,21 @@ Below is an example of a sequenced item named tuple.
 
     SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'data'])
 
-The fields can be named differently, however a suitable database
-table will have matching column names.
+The field names are arbitrary, however a
+suitable database table will have matching column names.
 
-Whatever the names of the fields, the first field of a sequenced item will represent the
-identity of a sequence to which an item belongs. The second field will represent the
-position of the item in its sequence. The third field will represent a topic to which
-the item pertains. And the fourth field will represent the state of the item.
+Whatever the names of the fields, the first field of a
+sequenced item will represent the identity of a sequence
+to which an item belongs. The second field will represent
+the position of the item in its sequence. The third field
+will represent a topic to which the item pertains. And
+the fourth field will represent the state of the item.
 
 
-SequencedItem namedtuple
-------------------------
+SequencedItem
+-------------
 
-The library provides a sequenced item named tuple called
+The library provides a sequenced item type called
 :class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`.
 
 .. code:: python
@@ -52,7 +53,8 @@ The library provides a sequenced item named tuple called
     from eventsourcing.infrastructure.sequenceditem import SequencedItem
 
 
-Like in the example above, the library's ``SequencedItem`` namedtuple
+Like in the example above, the library's
+:class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`
 has four fields. The ``sequence_id`` identifies the sequence to which
 the item belongs. The ``position`` identifies the position of the item
 in its sequence. The ``topic`` identifies a dimension of concern to
@@ -92,17 +94,22 @@ simply the values given when the object was constructed.
     assert sequenced_item1.state == state, sequenced_item1.state
 
 
-StoredEvent namedtuple
-----------------------
+StoredEvent
+-----------
 
-The library provides a sequenced item named tuple called ``StoredEvent``. The attributes of the
-``StoredEvent`` namedtuple are ``originator_id``, ``originator_version``, ``topic``, and ``state``.
+The library also provides a sequenced item type called
+:class:`~eventsourcing.infrastructure.sequenceditem.StoredEvent`.
+Its attributes are ``originator_id``, ``originator_version``,
+``topic``, and ``state``.
 
-The ``originator_id`` is the ID of the aggregate that published the event, and is equivalent to ``sequence_id`` above.
-The ``originator_version`` is the version of the aggregate that published the event, and is equivalent to
-``position`` above.
-The ``topic`` identifies the class of the domain event that is stored, and is equivalent to ``topic`` above.
-The ``state`` holds the state of the domain event, and is equivalent to ``state`` above.
+The ``originator_id`` is perhaps the ID of a domain entity that
+triggered the event, and is equivalent to ``sequence_id`` above.
+The ``originator_version`` could be the version of a domain entity
+that triggered the event, and is equivalent to ``position`` above.
+The ``topic`` identifies the class of the domain event that is
+stored, and is equivalent to ``topic`` above.
+The ``state`` holds the state of the domain event, and is
+equivalent to ``state`` above.
 
 .. code:: python
 
@@ -128,16 +135,17 @@ Sequenced item mapper
 The event store uses a sequenced item mapper to map between sequenced items
 and application-level objects such as domain events.
 
-The library provides a sequenced item mapper object class called ``SequencedItemMapper``.
-
+The library provides a sequenced item mapper object class called
+:class:`~eventsourcing.infrastructure.sequenceditemmapper.SequencedItemMapper`.
 
 .. code:: python
 
     from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 
 
-The ``SequencedItemMapper`` has a constructor arg ``sequenced_item_class``, which defaults to the library's
-sequenced item named tuple ``SequencedItem``.
+The :class:`~eventsourcing.infrastructure.sequenceditemmapper.SequencedItemMapper`
+has a constructor arg ``sequenced_item_class``, which defaults to the library's
+sequenced item named tuple :class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`.
 
 
 .. code:: python
@@ -145,8 +153,8 @@ sequenced item named tuple ``SequencedItem``.
     sequenced_item_mapper = SequencedItemMapper()
 
 
-The method ``event_from_item()`` can be used to convert sequenced item objects to application-level objects.
-
+The method :func:`~eventsourcing.infrastructure.sequenceditemmapper.SequencedItemMapper.event_from_item`
+can be used to convert sequenced item objects to application-level objects.
 
 .. code:: python
 
@@ -155,7 +163,8 @@ The method ``event_from_item()`` can be used to convert sequenced item objects t
     assert domain_event.foo == 'bar'
 
 
-The method ``item_from_event()`` can be used to convert application-level objects to sequenced item named tuples.
+The method :func:`~eventsourcing.infrastructure.sequenceditemmapper.SequencedItemMapper.item_from_event`
+can be used to convert application-level objects to sequenced item named tuples.
 
 
 .. code:: python
@@ -164,11 +173,11 @@ The method ``item_from_event()`` can be used to convert application-level object
     assert recovered_state == sequenced_item1.state, (recovered_state, sequenced_item1.state)
 
 
-If the names of the first two fields of the sequenced item named tuple (e.g. ``sequence_id`` and ``position``) do not
-match the names of the attributes of the application-level object which identify a sequence and a position (e.g.
-``originator_id`` and ``originator_version``) then the attribute names can be given to the sequenced item mapper
-using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
-
+If the names of the first two fields of the sequenced item named tuple (e.g. ``sequence_id``
+and ``position``) do not match the names of the attributes of the application-level object
+which identify a sequence and a position (e.g. ``originator_id`` and ``originator_version``)
+then the attribute names can be given to the sequenced item mapper using constructor args
+``sequence_id_attr_name`` and ``position_attr_name``.
 
 .. code:: python
 
@@ -191,8 +200,9 @@ using constructor args ``sequence_id_attr_name`` and ``position_attr_name``.
     assert sequenced_item_mapper.item_from_event(domain_event1).sequence_id == aggregate1
 
 
-Alternatively, a sequenced item named tuple type that is different from the
-default ``SequencedItem`` namedtuple, for example the library's ``StoredEvent``
+Alternatively, a sequenced item named tuple type that is different from the default
+:class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem` namedtuple, for
+example the library's :class:`~eventsourcing.infrastructure.sequenceditem.StoredEvent`
 namedtuple, can be passed with the constructor arg ``sequenced_item_class``.
 
 .. code:: python
@@ -206,14 +216,16 @@ namedtuple, can be passed with the constructor arg ``sequenced_item_class``.
     assert domain_event1.foo == 'bar', domain_event1
 
 
-Since the alternative ``StoredEvent`` namedtuple can be used instead of the default
-``SequencedItem`` namedtuple, so it is possible to use a custom named tuple.
+Since the alternative :class:`~eventsourcing.infrastructure.sequenceditem.StoredEvent`
+namedtuple can be used instead of the default
+:class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem` namedtuple, so it is
+possible to use a custom named tuple.
 Which alternative you use for your project depends on your preferences for the names
 in the your domain events and your persistence model.
 
 Please note, it is required of these application-level objects that the  "topic" generated by
-``get_topic()`` from the object class is resolved by ``resolve_topic()`` back to the same object class.
-
+:func:`~eventsourcing.utils.topic.get_topic` from the object class is resolved by
+:func:`~eventsourcing.utils.topic.resolve_topic` back to the same object class.
 
 .. code:: python
 
@@ -228,9 +240,12 @@ Please note, it is required of these application-level objects that the  "topic"
 Custom JSON transcoding
 -----------------------
 
-The ``SequencedItemMapper`` can be constructed with optional args ``json_encoder_class`` and
-``json_decoder_class``. The defaults are the library's ``ObjectJSONEncoder`` and
-``ObjectJSONDecoder`` which can be extended to support types of value objects that are not
+The :class:`~eventsourcing.infrastructure.sequenceditemmapper.SequencedItemMapper`
+can be constructed with optional args ``json_encoder_class`` and ``json_decoder_class``.
+The defaults are the library's
+:class:`~eventsourcing.utils.transcoding.ObjectJSONEncoder` and
+:class:`~eventsourcing.utils.transcoding.ObjectJSONDecoder` which
+can be extended to support types of value objects that are not
 currently supported by the library.
 
 The code below extends the JSON transcoding to support sets.
@@ -286,28 +301,31 @@ The code below extends the JSON transcoding to support sets.
 Application-level encryption
 ----------------------------
 
-The ``SequencedItemMapper`` can be constructed with a symmetric cipher. If
-a cipher is given, then the ``state`` field of every sequenced item will be
-encrypted before being sent to the database. The state retrieved from the
-database will be decrypted and verified, which protects against tampering.
+The :class:`~eventsourcing.infrastructure.sequenceditemmapper.SequencedItemMapper`
+can be constructed with a symmetric cipher. If a cipher is given, then the ``state``
+field of every sequenced item will be encrypted before being sent to the database.
+The state retrieved from the database will be decrypted and verified, which protects
+against tampering.
 
-The library provides an AES cipher object class called ``AESCipher``. It
-uses the AES cipher from the Python Cryptography Toolkit, as forked by
+The library provides an AES cipher object class called :class:`~eventsourcing.utils.cipher.aes.AESCipher`.
+It uses the AES cipher from the Python Cryptography Toolkit, as forked by
 the actively maintained `PyCryptodome project <https://pycryptodome.readthedocs.io/>`__.
 
-The ``AESCipher`` class uses AES in GCM mode, which is a padding-less,
-authenticated encryption mode. Other AES modes aren't supported by this
+The :class:`~eventsourcing.utils.cipher.aes.AESCipher` class uses AES in GCM mode, which
+is a padding-less, authenticated encryption mode. Other AES modes aren't supported by this
 class, at the moment.
 
-The ``AESCipher`` constructor arg ``cipher_key`` is required. The key must
-be either 16, 24, or 32 random bytes (128, 192, or 256 bits). Longer keys
+The :class:`~eventsourcing.utils.cipher.aes.AESCipher` constructor arg ``cipher_key`` is required.
+The key must be either 16, 24, or 32 random bytes (128, 192, or 256 bits). Longer keys
 take more time to encrypt plaintext, but produce more secure ciphertext.
 
 Generating and storing a secure key requires functionality beyond the scope of this library.
-However, the utils package does contain a function ``encode_random_bytes()`` that may help
-to generate a unicode key string, representing random bytes encoded with Base64. A companion
-function ``decode_bytes()`` decodes the unicode key string into a sequence of bytes.
-
+However, the library contains a function
+:func:`~eventsourcing.utils.random.encode_random_bytes`
+that may help to generate a unicode key string, representing random bytes encoded with Base64.
+A companion function
+:func:`~eventsourcing.utils.random.decode_bytes` decodes the unicode key
+string into a sequence of bytes.
 
 .. code:: python
 
@@ -329,8 +347,9 @@ function ``decode_bytes()`` decodes the unicode key string into a sequence of by
     assert plaintext == 'plaintext'
 
 
-The ``SequencedItemMapper`` has constructor arg ``cipher``, which can
-be used to pass in a cipher object, and thereby enable encryption.
+The :class:`~eventsourcing.infrastructure.sequenceditemmapper.SequencedItemMapper`
+has constructor arg ``cipher``, which can be used to pass in a cipher object, and
+thereby enable encryption.
 
 .. code:: python
 
@@ -357,9 +376,10 @@ be used to pass in a cipher object, and thereby enable encryption.
     assert domain_event.foo == 'bar'
 
 
-Please note, the sequence ID and position values are not encrypted, necessarily. However, by encrypting the state of
-the item within the application, potentially sensitive information, for example personally identifiable information,
-will be encrypted in transit to the database, at rest in the database, and in all backups and other copies.
+Please note, the sequence ID and position values are not encrypted, necessarily. However,
+by encrypting the state of the item within the application, potentially sensitive information,
+for example personally identifiable information, will be encrypted in transit to the database,
+at rest in the database, and in all backups and other copies.
 
 
 Record managers
@@ -367,9 +387,13 @@ Record managers
 
 The event store uses a record manager to write sequenced items to database records.
 
-The library has an abstract base class ``AbstractActiveRecordManager`` with abstract
-methods ``record()`` and ``get_items()``, which can be used on concrete implementations
-to read and write sequenced items in a database.
+The library has an abstract base class
+:class:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager`
+with abstract methods
+:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.record_sequenced_items`
+and
+:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.get_items`,
+which can be used on concrete implementations to read and write sequenced items in a database.
 
 A record manager is constructed with a ``sequenced_item_class`` and a matching
 ``record_class``. The field names of a suitable record class will match the field
@@ -379,8 +403,9 @@ names of the sequenced item named tuple.
 SQLAlchemy
 ----------
 
-The library has a record manager for SQLAlchemy provided by the object class
-``SQLAlchemyRecordManager``.
+The library class
+:class:`~eventsourcing.infrastructure.sqlalchemy.manager.SQLAlchemyRecordManager`
+is a record manager for SQLAlchemy.
 
 To run the example below, please install the library with the
 'sqlalchemy' option.
@@ -390,22 +415,30 @@ To run the example below, please install the library with the
     $ pip install eventsourcing[sqlalchemy]
 
 
-The library provides record classes for SQLAlchemy, such as ``IntegerSequencedRecord`` and
-``StoredEventRecord``. The ``IntegerSequencedRecord`` class matches the default ``SequencedItem``
-namedtuple. The ``StoredEventRecord`` class matches the alternative ``StoredEvent`` namedtuple.
-There is also a ``TimestampSequencedRecord`` and a ``SnapshotRecord``.
+The library provides record classes for SQLAlchemy, such as
+:class:`~eventsourcing.infrastructure.sqlalchemy.records.IntegerSequencedRecord` and
+:class:`~eventsourcing.infrastructure.sqlalchemy.records.StoredEventRecord`.
+The class :class:`~eventsourcing.infrastructure.sqlalchemy.records.IntegerSequencedRecord`
+matches the default
+:class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`
+namedtuple. The :class:`~eventsourcing.infrastructure.sqlalchemy.records.StoredEventRecord`
+class matches the alternative :class:`~eventsourcing.infrastructure.sequenceditem.StoredEvent`
+namedtuple. There is also a
+:class:`~eventsourcing.infrastructure.sqlalchemy.records.TimestampSequencedRecord` and a
+:class:`~eventsourcing.infrastructure.sqlalchemy.records.SnapshotRecord`.
 
-The code below uses the namedtuple ``StoredEvent`` and the record class ``StoredEventRecord``.
-
+The code below uses the namedtuple :class:`~eventsourcing.infrastructure.sequenceditem.StoredEvent`
+and the record class :class:`~eventsourcing.infrastructure.sqlalchemy.records.StoredEventRecord`.
 
 .. code:: python
 
     from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
 
 
-Database settings can be configured using ``SQLAlchemySettings``, which is constructed with a ``uri`` connection
+Database settings can be configured using
+:class:`~eventsourcing.infrastructure.sqlalchemy.datastore.SQLAlchemySettings`,
+which is constructed with a ``uri`` connection
 string. The code below uses an in-memory SQLite database.
-
 
 .. code:: python
 
@@ -414,11 +447,12 @@ string. The code below uses an in-memory SQLite database.
     settings = SQLAlchemySettings(uri='sqlite:///:memory:')
 
 
-To help setup a database connection and tables, the library has object class ``SQLAlchemyDatastore``.
+To help setup a database connection and tables, the library has object class
+:class:`~eventsourcing.infrastructure.sqlalchemy.datastore.SQLAlchemyDatastore`.
 
-The ``SQLAlchemyDatastore`` is constructed with the ``settings`` object,
-and a tuple of record classes passed using the ``tables`` arg.
-
+The :class:`~eventsourcing.infrastructure.sqlalchemy.datastore.SQLAlchemyDatastore`
+is constructed with the ``settings`` object, and a tuple of record classes passed
+using the ``tables`` arg.
 
 .. code:: python
 
@@ -434,9 +468,11 @@ Please note, if you have declared your own SQLAlchemy model ``Base`` class, you 
 record classes which inherit from your ``Base`` class. If so, if may help to refer to the library record
 classes to see how SQLALchemy ORM columns and indexes can be used to persist sequenced items.
 
-The methods ``setup_connection()`` and ``setup_tables()`` of the datastore object
-can be used to setup the database connection and the tables.
-
+The methods
+:func:`~eventsourcing.infrastructure.sqlalchemy.datastore.SQLAlchemyDatastore.setup_connection`
+and
+:func:`~eventsourcing.infrastructure.sqlalchemy.datastore.SQLAlchemyDatastore.setup_tables`
+of a datastore object can be used to setup the database connection and the tables.
 
 .. code:: python
 
@@ -444,14 +480,17 @@ can be used to setup the database connection and the tables.
     datastore.setup_tables()
 
 
-As well as ``sequenced_item_class`` and a matching ``record_class``, the ``SQLAlchemyRecordManager``
+As well as ``sequenced_item_class`` and a matching ``record_class``, the
+:class:`~eventsourcing.infrastructure.sqlalchemy.manager.SQLAlchemyRecordManager`
 requires a scoped session object, passed using the constructor arg ``session``. For convenience, the
-``SQLAlchemyDatabase`` has a thread-scoped session facade set as its a ``session`` attribute. You may
-wish to use a different scoped session facade, such as a request-scoped session object provided by a Web
-framework.
+:class:`~eventsourcing.infrastructure.sqlalchemy.datastore.SQLAlchemyDatastore`
+has a thread-scoped session facade set as its a ``session`` attribute. You may
+wish to use a different scoped session facade, such as a request-scoped session
+object provided by a Web framework.
 
-With the database setup, the ``SQLAlchemyRecordManager`` can be constructed,
-and used to store events using SQLAlchemy.
+With the database setup, an
+:class:`~eventsourcing.infrastructure.sqlalchemy.manager.SQLAlchemyRecordManager`
+can be constructed, and used to store events using SQLAlchemy.
 
 .. code:: python
 
@@ -465,21 +504,19 @@ and used to store events using SQLAlchemy.
         application_name=uuid4().hex
     )
 
-Sequenced items (or "stored events" in this example) can be appended to the database
-using the ``append()`` method of the record manager.
+Sequenced items (or "stored events" in this example) can
+be appended to the database using the
+:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.record_sequenced_items`
+method of the record manager.
 
 .. code:: python
 
-    record_manager.record_sequenced_item(stored_event1)
+    record_manager.record_sequenced_items(stored_event1)
 
 
-(Please note, since the position is given by the sequenced item itself, the word "append" means here "to add something
-extra" rather than the perhaps more common but stricter meaning "to add to the end of a document". That is, the
-database is deliberately not responsible for positioning a new item at the end of a sequence. So perhaps "save"
-would be a better name for this operation.)
-
-All the previously appended items of a sequence can be retrieved by using the ``get_items()`` method.
-
+All the previously appended items of a sequence can be retrieved by using the
+:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.list_items`
+method.
 
 .. code:: python
 
@@ -487,7 +524,6 @@ All the previously appended items of a sequence can be retrieved by using the ``
 
 
 Since by now only one item was stored, so there is only one item in the results.
-
 
 .. code:: python
 
@@ -588,7 +624,7 @@ Django ORM
 ----------
 
 The library has a record manager for the Django ORM provided by
-``DjangoRecordManager`` class.
+:class:`~eventsourcing.infrastructure.django.manager.DjangoRecordManager` class.
 
 To run the example below, please install the library with the
 'django' option.
@@ -598,13 +634,18 @@ To run the example below, please install the library with the
     $ pip install eventsourcing[django]
 
 
-For the ``DjangoRecordManager``, the ``IntegerSequencedRecord``
-from ``eventsourcing.infrastructure.django.models`` matches the ``SequencedItem``
-namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
-namedtuple. There is also a ``TimestampSequencedRecord`` and a ``SnapshotRecord``.
+For the :class:`~eventsourcing.infrastructure.django.manager.DjangoRecordManager`, the
+:class:`~eventsourcing.infrastructure.django.models.IntegerSequencedRecord`
+matches the :class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`
+namedtuple. The
+:class:`~eventsourcing.infrastructure.django.models.StoredEventRecord` from the
+same module matches the :class:`~eventsourcing.infrastructure.sequenceditem.StoredEvent`
+namedtuple. There is also a
+:class:`~eventsourcing.infrastructure.django.models.TimestampSequencedRecord` and a
+:class:`~eventsourcing.infrastructure.django.models.SnapshotRecord`.
 These are all Django models.
 
-The package ``eventsourcing.infrastructure.django`` is a little Django app. To involve
+The package :mod:`eventsourcing.infrastructure.django` is a little Django app. To involve
 its models in your Django project, simply include the application in your project's list
 of ``INSTALLED_APPS``.
 
@@ -623,7 +664,7 @@ of ``INSTALLED_APPS``.
 
 Alternatively, import or write the classes you want into one of your own Django app's ``models.py``.
 
-The Django application at ``eventsourcing.infrastructure.django`` has database
+The Django application at :mod:`eventsourcing.infrastructure.django` has database
 migrations that will add four tables, one for each of the
 record classes mentioned above. So if you use the application directly in
 ``INSTALLED_APPS`` then the app's migrations will be picked up by Django.
@@ -670,7 +711,8 @@ before each test by calling it in the ``setUp()`` method of a test case.
     call_command('migrate', verbosity=0, interactive=False)
 
 
-So long as a table exists for its record class, the ``DjangoRecordManager``
+So long as a table exists for its record class, the
+:class:`~eventsourcing.infrastructure.django.manager.DjangoRecordManager`
 can be used to store events using the Django ORM.
 
 .. code:: python
@@ -750,8 +792,8 @@ isolation level must be at least "read committed", which is true by
 default for MySQL and PostgreSQL.
 
 Any resulting contention in the record ID will raise an exception so that the
-query can be retried. The library exception class ``RecordConflictError`` will
-be raised.
+query can be retried. The library exception class :class:`~eventsourcing.exceptions.RecordConflictError`
+will be raised.
 
 
 Cassandra
@@ -759,7 +801,8 @@ Cassandra
 
 The library has a record manager for
 `Apache Cassandra <http://cassandra.apache.org/>`__
-provided by the ``CassandraRecordManager`` class.
+provided by the library class
+:class:`~eventsourcing.infrastructure.cassandra.manager.CassandraRecordManager`.
 
 .. code:: python
 
@@ -780,15 +823,20 @@ quickly, set the environment variable ``CASS_DRIVER_NO_CYTHON``.
     $ CASS_DRIVER_NO_CYTHON=1 pip install eventsourcing[cassandra]
 
 
-For the ``CassandraRecordManager``, the ``IntegerSequencedRecord``
-from ``eventsourcing.infrastructure.cassandra.models`` matches the ``SequencedItem``
-namedtuple. The ``StoredEventRecord`` from the same module matches the ``StoredEvent``
-namedtuple.  There is also a ``TimestampSequencedRecord``, a ``TimeuuidSequencedRecord``,
-and a ``SnapshotRecord``.
+For the :class:`~eventsourcing.infrastructure.cassandra.manager.CassandraRecordManager`,
+the :class:`~eventsourcing.infrastructure.cassandra.records.IntegerSequencedRecord`
+from :mod:`eventsourcing.infrastructure.cassandra.records` matches the
+:class:`~eventsourcing.infrastructure.sequenceditem.SequencedItem`
+namedtuple. The :class:`~eventsourcing.infrastructure.cassandra.records.StoredEventRecord`
+from the same module matches the :class:`~eventsourcing.infrastructure.sequenceditem.StoredEvent`
+namedtuple.  There is also a
+:class:`~eventsourcing.infrastructure.cassandra.records.TimestampSequencedRecord`,
+a :class:`~eventsourcing.infrastructure.cassandra.records.TimeuuidSequencedRecord`,
+and a :class:`~eventsourcing.infrastructure.cassandra.records.SnapshotRecord`.
 
-
-The ``CassandraDatastore`` and ``CassandraSettings`` can be used in the same was as
-``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` above. Please investigate
+The :class:`~eventsourcing.infrastructure.cassandra.datastore.CassandraDatastore` and
+:class:`~eventsourcing.infrastructure.cassandra.datastore.CassandraSettings` can be used
+in the same was as ``SQLAlchemyDatastore`` and ``SQLAlchemySettings`` above. Please investigate
 library class :class:`~eventsourcing.infrastructure.cassandra.datastore.CassandraSettings`
 for information about configuring away from default settings.
 
@@ -805,8 +853,9 @@ for information about configuring away from default settings.
     cassandra_datastore.setup_tables()
 
 
-With the database setup, the ``CassandraRecordManager`` can be constructed,
-and used to store events using Apache Cassandra.
+With the database setup, the
+:class:`~eventsourcing.infrastructure.cassandra.manager.CassandraRecordManager`
+can be constructed, and used to store events using Apache Cassandra.
 
 .. code:: python
 
@@ -834,7 +883,7 @@ Sequenced item conflicts
 
 It is a common feature of the record manager classes that it isn't possible successfully
 to append two items at the same position in the same sequence. If such an attempt is made, a
-``RecordConflictError`` will be raised.
+:class:`~eventsourcing.exceptions.RecordConflictError` will be raised.
 
 .. code:: python
 
@@ -865,11 +914,14 @@ an actor framework or `Zookeeper <https://zookeeper.apache.org/>`__ might help.
 Event store
 ===========
 
-The library's ``EventStore`` provides an interface to the library's cohesive mechanism for storing events as sequences
-of items, and can be used directly within an event sourced application to append and retrieve its domain events.
+The library's :class:`~eventsourcing.infrastructure.eventstore.EventStore`
+provides an interface to the library's cohesive mechanism for storing events
+as sequences of items, and can be used directly within an event sourced
+application to append and retrieve its domain events.
 
-The ``EventStore`` is constructed with a sequenced item mapper and an
-record manager, both are discussed in detail in the sections above.
+The :class:`~eventsourcing.infrastructure.eventstore.EventStore`
+is constructed with a sequenced item mapper and a record
+manager, both are discussed in detail in the sections above.
 
 
 .. code:: python
@@ -882,11 +934,13 @@ record manager, both are discussed in detail in the sections above.
     )
 
 
-The event store's ``store()`` method can store a domain event in its sequence. The event store uses the
-``sequenced_item_mapper`` to obtain a sequenced item named tuple from a domain events, and it uses the
+The method :func:`~eventsourcing.infrastructure.eventstore.EventStore.store` can
+store a domain event in its sequence. The event store uses its ``sequenced_item_mapper``
+to obtain a sequenced item named tuple from a domain events, and it uses its
 ``record_manager`` to record a sequenced item in the database.
 
-In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at position ``1``.
+In the code below, a :class:`~eventsourcing.domain.model.events.DomainEvent` is
+appended to sequence ``aggregate1`` at position ``1``.
 
 .. code:: python
 
@@ -899,11 +953,10 @@ In the code below, a ``DomainEvent`` is appended to sequence ``aggregate1`` at p
     )
 
 
-The event store's method ``get_domain_events()`` is used to get events that have previously
-been stored. The event store uses the ``record_manager`` to get the sequenced items from
-database records, and it uses the ``sequenced_item_mapper`` to obtain domain events from
-the sequenced items.
-
+The method :func:`~eventsourcing.infrastructure.eventstore.EventStore.get_domain_events` can
+be used to get events that have previously been stored. The event store uses its
+``record_manager`` to get the sequenced items from database records, and it uses
+its ``sequenced_item_mapper`` to obtain domain events from the sequenced items.
 
 .. code:: python
 
@@ -921,7 +974,9 @@ Since by now two domain events have been stored, so there are two domain events 
     assert results[1].foo == 'baz'
 
 
-The optional arguments of ``get_domain_events()`` can be used to select some of the items in the sequence.
+The optional arguments of
+:func:`~eventsourcing.infrastructure.eventstore.EventStore.get_domain_events`
+can be used to select some of the items in the sequence.
 
 The ``lt`` arg is used to select items below the given position in the sequence.
 
@@ -963,10 +1018,13 @@ order of the results. Hence, it can affect both the content of the results and t
 Optimistic concurrency control
 ------------------------------
 
-It is a feature of the event store that it isn't possible successfully to append two events at the same position in
-the same sequence. This condition is coded as a ``ConcurrencyError`` since a correct program running in a
-single thread wouldn't attempt to append an event that it had already successfully appended.
-
+It is a feature of the event store that it isn't possible successfully
+to append two events at the same position in the same sequence. This condition
+is coded as a :class:`~eventsourcing.exceptions.ConcurrencyError` since
+a correct program running in a single thread wouldn't attempt to append
+an event that it had already successfully appended. The exception class
+:class:`~eventsourcing.exceptions.ConcurrencyError` is a subclass of the
+exception class :class:`~eventsourcing.exceptions.RecordConflictError`.
 
 .. code:: python
 
@@ -987,12 +1045,17 @@ single thread wouldn't attempt to append an event that it had already successful
         raise Exception("ConcurrencyError not raised")
 
 
-This feature depends on the behaviour of the record manager's ``append()`` method: the event store will
-raise a ``ConcurrencyError`` if a ``RecordConflictError`` is raised by its record manager.
+This feature depends on the behaviour of the record manager method
+:class:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.record_sequenced_items`.
+The event store will raise a
+:class:`~eventsourcing.exceptions.ConcurrencyError` if a
+:class:`~eventsourcing.exceptions.RecordConflictError`
+is raised by its record manager.
 
-If a command fails due to a concurrency error, the command can be retried with the latest state. The ``@retry``
-decorator can help code retries on commands.
-
+If a command fails due to a concurrency error, the command can be
+retried with the latest state. The decorator
+:func:`~eventsourcing.domain.model.decorators.retry`
+can help code retries on commands.
 
 .. code:: python
 
@@ -1023,91 +1086,100 @@ example by treating each aggregate as an actor within an actor framework, or wit
 by something like Zookeeper.
 
 
-Event store factory
--------------------
+Infrastructure factory
+======================
 
-As a convenience, the library function ``construct_sqlalchemy_eventstore()``
-can be used to construct an event store that uses the SQLAlchemy classes.
+To help with construction of infrastructure objects, the library
+has a various infrastructure factory classes. The abstract base class
+:class:`~eventsourcing.infrastructure.factory.InfrastructureFactory`
+defines the common method signatures. The concrete subclass
+:class:`~eventsourcing.infrastructure.sqlalchemy.factory.SQLAlchemyInfrastructureFactory`
+helps with construction of SQLAlchemy infrastructure. Similarly
+:class:`~eventsourcing.infrastructure.django.factory.DjangoInfrastructureFactory`
+helps with Django infrastructure and
+:class:`~eventsourcing.infrastructure.cassandra.factory.CassandraInfrastructureFactory`
+helps with Cassandra.
 
-.. code:: python
-
-    from eventsourcing.infrastructure.sqlalchemy import factory
-
-    event_store = factory.construct_sqlalchemy_eventstore(
-        session=datastore.session,
-        application_name=uuid4().hex,
-        contiguous_record_ids=True,
-    )
-
-
-By default, the event store is constructed with the ``StoredEvent`` sequenced item named tuple,
-and the record class ``StoredEventRecord``. The optional args ``sequenced_item_class``
-and ``record_class`` can be used to construct different kinds of event store.
-
-
-Timestamped event store
------------------------
-
-The examples so far have used an integer sequenced event store, where the items are sequenced by integer version.
-
-The example below constructs an event store for timestamp-sequenced domain events, using the library
-record class ``TimestampSequencedRecord``.
-
-.. code:: python
-
-    from uuid import uuid4
-
-    from eventsourcing.infrastructure.sqlalchemy.records import TimestampSequencedRecord
-    from eventsourcing.utils.times import decimaltimestamp
-
-    # Setup database table for timestamped sequenced items.
-    datastore.setup_table(TimestampSequencedRecord)
-
-    # Construct event store for timestamp sequenced events.
-    timestamped_event_store = factory.construct_sqlalchemy_eventstore(
-        sequenced_item_class=SequencedItem,
-        record_class=TimestampSequencedRecord,
-        sequence_id_attr_name='originator_id',
-        position_attr_name='timestamp',
-        session=datastore.session,
-    )
-
-    # Construct an event.
-    aggregate_id = uuid4()
-    event = DomainEvent(
-        originator_id=aggregate_id,
-        timestamp=decimaltimestamp(),
-    )
-
-    # Store the event.
-    timestamped_event_store.store(event)
-
-    # Check the event was stored.
-    events = timestamped_event_store.get_domain_events(aggregate_id)
-    assert len(events) == 1
-    assert events[0].originator_id == aggregate_id
-    assert events[0].timestamp < decimaltimestamp()
-
-
-Please note, optimistic concurrent control doesn't work with timestamped sequenced items to maintain
-consistency of a domain entity, because each event is likely to have a unique timestamp, and so
-branches can occur without restraint. Optimistic concurrency control will prevent one timestamp
-sequenced event from overwritting another. For this reason, although domain events are usefully timestamped,
-it is not a very good idea to store the events of an entity or aggregate as timestamp-sequenced items.
-Timestamp-sequenced items are useful for storing events that are logically independent of others, such
-as messages in a log, things that do not risk causing a consistency error due to concurrent operations.
-It remains that timestamp sequenced items can happen to occur at the same timestamp, in which case
-there would be a concurrency error exception, and the event could be retried with a later timestamp.
-
-
-TimeUUIDs
-~~~~~~~~~
-
-If throughput is so high that such conflicts are too frequent, the library also supports sequencing
-items by TimeUUID, which includes a random component that makes it very unlikely two events will
-conflict. This feature currently works with Apache Cassandra only. Tests exist in the library, other
-documentation is forthcoming.
-
+.. .. code:: python
+..
+..     from eventsourcing.infrastructure.sqlalchemy import factory
+..
+..     event_store = factory.construct_sqlalchemy_eventstore(
+..         session=datastore.session,
+..         application_name=uuid4().hex,
+..         contiguous_record_ids=True,
+..     )
+..
+..
+.. By default, the event store is constructed with the
+.. :class:`~eventsourcing.infrastructure.sequenceditem.StoredEvent` sequenced item named tuple,
+.. and the record class ``StoredEventRecord``. The optional args ``sequenced_item_class``
+.. and ``record_class`` can be used to construct different kinds of event store.
+..
+..
+.. Timestamped event store
+.. -----------------------
+..
+.. The examples so far have used an integer sequenced event store, where the items are sequenced by integer version.
+..
+.. The example below constructs an event store for timestamp-sequenced domain events, using the library
+.. record class ``TimestampSequencedRecord``.
+..
+.. .. code:: python
+..
+..     from uuid import uuid4
+..
+..     from eventsourcing.infrastructure.sqlalchemy.records import TimestampSequencedRecord
+..     from eventsourcing.utils.times import decimaltimestamp
+..
+..     # Setup database table for timestamped sequenced items.
+..     datastore.setup_table(TimestampSequencedRecord)
+..
+..     # Construct event store for timestamp sequenced events.
+..     timestamped_event_store = factory.construct_sqlalchemy_eventstore(
+..         sequenced_item_class=SequencedItem,
+..         record_class=TimestampSequencedRecord,
+..         sequence_id_attr_name='originator_id',
+..         position_attr_name='timestamp',
+..         session=datastore.session,
+..     )
+..
+..     # Construct an event.
+..     aggregate_id = uuid4()
+..     event = DomainEvent(
+..         originator_id=aggregate_id,
+..         timestamp=decimaltimestamp(),
+..     )
+..
+..     # Store the event.
+..     timestamped_event_store.store(event)
+..
+..     # Check the event was stored.
+..     events = timestamped_event_store.get_domain_events(aggregate_id)
+..     assert len(events) == 1
+..     assert events[0].originator_id == aggregate_id
+..     assert events[0].timestamp < decimaltimestamp()
+..
+..
+.. Please note, optimistic concurrent control doesn't work with timestamped sequenced items to maintain
+.. consistency of a domain entity, because each event is likely to have a unique timestamp, and so
+.. branches can occur without restraint. Optimistic concurrency control will prevent one timestamp
+.. sequenced event from overwritting another. For this reason, although domain events are usefully timestamped,
+.. it is not a very good idea to store the events of an entity or aggregate as timestamp-sequenced items.
+.. Timestamp-sequenced items are useful for storing events that are logically independent of others, such
+.. as messages in a log, things that do not risk causing a consistency error due to concurrent operations.
+.. It remains that timestamp sequenced items can happen to occur at the same timestamp, in which case
+.. there would be a concurrency error exception, and the event could be retried with a later timestamp.
+..
+..
+.. TimeUUIDs
+.. ~~~~~~~~~
+..
+.. If throughput is so high that such conflicts are too frequent, the library also supports sequencing
+.. items by TimeUUID, which includes a random component that makes it very unlikely two events will
+.. conflict. This feature currently works with Apache Cassandra only. Tests exist in the library, other
+.. documentation is forthcoming.
+..
 
 .. Todo: The library function ``construct_cassandra_eventstore()`` can be used to
 .. construct an event store that uses the Apache Cassandra classes.

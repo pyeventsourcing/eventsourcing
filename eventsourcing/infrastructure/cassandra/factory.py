@@ -5,6 +5,9 @@ from eventsourcing.infrastructure.factory import InfrastructureFactory
 
 
 class CassandraInfrastructureFactory(InfrastructureFactory):
+    """
+    Infrastructure factory for Cassandra.
+    """
     record_manager_class = CassandraRecordManager
     integer_sequenced_record_class = IntegerSequencedRecord
     timestamp_sequenced_record_class = TimestampSequencedRecord

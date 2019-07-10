@@ -1,6 +1,3 @@
-"""
-The entity module provides base classes for domain entities.
-"""
 from abc import abstractmethod
 from uuid import uuid4
 
@@ -13,33 +10,25 @@ from eventsourcing.utils.topic import get_topic, resolve_topic
 
 class DomainEntity(object):
     """
-    Base class for domain entities.
+    Supertype for domain model entity.
     """
-
-    def __init__(self, id):
-        self._id = id
-        self.__is_discarded__ = False
-
-    @property
-    def id(self):
-        """Entity ID allows an entity instance to be
-        referenced and distinguished from others, even
-        though its state may change over time.
-        """
-        return self._id
 
     class Event(EventWithOriginatorID, DomainEvent):
         """
-        Supertype for events of domain entities.
+        Supertype for events of domain model entities.
         """
 
-        def __mutate__(self, obj):
-            # Call super method.
-            return super(DomainEntity.Event, self).__mutate__(obj)
+        # def __mutate__(self, obj):
+        #     # Call super method.
+        #     return super(DomainEntity.Event, self).__mutate__(obj)
 
-        def __check_obj__(self, obj):
+        def __check_obj__(self, obj: "DomainEntity"):
             """
-            Checks obj state before mutating.
+            Checks state of obj before mutating.
+
+            :param obj: Domain entity to be checked.
+
+            :raises OriginatorIDError: if the originator_id is mismatched
             """
             # Check obj is not None.
             assert obj is not None, "'obj' is None"
@@ -53,6 +42,19 @@ class DomainEntity(object):
 
     @classmethod
     def __create__(cls, originator_id=None, event_class=None, **kwargs):
+        """
+        Creates a new domain entity.
+
+        Constructs a "created" event, constructs the entity object
+        from the event, publishes the "created" event, and returns
+        the new domain entity object.
+
+        :param originator_id: ID of the new domain entity (defaults to ``uuid4()``).
+        :param event_class: Domain event class to be used for the "created" event.
+        :param kwargs: Other named attribute values of the "created" event.
+        :return: New domain entity object.
+        :rtype: DomainEntity
+        """
         if originator_id is None:
             originator_id = uuid4()
         event = (event_class or cls.Created)(
@@ -77,9 +79,21 @@ class DomainEntity(object):
 
         @property
         def originator_topic(self):
+            """
+            Topic (a string) representing the class of the originating domain entity.
+
+            :rtype: str
+            """
             return self.__dict__['originator_topic']
 
         def __mutate__(self, entity_class=None):
+            """
+            Constructs object from an entity class,
+            which is obtained by resolving the originator topic,
+            unless it is given as method argument ``entity_class``.
+
+            :param entity_class: Class of domain entity to be constructed.
+            """
             if entity_class is None:
                 entity_class = resolve_topic(self.originator_topic)
             return entity_class(**self.__entity_kwargs__)
@@ -91,6 +105,26 @@ class DomainEntity(object):
             kwargs.pop('originator_topic', None)
             kwargs.pop('__event_topic__', None)
             return kwargs
+
+    def __init__(self, id):
+        self._id = id
+        self.__is_discarded__ = False
+
+    @property
+    def id(self):
+        """The immutable ID of the domain entity.
+
+        This value is set using the ``originator_id`` of the
+        "created" event constructed by ``__create__()``.
+
+        An entity ID allows an instance to be
+        referenced and distinguished from others, even
+        though its state may change over time.
+
+        This attribute has the normal "public" format for a Python object
+        attribute name, because by definition all domain entities have an ID.
+        """
+        return self._id
 
     def __change_attribute__(self, name, value):
         """

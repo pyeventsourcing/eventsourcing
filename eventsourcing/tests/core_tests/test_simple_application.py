@@ -3,10 +3,10 @@ from unittest import TestCase
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
 
 from eventsourcing.application.django import DjangoApplication
+from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.domain.model.events import assert_event_handlers_empty, DomainEvent
-from eventsourcing.interface.notificationlog import NotificationLogReader
 from eventsourcing.tests.core_tests.test_aggregate_root import ExampleAggregateRoot
 from eventsourcing.utils.random import encode_random_bytes
 
