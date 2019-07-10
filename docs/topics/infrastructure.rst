@@ -1092,7 +1092,7 @@ Infrastructure factory
 To help with construction of infrastructure objects, the library
 has a various infrastructure factory classes. The abstract base class
 :class:`~eventsourcing.infrastructure.factory.InfrastructureFactory`
-defines common the method signatures. The concrete subclass
+defines the common method signatures. The concrete subclass
 :class:`~eventsourcing.infrastructure.sqlalchemy.factory.SQLAlchemyInfrastructureFactory`
 helps with construction of SQLAlchemy infrastructure. Similarly
 :class:`~eventsourcing.infrastructure.django.factory.DjangoInfrastructureFactory`
