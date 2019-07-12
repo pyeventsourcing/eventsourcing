@@ -18,6 +18,11 @@ DEFAULT_POLL_INTERVAL = 5
 
 
 class System(object):
+    """
+    A system object has a set of pipeline expressions, which involve
+    process application classes. A system object can be run using
+    a system runner.
+    """
     def __init__(self, *pipeline_exprs, **kwargs):
         """
         Initialises a "process network" system object.
@@ -80,6 +85,9 @@ class System(object):
                 previous_name = process_name
 
     def construct_app(self, process_class, infrastructure_class=None, **kwargs):
+        """
+        Constructs process application from given ``process_class``.
+        """
         kwargs = dict(kwargs)
         if 'session' not in kwargs and process_class.is_constructed_with_session:
             kwargs['session'] = self.session
@@ -96,14 +104,23 @@ class System(object):
         return process
 
     def is_prompt(self, event):
+        """
+        Predicate for subscribing to publication of Prompt objects.
+        """
         return isinstance(event, Prompt)
 
     def __enter__(self):
+        """
+        Supports usage of a system object as a context manager.
+        """
         self.__runner = SingleThreadedRunner(self)
         self.__runner.__enter__()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Supports usage of a system object as a context manager.
+        """
         self.__runner.__exit__(exc_type, exc_val, exc_tb)
         del (self.__runner)
 
