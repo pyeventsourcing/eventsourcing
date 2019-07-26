@@ -19,7 +19,7 @@ cipher
 .. py:module:: eventsourcing.utils.times
 
 times
-----
+-----
 
 .. automodule:: eventsourcing.utils.times
     :show-inheritance:
@@ -66,5 +66,3 @@ random
     :members:
     :special-members:
     :exclude-members: __weakref__, __dict__
-
-

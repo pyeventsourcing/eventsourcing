@@ -123,6 +123,7 @@ class SimpleApplication(ABC):
             record_manager_class=self.record_manager_class,
             integer_sequenced_record_class=self.stored_event_record_class,
             sequenced_item_class=self.sequenced_item_class,
+            sequenced_item_mapper_class=self.sequenced_item_mapper_class,
             contiguous_record_ids=self.contiguous_record_ids,
             application_name=self.name,
             pipeline_id=self.pipeline_id,

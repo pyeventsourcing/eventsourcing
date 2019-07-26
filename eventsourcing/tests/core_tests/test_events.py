@@ -122,8 +122,8 @@ class TestEventWithTimestamp(unittest.TestCase):
 
         # Check event can be instantiated without a timestamp.
         event = Event()
-        self.assertGreater(event.timestamp, time1)
-        self.assertLess(event.timestamp, decimaltimestamp())
+        self.assertGreaterEqual(event.timestamp, time1)
+        self.assertLessEqual(event.timestamp, decimaltimestamp())
 
         # Check the timestamp value can't be reassigned.
         with self.assertRaises(AttributeError):
@@ -222,9 +222,9 @@ class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
         self.assertEqual(event2.originator_id, '1')
 
         # Check the event timestamps.
-        self.assertLess(time1, event1.timestamp)
-        self.assertLess(event1.timestamp, event2.timestamp)
-        self.assertLess(event2.timestamp, decimaltimestamp())
+        self.assertLessEqual(time1, event1.timestamp)
+        self.assertLessEqual(event1.timestamp, event2.timestamp)
+        self.assertLessEqual(event2.timestamp, decimaltimestamp())
 
         # Check the events are not equal to each other, whilst being equal to themselves.
         self.assertEqual(event1, event1)

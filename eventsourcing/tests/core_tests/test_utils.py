@@ -26,9 +26,6 @@ class TestUtils(TestCase):
             self.assertLessEqual(last, timestamp)
             last = timestamp
 
-        # Check last timestamp is greater than the first.
-        self.assertGreater(timestamps[-1], timestamps[0])
-
     def test_decimaltimestamp_from_uuid(self):
         # Check can convert a UUID to a Decimal.
         self.assertIsInstance(decimaltimestamp_from_uuid(uuid1()), Decimal)

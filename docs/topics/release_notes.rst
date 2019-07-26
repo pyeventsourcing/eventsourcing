@@ -18,6 +18,16 @@ Version 7.x
 Version 7.x series refined the "process and system" code.
 
 
+Version 7.1.5 (released 26 Jul 2019)
+------------------------------------
+
+Version 7.1.5 improved the library documentation with better links to
+module reference pages. The versions of dependencies were also updated,
+so that all versions of dependencies are the current stable versions
+of the package distributions on PyPI. In particular, requests was
+updated to a version that fixes a security vulnerability.
+
+
 Version 7.1.4 (released 10 Jul 2019)
 ------------------------------------
 

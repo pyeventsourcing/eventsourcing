@@ -14,7 +14,7 @@ if 'READTHEDOCS' in os.environ:
 install_requires = [
     'python-dateutil<=2.8.99999',
     'pycryptodome<=3.8.99999',
-    'requests<=2.21.99999',
+    'requests<=2.22.99999',
     'readerwriterlock<=1.0.99999',
 ]
 
@@ -24,7 +24,7 @@ sqlalchemy_requires = [
 ]
 
 cassandra_requires = [
-    'cassandra-driver<=3.17.99999'
+    'cassandra-driver<=3.18.99999'
 ]
 
 django_requires = [
@@ -33,7 +33,7 @@ django_requires = [
 
 testing_requires = cassandra_requires + sqlalchemy_requires + django_requires + [
     'mock<=3.0.99999',
-    'flask<=1.0.99999',
+    'flask<=1.1.99999',
     'flask_sqlalchemy<=2.4.99',
     'uwsgi<=2.0.99999',
     'redis<=3.2.99999',
