@@ -107,6 +107,9 @@ class DomainEvent(object):
         :rtype: int
         """
         state = self.__dict__.copy()
+
+        # Involve the topic in the hash, so that different types
+        # with same attribute values have different hash values.
         state['__event_topic__'] = get_topic(type(self))
 
         # Calculate the cryptographic hash of the event.
