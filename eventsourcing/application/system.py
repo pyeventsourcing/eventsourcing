@@ -144,7 +144,8 @@ class System(object):
 
 class SystemRunner(ABC):
 
-    def __init__(self, system: System, infrastructure_class=None, setup_tables=False):
+    def __init__(self, system: System, infrastructure_class=None, setup_tables=False,
+                 use_direct_query_if_available=False):
         self.system = system
         self.infrastructure_class = infrastructure_class or self.system.infrastructure_class
         # Check that a concrete infrastructure class is involved.
@@ -155,6 +156,7 @@ class SystemRunner(ABC):
             ):
                 raise ProgrammingError("System runner needs a concrete application infrastructure class")
         self.setup_tables = setup_tables
+        self.use_direct_query_if_available = use_direct_query_if_available
         self.processes = {}
 
     def __enter__(self):
@@ -198,6 +200,7 @@ class InProcessRunner(SystemRunner):
                 process_class=process_class,
                 infrastructure_class=self.infrastructure_class,
                 setup_table=self.setup_tables or self.system.setup_tables,
+                use_direct_query_if_available=self.use_direct_query_if_available,
             )
             self.system.processes[process.name] = process
 
@@ -552,7 +555,8 @@ class SteppingSingleThreadedRunner(SteppingRunner):
             stop_event=self.stop_event,
             is_verbose=self.is_verbose,
             seen_prompt_events=self.seen_prompt_events,
-            processes=self.system.processes
+            processes=self.system.processes,
+            use_direct_query_if_available=self.use_direct_query_if_available
         )
         self.clock_thread.start()
 
@@ -566,7 +570,7 @@ class SteppingSingleThreadedRunner(SteppingRunner):
         super(SteppingSingleThreadedRunner, self).close()
         self.clock_thread.join(5)
         if self.clock_thread.isAlive():
-            print(f"Warning: clock thread was still alive")
+            print("Warning: clock thread was still alive")
 
 
 class ClockThread(Thread):
@@ -586,13 +590,15 @@ class ClockThread(Thread):
 
 class ProcessRunningClockThread(ClockThread):
     def __init__(self, normal_speed, scale_factor, stop_event: Event,
-                 is_verbose=False, seen_prompt_events=None, processes=None):
+                 is_verbose=False, seen_prompt_events=None, processes=None,
+                 use_direct_query_if_available=False):
         super(ProcessRunningClockThread, self).__init__(daemon=True)
         self.normal_speed = normal_speed
         self.scale_factor = scale_factor
         self.stop_event = stop_event
         self.seen_prompt_events = seen_prompt_events
         self.processes = processes
+        self.use_direct_query_if_available = use_direct_query_if_available
         self.last_tick_time = None
         self.last_process_time = None
         self.all_tick_durations = deque()
@@ -620,7 +626,7 @@ class ProcessRunningClockThread(ClockThread):
         for process_name, process in self.processes.items():
             reader = NotificationLogReader(
                 notification_log=process.notification_log,
-                use_direct_query_if_available=True
+                use_direct_query_if_available=self.use_direct_query_if_available
             )
             self.readers[process_name] = reader
 

@@ -56,7 +56,7 @@ class LocalNotificationLog(AbstractNotificationLog):
         else:
 
             try:
-                first_item_number, last_item_number = section_id.split(',')
+                first_item_number, _ = section_id.split(',')
             except ValueError as e:
                 raise ValueError("Couldn't split '{}': {}".format(section_id, e))
 
@@ -171,8 +171,9 @@ class NotificationLogReader(ABC):
         assert isinstance(notification_log, AbstractNotificationLog)
         self.notification_log = notification_log
         self.section_count = 0
-        self.position = 0
         self.use_direct_query_if_available = use_direct_query_if_available
+        self.position = 0
+        self.seek(0)
 
     def __getitem__(self, item=None):
         if isinstance(item, slice):
@@ -233,7 +234,21 @@ class NotificationLogReader(ABC):
 
         else:
             # Otherwise, use sections (Vaughn Vernon's linked section design).
-            section = self.notification_log['current']
+            # - slight departure by not using 'current' section ID, but
+            #   a section ID that just includes the current position, which
+            #   the notification log will use to return the section containing
+            #   this position, which avoids all the back-tracking when reader
+            #   has a lot of notifications to read. Although this requires
+            #   a query on the server, the 'current' section also involves a
+            #   query on the server (unless it is also cached). Since it could
+            #   be cached, using the 'current' section is useful, continues
+            #   to be supported by the notification log itself, and so could be
+            #   reintroduced here as an option at some point. But for now, we
+            #   can use a section ID that just includes the current position.
+            # initial_section_id = 'current'
+            initial_section_id = '%d,' % (self.position + 1)
+
+            section = self.notification_log[initial_section_id]
 
             # Follow previous links.
             while section.previous_id:
