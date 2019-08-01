@@ -137,17 +137,14 @@ class TestSystem(TestCase):
                 # sleep(tick_interval / 3)
                 # sleep(tick_interval * 10)
 
-            retries = 10 * num_orders
+            retries = 30 * num_orders
+            num_completed = 0
             for order_id in order_ids:
-                # while not orders.repository[order_id].is_reserved:
-                #     sleep(0.1)
-                #     retries -= 1
-                #     assert retries, "Failed set order.is_reserved"
-
                 while retries and not orders.repository[order_id].is_paid:
                     sleep(0.1)
                     retries -= 1
-                    assert retries, "Failed set order.is_paid"
+                    assert retries, "Failed set order.is_paid (after %s completed)" % num_completed
+                num_completed += 1
 
         print(f"Duration: { time() - started :.4f}s")
 
