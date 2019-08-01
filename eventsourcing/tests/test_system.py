@@ -31,6 +31,23 @@ class TestSystem(TestCase):
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
+    def test_singlethreaded_runner_with_direct_query(self):
+        system = System(Orders | Reservations | Orders,
+                        Orders | Payments | Orders,
+                        setup_tables=True,
+                        infrastructure_class=self.infrastructure_class,
+                        use_direct_query_if_available=True,
+                        )
+
+        with system:
+            # Create new Order aggregate.
+            order_id = create_new_order()
+
+            # Check the order is reserved and paid.
+            repository = system.processes['orders'].repository
+            assert repository[order_id].is_reserved
+            assert repository[order_id].is_paid
+
     def test_multithreaded_runner_with_singleapp_system(self):
 
         system = System(Examples | Examples,

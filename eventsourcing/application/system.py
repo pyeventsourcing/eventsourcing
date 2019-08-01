@@ -44,6 +44,7 @@ class System(object):
         self.pipelines_exprs = pipeline_exprs
         self.setup_tables = kwargs.get('setup_tables', False)
         self.infrastructure_class = kwargs.get('infrastructure_class', None)
+        self.use_direct_query_if_available = kwargs.get('use_direct_query_if_available', False)
 
         self.session = kwargs.get('session', None)
 
@@ -113,7 +114,10 @@ class System(object):
         """
         Supports usage of a system object as a context manager.
         """
-        self.__runner = SingleThreadedRunner(self)
+        self.__runner = SingleThreadedRunner(
+            self,
+            use_direct_query_if_available=self.use_direct_query_if_available
+        )
         self.__runner.__enter__()
         return self
 
@@ -156,7 +160,8 @@ class SystemRunner(ABC):
             ):
                 raise ProgrammingError("System runner needs a concrete application infrastructure class")
         self.setup_tables = setup_tables
-        self.use_direct_query_if_available = use_direct_query_if_available
+        self.use_direct_query_if_available = use_direct_query_if_available or \
+                                             system.use_direct_query_if_available
         self.processes = {}
 
     def __enter__(self):
