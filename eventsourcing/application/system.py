@@ -5,7 +5,6 @@ from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
 
-from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
@@ -629,7 +628,7 @@ class ProcessRunningClockThread(ClockThread):
         # Construct a notification log reader for each process.
         self.readers = {}
         for process_name, process in self.processes.items():
-            reader = NotificationLogReader(
+            reader = process.notification_log_reader_class(
                 notification_log=process.notification_log,
                 use_direct_query_if_available=self.use_direct_query_if_available
             )

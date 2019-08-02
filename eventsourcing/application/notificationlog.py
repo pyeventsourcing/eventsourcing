@@ -234,21 +234,7 @@ class NotificationLogReader(ABC):
 
         else:
             # Otherwise, use sections (Vaughn Vernon's linked section design).
-            # - slight departure by not using 'current' section ID, but
-            #   a section ID that just includes the current position, which
-            #   the notification log will use to return the section containing
-            #   this position, which avoids all the back-tracking when reader
-            #   has a lot of notifications to read. Although this requires
-            #   a query on the server, the 'current' section also involves a
-            #   query on the server (unless it is also cached). Since it could
-            #   be cached, using the 'current' section is useful, continues
-            #   to be supported by the notification log itself, and so could be
-            #   reintroduced here as an option at some point. But for now, we
-            #   can use a section ID that just includes the current position.
-            # initial_section_id = 'current'
-            initial_section_id = '%d,' % (self.position + 1)
-
-            section = self.notification_log[initial_section_id]
+            section = self.notification_log[self.initial_section_id]
 
             # Follow previous links.
             while section.previous_id:
@@ -297,6 +283,36 @@ class NotificationLogReader(ABC):
                     self.section_count += 1
                 else:
                     break
+
+    @property
+    def initial_section_id(self):
+        """
+        Returns initial section ID used to start getting
+        linked sections from the notification log.
+
+        Slight departure from Vaughn Vernon's design by not using 'current'
+        as initial section ID, but a section ID that just includes the
+        "next" position, which the notification log can use to return
+        the section containing this position. This avoids lengthy back-
+        tracking when reader has a lot of notifications to catch-up on.
+
+        This property has been extracted in order to allow a subclass to
+        adjust this default behaviour.
+
+        It would be possible to calculate the actual section ID from the
+        current reader position. Using section ID of an actual section
+        may hit a cache and avoid troubling the server, but the reader
+        would need to know the section size of the notification log it
+        is reading. If we don't know section size, perhaps it is a remote
+        notification log, we can use 'current' to hit a cache. In future, it
+        might be possible to ask the notification log to disclose it's section
+        size, or compute an actual section ID for a given position.
+
+        :return: A notification log section ID.
+        :rtype: str
+        """
+        # initial_section_id = 'current'
+        return '%d,' % (self.position + 1)
 
     def read_list(self, advance_by=None):
         return list(self.read_items(advance_by=advance_by))
