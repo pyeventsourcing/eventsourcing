@@ -31,6 +31,23 @@ class TestSystem(TestCase):
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
+    def test_singlethreaded_runner_with_direct_query(self):
+        system = System(Orders | Reservations | Orders,
+                        Orders | Payments | Orders,
+                        setup_tables=True,
+                        infrastructure_class=self.infrastructure_class,
+                        use_direct_query_if_available=True,
+                        )
+
+        with system:
+            # Create new Order aggregate.
+            order_id = create_new_order()
+
+            # Check the order is reserved and paid.
+            repository = system.processes['orders'].repository
+            assert repository[order_id].is_reserved
+            assert repository[order_id].is_paid
+
     def test_multithreaded_runner_with_singleapp_system(self):
 
         system = System(Examples | Examples,
@@ -120,17 +137,14 @@ class TestSystem(TestCase):
                 # sleep(tick_interval / 3)
                 # sleep(tick_interval * 10)
 
-            retries = 10 * num_orders
+            retries = 30 * num_orders
+            num_completed = 0
             for order_id in order_ids:
-                # while not orders.repository[order_id].is_reserved:
-                #     sleep(0.1)
-                #     retries -= 1
-                #     assert retries, "Failed set order.is_reserved"
-
                 while retries and not orders.repository[order_id].is_paid:
                     sleep(0.1)
                     retries -= 1
-                    assert retries, "Failed set order.is_paid"
+                    assert retries, "Failed set order.is_paid (after %s completed)" % num_completed
+                num_completed += 1
 
         print(f"Duration: { time() - started :.4f}s")
 

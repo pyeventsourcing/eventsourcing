@@ -18,6 +18,17 @@ Version 7.x
 Version 7.x series refined the "process and system" code.
 
 
+Version 7.1.6 (released 2 Aug 2019)
+------------------------------------
+
+Version 7.1.6 fixed an issue with the notification log reader. The notification
+log reader was sometimes using a "fast path" to get all the notifications without
+paging through the notification log using the linked sections. However, when there
+were too many notification, this failed to work. A few adjustments were made
+to fix the performance and robustness and configurability of the notification
+log reading functionality.
+
+
 Version 7.1.5 (released 26 Jul 2019)
 ------------------------------------
 

@@ -23,8 +23,12 @@ class ProcessEvent(object):
 class ProcessApplication(Pipeable, SimpleApplication):
     set_notification_ids = False
     use_causal_dependencies = False
+    notification_log_reader_class = NotificationLogReader
 
-    def __init__(self, name=None, policy=None, setup_table=False, **kwargs):
+    def __init__(self, name=None, policy=None, setup_table=False,
+                 use_direct_query_if_available=False,
+                 notification_log_reader_class=None,
+                 **kwargs):
         self.policy_func = policy
         self.readers = OrderedDict()
         self.is_reader_position_ok = defaultdict(bool)
@@ -32,6 +36,10 @@ class ProcessApplication(Pipeable, SimpleApplication):
         self._policy_lock = Lock()
         self.clock_event = None
         self.tick_interval = None
+        self.use_direct_query_if_available = use_direct_query_if_available
+        self.notification_log_reader_class = notification_log_reader_class or \
+                                             type(self).notification_log_reader_class
+
         super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
 
         # Publish prompts for any domain events that we persist.
@@ -72,7 +80,10 @@ class ProcessApplication(Pipeable, SimpleApplication):
 
     def follow(self, upstream_application_name, notification_log):
         # Create a reader.
-        reader = NotificationLogReader(notification_log, use_direct_query_if_available=True)
+        reader = self.notification_log_reader_class(
+            notification_log,
+            use_direct_query_if_available=self.use_direct_query_if_available
+        )
         self.readers[upstream_application_name] = reader
 
     def run(self, prompt=None, advance_by=None):
