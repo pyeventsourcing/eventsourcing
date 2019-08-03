@@ -98,9 +98,14 @@ class LocalNotificationLog(AbstractNotificationLog):
 
     @abstractmethod
     def get_next_position(self):
-        """
-        Returns items for section.
+        """Returns next unoccupied position in zero-based sequence.
 
+        Since the notification IDs are one-based, the next position
+        in the zero-based sequence equals the current max notification ID
+        which is 1-based. If there are no records, the max notification ID
+        will be None, and the next position is zero.
+
+        :returns: Non-negative integer.
         :rtype: int
         """
 
@@ -138,11 +143,15 @@ class RecordManagerNotificationLog(LocalNotificationLog):
         return notifications
 
     def get_next_position(self):
-        """Next unoccupied position in zero-based sequence.
+        """Returns next unoccupied position in zero-based sequence.
 
-        Since the notification IDs are one-based, the next position is
-        the current max notification ID. If there are no records,
-        the max notification ID will be None, and the next position is zero.
+        Since the notification IDs are one-based, the next position
+        in the zero-based sequence equals the current max notification ID
+        which is 1-based. If there are no records, the max notification ID
+        will be None, and the next position is zero.
+
+        :returns: Non-negative integer.
+        :rtype: int
         """
         return self.record_manager.get_max_record_id() or 0
 
@@ -163,6 +172,11 @@ class BigArrayNotificationLog(LocalNotificationLog):
         return self.big_array[start:stop]
 
     def get_next_position(self):
+        """Returns next unoccupied position in zero-based sequence.
+
+        :returns: Non-negative integer.
+        :rtype: int
+        """
         return self.big_array.get_next_position()
 
 
@@ -312,7 +326,30 @@ class NotificationLogReader(ABC):
         :rtype: str
         """
         # initial_section_id = 'current'
-        return '%d,' % (self.position + 1)
+        if hasattr(self.notification_log, 'section_size'):
+            # Todo: Implement this attribute on the remote notification
+            #  log class, because that's when we might want to avoid
+            #  hitting the server by keeping all section IDs actual
+            #  sections that can be cached on the network.
+            section_size = self.notification_log.section_size
+            # Calculate the section start and end.
+            #  - notification ID sequence start,end are 1-based
+            #  - 'position' is 1-based, but 1 behind the next position
+            #  - we want to get the next position
+            #  - the modulo calculation works with 0-based index
+            #  - 'position' is equal to zero-based index of next item
+            #  - section IDs use 1-based start and end values.
+            start = self.position // section_size * section_size
+            section_id = '%d,%d' % (start + 1, start + section_size)
+        else:
+            # Special section ID that indicates next position.
+            #  - is used by the notification log to identify the
+            #    section which includes the given position
+            #  - 'position' is 1-based, but 1 behind the next position
+            #  - section IDs use 1-based start and end values.
+            section_id = '%d,' % (self.position + 1)
+
+        return section_id
 
     def read_list(self, advance_by=None):
         return list(self.read_items(advance_by=advance_by))

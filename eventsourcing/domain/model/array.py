@@ -103,14 +103,23 @@ class Array(object):
         return self.repo.array_size
 
     def get_next_position(self):
+        """
+        Returns next 'position' in 0-based sequence.
+
+        :return: Non-negative integer.
+        :rtype: int
+        """
         return self.get_last_item_and_next_position()[1]
 
     def get_last_item_and_next_position(self):
+        # Get last assigned item.
         items_assigned = self.get_items_assigned(limit=1, is_ascending=False)
         if len(items_assigned) == 0:
             return None, 0
         item_assigned = items_assigned[0]
-        return item_assigned.item, item_assigned.index + 1
+        # Add 1 to the index to get the next position (in zero-based sequence).
+        next_postion = item_assigned.index + 1
+        return item_assigned.item, next_postion
 
     def get_items_assigned(self, start_index=None, stop_index=None, limit=None, is_ascending=True):
         return self.repo.event_store.get_domain_events(
