@@ -27,7 +27,7 @@ class TestSystem(TestCase):
             order_id = create_new_order()
 
             # Check the order is reserved and paid.
-            repository = system.processes['orders'].repository
+            repository = system.orders.repository
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
@@ -44,7 +44,7 @@ class TestSystem(TestCase):
             order_id = create_new_order()
 
             # Check the order is reserved and paid.
-            repository = system.processes['orders'].repository
+            repository = system.orders.repository
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
@@ -58,7 +58,7 @@ class TestSystem(TestCase):
 
         with MultiThreadedRunner(system):
 
-            app = system.processes['examples']
+            app = system.examples
 
             aggregate = ExampleAggregate.__create__()
             aggregate.__save__()
@@ -87,7 +87,7 @@ class TestSystem(TestCase):
 
             started = time()
 
-            orders = system.processes['orders']
+            orders = system.orders
 
             # Create new orders.
             num_orders = 10
@@ -126,7 +126,7 @@ class TestSystem(TestCase):
 
             started = time()
 
-            orders = system.processes['orders']
+            orders = system.orders
 
             # Create a new order.
             num_orders = 10
