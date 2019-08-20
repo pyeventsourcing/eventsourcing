@@ -241,7 +241,7 @@ class TestProcess(TestCase):
 
 
 class TestCommands(TestCase):
-    process_class = SQLAlchemyApplication
+    infrastructure_class = SQLAlchemyApplication
 
     def test_command_aggregate(self):
         # Create a command.
@@ -259,10 +259,10 @@ class TestCommands(TestCase):
         self.assertIsInstance(pending_events[1], Command.Done)
 
     def test_command_process(self):
-        commands = CommandProcess.mixin(self.process_class)(
+        commands = CommandProcess.mixin(self.infrastructure_class)(
             setup_table=True
         )
-        core = ProcessApplication.mixin(self.process_class)(
+        core = ProcessApplication.mixin(self.infrastructure_class)(
             'core',
             policy=example_policy,
             session=commands.session

@@ -15,6 +15,27 @@ from eventsourcing.tests.test_system_fixtures import Examples, Order, Orders, Pa
 class TestSystem(TestCase):
     infrastructure_class = SQLAlchemyApplication
 
+    def test___getattr__(self):
+        system = System(Orders | Reservations | Orders,
+                        Orders | Payments | Orders,
+                        setup_tables=True,
+                        infrastructure_class=self.infrastructure_class
+                        )
+        with system.orders as app:
+            self.assertIsInstance(app, Orders)
+            self.assertEqual(app, system.orders)
+
+        with system.payments as app:
+            self.assertIsInstance(app, Payments)
+            self.assertEqual(app, system.payments)
+
+        with system.reservations as app:
+            self.assertIsInstance(app, Reservations)
+            self.assertEqual(app, system.reservations)
+
+        with self.assertRaises(AttributeError):
+            with system.notaprocess as _: pass
+
     def test_singlethreaded_runner_with_multiapp_system(self):
         system = System(Orders | Reservations | Orders,
                         Orders | Payments | Orders,
@@ -22,12 +43,12 @@ class TestSystem(TestCase):
                         infrastructure_class=self.infrastructure_class
                         )
 
-        with system:
+        with system as runner:
             # Create new Order aggregate.
             order_id = create_new_order()
 
             # Check the order is reserved and paid.
-            repository = system.orders.repository
+            repository = runner.orders.repository
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
@@ -158,7 +179,7 @@ class TestSystem(TestCase):
 
         self.close_connections_before_forking()
 
-        with MultiprocessRunner(system), system.construct_app(Examples) as app:
+        with MultiprocessRunner(system), system.examples as app:
 
             aggregate = ExampleAggregate.__create__()
             aggregate.__save__()

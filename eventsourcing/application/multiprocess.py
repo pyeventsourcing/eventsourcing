@@ -9,7 +9,7 @@ from eventsourcing.application.simple import ApplicationWithConcreteInfrastructu
 from eventsourcing.application.system import DEFAULT_POLL_INTERVAL, PromptOutbox, System, SystemRunner
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError
+from eventsourcing.exceptions import CausalDependencyFailed, OperationalError, RecordConflictError, ProgrammingError
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 
 
@@ -116,14 +116,15 @@ class OperatingSystemProcess(multiprocessing.Process):
         self.setup_tables = setup_tables
 
     def run(self):
-        # Construct process application object.
+        # Construct process application class.
         process_class = self.application_process_class
-        if self.infrastructure_class:
-            process_class = process_class.mixin(self.infrastructure_class)
+        if not isinstance(process_class, ApplicationWithConcreteInfrastructure):
+            if self.infrastructure_class:
+                process_class = process_class.mixin(self.infrastructure_class)
+            else:
+                raise ProgrammingError('infrastructure_class is not set')
 
-        if not issubclass(process_class, ApplicationWithConcreteInfrastructure):
-            raise Exception("Does not have application infrastructure: {}".format(process_class))
-
+        # Construct process application object.
         self.process = process_class(
             pipeline_id=self.pipeline_id,
             setup_table=self.setup_tables,
@@ -146,6 +147,7 @@ class OperatingSystemProcess(multiprocessing.Process):
                 # an API from which we can pull. It's not unreasonable to have a fixed
                 # number of application processes connecting to the same database.
                 record_manager = self.process.event_store.record_manager
+
                 notification_log = RecordManagerNotificationLog(
                     record_manager=record_manager.clone(
                         application_name=upstream_name,

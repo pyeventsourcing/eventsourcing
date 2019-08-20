@@ -1,6 +1,8 @@
 import time
+import weakref
 from abc import ABC, abstractmethod
 from collections import OrderedDict, defaultdict, deque
+from copy import deepcopy
 from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
@@ -10,8 +12,8 @@ from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import CausalDependencyFailed, EventSourcingError, OperationalError, ProgrammingError, \
-    RecordConflictError
+from eventsourcing.exceptions import CausalDependencyFailed, EventSourcingError, \
+    OperationalError, ProgrammingError, RecordConflictError
 
 DEFAULT_POLL_INTERVAL = 5
 
@@ -56,6 +58,7 @@ class System(object):
 
         self.processes = {}
         self.is_session_shared = True
+        self.shared_session = None
 
         # Determine which process follows which.
         self.followers = OrderedDict()
@@ -90,16 +93,34 @@ class System(object):
         """
         kwargs = dict(kwargs)
         if 'session' not in kwargs and process_class.is_constructed_with_session:
-            kwargs['session'] = self.session
+            kwargs['session'] = self.session or self.shared_session
         if 'setup_tables' not in kwargs and self.setup_tables:
             kwargs['setup_table'] = self.setup_tables
 
-        infrastructure_class = infrastructure_class or self.infrastructure_class
-        process = process_class.bind(infrastructure_class, **kwargs)
+        if not isinstance(process_class, ApplicationWithConcreteInfrastructure):
 
-        if process_class.is_constructed_with_session and self.is_session_shared:
-            if self.session is None:
-                self.session = process.session
+            # If process class isn't already an infrastructure class, then
+            # use given arg, or attribute of this object, or PopoApplication.
+            if infrastructure_class is None:
+                infrastructure_class = self.infrastructure_class or PopoApplication
+
+            if not issubclass(infrastructure_class, ApplicationWithConcreteInfrastructure):
+                raise ProgrammingError(
+                    'Given infrastructure_class {} is not subclass of {}'
+                    ''.format(infrastructure_class, ApplicationWithConcreteInfrastructure)
+                )
+
+            # Subclass the process application class with the infrastructure class.
+            process_class = process_class.mixin(infrastructure_class)
+
+        # Construct the process application.
+        process = process_class(**kwargs)
+
+        # Catch the session, so it can be shared.
+        if self.session is None:
+            if process_class.is_constructed_with_session and self.is_session_shared:
+                if self.shared_session is None:
+                    self.shared_session = process.session
 
         return process
 
@@ -113,22 +134,33 @@ class System(object):
         """
         Supports usage of a system object as a context manager.
         """
-        self.__runner = SingleThreadedRunner(
-            self,
-            use_direct_query_if_available=self.use_direct_query_if_available
+        runner = SingleThreadedRunner(
+            system=self,
+            use_direct_query_if_available=self.use_direct_query_if_available,
+
         )
-        self.__runner.__enter__()
-        return self
+        self.__runner = weakref.ref(runner)
+        self.__runner().__enter__()
+        return runner
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """
         Supports usage of a system object as a context manager.
         """
-        self.__runner.__exit__(exc_type, exc_val, exc_tb)
+        self.__runner().__exit__(exc_type, exc_val, exc_tb)
         del (self.__runner)
 
     def __getattr__(self, process_name, infrastructure_class=None):
+        """
+        Supports accessing process application by name as object attribute.
+
+        :param process_name:
+        :param infrastructure_class:
+        :return: A process application object.
+        :rtype: ProcessApplication
+        """
         if self.processes and process_name in self.processes:
+            # Todo: Move to having process application instances on runner only.
             process = self.processes[process_name]
         else:
             try:
@@ -141,8 +173,30 @@ class System(object):
                     setup_table=self.setup_tables,
                     infrastructure_class=infrastructure_class,
                 )
+                # Todo: Move to having process application instances on runner only.
                 self.processes[process_name] = process
         return process
+
+    def bind(self, infrastructure_class):
+        """
+        Constructs a system object that has an infrastructure class
+        from system object constructed without infrastructure class.
+
+        Raises ProgrammingError if already have an infrastructure class.
+
+        :param infrastructure_class:
+        :return: System object that has an infrastructure class.
+        :rtype: System
+        """
+        # Check system doesn't already have an infrastructure class.
+        if self.infrastructure_class:
+            raise ProgrammingError('System already has an infrastructure class')
+
+        # Clone the system object, and set the infrastructure class.
+        system = object.__new__(type(self))
+        system.__dict__.update(dict(deepcopy(self.__dict__)))
+        system.__dict__.update(infrastructure_class=infrastructure_class)
+        return system
 
 
 class SystemRunner(ABC):
@@ -151,23 +205,24 @@ class SystemRunner(ABC):
                  use_direct_query_if_available=False):
         self.system = system
         self.infrastructure_class = infrastructure_class or self.system.infrastructure_class
-        # Check that a concrete infrastructure class is involved.
-        if not all([issubclass(c, ApplicationWithConcreteInfrastructure)
-                    for c in self.system.process_classes.values()]):
-            if self.infrastructure_class is None or not issubclass(
-                self.infrastructure_class, ApplicationWithConcreteInfrastructure
-            ):
-                raise ProgrammingError("System runner needs a concrete application infrastructure class")
         self.setup_tables = setup_tables
         self.use_direct_query_if_available = use_direct_query_if_available or \
                                              system.use_direct_query_if_available
-        self.processes = {}
+
+        # Todo: Move to having process application instances on runner only.
+        self.processes = self.system.processes
 
     def __enter__(self):
+        """
+        Supports usage of a system runner as a context manager.
+        """
         self.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Supports usage of a system runner as a context manager.
+        """
         self.close()
 
     @abstractmethod
@@ -179,12 +234,26 @@ class SystemRunner(ABC):
         """
 
     def close(self):
+        """
+        Closes a running system.
+        """
+        self.system.shared_session = None
         if self.system.processes:
             for process_name, process in self.system.processes.items():
                 process.close()
             self.system.processes.clear()
 
     def __getattr__(self, process_name):
+        """
+        Supports accessing process application by name as object attribute.
+
+        :param process_name:
+        :param infrastructure_class:
+        :return: A process application object.
+        :rtype: ProcessApplication
+        """
+
+        # Todo: Move to having process application instances on runner only.
         return self.system.__getattr__(process_name, infrastructure_class=self.infrastructure_class)
 
 
@@ -244,10 +313,10 @@ class SingleThreadedRunner(InProcessRunner):
     Runs a system in the current thread.
     """
 
-    def __init__(self, system: System, infrastructure_class=PopoApplication, *args, **kwargs):
-        super(SingleThreadedRunner, self).__init__(system=system,
-                                                   infrastructure_class=infrastructure_class, *args, **kwargs
-                                                   )
+    def __init__(self, system: System, infrastructure_class=None, *args, **kwargs):
+        super(SingleThreadedRunner, self).__init__(
+            system=system, infrastructure_class=infrastructure_class, *args, **kwargs
+        )
         self.pending_prompts = Queue()
         self.iteration_lock = Lock()
 
@@ -302,8 +371,8 @@ class MultiThreadedRunner(InProcessRunner):
     Runs a system with a thread for each process.
     """
 
-    def __init__(self, system: System, poll_interval=None, clock_speed=None):
-        super(MultiThreadedRunner, self).__init__(system=system)
+    def __init__(self, system: System, poll_interval=None, clock_speed=None, **kwargs):
+        super(MultiThreadedRunner, self).__init__(system=system, **kwargs)
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
         self.threads = {}

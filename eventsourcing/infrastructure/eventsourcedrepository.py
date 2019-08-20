@@ -5,6 +5,27 @@ from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 
 
 class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
+
+    def __init__(self, event_store, use_cache=False, **kwargs):
+        super(EventSourcedRepository, self).__init__(event_store, **kwargs)
+
+        # NB If you use the cache, make sure to del entities
+        # when records fail to write otherwise the cache will
+        # give an entity that is ahead of the event records,
+        # and writing more records will give a broken sequence.
+        self._cache = {}
+        self._use_cache = use_cache
+
+    @property
+    def use_cache(self):
+        return self._use_cache
+
+    @use_cache.setter
+    def use_cache(self, value):
+        self._use_cache = value
+        if not self._use_cache:
+            self._cache.clear()
+
     def __contains__(self, entity_id):
         """
         Returns a boolean value according to whether entity with given ID exists.

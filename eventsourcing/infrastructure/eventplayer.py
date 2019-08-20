@@ -11,18 +11,12 @@ class EventPlayer(AbstractEventPlayer):
     # of queries, rather than with one potentially large query.
     __page_size__ = None
 
-    def __init__(self, event_store, snapshot_strategy=None, use_cache=False, mutator_func=None):
+    def __init__(self, event_store, snapshot_strategy=None, mutator_func=None):
         super(EventPlayer, self).__init__()
         # Check we got an event store.
         assert isinstance(event_store, AbstractEventStore), type(event_store)
         self._event_store = event_store
         self._snapshot_strategy = snapshot_strategy
-        self._cache = {}
-        # NB If you use the cache, make sure to del entities
-        # when records fail to write otherwise the cache will
-        # give an entity that is ahead of the event records,
-        # and writing more records will give a broken sequence.
-        self._use_cache = use_cache
         self._mutator_func = mutator_func
 
     @property
@@ -31,12 +25,27 @@ class EventPlayer(AbstractEventPlayer):
 
     def project_events(self, initial_state, domain_events):
         """
-        Evolves initial state using the sequence of domain events and a mutator function.
+        Evolves initial state using the sequence of domain events, and a mutator function.
+
+        Applies a mutator function cumulatively to a sequence of domain
+        events, so as to mutate the initial value to a mutated value.
+
+        This class's mutate() method is used as the default mutator function, but
+        custom behaviour can be introduced by passing in a 'mutator_func' argument
+        when constructing this class, or by overridding the mutate() method.
         """
         return reduce(self._mutator_func or self.mutate, domain_events, initial_state)
 
     @staticmethod
     def mutate(initial, event):
+        """
+        Default mutator function, which uses __mutate__()
+        method on event object to mutate initial state.
+
+        :param initial: Initial state to be mutated by this function.
+        :param event: Event that causes the initial state to be mutated.
+        :return: Returns the mutated state.
+        """
         if initial is not None:
             event.__check_obj__(initial)
         return event.__mutate__(initial)

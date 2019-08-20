@@ -100,7 +100,7 @@ class SimpleApplication(ABC):
         return self._event_store
 
     @property
-    def repository(self):
+    def repository(self) -> EventSourcedRepository:
         return self._repository
 
     def construct_cipher(self, cipher_key):
@@ -195,16 +195,8 @@ class SimpleApplication(ABC):
         pass
 
     @classmethod
-    def mixin(cls, *bases):
-        return type(cls.__name__, bases + (cls,), {})
-
-    @classmethod
-    def bind(cls, *bases, **kwargs):
-
-        process_class = cls.mixin(*bases)
-        if not issubclass(process_class, ApplicationWithConcreteInfrastructure):
-            raise Exception("Does not have infrastructure: {}, {}".format(cls, tuple(bases)))
-        return process_class(**kwargs)
+    def mixin(cls, infrastructure_class):
+        return type(cls.__name__, (infrastructure_class, cls), {})
 
 
 class ApplicationWithConcreteInfrastructure(SimpleApplication):

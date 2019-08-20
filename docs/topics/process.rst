@@ -887,12 +887,14 @@ to which applications each is followed by.
 
 In the example below, the ``system`` object is used directly as a context
 manager. Using the ``system`` object in this manner implicitly constructs
-a :class:`~eventsourcing.application.system.SingleThreadedRunner`. As a special case,
-by default this runner introduces concrete application infrastructure class
-:class:`~eventsourcing.application.popo.PopoApplication`, which
-literally uses plain old Python objects to store domain events in memory,
-and is the fastest concrete application infrastructure class
-in the library (much faster than in-memory SQLite). It can be used when proper
+a :class:`~eventsourcing.application.system.SingleThreadedRunner`, which
+uses the infrastructure class
+:class:`~eventsourcing.application.popo.PopoApplication` by default. This
+infrastructure class uses "plain old Python objects" to store domain events
+in memory, implementing atomic transactions and uniqueness constraints like
+SQLAlchemy and Django infrastructure classes, and is the fastest concrete
+application infrastructure class in the library (much faster than in-memory
+SQLite database, for example). This infrastructure can be used when proper
 disk-based durability is not required, for example during system development.
 
 .. code:: python
@@ -919,13 +921,13 @@ disk-based durability is not required, for example during system development.
         payment = system.payments.repository[order.payment_id]
 
 
-Everything happens synchronously, in a single thread, so that by the time
-``create_order()`` has returned, the command has been fully processed by
-the system.
+Using the single-threaded runner means that everything happens synchronously
+in a single thread, so that by the time ``create_order()`` has returned, the
+command has been fully processed by the system.
 
-Running the system with a single thread and an in-memory database is
-useful when developing and testing a system of process applications,
-because it runs very quickly and the behaviour is very easy to follow.
+Running the system with a single thread is useful when developing and testing
+a system of process applications, because it runs very quickly and the behaviour
+is very easy to follow.
 
 
 Multiprocess runner
