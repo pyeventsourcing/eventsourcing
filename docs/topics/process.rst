@@ -300,11 +300,14 @@ Process managers
 
 A process application, specifically an aggregate combined with a policy in a process application,
 could function effectively as a "saga", or "process manager", or "workflow manager". That is, it
-could effectively control a sequence of steps involving other aggregates in other bounded contexts,
+could effectively cause a sequence of steps involving other aggregates in other applications,
 steps that might otherwise be controlled with a "long-lived transaction". It could 'maintain
 the state of the sequence and determine the next processing step based on intermediate results',
-to quote a phrase from Enterprise Integration Patterns. Exceptional "unhappy path" behaviour can
-be implemented as part of the logic of the application.
+to quote a phrase from Enterprise Integration Patterns. These terms ("saga", "process manager",
+etc.) can be used here as names for things we already have, but they add nothing in particular,
+since any reliable behaviour can be coded with combinations of events sourced aggregates and
+application policies. Exceptional "unhappy path" behaviour can be implemented as part of the
+logic of the application.
 
 
 Example
@@ -314,22 +317,32 @@ The example below is suggestive of an orders-reservations-payments system.
 The system automatically processes a new Order by making a Reservation, and
 then a Payment; facts registered with the Order as they happen.
 
-The system is run: firstly as a single threaded system; then with
-multiprocessing using a single pipeline; multiprocessing with multiple
-pipelines; and finally multiple pipelines with the actor model.
-
 The behaviour of the system is entirely defined by the combination of the
 aggregates and the policies of its process applications. This allows highly
-maintainable code, code that is easily tested, easily understood, easily
-changed, easily reconfigured for use with different infrastructure.
+maintainable code that is easily tested, easily understood, easily
+changed, and easily reconfigured for use with different infrastructure.
 
-Please note, the code presented in the example below works only with the library's
-SQLAlchemy and Django infrastructure code. Support for Cassandra is being considered
-but such applications will probably be simple replications of application state, due
-to the limited atomicity of Cassandra's lightweight transactions. For example,
-Cassandra could be used to archive events written firstly into a relational database.
-Events could be removed from the relational database before storage limits are encountered.
-Events missing in the relational database could be sourced from Cassandra.
+The system is run: firstly as a single threaded system; then with
+multiprocessing using a single pipeline; then multiprocessing with multiple
+pipelines; and finally multiple pipelines with the actor model.
+
+Please note, this example system is designed to exhibit a range of capabilities
+of the library and is not necessarily an example of good system design. In particular,
+whilst having "branches" (where one application is followed by more than one other
+application) does not introduce indeterminacy in the final system state, having "joins"
+(where one application follows more than one other) does so. Perhaps a better
+generic template for most domains is more simply to have a commands process followed
+by a core application for the domain, that is followed by a reporting application
+(``Commands | Core | Reporting``).
+
+Please also note, the code presented in the example below works with the library's
+SQLAlchemy infrastructure code, and it can work with the library's Django infrastructure
+code. Support for Cassandra is being considered but such applications will probably be
+simple replications of application state, due to the limited atomicity of Cassandra's
+lightweight transactions. For example, Cassandra could be used to archive events written
+firstly into a relational database. Events could be removed from the relational database
+before storage limits are encountered. Events missing in the relational database could be
+sourced from Cassandra.
 
 
 Aggregates
@@ -575,7 +588,7 @@ by setting an ``Order`` as paid.
 
         @policy.register(CreateOrder.Created)
         def _(self, repository, event):
-            return self.create_order(command_id=event.originator_id)
+            return self._create_order(command_id=event.originator_id)
 
         @policy.register(Reservation.Created)
         def _(self, repository, event):
@@ -586,7 +599,7 @@ by setting an ``Order`` as paid.
             self._set_order_is_paid(repository, event)
 
         @staticmethod
-        def create_order(command_id):
+        def _create_order(command_id):
             return Order.create(command_id=command_id)
 
         def _set_order_is_reserved(self, repository, event):
@@ -617,10 +630,10 @@ by creating a new ``Reservation`` aggregate.
 
         @policy.register(Order.Created)
         def _(self, repository, event):
-            return self.create_reservation(event.originator_id)
+            return self._create_reservation(event.originator_id)
 
         @staticmethod
-        def create_reservation(order_id):
+        def _create_reservation(order_id):
             return Reservation.create(order_id=order_id)
 
 
@@ -638,10 +651,10 @@ by creating a new ``Payment``.
         @policy.register(Order.Reserved)
         def _(self, repository, event):
             order_id = event.originator_id
-            return self.create_payment(order_id)
+            return self._create_payment(order_id)
 
         @staticmethod
-        def create_payment(order_id):
+        def _create_payment(order_id):
             return Payment.create(order_id=order_id)
 
 
@@ -806,12 +819,17 @@ System
 ------
 
 A system of process applications can be defined using one or many "pipeline expressions",
-involving process application classes associated with the bitwise OR operator ("`|`").
+involving process application classes associated with Python's bitwise OR operator ``|``.
 
 For example, the pipeline expression ``A | A`` would have process application class
 ``A`` following itself. The expression ``A | B | C`` would have ``A`` followed by
 ``B`` and ``B`` followed by ``C``. This can perhaps be recognised as the "pipes and
 filters" pattern, where the process applications function effectively as the filters.
+
+(The library's process application class uses a metaclass to support this, and although
+I generally averse to "extending the language" like this, in this case it seems to add
+a certain distinctiveness to the expression of a system. The more straightforward
+alternative of a tuple expressing the same sequence is also supported, for example ``A, B, C``).
 
 In the system defined below, the ``Orders`` process follow the ``Commands`` process,
 and the ``Commands`` process follow the ``Orders`` process, so that each will receive
@@ -828,8 +846,8 @@ the events that its policy has been defined to process. Similarly, ``Orders`` an
         Orders | Payments | Orders
     )
 
-In this case, the system can be defined with a single pipeline expression,
-which expresses the same set of relationships between the process applications.
+In this case, the system can alternatively be defined with a single pipeline expression,
+which expresses exactly the same set of relationships between the process applications.
 
 .. code:: python
 
@@ -843,17 +861,16 @@ expressions, there will only be one instance of each process when the pipeline
 system is instantiated. Each application can follow one or many applications,
 and can be followed by one or many applications.
 
-In this system, application state is propagated between process
-applications through notification logs only. This can perhaps be
-recognised as the "bounded context" pattern. Each application can
+Application state is propagated between process
+applications through notification logs only. Each application can
 access only the aggregates it has created. For example, an ``Order``
 aggregate created by the ``Orders`` process is available in neither
 the repository of ``Reservations`` nor the repository of ``Payments``.
 If an application could directly use the aggregates of another
 application, then processing could produce different results at
-different times, and in consequence the processing wouldn't be
+different times, and in consequence the processing might not be
 reliable. If necessary, a process application can replicate upstream
-aggregates within its own state.
+state within its own state.
 
 
 Runners
