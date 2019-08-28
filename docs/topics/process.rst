@@ -825,14 +825,12 @@ For example, the pipeline expression ``A | A`` would have process application cl
 ``A`` following itself. The expression ``A | B | C`` would have ``A`` followed by
 ``B`` and ``B`` followed by ``C``. This can perhaps be recognised as the "pipes and
 filters" pattern, where the process applications function effectively as the filters.
-
 (The library's process application class uses a metaclass to support this, and although
-I generally averse to "extending the language" like this, in this case it seems to add
-a certain distinctiveness to the expression of a system. The more straightforward
-alternative of a tuple expressing the same sequence is also supported, for example ``A, B, C``).
+I'm normally averse to "extending the language", this seems to add
+a certain distinctiveness to the expression of a system.).
 
-In the system defined below, the ``Orders`` process follow the ``Commands`` process,
-and the ``Commands`` process follow the ``Orders`` process, so that each will receive
+In the system defined below, the ``Orders`` process follows the ``Commands`` process,
+and the ``Commands`` process follows the ``Orders`` process, so that each will receive
 the events that its policy has been defined to process. Similarly, ``Orders`` and
 ``Reservations`` follow each other, and also ``Orders`` and ``Payments`` follow each other.
 
@@ -846,7 +844,7 @@ the events that its policy has been defined to process. Similarly, ``Orders`` an
         Orders | Payments | Orders
     )
 
-In this case, the system can alternatively be defined with a single pipeline expression,
+This system can alternatively be defined with a single pipeline expression,
 which expresses exactly the same set of relationships between the process applications.
 
 .. code:: python
