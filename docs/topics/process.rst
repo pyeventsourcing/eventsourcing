@@ -554,7 +554,7 @@ Processes
 
 A process application has a policy which defines how events are processed.
 In the code below, process applications are defined for orders, reservations,
-and payments.
+payments, and commands.
 
 The ``Orders`` process application policy responds to new commands by
 creating a new ``Order`` aggregate. It responds to new reservations by
@@ -571,7 +571,7 @@ by setting an ``Order`` as paid.
 
         @applicationpolicy
         def policy(self, repository, event):
-            pass
+            """Do nothing by default."""
 
         @policy.register(CreateOrder.Created)
         def _(self, repository, event):
@@ -613,7 +613,7 @@ by creating a new ``Reservation`` aggregate.
 
         @applicationpolicy
         def policy(self, repository, event):
-            pass
+            """Do nothing by default."""
 
         @policy.register(Order.Created)
         def _(self, repository, event):
@@ -633,7 +633,7 @@ by creating a new ``Payment``.
 
         @applicationpolicy
         def policy(self, repository, event):
-            pass
+            """Do nothing by default."""
 
         @policy.register(Order.Reserved)
         def _(self, repository, event):
@@ -645,13 +645,28 @@ by creating a new ``Payment``.
             return Payment.create(order_id=order_id)
 
 
-Additionally, the library class
-:class:`~eventsourcing.application.command.CommandProcess`
-is extended by defining a policy that responds to ``Order.Created``
-events by setting the ``order_id`` on the command, and to
-``Order.Paid`` events by setting the command as done. It also
-has a factory method ``create_order()`` which can be used to
-create new ``Order`` aggregates.
+A separate "commands application" is defined below. It extends the library class
+:class:`~eventsourcing.application.command.CommandProcess`.
+
+It has a factory method
+``create_order()`` which can be used to
+create and save new ``Order`` aggregates.
+
+The library class
+:class:`~eventsourcing.application.command.CommandProcess
+extends
+:class:`~eventsourcing.application.process.ProcessApplication`
+and so is also a
+:class:`~eventsourcing.application.simple.SimpleApplication`. It
+and has its ``persist_event_type`` set to the
+:class:`~eventsourcing.domain.model.command.Command.Event` supertype
+for domain events of :class:`~eventsourcing.domain.model.command.Command`
+aggregates, so that by default the domain events of a command aggregate
+will be persisted when a command aggregate is "saved".
+
+The ``Commands`` class below also defines a policy that responds both to
+``Order.Created`` events by setting the ``order_id`` on the command, and to
+``Order.Paid`` events by setting the command as done.
 
 .. code:: python
 
@@ -661,12 +676,16 @@ create new ``Order`` aggregates.
 
 
     class Commands(CommandProcess):
-
-        persist_event_type = CreateOrder.Event
+        @staticmethod
+        @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
+        def create_order():
+            cmd = CreateOrder.create()
+            cmd.__save__()
+            return cmd.id
 
         @applicationpolicy
         def policy(self, repository, event):
-            pass
+            """Do nothing by default."""
 
         @policy.register(Order.Created)
         def _(self, repository, event):
@@ -677,13 +696,6 @@ create new ``Order`` aggregates.
         def _(self, repository, event):
             cmd = repository[event.command_id]
             cmd.done()
-
-        @staticmethod
-        @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
-        def create_order():
-            cmd = CreateOrder.create()
-            cmd.__save__()
-            return cmd.id
 
 The ``@retry`` decorator overcomes contention when creating new commands
 whilst also processing domain events from the ``Orders`` application.
@@ -793,47 +805,37 @@ which contains the ``order`` aggregate expected by the policy.
 System
 ------
 
-A system of process applications can be defined using one or many pipeline expressions.
+A system of process applications can be defined using one or many "pipeline expressions",
+involving process application classes associated with the bitwise OR operator ("`|`").
 
-The expression ``A | A`` would have a process application class called ``A`` following
-itself. The expression ``A | B | C`` would have ``A`` followed by ``B`` and ``B``
-followed by ``C``. This can perhaps be recognised as the "pipes and filters" pattern,
-where the process applications function effectively as the filters.
+For example, the pipeline expression ``A | A`` would have process application class
+``A`` following itself. The expression ``A | B | C`` would have ``A`` followed by
+``B`` and ``B`` followed by ``C``. This can perhaps be recognised as the "pipes and
+filters" pattern, where the process applications function effectively as the filters.
 
-In this example, firstly the ``Orders`` process will follow the ``Commands`` process
-so that orders can be created. The ``Commands`` process will follow the ``Orders`` process,
-so that commands can be marked as done when processing is complete.
-
-.. code:: python
-
-    commands_pipeline = Commands | Orders | Commands
-
-Similarly, the ``Orders`` process and the ``Reservations`` process will follow
-each other. Also the ``Orders`` and the ``Payments`` process will follow each other.
-
-.. code:: python
-
-    reservations_pipeline = Orders | Reservations | Orders
-
-    payments_pipeline = Orders | Payments | Orders
-
-
-The orders-reservations-payments system can be defined using these pipeline expressions.
+In the system defined below, the ``Orders`` process follow the ``Commands`` process,
+and the ``Commands`` process follow the ``Orders`` process, so that each will receive
+the events that its policy has been defined to process. Similarly, ``Orders`` and
+``Reservations`` follow each other, and also ``Orders`` and ``Payments`` follow each other.
 
 .. code:: python
 
     from eventsourcing.application.system import System
 
-    system = System(commands_pipeline, reservations_pipeline, payments_pipeline)
+    system = System(
+        Commands | Orders | Commands,
+        Orders | Reservations | Orders,
+        Orders | Payments | Orders
+    )
 
-
-This is equivalent to a system defined with the following single pipeline expression.
+In this case, the system can be defined with a single pipeline expression,
+which expresses the same set of relationships between the process applications.
 
 .. code:: python
 
-    pipeline = Commands | Orders | Reservations | Orders | Payments | Orders | Commands
-
-    system = System(pipeline)
+    system = System(
+        Commands | Orders | Reservations | Orders | Payments | Orders | Commands
+    )
 
 
 Although a process application class can appear many times in the pipeline
@@ -1091,7 +1093,7 @@ processes altogether.
     )
 
 
-Fifteen orders will processed by the system altogether,
+Fifteen orders will be processed by the system altogether,
 five in each pipeline.
 
 .. code:: python
@@ -1145,9 +1147,14 @@ The actors will run by sending messages recursively.
 
     from eventsourcing.application.actors import ActorModelRunner
 
-    with ActorModelRunner(system=system, setup_tables=True,
-                          infrastructure_class=SQLAlchemyApplication,
-                          pipeline_ids=[0, 1, 2]) as runner:
+    runner = ActorModelRunner(
+        system=system,
+        infrastructure_class=SQLAlchemyApplication,
+        setup_tables=True,
+        pipeline_ids=[0, 1, 2]
+    )
+
+    with runner:
 
         # Create new orders.
         command_ids = []
@@ -1369,6 +1376,7 @@ library doesn't currently have any such adapter process classes or documentation
 .. been processed downstream, and also perhaps the event records.
 .. All tracking records except the last one can be removed. If
 .. processing with multiple threads, a slightly longer history of
+
 .. tracking records may help to block slow and stale threads from
 .. committing successfully. This hasn't been implemented in the library.
 
