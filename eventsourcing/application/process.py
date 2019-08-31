@@ -260,9 +260,9 @@ class ProcessApplication(Pipeable, SimpleApplication):
         if new_aggregates is not None:
             if not isinstance(new_aggregates, (list, tuple)):
                 new_aggregates = [new_aggregates]
-                if self.repository._use_cache:
-                    for new_aggregate in new_aggregates:
-                        self.repository._cache[new_aggregate.id] = new_aggregate
+            if self.repository._use_cache:
+                for new_aggregate in new_aggregates:
+                    self.repository._cache[new_aggregate.id] = new_aggregate
             all_aggregates += new_aggregates
 
         # Identify causal dependencies.
