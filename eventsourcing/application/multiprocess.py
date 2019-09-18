@@ -55,6 +55,8 @@ class MultiprocessRunner(SystemRunner):
         for pipeline_id in self.pipeline_ids:
             for process_name, upstream_names in self.system.followings.items():
                 process_class = self.system.process_classes[process_name]
+                inbox = self.inboxes[(pipeline_id, process_name.lower())]
+                outbox = self.outboxes.get((pipeline_id, process_name.lower()))
                 os_process = OperatingSystemProcess(
                     application_process_class=process_class,
                     infrastructure_class=self.infrastructure_class,
@@ -62,8 +64,8 @@ class MultiprocessRunner(SystemRunner):
                     poll_interval=self.poll_interval,
                     pipeline_id=pipeline_id,
                     setup_tables=self.setup_tables,
-                    inbox=self.inboxes[(pipeline_id, process_name.lower())],
-                    outbox=self.outboxes[(pipeline_id, process_name.lower())],
+                    inbox=inbox,
+                    outbox=outbox,
                 )
                 os_process.daemon = True
                 os_process.start()
@@ -74,8 +76,9 @@ class MultiprocessRunner(SystemRunner):
 
     def broadcast_prompt(self, prompt):
         outbox_id = (prompt.pipeline_id, prompt.process_name)
-        assert outbox_id in self.outboxes, (outbox_id, self.outboxes.keys())
-        self.outboxes[outbox_id].put(prompt)
+        outbox = self.outboxes.get(outbox_id)
+        if outbox:
+            outbox.put(prompt)
 
     @staticmethod
     def is_prompt(event):
@@ -214,7 +217,8 @@ class OperatingSystemProcess(multiprocessing.Process):
         self.process.run(prompt)
 
     def broadcast_prompt(self, prompt):
-        self.outbox.put(prompt)
+        if self.outbox is not None:
+            self.outbox.put(prompt)
 
     @staticmethod
     def is_prompt(event):
