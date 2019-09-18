@@ -3,7 +3,6 @@ from collections import OrderedDict, defaultdict
 from threading import Lock
 
 from eventsourcing.application.notificationlog import NotificationLogReader
-from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
@@ -20,7 +19,7 @@ class ProcessEvent(object):
         self.causal_dependencies = causal_dependencies
 
 
-class ProcessApplication(Pipeable, SimpleApplication):
+class ProcessApplication(SimpleApplication):
     set_notification_ids = False
     use_causal_dependencies = False
     notification_log_reader_class = NotificationLogReader

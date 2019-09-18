@@ -1,7 +1,7 @@
 import os
-from abc import ABC
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
+from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
@@ -13,7 +13,7 @@ from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_bytes
 
 
-class SimpleApplication(ABC):
+class SimpleApplication(Pipeable):
     """
     Base class for event sourced applications.
 
