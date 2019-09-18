@@ -256,6 +256,7 @@ class SystemRunner(ABC):
         # Todo: Move to having process application instances on runner only.
         return self.system.__getattr__(process_name, infrastructure_class=self.infrastructure_class)
 
+# Todo: Support passing SQLAlchemy session into runner.
 
 class InProcessRunner(SystemRunner):
     """
