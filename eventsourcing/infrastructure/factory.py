@@ -16,6 +16,7 @@ class InfrastructureFactory(object):
     integer_sequenced_noid_record_class = None
     timestamp_sequenced_record_class = None
     snapshot_record_class = None
+    tracking_record_class = None
     json_encoder_class = None
     json_decoder_class = None
     event_store_class = EventStore
@@ -23,8 +24,8 @@ class InfrastructureFactory(object):
     def __init__(self, record_manager_class=None, sequenced_item_class=None, event_store_class=None,
                  sequenced_item_mapper_class=None, json_encoder_class=None, json_decoder_class=None,
                  integer_sequenced_record_class=None, timestamp_sequenced_record_class=None,
-                 snapshot_record_class=None, contiguous_record_ids=False, application_name=None,
-                 pipeline_id=DEFAULT_PIPELINE_ID):
+                 snapshot_record_class=None, tracking_record_class=None, contiguous_record_ids=False,
+                 application_name=None, pipeline_id=DEFAULT_PIPELINE_ID):
 
         self.record_manager_class = record_manager_class or type(self).record_manager_class
         self.event_store_class = event_store_class or type(self).event_store_class
@@ -40,6 +41,7 @@ class InfrastructureFactory(object):
                                                 type(self).timestamp_sequenced_record_class
 
         self.snapshot_record_class = snapshot_record_class or type(self).snapshot_record_class
+        self.tracking_record_class = tracking_record_class or type(self).tracking_record_class
 
         self.contiguous_record_ids = contiguous_record_ids
         self.application_name = application_name

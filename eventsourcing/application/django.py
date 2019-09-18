@@ -3,7 +3,7 @@ from eventsourcing.infrastructure.django.factory import DjangoInfrastructureFact
 from eventsourcing.infrastructure.django.utils import close_django_connection, setup_django
 
 
-class DjangoMeta(type(ApplicationWithConcreteInfrastructure)):
+class DjangoApplicationMeta(type(ApplicationWithConcreteInfrastructure)):
     @property
     def record_manager_class(cls):
         from eventsourcing.infrastructure.django.manager import DjangoRecordManager
@@ -20,7 +20,7 @@ class DjangoMeta(type(ApplicationWithConcreteInfrastructure)):
         return EntitySnapshotRecord
 
 
-class DjangoApplication(ApplicationWithConcreteInfrastructure, metaclass=DjangoMeta):
+class DjangoApplication(ApplicationWithConcreteInfrastructure, metaclass=DjangoApplicationMeta):
 
     infrastructure_factory_class = DjangoInfrastructureFactory
 
