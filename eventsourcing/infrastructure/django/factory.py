@@ -34,6 +34,10 @@ class DjangoInfrastructureFactory(InfrastructureFactory, metaclass=DjangoInfrast
     """
     Infrastructure factory for Django.
     """
+    def __init__(self, tracking_record_class=None, *args, **kwargs):
+        super(DjangoInfrastructureFactory, self).__init__(*args, **kwargs)
+        self.tracking_record_class = tracking_record_class or type(self).tracking_record_class
+
     def construct_record_manager(self, *args, **kwargs):
         """
         Constructs Django record manager.

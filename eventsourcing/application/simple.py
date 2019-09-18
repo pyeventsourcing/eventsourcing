@@ -29,7 +29,6 @@ class SimpleApplication(Pipeable):
     record_manager_class = None
     stored_event_record_class = None
     snapshot_record_class = None
-    tracking_record_class = None
 
     sequenced_item_class = None
     sequenced_item_mapper_class = None
@@ -46,7 +45,7 @@ class SimpleApplication(Pipeable):
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
                  cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
                  record_manager_class=None, stored_event_record_class=None, event_store_class=None,
-                 snapshot_record_class=None, tracking_record_class=None, setup_table=True,
+                 snapshot_record_class=None, setup_table=True,
                  contiguous_record_ids=True, pipeline_id=DEFAULT_PIPELINE_ID, json_encoder_class=None,
                  json_decoder_class=None, notification_log_section_size=None):
         self._datastore = None
@@ -72,7 +71,6 @@ class SimpleApplication(Pipeable):
         self.stored_event_record_class = stored_event_record_class or type(self).stored_event_record_class
 
         self.snapshot_record_class = snapshot_record_class or type(self).snapshot_record_class
-        self.tracking_record_class = tracking_record_class or type(self).tracking_record_class
 
         self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
         self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
@@ -132,7 +130,6 @@ class SimpleApplication(Pipeable):
             pipeline_id=self.pipeline_id,
             snapshot_record_class=self.snapshot_record_class,
             event_store_class=self.event_store_class,
-            tracking_record_class=self.tracking_record_class,  # Todo: Push down?
             *args, **kwargs
         )
 

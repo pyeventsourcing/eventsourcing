@@ -23,6 +23,17 @@ class DjangoApplicationMeta(type(ApplicationWithConcreteInfrastructure)):
 class DjangoApplication(ApplicationWithConcreteInfrastructure, metaclass=DjangoApplicationMeta):
 
     infrastructure_factory_class = DjangoInfrastructureFactory
+    tracking_record_class = None
+
+    def __init__(self, tracking_record_class=None, *args, **kwargs):
+        self.tracking_record_class = tracking_record_class or type(self).tracking_record_class
+        super(DjangoApplication, self).__init__(*args, **kwargs)
+
+    def construct_infrastructure(self, *args, **kwargs):
+        super(DjangoApplication, self).construct_infrastructure(
+            tracking_record_class=self.tracking_record_class,
+            *args, **kwargs
+        )
 
     @classmethod
     def reset_connection_after_forking(cls):

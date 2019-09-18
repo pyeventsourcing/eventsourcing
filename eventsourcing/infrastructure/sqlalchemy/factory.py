@@ -19,11 +19,12 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
     snapshot_record_class = SnapshotRecord
     tracking_record_class = NotificationTrackingRecord
 
-    def __init__(self, session, uri=None, pool_size=None, *args, **kwargs):
+    def __init__(self, session, uri=None, pool_size=None, tracking_record_class=None, *args, **kwargs):
         super(SQLAlchemyInfrastructureFactory, self).__init__(*args, **kwargs)
         self.session = session
         self.uri = uri
         self.pool_size = pool_size
+        self.tracking_record_class = tracking_record_class or type(self).tracking_record_class
 
     def construct_record_manager(self, *args, **kwargs):
         """
