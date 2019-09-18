@@ -5,11 +5,9 @@ from sqlalchemy.sql import func
 
 from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.base import SQLRecordManager
-from eventsourcing.infrastructure.sqlalchemy.records import NotificationTrackingRecord
 
 
 class SQLAlchemyRecordManager(SQLRecordManager):
-    tracking_record_class = NotificationTrackingRecord
 
     _where_application_name_tmpl = (
         " WHERE application_name=:application_name AND pipeline_id=:pipeline_id"

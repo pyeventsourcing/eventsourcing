@@ -162,14 +162,22 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
     in an atomic transaction, needed for atomic processing in process
     applications.
     """
-    tracking_record_class = None
-
     tracking_record_field_names = [
         'application_name',
         'upstream_application_name',
         'pipeline_id',
         'notification_id',
     ]
+
+    def __init__(self, tracking_record_class=None, *args, **kwargs):
+        super(ACIDRecordManager, self).__init__(*args, **kwargs)
+        # assert tracking_record_class is not None
+        self.tracking_record_class = tracking_record_class
+
+    def clone(self, **kwargs):
+        return super(ACIDRecordManager, self).clone(
+            tracking_record_class=self.tracking_record_class, **kwargs
+        )
 
     @abstractmethod
     def write_records(self, records, tracking_kwargs=None):

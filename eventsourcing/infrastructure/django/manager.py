@@ -1,11 +1,9 @@
 from django.db import IntegrityError, connection, transaction, ProgrammingError
 
 from eventsourcing.infrastructure.base import SQLRecordManager
-from eventsourcing.infrastructure.django.models import NotificationTrackingRecord
 
 
 class DjangoRecordManager(SQLRecordManager):
-    tracking_record_class = NotificationTrackingRecord
 
     _where_application_name_tmpl = (
         " WHERE application_name = %s AND pipeline_id = %s"

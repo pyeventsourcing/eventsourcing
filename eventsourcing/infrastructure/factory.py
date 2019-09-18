@@ -26,19 +26,20 @@ class InfrastructureFactory(object):
                  snapshot_record_class=None, contiguous_record_ids=False, application_name=None,
                  pipeline_id=DEFAULT_PIPELINE_ID):
 
-        self.record_manager_class = record_manager_class or self.record_manager_class
-        self.event_store_class = event_store_class or self.event_store_class
-        self.sequenced_item_class = sequenced_item_class or self.sequenced_item_class
-        self.sequenced_item_mapper_class = sequenced_item_mapper_class or self.sequenced_item_mapper_class
-        self.json_encoder_class = json_encoder_class or self.json_encoder_class
-        self.json_decoder_class = json_decoder_class or self.json_decoder_class
+        self.record_manager_class = record_manager_class or type(self).record_manager_class
+        self.event_store_class = event_store_class or type(self).event_store_class
+        self.sequenced_item_class = sequenced_item_class or type(self).sequenced_item_class
+        self.sequenced_item_mapper_class = sequenced_item_mapper_class or type(self).sequenced_item_mapper_class
+        self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
+        self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
 
-        self.integer_sequenced_record_class = integer_sequenced_record_class or self.integer_sequenced_record_class
+        self.integer_sequenced_record_class = integer_sequenced_record_class or \
+                                              type(self).integer_sequenced_record_class
 
         self.timestamp_sequenced_record_class = timestamp_sequenced_record_class or \
-                                                self.timestamp_sequenced_record_class
+                                                type(self).timestamp_sequenced_record_class
 
-        self.snapshot_record_class = snapshot_record_class or self.snapshot_record_class
+        self.snapshot_record_class = snapshot_record_class or type(self).snapshot_record_class
 
         self.contiguous_record_ids = contiguous_record_ids
         self.application_name = application_name

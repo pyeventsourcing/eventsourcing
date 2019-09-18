@@ -1,4 +1,5 @@
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
+from eventsourcing.infrastructure.django.factory import DjangoInfrastructureFactory
 from eventsourcing.infrastructure.django.utils import close_django_connection, setup_django
 
 
@@ -20,6 +21,8 @@ class DjangoMeta(type(ApplicationWithConcreteInfrastructure)):
 
 
 class DjangoApplication(ApplicationWithConcreteInfrastructure, metaclass=DjangoMeta):
+
+    infrastructure_factory_class = DjangoInfrastructureFactory
 
     @classmethod
     def reset_connection_after_forking(cls):

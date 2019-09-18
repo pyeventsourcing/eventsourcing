@@ -6,7 +6,7 @@ from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedWithIDRecord, SnapshotRecord, \
-    StoredEventRecord, TimestampSequencedNoIDRecord
+    StoredEventRecord, TimestampSequencedNoIDRecord, NotificationTrackingRecord
 
 
 class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
@@ -17,6 +17,7 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
     integer_sequenced_record_class = IntegerSequencedWithIDRecord
     timestamp_sequenced_record_class = TimestampSequencedNoIDRecord
     snapshot_record_class = SnapshotRecord
+    tracking_record_class = NotificationTrackingRecord
 
     def __init__(self, session, uri=None, pool_size=None, *args, **kwargs):
         super(SQLAlchemyInfrastructureFactory, self).__init__(*args, **kwargs)
@@ -33,7 +34,11 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
         :rtype: SQLAlchemyRecordManager
         """
         s = super(SQLAlchemyInfrastructureFactory, self)
-        return s.construct_record_manager(session=self.session, *args, **kwargs)
+        return s.construct_record_manager(
+            session=self.session,
+            tracking_record_class=self.tracking_record_class,
+            *args, **kwargs
+        )
 
     def construct_datastore(self):
         """
