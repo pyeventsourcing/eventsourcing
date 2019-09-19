@@ -33,13 +33,17 @@ class InfrastructureFactory(object):
         self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
         self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
 
-        self.integer_sequenced_record_class = integer_sequenced_record_class or \
-                                              type(self).integer_sequenced_record_class
+        self.integer_sequenced_record_class = integer_sequenced_record_class \
+                                              or self.integer_sequenced_record_class \
+                                              or type(self).integer_sequenced_record_class
 
-        self.timestamp_sequenced_record_class = timestamp_sequenced_record_class or \
-                                                type(self).timestamp_sequenced_record_class
+        self.timestamp_sequenced_record_class = timestamp_sequenced_record_class \
+                                                or self.timestamp_sequenced_record_class \
+                                                or type(self).timestamp_sequenced_record_class
 
-        self.snapshot_record_class = snapshot_record_class or type(self).snapshot_record_class
+        self.snapshot_record_class = snapshot_record_class \
+                                     or self.snapshot_record_class \
+                                     or type(self).snapshot_record_class
 
         self.contiguous_record_ids = contiguous_record_ids
         self.application_name = application_name

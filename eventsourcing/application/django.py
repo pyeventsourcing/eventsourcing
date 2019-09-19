@@ -5,11 +5,6 @@ from eventsourcing.infrastructure.django.utils import close_django_connection, s
 
 class DjangoApplicationMeta(type(ApplicationWithConcreteInfrastructure)):
     @property
-    def record_manager_class(cls):
-        from eventsourcing.infrastructure.django.manager import DjangoRecordManager
-        return DjangoRecordManager
-
-    @property
     def stored_event_record_class(cls):
         from eventsourcing.infrastructure.django.models import StoredEventRecord
         return StoredEventRecord
@@ -19,6 +14,11 @@ class DjangoApplicationMeta(type(ApplicationWithConcreteInfrastructure)):
         from eventsourcing.infrastructure.django.models import EntitySnapshotRecord
         return EntitySnapshotRecord
 
+    @property
+    def tracking_record_class(cls):
+        from eventsourcing.infrastructure.django.models import NotificationTrackingRecord
+        return NotificationTrackingRecord
+
 
 class DjangoApplication(ApplicationWithConcreteInfrastructure, metaclass=DjangoApplicationMeta):
 
@@ -26,7 +26,13 @@ class DjangoApplication(ApplicationWithConcreteInfrastructure, metaclass=DjangoA
     tracking_record_class = None
 
     def __init__(self, tracking_record_class=None, *args, **kwargs):
-        self.tracking_record_class = tracking_record_class or type(self).tracking_record_class
+        _tracking_record_class = tracking_record_class \
+                                     or self.tracking_record_class \
+                                     or type(self).tracking_record_class
+
+        if isinstance(_tracking_record_class, str):
+            raise Exception(_tracking_record_class)
+        self.tracking_record_class = _tracking_record_class
         super(DjangoApplication, self).__init__(*args, **kwargs)
 
     def construct_infrastructure(self, *args, **kwargs):

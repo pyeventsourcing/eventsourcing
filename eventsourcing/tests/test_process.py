@@ -161,14 +161,14 @@ class TestProcess(TestCase):
 
         # Setup downstream process.
         downstream1 = process_class(
-            'downstream',
+            name='downstream',
             pipeline_id=pipeline_id1,
             policy=event_logging_policy,
             **kwargs
         )
         downstream1.follow('core', core1.notification_log)
         downstream2 = process_class(
-            'downstream',
+            name='downstream',
             pipeline_id=pipeline_id2,
             policy=event_logging_policy,
             **kwargs

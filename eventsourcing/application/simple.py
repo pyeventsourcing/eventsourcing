@@ -68,9 +68,14 @@ class SimpleApplication(Pipeable):
         self.record_manager_class = record_manager_class or type(self).record_manager_class
 
         self.event_store_class = event_store_class or type(self).event_store_class
-        self.stored_event_record_class = stored_event_record_class or type(self).stored_event_record_class
 
-        self.snapshot_record_class = snapshot_record_class or type(self).snapshot_record_class
+        self.stored_event_record_class = stored_event_record_class \
+                                         or self.stored_event_record_class \
+                                         or type(self).stored_event_record_class
+
+        self.snapshot_record_class = snapshot_record_class \
+                                     or self.snapshot_record_class \
+                                     or type(self).snapshot_record_class
 
         self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
         self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
