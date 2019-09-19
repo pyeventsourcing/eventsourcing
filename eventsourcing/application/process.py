@@ -41,8 +41,9 @@ class ProcessApplication(SimpleApplication):
 
         super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
 
-        self.notification_topic_key = self.event_store.record_manager.field_names.topic
-        self.notification_state_key = self.event_store.record_manager.field_names.state
+        if self.event_store:
+            self.notification_topic_key = self.event_store.record_manager.field_names.topic
+            self.notification_state_key = self.event_store.record_manager.field_names.state
 
         # Publish prompts for any domain events that we persist.
         if self.persistence_policy:
