@@ -41,6 +41,9 @@ class ProcessApplication(SimpleApplication):
 
         super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
 
+        self.notification_topic_key = self.event_store.record_manager.field_names.topic
+        self.notification_state_key = self.event_store.record_manager.field_names.state
+
         # Publish prompts for any domain events that we persist.
         if self.persistence_policy:
             subscribe(
@@ -209,8 +212,8 @@ class ProcessApplication(SimpleApplication):
 
     def get_event_from_notification(self, notification):
         return self.event_store.mapper.event_from_topic_and_state(
-            topic=notification['topic'],
-            state=notification['state']
+            topic=notification[self.notification_topic_key],
+            state=notification[self.notification_state_key]
         )
 
     def get_notification_generator(self, upstream_name, advance_by):

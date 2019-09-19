@@ -98,7 +98,7 @@ class SimpleApplication(Pipeable):
         return self._datastore
 
     @property
-    def event_store(self):
+    def event_store(self) -> EventStore:
         return self._event_store
 
     @property
