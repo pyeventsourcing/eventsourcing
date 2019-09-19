@@ -180,9 +180,10 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
         )
 
     @abstractmethod
-    def write_records(self, records, tracking_kwargs=None):
+    def write_records(self, records, tracking_kwargs=None, orm_objs=None):
         """
         Writes tracking, event and notification records for a process event.
+        :param orm_objs:
         """
 
     @abstractmethod

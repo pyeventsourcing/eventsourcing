@@ -13,10 +13,11 @@ from eventsourcing.utils.transcoding import json_dumps, json_loads
 
 
 class ProcessEvent(object):
-    def __init__(self, new_events, tracking_kwargs=None, causal_dependencies=None):
+    def __init__(self, new_events, tracking_kwargs=None, causal_dependencies=None, orm_objs=None):
         self.new_events = new_events
         self.tracking_kwargs = tracking_kwargs
         self.causal_dependencies = causal_dependencies
+        self.orm_objs = orm_objs
 
 
 class ProcessApplication(SimpleApplication):
@@ -169,7 +170,7 @@ class ProcessApplication(SimpleApplication):
         else:
             cycle_started = None
         # Call policy with the upstream event.
-        all_aggregates, causal_dependencies = self.call_policy(event)
+        all_aggregates, causal_dependencies, orm_objs = self.call_policy(event)
         # Collect pending events.
         new_events = self.collect_pending_events(all_aggregates)
         # Record process event.
@@ -178,7 +179,10 @@ class ProcessApplication(SimpleApplication):
                 notification_id, upstream_name
             )
             process_event = ProcessEvent(
-                new_events, tracking_kwargs, causal_dependencies
+                new_events=new_events,
+                tracking_kwargs=tracking_kwargs,
+                causal_dependencies=causal_dependencies,
+                orm_objs=orm_objs
             )
             self.record_process_event(process_event)
 
@@ -287,7 +291,7 @@ class ProcessApplication(SimpleApplication):
                 })
         # Todo: Optionally reference causal dependencies in current pipeline.
         # Todo: Support processing notification from a single pipeline in parallel, according to dependencies.
-        return all_aggregates, causal_dependencies
+        return all_aggregates, causal_dependencies, repository.pending_orm_objs
 
     @staticmethod
     def policy(repository, event):
@@ -335,7 +339,7 @@ class ProcessApplication(SimpleApplication):
             'notification_id': notification_id,
         }
 
-    def record_process_event(self, process_event):
+    def record_process_event(self, process_event: ProcessEvent):
         # Construct event records.
         event_records = self.construct_event_records(process_event.new_events,
                                                      process_event.causal_dependencies)
@@ -344,7 +348,8 @@ class ProcessApplication(SimpleApplication):
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, ACIDRecordManager)
         record_manager.write_records(records=event_records,
-                                     tracking_kwargs=process_event.tracking_kwargs)
+                                     tracking_kwargs=process_event.tracking_kwargs,
+                                     orm_objs=process_event.orm_objs)
 
     def construct_event_records(self, pending_events, causal_dependencies=None):
         # Convert to event records.
@@ -392,6 +397,7 @@ class RepositoryWrapper(object):
         assert isinstance(repository, EventSourcedRepository)
         self.repository = repository
         self.causal_dependencies = []
+        self.pending_orm_objs = []
 
     def __getitem__(self, entity_id):
         try:
@@ -404,6 +410,9 @@ class RepositoryWrapper(object):
 
     def __contains__(self, entity_id):
         return self.repository.__contains__(entity_id)
+
+    def save_orm_obj(self, orb_obj):
+        self.pending_orm_objs.append(orb_obj)
 
 
 class Prompt(object):

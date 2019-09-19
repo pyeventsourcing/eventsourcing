@@ -9,12 +9,12 @@ class DjangoRecordManager(SQLRecordManager):
         " WHERE application_name = %s AND pipeline_id = %s"
     )
 
-    def write_records(self, records, tracking_kwargs=None):
+    def write_records(self, records, tracking_kwargs=None, orm_objs=None):
         try:
             with transaction.atomic(self.record_class.objects.db):
                 with connection.cursor() as cursor:
+                    # Insert tracking record.
                     if tracking_kwargs:
-                        # Insert tracking record.
                         params = [tracking_kwargs[c] for c in self.tracking_record_field_names]
                         cursor.execute(self.insert_tracking_record, params)
 
@@ -59,6 +59,11 @@ class DjangoRecordManager(SQLRecordManager):
                         # Save record objects.
                         for record in records:
                             record.save()
+
+                    # Call 'save()' on each of the ORM objects.
+                    if orm_objs:
+                        for orm_obj in orm_objs:
+                            orm_obj.save()
 
         except IntegrityError as e:
             self.raise_record_integrity_error(e)

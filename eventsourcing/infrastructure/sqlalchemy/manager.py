@@ -57,7 +57,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
         return compiled
 
-    def write_records(self, records, tracking_kwargs=None):
+    def write_records(self, records, tracking_kwargs=None, orm_objs=None):
         all_params = []
         statement = None
         if records:
