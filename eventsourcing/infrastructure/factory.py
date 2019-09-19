@@ -2,7 +2,7 @@ from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.datastore import AbstractDatastore
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
-from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper, AbstractSequencedItemMapper
+from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper, SequencedItemMapper
 
 
 class InfrastructureFactory(object):
@@ -25,7 +25,6 @@ class InfrastructureFactory(object):
                  integer_sequenced_record_class=None, timestamp_sequenced_record_class=None,
                  snapshot_record_class=None, contiguous_record_ids=False,
                  application_name=None, pipeline_id=DEFAULT_PIPELINE_ID):
-
         self.record_manager_class = record_manager_class or type(self).record_manager_class
         self.event_store_class = event_store_class or type(self).event_store_class
         self.sequenced_item_class = sequenced_item_class or type(self).sequenced_item_class
@@ -33,17 +32,11 @@ class InfrastructureFactory(object):
         self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
         self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
 
-        self.integer_sequenced_record_class = integer_sequenced_record_class \
-                                              or self.integer_sequenced_record_class \
-                                              or type(self).integer_sequenced_record_class
+        self._integer_sequenced_record_class = integer_sequenced_record_class
 
-        self.timestamp_sequenced_record_class = timestamp_sequenced_record_class \
-                                                or self.timestamp_sequenced_record_class \
-                                                or type(self).timestamp_sequenced_record_class
+        self._timestamp_sequenced_record_class = timestamp_sequenced_record_class
 
-        self.snapshot_record_class = snapshot_record_class \
-                                     or self.snapshot_record_class \
-                                     or type(self).snapshot_record_class
+        self._snapshot_record_class = snapshot_record_class
 
         self.contiguous_record_ids = contiguous_record_ids
         self.application_name = application_name
@@ -53,19 +46,31 @@ class InfrastructureFactory(object):
         """
         Constructs an integer sequenced record manager.
         """
-        return self.construct_record_manager(self.integer_sequenced_record_class)
+        integer_sequenced_record_class = self._integer_sequenced_record_class \
+                                         or self.integer_sequenced_record_class \
+                                         or type(self).integer_sequenced_record_class
+
+        return self.construct_record_manager(integer_sequenced_record_class)
 
     def construct_timestamp_sequenced_record_manager(self):
         """
         Constructs a timestamp sequenced record manager.
         """
-        return self.construct_record_manager(self.timestamp_sequenced_record_class)
+        timestamp_sequenced_record_class = self._timestamp_sequenced_record_class \
+                                           or self.timestamp_sequenced_record_class \
+                                           or type(self).timestamp_sequenced_record_class
+
+        return self.construct_record_manager(timestamp_sequenced_record_class)
 
     def construct_snapshot_record_manager(self):
         """
         Constructs a snapshot record manager.
         """
-        return self.construct_record_manager(self.snapshot_record_class)
+        snapshot_record_class = self._snapshot_record_class \
+                                or self.snapshot_record_class \
+                                or type(self).snapshot_record_class
+
+        return self.construct_record_manager(snapshot_record_class)
 
     def construct_record_manager(self, record_class, sequenced_item_class=None, **kwargs):
         """
