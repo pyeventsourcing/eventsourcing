@@ -42,35 +42,40 @@ class InfrastructureFactory(object):
         self.application_name = application_name
         self.pipeline_id = pipeline_id
 
-    def construct_integer_sequenced_record_manager(self):
+    def construct_integer_sequenced_record_manager(self, **kwargs):
         """
         Constructs an integer sequenced record manager.
         """
         integer_sequenced_record_class = self._integer_sequenced_record_class \
-                                         or self.integer_sequenced_record_class \
-                                         or type(self).integer_sequenced_record_class
+                                         or self.integer_sequenced_record_class
 
-        return self.construct_record_manager(integer_sequenced_record_class)
+        return self.construct_record_manager(
+            integer_sequenced_record_class,
+            **kwargs
+        )
 
-    def construct_timestamp_sequenced_record_manager(self):
+    def construct_timestamp_sequenced_record_manager(self, **kwargs):
         """
         Constructs a timestamp sequenced record manager.
         """
         timestamp_sequenced_record_class = self._timestamp_sequenced_record_class \
-                                           or self.timestamp_sequenced_record_class \
-                                           or type(self).timestamp_sequenced_record_class
+                                           or self.timestamp_sequenced_record_class
 
-        return self.construct_record_manager(timestamp_sequenced_record_class)
+        return self.construct_record_manager(
+            timestamp_sequenced_record_class,
+            **kwargs
+        )
 
-    def construct_snapshot_record_manager(self):
+    def construct_snapshot_record_manager(self, **kwargs):
         """
         Constructs a snapshot record manager.
         """
-        snapshot_record_class = self._snapshot_record_class \
-                                or self.snapshot_record_class \
-                                or type(self).snapshot_record_class
+        snapshot_record_class = self._snapshot_record_class or self.snapshot_record_class
 
-        return self.construct_record_manager(snapshot_record_class)
+        return self.construct_record_manager(
+            snapshot_record_class,
+            **kwargs
+        )
 
     def construct_record_manager(self, record_class, sequenced_item_class=None, **kwargs):
         """
@@ -108,7 +113,7 @@ class InfrastructureFactory(object):
         sequenced_item_mapper = self.construct_sequenced_item_mapper(cipher)
         record_manager = self.construct_integer_sequenced_record_manager()
         return self.event_store_class(
-            record_manager=record_manager,
+            record_manager,
             sequenced_item_mapper=sequenced_item_mapper,
         )
 

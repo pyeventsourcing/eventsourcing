@@ -69,13 +69,9 @@ class SimpleApplication(Pipeable):
 
         self.event_store_class = event_store_class or type(self).event_store_class
 
-        self.stored_event_record_class = stored_event_record_class \
-                                         or self.stored_event_record_class \
-                                         or type(self).stored_event_record_class
+        self._stored_event_record_class = stored_event_record_class
 
-        self.snapshot_record_class = snapshot_record_class \
-                                     or self.snapshot_record_class \
-                                     or type(self).snapshot_record_class
+        self._snapshot_record_class = snapshot_record_class
 
         self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
         self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
@@ -125,15 +121,19 @@ class SimpleApplication(Pipeable):
         """
         factory_class = self.infrastructure_factory_class
         assert issubclass(factory_class, InfrastructureFactory)
+
+        integer_sequenced_record_class = self._stored_event_record_class or self.stored_event_record_class
+        snapshot_record_class = self._snapshot_record_class or self.snapshot_record_class
+
         return factory_class(
             record_manager_class=self.record_manager_class,
-            integer_sequenced_record_class=self.stored_event_record_class,
+            integer_sequenced_record_class=integer_sequenced_record_class,
+            snapshot_record_class=snapshot_record_class,
             sequenced_item_class=self.sequenced_item_class,
             sequenced_item_mapper_class=self.sequenced_item_mapper_class,
             contiguous_record_ids=self.contiguous_record_ids,
             application_name=self.name,
             pipeline_id=self.pipeline_id,
-            snapshot_record_class=self.snapshot_record_class,
             event_store_class=self.event_store_class,
             *args, **kwargs
         )

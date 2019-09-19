@@ -8,9 +8,8 @@ class SnapshottingApplication(SimpleApplication):
     # Todo: Change this to default to None?
     snapshot_period = 2
 
-    def __init__(self, snapshot_period=None, snapshot_record_class=None, **kwargs):
+    def __init__(self, snapshot_period=None, **kwargs):
         self.snapshot_period = snapshot_period or self.snapshot_period
-        self.snapshot_record_class = snapshot_record_class
         self.snapshotting_policy = None
         self.snapshot_store = None
         self.snapshot_strategy = None

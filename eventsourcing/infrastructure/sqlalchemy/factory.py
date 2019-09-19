@@ -24,21 +24,32 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
         self.session = session
         self.uri = uri
         self.pool_size = pool_size
-        self.tracking_record_class = tracking_record_class or type(self).tracking_record_class
+        self._tracking_record_class = tracking_record_class
 
-    def construct_record_manager(self, *args, **kwargs):
+    def construct_integer_sequenced_record_manager(self, **kwargs):
         """
         Constructs SQLAlchemy record manager.
-        :param args:
-        :param kwargs:
+
         :return: An SQLAlchemy record manager.
         :rtype: SQLAlchemyRecordManager
         """
-        s = super(SQLAlchemyInfrastructureFactory, self)
-        return s.construct_record_manager(
+        tracking_record_class = self._tracking_record_class or self.tracking_record_class
+        return super(SQLAlchemyInfrastructureFactory, self).construct_integer_sequenced_record_manager(
+            tracking_record_class=tracking_record_class,
+            **kwargs
+        )
+
+    def construct_record_manager(self, record_class, **kwargs):
+        """
+        Constructs SQLAlchemy record manager.
+
+        :return: An SQLAlchemy record manager.
+        :rtype: SQLAlchemyRecordManager
+        """
+        return super(SQLAlchemyInfrastructureFactory, self).construct_record_manager(
+            record_class,
             session=self.session,
-            tracking_record_class=self.tracking_record_class,
-            *args, **kwargs
+            **kwargs
         )
 
     def construct_datastore(self):
