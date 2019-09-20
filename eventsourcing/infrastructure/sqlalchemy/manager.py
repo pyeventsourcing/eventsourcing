@@ -52,10 +52,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         # Redefine statement with explicitly typed bind parameters.
         statement = statement.bindparams(*bindparams)
 
-        # Compile the statement with the session dialect.
-        compiled = statement.compile(dialect=self.session.bind.dialect)
-
-        return compiled
+        return statement
 
     def write_records(self, records, tracking_kwargs=None, orm_objs=None):
         all_params = []
@@ -108,26 +105,45 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
                 all_params.append(params)
 
-        elif not tracking_kwargs:
-            # Don't bother if there is nothing to write.
-            return
-
         try:
+            nothing_to_commit = True
 
-            with self.session.bind.begin() as connection:
-                if tracking_kwargs:
-                    # Insert tracking record.
-                    connection.execute(self.insert_tracking_record, **tracking_kwargs)
+            # Commit custom ORM objects.
+            if orm_objs:
+                for orm_obj in orm_objs:
+                    self.session.add(orm_obj)
+                nothing_to_commit = False
 
-                if all_params:
-                    # Bulk insert event records.
-                    connection.execute(statement, all_params)
+            # Insert tracking record.
+            if tracking_kwargs:
+                self.session.execute(self.insert_tracking_record, tracking_kwargs)
+                nothing_to_commit = False
+
+            # Bulk insert event records.
+            if all_params:
+                self.session.execute(statement, all_params)
+                nothing_to_commit = False
+
+            if nothing_to_commit:
+                return
+
+            self.session.commit()
 
         except IntegrityError as e:
+            self.session.rollback()
             self.raise_record_integrity_error(e)
 
         except DBAPIError as e:
+            self.session.rollback()
             self.raise_operational_error(e)
+
+        except:
+            self.session.rollback()
+            raise
+
+        finally:
+            self.session.close()
+
 
     def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
                     query_ascending=True, results_ascending=True):

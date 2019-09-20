@@ -14,7 +14,7 @@ from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import json_loads
 
 
-class TestProcess(TestCase):
+class TestProcessApplication(TestCase):
     process_class = SQLAlchemyApplication
 
     def test_process_with_example_policy(self):
