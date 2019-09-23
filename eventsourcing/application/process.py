@@ -256,7 +256,7 @@ class ProcessApplication(SimpleApplication):
         policy = self.policy_func or self.policy
 
         # Wrap the actual repository, so we can collect aggregates.
-        repository = RepositoryWrapper(self.repository)
+        repository = WrappedRepository(self.repository)
 
         # Actually call the policy.
         new_aggregates = policy(repository, event)
@@ -391,10 +391,17 @@ class ProcessApplication(SimpleApplication):
             )
 
 
-class RepositoryWrapper(object):
-    def __init__(self, repository):
+class WrappedRepository(object):
+    """
+    Used to wrap an event sourced repository for use in process application
+    policy so that use of, and changes to, domain model aggregates can be
+    automatically detected and recorded.
+
+    Implements a "dictionary like" interface, so that aggregates can be
+    accessed by ID.
+    """
+    def __init__(self, repository: EventSourcedRepository):
         self.retrieved_aggregates = {}
-        assert isinstance(repository, EventSourcedRepository)
         self.repository = repository
         self.causal_dependencies = []
         self.pending_orm_objs = []
@@ -411,8 +418,13 @@ class RepositoryWrapper(object):
     def __contains__(self, entity_id):
         return self.repository.__contains__(entity_id)
 
-    def save_orm_obj(self, orb_obj):
-        self.pending_orm_objs.append(orb_obj)
+    def save_orm_obj(self, orm_obj):
+        """
+        Includes orm_obj in "process event", so that projections into
+        custom ORM objects is as reliable with respect to sudden restarts
+        as "normal" domain event processing in a process application.
+        """
+        self.pending_orm_objs.append(orm_obj)
 
 
 class Prompt(object):

@@ -554,15 +554,19 @@ along with the state of the projection that results from processing that domain 
 all in the same atomic transaction. When restarting, the tracking records can be used
 to position the notification reader in the notification log sequence.
 
-Looking ahead to the next section on :doc:`Distributed system </topics/process>`, the
- ``save_orm_obj()`` method of the ``repository`` obj passed in the ``policy()`` function
-of the ``ProcessApplication`` class declares support for persisting custom ORM records
-atomically with tracking information. Instead of calling, for example ``obj.save()``
-on a Django ORM object, which would tend to record the state of the ORM in a separate
-transaction from the tracking information of the "process event", the ORM obj can be
-included in the "process event" by passing it an an argument to ``save_orm_obj()``.
+Looking ahead to the next section on :doc:`distributed systems </topics/process>`, the
+``save_orm_obj()`` method of the ``WrappedRepository`` object, which is passed into the
+``policy()`` function of a :class:`~eventsourcing.application.process.ProcessApplication`
+object as the ``repository`` argument, declares support for persisting custom ORM records
+atomically with tracking information. Instead of calling, for example ``obj.save()`` on
+a Django ORM object, which would tend to record the state of the ORM in a separate
+transaction from the tracking information of the "process event", making the state of the
+projection vulnerable to sudden restarts, the ORM obj can be included in the "process event"
+by passing it an an argument to ``save_orm_obj()``.
 
 .. code:: python
+
+    from eventsourcing.application.process import ProcessApplication
 
     class Projection(ProcessApplication):
 
@@ -579,7 +583,7 @@ included in the "process event" by passing it an an argument to ``save_orm_obj()
 
 
 Calling ``save_orm_obj()`` doesn't immediately update the database, but instead
-appends the object to a list of custom ORM objects that are passed down the stack and
+appends the ORM object to a list of ORM objects that will be passed down the stack and
 recorded within a single transaction along with other factors of the process event
 after the policy function has returned. This method can be called many times within
 a single policy function, but only needs to be called once per object. All changes

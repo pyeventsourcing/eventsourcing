@@ -2,7 +2,7 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.application.command import CommandProcess
-from eventsourcing.application.process import ProcessApplication, ProcessApplicationWithSnapshotting, RepositoryWrapper
+from eventsourcing.application.process import ProcessApplication, ProcessApplicationWithSnapshotting, WrappedRepository
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.domain.model.aggregate import AggregateRoot, BaseAggregateRoot
 from eventsourcing.domain.model.command import Command
@@ -40,11 +40,11 @@ class TestProcessApplication(TestCase):
             self.assertTrue(process.repository[aggregate.id].is_moved_on)
 
             # Check the __contains__ method of the repo wrapper.
-            self.assertIn(aggregate.id, RepositoryWrapper(process.repository))
-            self.assertNotIn(uuid4(), RepositoryWrapper(process.repository))
+            self.assertIn(aggregate.id, WrappedRepository(process.repository))
+            self.assertNotIn(uuid4(), WrappedRepository(process.repository))
 
             # Check the repository wrapper tracks causal dependencies.
-            repository = RepositoryWrapper(process.repository)
+            repository = WrappedRepository(process.repository)
             aggregate = repository[aggregate.id]
             causal_dependencies = repository.causal_dependencies
             self.assertEqual(len(causal_dependencies), 1)
