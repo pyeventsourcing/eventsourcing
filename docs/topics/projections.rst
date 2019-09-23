@@ -567,6 +567,9 @@ by passing it an an argument to ``save_orm_obj()``.
 .. code:: python
 
     from eventsourcing.application.process import ProcessApplication
+    from eventsourcing.application.decorators import applicationpolicy
+    from eventsourcing.domain.model.aggregate import AggregateRoot
+
 
     class Projection(ProcessApplication):
 
@@ -574,7 +577,7 @@ by passing it an an argument to ``save_orm_obj()``.
         def policy(self, repository, event):
             """Do nothing by default."""
 
-        @policy.register(Something.Happened)
+        @policy.register(AggregateRoot.Event)
         def _(self, repository, event):
             object1 = CustomRecord(a=1, b=2)
             repository.save_orm_obj(object1)
