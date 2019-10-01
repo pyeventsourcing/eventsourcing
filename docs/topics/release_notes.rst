@@ -22,7 +22,7 @@ Version 7.2.0 (released 1 Oct 2019)
 ------------------------------------
 
 Version 7.2.0 has support for "reliable projections" into custom
-ORM objects that they can be coded as process application policies.
+ORM objects that can be coded as process application policies.
 
 Also a few issues were resolved: avoiding importing Django models from library
 when custom models are being used to store events prevents model conflicts;
